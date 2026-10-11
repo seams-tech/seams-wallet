@@ -108,12 +108,12 @@ import {
 import { CloudflareD1WalletAuthMethodService } from '../wallet/d1WalletAuthMethodService';
 import {
   CloudflareD1WalletRegistrationService,
-  type D1WalletRegistrationOperationPreparedV1,
   type D1WalletRegistrationActivateSideEffectRecord,
   type D1WalletRegistrationActivateSideEffectStore,
   type D1WalletRegistrationNearProvisioningSideEffectRecord,
-  type D1WalletRegistrationNearProvisioningSideEffectStore,
 } from '../registration/d1WalletRegistrationService';
+import { D1RegistrationFinalizationRead } from '../registration/d1RegistrationFinalizationRead';
+import type { D1WalletRegistrationOperationPreparedV1 } from '../registration/d1WalletRegistrationPreparation';
 import {
   parseD1EcdsaDerivationServerBootstrapResponse,
   parseD1WalletRegistrationCommittedInstallationProjection,
@@ -145,7 +145,6 @@ import {
   type CloudflareD1RouterApiAuthServiceOptions,
   type NormalizedCloudflareD1RouterApiAuthServiceOptions,
 } from './d1RouterApiAuthConfig';
-import type { RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import { createD1LinkedDeviceRouteServiceV1 } from '../deviceLinking/d1LinkedDeviceRouteService';
 import type { DeviceLinkingRouteServiceV1 } from '../../../transport/fetch/routes/deviceLinking';
 import { D1LinkedDeviceEmailOtpGrantStoreV1 } from '../deviceLinking/d1LinkedDeviceEmailOtpGrantStore';
@@ -1100,12 +1099,6 @@ function registrationReceiptMatchesJournal(
   );
 }
 
-function resolveEd25519YaoProductRegistration(
-  options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
-): RouterAbEd25519YaoProductRegistrationRuntimeV1 | null {
-  return options.ed25519YaoProductRegistration || null;
-}
-
 function walletRegistrationActivateSideEffectStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
 ): D1WalletRegistrationActivateSideEffectStore {
@@ -1128,7 +1121,7 @@ function walletRegistrationActivateSideEffectStore(
 
 function walletRegistrationNearProvisioningSideEffectStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
-): D1WalletRegistrationNearProvisioningSideEffectStore {
+): D1WalletOperationStore<D1WalletRegistrationNearProvisioningSideEffectRecord> {
   return new D1WalletOperationStore<D1WalletRegistrationNearProvisioningSideEffectRecord>(
     {
       database: options.database,
@@ -1384,12 +1377,17 @@ function createCloudflareD1RouterApiAuthAssembly(
     createSponsoredNamedNearAccount,
     emailOtpRegistrationEnrollmentFinalizer,
     getRegistrationCeremonyIntentStore,
-    getEd25519YaoProductRegistration: () => resolveEd25519YaoProductRegistration(options),
+    getEd25519YaoProductRegistration: () => options.ed25519YaoProductRegistration ?? null,
     ecdsaStrictRegistration: options.ecdsaStrictRegistration,
     tenantRootCustodyLineage: options.tenantRootCustodyLineage,
     getWalletStore,
     activateSideEffects: walletRegistrationActivateSideEffectStore(options),
-    nearProvisioningSideEffects: walletRegistrationNearProvisioningSideEffectStore(options),
+    nearProvisioning: new D1RegistrationFinalizationRead(
+      options.database,
+      options.registrationAuthority ?? null,
+      walletRegistrationNearProvisioningSideEffectStore(options),
+      getRegistrationCeremonyIntentStore,
+    ),
     walletRegistrationCommitStore,
     walletCustodyCommitStore,
     walletAuthMethods,
@@ -1399,7 +1397,7 @@ function createCloudflareD1RouterApiAuthAssembly(
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
     executionAuthority: options.walletExecution,
     getRegistrationCeremonyIntentStore,
-    getEd25519YaoProductRegistration: () => resolveEd25519YaoProductRegistration(options),
+    getEd25519YaoProductRegistration: () => options.ed25519YaoProductRegistration ?? null,
     ecdsaStrictRegistration: options.ecdsaStrictRegistration,
     tenantRootCustodyLineage: options.tenantRootCustodyLineage,
     getWalletStore,

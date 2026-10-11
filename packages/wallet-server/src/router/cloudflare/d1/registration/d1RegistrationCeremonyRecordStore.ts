@@ -89,12 +89,23 @@ export class D1RegistrationCeremonyRecordStore {
   }
 
   async get(scope: string, id: string): Promise<D1RegistrationCeremonyStoredRecord | null> {
-    const key = this.normalizeKey(scope, id);
-    const row = await this.prepareRead(key).first<StoredRow>();
+    const row = await this.prepareGet(scope, id).first<StoredRow>();
+    return this.parseGet(scope, id, row);
+  }
+
+  prepareGet(scope: string, id: string): D1PreparedStatementLike {
+    return this.prepareRead(this.normalizeKey(scope, id));
+  }
+
+  async parseGet(
+    scope: string,
+    id: string,
+    row: StoredRow | null,
+  ): Promise<D1RegistrationCeremonyStoredRecord | null> {
     if (!row) return null;
     const parsed = parseStoredRow(row);
     if (parsed.expiresAtMs > Date.now()) return parsed;
-    await this.deleteVersion(key, parsed.version);
+    await this.deleteVersion(this.normalizeKey(scope, id), parsed.version);
     return null;
   }
 

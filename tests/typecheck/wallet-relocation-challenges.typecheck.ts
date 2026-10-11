@@ -1,5 +1,5 @@
 import { WalletRelocationOwnerRequest } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
-import type { D1WalletRegistrationOperationPreparedV1 } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService';
+import type { D1WalletRegistrationOperationPreparedV1 } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationPreparation';
 
 declare const preparedOperation: D1WalletRegistrationOperationPreparedV1;
 // @ts-expect-error Operation activity requires its wallet owner before the first durable claim.

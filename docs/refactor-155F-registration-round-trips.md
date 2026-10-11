@@ -1,7 +1,8 @@
 # R155F — Reduce NEAR registration round trips
 
-Status: **in progress.** The latest wallet/session transaction change is implemented
-and measured. Each phase below retains its earlier evidence.
+Status: **in progress.** The wallet/session transaction is measured on staging.
+The next initial-read batch is implemented and verified locally. Each phase below
+retains its earlier evidence.
 Date: October 11, 2026.
 
 The [hosted transaction comparison](evidence/refactor-155f-wallet-session-hosted.md)
@@ -23,9 +24,14 @@ signing. Earlier changes overlap independent reads and sealing, remove the extra
 home read, and batch Console lineage, passkey-claim, and setup work. Their measurements
 remain in the phase records and linked evidence below.
 
-Next: combine finalization's initial home, retry-record, and ceremony reads. Keep
-completed retries usable after ceremony cleanup. Moving the passkey claim earlier
-needs the cancellation review recorded in Phase 4.
+The [initial-read batch](evidence/refactor-155f-initial-read-batch.md) reduces local
+finalization from **11 to 9 D1 calls**. Completed retries work after ceremony cleanup;
+relocation fences and retired homes reject them. All four public registration
+contracts and three composed regional scenarios pass. This change has no hosted
+latency measurement yet.
+
+Next: repeat the controlled staging comparison for the initial-read batch. Moving
+the passkey claim earlier needs the cancellation review recorded in Phase 4.
 
 ## Objective and ownership
 
@@ -138,7 +144,12 @@ before editing because registration work continues concurrently.
   Reuse existing trace tools. Do not create another instrumentation framework.
 - [ ] Combine finalization's initial routing, ownership-generation, Yao-state,
   and ceremony reads where they share one database and admission boundary.
-  The hosted path used four calls for these initial loads.
+  Home, journal, and ceremony now share one batch. Private routing admission and
+  the later Yao-state/decision reads remain separate.
+- [x] Batch the initial home, journal, and ceremony reads. Preserve completed replay
+  after cleanup, claim reconciliation, mixed-wallet continuation, and relocation
+  fences. Local finalization uses **9 calls**, down from 11. The
+  [evidence](evidence/refactor-155f-initial-read-batch.md) records the remaining call graph.
 - [ ] Carry the validated request state into core functions. Remove repeated
   reads only when no intervening mutation requires a fresh value.
 - [ ] Move deployment predicates into the first required transaction where
@@ -324,10 +335,11 @@ The normal proof records `journalStartedBeforeHomeReply: true` and verifies its
 NEAR signature. The authorization-transfer D1 scenario, server build and type
 check, wallet-state fixtures, and bloat check also pass.
 
-Full batching of home, journal, and ceremony remains open. It needs coordinated
-store changes; this commit removes one serial dependency through the existing
-journal interface. The later comparison verifies concurrent starts in all three
-hosted samples, without establishing an overall latency saving.
+At this stage, full batching of home, journal, and ceremony remained open. The
+overlap removed one serial dependency through the existing journal interface.
+The later comparison verified concurrent starts in all three hosted samples,
+without establishing an overall latency saving. The
+[subsequent batch](evidence/refactor-155f-initial-read-batch.md) replaces these separate reads.
 
 ### Hosted home-publication and initial-read comparison — October 11
 

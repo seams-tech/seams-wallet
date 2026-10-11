@@ -1,6 +1,6 @@
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
-import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import type {
   RegistrationEstablishedPublication,
   WalletExecutionAuthority,
@@ -11,6 +11,12 @@ import type {
 type Authority = WalletRegistrationReservationAuthority;
 type HomeAdmission = Awaited<ReturnType<Authority['admitHome']>>;
 type OrdinaryAdmission = Awaited<ReturnType<WalletExecutionAuthority['admitEstablishedHome']>>;
+type RegistrationHomeRow = {
+  readonly generation: number;
+  readonly state: string;
+  readonly registration_completion: string;
+  readonly relocation_blocked: number;
+};
 
 // Console admits registration. The local database retains execution identity
 // across requests and closes it in the same transaction as session retirement.
@@ -28,22 +34,51 @@ export class D1WalletExecutionAuthority
   }
 
   async admitHome(input: Parameters<Authority['admitHome']>[0]): Promise<HomeAdmission> {
-    const local = await prepareD1TenantStatement(
+    const result = await this.prepareHomeRead(input).all<RegistrationHomeRow>();
+    return this.admitHomeRead(input, result);
+  }
+
+  prepareHomeRead(input: Parameters<Authority['admitHome']>[0]) {
+    return prepareD1TenantStatement(
       this.database,
       this.scope,
-      `SELECT generation, state, registration_completion FROM wallet_execution_generations
+      `SELECT generation, state, registration_completion,
+         EXISTS (SELECT 1 FROM wallet_relocation_write_blocks block
+           WHERE block.namespace = ?1 AND block.org_id = ?2 AND block.project_id = ?3
+             AND block.env_id = ?4 AND block.wallet_id = ?5 AND block.source_generation = generation
+             AND block.state IN ('draining', 'checked')) AS relocation_blocked
+       FROM wallet_execution_generations
        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
          AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6`,
       [input.walletId, input.ceremonyId],
-    ).first<{
-      readonly generation: number;
-      readonly state: string;
-      readonly registration_completion: string;
-    }>();
+    );
+  }
+
+  async admitHomeRead(
+    input: Parameters<Authority['admitHome']>[0],
+    result: D1ResultLike<Partial<Record<keyof RegistrationHomeRow, unknown>>>,
+  ): Promise<HomeAdmission> {
+    if (!result.success) throw new Error('Registration home D1 read failed');
+    const local = result.results?.[0];
     if (local) {
+      if (
+        typeof local.generation !== 'number' ||
+        !Number.isSafeInteger(local.generation) ||
+        local.generation < 1 ||
+        (local.relocation_blocked !== 0 && local.relocation_blocked !== 1)
+      ) {
+        throw new Error('Registration execution identity is invalid');
+      }
       switch (local.state) {
         case 'active':
-          return this.admitEstablishedHome({ walletId: input.walletId });
+          if (local.relocation_blocked === 1) {
+            return {
+              ok: false,
+              code: 'wallet_home_unavailable',
+              message: 'Wallet execution is not active at this home',
+            };
+          }
+          return { ok: true, purpose: 'ordinary', ownershipGeneration: local.generation };
         case 'registering':
           if (local.registration_completion === 'pending') {
             return { ok: true, purpose: 'registration', ownershipGeneration: local.generation };

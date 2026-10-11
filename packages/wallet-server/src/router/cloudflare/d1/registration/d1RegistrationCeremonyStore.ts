@@ -1,4 +1,4 @@
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1PreparedStatementLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   StoredAddAuthMethodIntent,
@@ -114,6 +114,25 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     registrationCeremonyId: string,
   ): Promise<StoredWalletRegistrationCeremony | null> {
     return (await this.getCeremonySnapshot(registrationCeremonyId))?.ceremony ?? null;
+  }
+
+  prepareCeremonyRead(registrationCeremonyId: string): D1PreparedStatementLike {
+    return this.storage.prepareGet('ceremony', registrationCeremonyId);
+  }
+
+  async parseCeremonyRead(
+    registrationCeremonyId: string,
+    result: D1ResultLike<Record<string, unknown>>,
+  ): Promise<StoredWalletRegistrationCeremony | null> {
+    if (!result.success) throw new Error('Registration ceremony D1 read failed');
+    const stored = await this.storage.parseGet(
+      'ceremony',
+      registrationCeremonyId,
+      result.results?.[0] ?? null,
+    );
+    if (!stored) return null;
+    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
+    return ceremony && ceremony.expiresAtMs > Date.now() ? ceremony : null;
   }
 
   async getCeremonySnapshot(

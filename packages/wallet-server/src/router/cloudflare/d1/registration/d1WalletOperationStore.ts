@@ -1,6 +1,6 @@
 import type { WalletId } from '@shared/utils/domainIds';
 import type { VersionedJsonRecordPutResult } from '../../../framework/versionedJsonRecordStore';
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1PreparedStatementLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import {
   createCloudflareD1VersionedJsonRecordStore,
   type CloudflareD1VersionedJsonRecordStore,
@@ -31,6 +31,14 @@ export class D1WalletOperationStore<T extends WalletOperation> {
 
   read(key: string) {
     return this.records.read(key);
+  }
+
+  prepareRead(key: string) {
+    return this.records.prepareRead(key);
+  }
+
+  parseReadResult(result: D1ResultLike<Record<string, unknown>>) {
+    return this.records.parseReadResult(result);
   }
 
   listByKeyPrefix(key: string, options?: { readonly limit?: number }) {

@@ -6,7 +6,6 @@ import {
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import {
   parseWalletSessionMintId,
-  type DeviceId,
   type MpcWalletSigningQuotaId,
   type TenantId,
   type WalletSessionAuthorizationId,
@@ -257,6 +256,11 @@ import type {
   RegistrationWalletStarter,
   WalletRegistrationHomeAuthority,
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type { D1RegistrationFinalizationRead } from './d1RegistrationFinalizationRead';
+import {
+  walletRegistrationOperationPreparedFromCeremony,
+  type D1WalletRegistrationOperationPreparedV1,
+} from './d1WalletRegistrationPreparation';
 import type { WalletRegistrationSetupClaimsV1 } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
 import {
   computeWalletRegistrationSetupDigestB64u,
@@ -772,13 +776,6 @@ async function walletRegistrationFinalizeRequestFingerprint(
   return base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(request)));
 }
 
-export type D1WalletRegistrationOperationPreparedV1 = {
-  readonly kind: 'd1_wallet_registration_operation_prepared_v1';
-  readonly walletId: WalletId;
-  readonly walletAuthorityId: WalletAuthorityId;
-  readonly deviceId: DeviceId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-};
 
 function requirePreparedRegistrationId<T>(
   result:
@@ -790,38 +787,6 @@ function requirePreparedRegistrationId<T>(
   return result.value;
 }
 
-function walletRegistrationOperationPreparedFromCeremony(
-  ceremony: StoredWalletRegistrationCeremony,
-  allocated: D1WalletRegistrationOperationPreparedV1 | null,
-): D1WalletRegistrationOperationPreparedV1 {
-  /* The method the wallet commits must be the one its custody envelope was
-     sealed under, and the intent is what the client sealed against. They are
-     allocated together at setup, so a disagreement here is corruption rather
-     than drift — and committing the ceremony's id anyway would leave the
-     wallet with an envelope owned by a method that does not exist. */
-  if (
-    String(ceremony.foundingWalletAuthMethodId) !==
-    String(ceremony.intent.foundingWalletAuthMethodId)
-  ) {
-    throw new Error('registration ceremony and intent name different founding auth methods');
-  }
-  if (
-    allocated &&
-    (allocated.walletId !== ceremony.intent.walletId ||
-      allocated.walletAuthorityId !== ceremony.foundingWalletAuthorityId ||
-      allocated.deviceId !== ceremony.foundingDeviceId ||
-      allocated.walletAuthMethodId !== ceremony.foundingWalletAuthMethodId)
-  ) {
-    throw new Error('registration operation identity does not match its ceremony');
-  }
-  return {
-    kind: 'd1_wallet_registration_operation_prepared_v1',
-    walletId: ceremony.intent.walletId,
-    walletAuthorityId: ceremony.foundingWalletAuthorityId,
-    deviceId: ceremony.foundingDeviceId,
-    walletAuthMethodId: ceremony.foundingWalletAuthMethodId,
-  };
-}
 
 function committedInstallationProjectionFromCeremony(
   ceremony: StoredWalletRegistrationCeremony,
@@ -1378,12 +1343,6 @@ function registrationEstablishedSessionResultFromIssuance(
       return assertNeverD1RegistrationSessionIssuance(result);
   }
 }
-
-export type D1WalletRegistrationNearProvisioningSideEffectStore =
-  RouterAbEd25519YaoRegistrationSideEffectStoreV2<
-    WalletRegistrationSessionCommitReceiptV2,
-    D1WalletRegistrationOperationPreparedV1
-  >;
 
 export type D1WalletRegistrationNearProvisioningSideEffectRecord =
   RouterAbEd25519YaoRegistrationSideEffectRecordV2<
@@ -1989,7 +1948,7 @@ export class CloudflareD1WalletRegistrationService {
   /** The single Gateway operation row for activate-with-finalize. */
   private readonly activateSideEffects: D1WalletRegistrationActivateSideEffectStore;
   /** Deferred NEAR provisioning's own operation row. */
-  private readonly nearProvisioningSideEffects: D1WalletRegistrationNearProvisioningSideEffectStore;
+  private readonly nearProvisioning: D1RegistrationFinalizationRead;
   private readonly walletRegistrationCommitStore: D1WalletRegistrationCommitStore;
   /** Where a ceremony's sealed custody seed and its recovery set land. */
   private readonly walletCustodyCommitStore: CloudflareD1WalletCustodyCommitStore;
@@ -2016,7 +1975,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly tenantRootCustodyLineage: TenantRootCustodyLineageResolverV1;
     readonly getWalletStore: WalletStoreProvider;
     readonly activateSideEffects: D1WalletRegistrationActivateSideEffectStore;
-    readonly nearProvisioningSideEffects: D1WalletRegistrationNearProvisioningSideEffectStore;
+    readonly nearProvisioning: D1RegistrationFinalizationRead;
     readonly walletRegistrationCommitStore: D1WalletRegistrationCommitStore;
     readonly walletCustodyCommitStore: CloudflareD1WalletCustodyCommitStore;
     readonly walletAuthMethods: CloudflareD1WalletAuthMethodService;
@@ -2038,7 +1997,7 @@ export class CloudflareD1WalletRegistrationService {
     this.tenantRootCustodyLineage = input.tenantRootCustodyLineage;
     this.getWalletStore = input.getWalletStore;
     this.activateSideEffects = input.activateSideEffects;
-    this.nearProvisioningSideEffects = input.nearProvisioningSideEffects;
+    this.nearProvisioning = input.nearProvisioning;
     this.walletRegistrationCommitStore = input.walletRegistrationCommitStore;
     this.walletCustodyCommitStore = input.walletCustodyCommitStore;
     this.walletAuthMethods = input.walletAuthMethods;
@@ -3757,21 +3716,31 @@ export class CloudflareD1WalletRegistrationService {
     return { receipt, projection, prepared: record.prepared };
   }
 
-  /** Returns the ceremony it read, so the same request's execution need not read it again. */
+  /** Carries the preparation's ceremony into this request's execution. */
   private async prepareNearProvisioningOperation(
     registrationCeremonyId: string,
-    allocated?: D1WalletRegistrationOperationPreparedV1,
-    installed?: CommittedRegistrationInstallation,
+    allocated: D1WalletRegistrationOperationPreparedV1 | null,
+    source:
+      | {
+          readonly kind: 'ceremony';
+          readonly ceremony: StoredWalletRegistrationCeremony | null;
+          readonly installation?: never;
+        }
+      | {
+          readonly kind: 'installation';
+          readonly installation: CommittedRegistrationInstallation;
+          readonly ceremony?: never;
+        },
   ): Promise<{
     readonly prepared: D1WalletRegistrationOperationPreparedV1;
     readonly ceremony: StoredWalletRegistrationCeremony | null;
   }> {
-    const ceremony = installed
-      ? null
-      : await this.getRegistrationCeremonyIntentStore().getCeremony(registrationCeremonyId);
+    const ceremony = source.kind === 'ceremony' ? source.ceremony : null;
     if (!ceremony) {
       const committed =
-        installed ?? (await this.readCommittedRegistrationInstallation(registrationCeremonyId));
+        source.kind === 'installation'
+          ? source.installation
+          : await this.readCommittedRegistrationInstallation(registrationCeremonyId);
       if (!committed) {
         throw new Error('Registration ceremony is unavailable for identity preparation');
       }
@@ -3789,7 +3758,7 @@ export class CloudflareD1WalletRegistrationService {
       return { prepared: committed.prepared, ceremony: null };
     }
     return {
-      prepared: walletRegistrationOperationPreparedFromCeremony(ceremony, allocated ?? null),
+      prepared: walletRegistrationOperationPreparedFromCeremony(ceremony, allocated),
       ceremony,
     };
   }
@@ -3870,7 +3839,7 @@ export class CloudflareD1WalletRegistrationService {
         await this.prepareNearProvisioningOperation(
           args.input.registrationCeremonyId,
           prepared,
-          committed,
+          { kind: 'installation', installation: committed },
         )
       ).prepared;
       if (activationReceipt.committed.session.tokens.kind !== 'evm_family_ecdsa') {
@@ -4211,29 +4180,19 @@ export class CloudflareD1WalletRegistrationService {
       }
       const admissionStartedAtMs = Date.now();
       const operationKey = `near-provisioning:${input.registrationCeremonyId}:${input.idempotencyKey}`;
-      // The journal read is independent of home admission. Both settle before
-      // any preparation or write, and a completed receipt needs no ceremony.
-      const [admissionRead, journalRead] = await Promise.allSettled([
-        recordRegistrationPromiseTiming({
-          sink: serverTiming,
-          name: 'near_finalize_home_admission',
-          startedAtMs: admissionStartedAtMs,
-          promise: admitRegistrationReservationHome(this.registrationAuthority, {
-            ceremonyId: verified.claims.registrationCeremonyId,
-            walletId: walletIdFromString(verified.claims.walletId),
-          }),
-        }),
-        recordRegistrationPromiseTiming({
-          sink: serverTiming,
-          name: 'near_finalize_journal_read',
-          startedAtMs: admissionStartedAtMs,
-          promise: this.nearProvisioningSideEffects.read(operationKey),
-        }),
-      ]);
-      if (admissionRead.status === 'rejected') throw admissionRead.reason;
-      const homeAdmission = admissionRead.value;
-      if (!homeAdmission.ok) return homeAdmission;
-      if (journalRead.status === 'rejected') throw journalRead.reason;
+      const initial = await this.nearProvisioning.read(
+        {
+          ceremonyId: verified.claims.registrationCeremonyId,
+          walletId: walletIdFromString(verified.claims.walletId),
+        },
+        operationKey,
+      );
+      recordRegistrationServerTiming(
+        serverTiming,
+        'near_finalize_initial_read',
+        admissionStartedAtMs,
+      );
+      if (!initial.ok) return initial;
       // NEAR finalization owns its claim, uncertainty state and replay receipt.
       const fingerprintStartedAtMs = Date.now();
       const requestFingerprint = base64UrlEncode(
@@ -4260,19 +4219,21 @@ export class CloudflareD1WalletRegistrationService {
         RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>,
         WalletRegistrationSessionCommitReceiptV2,
         D1WalletRegistrationOperationPreparedV1
-      >(this.nearProvisioningSideEffects, {
+      >(this.nearProvisioning.operations, {
         kind: 'prepared_resumable',
         operation: 'near_provisioning',
         key: operationKey,
-        initialRecord: journalRead.value,
+        initialRecord: initial.operation,
         requestFingerprint,
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,
         prepare: async () => {
           const preparation = await this.prepareNearProvisioningOperation(
             input.registrationCeremonyId,
-            undefined,
-            verified.source.kind === 'committed_mixed' ? verified.source.installation : undefined,
+            null,
+            verified.source.kind === 'committed_mixed'
+              ? { kind: 'installation', installation: verified.source.installation }
+              : { kind: 'ceremony', ceremony: await initial.readCeremony() },
           );
           preparedCeremony = preparation.ceremony;
           return preparation.prepared;
@@ -4727,7 +4688,14 @@ export class CloudflareD1WalletRegistrationService {
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,
         prepare: async () =>
-          (await this.prepareNearProvisioningOperation(claims.registrationCeremonyId)).prepared,
+          (
+            await this.prepareNearProvisioningOperation(claims.registrationCeremonyId, null, {
+              kind: 'ceremony',
+              ceremony: await this.getRegistrationCeremonyIntentStore().getCeremony(
+                claims.registrationCeremonyId,
+              ),
+            })
+          ).prepared,
         derivePreparedArtifactFingerprint: async (prepared) =>
           base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared))),
         execute: this.executeWalletRegistrationActivation.bind(this, {
