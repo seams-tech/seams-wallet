@@ -19,10 +19,11 @@ session sealing starts. The new hosted comparison verifies **38 completed
 Gateway/Console D1 calls**, down from 39 in its control. Registration measured
 **4.102 s** against the repeated control's **4.094 s**. It establishes no clear
 overall latency gain. Staging restoration passed independent checks.
-Console setup now overlaps its environment read with API-key authentication and
-the required usage update. Local verification passed. This change preserves the
-call count and has no hosted latency result yet. See the
-[setup overlap record](evidence/refactor-155f-setup-overlap.md).
+Console setup now batches deployment admission and its exact environment read.
+The production Console E2E measures **four D1 calls**, down from five. Both SQL
+reads remain. This replaces the earlier environment/authentication overlap.
+Local verification passed; hosted latency remains unmeasured. See the
+[setup batch record](evidence/refactor-155f-setup-batch.md).
 
 ## Objective and ownership
 
@@ -388,8 +389,15 @@ evidence. It is not the control for attributing gains to these server changes.
 
 ## Phase 2 — Reduce Console calls and exchanges
 
-- [ ] Combine each Console operation's deployment check with its required data
-  read or conditional write. Evaluate the check in the transaction it protects.
+- [x] Batch setup's deployment admission and exact environment read.
+  Private `3db9b5d` uses one read-only D1 batch, then checks the writer and resources
+  before authentication or reservation. Fresh setup uses four calls and five SQL
+  statements. Retired writers and missing deployments stop after the first batch.
+  [Implementation and evidence](evidence/refactor-155f-setup-batch.md).
+- [ ] Examine the remaining Console mutations for deployment checks that can
+  join their existing transaction. The transaction must enforce the writer and
+  retirement checks before a write. A batch of an unchecked read and write does
+  not provide that guarantee.
 - [x] Examine registration setup's API-key and environment operations.
   Batch independent reads and required writes. Classify the API-key update before
   moving it: authentication, quota, and usage-accounting semantics must remain explicit.
@@ -397,15 +405,14 @@ evidence. It is not the control for attributing gains to these server changes.
   reads the credential, validates it, then awaits `recordApiKeyUse` before the public
   registration-context resolver loads the environment. For this call, the update
   records `last_used_at_ms` and `updated_at_ms`; endpoint counting is disabled.
-  It consumes no signing budget or quota. Private `ba2aa5d` starts the environment
-  read using the admitted deployment's tenant scope while authentication runs.
-  It awaits both results and preserves the usage update. The authenticated
-  credential must match that scope before reservation. The existing context
-  builder still validates the exact active environment. The Console E2E verifies
-  the overlap, key changes, scope rejection, and failure handling. Three composed
-  browser scenarios also pass. Setup still uses five D1 calls. The change removes
-  a serial dependency; hosted latency remains unmeasured.
-  [Implementation and evidence](evidence/refactor-155f-setup-overlap.md).
+  It consumes no signing budget or quota. Private `ba2aa5d` first overlapped the
+  environment read with authentication. Private `3db9b5d` replaces that path
+  with the deployment/environment batch above. The usage update remains awaited.
+  The credential must match the deployment scope before reservation. The existing
+  context builder validates the exact active environment. Production Console and
+  three composed browser scenarios pass. Hosted latency remains unmeasured.
+  Keep the [overlap record](evidence/refactor-155f-setup-overlap.md) as historical
+  evidence; do not add its expected saving to the replacement batch.
 - [x] Combine the lineage reads if one query or batch preserves their meaning.
   Preserve the current restore and revocation checks.
   The October 11 local comparison confirms **two calls become one batch**.
@@ -420,6 +427,9 @@ evidence. It is not the control for attributing gains to these server changes.
 - [ ] Examine the three finalization Console requests together: passkey claim,
   route publication, and completion. Combine operations only when their required
   ordering and failure behavior fit. Measure whether the removed exchange was serial.
+  Source review confirms that passkey claiming and route publication already
+  overlap. Combining them could remove a deployment read and HTTP request, but
+  cannot remove a full serial exchange. Completion remains a later dependency.
 - [ ] Preserve the current custody-failure policy explicitly. A route-claim failure
   currently reports rejected custody storage while registration can continue.
   An ownership-claim failure prevents wallet publication. A combined request must

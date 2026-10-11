@@ -5,6 +5,12 @@ Private implementation: `ba2aa5d` on `seams-monorepo` `dev`.
 Public change: export the existing `walletRegistrationContext` boundary builder
 from `@seams/wallet-server/cloud-host` for the Console setup handler.
 
+**Historical implementation.** Private `3db9b5d` replaces the concurrent
+environment read with a deployment/environment batch. Setup now uses four D1
+calls in local verification. See the [replacement record](refactor-155f-setup-batch.md).
+The results below describe the original overlap. Do not count both changes as
+independent latency savings.
+
 ## Change
 
 Console setup previously awaited credential lookup, validation, and the usage
