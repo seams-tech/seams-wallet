@@ -30,8 +30,18 @@ relocation fences and retired homes reject them. All four public registration
 contracts and three composed regional scenarios pass. This change has no hosted
 latency measurement yet.
 
-Next: repeat the controlled staging comparison for the initial-read batch. Moving
-the passkey claim earlier needs the cancellation review recorded in Phase 4.
+The initial-read comparison is built and frozen in the private artifact directory
+`.artifacts/r155f-initial-read-hosted`. It compares public `2b0e427d` with
+`1ef8306c`, using private `3db9b5d` in both groups. The SDK, Console, custody,
+generated WASM, and placement remain fixed. The manifest records 332 input files;
+its SHA-256 is `b7d0b1c7284d8d16e0b58715ac996eeca1bff72df79708dbea0d082e40057dad`.
+The launcher refuses another active experiment and checks the original versions,
+bindings, and placement of all 13 Workers before changing staging.
+
+Next: run this comparison after the separate Yao-prewarm experiment restores
+staging. Verify all nine signatures and restoration, then record the hosted call
+counts and timings. Moving the passkey claim earlier needs the cancellation
+review recorded in Phase 4.
 
 ## Objective and ownership
 
