@@ -139,7 +139,7 @@ export async function verifyCapabilityPersistence({ api, database, scope }) {
   assert.deepEqual(await store.loadRegistration(lifecycleId), ceremony);
   assert.deepEqual(await sharedReplay(store, lifecycleId), replay);
 
-  // This request loses its version race, then retains the other wallet on retry.
+  // An unchanged installation leaves the other wallet's concurrent write intact.
   const otherRuntime = runtime(api, store);
   const concurrent = new ConcurrentCapabilityStore(
     observedStore,
@@ -149,10 +149,10 @@ export async function verifyCapabilityPersistence({ api, database, scope }) {
     (await runtime(api, concurrent).installPersistedActiveCapability(persisted)).ok,
     true,
   );
-  assert.equal(concurrent.commits, 2);
+  assert.equal(concurrent.commits, 1);
   assert.equal((await installer.resolveActiveCapability(lookup(other))).ok, true);
 
-  // A suspension wins the same race. Rehydration cannot make it active again.
+  // An unchanged installation also leaves a concurrent suspension intact.
   const suspended = api.buildNearRecoveryCacheFixture(fixture.admission, 'suspended');
   const suspensionRace = new ConcurrentCapabilityStore(
     observedStore,
@@ -162,7 +162,7 @@ export async function verifyCapabilityPersistence({ api, database, scope }) {
     (await runtime(api, suspensionRace).installPersistedActiveCapability(persisted)).ok,
     true,
   );
-  assert.equal(suspensionRace.commits, 2);
+  assert.equal(suspensionRace.commits, 1);
   const denied = await installer.resolveActiveCapability(lookup(fixture));
   assert.equal(denied.ok, false);
   assert.equal(denied.code, 'unknown_capability');
