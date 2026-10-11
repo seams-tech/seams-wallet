@@ -5518,6 +5518,7 @@ export class CloudflareD1WalletRegistrationService {
       let ed25519MaterialActivation: MpcMaterialActivationRef | null = null;
       let ed25519RegisteredPublicKeyB64u: string | null = null;
       let yaoDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null = null;
+      let yaoDecisionFound: ReturnType<typeof routerAbEd25519YaoLifecycleDecisionLookupV1> | null = null;
       let commitWallet: Awaited<ReturnType<D1WalletRegistrationCommitStore['reserveAuthority']>>;
       /* The custody commit claims its recovery-code routes beside this leg's
          other remote effects. The claim needs no local record, and the wallet
@@ -5596,7 +5597,7 @@ export class CloudflareD1WalletRegistrationService {
         // publishing local state, including when a directory claim fails.
         custodyReservation = reserveCustody();
         startedCustody = custodyReservation;
-        const [activationConsumption, authorityReservation] = await Promise.allSettled([
+        const [activationConsumption, authorityReservation, lifecycleDecision] = await Promise.allSettled([
           recordRegistrationPromiseTiming({
             sink: serverTiming,
             name: 'near_finalize_router_consume',
@@ -5610,9 +5611,11 @@ export class CloudflareD1WalletRegistrationService {
             }),
           }),
           this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority),
+          this.yaoLifecycleDecisions.read(activationReference.lifecycle_id),
         ]);
         if (activationConsumption.status === 'rejected') throw activationConsumption.reason;
         if (authorityReservation.status === 'rejected') throw authorityReservation.reason;
+        if (lifecycleDecision.status === 'rejected') throw lifecycleDecision.reason;
         const consumed = activationConsumption.value;
         commitWallet = authorityReservation.value;
         if (!consumed.ok) {
@@ -5729,6 +5732,10 @@ export class CloudflareD1WalletRegistrationService {
           consumerBinding: requestFingerprint,
           capability: activeYaoCapability.record,
         });
+        yaoDecisionFound = routerAbEd25519YaoLifecycleDecisionLookupV1(
+          yaoDecision,
+          lifecycleDecision.value,
+        );
         const activatedEd25519PublicResult: WalletRegistrationEd25519YaoPublicResult = {
           signerSlot: finalizeNearEd25519.signerSlot,
           nearAccountId,
@@ -5777,12 +5784,6 @@ export class CloudflareD1WalletRegistrationService {
          one batch. A finalize that finds its own decision resumes after that
          batch: what it would commit is already there, and rebuilding it now
          would not match what was committed. */
-      const yaoDecisionFound = yaoDecision
-        ? routerAbEd25519YaoLifecycleDecisionLookupV1(
-            yaoDecision,
-            await this.yaoLifecycleDecisions.read(yaoDecision.lifecycleId),
-          )
-        : null;
       if (yaoDecisionFound?.kind === 'decided_otherwise') {
         return {
           ok: false,

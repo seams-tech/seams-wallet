@@ -47,6 +47,8 @@ const bundle = await build({
       export { buildD1WalletRecord } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords';
       export { buildPasskeyRegistrationAuthorityFixture } from './tests/unit/helpers/nearRegistration.fixtures';
       export { buildNearRegistrationSignerFixture } from './tests/unit/helpers/nearRegistrationSigner.fixtures';
+      export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
+      export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
       export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
     `,
   },
@@ -65,6 +67,29 @@ class ConcurrentWalletDatabase extends api.TracedD1Database {
       await competingCommit();
     }
     return super.batch(statements);
+  }
+}
+
+class DelayedFoundingDatabase extends api.TracedD1Database {
+  capabilityRead = Promise.withResolvers();
+  readsOverlapped = false;
+
+  async measure(method, queries, execute) {
+    if (queries.some(readsFoundingAuthority)) {
+      const timeout = setTimeout(
+        this.capabilityRead.reject,
+        5_000,
+        new Error('Capability read waited for the delayed founding-record read'),
+      );
+      try {
+        await this.capabilityRead.promise;
+        this.readsOverlapped = true;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+    if (queries.some(readsCapability)) this.capabilityRead.resolve();
+    return await super.measure(method, queries, execute);
   }
 }
 
@@ -193,6 +218,7 @@ try {
   assert.ok(cached.includes(authority.walletId));
   assert.ok(cached.includes(other.walletId));
 
+  const overlap = await verifyIndependentCommitReads(database, now);
   const evidence = {
     refusedClaimLeavesNoWallet: true,
     lostClaimReplyLeavesNoWallet: true,
@@ -206,11 +232,69 @@ try {
     concurrentWalletPreserved: true,
     concurrentWalletWriteAttempts: walletWrites.length,
     concurrentCommitTrace: raceCalls,
+    independentCommitReads: overlap,
   };
   await writeFile(resolve(output, 'proof.json'), `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(`Credential reservation evidence: ${resolve(output, 'proof.json')}`);
 } finally {
   await runtime.dispose();
+}
+
+async function verifyIndependentCommitReads(database, now) {
+  const authority = api.buildPasskeyRegistrationAuthorityFixture('independent-reads');
+  const signer = await api.buildNearRegistrationSignerFixture('independent-reads', now);
+  const founding = await api.buildLinkedDeviceManagementAuthorityFixture({
+    label: 'independent-reads',
+    keyFamily: 'ed25519',
+    provenance: 'wallet_registration',
+    permissions: api.buildFullOwnerPermissionsV1(),
+    identity: {
+      walletId: authority.walletId,
+      authorityId: 'authority:independent-reads',
+      walletAuthMethodId: 'auth-method:independent-reads',
+      rpId: authority.rpId,
+      credentialIdB64u: authority.credentialIdB64u,
+    },
+    credentialPublicKeyB64u: authority.credentialPublicKeyB64u,
+    ed25519Signer: {
+      walletKeyId: signer.nearEd25519SigningKeyId,
+      registeredPublicKeyB64u: Buffer.from(
+        signer.activeYaoCapability.activationResult.public_receipt.registered_public_key,
+      ).toString('base64url'),
+    },
+  });
+  const traced = new DelayedFoundingDatabase(database);
+  const store = new api.CloudflareD1WalletRegistrationCommitStore({
+    database: traced,
+    credentialClaims: { claim: acceptCredential },
+    namespace: 'independent-reads',
+    orgId: 'org',
+    projectId: 'project',
+    envId: 'test',
+  });
+  const commit = await store.reserveAuthority(authority);
+  await commit({
+    kind: 'passkey_wallet_registration_commit_v1',
+    wallet: api.buildD1WalletRecord({ walletId: authority.walletId, now }),
+    walletSigners: [signer],
+    foundingAuthority: founding.authority,
+    foundingAuthMethod: founding.authMethod,
+    now,
+    decisionStatements: [],
+  });
+  assert.equal(traced.readsOverlapped, true);
+  const calls = trace(traced);
+  assert.equal(calls.length, 3);
+  assert.ok(writesWalletBatch(calls[2]));
+  return { delayedFoundingReadDidNotBlockCapabilityRead: true, calls };
+}
+
+function readsFoundingAuthority(query) {
+  return query.kind === 'SELECT' && query.tables.includes('wallet_authorities');
+}
+
+function readsCapability(query) {
+  return query.kind === 'SELECT' && query.tables.includes('router_ab_yao_versioned_json_records');
 }
 
 async function migrate(database) {

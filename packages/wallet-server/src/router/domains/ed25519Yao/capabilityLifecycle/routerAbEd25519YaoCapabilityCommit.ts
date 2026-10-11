@@ -14,7 +14,7 @@ import type {
 export function commitRouterAbEd25519YaoRegistrationCapability(
   store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
   installation: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  walletWrite: RouterAbEd25519YaoPreparedWriteV1,
+  walletWrite: Promise<RouterAbEd25519YaoPreparedWriteV1>,
 ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
   return commitCapability(store, installRegistration.bind(undefined, installation), walletWrite);
 }
@@ -23,7 +23,7 @@ export function rehydrateRouterAbEd25519YaoCapability(
   store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
   capability: WalletEd25519YaoActiveCapabilityRecord,
 ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
-  return commitCapability(store, installPersisted.bind(undefined, capability), null);
+  return commitCapability(store, installPersisted.bind(undefined, capability), Promise.resolve(null));
 }
 
 async function commitCapability(
@@ -31,10 +31,12 @@ async function commitCapability(
   install: (
     service: InMemoryRouterAbEd25519YaoRecoveryService,
   ) => RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1,
-  companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
+  preparedWrite: Promise<RouterAbEd25519YaoPreparedWriteV1 | null>,
 ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const snapshot = await store.loadCapabilities();
+    // Founding-record reads and capability reads are independent. The write
+    // still commits both results together under the shared version check.
+    const [snapshot, companionWrite] = await Promise.all([store.loadCapabilities(), preparedWrite]);
     const state = new InMemoryRouterAbEd25519YaoRecoveryStateV1();
     for (const [key, capability] of snapshot.value.recoveryCapabilities) {
       state.capabilities.set(key, capability);

@@ -538,43 +538,6 @@ export class CloudflareD1WalletRegistrationCommitStore
     input: D1WalletRegistrationCommitInput,
   ): Promise<void> {
     assertCommitWalletIdentity(input, authority);
-    const foundingStatements = await prepareFoundingStatements({
-      database: this.database,
-      scope: this.scope,
-      foundingAuthority: input.foundingAuthority,
-      foundingAuthMethod: input.foundingAuthMethod,
-      now: input.now,
-    });
-    const statements: D1PreparedStatementLike[] = [
-      prepareD1WalletPutSubjectStatement({
-        database: this.database,
-        scope: this.scope,
-        record: input.wallet,
-      }),
-    ];
-    for (const signer of input.walletSigners) {
-      statements.push(
-        prepareD1WalletPutSignerStatement({
-          database: this.database,
-          scope: this.scope,
-          record: signer,
-        }),
-      );
-    }
-    statements.push(
-      ...prepareAuthorityStatements({
-        database: this.database,
-        scope: this.scope,
-        authority,
-        walletSigners: input.walletSigners,
-        foundingAuthority: input.foundingAuthority,
-        foundingAuthMethod: input.foundingAuthMethod,
-        foundingStatements,
-        now: input.now,
-      }),
-    );
-    statements.push(...emailOtpCommitStatements(input));
-    statements.push(...input.decisionStatements);
     const ed25519Signer = input.walletSigners.find(isEd25519Signer);
     if (ed25519Signer) {
       const capability = ed25519Signer.activeYaoCapability;
@@ -596,17 +559,54 @@ export class CloudflareD1WalletRegistrationCommitStore
           registrationResult: capability.activationResult,
           runtimePolicyScope: capability.runtimePolicyScope,
         },
-        { statements },
+        prepareWalletWrite(this.database, this.scope, authority, input),
       );
       if (!installed.ok) throw new Error(installed.message);
       return;
     }
+    const { statements } = await prepareWalletWrite(this.database, this.scope, authority, input);
     const results = await this.database.batch<D1ResultLike>(statements);
     assertBatchSucceeded({
       expectedStatementCount: statements.length,
       results,
     });
   }
+}
+
+async function prepareWalletWrite(
+  database: D1DatabaseLike,
+  scope: D1WalletRegistrationCommitScope,
+  authority: RegistrationAuthority,
+  input: D1WalletRegistrationCommitInput,
+) {
+  const foundingStatements = await prepareFoundingStatements({
+    database,
+    scope,
+    foundingAuthority: input.foundingAuthority,
+    foundingAuthMethod: input.foundingAuthMethod,
+    now: input.now,
+  });
+  const statements: D1PreparedStatementLike[] = [
+    prepareD1WalletPutSubjectStatement({ database, scope, record: input.wallet }),
+  ];
+  for (const signer of input.walletSigners) {
+    statements.push(prepareD1WalletPutSignerStatement({ database, scope, record: signer }));
+  }
+  statements.push(
+    ...prepareAuthorityStatements({
+      database,
+      scope,
+      authority,
+      walletSigners: input.walletSigners,
+      foundingAuthority: input.foundingAuthority,
+      foundingAuthMethod: input.foundingAuthMethod,
+      foundingStatements,
+      now: input.now,
+    }),
+    ...emailOtpCommitStatements(input),
+    ...input.decisionStatements,
+  );
+  return { statements };
 }
 
 function isEd25519Signer(signer: WalletSignerRecord) {

@@ -6,6 +6,10 @@ The registration proof for the relocated role databases exists. Each phase
 below ends with its record.
 Date: October 11, 2026.
 
+Work resumed from `f02e5891` on October 11. Two more finalization read dependencies
+are removed locally. A local CPU profile identifies session sealing as the main
+sampled computation. See the [follow-up record](#finalization-read-overlap-and-cpu-profile--october-11).
+
 ## Objective and ownership
 
 Reduce NEAR-only registration latency by removing repeated reads, separate write
@@ -180,12 +184,52 @@ Remaining serial dependencies, with the hosted durations of October 11:
 - Console completion must precede call 14. Gateway observed 131–413 ms.
 - The Gateway used 265 ms of CPU time per finalization. Other registration
   requests used 19–36 ms. A Worker clock cannot place that time. A local CPU
-  profile is the next step.
+  profile below identifies the main sampled computation.
 
 Budget: one serial D1 step for admission, one for the initial loads, the
 prepared write, the wallet commit, the session write and the completion write.
 That is six serial steps against today's thirteen. The custody write and the
 pre-commit reads can overlap other work. The two Console exchanges stay serial.
+
+### Finalization read overlap and CPU profile — October 11
+
+Two independent reads now overlap existing work:
+
+1. The lifecycle-decision read starts beside Router consumption and the credential
+   claim. Its result still determines whether this request can commit the wallet.
+2. The founding-record read starts beside the capability read. Their results still
+   enter one atomic wallet/capability transaction with the existing version check.
+
+The change removes two serial dependencies. It does not remove D1 calls. Initial
+home/journal/ceremony reads and the two serial Console exchanges remain open.
+The existing retry bound, competing-writer handling, and transaction guards remain.
+
+Six selected browser contracts pass, including lost finalization replies, recovery,
+session publication, and mixed registration. The real D1 scenario delays the
+founding-record read and verifies that the capability read proceeds. It also
+verifies atomic rollback, exact retry, and preservation of another wallet's write.
+Authorization transfer and wallet-state type fixtures pass.
+
+The authorization scenario had a stale expectation of two attempts for an unchanged
+capability. Commit `d51cfcd8` deliberately removed that write. The updated scenario
+expects one attempt and still verifies concurrent-wallet and suspension preservation.
+This was an obsolete assertion. The correction changes no production behavior.
+
+Three local profiles isolate the finalization POST. `addSigningSessionSealLock`
+accounts for **78.47–79.72% of sampled execution**, mainly modular arithmetic in
+the Shamir WASM module. Each profiled registration also verifies exact replay and
+its first signature. These percentages do not establish an absolute CPU duration
+or the exact share of the hosted 265 ms observation.
+
+The next CPU investigation is whether the existing seal computation can overlap
+registration's network waits after its authority and inputs are established.
+Preserve the committed-session binding and expiry. Do not weaken the cipher or
+publish a seal before registration succeeds. The current change does not alter sealing.
+
+[Local verification and profile evidence](evidence/refactor-155f-finalization-local-profile.md)
+records reproduction, sample counts, checksums, and limitations. Hosted latency
+savings remain unmeasured. The corrected hosted baseline remains **3.530 s** for
+registration and **4.204 s** through the first signature, both medians.
 
 ## Phase 2 — Reduce Console calls and exchanges
 

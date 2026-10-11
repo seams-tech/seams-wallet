@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-11",
+  "environment": "local workerd, Chromium, NEAR-only implicit registration",
+  "sourceBase": "f02e5891",
+  "sourceChange": "Lifecycle decision read overlaps Router consumption. Founding-record reads overlap capability reads.",
+  "gatewayBundleSha256": "f9eafa66c7f67598dc401e04b7a14fe9666d0097176fbed1b9222f1dc266e314",
+  "profilerIntervalMicroseconds": 100,
+  "profiles": [
+    {
+      "profilePath": ".artifacts/r155f-finalize-local/profile-browser/passkey.registration.bench-4ef6e-tion-and-verify-signature-2-chromium/cpu/finalization.cpuprofile",
+      "sha256": "910070d5f98d38199ad614ec1d725bca36d2368f3ac29d3bce25faa757e4fd43",
+      "totalSamples": 286,
+      "wasmSamples": 232,
+      "sessionSealAddLockSamples": 228,
+      "sessionSealAddLockPercent": 79.72,
+      "exactFinalizationReplay": true,
+      "firstSignatureVerified": true
+    },
+    {
+      "profilePath": ".artifacts/r155f-finalize-local/profile-browser/passkey.registration.bench-bd7f7-tion-and-verify-signature-3-chromium/cpu/finalization.cpuprofile",
+      "sha256": "0abecd1866b32b7d3e922c42627a2be7f191aa33efbb4b8908f06d697770e258",
+      "totalSamples": 288,
+      "wasmSamples": 233,
+      "sessionSealAddLockSamples": 226,
+      "sessionSealAddLockPercent": 78.47,
+      "exactFinalizationReplay": true,
+      "firstSignatureVerified": true
+    },
+    {
+      "profilePath": ".artifacts/r155f-finalize-local/profile-browser/passkey.registration.bench-d501c-tion-and-verify-signature-1-chromium/cpu/finalization.cpuprofile",
+      "sha256": "21ba840e2cc6d047189722d1be44fcc9f66e24fe2ca85273fd74e6c5a09c3df8",
+      "totalSamples": 303,
+      "wasmSamples": 243,
+      "sessionSealAddLockSamples": 238,
+      "sessionSealAddLockPercent": 78.55,
+      "exactFinalizationReplay": true,
+      "firstSignatureVerified": true
+    }
+  ],
+  "limitations": [
+    "Sampling percentages are not absolute CPU timings.",
+    "The profiler starts immediately before the finalization POST and stops after its reply.",
+    "Local samples do not establish the share of the hosted 265 ms CPU observation.",
+    "No hosted latency comparison or deployment occurred."
+  ],
+  "verification": {
+    "browserContracts": 6,
+    "profileRegistrationAndReplayCases": 3,
+    "realD1CredentialReservation": "passed",
+    "authorizationStorageTransfer": "passed"
+  }
+}
