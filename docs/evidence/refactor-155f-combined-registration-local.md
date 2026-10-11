@@ -1,6 +1,8 @@
 # R155F combined registration changes — local verification
 
-Date: October 11, 2026. Hosted latency is **not measured yet** for this batch.
+Date: October 11, 2026. This record covers local verification before the
+[completed hosted comparison](refactor-155f-combined-registration-hosted.md).
+Its JSON projections retain their original local, unmeasured status.
 
 Public `0e00b591` removes three Gateway calls. Private `eb235b1` removes three
 Console calls. Private `0a85921` verifies the Console changes in production
@@ -21,7 +23,7 @@ contains call counts, replay outcomes, and artifact hashes.
 Gateway counts exclude the production entry's separate regional routing read.
 They exclude pending cleanup and custody-role databases. The projection for
 hosted registration is **34 → 28 calls**, and **41 → 35 through first signing**.
-These totals must still be checked in the combined hosted comparison.
+The subsequent hosted comparison confirms these projected counts.
 
 The Console change adds migration `0091_console_deployment_write_checks.sql`.
 It uses the existing deployment-fence pattern. A trigger checks the current
@@ -99,11 +101,11 @@ Console deployment through the existing fixture builders. No production behavior
 accommodate an old fixture. Initial port collisions and the default private
 check's 0.8.0 dependency mismatch were test-environment failures.
 
-The combined hosted candidate is frozen in
+The subsequent hosted candidate was frozen in
 `seams-monorepo/.artifacts/r155f-combined-hosted/`. Its 512-file manifest includes
 the database migrations, compiled components, benchmark SDK, scripts, and original
-deployment settings. It waits for the active custody experiment to restore staging,
-then checks all 13 original versions and their settings before making any change.
+deployment settings. The completed comparison confirms the projected counts.
+Independent readback confirms all 13 original versions and their settings were restored.
 
 Repeat from `seams-monorepo` with the built public candidate:
 

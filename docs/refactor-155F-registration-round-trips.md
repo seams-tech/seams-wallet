@@ -1,11 +1,36 @@
 # R155F — Reduce NEAR registration round trips
 
-Status: **combined implementation complete; final hosted comparison pending.**
-The local verification and resolved conditional proposals are recorded below.
-Earlier hosted results remain historical evidence.
+Status: **complete — implementation, correctness checks, combined measurement,
+and staging restoration.** The full registration-and-signature latency target
+remains unmet. Earlier measurements remain historical evidence.
 Date: October 11, 2026.
 
-The [hosted initial-read comparison](evidence/refactor-155f-initial-read-hosted.md)
+The [complete-batch comparison](evidence/refactor-155f-combined-registration-hosted.md)
+confirms **34 → 28 completed registration D1 calls**, and **41 → 35 through the
+first signature**, across Gateway and Console. Submitted registration SQL
+statements fall **117 → 113**. These counts exclude custody-role databases and
+two background calls still pending when responses were captured.
+
+Candidate NEAR registration measures **3.929 s median (3.263–3.972 s)**. First
+signing measures **0.713 s (0.636–0.718 s)**. The combined SDK flow measures
+**4.647 s (3.899–4.685 s)**. These values exclude user interaction and harness
+overhead. All three candidate registrations finish below four seconds; the
+combined flow still exceeds the target. Three samples do not establish a guarantee.
+
+Baseline registration medians are **3.785 s before** and **3.734 s after** the
+candidate. The candidate's registration median is slower in this run. The
+unchanged Router Yao span also rises from **1.261 / 1.270 s** in the controls to
+**1.413 s** in the candidate group. No causal end-to-end speedup is claimed.
+Retain the six demonstrated call reductions and the behavior-preserving batching.
+
+All nine signatures, 18 comparison checks, and independent restoration readbacks
+pass. Each group uses three discarded warm-up wallets followed by three measured
+wallets. The SDK, custody versions, Hong Kong placement, and database bindings stay
+fixed. All 13 original Worker versions, bindings, placement, and both Deriver
+schemas are restored. No new resources were created. The 512 frozen input hashes
+remain unchanged. Further individual-change experiments are unnecessary for this batch.
+
+The earlier [hosted initial-read comparison](evidence/refactor-155f-initial-read-hosted.md)
 verifies **12 → 10 finalization D1 calls**, **36 → 34 registration calls**, and
 **43 → 41 calls through the first signature** across Gateway and Console. These
 counts exclude custody databases and pending cleanup. All three candidate traces
@@ -38,21 +63,19 @@ calls. Earlier read, sealing, and Console batches retain their phase records.
 The [combined local record](evidence/refactor-155f-combined-registration-local.md)
 adds public `0e00b591` and private `eb235b1` / `0a85921`. Setup, respond, and
 finalization each remove one Gateway call. Console's claim, route, and completion
-mutations each remove one call. The projected hosted count is **34 → 28** for
-registration and **41 → 35** through first signing. These totals and the latency
-remain unmeasured on staging for the complete batch. Exact completed replay
+mutations each remove one call. The completed hosted comparison confirms
+**34 → 28** for registration and **41 → 35** through first signing. Exact completed replay
 still takes one local batch after ceremony cleanup.
 
 Fourteen public registration contracts, eight composed cases with the complete
 batch, and production Console acceptance pass. Both directory E2Es and the
-four-region session-routing scenario also pass
-with private `7ed7399`. Production Console acceptance checks one-call mutations,
-exact replay, and refusal before any write by retired writers. The eight-call finalization budget and the reasons to
+four-region session-routing scenario also pass with private `7ed7399`.
+Production Console acceptance checks one-call mutations, exact replay, and
+refusal before any write by retired writers. The eight-call finalization budget and the reasons to
 retain separate custody, completion, and client-execute boundaries are in the record.
 
-Next: finish the combined hosted comparison with current Hong Kong Console
-bindings, equal warm-up conditions, and a repeated control. Preserve concurrent
-R155G work and restore the exact configuration captured before this run.
+No R155F implementation or measurement task remains. Production rollout and
+package publication remain separate release work. Concurrent R155G work is preserved.
 
 ## Execution policy — October 11 update
 
@@ -821,21 +844,23 @@ One-request signing and early signing commitments remain separate protocol work.
   already contains `3ed898cc`. An earlier revision of this record said that the
   server source did not locate the cause. That statement came from a cloned
   tree that still ran the original tree's server build.
-- [ ] After completing the implementation batch and local verification, freeze
+- [x] After completing the implementation batch and local verification, freeze
   matching SDK, Gateway, Runtime, Console, and custody sources. Compare baseline,
   the complete candidate, and repeated baseline on existing staging resources.
   Hold the client, signer, wallet home, placement, database bindings, and unrelated
-  components fixed. The candidate includes all accepted R155F code changes.
+  components fixed. The candidate includes the complete remaining Gateway,
+  Runtime, and Console batch. The separately measured Deriver-B prewarm is
+  outside this comparison, as recorded in the hosted evidence.
   Coordinate any R155G changes explicitly and record the exact comparison scope.
-- [ ] Use at least the existing three fresh wallets per arm for the first comparison.
+- [x] Use at least the existing three fresh wallets per arm for the first comparison.
   Add samples only when a specific uncertainty justifies them within the **$25 Cloudflare budget**.
   Record cold and warm observations separately. Do not infer cold state from a new wallet alone.
-- [ ] Record registration, first signature, and combined medians, maxima, and ranges.
+- [x] Record registration, first signature, and combined medians, maxima, and ranges.
   Record HTTP calls, Console calls, D1 calls, SQL statements, serial waiting time,
   preparation waits, served regions, and unfinished background work separately.
-- [ ] Audit serving versions and independently verify every signature.
+- [x] Audit serving versions and independently verify every signature.
   Restore the baseline captured after the database cutover. Verify the restoration.
-- [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
+- [x] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
   Record whether the 3–4 second target was met. Do not claim a maximum from a median.
 
 Keep a simple change when it demonstrably removes a serial dependency or redundant
