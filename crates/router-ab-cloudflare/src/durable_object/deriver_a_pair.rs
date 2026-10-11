@@ -405,6 +405,8 @@ impl RouterAbDeriverAWalletDurableObject {
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
         if path == super::wallet_startup::PATH {
+            #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+            self.load_deriver_b_worker();
             return Response::from_json(&true);
         }
         if path == SNAPSHOT_PATH {
@@ -680,6 +682,23 @@ impl RouterAbDeriverAWalletDurableObject {
         }
     }
 
+    /// Asks Deriver B's Worker for its prewarm answer. The pair connection is
+    /// the only other request that reaches that Worker from where this object
+    /// runs, so without this the connection waits while the Worker loads
+    /// there. The answer is not used: a failure leaves the connection as
+    /// slow as it was.
+    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    fn load_deriver_b_worker(&self) {
+        let env = self.env.clone();
+        self.state.wait_until(async move {
+            let _ = crate::strict_worker::prewarm_service_binding_v1(
+                &env,
+                crate::DERIVER_B_BINDING,
+            )
+            .await;
+        });
+    }
+
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
     async fn execute_work(
         &self,
@@ -706,6 +725,9 @@ impl RouterAbDeriverAWalletDurableObject {
         }
         let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
             .map_err(|error| pair_error(error.to_string()))?;
+        // A wallet whose start is long past may find Deriver B's Worker
+        // unloaded again. Load it beside the admission.
+        self.load_deriver_b_worker();
         let preparation = CloudflareEd25519YaoPairPrepareRequestV1 {
             pair_binding: request.pair_binding.clone(),
             tenant_root: request.tenant_root.clone(),

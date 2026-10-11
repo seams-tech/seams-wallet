@@ -7,7 +7,10 @@
 ))]
 
 use crate::cloudflare_router_error_status;
-#[cfg(feature = "strict-worker-router-entrypoint")]
+#[cfg(any(
+    feature = "strict-worker-router-entrypoint",
+    feature = "strict-worker-deriver-a-entrypoint"
+))]
 use crate::set_cloudflare_internal_service_auth_header_v1;
 #[cfg(any(
     feature = "strict-worker-deriver-a-entrypoint",
@@ -273,6 +276,32 @@ pub(super) fn cloudflare_prewarm_response_v1(request: &Request) -> worker::Resul
         return Response::error("Router A/B prewarm route requires POST", 405);
     }
     Response::from_json(&serde_json::json!({ "ok": true }))
+}
+
+/// Asks the Worker behind a service binding for its prewarm answer, which
+/// loads that Worker where the caller runs.
+#[cfg(any(
+    feature = "strict-worker-router-entrypoint",
+    feature = "strict-worker-deriver-a-entrypoint"
+))]
+pub(crate) async fn prewarm_service_binding_v1(env: &Env, binding_name: &str) -> Result<(), ()> {
+    let fetcher = env.service(binding_name).map_err(|_| ())?;
+    let headers = worker::Headers::new();
+    set_cloudflare_internal_service_auth_header_v1(env, &headers, "Worker prewarm")
+        .map_err(|_| ())?;
+    let mut init = worker::RequestInit::new();
+    init.with_method(Method::Post).with_headers(headers);
+    let request =
+        Request::new_with_init("https://router-ab-prewarm.internal/internal/prewarm", &init)
+            .map_err(|_| ())?;
+    let mut response = fetcher.fetch_request(request).await.map_err(|_| ())?;
+    if !(200..=299).contains(&response.status_code()) {
+        return Err(());
+    }
+    // An unread answer leaves the called Worker's invocation open until this
+    // caller's request ends, and that Worker records it as cancelled.
+    response.bytes().await.map_err(|_| ())?;
+    Ok(())
 }
 
 #[cfg(any(

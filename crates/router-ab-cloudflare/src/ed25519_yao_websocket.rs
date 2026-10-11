@@ -17,7 +17,7 @@ use router_ab_core::{
 };
 use serde::{Deserialize, Serialize};
 
-const DERIVER_B_BINDING: &str = "DERIVER_B";
+pub(crate) const DERIVER_B_BINDING: &str = "DERIVER_B";
 const DERIVER_B_WEBSOCKET_URL: &str =
     "https://deriver-b.internal/router-ab/deriver-b/ed25519-yao/duplex";
 const PAIR_WEBSOCKET_PROTOCOL_PREFIX: &str = "seams-ed25519-yao-p1-v1";

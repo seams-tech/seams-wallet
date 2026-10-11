@@ -1763,24 +1763,6 @@ async fn handle_router_prewarm_v1(request: &Request, env: &Env) -> worker::Resul
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
-async fn prewarm_service_binding_v1(env: &Env, binding_name: &str) -> Result<(), ()> {
-    let fetcher = env.service(binding_name).map_err(|_| ())?;
-    let headers = worker::Headers::new();
-    set_cloudflare_internal_service_auth_header_v1(env, &headers, "Worker prewarm")
-        .map_err(|_| ())?;
-    let mut init = worker::RequestInit::new();
-    init.with_method(Method::Post).with_headers(headers);
-    let request =
-        Request::new_with_init("https://router-ab-prewarm.internal/internal/prewarm", &init)
-            .map_err(|_| ())?;
-    let response = fetcher.fetch_request(request).await.map_err(|_| ())?;
-    if !(200..=299).contains(&response.status_code()) {
-        return Err(());
-    }
-    Ok(())
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
 async fn await_prewarm_fanout_v1<A, B, C, E>(a: A, b: B, c: C) -> Result<(), E>
 where
     A: core::future::Future<Output = Result<(), E>>,
