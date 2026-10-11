@@ -1,9 +1,21 @@
 # R155 / Wallet 0.9.0 release preparation
 
-Status: **prepared, not published.** The package versions are set to 0.9.0.
-Publication, the merge into `main`, the private consumer update and every
-deployment remain separate, authorized steps.
-Date: October 11, 2026.
+Status: **published October 11, 2026, 17:37 UTC.** No environment runs it yet.
+Every deployment remains a separate, authorized step.
+
+## Publication record
+
+- CI on [pull request 34](https://github.com/seams-tech/seams-wallet/pull/34)
+  passed on `f659b9f6`: the candidate plus one commit that raises the limit of
+  the wallet validation and publish jobs from 60 to 90 minutes. The first run
+  reached the old limit at contract case 13 of 14 with no failure.
+- `main` is at the merge commit `f56d2222`. Its tree equals `f659b9f6`.
+- `release-wallet-packages.yml` run `38156978185` published
+  `@seams/wallet-server@0.9.0` (1,228 files) and `@seams/wallet@0.9.0`
+  (1,994 files) with provenance. Both carry the `latest` tag.
+- The private repository pins 0.9.0 since `0ad9143`. Its server packages
+  type-check against the published release. Two apps, one type fixture and one
+  relayer test still need the adoption work that the private commit lists.
 
 ## Why this release is required
 
