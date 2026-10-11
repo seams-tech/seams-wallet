@@ -485,6 +485,69 @@ before the role-database move and 120–130 ms after it. No other custody span
 changed beyond the spread between groups. SDK custody execution measured
 1,956–2,295 ms on October 11.
 
+### Serial chain of one Yao execution — October 11
+
+About half of a Yao execution is protocol work. The other half is admission,
+connection, delivery and bookkeeping around it, in one serial chain. The Worker
+records of the nine wallets in the
+[home-publication run](evidence/refactor-155f-home-publication-hosted.md) give
+the order. The Router's execute request took **1,574 ms** at the median
+(1,283–2,085). The browser measured 1,688 ms for the same request, about 40%
+of a registration.
+
+| Step, in order | Median | Range |
+| --- | ---: | ---: |
+| Router authorizes and claims the registration in its wallet object | 86 ms | 75–680 |
+| Router reaches the three roles | 44 ms | 21–233 |
+| Deriver A reaches its object and admits the pair session, two D1 round trips | 123 ms | 96–315 |
+| Deriver A connects to Deriver B | 252 ms | 231–373 |
+| Protocol, by the Worker clock | 398 ms | 275–459 |
+| Deriver A's CPU work that the clock does not show | 281 ms | 233–385 |
+| Router delivers the packages to the Signing Worker | 76 ms | 70–96 |
+| Router finishes the registration in its wallet object | 73 ms | 64–86 |
+
+The steps are medians of nine samples and do not add exactly to the request median.
+
+- **The clock hides Deriver A's CPU work.** A Worker clock advances only at I/O.
+  Deriver A's reply reached the Router 233–385 ms after the object's last clock
+  value. That gap matches the object's reported CPU time in every sample
+  (272–413 ms). Protocol work is therefore about **680 ms**, not 398 ms.
+- **The steps before the protocol take about 500 ms.** Both Derivers admit in
+  D1 with two round trips each, 103 ms for A and 110 ms for B, in parallel.
+  Deriver B's whole preparation request takes 293 ms (251–387).
+- **The connection crosses a stateless Deriver B Worker.** Deriver A reaches it
+  in 46 ms (43–55). The Worker holds the request 119 ms (100–206), although its
+  code only parses one header and forwards the request. It uses 40–64 ms of CPU
+  in all nine samples. Other stateless calls to this Worker use 2–24 ms, except
+  the first preparation request of two groups, at 67 and 91 ms. A new isolate
+  for each connection would explain both values. This cause is not established.
+  Deriver B's wallet object starts 55 ms later (10–69), and Deriver A sees the
+  connection after 46 ms more (11–129). The hold does not wait for Deriver B's
+  preparation: in one sample the preparation ended 145 ms before the connection
+  arrived.
+- **Deriver B reads its admitted session from D1 again**, 62 ms (52–65), in the
+  object that receives the connection. Part of it overlaps the connection reply.
+- **The Router sends two commands to its wallet object**, the claim at the start
+  and the completion at the end, at about 50–70 ms each.
+
+The run is the comparison of three groups on staging. The two finish values
+that the clock reported below zero are excluded from that row's range. A staging
+Worker with little traffic may start a new isolate more often than production does.
+
+Candidates, in order of expected size. None is implemented or measured.
+
+1. Remove the hold in the stateless Deriver B Worker from the connection, about
+   120 ms. First establish its cause, and whether production traffic removes it.
+2. Admit both Derivers before the execute request arrives, about 120 ms plus
+   Deriver B's preparation. The preparation request carries the client's input
+   today, so first establish which part needs it.
+3. Remove Deriver B's second D1 read, about 60 ms, if the object that admitted
+   the session also receives the connection.
+4. Combine each admission's two D1 round trips, about 50 ms.
+
+Reproduce with the scripts in `.artifacts/r155f-yao-chain/` of `seams-monorepo`.
+Each takes the run directory as its argument.
+
 ## Phase 4 — Remove a browser exchange where inputs permit it
 
 - [ ] Trace when the client creates each input for setup, respond, execute,
