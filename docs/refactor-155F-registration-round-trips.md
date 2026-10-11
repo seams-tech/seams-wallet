@@ -1,47 +1,43 @@
 # R155F — Reduce NEAR registration round trips
 
-Status: **in progress.** The wallet/session transaction is measured on staging.
-The next initial-read batch is implemented and verified locally. Each phase below
-retains its earlier evidence.
+Status: **in progress.** The initial-read batch is measured on staging. Each phase
+below retains its earlier evidence.
 Date: October 11, 2026.
 
-The [hosted transaction comparison](evidence/refactor-155f-wallet-session-hosted.md)
-verifies **13 → 12 finalization D1 calls** and **37 → 36 registration calls** across
-Gateway and Console. The first signature adds seven calls. These counts exclude
-custody-role databases and pending background calls.
+The [hosted initial-read comparison](evidence/refactor-155f-initial-read-hosted.md)
+verifies **12 → 10 finalization D1 calls**, **36 → 34 registration calls**, and
+**43 → 41 calls through the first signature** across Gateway and Console. These
+counts exclude custody databases and pending cleanup. All three candidate traces
+are complete. One first-control wallet lacks three Console trace observations;
+the evidence records this coverage limit.
 
-NEAR-only registration measures **3.839 s median (3.754–4.627 s)**. The first
-signature measures **0.988 s median**; the combined flow measures **4.854 s**.
-Finalization measures **1.167 s**, against the repeated control's **1.240 s**.
-Unchanged stages also varied. The full registration difference cannot be attributed
-to this transaction, and the four-second maximum remains unmet. All nine signatures,
-all 18 comparison checks, and independent restoration checks pass. Staging is restored.
+Candidate registration measures **4.221 s median (4.209–4.679 s)**. The first
+signature measures **1.038 s (0.814–1.124 s)**; the combined flow measures
+**5.247 s (5.035–5.804 s)**. Control registration medians are 4.809 s before and
+3.810 s after the candidate. The initial read stage measures **20 / 13 / 19 ms**.
+Unchanged Yao execution also varies. This run establishes fewer calls without
+establishing a repeatable end-to-end latency saving. The four-second maximum
+remains unmet. All nine signatures and all 18 comparison checks pass.
+Independent version, binding, placement, and schema checks pass. Staging is restored.
 
-Public `2b0e427d` combines wallet, capability, initial-session, and completion-decision
-persistence. Its [local evidence](evidence/refactor-155f-wallet-session-transaction.md)
-covers rollback, concurrent exact retry, lost completion replies, and foreign-region
-signing. Earlier changes overlap independent reads and sealing, remove the extra
-home read, and batch Console lineage, passkey-claim, and setup work. Their measurements
-remain in the phase records and linked evidence below.
+Public `1ef8306c` batches home, journal, and ceremony reads. The
+[local record](evidence/refactor-155f-initial-read-batch.md) verifies nine fresh
+finalization calls and one completed-retry batch after ceremony deletion. The
+retry preserves the session identity and returns no new operation credential.
+Relocation blocks and retired homes reject it. Private `67fe153` retains the
+retry trace in the existing composed scenario.
 
-The [initial-read batch](evidence/refactor-155f-initial-read-batch.md) reduces local
-finalization from **11 to 9 D1 calls**. Completed retries work after ceremony cleanup;
-relocation fences and retired homes reject them. All four public registration
-contracts and three composed regional scenarios pass. This change has no hosted
-latency measurement yet.
+The comparison uses public `2b0e427d` as control and private `3db9b5d` in both
+groups. SDK, Console, custody, generated WASM, and placement stay fixed. The
+332-file manifest and component versions are in the hosted evidence. The earlier
+[wallet/session transaction](evidence/refactor-155f-wallet-session-hosted.md)
+remains a separate result: 3.839 s median registration and 13 → 12 finalization
+calls. Earlier read, sealing, and Console batches retain their phase records.
 
-The initial-read comparison is built and frozen in the private artifact directory
-`.artifacts/r155f-initial-read-hosted`. It compares public `2b0e427d` with
-`1ef8306c`, using private `3db9b5d` in both groups. The SDK, Console, custody,
-generated WASM, and placement remain fixed. The manifest records 332 input files;
-its SHA-256 is `b7d0b1c7284d8d16e0b58715ac996eeca1bff72df79708dbea0d082e40057dad`.
-The launcher refuses another active experiment and checks the original versions,
-bindings, and placement of all 13 Workers before changing staging.
-
-Next: run this comparison after the separate Yao-prewarm experiment restores
-staging. Verify all nine signatures and restoration, then record the hosted call
-counts and timings. Moving the passkey claim earlier needs the cancellation
-review recorded in Phase 4.
+Next: reduce the serial Console work. Review cancellation before moving passkey
+claiming into respond, where it could overlap Yao execution. Keep the durable
+initial session before Console completion. Phase 4 records the cancellation
+constraint. Measure the next change against this frozen candidate.
 
 ## Objective and ownership
 
@@ -149,9 +145,12 @@ before editing because registration work continues concurrently.
 
 ## Phase 1 — Consolidate finalization and Gateway reads
 
-- [ ] Trace one fresh registration and one exact retry on the current combined
+- [x] Trace one fresh registration and one exact retry on the current combined
   source. Label every database call with its state dependency and transaction owner.
   Reuse existing trace tools. Do not create another instrumentation framework.
+  The [local call graph and retry trace](evidence/refactor-155f-initial-read-batch.md)
+  record nine fresh finalization calls and one completed-retry batch. Both exclude
+  private Gateway admission and pending cleanup. The retry survives ceremony deletion.
 - [ ] Combine finalization's initial routing, ownership-generation, Yao-state,
   and ceremony reads where they share one database and admission boundary.
   Home, journal, and ceremony now share one batch. Private routing admission and
@@ -159,7 +158,9 @@ before editing because registration work continues concurrently.
 - [x] Batch the initial home, journal, and ceremony reads. Preserve completed replay
   after cleanup, claim reconciliation, mixed-wallet continuation, and relocation
   fences. Local finalization uses **9 calls**, down from 11. The
-  [evidence](evidence/refactor-155f-initial-read-batch.md) records the remaining call graph.
+  [hosted comparison](evidence/refactor-155f-initial-read-hosted.md) verifies
+  **12 → 10 hosted finalization calls**. The
+  [local evidence](evidence/refactor-155f-initial-read-batch.md) records the remaining call graph.
 - [ ] Carry the validated request state into core functions. Remove repeated
   reads only when no intervening mutation requires a fresh value.
 - [ ] Move deployment predicates into the first required transaction where
