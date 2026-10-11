@@ -525,12 +525,15 @@ throughout the resize. Reduced-motion behavior remains immediate.
   unavailable route claim does not prevent local persistence: the response
   reports the custody commit as rejected, and the client retries it. The custody
   records are stored after the wallet commit and after the route claim, beside
-  the session issuance. Both settle before finalization responds. A finalization
+  session publication. Both settle before finalization responds. A finalization
   that fails settles its started route claim before it responds. An exact retry
   repeats the same route claim.
 - Registration commits its session and the matching ceremony's established decision
   in one local transaction. A conflicting ceremony or cancelled registration prevents
-  this commit. The wallet remains unavailable for ordinary signing until Console
+  this commit. Fresh NEAR-only registration includes its wallet, signer, founding
+  authority, auth method, capability, and lifecycle decision in that transaction.
+  A failed session write rolls back those records. Concurrent exact retries retain
+  the winning session credential and quota. The wallet remains unavailable for ordinary signing until Console
   acknowledges completion. Registration publishes the session locator and
   completes the home in one Console request. Console atomically commits the session
   locator, established home, and display row. The Gateway acknowledges completion before

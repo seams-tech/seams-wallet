@@ -303,6 +303,11 @@ import {
 } from './d1RegistrationSetupSupport';
 import type { D1WalletRegistrationCommitStore } from './d1WalletRegistrationCommitStore';
 import {
+  commitWalletRegistration,
+  type RegistrationInitialSessionPlan,
+  type RegistrationSessionTransactionStore,
+} from './d1WalletRegistrationInitialSession';
+import {
   storedRespondEd25519DeferredWork,
   walletRegistrationRespondResult,
 } from './d1WalletRegistrationSetup';
@@ -310,6 +315,7 @@ import { executeD1WalletRegistrationSetup } from './d1WalletRegistrationSetupExe
 import type {
   Ed25519RegistrationSessionPredecessor,
   RegistrationEstablishedSessionIssuanceResultV2,
+  RegistrationInitialSessionCommit,
 } from './walletRegistrationEstablishedSessionIssuer';
 import {
   assertDirectWalletSessionOwnerProof,
@@ -1521,6 +1527,7 @@ type RegistrationFinalizeExecution =
       readonly ok: true;
       readonly finalized: WalletRegistrationFinalizeSuccess;
       readonly custody: ReturnType<RegistrationCustodyCommit>;
+      readonly initialSession: RegistrationInitialSessionCommit;
     };
 
 function withD1RegistrationRouteDiagnostics(
@@ -1970,6 +1977,7 @@ export class CloudflareD1WalletRegistrationService {
   private readonly executionAuthority: WalletExecutionAuthority;
   private readonly registrationAuthority: WalletRegistrationHomeAuthority | null;
   private readonly authorizationService: AuthorizationService;
+  private readonly registrationSessionStore: RegistrationSessionTransactionStore;
   private readonly authorizationTenantId: TenantId;
   private readonly createSponsoredNamedNearAccount: SponsoredNamedNearAccountCreator;
   private readonly emailOtpRegistrationEnrollmentFinalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
@@ -1998,6 +2006,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly registrationAuthority: WalletRegistrationHomeAuthority | null;
     readonly startRegistrationWallets: RegistrationWalletStarter | null;
     readonly authorizationService: AuthorizationService;
+    readonly registrationSessionStore: RegistrationSessionTransactionStore;
     readonly authorizationTenantId: TenantId;
     readonly createSponsoredNamedNearAccount: SponsoredNamedNearAccountCreator;
     readonly emailOtpRegistrationEnrollmentFinalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
@@ -2019,6 +2028,7 @@ export class CloudflareD1WalletRegistrationService {
     this.registrationAuthority = input.registrationAuthority;
     this.startRegistrationWallets = input.startRegistrationWallets;
     this.authorizationService = input.authorizationService;
+    this.registrationSessionStore = input.registrationSessionStore;
     this.authorizationTenantId = input.authorizationTenantId;
     this.createSponsoredNamedNearAccount = input.createSponsoredNamedNearAccount;
     this.emailOtpRegistrationEnrollmentFinalizer = input.emailOtpRegistrationEnrollmentFinalizer;
@@ -3885,6 +3895,41 @@ export class CloudflareD1WalletRegistrationService {
       }
     }
     recordRegistrationServerTiming(args.serverTiming, 'near_finalize_source', sourceStartedAtMs);
+    const ceremonyAuthority = verifiedRegistrationCeremonyAuthority(source.ceremony);
+    if (!ceremonyAuthority) throw new Error('Registration authority is unavailable before finalize');
+    const sessionAuthority = registrationWalletAuthAuthority({
+      authority: ceremonyAuthority,
+      walletAuthMethodId: effectivePrepared.walletAuthMethodId,
+    });
+    const proof = await buildRegistrationOwnerProof({
+      registrationCeremonyId: args.input.registrationCeremonyId,
+      authMethod: walletRegistrationFinalizeAuthMethodFromAuthority(ceremonyAuthority),
+      authority: sessionAuthority,
+      tenantId: this.authorizationTenantId,
+      expectedOrigin: ownerProofContext.expectedOrigin,
+      expiresAtMs:
+        args.input.authorization.kind === 'wallet_session'
+          ? args.setupClaims.expiresAtMs
+          : ownerProofContext.expiresAtMs,
+    });
+    const initialSessionPlan: RegistrationInitialSessionPlan =
+      sessionPredecessor.kind === 'ed25519_only' &&
+      !registrationSignerBranchesFromPlan(source.ceremony.signerPlan).evmFamilyEcdsa
+        ? {
+            kind: 'initial_near',
+            store: this.registrationSessionStore,
+            request: {
+              authorizationService: this.authorizationService,
+              authorizationTenantId: this.authorizationTenantId,
+              registrationCeremonyId: args.input.registrationCeremonyId,
+              authority: sessionAuthority,
+              walletAuthMethodId: effectivePrepared.walletAuthMethodId,
+              expiresAtMs: Date.now() + DEFAULT_WALLET_SESSION_TTL_MS,
+              remainingUses: DEFAULT_WALLET_SESSION_REMAINING_USES,
+              proof,
+            },
+          }
+        : { kind: 'separate' };
     const execution = await this.executeWalletRegistrationFinalize(
       {
         kind: 'near_ed25519',
@@ -3897,6 +3942,7 @@ export class CloudflareD1WalletRegistrationService {
       effectivePrepared,
       source,
       args.serverTiming,
+      initialSessionPlan,
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -3912,20 +3958,8 @@ export class CloudflareD1WalletRegistrationService {
         message: 'NEAR provisioning committed a non-NEAR branch',
       });
     }
-    const proof = await buildRegistrationOwnerProof({
-      registrationCeremonyId: args.input.registrationCeremonyId,
-      authMethod: finalized.authMethod,
-      authority: finalized.authority,
-      tenantId: this.authorizationTenantId,
-      expectedOrigin: ownerProofContext.expectedOrigin,
-      expiresAtMs:
-        args.input.authorization.kind === 'wallet_session'
-          ? args.setupClaims.expiresAtMs
-          : ownerProofContext.expiresAtMs,
-    });
     if (!this.registrationAuthority) throw new Error('Registration home completion is unavailable');
-    /* The session and the custody records are independent writes behind the
-       wallet commit. Both settle before this leg returns. */
+    // Session publication and custody persistence both settle before returning.
     const [issuance, custody] = await Promise.allSettled([
       recordRegistrationPromiseTiming({
         sink: args.serverTiming,
@@ -3943,6 +3977,7 @@ export class CloudflareD1WalletRegistrationService {
           remainingUses: DEFAULT_WALLET_SESSION_REMAINING_USES,
           publicResult: finalized.ed25519,
           predecessor: sessionPredecessor,
+          initialSession: execution.initialSession,
           keyManifestDigestB64u: finalized.custodyKeyManifestDigestB64u,
           proof,
           onSessionCommitted:
@@ -4861,6 +4896,7 @@ export class CloudflareD1WalletRegistrationService {
       prepared,
       { kind: 'stored_ceremony', ceremony: activatedCeremony },
       [],
+      { kind: 'separate' },
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -5302,6 +5338,7 @@ export class CloudflareD1WalletRegistrationService {
     prepared: D1WalletRegistrationOperationPreparedV1,
     source: D1WalletRegistrationFinalizeSource,
     serverTiming: Array<readonly [string, number]>,
+    initialSessionPlan: RegistrationInitialSessionPlan,
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5812,6 +5849,7 @@ export class CloudflareD1WalletRegistrationService {
         };
       }
       let foundingAuthorityRecords: FoundingAuthorityRecords | null = null;
+      let initialSession: RegistrationInitialSessionCommit = { kind: 'uncommitted' };
       if (yaoDecisionFound?.kind !== 'decided') {
         const wallet = buildD1WalletRecord({
           walletId: ceremony.intent.walletId,
@@ -5984,23 +6022,31 @@ export class CloudflareD1WalletRegistrationService {
                 };
               }
               if (foundingAuthorityRecords) {
-                await commitWallet({
-                  kind: 'passkey_wallet_registration_commit_v1',
-                  wallet,
-                  walletSigners,
-                  foundingAuthority: foundingAuthorityRecords.authority,
-                  foundingAuthMethod: foundingAuthorityRecords.authMethod,
-                  now,
-                  decisionStatements,
-                });
+                initialSession = await commitWalletRegistration(
+                  commitWallet,
+                  {
+                    kind: 'passkey_wallet_registration_commit_v1',
+                    wallet,
+                    walletSigners,
+                    foundingAuthority: foundingAuthorityRecords.authority,
+                    foundingAuthMethod: foundingAuthorityRecords.authMethod,
+                    now,
+                    decisionStatements,
+                  },
+                  initialSessionPlan,
+                );
               } else {
-                await commitWallet({
-                  kind: 'passkey_wallet_registration_commit_v1',
-                  wallet,
-                  walletSigners,
-                  now,
-                  decisionStatements,
-                });
+                initialSession = await commitWalletRegistration(
+                  commitWallet,
+                  {
+                    kind: 'passkey_wallet_registration_commit_v1',
+                    wallet,
+                    walletSigners,
+                    now,
+                    decisionStatements,
+                  },
+                  initialSessionPlan,
+                );
               }
               break;
             case 'email_otp': {
@@ -6016,25 +6062,33 @@ export class CloudflareD1WalletRegistrationService {
                   emailOtpEnrollment.persistence,
                 );
               if (foundingAuthorityRecords) {
-                await commitWallet({
-                  kind: 'email_otp_wallet_registration_commit_v1',
-                  wallet,
-                  walletSigners,
-                  emailOtp,
-                  foundingAuthority: foundingAuthorityRecords.authority,
-                  foundingAuthMethod: foundingAuthorityRecords.authMethod,
-                  now,
-                  decisionStatements,
-                });
+                initialSession = await commitWalletRegistration(
+                  commitWallet,
+                  {
+                    kind: 'email_otp_wallet_registration_commit_v1',
+                    wallet,
+                    walletSigners,
+                    emailOtp,
+                    foundingAuthority: foundingAuthorityRecords.authority,
+                    foundingAuthMethod: foundingAuthorityRecords.authMethod,
+                    now,
+                    decisionStatements,
+                  },
+                  initialSessionPlan,
+                );
               } else {
-                await commitWallet({
-                  kind: 'email_otp_wallet_registration_commit_v1',
-                  wallet,
-                  walletSigners,
-                  emailOtp,
-                  now,
-                  decisionStatements,
-                });
+                initialSession = await commitWalletRegistration(
+                  commitWallet,
+                  {
+                    kind: 'email_otp_wallet_registration_commit_v1',
+                    wallet,
+                    walletSigners,
+                    emailOtp,
+                    now,
+                    decisionStatements,
+                  },
+                  initialSessionPlan,
+                );
               }
               break;
             }
@@ -6188,6 +6242,7 @@ export class CloudflareD1WalletRegistrationService {
           ok: true,
           finalized: withD1RegistrationRouteDiagnostics(response, finalizeTiming),
           custody,
+          initialSession,
         };
       }
       /* The operation journal owns terminal durability. Its caller deletes the
@@ -6199,6 +6254,7 @@ export class CloudflareD1WalletRegistrationService {
         ok: true,
         finalized: withD1RegistrationRouteDiagnostics(response, finalizeTiming),
         custody,
+        initialSession,
       };
     } catch (error: unknown) {
       return {

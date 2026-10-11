@@ -250,6 +250,9 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
   async putManyWithAdditionalStatements(
     mutations: readonly CloudflareD1VersionedJsonRecordMutationV1<T>[],
     additionalStatements: readonly D1PreparedStatementLike[],
+    executeBatch?: (
+      statements: readonly D1PreparedStatementLike[],
+    ) => Promise<readonly D1ResultLike[]>,
   ): Promise<CloudflareD1VersionedJsonRecordBatchPutResultV1> {
     const prepared = this.prepareBatchMutations(mutations);
     const statements: D1PreparedStatementLike[] = [];
@@ -259,7 +262,9 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
     }
     statements.push(...additionalStatements);
     try {
-      const results = await this.database.batch<D1ResultLike>(statements);
+      const results = executeBatch
+        ? await executeBatch(statements)
+        : await this.database.batch<D1ResultLike>(statements);
       assertBatchSucceeded(results, statements.length);
       return {
         kind: 'stored',

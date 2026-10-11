@@ -52,6 +52,15 @@ import {
 } from '../webauthn/d1WebAuthnStore';
 import type { D1EmailOtpRegistrationCommitPlan } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
 
+export type D1RegistrationCommitBatch = (
+  statements: readonly D1PreparedStatementLike[],
+) => Promise<readonly D1ResultLike[]>;
+
+type ReservedWalletRegistrationCommit = (
+  input: D1WalletRegistrationCommitInput,
+  executeBatch?: D1RegistrationCommitBatch,
+) => Promise<void>;
+
 type D1WalletRegistrationCommitBase = {
   readonly wallet: WalletRecord;
   readonly walletSigners: readonly WalletSignerRecord[];
@@ -86,7 +95,7 @@ type D1WalletRegistrationCommitInput =
 export interface D1WalletRegistrationCommitStore {
   reserveAuthority(
     authority: RegistrationAuthority,
-  ): Promise<(input: D1WalletRegistrationCommitInput) => Promise<void>>;
+  ): Promise<ReservedWalletRegistrationCommit>;
 }
 
 type D1WalletRegistrationCommitScope = D1WalletStoreScope &
@@ -522,7 +531,7 @@ export class CloudflareD1WalletRegistrationCommitStore
 
   async reserveAuthority(
     authority: RegistrationAuthority,
-  ): Promise<(input: D1WalletRegistrationCommitInput) => Promise<void>> {
+  ): Promise<ReservedWalletRegistrationCommit> {
     if (authority.kind === 'passkey') {
       await reservePasskeyCredential(this.credentialClaims, {
         walletId: authority.walletId,
@@ -536,6 +545,7 @@ export class CloudflareD1WalletRegistrationCommitStore
   private async commit(
     authority: RegistrationAuthority,
     input: D1WalletRegistrationCommitInput,
+    executeBatch?: D1RegistrationCommitBatch,
   ): Promise<void> {
     assertCommitWalletIdentity(input, authority);
     const ed25519Signer = input.walletSigners.find(isEd25519Signer);
@@ -559,13 +569,15 @@ export class CloudflareD1WalletRegistrationCommitStore
           registrationResult: capability.activationResult,
           runtimePolicyScope: capability.runtimePolicyScope,
         },
-        prepareWalletWrite(this.database, this.scope, authority, input),
+        prepareWalletWrite(this.database, this.scope, authority, input, executeBatch),
       );
       if (!installed.ok) throw new Error(installed.message);
       return;
     }
     const { statements } = await prepareWalletWrite(this.database, this.scope, authority, input);
-    const results = await this.database.batch<D1ResultLike>(statements);
+    const results = executeBatch
+      ? await executeBatch(statements)
+      : await this.database.batch<D1ResultLike>(statements);
     assertBatchSucceeded({
       expectedStatementCount: statements.length,
       results,
@@ -578,6 +590,7 @@ async function prepareWalletWrite(
   scope: D1WalletRegistrationCommitScope,
   authority: RegistrationAuthority,
   input: D1WalletRegistrationCommitInput,
+  executeBatch?: D1RegistrationCommitBatch,
 ) {
   const foundingStatements = await prepareFoundingStatements({
     database,
@@ -606,7 +619,7 @@ async function prepareWalletWrite(
     ...emailOtpCommitStatements(input),
     ...input.decisionStatements,
   );
-  return { statements };
+  return { statements, executeBatch };
 }
 
 function isEd25519Signer(signer: WalletSignerRecord) {

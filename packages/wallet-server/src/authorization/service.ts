@@ -505,6 +505,8 @@ export class AuthorizationService {
     input: IssueWalletSessionAuthorizationV2Input,
     replayMode: DirectWalletSessionReplayMode,
     purpose: DirectWalletSessionCommitPurpose,
+    commitSession: AuthorizationGrantPort['commitDirectReplayableWalletSessionAuthorizationV2'] =
+      this.ports.grants.commitDirectReplayableWalletSessionAuthorizationV2.bind(this.ports.grants),
   ): Promise<{
     readonly result: DirectV2IssueResult;
     readonly publication: WalletSessionLocatorPublication & { readonly kind: 'credential' };
@@ -515,7 +517,7 @@ export class AuthorizationService {
     }
     const prepared = await this.prepareWalletSessionAuthorizationV2(input);
     const { persisted, token } = await this.prepareDirectWalletSessionIssuance(prepared);
-    const commit = await this.ports.grants.commitDirectReplayableWalletSessionAuthorizationV2({
+    const commit = await commitSession({
       persisted,
       purpose,
     });

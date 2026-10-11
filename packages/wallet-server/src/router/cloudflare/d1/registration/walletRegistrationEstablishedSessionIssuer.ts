@@ -11,7 +11,7 @@ import {
   buildVerifiedWalletSessionPasskeyFactorResult,
   type VerifiedOwnerProof,
 } from '../../../../authorization/factorEvidence';
-import type { AuthorizationService } from '../../../../authorization/service';
+import type { AuthorizationGrantPort, AuthorizationService } from '../../../../authorization/service';
 import type {
   DirectV2IssueResult,
   IssuedWalletSessionAuthorizationV2,
@@ -84,6 +84,61 @@ type RegistrationEstablishedSessionIssuanceDependencies = {
   readonly foundingAuthority: ActiveWalletAuthorityV1;
   readonly homeCompletion: Pick<WalletRegistrationHomeAuthority, 'publishEstablished'>;
 };
+
+export type RegistrationInitialSessionCommit =
+  | { readonly kind: 'uncommitted'; readonly value?: never }
+  | {
+      readonly kind: 'committed';
+      readonly value: Awaited<ReturnType<AuthorizationService['commitDirectWalletSessionAuthorizationV2']>>;
+    };
+
+type InitialEd25519RegistrationSessionInput = {
+  readonly authorizationService: RegistrationEstablishedSessionIssuerAuthorizationService;
+  readonly authorizationTenantId: TenantId;
+  readonly foundingAuthority: ActiveWalletAuthorityV1;
+  readonly registrationCeremonyId: string;
+  readonly authority: WalletAuthAuthority;
+  readonly walletAuthMethodId: WalletAuthMethodId;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+  readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
+};
+
+export async function commitInitialEd25519RegistrationSession(
+  input: InitialEd25519RegistrationSessionInput,
+  commitSession?: AuthorizationGrantPort['commitDirectReplayableWalletSessionAuthorizationV2'],
+) {
+  const issuedAtMs = Date.now();
+  await assertDirectWalletSessionOwnerProof({
+    proof: input.proof,
+    tenantId: input.authorizationTenantId,
+    authority: input.authority,
+    activeAuthority: input.foundingAuthority,
+    walletAuthMethodId: input.walletAuthMethodId,
+    nowMs: issuedAtMs,
+  });
+  const policy = registrationSessionPolicy({
+    issuedAtMs,
+    expiresAtMs: input.expiresAtMs,
+    remainingUses: input.remainingUses,
+  });
+  return input.authorizationService.commitDirectWalletSessionAuthorizationV2(
+    {
+      tenantId: input.authorizationTenantId,
+      principalId: walletSessionPrincipalId(input.authority),
+      walletId: walletIdFromString(String(input.authority.walletId)),
+      authority: input.foundingAuthority,
+      walletAuthMethodId: input.walletAuthMethodId,
+      mintId: registrationEstablishedMintId(input.registrationCeremonyId),
+      remainingUses: policy.remainingUses,
+      issuedAtMs,
+      expiresAtMs: policy.expiresAtMs,
+    },
+    { kind: 'validated_registration_authority_projection' },
+    { kind: 'registration', ceremonyId: input.registrationCeremonyId },
+    commitSession,
+  );
+}
 
 function requireWalletSessionPrincipalId(value: string): PrincipalId {
   const parsed = parsePrincipalId(value);
@@ -610,6 +665,7 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     readonly remainingUses: number;
     readonly publicResult: WalletRegistrationEd25519YaoPublicResult;
     readonly predecessor: Ed25519RegistrationSessionPredecessor;
+    readonly initialSession: RegistrationInitialSessionCommit;
     readonly keyManifestDigestB64u: DigestB64u;
     readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
     readonly onSessionCommitted?: (
@@ -617,16 +673,15 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     ) => Promise<void>;
   },
 ): Promise<RegistrationEstablishedSessionIssuanceResultV2> {
-  const issuedAtMs = Date.now();
-  await assertDirectWalletSessionOwnerProof({
-    proof: input.proof,
-    tenantId: input.authorizationTenantId,
-    authority: input.authority,
-    activeAuthority: input.foundingAuthority,
-    walletAuthMethodId: input.walletAuthMethodId,
-    nowMs: issuedAtMs,
-  });
   if (input.predecessor.kind === 'resumed_mixed') {
+    await assertDirectWalletSessionOwnerProof({
+      proof: input.proof,
+      tenantId: input.authorizationTenantId,
+      authority: input.authority,
+      activeAuthority: input.foundingAuthority,
+      walletAuthMethodId: input.walletAuthMethodId,
+      nowMs: Date.now(),
+    });
     const authorization =
       await input.authorizationService.refreshWalletSessionAuthorizationV2AuthorityProjection({
         existing: input.predecessor.authorization,
@@ -649,26 +704,10 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
       activation: null,
     };
   }
-  const policy = registrationSessionPolicy({
-    issuedAtMs,
-    expiresAtMs: input.expiresAtMs,
-    remainingUses: input.remainingUses,
-  });
-  const committed = await input.authorizationService.commitDirectWalletSessionAuthorizationV2(
-    {
-      tenantId: input.authorizationTenantId,
-      principalId: walletSessionPrincipalId(input.authority),
-      walletId: walletIdFromString(String(input.authority.walletId)),
-      authority: input.foundingAuthority,
-      walletAuthMethodId: input.walletAuthMethodId,
-      mintId: registrationEstablishedMintId(input.registrationCeremonyId),
-      remainingUses: policy.remainingUses,
-      issuedAtMs,
-      expiresAtMs: policy.expiresAtMs,
-    },
-    { kind: 'validated_registration_authority_projection' },
-    { kind: 'registration', ceremonyId: input.registrationCeremonyId },
-  );
+  const committed =
+    input.initialSession.kind === 'committed'
+      ? input.initialSession.value
+      : await commitInitialEd25519RegistrationSession(input);
   const directIssue = committed.result;
   let authorization: IssuedWalletSessionAuthorizationV2;
   switch (directIssue.kind) {

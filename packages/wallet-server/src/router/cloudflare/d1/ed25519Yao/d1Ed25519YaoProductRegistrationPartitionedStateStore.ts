@@ -108,11 +108,15 @@ class D1LifecycleRecords implements RouterAbEd25519YaoProductRegistrationPartiti
     }
     // The record CAS protects the versions inspected above. The local fence and
     // companion effects commit in that same batch, or the whole batch rolls back.
-    return this.records.putManyWithAdditionalStatements(mutations, [
-      ...lifecycleWriteFenceStatements(this.options, wallets),
-      ...projections,
-      ...(companion?.statements ?? []),
-    ]);
+    return this.records.putManyWithAdditionalStatements(
+      mutations,
+      [
+        ...lifecycleWriteFenceStatements(this.options, wallets),
+        ...projections,
+        ...(companion?.statements ?? []),
+      ],
+      companion?.executeBatch,
+    );
   }
 }
 

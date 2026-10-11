@@ -13,6 +13,8 @@ import type {
   DirectWalletSessionCommitPurpose,
 } from '../../../../authorization/service';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
+import { D1RegistrationSessionTransaction } from '../registration/d1RegistrationSessionTransaction';
+import type { D1RegistrationCommitBatch } from '../registration/d1WalletRegistrationCommitStore';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { EcdsaMaterialRead } from '../../../../core/d1EcdsaSignerRead';
 import { Ed25519SignerRead } from '../../../../core/d1Ed25519SignerRead';
@@ -1268,11 +1270,33 @@ export class CloudflareD1AuthorizationStore
     });
   }
 
-  private async commitDirectWalletSessionAuthorizationV2WithMode(input: {
-    readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
-    readonly mode: DirectV2CommitMode;
-    readonly purpose: DirectWalletSessionCommitPurpose;
-  }): Promise<DirectV2CommitResult> {
+  async commitRegistrationWalletSessionAuthorizationV2(
+    commitWallet: (executeBatch: D1RegistrationCommitBatch) => Promise<void>,
+    input: {
+      readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
+      readonly purpose: DirectWalletSessionCommitPurpose;
+    },
+  ): Promise<DirectV2CommitResult> {
+    if (input.purpose.kind !== 'registration') {
+      throw new Error('A wallet registration transaction requires a registration session');
+    }
+    const transaction = new D1RegistrationSessionTransaction(this.database, commitWallet);
+    return this.commitDirectWalletSessionAuthorizationV2WithMode(
+      { persisted: input.persisted, purpose: input.purpose, mode: { kind: 'replayable' } },
+      transaction.execute.bind(transaction),
+    );
+  }
+
+  private async commitDirectWalletSessionAuthorizationV2WithMode(
+    input: {
+      readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
+      readonly mode: DirectV2CommitMode;
+      readonly purpose: DirectWalletSessionCommitPurpose;
+    },
+    executeBatch?: (
+      statements: readonly D1PreparedStatementLike[],
+    ) => Promise<readonly D1ResultLike<D1Row>[]>,
+  ): Promise<DirectV2CommitResult> {
     const { persisted, mode } = input;
     requireExactPersistedActiveWalletSessionAuthorizationV2(persisted);
     const lookup: WalletSessionAuthorizationV2MintLookup = {
@@ -1284,12 +1308,15 @@ export class CloudflareD1AuthorizationStore
       mintId: persisted.session.mintId,
     };
     const completionStatements = this.prepareRegistrationSessionCompletion(input.purpose, lookup);
-    const results = await this.database.batch<D1ResultLike<D1Row>>([
+    const statements = [
       ...this.prepareDirectWalletSessionAuthorizationV2Statements(persisted),
       this.prepareWalletSessionAuthorizationV2ByMintRead(lookup),
       this.prepareWalletSessionIssuanceGenerationRead(persisted.session.walletId),
       ...completionStatements,
-    ]);
+    ];
+    const results = executeBatch
+      ? await executeBatch(statements)
+      : await this.database.batch<D1ResultLike<D1Row>>(statements);
     if (results.length !== 8 + completionStatements.length) {
       throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
     }

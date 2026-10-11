@@ -3,7 +3,7 @@ import type {
   VersionedJsonRecordReadResult,
   VersionedJsonValue,
 } from '../../../framework/versionedJsonRecordStore';
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1PreparedStatementLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import type { InMemoryRouterAbEd25519YaoRecoveryStateV1 } from '../recovery/routerAbEd25519YaoRecovery';
 import {
   buildRouterAbEd25519YaoRegistrationExecutionAuthorityV1,
@@ -75,6 +75,9 @@ export type RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1 =
  */
 export type RouterAbEd25519YaoPreparedWriteV1 = {
   readonly statements: readonly D1PreparedStatementLike[];
+  readonly executeBatch?: (
+    statements: readonly D1PreparedStatementLike[],
+  ) => Promise<readonly D1ResultLike[]>;
 };
 
 export type RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 = {

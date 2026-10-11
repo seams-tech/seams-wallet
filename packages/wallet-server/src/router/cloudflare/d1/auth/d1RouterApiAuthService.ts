@@ -1379,6 +1379,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     registrationAuthority: options.registrationAuthority ?? null,
     startRegistrationWallets: options.startRegistrationWallets ?? null,
     authorizationService,
+    registrationSessionStore: authorizationStore,
     authorizationTenantId: authorizationTenantId.value,
     createSponsoredNamedNearAccount,
     emailOtpRegistrationEnrollmentFinalizer,

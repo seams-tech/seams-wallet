@@ -29,6 +29,11 @@ The repeated control measured **4.171 s median**. The four-second maximum remain
 unmet. Setup D1 time nearly matched the repeated control, so the whole registration
 difference cannot be attributed to this batch. All nine signatures and independent
 restoration checks passed. Keep the change for the verified reduction in work.
+The next [local implementation](evidence/refactor-155f-wallet-session-transaction.md)
+combines wallet, capability, and initial-session persistence. Local composed
+finalization uses **11 D1 calls**, down from 12. Rollback, concurrent exact retry,
+lost completion replies, and foreign-region signing pass. Hosted latency remains
+unmeasured for this transaction change; the preceding numbers remain the baseline.
 
 ## Objective and ownership
 
@@ -150,10 +155,14 @@ before editing because registration work continues concurrently.
   Combine compatible writes through existing transaction builders.
   Keep separate commits where a remote result must occur between them.
   The October 11 Console comparison records **119 ms** for the candidate's wallet
-  commit and **131 ms** for its following session commit, at the median. Examine
-  combining these two local transactions next. Preserve ownership, capability
-  version checks, session uniqueness, and exact retry. Console completion remains
-  between session persistence and the final activation/receipt transaction.
+  commit and **131 ms** for its following session commit, at the median.
+  The implementation below combines them. Console completion remains between session persistence and the final
+  activation/receipt transaction.
+- [x] Commit the fresh NEAR wallet, capability, and initial session in one batch.
+  Preserve ownership, capability version checks, session uniqueness, and exact
+  retry. Verify rollback when session persistence fails and preserve the winning
+  credential and quota on concurrent retries. Local composed finalization uses
+  11 calls, down from 12. [Implementation and evidence](evidence/refactor-155f-wallet-session-transaction.md).
 - [ ] Inspect setup and respond for the same repeated reads. Read the current
   fresh-admission path before changing it because R155D already removed an absent-record read.
 - [ ] Record a justified round-trip budget for fresh registration and exact retry.

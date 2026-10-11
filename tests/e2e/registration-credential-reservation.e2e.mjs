@@ -7,6 +7,7 @@ import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { seedRegistrationHome } from './execution-generation.scenario.mjs';
 
 class CredentialDirectory {
   requests = [];
@@ -49,6 +50,10 @@ const bundle = await build({
       export { buildNearRegistrationSignerFixture } from './tests/unit/helpers/nearRegistrationSigner.fixtures';
       export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
+      export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
+      export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
+      export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+      export { registrationEstablishedMintId } from './packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
       export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
     `,
   },
@@ -264,16 +269,19 @@ async function verifyIndependentCommitReads(database, now) {
     },
   });
   const traced = new DelayedFoundingDatabase(database);
-  const store = new api.CloudflareD1WalletRegistrationCommitStore({
-    database: traced,
-    credentialClaims: { claim: acceptCredential },
+  const scope = {
     namespace: 'independent-reads',
     orgId: 'org',
     projectId: 'project',
     envId: 'test',
+  };
+  const store = new api.CloudflareD1WalletRegistrationCommitStore({
+    database: traced,
+    credentialClaims: { claim: acceptCredential },
+    ...scope,
   });
   const commit = await store.reserveAuthority(authority);
-  await commit({
+  const walletInput = {
     kind: 'passkey_wallet_registration_commit_v1',
     wallet: api.buildD1WalletRecord({ walletId: authority.walletId, now }),
     walletSigners: [signer],
@@ -281,12 +289,96 @@ async function verifyIndependentCommitReads(database, now) {
     foundingAuthMethod: founding.authMethod,
     now,
     decisionStatements: [],
+  };
+  const sessionStore = new api.CloudflareD1AuthorizationStore({
+    database: traced,
+    namespace: scope.namespace,
+    walletSignerScope: scope,
+  });
+  const service = new api.AuthorizationService({
+    policy: api.capabilityPolicyPort,
+    sessions: sessionStore,
+    grants: sessionStore,
+    evidence: sessionStore,
+    authorizedOperations: sessionStore,
+    audit: {},
+  });
+  const ceremonyId = 'registration:combined-session';
+  await seedRegistrationHome({ database, scope, walletId: authority.walletId, ceremonyId });
+  const sessionInput = {
+    tenantId: founding.issuedSession.session.tenantId,
+    principalId: founding.issuedSession.session.principalId,
+    walletId: authority.walletId,
+    authority: founding.authority,
+    walletAuthMethodId: founding.authMethod.walletAuthMethodId,
+    mintId: api.registrationEstablishedMintId(ceremonyId),
+    remainingUses: 7,
+    issuedAtMs: now,
+    expiresAtMs: now + 3_600_000,
+  };
+  const commitWithSession = service.commitDirectWalletSessionAuthorizationV2.bind(
+    service,
+    sessionInput,
+    { kind: 'validated_registration_authority_projection' },
+    { kind: 'registration', ceremonyId },
+    sessionStore.commitRegistrationWalletSessionAuthorizationV2.bind(
+      sessionStore,
+      commit.bind(undefined, walletInput),
+    ),
+  );
+  const beforeSessionFailure = await snapshot(database);
+  await database
+    .prepare(
+      `CREATE TRIGGER reject_initial_session
+    BEFORE INSERT ON wallet_session_authorizations_v2
+    BEGIN SELECT RAISE(ABORT, 'injected_initial_session_failure'); END`,
+    )
+    .run();
+  await assert.rejects(commitWithSession(), /injected_initial_session_failure/);
+  assert.deepEqual(await snapshot(database), beforeSessionFailure);
+  await database.prepare('DROP TRIGGER reject_initial_session').run();
+
+  const callsBefore = trace(traced).length;
+  const issued = await commitWithSession();
+  assert.equal(issued.result.kind, 'issued');
+  assert.deepEqual(issued.registration, {
+    ceremonyId,
+    walletId: authority.walletId,
+    state: 'registering',
   });
   assert.equal(traced.readsOverlapped, true);
-  const calls = trace(traced);
+  const calls = trace(traced).slice(callsBefore);
   assert.equal(calls.length, 3);
   assert.ok(writesWalletBatch(calls[2]));
-  return { delayedFoundingReadDidNotBlockCapabilityRead: true, calls };
+  const tables = new Set(calls[2].statements.flatMap(statementTables));
+  for (const table of [
+    'wallets',
+    'wallet_signers',
+    'wallet_authorities',
+    'wallet_auth_methods',
+    'router_ab_yao_versioned_json_records',
+    'wallet_session_authorizations_v2',
+    'authorization_wallet_session_quotas',
+    'wallet_execution_generations',
+  ]) {
+    assert.ok(tables.has(table), `${table} must share the wallet/session transaction`);
+  }
+  const committed = await snapshot(database);
+  // Ignore the successful response. Two retries must preserve its credential and quota.
+  const replay = await Promise.all([commitWithSession(), commitWithSession()]);
+  assert.ok(replay.every(sessionWasAlreadyCommitted));
+  assert.deepEqual(await snapshot(database), committed);
+  return {
+    delayedFoundingReadDidNotBlockCapabilityRead: true,
+    initialSessionFailureRollsBackWalletAndCapability: true,
+    concurrentLostReplyRetriesPreserveCredentialAndQuota: true,
+    walletCapabilityAndSessionD1Calls: calls.length,
+    calls,
+  };
+}
+
+function sessionWasAlreadyCommitted(commit) {
+  return commit.result.kind === 'already_committed';
 }
 
 function readsFoundingAuthority(query) {
@@ -319,6 +411,11 @@ async function snapshot(database) {
     'wallet_signers',
     'webauthn_authenticators',
     'webauthn_credential_bindings',
+    'wallet_authorities',
+    'wallet_auth_methods',
+    'wallet_session_authorizations_v2',
+    'authorization_wallet_session_quotas',
+    'wallet_execution_generations',
   ]) {
     rows[table] = (await database.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()).results;
   }
