@@ -3,9 +3,11 @@
 Fresh NEAR-only registration now commits its wallet, capability, and initial
 session in one D1 batch. The local composed Gateway measures **11 finalization
 D1 calls**, down from the preceding **12-call local measurement**.
-Hosted latency for this change remains unmeasured.
+The later [hosted comparison](refactor-155f-wallet-session-hosted.md) verifies
+**13 → 12 finalization calls** and **37 → 36 total registration calls** across
+Gateway and Console. It records latency separately from the local result below.
 
-The last hosted result remains **3.950 s median registration**, with a
+The preceding hosted result was **3.950 s median registration**, with a
 **3.902–4.949 s range**. Registration through the first signature measured
 **4.804 s median**. Those results predate this change. See the
 [Console comparison](refactor-155f-console-setup-hosted.md).
@@ -59,8 +61,8 @@ The composed candidate records this finalization sequence:
 
 This local trace excludes hosted Gateway admission. The last hosted candidate
 used 13 finalization calls and 37 total Gateway/Console registration calls.
-Those hosted totals require a new measurement; the local reduction does not
-establish a measured regional latency saving.
+The later hosted comparison measures the combined transaction directly. The
+local reduction alone does not establish a regional latency saving.
 
 ## Verification
 
@@ -126,10 +128,9 @@ node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts \
 The public source before this change is `19723f38`. The composed Console source
 is private `3db9b5d`. No live resources changed during this implementation.
 
-## Next measurement
+## Hosted follow-up
 
-Freeze matching Gateway and Runtime builds. Compare the prior and combined
-transactions on existing staging with the same SDK, Console, custody versions,
-database bindings, and client location. Retain a repeated control and verify all
-signatures. Report registration and first-signature median, range, and maximum,
-plus finalization D1 counts. Restore and verify staging after the comparison.
+The [hosted record](refactor-155f-wallet-session-hosted.md) compares matching
+Gateway and Runtime builds while holding the SDK, Console, custody, placement,
+and database bindings fixed. It includes a repeated control, all nine independent
+signature checks, timing ranges, and finalization D1 counts.

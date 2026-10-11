@@ -1,39 +1,31 @@
 # R155F — Reduce NEAR registration round trips
 
-Status: **in progress.** The R155D implementer took over every phase of this
-plan on October 10 at the owner's instruction. Phase 1 has its first code change.
-The registration proof for the relocated role databases exists. Each phase
-below ends with its record.
+Status: **in progress.** The latest wallet/session transaction change is implemented
+and measured. Each phase below retains its earlier evidence.
 Date: October 11, 2026.
 
-Work resumed from `f02e5891` on October 11. Two more finalization read dependencies
-are removed locally. A local CPU profile identifies session sealing as the main
-sampled computation. Sealing now starts after session persistence and overlaps
-home publication. See the [read-overlap record](#finalization-read-overlap-and-cpu-profile--october-11)
-and [sealing record](#session-sealing-overlap--october-11).
-The [hosted comparison](#hosted-read-and-sealing-comparison--october-11) now verifies
-both read overlaps. It shows no clear improvement in total registration time.
-The next changes remove the home read after session issuance and overlap the
-initial home and operation-journal reads. Console receives completion before
-session sealing starts. The new hosted comparison verifies **38 completed
-Gateway/Console D1 calls**, down from 39 in its control. Registration measured
-**4.102 s** against the repeated control's **4.094 s**. It establishes no clear
-overall latency gain. Staging restoration passed independent checks.
-Console setup now batches deployment admission and its exact environment read.
-The production Console E2E measures **four D1 calls**, down from five. Both SQL
-reads remain. This replaces the earlier environment/authentication overlap.
-Local verification and the [hosted Console comparison](evidence/refactor-155f-console-setup-hosted.md)
-passed. Registration now uses **37 completed Gateway/Console D1 calls**.
-The candidate registered in **3.950 s median**, with a **3.902–4.949 s range**.
-The repeated control measured **4.171 s median**. The four-second maximum remains
-unmet. Setup D1 time nearly matched the repeated control, so the whole registration
-difference cannot be attributed to this batch. All nine signatures and independent
-restoration checks passed. Keep the change for the verified reduction in work.
-The next [local implementation](evidence/refactor-155f-wallet-session-transaction.md)
-combines wallet, capability, and initial-session persistence. Local composed
-finalization uses **11 D1 calls**, down from 12. Rollback, concurrent exact retry,
-lost completion replies, and foreign-region signing pass. Hosted latency remains
-unmeasured for this transaction change; the preceding numbers remain the baseline.
+The [hosted transaction comparison](evidence/refactor-155f-wallet-session-hosted.md)
+verifies **13 → 12 finalization D1 calls** and **37 → 36 registration calls** across
+Gateway and Console. The first signature adds seven calls. These counts exclude
+custody-role databases and pending background calls.
+
+NEAR-only registration measures **3.839 s median (3.754–4.627 s)**. The first
+signature measures **0.988 s median**; the combined flow measures **4.854 s**.
+Finalization measures **1.167 s**, against the repeated control's **1.240 s**.
+Unchanged stages also varied. The full registration difference cannot be attributed
+to this transaction, and the four-second maximum remains unmet. All nine signatures,
+all 18 comparison checks, and independent restoration checks pass. Staging is restored.
+
+Public `2b0e427d` combines wallet, capability, initial-session, and completion-decision
+persistence. Its [local evidence](evidence/refactor-155f-wallet-session-transaction.md)
+covers rollback, concurrent exact retry, lost completion replies, and foreign-region
+signing. Earlier changes overlap independent reads and sealing, remove the extra
+home read, and batch Console lineage, passkey-claim, and setup work. Their measurements
+remain in the phase records and linked evidence below.
+
+Next: combine finalization's initial home, retry-record, and ceremony reads. Keep
+completed retries usable after ceremony cleanup. Moving the passkey claim earlier
+needs the cancellation review recorded in Phase 4.
 
 ## Objective and ownership
 
@@ -162,7 +154,9 @@ before editing because registration work continues concurrently.
   Preserve ownership, capability version checks, session uniqueness, and exact
   retry. Verify rollback when session persistence fails and preserve the winning
   credential and quota on concurrent retries. Local composed finalization uses
-  11 calls, down from 12. [Implementation and evidence](evidence/refactor-155f-wallet-session-transaction.md).
+  11 calls, down from 12. Hosted finalization uses 12 calls, down from 13.
+  [Implementation](evidence/refactor-155f-wallet-session-transaction.md) and
+  [hosted evidence](evidence/refactor-155f-wallet-session-hosted.md).
 - [ ] Inspect setup and respond for the same repeated reads. Read the current
   fresh-admission path before changing it because R155D already removed an absent-record read.
 - [ ] Record a justified round-trip budget for fresh registration and exact retry.
@@ -603,6 +597,13 @@ contains the registered public key. A direct merge of execute and finalization
 is therefore not possible. Server-only work that needs no Yao result can still
 overlap the client's custody work: the credential claim, the route claim and
 the initial loads need only the ceremony.
+
+An earlier credential claim also changes cancellation behavior. Console's
+`D1WalletHomeDirectory.complete` refuses cancellation after a wallet gains a
+passkey claim. Moving the claim into respond would extend that restriction to
+subsequent Yao failures. Review that outcome before moving the claim; preserve
+usable retry or cancellation behavior. Initial read batching is the smaller
+next change and needs no earlier remote ownership mutation.
 
 Each browser request also costs a CORS preflight exchange, because every
 request is a cross-origin JSON POST to a new URL. A registration and its first
