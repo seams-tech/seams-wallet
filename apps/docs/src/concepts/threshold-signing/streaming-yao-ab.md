@@ -16,10 +16,10 @@ remain isolated while the shared Cloudflare account control plane remains honest
 Stronger active security and independently administered Deriver accounts remain deferred
 profiles and are not implied by the deployed benchmark.
 
-The 0.8.0 hosted stack runs native Rust compute in Containers behind Worker and Durable
-Object boundaries. The July Worker/WebSocket measurements below describe historical
+The 0.9.0 hosted stack runs Rust compute compiled to WebAssembly inside Workers and
+Durable Objects. The July Worker/WebSocket measurements below describe historical
 implementation benchmarks. They do not measure current end-to-end wallet latency or
-Container costs.
+costs.
 
 ## When Yao runs
 
@@ -265,7 +265,7 @@ outputs belong to a stronger future profile.
 ## Cost model
 
 The following estimate applies to the historical Worker benchmark. Current
-hosted 0.8.0 costs also include DO/Container compute, regional D1, and backup
+hosted 0.9.0 costs also include Durable Object compute, regional D1, and backup
 storage and requests. Measure those separately for the actual deployment.
 
 The July 10, 2026 planning snapshot for Cloudflare Workers Standard assumes:

@@ -11,15 +11,16 @@ setting that used it.
 
 ## Availability
 
-Status checked October 4, 2026:
+Status checked October 11, 2026:
 
 | Capability | Status | Scope |
 | --- | --- | --- |
-| Wallet browser and server SDKs | Published as 0.8.0 | Wallet lifecycle, signing, fixed per-wallet regional routing, and ownership contracts |
+| Wallet browser and server SDKs | Published as 0.9.0 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
 | Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups. Verify custody and refresh policy in the deployed environment. |
 | Tenant-controlled root recovery | CLI launcher published as 0.6.0. Native assets unavailable at the public release URL. | Dashboard approval, holder-key custody, and an approved empty destination are also required |
 | Wallet/deployment portability | Planned | Wallet inventory, signing-participant handoff, destination provisioning, and explicit cutover |
-| Owner-selected or automatic wallet-region relocation | Planned | 0.8.0 retains a fixed home across devices and travel |
+| Owner-selected wallet-region relocation | Included in 0.9.0 | The owner authorizes each move from the wallet region setting. The deployment must provide the destination region. |
+| Automatic wallet-region relocation | Planned | A wallet keeps its home across devices and travel until its owner moves it |
 
 Wallet SDK publication does not establish recovery-tool availability or enable
 every administrative flow in every environment. See the

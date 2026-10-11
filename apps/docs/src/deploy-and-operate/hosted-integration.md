@@ -32,40 +32,50 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Upgrading to 0.8.0
+## Upgrading to 0.9.0
 
-Pin the application package and backend package to **0.8.0**, and build the
+Pin the application package and backend package to **0.9.0**, and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 
 ```sh
 # Application
-pnpm add @seams/wallet@0.8.0
+pnpm add @seams/wallet@0.9.0
 
 # Backend deployment
-pnpm add @seams/wallet-server@0.8.0
+pnpm add @seams/wallet-server@0.9.0
 ```
 
-This release changes wallet-management and ECDSA bootstrap contracts. An already-open
-0.7.x client can receive an HTTP 409 upgrade-required response. Show the reload or
-upgrade message. Stop the attempt. Reload with matching application and wallet assets.
-Retrying the old payload cannot fix a version mismatch. The iframe handshake version
-alone does not establish backend compatibility.
+This release changes the registration contract and the wallet iframe protocol. The
+wallet-management protocol is `3` and the iframe protocol is `15.0.0`. An already-open
+0.8.0 client receives an HTTP 409 upgrade-required response from a 0.9.0 backend. Show
+the reload or upgrade message. Stop the attempt. Reload with matching application and
+wallet assets. Retrying the old payload cannot fix a version mismatch. A 0.8.0
+application cannot connect to 0.9.0 wallet-origin assets, so release the application
+and the wallet origin together.
 
-Update integrations to the exported 0.8.0 capability groups and result types. Use
-`HostedSeamsAuthMenu` for the wallet-origin auth UI and keep WebAuthn prompts on the
-wallet origin. Remove application-origin credential bridges and imports of unexported
-SDK modules. Roll back the application, wallet assets, and backend together to matching
-releases.
+Update integrations to the consolidated wallet API. `registerWallet`,
+`connection.connect`, `signMessage`, and `signAndSendTransaction` replace the separate
+registration, iframe-initialization, and execution calls. `auth.lock` replaces `logout`.
+Remove the provider's `eager` prop. See the [SDK reference](/reference/) for the
+complete surface.
 
-The regional cutover used disposable test wallets. Version 0.8.0 does not provide a tool
-to migrate existing wallets. Operators with durable wallet state must resolve that
-migration before replacing their deployment.
+Deploy the Gateway, wallet runtime, Router, both Derivers, and the Signing Worker from
+the same release, and apply its complete D1 migration set. Remove
+`signer_peer_verifying_keys` from `ROUTER_AB_PUBLIC_KEYSET_JSON` in the same activation.
+Deriver migration `0019` renames a column that 0.8.0 reads. A rollback to 0.8.0 must
+reverse that migration and restore the matching application, wallet assets, and
+backend together.
+
+Version 0.9.0 requires wallet-object addresses, which wallets registered on 0.8.0 do
+not have. It does not provide a tool to migrate those wallets. Operators with durable
+wallet state must resolve that migration before replacing their deployment.
 
 ## Regional routing
 
-In a regional deployment, registration assigns each wallet its own fixed home.
+In a regional deployment, registration assigns each wallet its own home.
 The shared directory routes future lifecycle and signing requests to that home,
-including requests from linked devices and travelling users. Different wallets
+including requests from linked devices and travelling users. The home changes
+only when the owner moves the wallet to another region. Different wallets
 in the same project can have different homes. See
 [per-wallet homes](/concepts/architecture#per-wallet-regional-homes).
 

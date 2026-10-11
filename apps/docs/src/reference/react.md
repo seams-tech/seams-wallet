@@ -66,8 +66,9 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 
 `WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
 export, and transaction-preference settings. It uses the same provider and
-wallet-origin operations. Signed-out users see hosted authentication. Version
-0.8.0 has no region selector in these settings.
+wallet-origin operations. Signed-out users see hosted authentication. The page
+also shows the wallet region setting, which moves the wallet to another region when
+the deployment and the current device allow it.
 
 Focused entrypoints are available for applications that need smaller or
 SSR-specific imports:

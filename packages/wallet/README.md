@@ -1,18 +1,18 @@
 # Seams Wallet SDK
 
-`@seams/wallet` **0.8.0** provides browser wallet lifecycle, NEAR and EVM-family
+`@seams/wallet` **0.9.0** provides browser wallet lifecycle, NEAR and EVM-family
 threshold signing, React components, and hosted wallet runtime assets.
 
 ## Install
 
 ```sh
-pnpm add @seams/wallet@0.8.0
+pnpm add @seams/wallet@0.9.0
 ```
 
 React integrations support React 18 and 19. Import the provider and UI from
 `@seams/wallet/react` and its stylesheet from `@seams/wallet/react/styles`.
 Keep the application package, wallet-origin assets, and
-`@seams/wallet-server@0.8.0` on the matching release.
+`@seams/wallet-server@0.9.0` on the matching release.
 
 ## Next release migration (unreleased)
 
@@ -42,9 +42,9 @@ For an existing local email method, request with
 `cancel()`. Use the replacement challenge returned by a successful resend.
 The SDK selects signers and completes pending activation internally.
 
-These changes require a new release with matching client and host assets.
-The development protocol is `14.0.0`; it rejects older protocol versions.
-The published 0.8.0 release does not contain this migration.
+Release 0.9.0 contains these changes. Its wallet iframe protocol is `15.0.0`
+and rejects older protocol versions, so keep the client and the wallet-host
+assets on the matching release. The 0.8.0 release does not contain them.
 
 ## React quick start
 
@@ -145,15 +145,16 @@ workers, WASM, and the export viewer. The SDK iframe delegates WebAuthn
 permissions to that origin. Credential creation and assertions execute there;
 there is no application-origin credential bridge.
 
-Regional hosted deployments assign each wallet a fixed home at registration.
+Regional hosted deployments assign each wallet a home at registration.
 Wallets in one project can have different homes, while all devices of one
-wallet use the same home. Travel leaves it fixed. User-selected and automatic
-region relocation are future capabilities.
+wallet use the same home. Travel does not change it. The owner can move a wallet
+to another region with the wallet region setting. Automatic region relocation is
+a future capability.
 
-When upgrading from 0.7.x, update application, wallet assets, and backend
+When upgrading from 0.8.0, update application, wallet assets, and backend
 together. An older open client can receive an HTTP 409 upgrade-required message;
 show it and reload the current assets. See the
-[upgrade guide](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration#upgrading-to-0-8-0).
+[upgrade guide](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration#upgrading-to-0-9-0).
 
 ## Public entrypoints
 
@@ -165,7 +166,7 @@ show it and reload the current assets. See the
 - `@seams/wallet/runtime` — explicit platform ports and custom signing runtime.
 
 Use the documented package exports. Agent-lane issuance and VoiceID
-authentication are planned and have no public 0.8.0 API.
+authentication are planned and have no public 0.9.0 API.
 
 ## Develop from source
 
