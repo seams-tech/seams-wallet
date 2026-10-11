@@ -24,6 +24,7 @@ class RegistrationOperation {
   now = 100;
   activation = null;
   afterPublication = null;
+  afterInitialRead = null;
 
   constructor(api, database, scope, label) {
     this.api = api;
@@ -86,12 +87,15 @@ class RegistrationOperation {
     return 'completed';
   }
 
-  run() {
+  async run() {
     this.now += 2;
+    const initialRecord = await this.store.read('operation');
+    await this.afterInitialRead?.();
     return this.api.runRouterAbEd25519YaoRegistrationSideEffectV2(this.store, {
       kind: 'prepared_resumable',
       operation: 'registration_activate',
       key: 'operation',
+      initialRecord,
       requestFingerprint: 'a'.repeat(64),
       resumeAfterMs: 1,
       nowMs: () => this.now,
@@ -127,6 +131,11 @@ function parseReceipt(value) {
 
 async function preparedFingerprint(prepared) {
   return createHash('sha256').update(JSON.stringify(prepared)).digest('hex');
+}
+
+async function completeCompetingRegistration(operation) {
+  operation.afterInitialRead = null;
+  assert.equal((await operation.run()).kind, 'executed');
 }
 
 function writtenTables(call) {
@@ -174,6 +183,15 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal((await committed.run()).kind, 'exact_replay');
   assert.equal(committed.directory.publications, 1);
 
+  // Another request can complete after the initial read. The losing CAS must
+  // reconcile with a fresh read and replay the winner without executing again.
+  const stale = new RegistrationOperation(api, database, scope, 'stale-read');
+  await stale.reserve('activation-stale-read');
+  stale.afterInitialRead = completeCompetingRegistration.bind(undefined, stale);
+  assert.equal((await stale.run()).kind, 'exact_replay');
+  assert.equal(stale.directory.publications, 1);
+  assert.equal(await stale.active(), true);
+
   // A completion that loses its record leaves the home fenced. The next run completes both.
   const contended = new RegistrationOperation(api, database, scope, 'contended');
   await contended.reserve('activation-contended');
@@ -219,6 +237,7 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
     activationCommitsWithCompletion: true,
     publishedHomeStaysFencedUntilCompletion: true,
     completedOperationPublishesNothing: true,
+    staleInitialReadReconcilesWithCommittedWinner: true,
     lostCompletionLeavesHomeFenced: true,
     failedActivationLeavesOperationIncomplete: true,
   };

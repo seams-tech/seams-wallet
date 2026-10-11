@@ -4175,16 +4175,30 @@ export class CloudflareD1WalletRegistrationService {
         return { ok: false, code: verified.code, message: verified.message };
       }
       const admissionStartedAtMs = Date.now();
-      const homeAdmission = await admitRegistrationReservationHome(this.registrationAuthority, {
-        ceremonyId: verified.claims.registrationCeremonyId,
-        walletId: walletIdFromString(verified.claims.walletId),
-      });
-      recordRegistrationServerTiming(
-        serverTiming,
-        'near_finalize_home_admission',
-        admissionStartedAtMs,
-      );
+      const operationKey = `near-provisioning:${input.registrationCeremonyId}:${input.idempotencyKey}`;
+      // The journal read is independent of home admission. Both settle before
+      // any preparation or write, and a completed receipt needs no ceremony.
+      const [admissionRead, journalRead] = await Promise.allSettled([
+        recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_home_admission',
+          startedAtMs: admissionStartedAtMs,
+          promise: admitRegistrationReservationHome(this.registrationAuthority, {
+            ceremonyId: verified.claims.registrationCeremonyId,
+            walletId: walletIdFromString(verified.claims.walletId),
+          }),
+        }),
+        recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_journal_read',
+          startedAtMs: admissionStartedAtMs,
+          promise: this.nearProvisioningSideEffects.read(operationKey),
+        }),
+      ]);
+      if (admissionRead.status === 'rejected') throw admissionRead.reason;
+      const homeAdmission = admissionRead.value;
       if (!homeAdmission.ok) return homeAdmission;
+      if (journalRead.status === 'rejected') throw journalRead.reason;
       // NEAR finalization owns its claim, uncertainty state and replay receipt.
       const fingerprintStartedAtMs = Date.now();
       const requestFingerprint = base64UrlEncode(
@@ -4214,7 +4228,8 @@ export class CloudflareD1WalletRegistrationService {
       >(this.nearProvisioningSideEffects, {
         kind: 'prepared_resumable',
         operation: 'near_provisioning',
-        key: `near-provisioning:${input.registrationCeremonyId}:${input.idempotencyKey}`,
+        key: operationKey,
+        initialRecord: journalRead.value,
         requestFingerprint,
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,
@@ -4670,6 +4685,9 @@ export class CloudflareD1WalletRegistrationService {
         kind: 'prepared_resumable',
         operation: 'registration_activate',
         key: `registration-activate:${claims.registrationCeremonyId}:${idempotencyKey}`,
+        initialRecord: await this.activateSideEffects.read(
+          `registration-activate:${claims.registrationCeremonyId}:${idempotencyKey}`,
+        ),
         requestFingerprint: activateDigestB64u,
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,

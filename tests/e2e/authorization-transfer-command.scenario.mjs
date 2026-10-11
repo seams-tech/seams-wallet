@@ -786,11 +786,12 @@ class SettlementOperationProbe {
   async replay(receipt) {
     return receipt;
   }
-  run(key = 'settlement') {
+  async run(key = 'settlement') {
     return this.api.runRouterAbEd25519YaoRegistrationSideEffectV2(this.store, {
       kind: 'prepared_resumable',
       operation: 'registration_activate',
       key,
+      initialRecord: await this.store.read(key),
       requestFingerprint: 'f'.repeat(64),
       resumeAfterMs: 1,
       nowMs: this.nowMs.bind(this),
