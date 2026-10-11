@@ -77,7 +77,7 @@ export class D1WalletExecutionAuthority
 
   async cancel(input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0]) {
     const completion = { ...input, outcome: 'cancelled' as const };
-    await this.fixDecision(completion);
+    await this.fixCancellation(input);
     const completed = await this.registration.complete(completion);
     if (!completed.ok) return completed;
     await this.database.batch(this.prepareState(input, 'retired'));
@@ -87,41 +87,37 @@ export class D1WalletExecutionAuthority
   async publishEstablished(
     input: Parameters<WalletRegistrationHomeAuthority['publishEstablished']>[0],
   ): Promise<RegistrationEstablishedPublication> {
-    const published = await prepareD1TenantStatement(
-      this.database,
-      this.scope,
-      `SELECT state FROM wallet_execution_generations
-       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-         AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
-         AND state IN ('registering', 'active') AND registration_completion = 'established'`,
-      [input.walletId, input.ceremonyId],
-    ).first<{ readonly state: string }>();
     // Activation follows the acknowledged directory write. Its exact retry is local.
-    if (published?.state === 'active') return { ok: true, activation: null };
-    const completion = { ...input, outcome: 'established' as const };
-    if (published?.state !== 'registering') await this.fixDecision(completion);
-    const completed = await this.registration.complete(completion);
+    if (input.registration.state === 'active') return { ok: true, activation: null };
+    const completed = await this.registration.complete({
+      ceremonyId: input.registration.ceremonyId,
+      walletId: input.registration.walletId,
+      outcome: 'established',
+      session: input.session,
+    });
     if (!completed.ok) return completed;
-    return { ok: true, activation: { statements: this.prepareState(input, 'active') } };
+    return {
+      ok: true,
+      activation: { statements: this.prepareState(input.registration, 'active') },
+    };
   }
 
-  // Fix the terminal decision before crossing the database boundary. Exact
+  // Fix cancellation before crossing the database boundary. Exact
   // retries may publish it again; a conflicting outcome never reaches Console.
-  private async fixDecision(input: Parameters<Authority['complete']>[0]): Promise<void> {
+  private async fixCancellation(
+    input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0],
+  ): Promise<void> {
     await this.database.batch([
       prepareD1TenantStatement(
         this.database,
         this.scope,
         `UPDATE wallet_execution_generations
-         SET registration_completion = ?7,
-             state = CASE WHEN ?7 = 'cancelled' THEN 'retired' ELSE state END
+         SET registration_completion = 'cancelled', state = 'retired'
          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
            AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
-           AND registration_completion IN ('pending', ?7)
-           AND (state = 'registering'
-             OR (?7 = 'established' AND state = 'active')
-             OR (?7 = 'cancelled' AND state = 'retired'))`,
-        [input.walletId, input.ceremonyId, input.outcome],
+           AND registration_completion IN ('pending', 'cancelled')
+           AND state IN ('registering', 'retired')`,
+        [input.walletId, input.ceremonyId],
       ),
       this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
     ]);

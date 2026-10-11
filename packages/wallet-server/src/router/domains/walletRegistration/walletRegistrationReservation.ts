@@ -1,4 +1,5 @@
 import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
+import type { CommittedWalletRegistration } from '../../../authorization/domain';
 import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import { alphabetizeStringify, sha256HexUtf8 } from '@shared/utils/digests';
@@ -128,12 +129,11 @@ export interface WalletRegistrationHomeAuthority extends Pick<
   'reserve' | 'admitHome'
 > {
   /**
-   * Publishes an established registration to its directory and prepares the
+   * Publishes the committed registration decision to its directory and prepares the
    * activation. The caller commits the activation with its completion record.
    */
   publishEstablished(input: {
-    readonly ceremonyId: string;
-    readonly walletId: WalletId;
+    readonly registration: CommittedWalletRegistration;
     readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
   }): Promise<RegistrationEstablishedPublication>;
   /** Fixes a definitive cancellation, publishes it, and retires the local home. */

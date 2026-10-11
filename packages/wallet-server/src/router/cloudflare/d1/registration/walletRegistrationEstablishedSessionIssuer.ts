@@ -93,6 +93,19 @@ function requireWalletSessionPrincipalId(value: string): PrincipalId {
   return parsed.value;
 }
 
+function publishCommittedRegistration(
+  home: RegistrationEstablishedSessionIssuanceDependencies['homeCompletion'],
+  committed: Awaited<ReturnType<AuthorizationService['commitDirectWalletSessionAuthorizationV2']>>,
+) {
+  if (!committed.registration) {
+    throw new Error('Registration publication requires a committed registration session');
+  }
+  return home.publishEstablished({
+    registration: committed.registration,
+    session: committed.publication,
+  });
+}
+
 export function walletSessionPrincipalId(authority: WalletAuthAuthority): PrincipalId {
   return requireWalletSessionPrincipalId(
     isEmailOtpWalletAuthAuthority(authority)
@@ -578,11 +591,7 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     runtimePolicyScope: input.runtimePolicyScope,
     keyHandle,
   });
-  const published = await input.homeCompletion.publishEstablished({
-    ceremonyId: input.registrationCeremonyId,
-    walletId: committed.publication.walletId,
-    session: committed.publication,
-  });
+  const published = await publishCommittedRegistration(input.homeCompletion, committed);
   if (!published.ok) throw new Error(published.message);
   return directRegistrationResultFromIssue({
     directIssue,
@@ -695,11 +704,7 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
   // Begin publication before session preparation uses the Worker CPU. Settle
   // both operations even when publication fails, so retries own no pending work.
   const [publication, preparation] = await Promise.allSettled([
-    input.homeCompletion.publishEstablished({
-      ceremonyId: input.registrationCeremonyId,
-      walletId: committed.publication.walletId,
-      session: committed.publication,
-    }),
+    publishCommittedRegistration(input.homeCompletion, committed),
     input.onSessionCommitted?.(projectDirectRegistrationSession(authorization, tokens)),
   ]);
   if (publication.status === 'rejected') throw publication.reason;

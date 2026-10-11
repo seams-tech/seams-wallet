@@ -535,7 +535,17 @@ export type WalletSessionAuthorizationV2MintRead = {
   readonly retiredAtMs: number | null;
 };
 
-export type DirectV2CommitResult =
+/** The registration decision fixed in the Wallet Session transaction. */
+export type CommittedWalletRegistration = {
+  readonly ceremonyId: string;
+  readonly walletId: WalletId;
+  readonly state: 'registering' | 'active';
+};
+
+export type DirectV2CommitResult = {
+  /** Ordinary session issuance has no registration decision. */
+  readonly registration: CommittedWalletRegistration | null;
+} & (
   | {
       readonly kind: 'inserted';
       readonly ownershipGeneration: number;
@@ -545,7 +555,8 @@ export type DirectV2CommitResult =
       readonly kind: 'already_committed';
       readonly ownershipGeneration?: never;
       readonly committed: WalletSessionAuthorizationV2MintRead;
-    };
+    }
+);
 
 export type DirectV2IssueResult =
   | {

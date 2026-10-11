@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { seedRegistrationHome } from './execution-generation.scenario.mjs';
+import {
+  seedCommittedRegistration,
+  seedRegistrationHome,
+} from './execution-generation.scenario.mjs';
 
 class ApprovedDirectory {
   publications = 0;
@@ -65,7 +68,11 @@ class RegistrationOperation {
 
   async execute() {
     const published = await this.authority.publishEstablished({
-      ...this.identity,
+      registration: await seedCommittedRegistration({
+        database: this.database,
+        scope: this.scope,
+        ...this.identity,
+      }),
       session: {
         kind: 'credential',
         walletId: this.identity.walletId,

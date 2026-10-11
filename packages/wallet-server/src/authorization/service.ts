@@ -508,6 +508,7 @@ export class AuthorizationService {
   ): Promise<{
     readonly result: DirectV2IssueResult;
     readonly publication: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+    readonly registration: DirectV2CommitResult['registration'];
   }> {
     if (input.authority.walletId !== input.walletId) {
       throw new Error('Wallet Session authorization authority does not identify the wallet');
@@ -522,6 +523,7 @@ export class AuthorizationService {
       return {
         result: directV2AlreadyCommitted(prepared.session, commit.committed.session, replayMode),
         publication: committedSessionPublication(commit.committed),
+        registration: commit.registration,
       };
     }
     return {
@@ -538,6 +540,7 @@ export class AuthorizationService {
         }),
       },
       publication: committedSessionPublication(persisted),
+      registration: commit.registration,
     };
   }
 

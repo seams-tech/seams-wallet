@@ -152,7 +152,7 @@ import type { DirectV2CommitResult } from '../../packages/wallet-server/src/auth
 declare const insertedSession: Extract<DirectV2CommitResult, { kind: 'inserted' }>;
 declare const replayedSession: Extract<DirectV2CommitResult, { kind: 'already_committed' }>;
 // @ts-expect-error An inserted session requires the generation read by its commit.
-const insertedWithoutGeneration: DirectV2CommitResult = { kind: 'inserted' };
+const insertedWithoutGeneration: DirectV2CommitResult = { kind: 'inserted', registration: null };
 // @ts-expect-error A replay cannot expose the generation for a new credential.
 const replayWithGeneration: DirectV2CommitResult = { ...replayedSession, ownershipGeneration: 1 };
 // @ts-expect-error Spreading a new issuance into a replay cannot carry its generation.
@@ -164,3 +164,23 @@ const insertedAsReplay: DirectV2CommitResult = {
 void insertedWithoutGeneration;
 void replayWithGeneration;
 void insertedAsReplay;
+
+import type { WalletRegistrationHomeAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+type RegistrationPublication = Parameters<WalletRegistrationHomeAuthority['publishEstablished']>[0];
+declare const registrationPublication: RegistrationPublication;
+// @ts-expect-error A commit must report whether it fixed a registration decision.
+const insertedWithoutRegistration: DirectV2CommitResult = { kind: 'inserted', ownershipGeneration: 1 };
+const ordinaryPublication: RegistrationPublication = {
+  ...registrationPublication,
+  // @ts-expect-error An ordinary session commit cannot publish a registration.
+  registration: null,
+};
+const pendingPublication: RegistrationPublication = {
+  ...registrationPublication,
+  registration: {
+    ...registrationPublication.registration,
+    // @ts-expect-error A pending decision cannot be published as established.
+    state: 'pending',
+  },
+};
+void [insertedWithoutRegistration, ordinaryPublication, pendingPublication];

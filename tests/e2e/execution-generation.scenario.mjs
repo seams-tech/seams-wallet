@@ -34,11 +34,30 @@ export async function establishRegistrationHome(authority, database, completion)
 /** Seeds the execution identity that authenticated setup commits with its ceremony. */
 export async function seedRegistrationHome({ database, scope, walletId, ceremonyId }) {
   await database
-    .prepare(`INSERT INTO wallet_execution_generations
+    .prepare(
+      `INSERT INTO wallet_execution_generations
     (namespace, org_id, project_id, env_id, wallet_id, generation, origin, origin_id, state)
-    VALUES (?, ?, ?, ?, ?, 1, 'registration', ?, 'registering')`)
+    VALUES (?, ?, ?, ?, ?, 1, 'registration', ?, 'registering')`,
+    )
     .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId, ceremonyId)
     .run();
+}
+
+/** Fixtures for activation tests. Session issuance exercises the real transaction separately. */
+export async function seedCommittedRegistration({ database, scope, walletId, ceremonyId }) {
+  const row = await database
+    .prepare(
+      `UPDATE wallet_execution_generations SET registration_completion = 'established'
+      WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+        AND wallet_id = ? AND origin = 'registration' AND origin_id = ?
+        AND state IN ('registering', 'active')
+        AND registration_completion IN ('pending', 'established')
+      RETURNING state`,
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId, ceremonyId)
+    .first();
+  assert.ok(row, 'Registration session requires its open home');
+  return { walletId, ceremonyId, state: row.state };
 }
 
 export async function seedExecutionGeneration({ api, database, scope, walletId }) {
@@ -59,7 +78,13 @@ export async function seedExecutionGeneration({ api, database, scope, walletId }
   await seedRegistrationHome({ database, scope, ...identity });
   assert.equal((await authority.admitHome(identity)).ok, true);
   assert.equal(
-    (await establishRegistrationHome(authority, database, establishedCompletion(identity))).ok,
+    (
+      await establishRegistrationHome(
+        authority,
+        database,
+        await establishedCompletion(database, scope, identity),
+      )
+    ).ok,
     true,
   );
 }
@@ -71,6 +96,7 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
   assert.equal((await authority.admitHome(identity)).ok, false);
   await seedRegistrationHome({ database, scope, ...identity });
+  const completion = await establishedCompletion(database, scope, identity);
   assert.equal((await authority.admitHome(identity)).ownershipGeneration, 1);
   assert.equal((await authority.admitHome(identity)).ownershipGeneration, 1);
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
@@ -85,7 +111,7 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
     )
     .run();
   await assert.rejects(
-    establishRegistrationHome(authority, database, establishedCompletion(identity)),
+    establishRegistrationHome(authority, database, completion),
     /injected_execution_completion/u,
   );
   assert.equal(registration.established, true);
@@ -97,17 +123,14 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
     ownershipGeneration: 1,
   });
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
-  assert.equal(
-    (await establishRegistrationHome(authority, database, establishedCompletion(identity))).ok,
-    true,
-  );
+  assert.equal((await establishRegistrationHome(authority, database, completion)).ok, true);
   assert.deepEqual(await api.admitD1EstablishedWalletHome(database, scope, { walletId }), {
     ok: true,
     purpose: 'ordinary',
     ownershipGeneration: 1,
   });
   assert.equal(registration.ordinaryReads, 0);
-  return { authority, registration, identity };
+  return { authority, registration, identity, completion };
 }
 
 export async function verifyExecutionDestination({
@@ -156,9 +179,8 @@ export async function verifyExecutionDestination({
   );
   assert.equal((await foreign.admitEstablishedHome({ walletId })).ok, false);
   assert.equal((await setup.authority.admitHome(setup.identity)).ok, false);
-  await assert.rejects(
-    establishRegistrationHome(setup.authority, source, establishedCompletion(setup.identity)),
-  );
+  await assert.rejects(establishedCompletion(source, scope, setup.identity));
+  await assert.rejects(establishRegistrationHome(setup.authority, source, setup.completion));
   assert.equal(setup.registration.ordinaryReads, 0);
   return {
     destinationGeneration: 2,
@@ -170,10 +192,9 @@ export async function verifyExecutionDestination({
   };
 }
 
-function establishedCompletion(identity) {
+async function establishedCompletion(database, scope, identity) {
   return {
-    ...identity,
-    outcome: 'established',
+    registration: await seedCommittedRegistration({ database, scope, ...identity }),
     session: {
       kind: 'credential',
       walletId: identity.walletId,

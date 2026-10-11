@@ -392,7 +392,8 @@ async function verifyRegistrationCompletion(database, now) {
   assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, false);
   const winner = race.find(registrationIssued);
   assert.ok(winner);
-  const completion = { ...identity, outcome: 'established', session: winner.publication };
+  assert.deepEqual(winner.registration, { ...identity, state: 'registering' });
+  const completion = { registration: winner.registration, session: winner.publication };
   await assert.rejects(
     establishRegistrationHome(authority, database, completion),
     /lost completion reply/,
@@ -411,26 +412,57 @@ async function verifyRegistrationCompletion(database, now) {
   const completionTrace = new api.TracedD1Database(database);
   const retryAuthority = new api.D1WalletExecutionAuthority(completionTrace, scope, directory);
   const retried = await establishRegistrationHome(retryAuthority, completionTrace, {
-    ...completion,
+    registration: retry.registration,
     session: retry.publication,
   });
   assert.equal(retried.ok, true);
   const completionCalls = JSON.parse(
     completionTrace.response(new Response()).headers.get('x-benchmark-d1'),
   ).calls;
-  assert.deepEqual(completionCalls.map(callMethod), ['first', 'batch']);
+  assert.deepEqual(completionCalls.map(callMethod), ['batch']);
   assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
-  assert.equal((await establishRegistrationHome(authority, database, completion)).ok, true);
+  const activeReplay = await service.commitDirectWalletSessionAuthorizationV2(
+    input,
+    { kind: 'validated_registration_authority_projection' },
+    purpose,
+  );
+  assert.equal(activeReplay.result.kind, 'already_committed');
+  assert.deepEqual(activeReplay.registration, { ...identity, state: 'active' });
+  assert.equal(
+    (
+      await establishRegistrationHome(authority, database, {
+        registration: activeReplay.registration,
+        session: activeReplay.publication,
+      })
+    ).ok,
+    true,
+  );
+  assert.equal(directory.calls, 2);
+  await database
+    .prepare("UPDATE wallet_execution_generations SET state = 'retired' WHERE wallet_id = ?")
+    .bind(identity.walletId)
+    .run();
+  const retired = await snapshot(database);
+  await assert.rejects(
+    service.commitDirectWalletSessionAuthorizationV2(
+      input,
+      { kind: 'validated_registration_authority_projection' },
+      purpose,
+    ),
+  );
+  assert.deepEqual(await snapshot(database), retired);
   assert.equal(directory.calls, 2);
   return {
     wrongCeremonyRollsBackSession: true,
     concurrentIssuance: race.map(registrationResultKind).sort(),
     sessionAndDecisionShareOneBatch: true,
+    publicationUsesCommittedHomeState: true,
     lostReplyKeepsSigningFenced: true,
     conflictingCancellationCannotReachDirectory: true,
     exactRetryPreservesSession: true,
     acknowledgedCompletionCalls: completionCalls,
     activeReplayDoesNotRepublish: true,
+    retiredHomeCannotCommitRegistration: true,
   };
 }
 

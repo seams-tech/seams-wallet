@@ -1243,7 +1243,7 @@ export class CloudflareD1AuthorizationStore
   private prepareWalletSessionIssuanceGenerationRead(walletId: WalletId): D1PreparedStatementLike {
     return this.database
       .prepare(
-        `SELECT generation FROM wallet_execution_generations
+        `SELECT generation, state FROM wallet_execution_generations
        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
          AND wallet_id = ? AND state IN ('registering', 'active')`,
       )
@@ -1311,6 +1311,20 @@ export class CloudflareD1AuthorizationStore
     );
     const generationResult = results[7];
     const generation = generationResult?.results?.[0];
+    let registration: DirectV2CommitResult['registration'] = null;
+    if (input.purpose.kind === 'registration') {
+      if (
+        !generationResult?.success ||
+        (generation?.state !== 'registering' && generation?.state !== 'active')
+      ) {
+        throw new Error('Registration session commit requires an open execution generation');
+      }
+      registration = {
+        ceremonyId: input.purpose.ceremonyId,
+        walletId: lookup.walletId,
+        state: generation.state,
+      };
+    }
     if (!committed) {
       if (!generationResult?.success || !generation) {
         throw new Error('Wallet session issuance requires an open execution generation');
@@ -1322,7 +1336,7 @@ export class CloudflareD1AuthorizationStore
         case 'strict':
           break;
         case 'replayable':
-          return { kind: 'already_committed', committed };
+          return { kind: 'already_committed', committed, registration };
         default:
           return assertNeverDirectV2CommitMode(mode);
       }
@@ -1337,7 +1351,7 @@ export class CloudflareD1AuthorizationStore
       throw new Error('Direct V2 Wallet Session commit returned a different credential digest');
     }
     if (sessionChanges === 0) {
-      return { kind: 'already_committed', committed };
+      return { kind: 'already_committed', committed, registration };
     }
     if (sessionChanges !== 1) {
       throw new Error('Direct V2 Wallet Session transaction changed more than one session');
@@ -1347,6 +1361,7 @@ export class CloudflareD1AuthorizationStore
     }
     return {
       kind: 'inserted',
+      registration,
       ownershipGeneration: requirePositiveInteger(
         generation.generation,
         'Wallet Session ownership generation',
