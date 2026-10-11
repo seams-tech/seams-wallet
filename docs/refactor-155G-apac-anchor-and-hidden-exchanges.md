@@ -210,11 +210,46 @@ Known cost: a page that opens and closes the confirmation dialog repeatedly spen
 quota without signing. The quota is per Wallet Session and server-authoritative,
 so the damage stays inside that session.
 
+### Phase 2 record
+
+**Sign prepare during confirmation, NEP-413 on the warm-session path.** The SDK
+resolves the capability, computes the digest the dialog will show with the
+dialog's own function (`computeUiIntentDigestFromNep413`) and the signing
+digest, builds the prepare request and sends it before the confirmation command
+runs. The confirmation returns the dialog's digest; the signature uses the
+started prepare only when that digest and the signing digest match, and
+consumes its answer in the same `PreparePayload` step as before, so the signing
+state machine keeps its order. A step-up plan sends no early prepare, because
+its prepare needs the step-up proof from the confirmation. Transactions and
+delegate actions keep the late prepare: their dialog computes the display
+digest from the transaction summary, and that merge is a separate step.
+
+Facts that fix the design:
+
+- The Gateway claims one quota use at prepare and records the operation with
+  the request's expiry. The SDK sets that expiry 120 s ahead. A prepare that no
+  signature consumes expires with it; nothing else dangles.
+- A refusal of the early prepare is observed where the late prepare's refusal
+  was observed, inside the signature step, so the step-up fallback is unchanged.
+  The started promise carries a no-op rejection handler, so a dropped prepare
+  reports nothing as unhandled.
+- The trace gains the stage `prepare_sent`, emitted when the early request
+  leaves. The `prepare` stage then measures the wait that remains after the
+  confirmation. The contract in `passkey.ed25519-yao-local.contract.test.ts`
+  asserts, for a warm-session message signature, the stage order `prepare_sent`,
+  `confirmation`, `prepare`, and exactly one `prepare_sent`.
+- The specification records the behavior beside the prepare and quota bullets.
+
 ## Phase 3 — Yao execution: the serial chain and the CPU
 
-- [ ] Land the Deriver B Worker load beside Deriver A's admission and at wallet
-  start. The first staging run measured the hold at 0 ms in six of six executions
-  against 167 ms before, and the connection at 157 ms against 308 ms.
+- [x] Land the Deriver B Worker load beside Deriver A's admission and at wallet
+  start. Commit `fedad1f3`. The [second staging run](evidence/refactor-155g-yao-prewarm-hosted.md),
+  six executions per side on the Hong Kong layout with a warm-up group before
+  each measured group, measured the hold at 0 ms against 186 ms and the
+  connection at 161 ms against 336 ms. The admission no longer slows down,
+  because the wallet-start request loads the Worker a second earlier. The
+  Router's execute request measured 1,543 ms against 1,704 ms and registration
+  3,599 ms against 3,873 ms at the median, inside overlapping ranges.
 - [ ] Profile each Deriver's CPU for one execution through the local stack's
   inspector ports. Place the invocation CPU between the circuit, oblivious
   transfer, sealing, serialization and framing. Record the split.
