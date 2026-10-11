@@ -9,8 +9,8 @@ Date: October 11, 2026.
 
 The private repository installs `@seams/wallet` and `@seams/wallet-server` at
 exactly `0.8.0` from npm, in six manifests. The publish workflow
-`release-wallet-packages.yml` runs only on `main`. `dev` is 673 commits ahead
-of the 0.8.0 commit `44b1dd07`. The private deployment workflows build from
+`release-wallet-packages.yml` runs only on `main`. The candidate is 678 commits
+ahead of the 0.8.0 commit `44b1dd07`. The private deployment workflows build from
 the installed packages, so no deployment through them contains that work until
 both packages are published and the private pins move. Private `dev` already
 uses exports that 0.8.0 lacks, so its own type check fails until then.
@@ -22,9 +22,11 @@ region-change notifications of R154 are not implemented.
 
 ## Candidate
 
-The candidate is the commit that sets both manifests to `0.9.0` and adds this
-document. Review later `dev` changes before including them: the working tree is
-not the frozen candidate. Record the frozen revision here before CI runs.
+The candidate source is **`2937ee3e`**, the commit that sets both manifests to
+`0.9.0` and adds this document. The local validation below ran on that exact
+tree. The only later change is the commit that records this revision here.
+Review later `dev` changes before including them: the working tree is not the
+frozen candidate. The private counterpart of the protocol change is `391043d`.
 
 ## Release behavior and upgrade requirements
 
@@ -132,7 +134,7 @@ lane before it releases traffic, as for 0.8.0. No compatibility path is added.
 
 Local results on the candidate tree, October 11. CI on the exact pushed
 revision remains the gate: `validate-wallet.yml` and
-`validate-cloudflare-mpc-router-ab.yml`. The 659 local commits ahead of
+`validate-cloudflare-mpc-router-ab.yml`. The 664 local commits ahead of
 `origin/dev` have never run in CI.
 
 | Step | Result |
