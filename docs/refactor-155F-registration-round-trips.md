@@ -11,6 +11,8 @@ are removed locally. A local CPU profile identifies session sealing as the main
 sampled computation. Sealing now starts after session persistence and overlaps
 home publication. See the [read-overlap record](#finalization-read-overlap-and-cpu-profile--october-11)
 and [sealing record](#session-sealing-overlap--october-11).
+The [hosted comparison](#hosted-read-and-sealing-comparison--october-11) now verifies
+both read overlaps. It shows no clear improvement in total registration time.
 
 ## Objective and ownership
 
@@ -232,8 +234,8 @@ commit did not alter sealing. The next record describes that follow-up.
 
 [Local verification and profile evidence](evidence/refactor-155f-finalization-local-profile.md)
 records reproduction, sample counts, checksums, and limitations. Hosted latency
-savings remain unmeasured. The corrected hosted baseline remains **3.530 s** for
-registration and **4.204 s** through the first signature, both medians.
+savings were unmeasured at that commit. The later hosted comparison below measures
+the read and sealing overlaps together.
 
 ### Session sealing overlap — October 11
 
@@ -260,8 +262,46 @@ the earlier CPU profile does not imply an equal reduction in elapsed time.
 The earlier work is included in the session-issuance span. These spans overlap.
 
 [Implementation and local evidence](evidence/refactor-155f-session-seal-overlap.md).
-Hosted savings remain unmeasured. The next comparison must use real browser preflights
-and the same regional resources before any claim against the **3.530 s / 4.204 s** baseline.
+The following comparison measures the committed changes with real browser preflights.
+
+### Hosted read and sealing comparison — October 11
+
+The comparison used public baseline `79a43a73`, candidate `25425eff`, and private
+composition `3e47ba2`. One rebuilt SDK with early preflights was fixed in every
+group. Custody versions, regional database bindings, placement, and client location
+were also fixed. Each group registered three new NEAR-only wallets.
+
+| Median workload | Baseline before | Candidate | Baseline after |
+| --- | ---: | ---: | ---: |
+| Registration, excluding WebAuthn | 4.346 s | **4.267 s** | 4.227 s |
+| First signature, excluding confirmation | 0.724 s | **0.957 s** | 0.617 s |
+| Registration plus first signature, excluding interaction | 5.070 s | **4.945 s** | 4.908 s |
+| Complete finalization POST, browser timing | 1.234 s | **1.030 s** | 1.069 s |
+
+The candidate registration range was **3.663–4.378 s**. Its combined range was
+**4.620–5.423 s**. The **3–4 second maximum target remains unmet**. The candidate
+was close to the repeated baseline overall, so this run establishes no clear
+total-latency gain. Its first-signature median was higher than both baseline medians.
+The run does not establish the cause of that difference.
+
+All nine signatures passed independent Node.js verification. All 18 comparison
+checks passed, including served-version checks and the repeated baseline's exact
+version match. Hosted traces confirm the two read overlaps. Keep the changes for
+that demonstrated ordering improvement, without assigning an unproven total saving.
+All 13 original Worker versions and both Deriver schemas were restored and checked
+independently. Tenant activation on the restored versions passed. No new resource
+was created.
+
+Counts stayed at **40 completed Gateway/Console D1 calls for registration** and
+**seven more for signing**. Console receives five registration calls. Each wallet
+sends six application POSTs, six browser preflights, and five explicit early
+`OPTIONS` requests. Session-status calls remain zero. These HTTP categories are
+separate; six application operations do not mean six HTTP requests.
+
+The [full record](evidence/refactor-155f-finalization-overlap-hosted.md) contains
+ranges, individual samples, SQL counts, regions, ordering evidence, and restoration
+status. The earlier **3.530 s / 4.204 s** early-preflight result remains historical
+evidence. It is not the control for attributing gains to these server changes.
 
 ## Phase 2 — Reduce Console calls and exchanges
 
@@ -272,7 +312,7 @@ and the same regional resources before any claim against the **3.530 s / 4.204 s
   moving it: authentication, quota, and usage-accounting semantics must remain explicit.
 - [ ] Combine the lineage reads if one query or batch preserves their meaning.
   Preserve the current restore and revocation checks.
-- [ ] Replace passkey claiming's separate insert/read-back with one atomic batch
+- [x] Replace passkey claiming's separate insert/read-back with one atomic batch
   that returns the winning owner. Preserve exact retry and competing-wallet refusal.
 - [ ] Examine the three finalization Console requests together: passkey claim,
   route publication, and completion. Combine operations only when their required
@@ -408,8 +448,11 @@ Two other ways remove or shorten the preflights without an SDK request:
 
 The client's distance to the Gateway region is a separate cost. Each exchange
 between Tokyo and the Hong Kong Gateway took about 100 ms for a request that
-does no work. A registration and its first signature make 12 exchanges with
-preflights and 6 without.
+does no work. Without early prewarming, registration and its first signature
+make six application POSTs and six preflights. Early prewarming adds five explicit
+`OPTIONS` requests and moves the later preflights ahead of their application calls.
+The hosted overlap comparison observed 17 Gateway HTTP requests per wallet.
+A same-origin API would need only the six application requests for this flow.
 
 The current path uses **four registration browser requests**, followed by prepare
 and sign. A combined execute/finalize would reduce registration to **three** and

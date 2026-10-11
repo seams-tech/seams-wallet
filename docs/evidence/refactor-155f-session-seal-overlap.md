@@ -69,8 +69,13 @@ This correction changed no production behavior.
 
 ## Measurement limits and next steps
 
-No hosted deployment or timing comparison occurred. The latest hosted medians remain
-**3.530 s registration** and **4.204 s through the first verified signature**.
+At implementation time, hosted savings were unmeasured. The later
+[hosted comparison](refactor-155f-finalization-overlap-hosted.md) tested this change
+with the read overlaps. Candidate registration measured **4.267 s** against
+**4.346 s** before and **4.227 s** afterwards on the baseline. It establishes
+no clear total-latency gain. Finalization measured **1.030 s** against **1.234 s**
+and **1.069 s**. The earlier **3.530 s / 4.204 s** early-preflight result remains
+a separate historical measurement.
 
 Sealing still requires its existing CPU work. Synchronous WASM can delay other
 JavaScript continuations. The profile's 78–80% sample share cannot be converted into
@@ -80,6 +85,5 @@ The `near_finalize_session_seal` timing now measures only the wait after the ser
 completes. A zero value means preparation already finished. It does not mean zero CPU.
 The session-issuance span includes the earlier computation and home publication.
 
-Next, compare the committed candidate with the existing hosted baseline using real
-CORS preflights. Then address Console's independent database reads and finalization's
-remaining initial reads. Keep exact retry and completion ordering in each comparison.
+Next, address Console's independent database reads and finalization's remaining
+initial reads. Keep exact retry and completion ordering in each comparison.

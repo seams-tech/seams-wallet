@@ -83,6 +83,8 @@ The next candidate is to overlap existing seal computation with network waits,
 once authority and input binding permit it. Preserve the session binding, expiry,
 and durable commit requirements. No sealing change is included here.
 
-No hosted deployment or measurement occurred. The latest hosted medians remain
-**3.530 s registration** and **4.204 s through the first signature**, excluding
-user interaction. A comparison of these new changes must use real browser preflights.
+No hosted deployment or measurement occurred during this profile work. The later
+[hosted comparison](refactor-155f-finalization-overlap-hosted.md) measures the read
+and sealing overlaps together. It verifies the new ordering and establishes no
+clear total-latency gain. The earlier **3.530 s registration / 4.204 s combined**
+early-preflight result remains a separate historical measurement.
