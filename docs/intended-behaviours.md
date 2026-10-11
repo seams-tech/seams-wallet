@@ -455,7 +455,7 @@ throughout the resize. Reduced-motion behavior remains immediate.
 
 ### Wallet-management protocol
 
-- Wallet-management requests send `X-Seams-Wallet-Protocol: 2`. This wire
+- Wallet-management requests send `X-Seams-Wallet-Protocol: 3`. This wire
   contract covers registration, signer setup and inventory, auth-method
   management, and implicit NEAR funding through the wallet-management routes.
 - Missing or unsupported values return HTTP 409 with code

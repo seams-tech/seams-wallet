@@ -162,7 +162,7 @@ async function verifyPublishedClientRejection(
 ): Promise<void> {
   const definition = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   expect(definition.name).toBe('@seams/wallet');
-  expect(definition.version).toBe('0.7.3');
+  expect(definition.version).toBe('0.8.0');
   const bundle = await build({
     entryPoints: [path.join(root, 'dist/esm/core/rpcClients/relayer/walletRegistration.js')],
     bundle: true,
@@ -222,7 +222,7 @@ export async function verifyWalletProtocolCutover(
   expect(await unsupported.json()).toMatchObject({ ok: false, code: 'wallet_protocol_mismatch' });
 
   const previousVersion = await context.request.post(previous.url, {
-    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '1' },
+    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '2' },
     data: '{invalid JSON',
   });
   expect(previousVersion.status()).toBe(409);
