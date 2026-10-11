@@ -68,7 +68,9 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 export, and transaction-preference settings. It uses the same provider and
 wallet-origin operations. Signed-out users see hosted authentication. The page
 also shows the wallet region setting, which moves the wallet to another region when
-the deployment and the current device allow it.
+the deployment and the current device allow it. The setting uses
+`useSeams().seams.placement`. See [Wallet region](/reference/core#wallet-region) for
+the calls, their results, and the unlock that each device needs after a move.
 
 Focused entrypoints are available for applications that need smaller or
 SSR-specific imports:
