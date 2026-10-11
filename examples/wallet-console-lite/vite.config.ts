@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@wallet-preview/SeamsWeb/walletIframe/client/overlay/overlay-controller': `${walletDistRoot}/../src/SeamsWeb/walletIframe/client/overlay/overlay-controller.ts`,
+        '@wallet-preview/core/signingEngine/uiConfirm/ui/confirm-ui': `${walletDistRoot}/esm/sdk/tx-confirm-ui.js`,
         '@wallet-preview': `${walletDistRoot}/esm`,
         '@': `${walletDistRoot}/../src`,
         '@shared': `${walletDistRoot}/../../shared-ts/src`,
