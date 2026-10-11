@@ -704,6 +704,12 @@ All 133 contract cases pass with the change: 131 on release builds and the two
 debug-only cases on debug builds. Four Email OTP recovery cases failed once on
 an expired Google token and passed on a fresh one.
 
+The [second staging run](evidence/refactor-155g-yao-prewarm-hosted.md), on the
+Hong Kong Console layout with the committed change and a warm-up group before
+each measured group, measured the hold at 0 ms against 186 ms and the connection
+at 161 ms against 336 ms, six executions per side. The admission no longer slows
+down. R155G owns the Yao execution from here.
+
 ## Phase 4 — Remove a browser exchange where inputs permit it
 
 - [x] Trace when the client creates each input for setup, respond, execute,
