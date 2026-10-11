@@ -112,7 +112,7 @@ import {
   type D1WalletRegistrationActivateSideEffectStore,
   type D1WalletRegistrationNearProvisioningSideEffectRecord,
 } from '../registration/d1WalletRegistrationService';
-import { D1RegistrationFinalizationRead } from '../registration/d1RegistrationFinalizationRead';
+import { D1WalletRegistrationRead } from '../registration/d1WalletRegistrationRead';
 import type { D1WalletRegistrationOperationPreparedV1 } from '../registration/d1WalletRegistrationPreparation';
 import {
   parseD1EcdsaDerivationServerBootstrapResponse,
@@ -1382,11 +1382,12 @@ function createCloudflareD1RouterApiAuthAssembly(
     tenantRootCustodyLineage: options.tenantRootCustodyLineage,
     getWalletStore,
     activateSideEffects: walletRegistrationActivateSideEffectStore(options),
-    nearProvisioning: new D1RegistrationFinalizationRead(
+    registrationRead: new D1WalletRegistrationRead(
       options.database,
       options.registrationAuthority ?? null,
       walletRegistrationNearProvisioningSideEffectStore(options),
       getRegistrationCeremonyIntentStore,
+      yaoLifecycleDecisions,
     ),
     walletRegistrationCommitStore,
     walletCustodyCommitStore,

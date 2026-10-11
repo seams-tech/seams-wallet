@@ -16,12 +16,6 @@ type DecisionScope = {
   readonly envId: string;
 };
 
-type DecisionRow = {
-  readonly decision_kind: string;
-  readonly decision_id: string;
-  readonly wallet_id: string;
-};
-
 /**
  * The Gateway's Ed25519 Yao lifecycle decisions, in the signer database. A
  * decision is inserted once, in the batch that makes its finalization
@@ -48,7 +42,12 @@ export class CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 {
   }
 
   async read(lifecycleId: string): Promise<RouterAbEd25519YaoLifecycleDecisionV1 | null> {
-    const row = await this.database
+    const result = await this.prepareRead(lifecycleId).all<Record<string, unknown>>();
+    return this.parseRead(lifecycleId, result);
+  }
+
+  prepareRead(lifecycleId: string): D1PreparedStatementLike {
+    return this.database
       .prepare(
         `SELECT decision_kind, decision_id, wallet_id
            FROM yao_lifecycle_decisions
@@ -64,11 +63,21 @@ export class CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 {
         this.scope.projectId,
         this.scope.envId,
         lifecycleId,
-      )
-      .first<DecisionRow>();
+      );
+  }
+
+  parseRead(
+    lifecycleId: string,
+    result: D1ResultLike<Record<string, unknown>>,
+  ): RouterAbEd25519YaoLifecycleDecisionV1 | null {
+    if (!result.success) throw new Error('Ed25519 Yao lifecycle decision read failed');
+    const row = result.results?.[0];
     if (!row) return null;
     const kind = parseDecisionKind(row.decision_kind);
     if (!kind) throw new Error('Stored Ed25519 Yao lifecycle decision has an unknown kind');
+    if (typeof row.decision_id !== 'string' || typeof row.wallet_id !== 'string') {
+      throw new Error('Stored Ed25519 Yao lifecycle decision has invalid identities');
+    }
     return {
       lifecycleId,
       kind,
@@ -128,7 +137,7 @@ export class CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 {
   }
 }
 
-function parseDecisionKind(value: string): RouterAbEd25519YaoLifecycleDecisionKindV1 | null {
+function parseDecisionKind(value: unknown): RouterAbEd25519YaoLifecycleDecisionKindV1 | null {
   switch (value) {
     case 'registration_finalized':
     case 'add_signer_finalized':

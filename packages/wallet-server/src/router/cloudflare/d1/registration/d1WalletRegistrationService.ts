@@ -256,7 +256,7 @@ import type {
   RegistrationWalletStarter,
   WalletRegistrationHomeAuthority,
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
-import type { D1RegistrationFinalizationRead } from './d1RegistrationFinalizationRead';
+import type { D1WalletRegistrationRead } from './d1WalletRegistrationRead';
 import {
   walletRegistrationOperationPreparedFromCeremony,
   type D1WalletRegistrationOperationPreparedV1,
@@ -1947,8 +1947,8 @@ export class CloudflareD1WalletRegistrationService {
   private readonly getWalletStore: WalletStoreProvider;
   /** The single Gateway operation row for activate-with-finalize. */
   private readonly activateSideEffects: D1WalletRegistrationActivateSideEffectStore;
-  /** Deferred NEAR provisioning's own operation row. */
-  private readonly nearProvisioning: D1RegistrationFinalizationRead;
+  /** Registration admission and state loaded in one database snapshot. */
+  private readonly registrationRead: D1WalletRegistrationRead;
   private readonly walletRegistrationCommitStore: D1WalletRegistrationCommitStore;
   /** Where a ceremony's sealed custody seed and its recovery set land. */
   private readonly walletCustodyCommitStore: CloudflareD1WalletCustodyCommitStore;
@@ -1975,7 +1975,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly tenantRootCustodyLineage: TenantRootCustodyLineageResolverV1;
     readonly getWalletStore: WalletStoreProvider;
     readonly activateSideEffects: D1WalletRegistrationActivateSideEffectStore;
-    readonly nearProvisioning: D1RegistrationFinalizationRead;
+    readonly registrationRead: D1WalletRegistrationRead;
     readonly walletRegistrationCommitStore: D1WalletRegistrationCommitStore;
     readonly walletCustodyCommitStore: CloudflareD1WalletCustodyCommitStore;
     readonly walletAuthMethods: CloudflareD1WalletAuthMethodService;
@@ -1997,7 +1997,7 @@ export class CloudflareD1WalletRegistrationService {
     this.tenantRootCustodyLineage = input.tenantRootCustodyLineage;
     this.getWalletStore = input.getWalletStore;
     this.activateSideEffects = input.activateSideEffects;
-    this.nearProvisioning = input.nearProvisioning;
+    this.registrationRead = input.registrationRead;
     this.walletRegistrationCommitStore = input.walletRegistrationCommitStore;
     this.walletCustodyCommitStore = input.walletCustodyCommitStore;
     this.walletAuthMethods = input.walletAuthMethods;
@@ -3136,6 +3136,7 @@ export class CloudflareD1WalletRegistrationService {
         branch: branches.nearEd25519,
         authority: verifiedAuthority.authority,
         registrationBearerToken,
+        ownershipGeneration: homeAdmission.ownershipGeneration,
       });
       if (!admitted.ok) return admitted;
       if (!admitted.deferred) {
@@ -3167,9 +3168,20 @@ export class CloudflareD1WalletRegistrationService {
     };
     try {
       const store = this.getRegistrationCeremonyIntentStore();
+      const verifiedSetup = await verifyWalletRegistrationSetupClaims(
+        input.verifier,
+        input.signedSetup,
+        { registrationCeremonyId: input.registrationCeremonyId, nowMs: Date.now() },
+      );
+      if (!verifiedSetup.ok) return verifiedSetup;
       const loadStartedAtMs = Date.now();
-      const snapshot = await store.getCeremonySnapshot(input.registrationCeremonyId);
+      const homeAdmission = await this.registrationRead.readRespond({
+        ceremonyId: verifiedSetup.claims.registrationCeremonyId,
+        walletId: walletIdFromString(verifiedSetup.claims.walletId),
+      });
       mark('ecdsa_respond_d1_load', loadStartedAtMs);
+      if (!homeAdmission.ok) return homeAdmission;
+      const snapshot = homeAdmission.snapshot;
       if (!snapshot) {
         return { ok: false, code: 'not_found', message: 'registration ceremony not found' };
       }
@@ -3191,24 +3203,21 @@ export class CloudflareD1WalletRegistrationService {
         signingRootVersion: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
         expectedOrigin,
       });
-      const verifiedSetup = await verifySignedWalletRegistrationSetup(
-        input.verifier,
-        input.signedSetup,
-        {
-          registrationCeremonyId: ceremony.registrationCeremonyId,
-          setupDigestB64u,
-          nowMs: Date.now(),
-        },
-      );
-      if (!verifiedSetup.ok) {
-        return { ok: false, code: verifiedSetup.code, message: verifiedSetup.message };
+      if (
+        verifiedSetup.claims.setupDigestB64u !== setupDigestB64u ||
+        verifiedSetup.claims.walletId !== ceremony.intent.walletId
+      ) {
+        return {
+          ok: false,
+          code: 'invalid_grant',
+          message: 'signedSetup does not match this registration setup',
+        };
       }
       const ecdsaBranch = findStoredWalletRegistrationEvmFamilyEcdsaBranch(ceremony.signerState);
       const planNearEd25519 = registrationSignerBranchesFromPlan(ceremony.signerPlan).nearEd25519;
       // A new Ed25519-only respond pins its tenant root at the Yao admission.
-      // That read needs the ceremony alone, so it starts for a caller that
-      // holds the signed setup, and it runs beside the home admission and
-      // the proof. Its result is used only after both pass.
+      // Home admission and the signed setup are already verified. The root
+      // read runs beside proof verification and is used only after it passes.
       const startedDispatchRoot =
         !ecdsaBranch &&
         planNearEd25519 &&
@@ -3218,11 +3227,6 @@ export class CloudflareD1WalletRegistrationService {
               root_share_epoch: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
             }) ?? null)
           : null;
-      const homeAdmission = await admitRegistrationReservationHome(this.registrationAuthority, {
-        ceremonyId: ceremony.registrationCeremonyId,
-        walletId: ceremony.intent.walletId,
-      });
-      if (!homeAdmission.ok) return homeAdmission;
       const registrationBearerToken = toOptionalTrimmedString(input.signedSetup);
       if (!registrationBearerToken) {
         return { ok: false, code: 'invalid_body', message: 'signedSetup is required' };
@@ -3417,6 +3421,7 @@ export class CloudflareD1WalletRegistrationService {
           branch: nearEd25519Branch,
           authority,
           registrationBearerToken,
+          ownershipGeneration: homeAdmission.ownershipGeneration,
         }),
       ]);
       mark('ecdsa_respond_router', routerStartedAtMs);
@@ -3774,6 +3779,7 @@ export class CloudflareD1WalletRegistrationService {
       >['source'];
       /** The ceremony this request's own preparation read, with the identity it resolved. */
       readonly preparedCeremony: () => StoredWalletRegistrationCeremony | null;
+      readonly lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null;
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
@@ -3912,6 +3918,7 @@ export class CloudflareD1WalletRegistrationService {
       source,
       args.serverTiming,
       initialSessionPlan,
+      args.lifecycleDecision,
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -4180,7 +4187,7 @@ export class CloudflareD1WalletRegistrationService {
       }
       const admissionStartedAtMs = Date.now();
       const operationKey = `near-provisioning:${input.registrationCeremonyId}:${input.idempotencyKey}`;
-      const initial = await this.nearProvisioning.read(
+      const initial = await this.registrationRead.readFinalization(
         {
           ceremonyId: verified.claims.registrationCeremonyId,
           walletId: walletIdFromString(verified.claims.walletId),
@@ -4219,7 +4226,7 @@ export class CloudflareD1WalletRegistrationService {
         RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>,
         WalletRegistrationSessionCommitReceiptV2,
         D1WalletRegistrationOperationPreparedV1
-      >(this.nearProvisioning.operations, {
+      >(this.registrationRead.operations, {
         kind: 'prepared_resumable',
         operation: 'near_provisioning',
         key: operationKey,
@@ -4246,6 +4253,7 @@ export class CloudflareD1WalletRegistrationService {
           setupClaims: verified.claims,
           authoritySource: verified.source,
           preparedCeremony: () => preparedCeremony,
+          lifecycleDecision: initial.decision,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4559,6 +4567,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly branch: RegistrationNearEd25519SignerPlan | null;
     readonly authority: StoredRegistrationAuthority;
     readonly registrationBearerToken: string;
+    readonly ownershipGeneration: number;
   }): Promise<
     | {
         readonly ok: true;
@@ -4568,12 +4577,6 @@ export class CloudflareD1WalletRegistrationService {
     | { readonly ok: false; readonly code: string; readonly message: string }
   > {
     if (!input.branch) return { ok: true, branch: null, deferred: null };
-    const homeAdmission = await admitRegistrationReservationHome(this.registrationAuthority, {
-      ceremonyId: input.ceremony.registrationCeremonyId,
-      walletId: input.ceremony.intent.walletId,
-    });
-    if (!homeAdmission.ok) return homeAdmission;
-
     const yaoRuntime = this.getEd25519YaoProductRegistration();
     if (!yaoRuntime) {
       return {
@@ -4590,7 +4593,7 @@ export class CloudflareD1WalletRegistrationService {
     });
     const admitted = await yaoRuntime.bindVerifiedIntent({
       kind: 'verified_registration_intent',
-      ownershipGeneration: homeAdmission.ownershipGeneration,
+      ownershipGeneration: input.ownershipGeneration,
       registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
       intent: input.ceremony.intent,
       admissionRequest,
@@ -4865,6 +4868,7 @@ export class CloudflareD1WalletRegistrationService {
       { kind: 'stored_ceremony', ceremony: activatedCeremony },
       [],
       { kind: 'separate' },
+      null,
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -5307,6 +5311,7 @@ export class CloudflareD1WalletRegistrationService {
     source: D1WalletRegistrationFinalizeSource,
     serverTiming: Array<readonly [string, number]>,
     initialSessionPlan: RegistrationInitialSessionPlan,
+    lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null,
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5622,7 +5627,7 @@ export class CloudflareD1WalletRegistrationService {
         // publishing local state, including when a directory claim fails.
         custodyReservation = reserveCustody();
         startedCustody = custodyReservation;
-        const [activationConsumption, authorityReservation, lifecycleDecision] = await Promise.allSettled([
+        const [activationConsumption, authorityReservation] = await Promise.allSettled([
           recordRegistrationPromiseTiming({
             sink: serverTiming,
             name: 'near_finalize_router_consume',
@@ -5636,11 +5641,9 @@ export class CloudflareD1WalletRegistrationService {
             }),
           }),
           this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority),
-          this.yaoLifecycleDecisions.read(activationReference.lifecycle_id),
         ]);
         if (activationConsumption.status === 'rejected') throw activationConsumption.reason;
         if (authorityReservation.status === 'rejected') throw authorityReservation.reason;
-        if (lifecycleDecision.status === 'rejected') throw lifecycleDecision.reason;
         const consumed = activationConsumption.value;
         commitWallet = authorityReservation.value;
         if (!consumed.ok) {
@@ -5759,7 +5762,7 @@ export class CloudflareD1WalletRegistrationService {
         });
         yaoDecisionFound = routerAbEd25519YaoLifecycleDecisionLookupV1(
           yaoDecision,
-          lifecycleDecision.value,
+          lifecycleDecision,
         );
         const activatedEd25519PublicResult: WalletRegistrationEd25519YaoPublicResult = {
           signerSlot: finalizeNearEd25519.signerSlot,

@@ -124,6 +124,13 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     registrationCeremonyId: string,
     result: D1ResultLike<Record<string, unknown>>,
   ): Promise<StoredWalletRegistrationCeremony | null> {
+    return (await this.parseCeremonySnapshotRead(registrationCeremonyId, result))?.ceremony ?? null;
+  }
+
+  async parseCeremonySnapshotRead(
+    registrationCeremonyId: string,
+    result: D1ResultLike<Record<string, unknown>>,
+  ): Promise<D1WalletRegistrationEcdsaCeremonyClaimV1 | null> {
     if (!result.success) throw new Error('Registration ceremony D1 read failed');
     const stored = await this.storage.parseGet(
       'ceremony',
@@ -132,7 +139,9 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     );
     if (!stored) return null;
     const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
-    return ceremony && ceremony.expiresAtMs > Date.now() ? ceremony : null;
+    return ceremony && ceremony.expiresAtMs > Date.now()
+      ? { ceremony, version: stored.version }
+      : null;
   }
 
   async getCeremonySnapshot(
@@ -140,11 +149,10 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
   ): Promise<D1WalletRegistrationEcdsaCeremonyClaimV1 | null> {
     const id = toOptionalTrimmedString(registrationCeremonyId);
     if (!id) return null;
-    const stored = await this.storage.get('ceremony', id);
-    if (!stored) return null;
-    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (!ceremony || ceremony.expiresAtMs <= Date.now()) return null;
-    return { ceremony, version: stored.version };
+    return this.parseCeremonySnapshotRead(
+      id,
+      await this.prepareCeremonyRead(id).all<Record<string, unknown>>(),
+    );
   }
 
   async updateCeremony(input: {

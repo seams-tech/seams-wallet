@@ -140,7 +140,15 @@ async function completeReservedRegistrationSetup(
     ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
   });
   const digestB64u = await walletRegistrationSetupIntentDigest(intent);
-  const existing = await dependencies.store.getSetupCeremony(registrationCeremonyId);
+  const branches = registrationIntentSignerBranches(intent);
+  if (!branches.ok) return walletRegistrationSetupError(branches.code, branches.message);
+  // NEAR setup is deterministic from the reservation. The insert/read batch
+  // returns an exact retry without an earlier absent-record lookup. ECDSA
+  // retains its lookup before starting external preparation.
+  const existing =
+    admitted.lifecycle === 'established' || branches.value.evmFamilyEcdsa
+      ? await dependencies.store.getSetupCeremony(registrationCeremonyId)
+      : null;
   if (existing) {
     if (
       existing.digestB64u !== digestB64u ||
@@ -164,8 +172,6 @@ async function completeReservedRegistrationSetup(
       'registration_closed',
       'Completed registration setup snapshot is unavailable',
     );
-  const branches = registrationIntentSignerBranches(intent);
-  if (!branches.ok) return walletRegistrationSetupError(branches.code, branches.message);
   const ecdsaBranch = branches.value.evmFamilyEcdsa;
   const nearEd25519Branch = branches.value.nearEd25519;
   if (!ecdsaBranch && !nearEd25519Branch) {
