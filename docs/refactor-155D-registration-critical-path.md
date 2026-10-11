@@ -1,22 +1,31 @@
 # R155D — the registration-to-first-signature critical path
 
-Status: **in progress; the 3–4 s target remains unmet.** Stored unique IDs,
-setup-time startup, and the registration status seed are implemented and measured.
-The latest hosted comparison measures **4.354 s** for registration alone and
-**5.253 s** with the first signature, excluding user interaction. Registration
-baseline medians were **5.184 s** before and **4.227 s** after the candidate.
-This run does not establish an overall latency improvement. It verifies one fewer
-Console request and six fewer completed D1 calls per registration. All nine
-signature proofs and 18 comparison checks pass. The [hosted evidence](evidence/refactor-155d-allocation-hosted.md)
-records ranges, counts, frozen versions, limitations, and restoration status.
-The [capability storage changes](evidence/refactor-155d-capability-persistence.md) remove redundant ceremony work and combine wallet/capability writes, reducing that persistence step from three D1 calls to two locally; hosted savings remain unmeasured.
-Hosted validation and preparation during confirmation remain open. The staging role-database cutover has its registration proof, and `d51cfcd8` fixed the interrupted-recovery failure; [R155F](refactor-155F-registration-round-trips.md) records both. See the [implementation record](#implementation-record).
-Plan dated October 9, 2026; record updated October 10.
+Status: **closed with documented scope differences and unmet performance targets.**
+No implementation or measurement task remains assigned to R155D. Stored unique
+IDs, setup-time startup, the registration status seed, and the staging role-database
+cutover are implemented and verified. [R155F](refactor-155F-registration-round-trips.md)
+completed the Gateway/Console batching, recovery fix, and combined verification.
+Plan dated October 9, 2026; reconciled October 11 against public `4392eb5f`.
 
-[R155F](refactor-155F-registration-round-trips.md) plans the next finalization,
-Console, custody, and browser round-trip reductions. Use its checklist for new
-optimization work. This document retains the earlier implementation evidence,
-database-cutover follow-up, and interrupted-recovery defect.
+The [complete R155F comparison](evidence/refactor-155f-combined-registration-hosted.md)
+records **3.929 s** registration and **4.647 s** through the first verified signature,
+excluding interaction. Gateway/Console registration D1 calls fell **34 → 28**.
+This run establishes fewer calls; it does not establish an overall latency saving.
+
+[R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md#phase-2--hide-exchanges-behind-the-user)
+also completed and measured early NEP-413 prepare in `3670b1cd`.
+Its [separate comparison](evidence/refactor-155g-early-sign-prepare-hosted.md)
+records **396 ms** first signing and **4.144 s** registration plus signing.
+It excludes R155F's later Gateway changes. Do not combine these two runs' savings.
+
+The **3–4 s full-flow target remains unmet**. The original five-request and
+4–6-finalization-call targets also remain unmet. Their resolved dependencies are
+recorded below. Early prepare uses lease expiry on decline and spends one quota
+use; the originally proposed release was superseded by the current specification.
+Remaining transaction/delegate preparation and custody profiling belong to R155G.
+Production rollout, wallet reset/migration decisions, and 0.9.0 publication remain
+separate release work. Historical records below describe evidence at their stated
+dates; the reconciled checklist and decisions define current status.
 
 ## Objective and relationship to R155B and R155C
 
@@ -847,9 +856,9 @@ remain. No new resources were created, and production was unchanged.
   Signing Worker has no such check: the preflight unit tests run that
   component with placeholder credentials. After the cutover the Deriver
   role-share reads arrive at the new databases and none at the old ones.
-  Still open: no registration has run through the roles since the cutover,
-  because the activation canary does not write to the role databases. The
-  first hosted registration is that proof. The owner deleted the three old
+  Closed in R155F: hosted registration and independently verified signatures
+  exercised the replacement role databases. The activation canary alone had
+  not established this. The owner deleted the three old
   databases on October 10 at about 22:55 JST, so no rollback exists. The
   previous versions `c18b2202`, `eaa0b80f` and `c700bbc1`, and the custody
   versions `906e53ab`, `740a736c` and `aca61008` that the hosted drivers
@@ -867,33 +876,30 @@ remain. No new resources were created, and production was unchanged.
 
 ## Phase 2 — Gateway round trips
 
-- [ ] Fold the deployment-admission read and the routing reads into each
-  handler's first batch. Immediate retirement semantics stay: the predicate is
-  evaluated in the same transaction as the work it guards. Deployment admission,
-  session routing and registration-continuation routing now share one SELECT.
-  Each handler retains its deployment-fenced reads and writes. This removes the
-  separate local session or ceremony lookup before the handler.
+- [x] Resolve deployment-admission and routing-read consolidation. Admission,
+  session routing, and continuation routing share one SELECT. R155F moves Console
+  mutation admission into each transaction. The regional entry read remains:
+  it selects the binding, configuration, and wallet route before core execution.
+  Removing it requires a different configuration contract. This is a documented
+  limit of the original proposal, not a completed removal of every routing read.
 - [x] Setup: combined Console context-and-reserve, one insert batch.
   `42cde7b7` combines the snapshot and ceremony write, beside address initialization.
   The combined Console operation now authenticates and reserves in one invocation.
   The two-curve browser retry verification is recorded below.
-- [ ] Respond: overlap home admission and the lineage read with WebAuthn
-  verification; one commit batch; no re-read after load. Started in `b338a7e1`
-  and `33df3f59` for the Ed25519-only respond: the ceremony update commits in
-  the batch of the Yao admission, and the lineage read runs beside the home
-  admission and the proof. Setup now saves the home in its ceremony batch,
-  which removes the continuation's directory lookup and separate home write.
-  The admission commit still reads its record again.
-- [ ] Finalize: concurrent consume, claim, and reads; one or two write batches
-  including the journal; routes carried by completion; duplicate reads removed.
-  Decide the passkey claim's placement with the Console owner and record the
-  reason. Started in `6ee17c33`: the repeated ceremony and identity reads are
-  gone, 21 round trips became 19. Session issuance now also commits the
-  matching ceremony's completion decision in the same D1 transaction.
-  This removes one later write batch. `fbebaf9a` commits the local activation
-  in the batch that completes the registration journal, which removes one
-  more. See [the verification record](#registration-session-and-completion-decision)
-  and [the activation record](#activation-in-the-journal-completion-batch).
+- [x] Complete respond's redundant-read removal and compatible batching.
+  `b338a7e1` and `33df3f59` combine ceremony/admission writes and overlap lineage
+  with admission and proof. Setup persists home ownership. R155F `0e00b591`
+  validates setup once and batches home admission with the ceremony snapshot.
+  Hosted respond uses five calls, including the regional entry read.
+- [x] Resolve finalization's batching and claim placement in R155F. Home,
+  journal, ceremony, and decision share one read. Wallet, capability, decision,
+  and initial session share one commit. Activation and the receipt share another.
+  The proposed one-or-two-write-batch endpoint was not achieved: durable operation
+  preparation and custody persistence retain separate failure outcomes. Console
+  completion follows the session commit and precedes activation. Fresh finalization
+  uses eight local calls, nine with regional entry; exact completed replay uses one
+  local batch. Keep the passkey claim beside Router consumption so Yao failure
+  can still cancel before the claim. See the [dependency budget](evidence/refactor-155f-combined-registration-local.md#remaining-dependency-budget).
 - [x] Sign prepare and sign: one authorization batch; pinned scope from the
   read-back; completion write ordered after the response where the
   specification allows, or kept before it with the reason recorded. Started
@@ -903,11 +909,11 @@ remain. No new resources were created, and production was unchanged.
   `bed2e264` includes the active Yao capability in the authorization read.
   Missing capability observations retain persisted reconciliation. The composed
   quota, step-up, linked-device, retirement and relocation cases pass.
-- [ ] Verify through the existing registration, lost-reply, cancellation,
-  quota, retirement, and relocation contracts. Add scenarios only for new
-  orderings: finalize with the Console claim failing after the consume,
-  finalize retry after a lost reply with the merged batch, and decline after
-  an early prepare.
+- [x] Verify changed registration orderings. R155F's [local evidence](evidence/refactor-155f-combined-registration-local.md#correctness-evidence)
+  records 14 public contracts, eight composed scenarios, writer retirement,
+  cancellation, directory failures, and four-region routing. These include claim
+  failure after consumption and lost completion replay. R155G owns early-prepare
+  behavior; its lease-expiry contract supersedes R155D's proposed release on decline.
 
 ## Phase 3 — browser round trips
 
@@ -915,8 +921,13 @@ remain. No new resources were created, and production was unchanged.
   response on the NEAR-only path. Remove the status read it replaces. Keep
   explicit reads fresh. Done in `defb230c`. A registration that includes ECDSA
   still observes the server, because its session changes after the response.
-- [ ] Send sign prepare during confirmation, bound to the displayed digest,
-  with release on decline. Keep the warm-session path free of WebAuthn.
+- [x] Resolve prepare during confirmation through R155G `3670b1cd`. Warm-session
+  NEP-413 prepare binds the display and signing digests and needs no WebAuthn.
+  Its [hosted comparison](evidence/refactor-155g-early-sign-prepare-hosted.md)
+  verifies one prepare per signature. The current [specification](intended-behaviours.md)
+  leaves an unused prepare to expire after 120 seconds; its quota use stays spent.
+  Release on decline was not implemented. Transaction and delegate-action overlap
+  remain explicit R155G tasks; this item does not claim they are complete.
 - [x] Record the two follow-up designs and their constraints below. Neither
   starts here.
 
@@ -949,13 +960,21 @@ remain. No new resources were created, and production was unchanged.
   signing, Email OTP, and relocation against the combined change. All 132 public
   cases pass on `63acba09`. Private regional cases and restart recovery checks
   are recorded in the combined lifecycle verification below.
-- [ ] Run the Worker and wallet-object scenarios from R155C and the four-home
-  placement E2E.
+- [x] Reconcile Worker/DO evidence: R155C records 16 peer-connection fault
+  scenarios. R155D's [stored-address verification](#stored-address-local-verification--october-10)
+  records four-home registration, both signing curves, replay, and eight independent
+  signatures. The [relocation run](#complete-stored-address-relocation--october-10)
+  covers source settlement and destination replay. These are distinct recorded runs;
+  no complete rerun of R155C's fault matrix on the final R155F tree is claimed.
+  R155C retains its role-digest injection, frame-count, and controlled-cold limitations.
 - [x] Measure on staging with the R155C protocol: baseline, candidate,
   restored control; three fresh wallets each; versions audited; signatures
   verified independently; originals restored. Report the SDK-measured number,
   the harness rows, request and round-trip counts, and the location map.
-- [ ] Record the decision here and commit on `dev` in both repositories.
+- [x] Record the reconciliation on `dev`. Implementation is already committed in
+  both repositories: public `0e00b591`, private `eb235b1`, `0a85921`, and `7ed7399`.
+  Public `c4488d91` records the combined hosted result. This reconciliation changes
+  only the public plan; it requires no private code change or new hosted run.
 
 ## Implementation record
 
@@ -1664,34 +1683,34 @@ Decided on October 10:
   Permanent activation remains part of the coordinated release. Version 0.9.0
   follows the change.
 
-Open decisions and work:
+Reconciled on October 11:
 
-1. Complete the separately tracked staging role-database cutover. The Phase 4
-   record names the replacements and outstanding deployment-path decision.
-2. Freeze new baseline versions after that cutover. The completion and allocation
-   comparisons are finished; their saved custody versions retain the old database bindings.
-
-Remaining scope, with the reason:
-
-- The four-to-six-round-trip finalize target remains open. Credential claim
-  now overlaps Router consumption. Session issuance commits its completion
-  decision atomically, and activation commits with journal completion.
-  Finalize still makes three Console requests. Since `b6d9f2a7` the
-  recovery-code route claim runs beside Router consumption and the credential
-  claim, and only the custody write still overlaps capability installation.
-  Combining the claim with completion could remove a request but no elapsed
-  time. Further batch changes must retain exact replay, ownership fences, and
-  publication order.
-- Sign prepare during confirmation. An admitted prepare claims one use of the
-  session's quota, so a declined confirmation would spend a use unless prepare
-  gains a release. It also sends the operation to the server before the user
-  approves it.
-- The five-browser-request target conflicts with the explicit exclusion of
-  combined execute/finalize. The current flow has six requests and no status
-  request. Moving prepare into confirmation changes timing, not request count.
-  Reaching five requires a scope decision about the combined endpoint.
+- The staging role-database cutover, registration proof, and replacement baseline
+  snapshots are complete. R155F's comparison uses the current database bindings
+  and verifies restoration. Do not restore the historical versions bound to deleted databases.
+- The interrupted-recovery defect is fixed by `d51cfcd8`. Three recovery contracts
+  and all 132 public contracts passed with that fix, as recorded in R155F Phase 5.
+- R155F closes the proposed read/write consolidation with an explicit dependency
+  budget. Finalization's 4–6-call target was not reached. The eight local calls
+  retain separate lifecycle, capability, custody, and publication boundaries.
+  Further reductions need a changed contract; no redundant read remains identified
+  as an unfinished R155D task.
+- R155G implements early NEP-413 prepare with expiry on decline. This replaces
+  the original release proposal. Transaction and delegate preparation remain there.
+- The five-request target was not reached. Execute must return the verified Yao
+  result before the client can build finalization's activation and custody inputs.
+  Four registration requests plus prepare and sign remain. Early prepare overlaps
+  confirmation without reducing that count. A combined endpoint needs a protocol change.
+- Further latency optimization belongs to R155G. Production activation and 0.9.0
+  publication remain release work. This reconciliation adds no implementation tasks.
 
 ## Structural acceptance targets
+
+These are the original investigation targets, not claims of achieved counts.
+R155F's hosted comparison includes regional entry reads: setup uses four D1 calls,
+respond five, finalize nine, and prepare plus sign seven. Gateway/Console totals
+exclude custody-role databases and pending background calls. The local finalization
+budget excludes regional entry and uses eight calls. These scopes must stay explicit.
 
 | Work | Starting point | Target |
 | --- | --- | --- |
@@ -1710,7 +1729,13 @@ Keep a change that demonstrably removes a round trip, a dispatch, or a
 construction from the critical path even when three samples do not isolate its
 latency. Report slower results and unresolved platform costs explicitly.
 
-## Completion criteria
+## Original completion criteria and disposition
+
+The criteria below are retained as the original goal. Several numerical targets
+remain unmet. Closing this plan records delivered work and the explicit decisions
+above; it does not claim that every original proposal or performance target succeeded.
+R155F owns the completed batching and verification. R155G owns the remaining
+browser/protocol optimizations and CPU profiling. Release activation is separate.
 
 The SDK-measured registration-to-signature flow is recorded with its harness
 and interaction rows separate. Every component runs where its database runs,
@@ -1747,8 +1772,8 @@ write after the reply would break this guarantee.
 Cloudflare's invocation wall time can include background settlement after the
 response. Subtracting it from a parent request would give a false dispatch cost.
 The existing application clock also advances at I/O, so a zero-millisecond output
-span does not prove that output encryption has no cost. Separate output-seal and
-storage-flush measurements remain open.
+span does not prove that output encryption has no cost. R155G Phase 3 owns further
+CPU and sealing analysis. These historical spans do not isolate storage-flush cost.
 
 ### Follow-up designs beyond this plan
 
