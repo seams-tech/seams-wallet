@@ -187,7 +187,8 @@
     "touchedPrivateLint": true,
     "publicBloatCheck": true,
     "directoryE2Es": 2,
-    "regionalSessionRouting": true
+    "regionalSessionRouting": true,
+    "composedCompleteBatch": 8
   },
   "projectedHostedCounts": {
     "previousRegistration": 34,
@@ -197,7 +198,7 @@
     "measured": false
   },
   "artifacts": {
-    "normalProofSha256": "f86bf6927520f8af5ef25fb6e2e1bf369ff800b3f9932b6065560b72ce052089",
+    "normalProofSha256": "f7a816e55555a71c8da2a420523faa2d0972444fb10da38aee52babc50a0803a",
     "productionConsoleProofSha256": "321e7395a9622171bee289b2b65596c9a53d30079148d19f9aec0e8c664ef6f3",
     "walletHomeProofSha256": "e14e5ad92e9374f5d7a3581c762ae6f8b48718cc12e5adfc85f0ecb4ccce2388",
     "walletRelocationProofSha256": "f663ff94cdaf39056e050665f36b68a51039767b156d4af036a79747192c8d3b",

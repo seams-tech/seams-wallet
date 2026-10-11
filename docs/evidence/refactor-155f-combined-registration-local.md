@@ -77,11 +77,11 @@ Relocation fences and a retired home reject replay.
 
 - All **14 public registration contracts** pass. They include mixed registration,
   lost Router replies, immediate signing, and deferred provisioning races.
-- **Eight composed scenarios** pass for the Gateway changes. They include
-  concurrent setup, setup reply loss, and provisioning reply loss across regions.
-- **Three composed scenarios** pass with the Console changes: normal completion,
-  lost completion reply, and credential-claim failure after Router consumption.
-  They verify NEP-413 signatures independently and exercise foreign ingress.
+- **Eight composed scenarios** pass with the complete implementation and updated
+  deployment fixtures. They cover concurrent setup, setup and provisioning reply
+  loss across regions, normal completion, lost completion reply, and credential
+  claim failure after Router consumption. They verify NEP-413 signatures
+  independently. Call counts match the earlier local trace exactly.
 - The **production Console E2E** passes. Each changed mutation and its exact replay
   use one D1 call. A retired writer leaves claims, routes, sessions, and home state
   unchanged. The transaction-check table remains empty.

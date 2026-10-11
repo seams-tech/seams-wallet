@@ -43,9 +43,9 @@ registration and **41 → 35** through first signing. These totals and the laten
 remain unmeasured on staging for the complete batch. Exact completed replay
 still takes one local batch after ceremony cleanup.
 
-Fourteen public registration contracts, eight selected composed cases before the
-Console change, three composed cases with it, and production Console acceptance
-pass. Both directory E2Es and the four-region session-routing scenario also pass
+Fourteen public registration contracts, eight composed cases with the complete
+batch, and production Console acceptance pass. Both directory E2Es and the
+four-region session-routing scenario also pass
 with private `7ed7399`. Production Console acceptance checks one-call mutations,
 exact replay, and refusal before any write by retired writers. The eight-call finalization budget and the reasons to
 retain separate custody, completion, and client-execute boundaries are in the record.
