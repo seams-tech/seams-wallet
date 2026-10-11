@@ -1,0 +1,170 @@
+{
+  "date": "2026-10-11",
+  "environment": "local Miniflare D1 and real custody/browser stack",
+  "walletCommit": "88ef651770e56df1ef40fefcadc478e5655b6402",
+  "privateCommit": "caa6c88dbc424c778268e317ef1b7cfb1bfd8c4f",
+  "hostedMeasurement": null,
+  "registrationTransaction": {
+    "wrongCeremonyRollsBackSession": true,
+    "concurrentIssuance": [
+      "already_committed",
+      "issued"
+    ],
+    "sessionAndDecisionShareOneBatch": true,
+    "publicationUsesCommittedHomeState": true,
+    "lostReplyKeepsSigningFenced": true,
+    "conflictingCancellationCannotReachDirectory": true,
+    "exactRetryPreservesSession": true,
+    "acknowledgedCompletionCalls": [
+      {
+        "sequence": 1,
+        "method": "batch",
+        "startedMs": 7.118415999999343,
+        "elapsedMs": 1.5765840000003664,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "40488211533cfd76970b78db",
+              "kind": "UPDATE",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 3,
+            "rowsWritten": 1,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      }
+    ],
+    "activeReplayDoesNotRepublish": true,
+    "retiredHomeCannotCommitRegistration": true
+  },
+  "normalRegistration": {
+    "sessionSealing": {
+      "computationsDuringRegistration": 1,
+      "completionRequestedBeforeSeal": true,
+      "completedBeforeDirectoryReply": true
+    },
+    "gatewayDatabaseWork": [
+      {
+        "stage": "registration",
+        "path": "/wallets/register/setup",
+        "roundTrips": 4,
+        "statements": 11
+      },
+      {
+        "stage": "registration",
+        "path": "/wallets/register/respond",
+        "roundTrips": 5,
+        "statements": 10
+      },
+      {
+        "stage": "registration",
+        "path": "/router-ab/ed25519/yao/registration/execute",
+        "roundTrips": 1,
+        "statements": 1
+      },
+      {
+        "stage": "registration",
+        "path": "/wallets/register/near-provisioning",
+        "roundTrips": 12,
+        "statements": 55
+      },
+      {
+        "stage": "first_signature",
+        "path": "/router-ab/ed25519/sign/prepare",
+        "roundTrips": 2,
+        "statements": 3
+      },
+      {
+        "stage": "first_signature",
+        "path": "/router-ab/ed25519/sign",
+        "roundTrips": 3,
+        "statements": 3
+      },
+      {
+        "stage": "explicit_refresh",
+        "path": "/wallet/session/status",
+        "roundTrips": 2,
+        "statements": 2
+      }
+    ],
+    "consoleRequests": [
+      "/internal/wallet-placement/v1/registration-setup",
+      "/internal/wallet-console/v1/tenant-root/active-lineage",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/claim-passkey",
+      "/internal/wallet-placement/v1/complete"
+    ],
+    "signingIngress": "OC",
+    "signingConsoleCalls": 0,
+    "signature": {
+      "message": "Combined registration completion through OC",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "27a95d92f770db9119e599bf1e4330161a4f3efb0a68af55e618c1f617783467",
+      "publicKey": "ed25519:3fpguESuqJ917pQPC2RH4BM83xZ5dmTMebNzrk5d43MY",
+      "signature": "Wpgnb+EiquCW5Pvw4VEY4v44h6fuM69dEQw4AbGcTQOuaNJNVMUUULAYk1FYSITkxLV4tU8OMavcyS/JEUWaBw==",
+      "nonce": "R96RNxoy229t6GqOZvIyw8yStgbpinsoQZI39ahqxPg=",
+      "digestHex": "045b869a87fa06922ab41ffe594a832b186011fe33390760b66e65b532df0a99",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    }
+  },
+  "lostCompletionReply": {
+    "identicalCompletionRetries": 2,
+    "signingFencedUntilCompletionAcknowledged": true,
+    "exactMethodUnlockRequired": true,
+    "signature": {
+      "message": "Recovered combined completion",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "5c190a0b05f887f71432ac9018d7c65e901470f1ce2d39539bcae8deca077add",
+      "publicKey": "ed25519:7CWeskNm3y7D5oM4dcFedF9xe293oZTAbjVXjEJkL3Ti",
+      "signature": "FOHPJJcgT+IbgPJcVKQFLSOf0JwxSQyNlZ767vqPsm504q5Apf/5xMRf2DH2ZPcl+515st10A3cFry3br2ChBA==",
+      "nonce": "T8FCYYcWWL6s3wxVlpGSIT0oIqlzp6m08th8cr4ey+M=",
+      "digestHex": "1ba658c497e400cbb0f8690f9fbebf887838c51cff97cbdc30e8a26a37e72089",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    "signingConsoleCalls": 0
+  }
+}

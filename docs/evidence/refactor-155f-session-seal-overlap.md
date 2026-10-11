@@ -87,3 +87,56 @@ The session-issuance span includes the earlier computation and home publication.
 
 Next, address Console's independent database reads and finalization's remaining
 initial reads. Keep exact retry and completion ordering in each comparison.
+
+## Completion dispatch without a second home read
+
+Public commit `88ef6517` removes one D1 read before Console completion. The session
+transaction already reads the home state and fixes the registration decision.
+It now returns that state. Publication uses the result directly. The duplicate
+decision-write path is deleted.
+
+The previous overlap began publication before sealing, but publication first
+awaited D1. Sealing could delay the continuation that sent the Console request.
+The new path sends that request before sealing starts.
+
+Private commit `caa6c88` strengthens the composed browser scenario. It verifies
+that Console receives completion before the real sealing service starts. It also
+withholds Console's reply until sealing finishes. Both ordering assertions passed,
+with one seal computation during normal registration.
+
+The [recorded evidence](refactor-155f-committed-home-publication.json) contains the
+transaction results, local call counts, and independently verified signatures.
+
+| Check | Result |
+| --- | --- |
+| Publication and activation after session commit | One activation batch; the prior SELECT is removed |
+| Local Gateway finalization | 12 D1 calls, excluding hosted Gateway admission |
+| Console completion requested before sealing | Verified |
+| Normal registration and lost-completion browser scenarios | 2 pass |
+| Concurrent issuance, wrong ceremony, cancellation, retired home and exact retry | Pass |
+| Authorization transfer and atomic home activation | Pass |
+| Credential reservation scenario | Pass |
+| Server build, server type check, wallet-state type fixtures and bloat check | Pass |
+
+The session transaction remains the only source of the established decision.
+Wrong-ceremony issuance rolls back. A lost Console reply keeps signing blocked.
+Retry reuses the committed session. An active replay sends no completion request.
+A retired home rejects registration issuance. Home activation still commits with
+the operation's completion record.
+
+Reproduce the transaction checks from `seams-wallet`:
+
+```sh
+node tests/e2e/session-issuance-transaction.e2e.mjs
+node tests/e2e/authorization-storage-transfer.e2e.mjs
+node tests/e2e/registration-credential-reservation.e2e.mjs
+```
+
+Use the composed command above for the browser checks. This change does not yet
+have a hosted latency result. The last hosted finalization count was 14. Removing
+one read predicts 13, including admission. The local count of 12 uses a different
+admission path and must not be reported as the hosted total.
+
+Next, combine the initial home, journal and ceremony reads where their retry
+rules permit it. Then measure the combined candidate, including the Console
+lineage batch, against the frozen hosted baseline.

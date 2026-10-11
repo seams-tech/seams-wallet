@@ -13,6 +13,9 @@ home publication. See the [read-overlap record](#finalization-read-overlap-and-c
 and [sealing record](#session-sealing-overlap--october-11).
 The [hosted comparison](#hosted-read-and-sealing-comparison--october-11) now verifies
 both read overlaps. It shows no clear improvement in total registration time.
+The next local change removes the home read after session issuance. Console now
+receives completion before session sealing starts. Hosted latency for this change
+and the Console lineage batch remains unmeasured.
 
 ## Objective and ownership
 
@@ -141,6 +144,9 @@ before editing because registration work continues concurrently.
 - [x] Start session sealing after the session commit, beside home publication.
   Keep the result local to the request until finalization succeeds. Verify failed
   publication, exact retry, and recovery from a failed seal.
+- [x] Return the committed registration home state from session issuance.
+  Remove publication's extra home read and its duplicate decision-write path.
+  Verify that Console completion starts before sealing uses the Worker CPU.
 
 Acceptance: remove the demonstrated duplicate reads or commits, preserve exact
 replay, and record the remaining dependency graph. Remove the replaced helpers.
@@ -169,6 +175,13 @@ also carries the Gateway's deployment write check as one more statement.
 | 13 | Home generation read | Registration home authority | Call 12 |
 | — | Console completion | Console | Call 12 |
 | 14 | Journal completion and home activation | Operation journal | Console acknowledgement |
+
+This table records the hosted baseline. Local commit `88ef6517` removes call 13
+by returning its state from call 12's existing transaction. See the
+[committed-home record](evidence/refactor-155f-session-seal-overlap.md#completion-dispatch-without-a-second-home-read).
+The local browser trace now records 12 finalization calls. It excludes the hosted
+Gateway's separate admission read. The expected hosted count is therefore 13,
+pending a hosted measurement.
 
 Commit `edc7d5f9` removes two waits from this chain. The wallet commit no longer
 waits for the route claim, because the claim cannot fail a registration. The
