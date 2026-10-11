@@ -664,6 +664,10 @@ Expected behaviour:
 - After EVM activation, the retained NEAR journal supplies the exact session identity.
   Passkey client-seal preparation may overlap custody execution and server finalization.
   Finalization applies the prepared server seal and returns it in the same response.
+  Server sealing may overlap home publication after the Wallet Session is durable.
+  The response waits for publication and the finalization receipt. It binds the seal
+  to the committed wallet, session and expiry. A sealing failure does not prevent
+  the registration receipt from committing. The client can recover through normal unlock.
   Preparation creates no signing authority. Temporary keys are consumed once for
   the matching session and factor, or discarded on failure, lock, expiry, or abandonment.
 - After NEAR authority publication, passkey session hydration and local signer

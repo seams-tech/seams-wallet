@@ -1,5 +1,6 @@
 import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
 import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
+import type { RegistrationEstablishedSessionProjectionV2 } from '@shared/utils/registrationEstablishedSession';
 import type {
   RegisterWalletInput,
   RegistrationAuthMethodInput,
@@ -105,4 +106,8 @@ export type WalletRegistrationNearProvisioningInput = {
    */
   readonly walletCustodyCommit?: unknown;
   readonly verifier: WalletRegistrationSetupVerifier;
+  /** Runs after session persistence, beside home publication. It exposes no response. */
+  readonly onSessionCommitted?: (
+    session: RegistrationEstablishedSessionProjectionV2,
+  ) => Promise<void>;
 };

@@ -8,7 +8,9 @@ Date: October 11, 2026.
 
 Work resumed from `f02e5891` on October 11. Two more finalization read dependencies
 are removed locally. A local CPU profile identifies session sealing as the main
-sampled computation. See the [follow-up record](#finalization-read-overlap-and-cpu-profile--october-11).
+sampled computation. Sealing now starts after session persistence and overlaps
+home publication. See the [read-overlap record](#finalization-read-overlap-and-cpu-profile--october-11)
+and [sealing record](#session-sealing-overlap--october-11).
 
 ## Objective and ownership
 
@@ -134,6 +136,9 @@ before editing because registration work continues concurrently.
 - [ ] Record a justified round-trip budget for fresh registration and exact retry.
   List each unavoidable serial dependency. R155D's **4–6 finalization calls** remain
   an investigation target, not an established minimum or a promised result.
+- [x] Start session sealing after the session commit, beside home publication.
+  Keep the result local to the request until finalization succeeds. Verify failed
+  publication, exact retry, and recovery from a failed seal.
 
 Acceptance: remove the demonstrated duplicate reads or commits, preserve exact
 replay, and record the remaining dependency graph. Remove the replaced helpers.
@@ -221,15 +226,42 @@ the Shamir WASM module. Each profiled registration also verifies exact replay an
 its first signature. These percentages do not establish an absolute CPU duration
 or the exact share of the hosted 265 ms observation.
 
-The next CPU investigation is whether the existing seal computation can overlap
-registration's network waits after its authority and inputs are established.
-Preserve the committed-session binding and expiry. Do not weaken the cipher or
-publish a seal before registration succeeds. The current change does not alter sealing.
+The profile suggested overlapping the existing seal computation with registration's
+network waits after its authority and inputs are established. The read-overlap
+commit did not alter sealing. The next record describes that follow-up.
 
 [Local verification and profile evidence](evidence/refactor-155f-finalization-local-profile.md)
 records reproduction, sample counts, checksums, and limitations. Hosted latency
 savings remain unmeasured. The corrected hosted baseline remains **3.530 s** for
 registration and **4.204 s** through the first signature, both medians.
+
+### Session sealing overlap — October 11
+
+Finalization now starts server sealing after the Wallet Session commits. Home
+publication starts first so its I/O can proceed while the Gateway computes the seal.
+Both operations settle before finalization continues. The route returns the seal
+only after the finalization receipt and home activation commit.
+
+The request retains one computation, bound to its wallet, session and expiry.
+Exact replay computes against the committed session through the same helper.
+Resumed mixed registration uses its refreshed session projection before sealing.
+A seal failure still permits the registration receipt to commit. Normal unlock
+then recovers the session. No cipher, HTTP endpoint, database field or D1 call was added.
+
+The composed scenario holds Console's completion reply until the real seal finishes.
+It verifies one seal call, successful registration and signing through a foreign
+Gateway during a Console outage. A second scenario verifies a lost completion reply.
+The browser contracts also exercise a failed seal and mismatched session IDs.
+
+This removes sealing as a separate stage after completion. It does not reduce the
+CPU required by sealing. Synchronous WASM can delay JavaScript continuations, so
+the earlier CPU profile does not imply an equal reduction in elapsed time.
+`near_finalize_session_seal` now measures the remaining wait after service completion.
+The earlier work is included in the session-issuance span. These spans overlap.
+
+[Implementation and local evidence](evidence/refactor-155f-session-seal-overlap.md).
+Hosted savings remain unmeasured. The next comparison must use real browser preflights
+and the same regional resources before any claim against the **3.530 s / 4.204 s** baseline.
 
 ## Phase 2 — Reduce Console calls and exchanges
 

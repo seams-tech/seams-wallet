@@ -79,6 +79,7 @@ import type {
 } from '../../framework/routeExecutionContext';
 import type { RouteDefinition } from '../../framework/routeDefinitions';
 import type { SigningSessionSealRoutesOptions } from '../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
+import { parseRegistrationPreparedSessionSeal } from './registrationSessionSeal';
 import type { RouteErrorBody } from '../../framework/routeResponses';
 import { routeError, routeJson } from '../../framework/routeResponses';
 import { isPlainObject } from '@shared/utils/validation';
@@ -2448,7 +2449,10 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   }
   const ed25519 = parseWalletRegistrationEd25519Finalize(body.ed25519);
   if (!ed25519.ok) return routeError(400, ed25519.code, ed25519.message);
-  const sessionSeal = parseRegistrationPreparedSessionSeal(body.sessionSeal);
+  const sessionSeal = parseRegistrationPreparedSessionSeal(
+    body.sessionSeal,
+    input.signingSessionSeal?.service ?? null,
+  );
   if (!sessionSeal.ok) return routeError(400, sessionSeal.code, sessionSeal.message);
   const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.completeWalletRegistrationNearProvisioning(
@@ -2463,6 +2467,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
         ? { walletCustodyCommit: body.walletCustodyCommit }
         : {}),
       verifier: session,
+      onSessionCommitted: sessionSeal.value?.prepare.bind(sessionSeal.value),
     },
     serverTiming,
     input.waitUntil,
@@ -2477,11 +2482,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
       );
     }
     const sealStartedAt = Date.now();
-    const sealed = await applyRegistrationPreparedSessionSeal({
-      options: input.signingSessionSeal,
-      request: sessionSeal.value,
-      response: result,
-    });
+    const sealed = await sessionSeal.value.finish(result.registrationEstablishedSession.session);
     serverTiming.push(['near_finalize_session_seal', Math.max(0, Date.now() - sealStartedAt)]);
     if (!sealed.ok) {
       return routeJson(
@@ -2503,111 +2504,6 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   return routeJson(200, result, {
     headers: ecdsaGatewayServerTimingHeaders(serverTiming),
   });
-}
-
-function parseRegistrationPreparedSessionSeal(raw: unknown): ParseResult<
-  | {
-      readonly thresholdSessionId: string;
-      readonly ciphertext: string;
-      readonly keyVersion?: string;
-    }
-  | undefined
-> {
-  if (raw === undefined) return { ok: true, value: undefined };
-  if (!isPlainObject(raw)) {
-    return { ok: false, code: 'invalid_body', message: 'sessionSeal must be an object' };
-  }
-  const fields = Object.keys(raw);
-  if (fields.some((field) => !['thresholdSessionId', 'ciphertext', 'keyVersion'].includes(field))) {
-    return { ok: false, code: 'invalid_body', message: 'sessionSeal has unknown fields' };
-  }
-  const thresholdSessionId = String(raw.thresholdSessionId || '').trim();
-  const ciphertext = String(raw.ciphertext || '').trim();
-  const keyVersion = String(raw.keyVersion || '').trim();
-  if (!thresholdSessionId || !ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'sessionSeal thresholdSessionId and ciphertext are required',
-    };
-  }
-  return {
-    ok: true,
-    value: { thresholdSessionId, ciphertext, ...(keyVersion ? { keyVersion } : {}) },
-  };
-}
-
-async function applyRegistrationPreparedSessionSeal(args: {
-  readonly options: SigningSessionSealRoutesOptions | null | undefined;
-  readonly request: {
-    readonly thresholdSessionId: string;
-    readonly ciphertext: string;
-    readonly keyVersion?: string;
-  };
-  readonly response: Extract<
-    WalletRegistrationNearProvisioningResponseV2,
-    { readonly ok: true; readonly authMethod: { readonly kind: 'passkey' } }
-  >;
-}): Promise<
-  | {
-      readonly ok: true;
-      readonly value: {
-        readonly ciphertext: string;
-        readonly keyVersion: string;
-        readonly expiresAtMs: number;
-        readonly remainingUses: number;
-      };
-    }
-  | { readonly ok: false; readonly code: string; readonly message: string }
-> {
-  if (!args.options) {
-    return {
-      ok: false,
-      code: 'signing_session_seal_unavailable',
-      message: 'Signing-session sealing is unavailable',
-    };
-  }
-  const session = args.response.registrationEstablishedSession.session;
-  const tokens = session.tokens;
-  const ed25519 =
-    tokens.kind === 'near_ed25519' || tokens.kind === 'near_ed25519_and_evm_family_ecdsa'
-      ? tokens.ed25519
-      : null;
-  if (!ed25519 || String(ed25519.thresholdSessionId) !== args.request.thresholdSessionId) {
-    return {
-      ok: false,
-      code: 'invalid_session_seal',
-      message: 'Prepared seal does not match the established Ed25519 session',
-    };
-  }
-  const sealed = await args.options.service.applyServerSeal(args.request, {
-    userId: String(session.walletId),
-    session: {
-      kind: 'exact_wallet_session_operation_credential',
-      curve: 'ed25519',
-      thresholdSessionId: args.request.thresholdSessionId,
-      userId: String(session.walletId),
-      expiresAtMs: session.expiresAtMs,
-    },
-  });
-  if (!sealed.ok) return sealed;
-  const keyVersion = String(sealed.keyVersion || '').trim();
-  if (!keyVersion) {
-    return {
-      ok: false,
-      code: 'invalid_session_seal',
-      message: 'Signing-session seal response is missing its key version',
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      ciphertext: sealed.ciphertext,
-      keyVersion,
-      expiresAtMs: Math.min(sealed.expiresAtMs ?? session.expiresAtMs, session.expiresAtMs),
-      remainingUses: session.remainingUses,
-    },
-  };
 }
 
 function ecdsaGatewayServerTimingHeaders(

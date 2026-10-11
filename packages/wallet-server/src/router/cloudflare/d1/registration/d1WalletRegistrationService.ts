@@ -3945,6 +3945,8 @@ export class CloudflareD1WalletRegistrationService {
           predecessor: sessionPredecessor,
           keyManifestDigestB64u: finalized.custodyKeyManifestDigestB64u,
           proof,
+          onSessionCommitted:
+            finalized.authMethod.kind === 'passkey' ? args.input.onSessionCommitted : undefined,
         }),
       }),
       execution.custody,

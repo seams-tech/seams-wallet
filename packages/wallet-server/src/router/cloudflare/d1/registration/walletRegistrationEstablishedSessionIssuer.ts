@@ -603,6 +603,9 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     readonly predecessor: Ed25519RegistrationSessionPredecessor;
     readonly keyManifestDigestB64u: DigestB64u;
     readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
+    readonly onSessionCommitted?: (
+      session: RegistrationEstablishedSessionProjectionV2,
+    ) => Promise<void>;
   },
 ): Promise<RegistrationEstablishedSessionIssuanceResultV2> {
   const issuedAtMs = Date.now();
@@ -689,11 +692,19 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     ed25519: ed25519Tokens.ed25519,
     predecessor: input.predecessor,
   });
-  const published = await input.homeCompletion.publishEstablished({
-    ceremonyId: input.registrationCeremonyId,
-    walletId: committed.publication.walletId,
-    session: committed.publication,
-  });
+  // Begin publication before session preparation uses the Worker CPU. Settle
+  // both operations even when publication fails, so retries own no pending work.
+  const [publication, preparation] = await Promise.allSettled([
+    input.homeCompletion.publishEstablished({
+      ceremonyId: input.registrationCeremonyId,
+      walletId: committed.publication.walletId,
+      session: committed.publication,
+    }),
+    input.onSessionCommitted?.(projectDirectRegistrationSession(authorization, tokens)),
+  ]);
+  if (publication.status === 'rejected') throw publication.reason;
+  if (preparation.status === 'rejected') throw preparation.reason;
+  const published = publication.value;
   if (!published.ok) throw new Error(published.message);
   return directRegistrationResultFromIssue({
     directIssue,

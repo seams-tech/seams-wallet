@@ -26,11 +26,13 @@ class NearRegistrationReplay {
   admissionReceiptDigest: string | null = null;
   finalizedWalletId: string | null = null;
   finalizationReplays = 0;
+  mismatchedSealsRejected = 0;
+  failedSeals = 0;
   finalizationRequestDigest: string | null = null;
   private finalizationCommit: unknown = null;
   signerPublicFacts: { nearAccountId: string; operationalPublicKey: string } | null = null;
 
-  constructor(private readonly delivery: 'primary' | 'replay') {}
+  constructor(private readonly delivery: 'primary' | 'replay' | 'failed_seal') {}
 
   observe(request: Request): void {
     if (request.method() === 'POST') this.requests.push(new URL(request.url()).pathname);
@@ -72,7 +74,8 @@ class NearRegistrationReplay {
 
   private async replayFinalization(route: Route): Promise<void> {
     // Recovery obtains a fresh session. The persisted wallet commit stays identical.
-    const { sessionSeal: _sessionSeal, ...commit } = route.request().postDataJSON();
+    const request = route.request().postDataJSON();
+    const { sessionSeal: _sessionSeal, ...commit } = request;
     const requestDigest = createHash('sha256').update(JSON.stringify(commit)).digest('hex');
     if (this.finalizationRequestDigest === null) {
       this.finalizationRequestDigest = requestDigest;
@@ -80,14 +83,47 @@ class NearRegistrationReplay {
     } else {
       expect(isDeepStrictEqual(commit, this.finalizationCommit)).toBe(true);
     }
+    if (this.delivery === 'failed_seal' && this.finalizedWalletId === null) {
+      const failed = await route.fetch({
+        postData: { ...request, sessionSeal: { ...request.sessionSeal, ciphertext: 'invalid' } },
+      });
+      expect(failed.status()).toBe(503);
+      const failure = await failed.json();
+      expect(failure).toMatchObject({ ok: false, code: 'invalid_ciphertext' });
+      expect(failure).not.toHaveProperty('sessionSeal');
+      expect(failure).not.toHaveProperty('registrationEstablishedSession');
+      this.failedSeals += 1;
+    }
     const first = await route.fetch();
     expect(first.status()).toBe(200);
     const original = await first.json();
+    const initialIssue = this.finalizedWalletId === null && this.delivery !== 'failed_seal';
     expect(original.registrationEstablishedSession.kind).toBe(
-      this.finalizedWalletId === null ? 'issued' : 'already_committed',
+      initialIssue ? 'issued' : 'already_committed',
     );
     if (this.finalizedWalletId !== null) {
       expect(original.walletId).toBe(this.finalizedWalletId);
+    }
+    // Recovery can reuse its session without requesting another server seal.
+    if (request.sessionSeal !== undefined) {
+      expect(original.sessionSeal.expiresAtMs).toBeLessThanOrEqual(
+        original.registrationEstablishedSession.session.expiresAtMs,
+      );
+      expect(original.sessionSeal.remainingUses).toBe(
+        original.registrationEstablishedSession.session.remainingUses,
+      );
+      const mismatched = await route.fetch({
+        postData: {
+          ...request,
+          sessionSeal: { ...request.sessionSeal, thresholdSessionId: 'another-wallet-session' },
+        },
+      });
+      expect(mismatched.status()).toBe(503);
+      const rejected = await mismatched.json();
+      expect(rejected).toMatchObject({ ok: false, code: 'invalid_session_seal' });
+      expect(rejected).not.toHaveProperty('sessionSeal');
+      expect(rejected).not.toHaveProperty('registrationEstablishedSession');
+      this.mismatchedSealsRejected += 1;
     }
     const replay = await route.fetch();
     expect(replay.status()).toBe(200);
@@ -151,6 +187,7 @@ async function verifyNearRegistrationCommit(
           walletId: probe.finalizedWalletId,
           admissionReceiptDigest: probe.admissionReceiptDigest,
           finalizationReplays: probe.finalizationReplays,
+          mismatchedSealsRejected: probe.mismatchedSealsRejected,
           requests: probe.requests,
           firstSignature,
           reloadedSignature,
@@ -190,8 +227,9 @@ async function verifyLostNearFinalization(
     page: Page;
   },
   testInfo: TestInfo,
+  delivery: 'replay' | 'failed_seal' = 'replay',
 ): Promise<void> {
-  const probe = new NearRegistrationReplay('replay');
+  const probe = new NearRegistrationReplay(delivery);
   const handle = probe.handle.bind(probe);
   const observe = probe.observe.bind(probe);
   const path = '**/wallets/register/near-provisioning';
@@ -227,6 +265,8 @@ async function verifyLostNearFinalization(
           walletId: probe.finalizedWalletId,
           finalizationRequestDigest: probe.finalizationRequestDigest,
           finalizationReplays: probe.finalizationReplays,
+          failedSeals: probe.failedSeals,
+          mismatchedSealsRejected: probe.mismatchedSealsRejected,
           requests: probe.requests,
           signature,
           reproduce:
@@ -249,4 +289,24 @@ async function verifyLostNearFinalization(
 test(
   'NEAR-only registration recovers a lost finalization credential after reload',
   verifyLostNearFinalization,
+);
+
+async function verifyFailedRegistrationSeal(
+  {
+    harness,
+    context,
+    page,
+  }: {
+    harness: IntendedBehaviourHarness;
+    context: BrowserContext;
+    page: Page;
+  },
+  testInfo: TestInfo,
+): Promise<void> {
+  await verifyLostNearFinalization({ harness, context, page }, testInfo, 'failed_seal');
+}
+
+test(
+  'NEAR registration survives a failed server seal and signs after exact-method unlock',
+  verifyFailedRegistrationSeal,
 );
