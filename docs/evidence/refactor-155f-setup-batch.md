@@ -4,6 +4,12 @@ Date: October 11, 2026.
 Private implementation: `3db9b5d` on `seams-monorepo` `dev`.
 Test module-root repair: `d67bbdd`.
 
+**Hosted follow-up:** the [staging comparison](refactor-155f-console-setup-hosted.md)
+confirms four setup calls and **37 completed Gateway/Console calls** per registration.
+The candidate registered in **3.950 s median** against **4.171 s** in the repeated
+control. That run does not isolate a repeatable latency saving from the batch.
+All nine signatures and the independent restoration checks passed.
+
 ## Result
 
 Fresh Console setup uses **four D1 API calls and five SQL statements**.
@@ -19,8 +25,8 @@ records the new count, bundle hash, migration hashes, and observed outcomes.
 | Wallet-home reservation | 1 | 1 | 1 |
 | **Total** | **5** | **4** | **5** |
 
-No hosted latency measurement was run for this change. The latest hosted
-registration result remains **4.102 s median**, with a **3.597–5.593 s range**.
+No hosted latency measurement was run during this local verification. The latest
+hosted registration result at that commit was **4.102 s median**, with a **3.597–5.593 s range**.
 The repeated control measured **4.094 s median**. That run counted **38 completed
 Gateway/Console D1 calls** for registration. It predates this batch and excludes
 custody-role D1 calls and unfinished background work. See the

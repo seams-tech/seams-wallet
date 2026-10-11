@@ -22,8 +22,13 @@ overall latency gain. Staging restoration passed independent checks.
 Console setup now batches deployment admission and its exact environment read.
 The production Console E2E measures **four D1 calls**, down from five. Both SQL
 reads remain. This replaces the earlier environment/authentication overlap.
-Local verification passed; hosted latency remains unmeasured. See the
-[setup batch record](evidence/refactor-155f-setup-batch.md).
+Local verification and the [hosted Console comparison](evidence/refactor-155f-console-setup-hosted.md)
+passed. Registration now uses **37 completed Gateway/Console D1 calls**.
+The candidate registered in **3.950 s median**, with a **3.902–4.949 s range**.
+The repeated control measured **4.171 s median**. The four-second maximum remains
+unmet. Setup D1 time nearly matched the repeated control, so the whole registration
+difference cannot be attributed to this batch. All nine signatures and independent
+restoration checks passed. Keep the change for the verified reduction in work.
 
 ## Objective and ownership
 
@@ -144,6 +149,11 @@ before editing because registration work continues concurrently.
 - [ ] Identify remaining wallet, custody, session, and journal write dependencies.
   Combine compatible writes through existing transaction builders.
   Keep separate commits where a remote result must occur between them.
+  The October 11 Console comparison records **119 ms** for the candidate's wallet
+  commit and **131 ms** for its following session commit, at the median. Examine
+  combining these two local transactions next. Preserve ownership, capability
+  version checks, session uniqueness, and exact retry. Console completion remains
+  between session persistence and the final activation/receipt transaction.
 - [ ] Inspect setup and respond for the same repeated reads. Read the current
   fresh-admission path before changing it because R155D already removed an absent-record read.
 - [ ] Record a justified round-trip budget for fresh registration and exact retry.
@@ -394,6 +404,10 @@ evidence. It is not the control for attributing gains to these server changes.
   before authentication or reservation. Fresh setup uses four calls and five SQL
   statements. Retired writers and missing deployments stop after the first batch.
   [Implementation and evidence](evidence/refactor-155f-setup-batch.md).
+  The [hosted comparison](evidence/refactor-155f-console-setup-hosted.md) confirms
+  those counts in all three candidate samples. Console setup's summed D1 time
+  measured 93 / 76 / 77 ms across control, candidate, and repeated control.
+  The candidate removes a call; these samples establish no repeatable latency saving.
 - [ ] Examine the remaining Console mutations for deployment checks that can
   join their existing transaction. The transaction must enforce the writer and
   retirement checks before a write. A batch of an unchecked read and write does
@@ -410,7 +424,7 @@ evidence. It is not the control for attributing gains to these server changes.
   with the deployment/environment batch above. The usage update remains awaited.
   The credential must match the deployment scope before reservation. The existing
   context builder validates the exact active environment. Production Console and
-  three composed browser scenarios pass. Hosted latency remains unmeasured.
+  three composed browser scenarios pass. The later hosted comparison is linked above.
   Keep the [overlap record](evidence/refactor-155f-setup-overlap.md) as historical
   evidence; do not add its expected saving to the replacement batch.
 - [x] Combine the lineage reads if one query or batch preserves their meaning.
