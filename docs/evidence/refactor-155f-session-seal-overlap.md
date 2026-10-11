@@ -132,11 +132,13 @@ node tests/e2e/authorization-storage-transfer.e2e.mjs
 node tests/e2e/registration-credential-reservation.e2e.mjs
 ```
 
-Use the composed command above for the browser checks. This change does not yet
-have a hosted latency result. The last hosted finalization count was 14. Removing
-one read predicts 13, including admission. The local count of 12 uses a different
-admission path and must not be reported as the hosted total.
+Use the composed command above for the browser checks. The later
+[home-publication comparison](refactor-155f-home-publication-hosted.md) confirms
+**13 hosted finalization calls**, including admission, against 14 in the control.
+The local count of 12 uses a different admission path.
 
-Next, combine the initial home, journal and ceremony reads where their retry
-rules permit it. Then measure the combined candidate, including the Console
-lineage batch, against the frozen hosted baseline.
+That comparison also includes the initial home/journal read overlap. Finalization
+measured **1.138 s**, between the controls' **1.420 s** and **0.961 s** medians.
+Registration measured **4.102 s**, compared with **5.064 s** and **4.094 s**.
+It establishes no clear overall latency gain. The Console lineage batch is fixed
+in every group. Full batching of home, journal and ceremony remains open.

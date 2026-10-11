@@ -13,9 +13,12 @@ home publication. See the [read-overlap record](#finalization-read-overlap-and-c
 and [sealing record](#session-sealing-overlap--october-11).
 The [hosted comparison](#hosted-read-and-sealing-comparison--october-11) now verifies
 both read overlaps. It shows no clear improvement in total registration time.
-The next local change removes the home read after session issuance. Console now
-receives completion before session sealing starts. Hosted latency for this change
-and the Console lineage batch remains unmeasured.
+The next changes remove the home read after session issuance and overlap the
+initial home and operation-journal reads. Console receives completion before
+session sealing starts. The new hosted comparison verifies **38 completed
+Gateway/Console D1 calls**, down from 39 in its control. Registration measured
+**4.102 s** against the repeated control's **4.094 s**. It establishes no clear
+overall latency gain. Staging restoration passed independent checks.
 
 ## Objective and ownership
 
@@ -147,6 +150,9 @@ before editing because registration work continues concurrently.
 - [x] Return the committed registration home state from session issuance.
   Remove publication's extra home read and its duplicate decision-write path.
   Verify that Console completion starts before sealing uses the Worker CPU.
+- [x] Overlap initial home admission and the operation-journal read. Settle both
+  before preparing or writing. Keep ceremony loading lazy for completed retries.
+  Reconcile a lost claim with a fresh journal read.
 
 Acceptance: remove the demonstrated duplicate reads or commits, preserve exact
 replay, and record the remaining dependency graph. Remove the replaced helpers.
@@ -161,7 +167,7 @@ also carries the Gateway's deployment write check as one more statement.
 | ---: | --- | --- | --- |
 | 1 | Admission and routing read | Gateway regional admission | The request |
 | 2 | Home generation read | Registration home authority | Verified setup claims |
-| 3 | Journal read | Operation journal | Request fingerprint |
+| 3 | Journal read | Operation journal | Verified ceremony and idempotency key |
 | 4 | Ceremony read | Ceremony store | A journal miss |
 | 5 | Journal prepared write | Operation journal | Ceremony identity |
 | 6 | Yao lifecycle read | Yao registration runtime | Activation reference |
@@ -179,9 +185,10 @@ also carries the Gateway's deployment write check as one more statement.
 This table records the hosted baseline. Local commit `88ef6517` removes call 13
 by returning its state from call 12's existing transaction. See the
 [committed-home record](evidence/refactor-155f-session-seal-overlap.md#completion-dispatch-without-a-second-home-read).
-The local browser trace now records 12 finalization calls. It excludes the hosted
-Gateway's separate admission read. The expected hosted count is therefore 13,
-pending a hosted measurement.
+The local browser trace records 12 finalization calls. It excludes the hosted
+Gateway's separate admission read. The later
+[hosted comparison](evidence/refactor-155f-home-publication-hosted.md) verifies
+**13 finalization calls** in each of its three candidate samples.
 
 Commit `edc7d5f9` removes two waits from this chain. The wallet commit no longer
 waits for the route claim, because the claim cannot fail a registration. The
@@ -277,6 +284,65 @@ The earlier work is included in the session-issuance span. These spans overlap.
 [Implementation and local evidence](evidence/refactor-155f-session-seal-overlap.md).
 The following comparison measures the committed changes with real browser preflights.
 
+### Initial home and journal read overlap — October 11
+
+Public commit `a3dd064f` starts the home and journal reads together after request
+authentication. Both must settle before preparation or writes. Home rejection
+still takes precedence. The journal determines whether the ceremony must load;
+completed receipts remain replayable after ceremony cleanup.
+
+The journal runner receives the initial parsed record explicitly. A competing
+writer still triggers a fresh read after a failed claim. No result is cached
+across requests. D1 calls and SQL statements are unchanged by this overlap.
+
+The real-D1 scenario completes a competing registration after the initial read.
+The losing request returns the winner's exact result and publishes the home once.
+Private commit `755e7be` holds the home-read reply until the journal read starts.
+It verifies that registration makes no write before home admission settles.
+
+All three composed browser scenarios pass: normal completion, lost completion
+reply, and mixed-registration retry through another region during Console outage.
+The normal proof records `journalStartedBeforeHomeReply: true` and verifies its
+NEAR signature. The authorization-transfer D1 scenario, server build and type
+check, wallet-state fixtures, and bloat check also pass.
+
+Full batching of home, journal, and ceremony remains open. It needs coordinated
+store changes; this commit removes one serial dependency through the existing
+journal interface. The later comparison verifies concurrent starts in all three
+hosted samples, without establishing an overall latency saving.
+
+### Hosted home-publication and initial-read comparison — October 11
+
+The comparison used public control `25425eff`, candidate `a3dd064f`, and private
+composition `755e7be`. The SDK, custody versions, placement, and database bindings
+stayed fixed. Each group registered three fresh NEAR-only wallets.
+
+| Median workload | Control before | Candidate | Control after |
+| --- | ---: | ---: | ---: |
+| Registration, excluding WebAuthn | 5.064 s | **4.102 s** | 4.094 s |
+| First signature, excluding confirmation | 0.998 s | **0.978 s** | 0.667 s |
+| Registration plus first signature, excluding interaction | 6.062 s | **5.115 s** | 4.761 s |
+| Finalization POST, browser timing | 1.420 s | **1.138 s** | 0.961 s |
+
+Candidate registration ranged from **3.597 to 5.593 s**. Finalization ranged
+from **0.993 to 1.280 s**. The repeated control removes the apparent registration
+gain against the first group. The run establishes no clear overall speedup.
+The four-second maximum target remains unmet. Keep the changes for their verified
+removal of work and preservation of behavior.
+
+Registration uses **38 completed Gateway/Console D1 calls**: 26 in Gateway and
+12 in Console. The control uses 39. The Console lineage batch is fixed in both
+groups; this run confirms its one-call lookup but cannot isolate its latency gain.
+Signing adds seven Gateway D1 calls. HTTP counts remain six application POSTs,
+six browser preflights, and five early `OPTIONS` requests per wallet.
+
+All nine signatures passed independent verification. All 18 comparison checks
+passed, including exact serving versions and one early object startup per wallet.
+All 13 original Worker versions and both Deriver schemas were restored and checked.
+Tenant activation on the restored deployment passed. No new infrastructure was created.
+The [full record](evidence/refactor-155f-home-publication-hosted.md) contains the
+ranges, local failure scenarios, observed ordering, and restoration status.
+
 ### Hosted read and sealing comparison — October 11
 
 The comparison used public baseline `79a43a73`, candidate `25425eff`, and private
@@ -323,6 +389,12 @@ evidence. It is not the control for attributing gains to these server changes.
 - [ ] Examine registration setup's API-key and environment operations.
   Batch independent reads and required writes. Classify the API-key update before
   moving it: authentication, quota, and usage-accounting semantics must remain explicit.
+  `authenticatePublishableKey` in private `packages/console-server-ts/src/apiKeys/d1.ts`
+  reads the credential, validates it, then awaits `recordApiKeyUse` before the public
+  registration-context resolver loads the environment. For this call, the update
+  records `last_used_at_ms` and `updated_at_ms`; endpoint counting is disabled.
+  It consumes no signing budget or quota. Evaluate a shared batch or overlap with
+  environment loading. Preserve credential validation and the required update.
 - [x] Combine the lineage reads if one query or batch preserves their meaning.
   Preserve the current restore and revocation checks.
   The October 11 local comparison confirms **two calls become one batch**.
@@ -330,7 +402,8 @@ evidence. It is not the control for attributing gains to these server changes.
   an active created root, and rejection of conflicting stored identity fields.
   The comparison also preserves duplicate-restore rejection.
   [Implementation and evidence](evidence/refactor-155f-console-lineage-batch.md).
-  Hosted registration latency is not yet measured for this change.
+  The later home-publication comparison confirms the one-call lookup on staging.
+  Both groups include the batch, so it does not isolate its latency saving.
 - [x] Replace passkey claiming's separate insert/read-back with one atomic batch
   that returns the winning owner. Preserve exact retry and competing-wallet refusal.
 - [ ] Examine the three finalization Console requests together: passkey claim,

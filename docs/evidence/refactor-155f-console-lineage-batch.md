@@ -72,20 +72,19 @@ missing exports from later work.
 
 ## What this establishes
 
-The last hosted comparison counted **40 registration D1 calls** across Gateway
-and Console. The batch should reduce that count to **39** with the same flow.
-This is a structural expectation. A full hosted registration has not measured it.
-Gateway calls, application requests, SQL statements, and signature work are unchanged.
-The latest measured registration median remains **4.267 seconds**.
-
-No live resources changed in this step.
+At implementation time, the last hosted comparison counted **40 registration
+D1 calls** across Gateway and Console. No live resources changed in that step.
+The later [home-publication comparison](refactor-155f-home-publication-hosted.md)
+confirms **39 calls in its control** and one lineage batch in all nine requests.
+Both groups include this batch, so that run cannot isolate its latency saving.
+Its candidate removes another Gateway read and uses **38 registration calls**.
+Gateway behavior, application requests, SQL statements, and signature work are
+unchanged by the lineage batch itself.
 
 ## Next work
 
-1. Combine the initial Gateway home, operation-journal, and ceremony reads where
-   their scopes permit one snapshot. A completed receipt must remain replayable
-   after ceremony cleanup. Keep claim version checks and retirement fences.
-2. Inspect the D1 read that precedes Console publication. Confirm when the outgoing
-   Console request starts relative to synchronous session sealing.
-3. Compare the accumulated changes on existing staging resources. Record full
-   registration latency and D1 counts against baseline and repeated baseline.
+The follow-up removes publication's extra home read and overlaps the initial home
+and journal reads. The composed test verifies that Console completion starts
+before sealing. Hosted evidence verifies the reduced call count and read ordering.
+Full initial-read batching remains open. The next Console target is setup's
+credential lookup, usage-timestamp update, and environment lookup.
