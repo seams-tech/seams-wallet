@@ -1,0 +1,463 @@
+{
+  "kind": "console_lineage_batch_comparison",
+  "parent": "3e47ba2",
+  "cases": [
+    {
+      "phase": "missing",
+      "before": {
+        "outcome": {
+          "kind": "resolved",
+          "value": null
+        },
+        "calls": 2,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "first",
+            "startedMs": 8.881333000000268,
+            "elapsedMs": 2.7887080000000424,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "d14255a3b34a48dab4df8ee7",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          },
+          {
+            "sequence": 2,
+            "method": "all",
+            "startedMs": 18.454208000000108,
+            "elapsedMs": 4.438167000000249,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "e997c46678de225fbaca3f0d",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "outcome": {
+          "kind": "resolved",
+          "value": null
+        },
+        "calls": 1,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "batch",
+            "startedMs": 10.705375000000004,
+            "elapsedMs": 2.6428750000000036,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "05ebda87b46b97a96c242ca4",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              },
+              {
+                "query": {
+                  "id": "8f8ecbbb20356bc0d6f64a9b",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "phase": "created",
+      "before": {
+        "outcome": {
+          "kind": "resolved",
+          "value": {
+            "identityDigestB64u": "8gFB_5NQAtZ_z4irnNA6w33Y7uLGf5kl4IYZ0ECvJKM",
+            "custodyLineageB64u": "adoption-lineage",
+            "rootCommitmentB64u": "adoption-commitment",
+            "restore": null
+          }
+        },
+        "calls": 2,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "first",
+            "startedMs": 6.797250000000076,
+            "elapsedMs": 2.3124159999997573,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "d14255a3b34a48dab4df8ee7",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 1,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          },
+          {
+            "sequence": 2,
+            "method": "all",
+            "startedMs": 15.856666000000132,
+            "elapsedMs": 3.104541999999583,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "e997c46678de225fbaca3f0d",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "outcome": {
+          "kind": "resolved",
+          "value": {
+            "identityDigestB64u": "8gFB_5NQAtZ_z4irnNA6w33Y7uLGf5kl4IYZ0ECvJKM",
+            "custodyLineageB64u": "adoption-lineage",
+            "rootCommitmentB64u": "adoption-commitment",
+            "restore": null
+          }
+        },
+        "calls": 1,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "batch",
+            "startedMs": 9.890750000000025,
+            "elapsedMs": 4.381249999999909,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "05ebda87b46b97a96c242ca4",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 1,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              },
+              {
+                "query": {
+                  "id": "8f8ecbbb20356bc0d6f64a9b",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "phase": "identity_mismatch",
+      "before": {
+        "outcome": {
+          "kind": "rejected",
+          "message": "tenant-root active identity digest resolves to different canonical fields"
+        },
+        "calls": 1,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "first",
+            "startedMs": 6.546709000000192,
+            "elapsedMs": 2.3085829999999987,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "d14255a3b34a48dab4df8ee7",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 1,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "outcome": {
+          "kind": "rejected",
+          "message": "tenant-root active identity digest resolves to different canonical fields"
+        },
+        "calls": 1,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "batch",
+            "startedMs": 10.194500000000062,
+            "elapsedMs": 1.409958000000188,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "05ebda87b46b97a96c242ca4",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 1,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              },
+              {
+                "query": {
+                  "id": "8f8ecbbb20356bc0d6f64a9b",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 0,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "phase": "duplicate_restores",
+      "before": {
+        "outcome": {
+          "kind": "rejected",
+          "message": "Tenant identity has multiple active restored lineages"
+        },
+        "calls": 2,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "first",
+            "startedMs": 6.675499999999829,
+            "elapsedMs": 2.4594999999999345,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "d14255a3b34a48dab4df8ee7",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 1,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          },
+          {
+            "sequence": 2,
+            "method": "all",
+            "startedMs": 15.970499999999902,
+            "elapsedMs": 2.596542000000227,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "e997c46678de225fbaca3f0d",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 2,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "outcome": {
+          "kind": "rejected",
+          "message": "Tenant identity has multiple active restored lineages"
+        },
+        "calls": 1,
+        "trace": [
+          {
+            "sequence": 1,
+            "method": "batch",
+            "startedMs": 10.392417000000023,
+            "elapsedMs": 1.6240830000001552,
+            "outcome": "ok",
+            "statements": [
+              {
+                "query": {
+                  "id": "05ebda87b46b97a96c242ca4",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_creation_grants"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 1,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              },
+              {
+                "query": {
+                  "id": "8f8ecbbb20356bc0d6f64a9b",
+                  "kind": "SELECT",
+                  "tables": [
+                    "tenant_root_security_restore_state"
+                  ]
+                },
+                "region": null,
+                "primary": null,
+                "sqlMs": 0,
+                "rowsRead": 2,
+                "rowsWritten": 0,
+                "changes": 0,
+                "attempts": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "privateBaseline": "3e47ba2",
+  "publicCandidate": "ab6b1c9a",
+  "productionConsoleProofSha256": "0fdaae38bf76fc655014175d3c1f6627917a7f6cbadedd5372dcdcfbac05422d",
+  "consoleE2EStages": [
+    {
+      "stage": "unprovisioned_root",
+      "result": null
+    },
+    {
+      "stage": "created_root",
+      "result": {
+        "identityDigestB64u": "fqyapKM_5XQVW03s1gQQS4wzL8r_Sh_G8OTVCTZVqMw",
+        "custodyLineageB64u": "adoption-lineage"
+      }
+    },
+    {
+      "stage": "conflicting_root_identity",
+      "rejected": true
+    }
+  ],
+  "hostedLatencyMeasured": false,
+  "privateCandidate": "3272020238d3949f8da2c1267f46356ce1166a1c",
+  "baselineRenewalFailure": "\"undefined\" is not valid JSON",
+  "candidateRenewalFailure": "\"undefined\" is not valid JSON"
+}

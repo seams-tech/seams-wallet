@@ -310,8 +310,14 @@ evidence. It is not the control for attributing gains to these server changes.
 - [ ] Examine registration setup's API-key and environment operations.
   Batch independent reads and required writes. Classify the API-key update before
   moving it: authentication, quota, and usage-accounting semantics must remain explicit.
-- [ ] Combine the lineage reads if one query or batch preserves their meaning.
+- [x] Combine the lineage reads if one query or batch preserves their meaning.
   Preserve the current restore and revocation checks.
+  The October 11 local comparison confirms **two calls become one batch**.
+  Both SQL reads remain. The production Console E2E covers a missing root,
+  an active created root, and rejection of conflicting stored identity fields.
+  The comparison also preserves duplicate-restore rejection.
+  [Implementation and evidence](evidence/refactor-155f-console-lineage-batch.md).
+  Hosted registration latency is not yet measured for this change.
 - [x] Replace passkey claiming's separate insert/read-back with one atomic batch
   that returns the winning owner. Preserve exact retry and competing-wallet refusal.
 - [ ] Examine the three finalization Console requests together: passkey claim,
