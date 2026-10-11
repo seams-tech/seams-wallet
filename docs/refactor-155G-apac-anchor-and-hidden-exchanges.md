@@ -195,11 +195,15 @@ Four facts for the next move:
 
 ## Phase 2 — Hide exchanges behind the user
 
-- [ ] Send sign prepare when the confirmation dialog opens, bound to the
+- [x] Send sign prepare when the confirmation dialog opens, bound to the
   displayed digest. Await it after the user confirms. Keep the warm-session path
-  free of WebAuthn. A declined confirmation leaves an admitted prepare: decide
-  whether it spends one quota use or needs a release, and record the choice.
-  Update the specification and the contract test in the same change set.
+  free of WebAuthn. A declined confirmation leaves an admitted prepare: it
+  spends one quota use and expires with its 120 s lease; no release was added.
+  The specification and the contract test changed in the same commit. Done for
+  NEP-413 messages; the record below holds the design and the measurement.
+- [ ] Extend the early prepare to transactions and delegate actions. Their
+  dialog fetches the nonce and block hash while it is open, so the signing
+  digest exists only after that fetch; the prepare can leave when it returns.
 - [ ] Send the setup preflight when the page loads, in `prewarmRelayerPreflights`,
   so setup joins the routes that need no preflight. Record the cost: one more
   request per page load, and a 600 s cache lifetime.
@@ -239,6 +243,17 @@ Facts that fix the design:
   asserts, for a warm-session message signature, the stage order `prepare_sent`,
   `confirmation`, `prepare`, and exactly one `prepare_sent`.
 - The specification records the behavior beside the prepare and quota bullets.
+
+Commit `3670b1cd`. All 133 contract cases pass with it: 131 on release builds
+and the two debug-only cases on debug builds. The
+[staging comparison](evidence/refactor-155g-early-sign-prepare-hosted.md), six
+wallets per side on identical Worker versions, measured the time from the
+confirmation to the signature at **358 ms against 694 ms**, and the first
+signature excluding the confirmation at 396 ms against 720 ms. The automated
+confirmation is shorter than one prepare exchange, so 42–90 ms of the prepare
+still followed it. Registration plus the first signature measured 4,144 ms on
+the early-prepare side, with the Hong Kong Console and the Deriver B load, and
+without R155F's later Gateway changes.
 
 ## Phase 3 — Yao execution: the serial chain and the CPU
 
