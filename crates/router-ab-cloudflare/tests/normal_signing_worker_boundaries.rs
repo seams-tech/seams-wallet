@@ -69,9 +69,14 @@ fn signing_worker_normal_signing_loads_active_material_before_handler() {
 #[test]
 fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
     let lib_rs = read_src_file("lib.rs");
-    for function_name in [
-        "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1",
-        "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_fetch_v1",
+    // The finalize handler claims through `prepare_ecdsa_finalize`, which holds
+    // the material load and the one-use claim.
+    for (function_name, material_source) in [
+        (
+            "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1",
+            "parsed.material_source",
+        ),
+        ("prepare_ecdsa_finalize", "request.material_source"),
     ] {
         let body = extract_function_body(&lib_rs, function_name);
         assert!(
@@ -79,19 +84,20 @@ fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
             "{function_name} must resolve active ECDSA lane material"
         );
         assert!(
-            body.contains("parsed.material_source"),
+            body.contains(material_source),
             "{function_name} must consume the Gateway-selected material source"
         );
     }
-    let finalize = extract_function_body(
-        &lib_rs,
-        "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_fetch_v1",
+    assert!(
+        extract_function_body(&lib_rs, "finalize_ecdsa_signing").contains("prepare_ecdsa_finalize("),
+        "ECDSA finalize must claim through the material-checked preparation"
     );
+    let finalize = extract_function_body(&lib_rs, "prepare_ecdsa_finalize");
     let loader = finalize
         .find("load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1")
         .expect("ECDSA finalize must load lane material");
     let pool_consume = finalize
-        .find("claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1")
+        .find("ClaimAndConsumeEcdsaEffect")
         .expect("ECDSA finalize must consume one-use pool material");
     assert!(
         loader < pool_consume,

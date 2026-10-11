@@ -275,7 +275,7 @@ fn local_env_templates_match_wrangler_startup_manifests() {
     // R120: each Deriver reads authoritative creation state through its own
     // external binding to the Router-owned Durable Object. The Router keeps the
     // class and its migration; the Derivers name the matching Router script per
-    // env and never declare that class. R150 gives Deriver A its own wallet
+    // env and never declare that class. R150 gives each Deriver its own wallet
     // object class, which it alone migrates.
     for deriver in [&deriver_a, &deriver_b] {
         deriver.assert_wrangler("name = \"ROUTER_TENANT_ROOT_CREATION_DO\"");
@@ -286,7 +286,7 @@ fn local_env_templates_match_wrangler_startup_manifests() {
         deriver.assert_wrangler_absent("new_sqlite_classes = [\"RouterAbTenantRootCreationDurableObject\"]");
     }
     deriver_a.assert_wrangler("new_sqlite_classes = [\"RouterAbDeriverAWalletDurableObject\"]");
-    deriver_b.assert_wrangler_absent("new_sqlite_classes");
+    deriver_b.assert_wrangler("new_sqlite_classes = [\"RouterAbDeriverBWalletDurableObject\"]");
     // The Router owns the class: it declares the migration and no script_name.
     router.assert_wrangler("[[migrations]]");
     router.assert_wrangler("new_sqlite_classes = [\"RouterAbTenantRootCreationDurableObject\"]");

@@ -89,7 +89,7 @@ pub fn assert_ecdsa_pool_mutation_reaches_owner_storage(lib_rs: &str) {
         "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
     );
     for required in [
-        "wallet_scope.ok_or_else",
+        "wallet_route.ok_or_else",
         "SigningWorkerWalletDoRequestV1::EcdsaPoolMutate",
         "outcome.validate()",
         "execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(env, runtime, command)",
