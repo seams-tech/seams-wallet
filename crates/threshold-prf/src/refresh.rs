@@ -390,8 +390,12 @@ impl TwoPartyRootShareCommitments {
         if bool::from(deriver_a.point().ct_eq(&deriver_b.point())) {
             return Err(ThresholdPrfError::InvalidRootCommitment);
         }
-        let root_point = (Scalar::from(2_u64) * deriver_a.point()) - deriver_b.point();
-        let root = TwoPartyRootCommitment::from_bytes(root_point.compress().to_bytes())?;
+        // The commitments are public points, so 2A - B is two point additions.
+        let root_point = deriver_a.point() + deriver_a.point() - deriver_b.point();
+        if bool::from(root_point.ct_eq(&RistrettoPoint::identity())) {
+            return Err(ThresholdPrfError::InvalidRootCommitment);
+        }
+        let root = TwoPartyRootCommitment(root_point);
         Ok(Self {
             deriver_a,
             deriver_b,
