@@ -11,6 +11,7 @@ import type {
 import type { TxDisplayModel } from '../interfaces/display';
 import type {
   NearFundingRequest,
+  NearTransactionContextReady,
   NearTransactionReadiness,
 } from '../nonce/nearTransactionReadiness';
 import type { NearOperationStepUpPreparationRef } from '../interfaces/operationStepUpPreparation';
@@ -26,6 +27,7 @@ export type RequestUserConfirmationBridge = (
   options?: {
     onProgress?: (progress: UserConfirmProgressEvent) => void;
     onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
+    onNearTransactionContextReady?: (readiness: NearTransactionContextReady) => void;
   },
 ) => Promise<UserConfirmDecision>;
 
@@ -133,6 +135,7 @@ type OrchestrateNearTransactionSigningConfirmationBaseParams =
     nearFundingRequest: NearFundingRequest;
     signingOperationStateKind: SigningOperationConfirmationStateKind;
     onSigningOperationInteractionEvent: (event: SigningOperationInteractionEvent) => void;
+    onNearTransactionContextReady?: (readiness: NearTransactionContextReady) => void;
     title?: string;
     body?: string;
   };

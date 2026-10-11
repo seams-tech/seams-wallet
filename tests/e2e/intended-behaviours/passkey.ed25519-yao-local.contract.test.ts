@@ -147,6 +147,21 @@ async function verifyLocalEd25519YaoRegistration(
     expect(stages.at('prepare_sent')).toBeLessThan(stages.at('confirmation'));
     expect(stages.at('confirmation')).toBeLessThan(stages.at('prepare'));
     expect(stages.stages.filter((stage) => stage === 'prepare_sent')).toHaveLength(1);
+    // A warm-session transaction does the same once the confirmation has
+    // reserved its nonce and block hash.
+    const transactionStages = new NearSigningStages();
+    const recordTransactionStages = transactionStages.record.bind(transactionStages);
+    page.on('console', recordTransactionStages);
+    try {
+      await harness.signNearTransaction('post_unlock');
+    } finally {
+      page.off('console', recordTransactionStages);
+    }
+    expect(transactionStages.at('prepare_sent')).toBeLessThan(
+      transactionStages.at('confirmation'),
+    );
+    expect(transactionStages.at('confirmation')).toBeLessThan(transactionStages.at('prepare'));
+    expect(transactionStages.stages.filter((stage) => stage === 'prepare_sent')).toHaveLength(1);
     expect(evidence.count('after_refresh', '/wallet/session/status')).toBeGreaterThan(0);
     expect(evidence.count('after_refresh', '/wallet/execution-lane/owner')).toBe(0);
   } finally {

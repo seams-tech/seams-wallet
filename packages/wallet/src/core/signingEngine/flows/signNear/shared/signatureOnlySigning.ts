@@ -75,7 +75,7 @@ import {
   startRouterAbEd25519SignatureOnlyPrepare,
   tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning,
   type RouterAbEd25519SignatureOnlyIntentWire,
-  type RouterAbEd25519SignatureOnlyStartedPrepare,
+  type RouterAbEd25519StartedPrepare,
 } from './ed25519YaoNormalSigning';
 import { computeUiIntentDigestFromNep413 } from '@/utils/intentDigest';
 
@@ -134,7 +134,7 @@ type NearSignatureOnlySigningMaterial =
       thresholdSessionId: ThresholdEd25519SessionId;
       displayDigest: string;
       resolved: Awaited<ReturnType<typeof resolveConfirmedNearEd25519YaoCapability>>;
-      startedPrepare?: RouterAbEd25519SignatureOnlyStartedPrepare;
+      startedPrepare?: RouterAbEd25519StartedPrepare;
     }
   | {
       kind: 'operation_step_up';
@@ -460,7 +460,7 @@ export function authorizeNearSignatureOnlyOperation(
 /** A prepare that left while the confirmation dialog was open. */
 export type NearSignatureOnlyStartedPrepare = {
   readonly resolved: Awaited<ReturnType<typeof resolveConfirmedNearEd25519YaoCapability>>;
-  readonly started: RouterAbEd25519SignatureOnlyStartedPrepare;
+  readonly started: RouterAbEd25519StartedPrepare;
 };
 
 /**

@@ -23,6 +23,7 @@ import type { ThemeMode } from '@/core/types/seams';
 import { handleIntentDigestSigningFlow, handleTransactionSigningFlow } from './flows/signing';
 import type { ConfirmUISurfaceSource } from '../ui/confirm-ui';
 import type { SigningOperationInteractionEvent } from '../../flows/shared/signingStateMachine';
+import type { NearTransactionContextReady } from '../../nonce/nearTransactionReadiness';
 
 /**
  * Handles secure confirmation requests from the worker with robust error handling
@@ -37,6 +38,7 @@ export async function handlePromptFromWorker(
     signingSurface: ConfirmUISurfaceSource;
     onDecision?: (decision: UserConfirmDecision) => void;
     onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
+    onNearTransactionContextReady?: (readiness: NearTransactionContextReady) => void;
   },
 ): Promise<void> {
   const scopedWorker = createUserConfirmScopedWorker(worker, {
@@ -100,6 +102,9 @@ export async function handlePromptFromWorker(
                 onSigningOperationInteractionEvent:
                   options.onSigningOperationInteractionEvent,
               }
+            : {}),
+          ...(options?.onNearTransactionContextReady
+            ? { onNearTransactionContextReady: options.onNearTransactionContextReady }
             : {}),
         });
         break;

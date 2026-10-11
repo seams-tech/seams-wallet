@@ -5,6 +5,7 @@ import type { UserConfirmSecurityContext } from '@/core/types';
 import type { ThemeMode } from '@/core/types/seams';
 import type {
   NearFundingRequest,
+  NearTransactionContextReady,
   NearTransactionReadiness,
 } from '@/core/signingEngine/nonce/nearTransactionReadiness';
 import {
@@ -336,6 +337,7 @@ export async function handleTransactionSigningFlow(
     theme: ThemeMode;
     surface: ConfirmUISurfaceSource;
     onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
+    onNearTransactionContextReady?: (readiness: NearTransactionContextReady) => void;
   },
 ): Promise<void> {
   const reviewAdmission = reviewAdmissionForBinding(ctx.surfaceMeasurementBinding);
@@ -553,6 +555,7 @@ export async function handleTransactionSigningFlow(
           return;
         }
         session.setNonceLeases(nearRpc.reservedNonceLeases);
+        if (!decisionResolved) opts.onNearTransactionContextReady?.(nearRpc.readiness);
         const transactionContext = nearRpc.readiness.transactionContext;
         const securityContext: Partial<UserConfirmSecurityContext> | undefined = rpId
           ? {

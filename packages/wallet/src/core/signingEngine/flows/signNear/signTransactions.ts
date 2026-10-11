@@ -76,8 +76,12 @@ import {
   prepareRouterAbEd25519NearTransactionOperationStepUp,
   requireNearEd25519OperationStepUpProof,
   requireIssuedNearEd25519OperationStepUpAuthorization,
+  startRouterAbEd25519NearTransactionPrepare,
   tryFinalizeRouterAbEd25519NearTransactionNormalSigning,
+  type RouterAbEd25519StartedPrepare,
 } from './shared/ed25519YaoNormalSigning';
+import { computeUiIntentDigestFromTxs, orderActionForDigest } from '@/utils/intentDigest';
+import type { NearTransactionContextReady } from '../../nonce/nearTransactionReadiness';
 import {
   fundNearImplicitAccountForOperationStepUp,
   resolveConfirmedNearTransactionContext,
@@ -174,6 +178,59 @@ function requireWarmNearSigningMaterialTask(
     throw new Error('[SigningEngine][near] warm signing material was not prepared');
   }
   return task;
+}
+
+/**
+ * Sends the prepare of a warm-session transaction once the confirmation has
+ * reserved its context. The signature uses the answer only when the confirmed
+ * display digest and signing digest match; otherwise the prepare expires with
+ * its lease and the quota use it claimed stays spent.
+ */
+type StartNearTransactionPrepareArgs = Parameters<
+  typeof startRouterAbEd25519NearTransactionPrepare
+>[0];
+
+async function startWarmNearTransactionPrepare(
+  args: Pick<
+    StartNearTransactionPrepareArgs,
+    'ctx' | 'thresholdKeyMaterial' | 'walletId' | 'nearAccountId' | 'operationId' | 'txSigningRequest'
+  > & {
+    warmMaterial: Promise<WarmNearSigningMaterial>;
+    sessionCoordinator: SigningSessionCoordinator;
+    confirmationTransaction: Parameters<typeof computeUiIntentDigestFromTxs>[0][number];
+    readiness: NearTransactionContextReady;
+  },
+): Promise<RouterAbEd25519StartedPrepare | null> {
+  const resolved = await args.warmMaterial;
+  const walletSessionState =
+    await args.sessionCoordinator.resolveActiveAuthorizedRouterAbEd25519WalletSessionState({
+      state: resolved.walletSessionState,
+      nowMs: Date.now(),
+    });
+  if (!walletSessionState) return null;
+  const displayDigest = await computeUiIntentDigestFromTxs([
+    {
+      receiverId: args.confirmationTransaction.receiverId,
+      actions: args.confirmationTransaction.actions.map(orderActionForDigest),
+    },
+  ]);
+  return await startRouterAbEd25519NearTransactionPrepare({
+    ctx: args.ctx,
+    thresholdSessionId: resolved.material.facts.thresholdSessionId,
+    thresholdKeyMaterial: args.thresholdKeyMaterial,
+    walletId: args.walletId,
+    nearAccountId: args.nearAccountId,
+    activeClient: resolved.material.activeClient,
+    walletSessionState,
+    operationId: args.operationId,
+    displayDigest,
+    txSigningRequest: args.txSigningRequest,
+    transactionContext: args.readiness.transactionContext,
+  });
+}
+
+function ignoreStartedPrepareFailure(): null {
+  return null;
 }
 
 async function resolveNearTransactionOperationStepUpMaterial(args: {
@@ -889,6 +946,22 @@ async function runAuthorizedNearTransactionWithActionsSigning({
     'pre_confirmation',
     preConfirmationStartedAt,
   );
+  let startedPrepareTask: Promise<RouterAbEd25519StartedPrepare | null> | null = null;
+  const startTransactionPrepare = (readiness: NearTransactionContextReady): void => {
+    if (startedPrepareTask || !warmSigningMaterialTask) return;
+    startedPrepareTask = startWarmNearTransactionPrepare({
+      ctx,
+      warmMaterial: warmSigningMaterialTask,
+      sessionCoordinator,
+      thresholdKeyMaterial: signingContext.threshold.thresholdKeyMaterial,
+      walletId: commandSubject.walletSession.walletId,
+      nearAccountId,
+      operationId: signingOperation.operationId,
+      txSigningRequest,
+      confirmationTransaction,
+      readiness,
+    }).catch(ignoreStartedPrepareFailure);
+  };
   const confirmationStartedAt = performance.now();
   let confirmation: ConfirmTransactionSigningOperationResult;
   try {
@@ -905,6 +978,9 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         ...buildSigningConfirmationAuthParams({
           signingAuthPlan: confirmationAuthPayload.signingAuthPlan,
         }),
+        ...(warmSigningMaterialTask
+          ? { onNearTransactionContextReady: startTransactionPrepare }
+          : {}),
         walletId: String(signingLane.identity.signer.account.wallet.walletId),
         txSigningRequests: [confirmationTransaction],
         rpcCall: resolvedRpcCall,
@@ -1193,6 +1269,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             txSigningRequest,
             transactionContext,
             authorization: { kind: 'reusable_wallet_session' },
+            startedPrepare: startedPrepareTask ? await startedPrepareTask : null,
           });
     if (routerAbNormalSigningResult) {
       return routerAbNormalSigningResult.okResponse;

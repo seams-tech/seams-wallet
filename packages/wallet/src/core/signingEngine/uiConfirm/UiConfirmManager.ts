@@ -66,6 +66,7 @@ type PendingConfirmState =
       requestToken: string;
       onSigningOperationInteractionEvent?:
         RequestUserConfirmationOptions['onSigningOperationInteractionEvent'];
+      onNearTransactionContextReady?: RequestUserConfirmationOptions['onNearTransactionContextReady'];
       decision?: never;
     }
   | {
@@ -216,6 +217,9 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
         ? {
             onSigningOperationInteractionEvent: options.onSigningOperationInteractionEvent,
           }
+        : {}),
+      ...(options?.onNearTransactionContextReady
+        ? { onNearTransactionContextReady: options.onNearTransactionContextReady }
         : {}),
     });
 
@@ -712,6 +716,9 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
           ? {
               onSigningOperationInteractionEvent: pending.onSigningOperationInteractionEvent,
             }
+          : {}),
+        ...(pending.onNearTransactionContextReady
+          ? { onNearTransactionContextReady: pending.onNearTransactionContextReady }
           : {}),
       }).catch((error) => {
         console.error('[UserConfirmWorker] failed to handle confirmation prompt:', error);

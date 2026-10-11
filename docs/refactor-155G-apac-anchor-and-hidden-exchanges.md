@@ -201,9 +201,10 @@ Four facts for the next move:
   spends one quota use and expires with its 120 s lease; no release was added.
   The specification and the contract test changed in the same commit. Done for
   NEP-413 messages; the record below holds the design and the measurement.
-- [ ] Extend the early prepare to transactions. The design below replaces an
-  earlier note that said the nonce reservation follows the confirmation. That
-  is true only for an unfunded implicit account.
+- [x] Extend the early prepare to transactions. Implemented for a warm-session
+  transaction of a funded account; the staging measurement is still open. The
+  design below replaces an earlier note that said the nonce reservation follows
+  the confirmation. That is true only for an unfunded implicit account.
   - The confirmation flow already reserves the NEAR context when the dialog
     opens (`fetchNearContext` in `handleTransactionSigningFlow`), keeps the
     leases in the confirm session, and releases them on a decline. A funded
@@ -217,11 +218,13 @@ Four facts for the next move:
     display digest it expects, and sends it. The signature uses the answer after
     the confirmation only when the display digest and the signing digest both
     match the confirmed values. Any difference sends a new prepare, as today.
-  - No early prepare for a step-up signature, for an account that needs
-    funding, or for a batch of several transactions.
+  - No early prepare for a step-up signature or for an account that needs
+    funding. The flow signs one transaction per confirmation.
   - A decline needs no new code: the confirm session releases the leases, and
     the prepare expires with its lease, as for messages.
-  - The specification and a contract case that asserts the order change with it.
+  - The specification states the rule, and the local Yao contract asserts the
+    order `prepare_sent`, `confirmation`, `prepare` for a warm-session
+    transaction, with exactly one `prepare_sent`.
 - [ ] Extend the early prepare to delegate actions. Their signing digest and
   their display digest (`computeUiIntentDigestFromTxs` over the receiver and
   the ordered actions) both exist before the dialog, so the NEP-413 mechanism
