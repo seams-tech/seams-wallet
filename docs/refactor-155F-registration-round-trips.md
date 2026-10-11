@@ -604,8 +604,12 @@ The steps are medians of nine samples and do not add exactly to the request medi
   in 46 ms (43–55). The Worker holds the request 119 ms (100–206), although its
   code only parses one header and forwards the request. It uses 40–64 ms of CPU
   in all nine samples. Other stateless calls to this Worker use 2–24 ms, except
-  the first preparation request of two groups, at 67 and 91 ms. A new isolate
-  for each connection would explain both values. This cause is not established.
+  the first preparation request of two groups, at 67 and 91 ms. The cause is the
+  start of a new isolate. The
+  [dispatch probe of October 9](evidence/near-custody-dispatch-probe-20261009.json)
+  measured the same late handler start with matching CPU time for these modules.
+  The pair connection is the only request that reaches Deriver B's Worker from
+  the server of Deriver A's object, so the isolate there is new for each wallet.
   Deriver B's wallet object starts 55 ms later (10–69), and Deriver A sees the
   connection after 46 ms more (11–129). The hold does not wait for Deriver B's
   preparation: in one sample the preparation ended 145 ms before the connection
@@ -622,7 +626,7 @@ Worker with little traffic may start a new isolate more often than production do
 Candidates, in order of expected size. None is implemented or measured.
 
 1. Remove the hold in the stateless Deriver B Worker from the connection, about
-   120 ms. First establish its cause, and whether production traffic removes it.
+   120 ms. Done, see the record below.
 2. Admit both Derivers before the execute request arrives, about 120 ms plus
    Deriver B's preparation. The preparation request carries the client's input
    today, so first establish which part needs it.
@@ -632,6 +636,47 @@ Candidates, in order of expected size. None is implemented or measured.
 
 Reproduce with the scripts in `.artifacts/r155f-yao-chain/` of `seams-monorepo`.
 Each takes the run directory as its argument.
+
+### Deriver B load beside Deriver A's admission — October 11
+
+Commit `fedad1f3`. Deriver A asks Deriver B's Worker for its prewarm answer at
+wallet start and again beside its own D1 admission, through the existing
+`/internal/prewarm` route and the existing `DERIVER_B` binding, and reads the
+answer. Deriver B's Worker therefore loads where Deriver A's object runs before
+the pair connection arrives. A failed request leaves the connection as slow as
+it was. The Router's prewarm fan-out and this request share one helper. The
+per-minute prewarm from the Gateway's cron does not reach that server: it warms
+the isolates beside the Router's cron invocation.
+
+Each new isolate loads a large module: 15.6 MB for Deriver A, 15.7 MB for
+Deriver B, 11.1 MB for the Signing Worker and 9.6 MB for the Router. About
+8 MB of each is code, and the two Derivers carry 6.2 MB of data. In the nine
+wallets above, the pair connection met a new isolate nine times, and other role
+requests met one twelve times, at 91–257 ms each.
+
+The first staging run (`.artifacts/r155f-yao-prewarm-hosted/`, six wallets per
+side, the execution-time request only) measured:
+
+| Six wallets each | Control | With the request |
+| --- | ---: | ---: |
+| Deriver B holds the connection | 167 ms, in 5 of 6 | 0 ms, in 6 of 6 |
+| Deriver A connects | 308 ms (141–409) | 157 ms (148–198) |
+| Deriver A admission | 108 ms (104–115) | 166 ms (114–219) |
+| Admission plus connection | 414 ms (247–521) | 328 ms (304–379) |
+
+The prewarm request arrived 92–199 ms before each connection. The load of
+Deriver B's Worker takes longer than the admission and slows it, so the gain is
+about 90 ms, not the whole hold. Unread, the prewarm answer left Deriver B's
+invocation open until Deriver A's request ended, recorded as cancelled after
+11 s; the committed change reads it. The whole execution could not be compared
+in that run: the candidate version was deployed minutes before, and its own
+Worker started in a new isolate in four of six executions. The next run holds a
+discarded warm-up group before each measured group, and runs after the Console
+move of [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md).
+
+All 133 contract cases pass with the change: 131 on release builds and the two
+debug-only cases on debug builds. Four Email OTP recovery cases failed once on
+an expired Google token and passed on a fresh one.
 
 ## Phase 4 — Remove a browser exchange where inputs permit it
 
