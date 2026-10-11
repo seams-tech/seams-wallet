@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 515 dependency records (109 npm, 406 Cargo).
+Inventory: 517 dependency records (109 npm, 408 Cargo).
 
 ## Dependency inventory
 
@@ -28,6 +28,7 @@ Inventory: 515 dependency records (109 npm, 406 Cargo).
 | cargo | base64ct | 1.8.3 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | bitflags | 2.13.0 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | bitflags | 2.13.1 | MIT OR Apache-2.0 | The Rust Project Developers |
+| cargo | bitflags | 2.13.2 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | block-buffer | 0.10.4 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | block-buffer | 0.12.1 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | borsh-derive | 1.5.7 | Apache-2.0 | Near Inc <hello@nearprotocol.com> |
@@ -226,6 +227,7 @@ Inventory: 515 dependency records (109 npm, 406 Cargo).
 | cargo | pkcs8 | 0.10.2 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | pkcs8 | 0.11.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | pkg-config | 0.3.33 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
+| cargo | pkg-config | 0.3.34 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | poly1305 | 0.8.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | polyval | 0.6.2 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | postcard | 1.1.3 | MIT OR Apache-2.0 | James Munns <james@onevariable.com> |
@@ -4126,6 +4128,7 @@ Applies to:
 - cargo:js-sys@0.3.90
 - cargo:openssl-probe@0.2.1
 - cargo:pkg-config@0.3.33
+- cargo:pkg-config@0.3.34
 - cargo:wasm-bindgen-backend@0.2.100
 - cargo:wasm-bindgen-futures@0.4.73
 - cargo:wasm-bindgen-macro-support@0.2.100
@@ -6900,6 +6903,7 @@ Applies to:
 
 - cargo:bitflags@2.13.0
 - cargo:bitflags@2.13.1
+- cargo:bitflags@2.13.2
 - cargo:log@0.4.27
 - cargo:log@0.4.33
 - cargo:log@0.4.34
@@ -10359,6 +10363,7 @@ Applies to:
 - cargo:base64@0.23.1
 - cargo:bitflags@2.13.0
 - cargo:bitflags@2.13.1
+- cargo:bitflags@2.13.2
 - cargo:bs58@0.5.1
 - cargo:bumpalo@3.18.1
 - cargo:bumpalo@3.19.1
@@ -10420,6 +10425,7 @@ Applies to:
 - cargo:openssl-probe@0.2.1
 - cargo:percent-encoding@2.3.2
 - cargo:pkg-config@0.3.33
+- cargo:pkg-config@0.3.34
 - cargo:postcard@1.1.3
 - cargo:rustc_version@0.4.1
 - cargo:rustls-native-certs@0.8.4
