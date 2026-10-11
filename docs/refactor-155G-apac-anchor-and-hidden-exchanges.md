@@ -281,9 +281,23 @@ without R155F's later Gateway changes.
   because the wallet-start request loads the Worker a second earlier. The
   Router's execute request measured 1,543 ms against 1,704 ms and registration
   3,599 ms against 3,873 ms at the median, inside overlapping ranges.
-- [ ] Profile each Deriver's CPU for one execution through the local stack's
-  inspector ports. Place the invocation CPU between the circuit, oblivious
-  transfer, sealing, serialization and framing. Record the split.
+- [x] Profile each Deriver's CPU for one execution through the local stack's
+  inspector ports. The [local profile](evidence/refactor-155g-deriver-cpu-local.md)
+  measures 95 ms in Deriver A and 103 ms in Deriver B for a warm execution on a
+  laptop. Curve arithmetic is 35% of that, the AES gate hash 27%, SHA-256 10%,
+  the circuit engine 9% and wire-label zeroize 7%. Sealing, framing and
+  serialization are 4% together.
+- [x] Compute the joined root commitment with two point additions. More than
+  half of the curve arithmetic built and parsed the tenant-root commitments,
+  and `TwoPartyRootShareCommitments::new` used a scalar multiplication for
+  `2A − B`. The warm CPU fell to 86.5 ms and 83.6 ms, 14% less for the two
+  Derivers, and the local execute POST from about 229 ms to about 199 ms.
+- [x] Try the 64-bit curve backend: rejected. On `wasm32` it calls a software
+  128-bit multiplication and raises the warm CPU to 139 ms and 176 ms.
+- [ ] Review moving the base oblivious transfers ahead of execute. After the
+  commitment change they are the largest curve cost, 9 ms and 17 ms, and they
+  may not need the client's input. Establish what binds them to one execution
+  before any change; this is a protocol review, not a build setting.
 - [ ] Review an early Deriver admission, after respond and before execute. The
   admission needs the custody binding and the attempt, which exist after respond.
   Deriver B's preparation also needs the client's input, so only the admission
