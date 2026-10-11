@@ -34,16 +34,51 @@ groups. SDK, Console, custody, generated WASM, and placement stay fixed. The
 remains a separate result: 3.839 s median registration and 13 → 12 finalization
 calls. Earlier read, sealing, and Console batches retain their phase records.
 
-Next: reduce the serial Console work. Review cancellation before moving passkey
-claiming into respond, where it could overlap Yao execution. Keep the durable
-initial session before Console completion. Phase 4 records the cancellation
-constraint. Measure the next change against this frozen candidate.
+Next: implement the remaining applicable R155F changes as one optimization batch.
+Review cancellation before moving passkey claiming into respond, where it could
+overlap Yao execution. Keep the durable initial session before Console completion.
+Verify correctness locally throughout implementation. Measure the complete batch
+after implementation, review, and cleanup.
+
+## Execution policy — October 11 update
+
+The user requested a combined implementation and measurement cycle. Repeated
+small staging comparisons cost deployment, activation, and restoration time.
+Their timing variation exceeds several changes' expected individual savings.
+For example, identical controls registered in 4.809 s and 3.810 s at the median,
+while the initial-read stage changed from 20 / 19 ms to 13 ms.
+
+1. Complete the remaining applicable R155F changes before another hosted
+   performance comparison. Keep separate logical commits on `dev` for review
+   and diagnosis. A commit does not require its own deployment or benchmark.
+2. Verify correctness during implementation with existing E2E scenarios, type
+   fixtures, and package checks. Preserve retry, cancellation, ownership, and
+   failure behavior. Record local call counts and removed serial dependencies.
+3. Resolve each conditional proposal through implementation or a documented
+   input dependency or correctness constraint. A noisy latency result alone
+   does not block a simpler implementation that removes demonstrated work.
+4. Preserve concurrent [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md)
+   ownership. Do not duplicate its placement, browser prewarming, custody
+   execution, or sealing-CPU work. Freeze a consistent deployment layout after
+   any coordinated placement change before comparing code versions.
+5. After the complete R155F batch passes review and correctness checks, freeze
+   matching components and run one combined control/candidate/repeated-control
+   comparison. Use equal warm-up conditions and report the measured sample size.
+   Attribute overall gains to the batch. Keep per-stage counts and timings to
+   identify the remaining costs, without claiming individual gains from noise.
+6. Isolate individual changes only if the combined result reveals a material
+   regression or failure that requires diagnosis. Preserve the existing
+   **$25 Cloudflare budget** and restore staging after the comparison.
+
+Earlier measurements below remain historical evidence. Their per-change
+comparison cadence does not govern the remaining work.
 
 ## Objective and ownership
 
 Reduce NEAR-only registration latency by removing repeated reads, separate write
-batches, and unnecessary service exchanges. Measure the time each change removes
-from the critical path: the work that must finish before the user can continue.
+batches, and unnecessary service exchanges. Verify the removed work locally and
+measure the complete implementation's effect on the critical path: the work that
+must finish before the user can continue.
 
 Registration followed by an independently verified NEP-413 signature must reach
 the existing **3–4 second target**, with **1–2 seconds preferred**. Report
@@ -709,10 +744,12 @@ One-request signing and early signing commitments remain separate protocol work.
   already contains `3ed898cc`. An earlier revision of this record said that the
   server source did not locate the cause. That statement came from a cloned
   tree that still ran the original tree's server build.
-- [ ] Freeze matching SDK, Gateway, Runtime, Console, and custody sources.
-  Compare baseline, candidate, and repeated baseline on existing staging resources.
-  Hold the client, signer, wallet home, custody versions, and database bindings fixed
-  except for the component being tested. Separate placement changes from code changes.
+- [ ] After completing the implementation batch and local verification, freeze
+  matching SDK, Gateway, Runtime, Console, and custody sources. Compare baseline,
+  the complete candidate, and repeated baseline on existing staging resources.
+  Hold the client, signer, wallet home, placement, database bindings, and unrelated
+  components fixed. The candidate includes all accepted R155F code changes.
+  Coordinate any R155G changes explicitly and record the exact comparison scope.
 - [ ] Use at least the existing three fresh wallets per arm for the first comparison.
   Add samples only when a specific uncertainty justifies them within the **$25 Cloudflare budget**.
   Record cold and warm observations separately. Do not infer cold state from a new wallet alone.
