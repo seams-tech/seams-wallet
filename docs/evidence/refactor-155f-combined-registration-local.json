@@ -1,0 +1,207 @@
+{
+  "kind": "r155f_combined_registration_local_v1",
+  "date": "2026-10-11",
+  "publicCommit": "0e00b591",
+  "privateImplementationCommit": "eb235b1",
+  "privateVerificationCommit": "0a85921",
+  "hostedMeasured": false,
+  "gateway": [
+    {
+      "stage": "registration",
+      "path": "/wallets/register/setup",
+      "roundTrips": 3,
+      "statements": 10
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/respond",
+      "roundTrips": 4,
+      "statements": 10
+    },
+    {
+      "stage": "registration",
+      "path": "/router-ab/ed25519/yao/registration/execute",
+      "roundTrips": 1,
+      "statements": 1
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/near-provisioning",
+      "roundTrips": 8,
+      "statements": 55
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign/prepare",
+      "roundTrips": 2,
+      "statements": 3
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign",
+      "roundTrips": 3,
+      "statements": 3
+    },
+    {
+      "stage": "explicit_refresh",
+      "path": "/wallet/session/status",
+      "roundTrips": 2,
+      "statements": 2
+    }
+  ],
+  "finalizationCallGraph": [
+    [
+      "SELECT wallet_execution_generations+wallet_relocation_write_blocks",
+      "SELECT router_ab_yao_versioned_json_records",
+      "SELECT registration_ceremony_records",
+      "SELECT yao_lifecycle_decisions"
+    ],
+    [
+      "INSERT router_ab_yao_versioned_json_records",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+      "INSERT set+wallet_ceremony_activity"
+    ],
+    [
+      "SELECT router_ab_yao_versioned_json_records"
+    ],
+    [
+      "SELECT wallet_authorities",
+      "SELECT wallet_auth_methods"
+    ],
+    [
+      "SELECT router_ab_yao_versioned_json_records"
+    ],
+    [
+      "INSERT router_ab_yao_versioned_json_records",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+      "INSERT set+wallets",
+      "INSERT set+wallet_signers",
+      "INSERT set+webauthn_authenticators",
+      "INSERT set+webauthn_credential_bindings",
+      "INSERT wallet_authorities",
+      "INSERT set+wallet_auth_methods",
+      "INSERT yao_lifecycle_decisions",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+      "DELETE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_exchange_codes_v2",
+      "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2",
+      "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+      "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+      "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+      "SELECT wallet_session_authorizations_v2",
+      "SELECT wallet_execution_generations",
+      "UPDATE wallet_execution_generations+wallet_session_authorizations_v2",
+      "INSERT router_ab_yao_versioned_json_cas_guard"
+    ],
+    [
+      "INSERT router_ab_yao_versioned_json_records",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "INSERT router_ab_yao_versioned_json_records",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "INSERT router_ab_yao_versioned_json_records",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators",
+      "INSERT wallet_recovery_code_locators"
+    ],
+    [
+      "UPDATE router_ab_yao_versioned_json_records",
+      "INSERT router_ab_yao_versioned_json_cas_guard",
+      "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+      "INSERT set+wallet_ceremony_activity",
+      "UPDATE wallet_execution_generations",
+      "INSERT router_ab_yao_versioned_json_cas_guard"
+    ]
+  ],
+  "completedRetry": {
+    "remainingCeremonyRecords": 0,
+    "status": 200,
+    "sameSession": true,
+    "d1Calls": 1
+  },
+  "fencedReplay": {
+    "relocationBlockStatus": 400,
+    "retiredHomeStatus": 400
+  },
+  "consoleMutations": {
+    "stage": "registration_mutation_transactions",
+    "retiredWriterRejected": true,
+    "exactReplay": true,
+    "operations": [
+      {
+        "operation": "claim-passkey",
+        "calls": 1,
+        "statements": 3
+      },
+      {
+        "operation": "publish-routes",
+        "calls": 1,
+        "statements": 3
+      },
+      {
+        "operation": "complete",
+        "calls": 1,
+        "statements": 4
+      }
+    ]
+  },
+  "sessionObservation": {
+    "registrationStatusRequests": 0,
+    "firstSignatureStatusRequests": 0,
+    "explicitRefreshStatusRequests": 1,
+    "reactLoginPublished": true,
+    "nearIdentityPublished": true,
+    "lockClearsAuthentication": true
+  },
+  "sessionSealing": {
+    "computationsDuringRegistration": 1,
+    "completionRequestedBeforeSeal": true,
+    "completedBeforeDirectoryReply": true
+  },
+  "signatureVerification": {
+    "standardPayload": true,
+    "changedMessageRejected": true,
+    "changedRecipientRejected": true,
+    "changedNonceRejected": true,
+    "changedCallbackUrlRejected": true,
+    "stateExcludedFromPayload": true,
+    "stateReturnedUnchanged": true
+  },
+  "checks": {
+    "publicRegistrationContracts": 14,
+    "composedBeforeConsoleChange": 8,
+    "composedWithConsoleChange": 3,
+    "productionConsole": 1,
+    "serverBuild": true,
+    "candidateConsoleTypeCheck": true,
+    "walletStateTypeFixtures": true,
+    "touchedPrivateLint": true,
+    "publicBloatCheck": true,
+    "directoryE2Es": 2,
+    "regionalSessionRouting": true
+  },
+  "projectedHostedCounts": {
+    "previousRegistration": 34,
+    "candidateRegistration": 28,
+    "previousThroughFirstSignature": 41,
+    "candidateThroughFirstSignature": 35,
+    "measured": false
+  },
+  "artifacts": {
+    "normalProofSha256": "f86bf6927520f8af5ef25fb6e2e1bf369ff800b3f9932b6065560b72ce052089",
+    "productionConsoleProofSha256": "321e7395a9622171bee289b2b65596c9a53d30079148d19f9aec0e8c664ef6f3",
+    "walletHomeProofSha256": "e14e5ad92e9374f5d7a3581c762ae6f8b48718cc12e5adfc85f0ecb4ccce2388",
+    "walletRelocationProofSha256": "f663ff94cdaf39056e050665f36b68a51039767b156d4af036a79747192c8d3b",
+    "regionalSessionRoutingProofSha256": "dae690d33dc62b6722f57bb6d78e1d3e1b322dabc255c1f811fc2cf5083cdd78"
+  },
+  "privateDirectoryVerificationCommit": "7ed7399"
+}

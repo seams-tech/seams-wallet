@@ -1,7 +1,8 @@
 # R155F — Reduce NEAR registration round trips
 
-Status: **in progress.** The initial-read batch is measured on staging. Each phase
-below retains its earlier evidence.
+Status: **combined implementation complete; final hosted comparison pending.**
+The local verification and resolved conditional proposals are recorded below.
+Earlier hosted results remain historical evidence.
 Date: October 11, 2026.
 
 The [hosted initial-read comparison](evidence/refactor-155f-initial-read-hosted.md)
@@ -34,11 +35,24 @@ groups. SDK, Console, custody, generated WASM, and placement stay fixed. The
 remains a separate result: 3.839 s median registration and 13 → 12 finalization
 calls. Earlier read, sealing, and Console batches retain their phase records.
 
-Next: implement the remaining applicable R155F changes as one optimization batch.
-Review cancellation before moving passkey claiming into respond, where it could
-overlap Yao execution. Keep the durable initial session before Console completion.
-Verify correctness locally throughout implementation. Measure the complete batch
-after implementation, review, and cleanup.
+The [combined local record](evidence/refactor-155f-combined-registration-local.md)
+adds public `0e00b591` and private `eb235b1` / `0a85921`. Setup, respond, and
+finalization each remove one Gateway call. Console's claim, route, and completion
+mutations each remove one call. The projected hosted count is **34 → 28** for
+registration and **41 → 35** through first signing. These totals and the latency
+remain unmeasured on staging for the complete batch. Exact completed replay
+still takes one local batch after ceremony cleanup.
+
+Fourteen public registration contracts, eight selected composed cases before the
+Console change, three composed cases with it, and production Console acceptance
+pass. Both directory E2Es and the four-region session-routing scenario also pass
+with private `7ed7399`. Production Console acceptance checks one-call mutations,
+exact replay, and refusal before any write by retired writers. The eight-call finalization budget and the reasons to
+retain separate custody, completion, and client-execute boundaries are in the record.
+
+Next: finish the combined hosted comparison with current Hong Kong Console
+bindings, equal warm-up conditions, and a repeated control. Preserve concurrent
+R155G work and restore the exact configuration captured before this run.
 
 ## Execution policy — October 11 update
 
@@ -186,23 +200,27 @@ before editing because registration work continues concurrently.
   The [local call graph and retry trace](evidence/refactor-155f-initial-read-batch.md)
   record nine fresh finalization calls and one completed-retry batch. Both exclude
   private Gateway admission and pending cleanup. The retry survives ceremony deletion.
-- [ ] Combine finalization's initial routing, ownership-generation, Yao-state,
+- [x] Combine finalization's initial routing, ownership-generation, Yao-state,
   and ceremony reads where they share one database and admission boundary.
-  Home, journal, and ceremony now share one batch. Private routing admission and
-  the later Yao-state/decision reads remain separate.
+  Home, journal, ceremony, and the immutable decision now share one batch.
+  The Yao ceremony authority and shared capability are different records, read
+  at their protocol/commit boundaries. Private routing supplies configuration
+  before core execution. See the combined record for their remaining dependencies.
 - [x] Batch the initial home, journal, and ceremony reads. Preserve completed replay
   after cleanup, claim reconciliation, mixed-wallet continuation, and relocation
   fences. Local finalization uses **9 calls**, down from 11. The
   [hosted comparison](evidence/refactor-155f-initial-read-hosted.md) verifies
   **12 → 10 hosted finalization calls**. The
   [local evidence](evidence/refactor-155f-initial-read-batch.md) records the remaining call graph.
-- [ ] Carry the validated request state into core functions. Remove repeated
+- [x] Carry the validated request state into core functions. Remove repeated
   reads only when no intervening mutation requires a fresh value.
-- [ ] Move deployment predicates into the first required transaction where
+- [x] Move deployment predicates into the first required transaction where
   possible. Preserve immediate deployment retirement and wallet relocation fences.
-- [ ] Identify remaining wallet, custody, session, and journal write dependencies.
+- [x] Identify remaining wallet, custody, session, and journal write dependencies.
   Combine compatible writes through existing transaction builders.
-  Keep separate commits where a remote result must occur between them.
+  Keep separate commits where a remote result must occur between them. The
+  combined record explains the separate custody outcome and Console completion
+  dependency; the wallet, capability, decision, and initial session already commit together.
   The October 11 Console comparison records **119 ms** for the candidate's wallet
   commit and **131 ms** for its following session commit, at the median.
   The implementation below combines them. Console completion remains between session persistence and the final
@@ -214,9 +232,9 @@ before editing because registration work continues concurrently.
   11 calls, down from 12. Hosted finalization uses 12 calls, down from 13.
   [Implementation](evidence/refactor-155f-wallet-session-transaction.md) and
   [hosted evidence](evidence/refactor-155f-wallet-session-hosted.md).
-- [ ] Inspect setup and respond for the same repeated reads. Read the current
+- [x] Inspect setup and respond for the same repeated reads. Read the current
   fresh-admission path before changing it because R155D already removed an absent-record read.
-- [ ] Record a justified round-trip budget for fresh registration and exact retry.
+- [x] Record a justified round-trip budget for fresh registration and exact retry.
   List each unavoidable serial dependency. R155D's **4–6 finalization calls** remain
   an investigation target, not an established minimum or a promised result.
 - [x] Start session sealing after the session commit, beside home publication.
@@ -469,7 +487,7 @@ evidence. It is not the control for attributing gains to these server changes.
   those counts in all three candidate samples. Console setup's summed D1 time
   measured 93 / 76 / 77 ms across control, candidate, and repeated control.
   The candidate removes a call; these samples establish no repeatable latency saving.
-- [ ] Examine the remaining Console mutations for deployment checks that can
+- [x] Examine the remaining Console mutations for deployment checks that can
   join their existing transaction. The transaction must enforce the writer and
   retirement checks before a write. A batch of an unchecked read and write does
   not provide that guarantee.
@@ -499,18 +517,21 @@ evidence. It is not the control for attributing gains to these server changes.
   Both groups include the batch, so it does not isolate its latency saving.
 - [x] Replace passkey claiming's separate insert/read-back with one atomic batch
   that returns the winning owner. Preserve exact retry and competing-wallet refusal.
-- [ ] Examine the three finalization Console requests together: passkey claim,
+- [x] Examine the three finalization Console requests together: passkey claim,
   route publication, and completion. Combine operations only when their required
   ordering and failure behavior fit. Measure whether the removed exchange was serial.
-  Source review confirms that passkey claiming and route publication already
-  overlap. Combining them could remove a deployment read and HTTP request, but
-  cannot remove a full serial exchange. Completion remains a later dependency.
-- [ ] Preserve the current custody-failure policy explicitly. A route-claim failure
+  Passkey claiming and route publication already overlap. Each now has one D1
+  batch with its deployment check. Their merge could remove an HTTP request,
+  but would couple required ownership and optional custody outcomes without
+  removing a serial exchange. Keep both. Completion needs the durable session.
+- [x] Preserve the current custody-failure policy explicitly. A route-claim failure
   currently reports rejected custody storage while registration can continue.
   An ownership-claim failure prevents wallet publication. A combined request must
   retain these distinct outcomes without converting optional custody into a blocker.
-- [ ] Remove replaced route handlers, client methods, and response shapes together.
-  Keep established-session signing independent of Console.
+- [x] Remove replaced route handlers, client methods, and response shapes together.
+  Keep established-session signing independent of Console. The shared read
+  helper replaces the finalization-only helper. Mutation bodies have one handler;
+  unchanged claim/route endpoints remain used by other lifecycle operations.
 
 Acceptance: record before/after D1 and HTTP counts per operation. Verify ownership
 conflicts and partial failures with real Console composition. Reuse existing
@@ -538,6 +559,10 @@ round trip for the same four calls.
 
 ## Phase 3 — Reduce measured custody preparation and connection delays
 
+The trace and Deriver-B prewarm record below close this phase's selected change.
+Further custody/CPU and early-browser work stays with R155G. Keep its sources
+and placement fixed across the R155F registration comparison.
+
 - [x] Reuse R155D's completed role-database cutover and activation results.
   Run the pending registration proof through the new role databases.
   Capture fresh baseline Worker versions and actual database bindings afterward.
@@ -547,12 +572,12 @@ round trip for the same four calls.
   Signing Worker `c39367f9`. Nine wallets registered and signed through this set
   on October 11. The [hosted record](evidence/refactor-155f-relocated-hosted.md)
   holds the versions, the bindings and the restoration check.
-- [ ] Separate A preparation, peer connection, B admission, protocol execution,
+- [x] Separate A preparation, peer connection, B admission, protocol execution,
   output sealing, durable completion, and background D1 settlement in the trace.
-- [ ] Optimize the largest remaining serial admission or persistence step.
+- [x] Optimize the largest remaining serial admission or persistence step.
   Prefer combined reads and removal of repeated Worker/object dispatches.
   Keep the existing concurrent A/B transport and stored wallet-object addresses.
-- [ ] Preserve the durable completed outcome before replying. Background D1
+- [x] Preserve the durable completed outcome before replying. Background D1
   acknowledgement already exists and must not be counted as response latency.
 
 Starting observations: A preparation **198 ms**, A connection **277 ms**, and
@@ -623,7 +648,8 @@ The run is the comparison of three groups on staging. The two finish values
 that the clock reported below zero are excluded from that row's range. A staging
 Worker with little traffic may start a new isolate more often than production does.
 
-Candidates, in order of expected size. None is implemented or measured.
+Candidates identified from that trace. The first is implemented and measured
+below. R155G owns further custody execution changes.
 
 1. Remove the hold in the stateless Deriver B Worker from the connection, about
    120 ms. Done, see the record below.
@@ -680,15 +706,15 @@ an expired Google token and passed on a fresh one.
 
 ## Phase 4 — Remove a browser exchange where inputs permit it
 
-- [ ] Trace when the client creates each input for setup, respond, execute,
+- [x] Trace when the client creates each input for setup, respond, execute,
   and finalization. Identify any input that depends on the Yao result.
-- [ ] Evaluate R155D's combined execute/finalize design first. If all finalization
+- [x] Evaluate R155D's combined execute/finalize design first. If all finalization
   inputs exist before execute, carry them on that request and complete registration
   before returning. Reuse the existing journal and exact registration identity.
-- [ ] If an input requires the execute result, document that concrete dependency.
+- [x] If an input requires the execute result, document that concrete dependency.
   Identify server-only preparation that can overlap that client work instead.
   Do not invent placeholder commitments or another ceremony to force a merge.
-- [ ] Return the established session and custody outcome through the existing SDK
+- [x] Return the established session and custody outcome through the existing SDK
   completion path. Preserve mixed NEAR/ECDSA and recovery behavior through explicit
   domain states. Remove obsolete requests and branches for the replaced flow.
 
@@ -704,9 +730,9 @@ the initial loads need only the ceremony.
 An earlier credential claim also changes cancellation behavior. Console's
 `D1WalletHomeDirectory.complete` refuses cancellation after a wallet gains a
 passkey claim. Moving the claim into respond would extend that restriction to
-subsequent Yao failures. Review that outcome before moving the claim; preserve
-usable retry or cancellation behavior. Initial read batching is the smaller
-next change and needs no earlier remote ownership mutation.
+subsequent Yao failures. Keep the claim beside Router consumption so the current
+retry and cancellation behavior remains intact. The combined implementation
+batches initial reads without an earlier remote ownership mutation.
 
 Each browser request also costs a CORS preflight exchange, because every
 request is a cross-origin JSON POST to a new URL. A registration and its first
@@ -758,20 +784,20 @@ The hosted overlap comparison observed 17 Gateway HTTP requests per wallet.
 A same-origin API would need only the six application requests for this flow.
 
 The current path uses **four registration browser requests**, followed by prepare
-and sign. A combined execute/finalize would reduce registration to **three** and
-the complete flow to **five**. This is conditional on the input-dependency review.
+and sign. The completed input-dependency review rules out a direct execute/finalize
+merge: the client must first receive the verified result.
 Moving prepare into confirmation does not reduce registration time or request count.
 One-request signing and early signing commitments remain separate protocol work.
 
 ## Phase 5 — Verify, measure, and record
 
-- [ ] Use the existing real-D1 and browser scenarios. Cover a lost finalization
+- [x] Use the existing real-D1 and browser scenarios. Cover a lost finalization
   reply, competing claims, partial Console failure, exact retry, and signing after reload.
   Verify an independently checked NEP-413 signature after the retry.
-- [ ] Exercise retirement or relocation during a changed write ordering.
+- [x] Exercise retirement or relocation during a changed write ordering.
   Extend an existing E2E only when the changed ordering lacks behavioral coverage.
   Produce a repeatable artifact. Do not add unit or source-text tests.
-- [ ] Run the relevant type fixtures and package checks. Use branch-specific
+- [x] Run the relevant type fixtures and package checks. Use branch-specific
   domain states and boundary parsers. Remove obsolete APIs and compatibility paths.
 - [x] Resolve the interrupted-recovery conflict that R155D tracked. Commit
   `3ed898cc` introduced it. Capability installation got its own commit of the
