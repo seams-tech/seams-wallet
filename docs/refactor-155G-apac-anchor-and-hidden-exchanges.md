@@ -201,12 +201,28 @@ Four facts for the next move:
   spends one quota use and expires with its 120 s lease; no release was added.
   The specification and the contract test changed in the same commit. Done for
   NEP-413 messages; the record below holds the design and the measurement.
-- [ ] Extend the early prepare to transactions and delegate actions. Their
-  dialog fetches the nonce and block hash while it is open, so the signing
-  digest exists only after that fetch; the prepare can leave when it returns.
-- [ ] Send the setup preflight when the page loads, in `prewarmRelayerPreflights`,
-  so setup joins the routes that need no preflight. Record the cost: one more
-  request per page load, and a 600 s cache lifetime.
+- [ ] Extend the early prepare to transactions. A warm-session transaction
+  resolves its confirmed context and reserves its nonce leases after the
+  confirmation (`resolveConfirmedNearTransactionContext`), and the signing
+  digest needs that nonce and block hash. An early prepare therefore moves the
+  nonce reservation ahead of the confirmation and must release the leases on a
+  decline, beside the durable lease recovery and the funding step that the
+  dialog owns. Design that order first; do not bolt the request on.
+- [ ] Extend the early prepare to delegate actions. Their signing digest and
+  their display digest (`computeUiIntentDigestFromTxs` over the receiver and
+  the ordered actions) both exist before the dialog, so the NEP-413 mechanism
+  applies unchanged. No browser test signs a delegate action today: add the
+  contract path with the change, not after it.
+- [x] Setup preflight at page load: withdrawn. The hosted auth menu already
+  runs the whole setup request while the user is still in the menu:
+  `prepareHostedPasskeyRegistration` calls `setupThreeRouteRegistration` once
+  the registration input is valid, and the early preflights for the later
+  routes leave with it. A user of the hosted menu therefore waits for respond,
+  the Yao execution and finalization after the click, not for setup. Only a
+  direct `registration.registerWallet` call has setup on its path, and that is
+  the call the hosted latency test measures. The specification also excludes
+  an idle prewarm lifecycle for the provider. Report the stages after setup
+  beside the full registration metric from here on.
 - [ ] Measure both on staging against the frozen candidate.
 
 Expected gain: about 0.33 s on the first signature, and 0.1 to 0.2 s on setup.
