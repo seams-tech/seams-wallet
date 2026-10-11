@@ -1,8 +1,20 @@
 import { writeFile } from 'node:fs/promises';
-import { expect, type BrowserContext, type Page, type Request, type Route, type TestInfo } from '@playwright/test';
-import { requireNonEmptyString, requireRecord } from '@shared/utils/validation';
+import {
+  expect,
+  type BrowserContext,
+  type ConsoleMessage,
+  type Page,
+  type Request,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
+import { isPlainObject, requireNonEmptyString, requireRecord } from '@shared/utils/validation';
 import { loadNodeDatabaseSync } from '@server/router/node/nodeSqlite';
-import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import {
+  enableSigningSessionDebugInFrame,
+  intendedTest as test,
+  type IntendedBehaviourHarness,
+} from './harness';
 import { isolatedGatewayDatabasePath } from './local-gateway-database';
 
 type NearSigningReadStage = 'warm_sequence' | 'exhausted_session' | 'unlock' | 'after_refresh';
@@ -42,6 +54,27 @@ class NearSigningRequestEvidence {
   }
 }
 
+/** Records the stages of the SDK's NEAR signing trace, in the order they are emitted. */
+class NearSigningStages {
+  readonly stages: string[] = [];
+
+  record(message: ConsoleMessage): void {
+    const text = message.text();
+    const prefix = '[SigningFlow][near] ';
+    if (!text.startsWith(prefix)) return;
+    const event: unknown = JSON.parse(text.slice(prefix.length));
+    if (!isPlainObject(event) || event.event !== 'ed25519_signing_timing') return;
+    if (typeof event.stage === 'string') this.stages.push(event.stage);
+  }
+
+  /** The index of the first occurrence of a stage; a missing stage fails the contract. */
+  at(stage: string): number {
+    const index = this.stages.indexOf(stage);
+    expect(index, `${stage} in ${this.stages.join(',')}`).toBeGreaterThan(-1);
+    return index;
+  }
+}
+
 /** Records each request as "METHOD path", in the order the browser sends them. */
 class RequestOrder {
   readonly sent: string[] = [];
@@ -52,7 +85,11 @@ class RequestOrder {
 }
 
 async function verifyLocalEd25519YaoRegistration(
-  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  {
+    harness,
+    context,
+    page,
+  }: { harness: IntendedBehaviourHarness; context: BrowserContext; page: Page },
   testInfo: TestInfo,
 ): Promise<void> {
   const order = new RequestOrder();
@@ -92,9 +129,24 @@ async function verifyLocalEd25519YaoRegistration(
     await harness.lockWallet();
     await harness.unlockPasskeyWallet();
     evidence.stage = 'after_refresh';
+    // The SDK's signing trace is off unless a frame opts in; the refresh
+    // below loads every frame with the flag set.
+    await context.addInitScript(enableSigningSessionDebugInFrame);
     await harness.refreshPagePreservingWalletStorage();
     await harness.signNearTransactionAfterRefresh();
-    await harness.signNearMessage('Approve checkout after the session observation was discarded');
+    // A warm-session message signature sends its prepare while the
+    // confirmation dialog is open, and consumes the answer after it.
+    const stages = new NearSigningStages();
+    const recordStages = stages.record.bind(stages);
+    page.on('console', recordStages);
+    try {
+      await harness.signNearMessage('Approve checkout after the session observation was discarded');
+    } finally {
+      page.off('console', recordStages);
+    }
+    expect(stages.at('prepare_sent')).toBeLessThan(stages.at('confirmation'));
+    expect(stages.at('confirmation')).toBeLessThan(stages.at('prepare'));
+    expect(stages.stages.filter((stage) => stage === 'prepare_sent')).toHaveLength(1);
     expect(evidence.count('after_refresh', '/wallet/session/status')).toBeGreaterThan(0);
     expect(evidence.count('after_refresh', '/wallet/execution-lane/owner')).toBe(0);
   } finally {

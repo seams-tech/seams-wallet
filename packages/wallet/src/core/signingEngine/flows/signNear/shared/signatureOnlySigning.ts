@@ -68,12 +68,16 @@ import {
   type ResolvedNearOperationStepUpMaterial,
 } from './ed25519YaoCapabilityResolution';
 import {
+  abandonRouterAbEd25519StartedPrepare,
   buildNearEd25519OperationStepUpProof,
   prepareRouterAbEd25519SignatureOnlyOperationStepUp,
   requireIssuedNearEd25519OperationStepUpAuthorization,
+  startRouterAbEd25519SignatureOnlyPrepare,
   tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning,
   type RouterAbEd25519SignatureOnlyIntentWire,
+  type RouterAbEd25519SignatureOnlyStartedPrepare,
 } from './ed25519YaoNormalSigning';
+import { computeUiIntentDigestFromNep413 } from '@/utils/intentDigest';
 
 // A delegate action or a NEP-413 message is exactly one signature.
 const REQUIRED_SIGNATURE_USES = 1;
@@ -130,6 +134,7 @@ type NearSignatureOnlySigningMaterial =
       thresholdSessionId: ThresholdEd25519SessionId;
       displayDigest: string;
       resolved: Awaited<ReturnType<typeof resolveConfirmedNearEd25519YaoCapability>>;
+      startedPrepare?: RouterAbEd25519SignatureOnlyStartedPrepare;
     }
   | {
       kind: 'operation_step_up';
@@ -452,22 +457,82 @@ export function authorizeNearSignatureOnlyOperation(
   };
 }
 
+/** A prepare that left while the confirmation dialog was open. */
+export type NearSignatureOnlyStartedPrepare = {
+  readonly resolved: Awaited<ReturnType<typeof resolveConfirmedNearEd25519YaoCapability>>;
+  readonly started: RouterAbEd25519SignatureOnlyStartedPrepare;
+};
+
+/**
+ * Sends the server prepare of a warm-session NEP-413 signature while the
+ * confirmation dialog is open. The request is bound to the digest the dialog
+ * shows and to the signing digest. A confirmation that returns another digest,
+ * a declined confirmation or a step-up leaves the prepare to expire with its
+ * lease; the quota use it claimed stays spent.
+ */
+export async function startNearSignatureOnlyPrepare(
+  operation: NearSignatureOnlyOperation,
+  stepUp: NearSignatureOnlyStepUp,
+  signingSessionCoordinator: SigningSessionCoordinator,
+): Promise<NearSignatureOnlyStartedPrepare | null> {
+  if (
+    stepUp.preparedStepUp.kind !== 'warm_session' ||
+    operation.intent.kind !== 'nep413_message_v1'
+  ) {
+    return null;
+  }
+  const resolved = await resolveConfirmedNearEd25519YaoCapability({
+    preparation: operation.preparation,
+    executor: operation.executor,
+  });
+  const walletSessionState = requireAuthorizedWalletSessionState(
+    await signingSessionCoordinator.resolveActiveAuthorizedRouterAbEd25519WalletSessionState({
+      state: resolved.walletSessionState,
+      nowMs: Date.now(),
+    }),
+  );
+  const started = await startRouterAbEd25519SignatureOnlyPrepare({
+    ctx: operation.ctx,
+    thresholdSessionId: resolved.thresholdSessionId,
+    activeClient: resolved.material.activeClient,
+    walletSessionState,
+    walletId: operation.walletId,
+    thresholdKeyMaterial: operation.thresholdKeyMaterial,
+    nearAccountId: operation.nearAccountId,
+    operationId: operation.signingOperation.operationId,
+    operationFingerprint: operation.signingOperation.operationFingerprint!,
+    displayDigest: await computeUiIntentDigestFromNep413({
+      nearAccountId: operation.nearAccountId,
+      recipient: operation.intent.recipient,
+      message: operation.intent.message,
+    }),
+    signingDigestB64u: await operation.computeSigningDigestB64u(),
+    intent: operation.intent,
+  });
+  return started ? { resolved, started } : null;
+}
+
 export async function resolveNearSignatureOnlySigningMaterial(
   operation: NearSignatureOnlyOperation,
   authorization: NearSignatureOnlyAuthorization,
+  startedPrepare: NearSignatureOnlyStartedPrepare | null = null,
 ): Promise<NearSignatureOnlySigningMaterial> {
   if (authorization.kind === 'warm_session') {
-    const resolved = await resolveConfirmedNearEd25519YaoCapability({
-      preparation: operation.preparation,
-      executor: operation.executor,
-    });
+    const resolved =
+      startedPrepare?.resolved ??
+      (await resolveConfirmedNearEd25519YaoCapability({
+        preparation: operation.preparation,
+        executor: operation.executor,
+      }));
     return {
       kind: 'warm_session',
       thresholdSessionId: resolved.thresholdSessionId,
       displayDigest: authorization.displayDigest,
       resolved,
+      startedPrepare: startedPrepare?.started,
     };
   }
+  if (startedPrepare) abandonRouterAbEd25519StartedPrepare(startedPrepare.started);
   return {
     kind: 'operation_step_up',
     thresholdSessionId: nearOperationStepUpMaterialFacts(authorization.material).thresholdSessionId,
@@ -520,6 +585,7 @@ export async function signNearSignatureOnlyOperation(
           signingDigestB64u,
           intent: operation.intent,
           authorization: { kind: 'reusable_wallet_session' },
+          startedPrepare: material.startedPrepare,
         })
       : await tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning({
           ctx: operation.ctx,

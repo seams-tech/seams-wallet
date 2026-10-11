@@ -27,6 +27,7 @@ import {
   confirmNearSignatureOnlyOperation,
   prepareNearSignatureOnlyStepUp,
   resolveNearSignatureOnlySigningMaterial,
+  startNearSignatureOnlyPrepare,
   resolveNearSignatureOnlySigningPlans,
   runNearSignatureOnlySignCommand,
   signNearSignatureOnlyOperation,
@@ -143,6 +144,13 @@ export async function signNep413Message({
     passkeyEd25519OperationStepUp,
     emailOtpEd25519StepUp,
   });
+  // The server prepare leaves now and is answered while the user reads the
+  // dialog. The signature consumes it after the confirmation.
+  const startedPrepare = await startNearSignatureOnlyPrepare(
+    operation,
+    stepUp,
+    signingSessionCoordinator,
+  );
   emitEd25519SigningTiming(String(operationId), 'pre_confirmation', preConfirmationStartedAt);
   const confirmationStartedAt = performance.now();
   const confirmation = await confirmNearSignatureOnlyOperation(operation, {
@@ -162,7 +170,8 @@ export async function signNep413Message({
     signingSessionPlan,
     signingOperation,
     commandKind: SigningOperationCommandKind.PreparePayload,
-    execute: async () => await resolveNearSignatureOnlySigningMaterial(operation, authorization),
+    execute: async () =>
+      await resolveNearSignatureOnlySigningMaterial(operation, authorization, startedPrepare),
   });
 
   const okResponse = await runNearSignatureOnlySignCommand(operation, async () => {

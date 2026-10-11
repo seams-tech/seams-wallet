@@ -595,6 +595,22 @@ type RouterAbEd25519NormalSigningSignatureBase = {
   signingPayloadLabel: string;
   prepare: RouterAbNormalSigningPrepareRequestV2BuildResult;
   credential: RouterAbEd25519NormalSigningCredential;
+  /** The answer of a prepare that was sent before the user confirmed. */
+  startedResponse?: Promise<Ed25519PrepareSessionResult>;
+};
+
+type Ed25519PrepareSessionResult = Awaited<ReturnType<typeof prepareRouterAbNormalSigningV2>>;
+
+/**
+ * A prepare sent while the confirmation dialog is open. It is bound to the
+ * digest the dialog shows and to the signing digest, so the signature after
+ * the confirmation can only use it for the same operation.
+ */
+export type RouterAbEd25519SignatureOnlyStartedPrepare = {
+  readonly prepare: RouterAbNormalSigningPrepareRequestV2BuildResult;
+  readonly displayDigest: string;
+  readonly signingDigestB64u: string;
+  readonly response: Promise<Ed25519PrepareSessionResult>;
 };
 
 type RouterAbEd25519NormalSigningSignatureArgs = RouterAbEd25519NormalSigningSignatureBase &
@@ -664,12 +680,16 @@ async function finalizeRouterAbEd25519NormalSigningSignature(
           relayerUrl: args.walletSessionState.relayerUrl,
         }
       : args.materialFacts;
+  // With a started prepare, this span is the wait that remains after the
+  // confirmation; the dispatch was marked when the request left.
   const prepareStartedAt = performance.now();
-  const prepared = await prepareRouterAbNormalSigningV2({
-    relayServerUrl: materialFacts.relayerUrl,
-    credential: args.credential,
-    request: args.prepare.request,
-  });
+  const prepared = args.startedResponse
+    ? await args.startedResponse
+    : await prepareRouterAbNormalSigningV2({
+        relayServerUrl: materialFacts.relayerUrl,
+        credential: args.credential,
+        request: args.prepare.request,
+      });
   emitEd25519SigningTiming(operationId, 'prepare', prepareStartedAt);
   if (args.authorization === 'reusable_wallet_session') {
     if (prepared.kind !== 'reusable_wallet_session') {
@@ -790,6 +810,7 @@ type RouterAbEd25519SignatureOnlyNormalSigningArgs = RouterAbEd25519SignatureOnl
         walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
         sessionCoordinator: SigningSessionCoordinator;
         authorization: { kind: 'reusable_wallet_session' };
+        startedPrepare?: RouterAbEd25519SignatureOnlyStartedPrepare;
       }
     | {
         materialFacts: NearEd25519YaoOperationMaterialFacts;
@@ -804,7 +825,7 @@ type RouterAbEd25519SignatureOnlyNormalSigningArgs = RouterAbEd25519SignatureOnl
       }
   );
 
-async function buildRouterAbEd25519SignatureOnlyPrepareRequest(args: {
+async function buildRouterAbEd25519SignatureOnlyPrepareRequestForScope(args: {
   ctx: NearSigningRuntimeDeps;
   thresholdSessionId: string;
   scope: RouterAbNormalSigningScopeV2Wire;
@@ -889,7 +910,7 @@ export async function prepareRouterAbEd25519SignatureOnlyOperationStepUp(args: {
     walletId: args.walletId,
     operationId: args.operationId,
   });
-  const prepare = await buildRouterAbEd25519SignatureOnlyPrepareRequest({
+  const prepare = await buildRouterAbEd25519SignatureOnlyPrepareRequestForScope({
     ctx: args.ctx,
     thresholdSessionId: args.thresholdSessionId,
     scope,
@@ -1098,6 +1119,50 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
       ...finalized,
     };
   }
+  // A prepare started before the confirmation serves the same operation only.
+  const started =
+    args.startedPrepare &&
+    args.startedPrepare.displayDigest === args.displayDigest &&
+    args.startedPrepare.signingDigestB64u === args.signingDigestB64u
+      ? args.startedPrepare
+      : null;
+  if (args.startedPrepare && !started) abandonRouterAbEd25519StartedPrepare(args.startedPrepare);
+  const prepare = started?.prepare ?? (await buildRouterAbEd25519SignatureOnlyPrepareRequest(args));
+  if (!prepare) return null;
+  const finalized = await tryFinalizeRouterAbEd25519NormalSigningSignature({
+    thresholdSessionId: args.thresholdSessionId,
+    walletSessionState: args.walletSessionState,
+    sessionCoordinator: args.sessionCoordinator,
+    thresholdKeyMaterial: args.thresholdKeyMaterial,
+    walletId: args.walletId,
+    nearAccountId: args.nearAccountId,
+    activeClient: args.activeClient,
+    signingDigestB64u: args.signingDigestB64u,
+    signingPayloadLabel: 'signature-only payload digest',
+    prepare,
+    startedResponse: started?.response,
+    credential: requireRouterAbEd25519NormalSigningReadyState({
+      state: args.walletSessionState,
+      thresholdSessionId: args.thresholdSessionId,
+      nearAccountId: args.nearAccountId,
+      thresholdKeyMaterial: args.thresholdKeyMaterial,
+    }).credential,
+    authorization: args.authorization.kind,
+  });
+  return {
+    kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1',
+    authorization: 'reusable_wallet_session',
+    ...finalized,
+  };
+}
+
+type RouterAbEd25519SignatureOnlyWarmArgs = RouterAbEd25519SignatureOnlyNormalSigningBase & {
+  walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
+};
+
+async function buildRouterAbEd25519SignatureOnlyPrepareRequest(
+  args: RouterAbEd25519SignatureOnlyWarmArgs,
+): Promise<RouterAbNormalSigningPrepareRequestV2BuildResult | null> {
   const scope = buildRouterAbNormalSigningScope({
     activeClient: args.activeClient,
     walletSessionState: args.walletSessionState,
@@ -1105,7 +1170,7 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
     operationId: args.operationId,
   });
   if (!scope) return null;
-  const prepare = await buildRouterAbEd25519SignatureOnlyPrepareRequest({
+  return await buildRouterAbEd25519SignatureOnlyPrepareRequestForScope({
     ctx: args.ctx,
     thresholdSessionId: args.thresholdSessionId,
     scope,
@@ -1120,30 +1185,48 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
     signingDigestB64u: args.signingDigestB64u,
     intent: args.intent,
   });
-  const finalized = await tryFinalizeRouterAbEd25519NormalSigningSignature({
+}
+
+/**
+ * Sends the prepare of a warm-session signature before the user confirms.
+ * The caller shows the dialog meanwhile and passes the result to the
+ * signature; a result that is never passed on expires with its lease and
+ * keeps the quota use it claimed.
+ */
+export async function startRouterAbEd25519SignatureOnlyPrepare(
+  args: RouterAbEd25519SignatureOnlyWarmArgs,
+): Promise<RouterAbEd25519SignatureOnlyStartedPrepare | null> {
+  const prepare = await buildRouterAbEd25519SignatureOnlyPrepareRequest(args);
+  if (!prepare) return null;
+  const ready = requireRouterAbEd25519NormalSigningReadyState({
+    state: args.walletSessionState,
     thresholdSessionId: args.thresholdSessionId,
-    walletSessionState: args.walletSessionState,
-    sessionCoordinator: args.sessionCoordinator,
-    thresholdKeyMaterial: args.thresholdKeyMaterial,
-    walletId: args.walletId,
     nearAccountId: args.nearAccountId,
-    activeClient: args.activeClient,
-    signingDigestB64u: args.signingDigestB64u,
-    signingPayloadLabel: 'signature-only payload digest',
-    prepare,
-    credential: requireRouterAbEd25519NormalSigningReadyState({
-      state: args.walletSessionState,
-      thresholdSessionId: args.thresholdSessionId,
-      nearAccountId: args.nearAccountId,
-      thresholdKeyMaterial: args.thresholdKeyMaterial,
-    }).credential,
-    authorization: args.authorization.kind,
+    thresholdKeyMaterial: args.thresholdKeyMaterial,
   });
+  const sentAt = performance.now();
+  const response = prepareRouterAbNormalSigningV2({
+    relayServerUrl: args.walletSessionState.relayerUrl,
+    credential: ready.credential,
+    request: prepare.request,
+  });
+  // A refusal is observed where the signature awaits it; nothing else may
+  // report it as unhandled meanwhile.
+  response.catch(() => {});
+  emitEd25519SigningTiming(String(args.operationId), 'prepare_sent', sentAt);
   return {
-    kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1',
-    authorization: 'reusable_wallet_session',
-    ...finalized,
+    prepare,
+    displayDigest: args.displayDigest,
+    signingDigestB64u: args.signingDigestB64u,
+    response,
   };
+}
+
+/** Leaves a started prepare to expire with its lease. */
+export function abandonRouterAbEd25519StartedPrepare(
+  started: RouterAbEd25519SignatureOnlyStartedPrepare,
+): void {
+  started.response.catch(() => {});
 }
 
 export async function prepareRouterAbEd25519NearTransactionOperationStepUp(args: {
