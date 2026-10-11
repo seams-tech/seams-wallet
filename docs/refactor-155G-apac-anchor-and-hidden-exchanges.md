@@ -321,6 +321,21 @@ seal is already computed beside home publication. The CPU itself remains.
   flow with medians, ranges and maxima, and the stage costs.
 - [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
 
+### Phase 5 record
+
+The [combined comparison](evidence/refactor-155g-combined-hosted.md) of
+October 11 serves the complete R155F hosts in every group. With the Deriver B
+load and the early sign prepare, registration plus the first signature measures
+**4,368 ms** at the median over twelve wallets, against 4,675 ms over six
+control wallets. Two of twelve wallets finished under 4.0 s. The target is not
+met. The Yao execution is 1,770 ms, 47% of a registration; finalization is
+912 ms, setup 698 ms and respond 257 ms. After setup, which the hosted auth
+menu runs before the click, registration measures 3,138 ms.
+
+The planned control repeat did not run: Deriver B's wallet object stalled for
+14.6 s on one preparation after a version switch, and the driver restored
+staging. The warm-up groups and at least six wallets per side are in place.
+
 ## Scope limits and completion
 
 This plan creates replacement databases, which R155F excluded. It adds no
