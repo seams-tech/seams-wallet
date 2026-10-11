@@ -12,6 +12,7 @@ export * from './router/framework/apiCredentialPorts';
 export {
   createWalletRegistrationContextResolver,
   unavailableRegistrationContext,
+  walletRegistrationContext,
 } from './router/auth/walletRegistrationContext';
 export { parseWalletRegistrationSetupRequest } from './router/domains/walletRegistration/walletRegistrationRoutes';
 export * from './router/framework/applyRouteMetering';

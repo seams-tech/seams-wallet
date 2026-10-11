@@ -19,6 +19,10 @@ session sealing starts. The new hosted comparison verifies **38 completed
 Gateway/Console D1 calls**, down from 39 in its control. Registration measured
 **4.102 s** against the repeated control's **4.094 s**. It establishes no clear
 overall latency gain. Staging restoration passed independent checks.
+Console setup now overlaps its environment read with API-key authentication and
+the required usage update. Local verification passed. This change preserves the
+call count and has no hosted latency result yet. See the
+[setup overlap record](evidence/refactor-155f-setup-overlap.md).
 
 ## Objective and ownership
 
@@ -386,15 +390,22 @@ evidence. It is not the control for attributing gains to these server changes.
 
 - [ ] Combine each Console operation's deployment check with its required data
   read or conditional write. Evaluate the check in the transaction it protects.
-- [ ] Examine registration setup's API-key and environment operations.
+- [x] Examine registration setup's API-key and environment operations.
   Batch independent reads and required writes. Classify the API-key update before
   moving it: authentication, quota, and usage-accounting semantics must remain explicit.
   `authenticatePublishableKey` in private `packages/console-server-ts/src/apiKeys/d1.ts`
   reads the credential, validates it, then awaits `recordApiKeyUse` before the public
   registration-context resolver loads the environment. For this call, the update
   records `last_used_at_ms` and `updated_at_ms`; endpoint counting is disabled.
-  It consumes no signing budget or quota. Evaluate a shared batch or overlap with
-  environment loading. Preserve credential validation and the required update.
+  It consumes no signing budget or quota. Private `ba2aa5d` starts the environment
+  read using the admitted deployment's tenant scope while authentication runs.
+  It awaits both results and preserves the usage update. The authenticated
+  credential must match that scope before reservation. The existing context
+  builder still validates the exact active environment. The Console E2E verifies
+  the overlap, key changes, scope rejection, and failure handling. Three composed
+  browser scenarios also pass. Setup still uses five D1 calls. The change removes
+  a serial dependency; hosted latency remains unmeasured.
+  [Implementation and evidence](evidence/refactor-155f-setup-overlap.md).
 - [x] Combine the lineage reads if one query or batch preserves their meaning.
   Preserve the current restore and revocation checks.
   The October 11 local comparison confirms **two calls become one batch**.
