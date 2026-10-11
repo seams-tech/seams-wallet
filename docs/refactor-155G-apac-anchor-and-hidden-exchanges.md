@@ -201,13 +201,27 @@ Four facts for the next move:
   spends one quota use and expires with its 120 s lease; no release was added.
   The specification and the contract test changed in the same commit. Done for
   NEP-413 messages; the record below holds the design and the measurement.
-- [ ] Extend the early prepare to transactions. A warm-session transaction
-  resolves its confirmed context and reserves its nonce leases after the
-  confirmation (`resolveConfirmedNearTransactionContext`), and the signing
-  digest needs that nonce and block hash. An early prepare therefore moves the
-  nonce reservation ahead of the confirmation and must release the leases on a
-  decline, beside the durable lease recovery and the funding step that the
-  dialog owns. Design that order first; do not bolt the request on.
+- [ ] Extend the early prepare to transactions. The design below replaces an
+  earlier note that said the nonce reservation follows the confirmation. That
+  is true only for an unfunded implicit account.
+  - The confirmation flow already reserves the NEAR context when the dialog
+    opens (`fetchNearContext` in `handleTransactionSigningFlow`), keeps the
+    leases in the confirm session, and releases them on a decline. A funded
+    account therefore has its nonce and block hash while the dialog is open.
+  - Add one observer to the transaction confirm request. The confirm flow
+    calls it with the `context_ready` readiness as soon as the context is
+    reserved. The request already carries a progress callback and a readiness
+    promise, so this crosses no new boundary.
+  - On that call, a warm-session flow with one transaction builds the unsigned
+    transaction from the reserved context, builds the prepare request with the
+    display digest it expects, and sends it. The signature uses the answer after
+    the confirmation only when the display digest and the signing digest both
+    match the confirmed values. Any difference sends a new prepare, as today.
+  - No early prepare for a step-up signature, for an account that needs
+    funding, or for a batch of several transactions.
+  - A decline needs no new code: the confirm session releases the leases, and
+    the prepare expires with its lease, as for messages.
+  - The specification and a contract case that asserts the order change with it.
 - [ ] Extend the early prepare to delegate actions. Their signing digest and
   their display digest (`computeUiIntentDigestFromTxs` over the receiver and
   the ordered actions) both exist before the dialog, so the NEP-413 mechanism
