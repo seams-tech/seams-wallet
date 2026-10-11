@@ -38,7 +38,7 @@ export const useDeviceLinking = (options: UseDeviceLinkingOptions): UseDeviceLin
     async (qrData: QrLinkedDeviceSessionPayloadV5, _source: QRScanMode) => {
       const { onError, onClose, onEvent, onEmailOtpBaseFactorRequired } = callbacksRef.current;
       try {
-        await seams.devices.scanAndLinkDevice(qrData, {
+        await seams.devices.approveLinking(qrData, {
           onEvent,
           onEmailOtpBaseFactorRequired,
         });

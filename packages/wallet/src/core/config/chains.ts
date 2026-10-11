@@ -1,7 +1,5 @@
 import { toTrimmedString } from '@shared/utils/validation';
 import type {
-  SeamsChainConfig,
-  SeamsChainConfigInput,
   SeamsChainFamily,
   SeamsChainNetwork,
   SeamsEvmChainNetwork,
@@ -131,22 +129,4 @@ export function resolveExplorerUrlForChainFamily(args: {
   }
 
   return resolvePrimaryExplorerUrl(chains, args.family);
-}
-
-export function cloneChainConfig(
-  chain: SeamsChainConfig | SeamsChainConfigInput,
-): SeamsChainConfigInput {
-  const maybeChainId = 'chainId' in chain ? chain.chainId : undefined;
-  return {
-    ...chain,
-    ...(typeof maybeChainId === 'number' ? { chainId: maybeChainId } : {}),
-  };
-}
-
-export function cloneResolvedChainConfig(chain: SeamsChainConfig): SeamsChainConfig {
-  const maybeChainId = 'chainId' in chain ? chain.chainId : undefined;
-  return {
-    ...chain,
-    ...(typeof maybeChainId === 'number' ? { chainId: maybeChainId } : {}),
-  };
 }

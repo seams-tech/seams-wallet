@@ -1,0 +1,1348 @@
+{
+  "date": "2026-10-06",
+  "timezone": "Asia/Tokyo",
+  "measurement": {
+    "kind": "consecutive_mpc_signing_measurement_v1",
+    "scope": "Native NRT browser, APAC wallet. Three consecutive Tempo signatures after each of three unlocks per cohort. No deliberate pool warm-up or prefill wait. Automated confirmation and transaction assembly included. Blockchain broadcast and confirmation excluded.",
+    "historicalComparison": "October 5 session-validation cohort. This measures all later changes together; it does not isolate the Console lookup change.",
+    "cohorts": {
+      "historical": {
+        "fullSdk": {
+          "count": 9,
+          "medianMs": 5212.060000002384,
+          "minMs": 3138.539999961853,
+          "maxMs": 6004.735000014305
+        },
+        "allVerified": true,
+        "stages": {
+          "material_queue": {
+            "count": 9,
+            "medianMs": 0.09999996423721313,
+            "minMs": 0,
+            "maxMs": 0.10000002384185791
+          },
+          "material_authorization": {
+            "count": 9,
+            "medianMs": 325.60000002384186,
+            "minMs": 299.69999998807907,
+            "maxMs": 736.8999999761581
+          },
+          "material_load": {
+            "count": 9,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0.10000002384185791
+          },
+          "public_key_validation": {
+            "count": 12,
+            "medianMs": 0.30000001192092896,
+            "minMs": 0.19999998807907104,
+            "maxMs": 3.900000035762787
+          },
+          "pool_lookup": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0.10000002384185791
+          },
+          "presignature_reserve": {
+            "count": 12,
+            "medianMs": 1.5,
+            "minMs": 0.09999996423721313,
+            "maxMs": 2.600000023841858
+          },
+          "prepare": {
+            "count": 9,
+            "medianMs": 889.5,
+            "minMs": 816.6000000238419,
+            "maxMs": 1046.3999999761581
+          },
+          "presignature_commit": {
+            "count": 9,
+            "medianMs": 0.10000002384185791,
+            "minMs": 0.09999996423721313,
+            "maxMs": 0.30000001192092896
+          },
+          "client_share": {
+            "count": 9,
+            "medianMs": 0.6000000238418579,
+            "minMs": 0.3999999761581421,
+            "maxMs": 4.899999976158142
+          },
+          "finalize": {
+            "count": 9,
+            "medianMs": 1201.300000011921,
+            "minMs": 1067.7999999523163,
+            "maxMs": 1365.5
+          },
+          "signature_verify": {
+            "count": 9,
+            "medianMs": 7.5,
+            "minMs": 6.300000011920929,
+            "maxMs": 10.700000047683716
+          },
+          "sign_total": {
+            "count": 9,
+            "medianMs": 3884.600000023842,
+            "minMs": 2233.5,
+            "maxMs": 5117.199999988079
+          },
+          "transaction_assembly": {
+            "count": 9,
+            "medianMs": 0.800000011920929,
+            "minMs": 0.699999988079071,
+            "maxMs": 2.199999988079071
+          },
+          "commit_total": {
+            "count": 9,
+            "medianMs": 4204.099999964237,
+            "minMs": 2549.800000011921,
+            "maxMs": 5447
+          },
+          "public_sdk_call": {
+            "count": 9,
+            "medianMs": 5212.060000002384,
+            "minMs": 3138.539999961853,
+            "maxMs": 6004.735000014305
+          },
+          "pool_restore": {
+            "count": 8,
+            "medianMs": 0.3499999940395355,
+            "minMs": 0.30000001192092896,
+            "maxMs": 0.800000011920929
+          },
+          "refill_wait": {
+            "count": 8,
+            "medianMs": 1813.0999999940395,
+            "minMs": 685.1999999880791,
+            "maxMs": 2950.099999964237
+          }
+        },
+        "refillAffectedSamples": 8,
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 1813.0999999940395,
+          "minMs": 685.1999999880791,
+          "maxMs": 2950.099999964237
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1801.800000011921,
+          "minMs": 0,
+          "maxMs": 2950.099999964237
+        },
+        "firstAfterUnlock": {
+          "count": 3,
+          "medianMs": 5212.060000002384,
+          "minMs": 3138.539999961853,
+          "maxMs": 5216.610000014305
+        },
+        "laterInBatch": {
+          "count": 6,
+          "medianMs": 5267.707500010729,
+          "minMs": 4022.685000002384,
+          "maxMs": 6004.735000014305
+        },
+        "gateway": {
+          "prepare": {
+            "wallet_gateway_total": {
+              "count": 9,
+              "medianMs": 786.0,
+              "minMs": 727.0,
+              "maxMs": 854.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 9,
+              "medianMs": 521.0,
+              "minMs": 467.0,
+              "maxMs": 586.0
+            },
+            "ecdsa_sign_total": {
+              "count": 9,
+              "medianMs": 603.0,
+              "minMs": 526.0,
+              "maxMs": 659.0
+            }
+          },
+          "finalize": {
+            "wallet_gateway_total": {
+              "count": 9,
+              "medianMs": 1045.0,
+              "minMs": 977.0,
+              "maxMs": 1213.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 9,
+              "medianMs": 786.0,
+              "minMs": 745.0,
+              "maxMs": 944.0
+            },
+            "ecdsa_sign_total": {
+              "count": 9,
+              "medianMs": 865.0,
+              "minMs": 815.0,
+              "maxMs": 1018.0
+            }
+          }
+        },
+        "observations": [
+          {
+            "batch": 0,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 3138.539999961853,
+            "refillWaitMs": 0,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 0,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 4919.564999997616,
+            "refillWaitMs": 1042.8999999761581,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 0,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 5676.814999997616,
+            "refillWaitMs": 2337.300000011921,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 1,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 5216.610000014305,
+            "refillWaitMs": 1801.800000011921,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 1,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 5615.850000023842,
+            "refillWaitMs": 2610.399999976158,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 1,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 4434.254999995232,
+            "refillWaitMs": 1417.7000000476837,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 2,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 5212.060000002384,
+            "refillWaitMs": 1824.3999999761581,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 2,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 6004.735000014305,
+            "refillWaitMs": 2950.099999964237,
+            "browserStatusRequests": 2
+          },
+          {
+            "batch": 2,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 4022.685000002384,
+            "refillWaitMs": 685.1999999880791,
+            "browserStatusRequests": 2
+          }
+        ],
+        "completed": true,
+        "artifactSha256": "f7b85ff6403d7b117f78dd7f383eb6beb195fd8602f2355eb131435a20f19bc0",
+        "prefillWaits": []
+      },
+      "run-1": {
+        "fullSdk": {
+          "count": 9,
+          "medianMs": 3705.9099999666214,
+          "minMs": 1961.5349999666214,
+          "maxMs": 7163.675000011921
+        },
+        "allVerified": true,
+        "stages": {
+          "material_queue": {
+            "count": 9,
+            "medianMs": 0.09999996423721313,
+            "minMs": 0,
+            "maxMs": 0.19999998807907104
+          },
+          "material_authorization": {
+            "count": 9,
+            "medianMs": 217.4000000357628,
+            "minMs": 197.60000002384186,
+            "maxMs": 257
+          },
+          "material_load": {
+            "count": 9,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0.10000002384185791
+          },
+          "public_key_validation": {
+            "count": 12,
+            "medianMs": 0.30000001192092896,
+            "minMs": 0.19999998807907104,
+            "maxMs": 3.699999988079071
+          },
+          "pool_lookup": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0.09999996423721313
+          },
+          "presignature_reserve": {
+            "count": 12,
+            "medianMs": 1.7000000178813934,
+            "minMs": 0,
+            "maxMs": 2.699999988079071
+          },
+          "prepare": {
+            "count": 9,
+            "medianMs": 489.30000001192093,
+            "minMs": 452.19999998807907,
+            "maxMs": 689.3999999761581
+          },
+          "presignature_commit": {
+            "count": 9,
+            "medianMs": 0.19999998807907104,
+            "minMs": 0,
+            "maxMs": 0.30000001192092896
+          },
+          "client_share": {
+            "count": 9,
+            "medianMs": 0.5,
+            "minMs": 0.3999999761581421,
+            "maxMs": 4.599999964237213
+          },
+          "finalize": {
+            "count": 9,
+            "medianMs": 523.6000000238419,
+            "minMs": 509.7999999523163,
+            "maxMs": 738.8999999761581
+          },
+          "signature_verify": {
+            "count": 9,
+            "medianMs": 7.799999952316284,
+            "minMs": 6.800000011920929,
+            "maxMs": 11
+          },
+          "sign_total": {
+            "count": 9,
+            "medianMs": 3153.199999988079,
+            "minMs": 1313.4000000357628,
+            "maxMs": 6529.400000035763
+          },
+          "transaction_assembly": {
+            "count": 9,
+            "medianMs": 1,
+            "minMs": 0.699999988079071,
+            "maxMs": 1.399999976158142
+          },
+          "commit_total": {
+            "count": 9,
+            "medianMs": 3388.899999976158,
+            "minMs": 1532.5,
+            "maxMs": 6730.300000011921
+          },
+          "public_sdk_call": {
+            "count": 9,
+            "medianMs": 3705.9099999666214,
+            "minMs": 1961.5349999666214,
+            "maxMs": 7163.675000011921
+          },
+          "pool_restore": {
+            "count": 8,
+            "medianMs": 0.3499999940395355,
+            "minMs": 0.30000001192092896,
+            "maxMs": 0.5
+          },
+          "refill_wait": {
+            "count": 8,
+            "medianMs": 2071.1500000059605,
+            "minMs": 440.30000001192093,
+            "maxMs": 5532
+          }
+        },
+        "refillAffectedSamples": 8,
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 2071.1500000059605,
+          "minMs": 440.30000001192093,
+          "maxMs": 5532
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1995.300000011921,
+          "minMs": 0,
+          "maxMs": 5532
+        },
+        "firstAfterUnlock": {
+          "count": 3,
+          "medianMs": 3729.539999961853,
+          "minMs": 2163.024999976158,
+          "maxMs": 4538.709999978542
+        },
+        "laterInBatch": {
+          "count": 6,
+          "medianMs": 3315.327499985695,
+          "minMs": 1961.5349999666214,
+          "maxMs": 7163.675000011921
+        },
+        "gateway": {
+          "prepare": {
+            "wallet_gateway_total": {
+              "count": 9,
+              "medianMs": 400.0,
+              "minMs": 367.0,
+              "maxMs": 605.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 9,
+              "medianMs": 220.0,
+              "minMs": 215.0,
+              "maxMs": 436.0
+            },
+            "ecdsa_sign_total": {
+              "count": 9,
+              "medianMs": 291.0,
+              "minMs": 276.0,
+              "maxMs": 513.0
+            }
+          },
+          "finalize": {
+            "wallet_gateway_total": {
+              "count": 9,
+              "medianMs": 432.0,
+              "minMs": 426.0,
+              "maxMs": 649.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 9,
+              "medianMs": 268.0,
+              "minMs": 249.0,
+              "maxMs": 481.0
+            },
+            "ecdsa_sign_total": {
+              "count": 9,
+              "medianMs": 342.0,
+              "minMs": 326.0,
+              "maxMs": 556.0
+            }
+          }
+        },
+        "observations": [
+          {
+            "batch": 0,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 2163.024999976158,
+            "refillWaitMs": 0,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 0,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 1961.5349999666214,
+            "refillWaitMs": 440.30000001192093,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 0,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 7163.675000011921,
+            "refillWaitMs": 5532,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 1,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 3729.539999961853,
+            "refillWaitMs": 2147,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 1,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 4073.6449999809265,
+            "refillWaitMs": 2512.7000000476837,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 1,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 2924.7450000047684,
+            "refillWaitMs": 743.8999999761581,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 2,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 4538.709999978542,
+            "refillWaitMs": 2620.900000035763,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 2,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 3705.9099999666214,
+            "refillWaitMs": 1995.300000011921,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 2,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 2210.7799999713898,
+            "refillWaitMs": 586.3999999761581,
+            "browserStatusRequests": 1
+          }
+        ],
+        "completed": true,
+        "artifactSha256": "70306684cbb65a81367cb9dc18e37bf914fc13408088068a6865343cddfadd26",
+        "prefillWaits": []
+      },
+      "run-2": {
+        "fullSdk": {
+          "count": 9,
+          "medianMs": 3197.5949999690056,
+          "minMs": 1964.9350000023842,
+          "maxMs": 4328.420000016689
+        },
+        "allVerified": true,
+        "stages": {
+          "material_queue": {
+            "count": 9,
+            "medianMs": 0.09999996423721313,
+            "minMs": 0,
+            "maxMs": 0.5
+          },
+          "material_authorization": {
+            "count": 9,
+            "medianMs": 212,
+            "minMs": 189.4000000357628,
+            "maxMs": 274.0999999642372
+          },
+          "material_load": {
+            "count": 9,
+            "medianMs": 0,
+            "minMs": 0,
+            "maxMs": 0
+          },
+          "public_key_validation": {
+            "count": 12,
+            "medianMs": 0.30000001192092896,
+            "minMs": 0.19999998807907104,
+            "maxMs": 4
+          },
+          "pool_lookup": {
+            "count": 12,
+            "medianMs": 0.0,
+            "minMs": 0,
+            "maxMs": 0.10000002384185791
+          },
+          "presignature_reserve": {
+            "count": 12,
+            "medianMs": 1.75,
+            "minMs": 0,
+            "maxMs": 2.800000011920929
+          },
+          "prepare": {
+            "count": 9,
+            "medianMs": 488.30000001192093,
+            "minMs": 426.5,
+            "maxMs": 604.9000000357628
+          },
+          "presignature_commit": {
+            "count": 9,
+            "medianMs": 0.10000002384185791,
+            "minMs": 0.09999996423721313,
+            "maxMs": 0.19999998807907104
+          },
+          "client_share": {
+            "count": 9,
+            "medianMs": 0.6000000238418579,
+            "minMs": 0.30000001192092896,
+            "maxMs": 4.5
+          },
+          "finalize": {
+            "count": 9,
+            "medianMs": 519.1000000238419,
+            "minMs": 504.19999998807907,
+            "maxMs": 692.8000000119209
+          },
+          "signature_verify": {
+            "count": 9,
+            "medianMs": 7.600000023841858,
+            "minMs": 7,
+            "maxMs": 12
+          },
+          "sign_total": {
+            "count": 9,
+            "medianMs": 2666,
+            "minMs": 1046.5,
+            "maxMs": 3801.5
+          },
+          "transaction_assembly": {
+            "count": 9,
+            "medianMs": 0.800000011920929,
+            "minMs": 0.5999999642372131,
+            "maxMs": 1.199999988079071
+          },
+          "commit_total": {
+            "count": 9,
+            "medianMs": 2881.699999988079,
+            "minMs": 1260.800000011921,
+            "maxMs": 4002
+          },
+          "public_sdk_call": {
+            "count": 9,
+            "medianMs": 3197.5949999690056,
+            "minMs": 1964.9350000023842,
+            "maxMs": 4328.420000016689
+          },
+          "pool_restore": {
+            "count": 8,
+            "medianMs": 0.30000001192092896,
+            "minMs": 0.2999999523162842,
+            "maxMs": 0.40000003576278687
+          },
+          "refill_wait": {
+            "count": 8,
+            "medianMs": 1728.6500000059605,
+            "minMs": 721.3999999761581,
+            "maxMs": 2783.400000035763
+          }
+        },
+        "refillAffectedSamples": 8,
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 1728.6500000059605,
+          "minMs": 721.3999999761581,
+          "maxMs": 2783.400000035763
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1534.300000011921,
+          "minMs": 0,
+          "maxMs": 2783.400000035763
+        },
+        "firstAfterUnlock": {
+          "count": 3,
+          "medianMs": 2368.3949999809265,
+          "minMs": 1964.9350000023842,
+          "maxMs": 3862.7550000548363
+        },
+        "laterInBatch": {
+          "count": 6,
+          "medianMs": 3410.5499999821186,
+          "minMs": 2892.689999997616,
+          "maxMs": 4328.420000016689
+        },
+        "gateway": {
+          "prepare": {
+            "wallet_gateway_total": {
+              "count": 9,
+              "medianMs": 381.0,
+              "minMs": 346.0,
+              "maxMs": 421.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 9,
+              "medianMs": 211.0,
+              "minMs": 192.0,
+              "maxMs": 228.0
+            },
+            "ecdsa_sign_total": {
+              "count": 9,
+              "medianMs": 280.0,
+              "minMs": 257.0,
+              "maxMs": 312.0
+            }
+          },
+          "finalize": {
+            "wallet_gateway_total": {
+              "count": 9,
+              "medianMs": 432.0,
+              "minMs": 391.0,
+              "maxMs": 559.0
+            },
+            "ecdsa_sign_proxy": {
+              "count": 9,
+              "medianMs": 260.0,
+              "minMs": 241.0,
+              "maxMs": 282.0
+            },
+            "ecdsa_sign_total": {
+              "count": 9,
+              "medianMs": 341.0,
+              "minMs": 312.0,
+              "maxMs": 358.0
+            }
+          }
+        },
+        "observations": [
+          {
+            "batch": 0,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 1964.9350000023842,
+            "refillWaitMs": 0,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 0,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 3197.5949999690056,
+            "refillWaitMs": 1534.300000011921,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 0,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 4001.229999959469,
+            "refillWaitMs": 1923,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 1,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 3862.7550000548363,
+            "refillWaitMs": 2013.699999988079,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 1,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 3623.5049999952316,
+            "refillWaitMs": 2104.699999988079,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 1,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 2892.689999997616,
+            "refillWaitMs": 1128.699999988079,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 2,
+            "index": 0,
+            "verified": true,
+            "fullSdkMs": 2368.3949999809265,
+            "refillWaitMs": 721.3999999761581,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 2,
+            "index": 1,
+            "verified": true,
+            "fullSdkMs": 4328.420000016689,
+            "refillWaitMs": 2783.400000035763,
+            "browserStatusRequests": 1
+          },
+          {
+            "batch": 2,
+            "index": 2,
+            "verified": true,
+            "fullSdkMs": 2907.350000023842,
+            "refillWaitMs": 1215.1000000238419,
+            "browserStatusRequests": 1
+          }
+        ],
+        "completed": true,
+        "artifactSha256": "8933176d91003934c8dabcec41b01c97ec3579be6694f08dacade3e11502b189",
+        "prefillWaits": []
+      }
+    },
+    "combinedCurrent": {
+      "fullSdk": {
+        "count": 18,
+        "medianMs": 3410.5499999821186,
+        "minMs": 1961.5349999666214,
+        "maxMs": 7163.675000011921
+      },
+      "allVerified": true,
+      "stages": {
+        "material_queue": {
+          "count": 18,
+          "medianMs": 0.09999996423721313,
+          "minMs": 0,
+          "maxMs": 0.5
+        },
+        "material_authorization": {
+          "count": 18,
+          "medianMs": 215.90000000596046,
+          "minMs": 189.4000000357628,
+          "maxMs": 274.0999999642372
+        },
+        "material_load": {
+          "count": 18,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0.10000002384185791
+        },
+        "public_key_validation": {
+          "count": 24,
+          "medianMs": 0.30000001192092896,
+          "minMs": 0.19999998807907104,
+          "maxMs": 4
+        },
+        "pool_lookup": {
+          "count": 24,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0.10000002384185791
+        },
+        "presignature_reserve": {
+          "count": 24,
+          "medianMs": 1.7000000178813934,
+          "minMs": 0,
+          "maxMs": 2.800000011920929
+        },
+        "prepare": {
+          "count": 18,
+          "medianMs": 488.69999998807907,
+          "minMs": 426.5,
+          "maxMs": 689.3999999761581
+        },
+        "presignature_commit": {
+          "count": 18,
+          "medianMs": 0.15000000596046448,
+          "minMs": 0,
+          "maxMs": 0.30000001192092896
+        },
+        "client_share": {
+          "count": 18,
+          "medianMs": 0.5999999642372131,
+          "minMs": 0.30000001192092896,
+          "maxMs": 4.599999964237213
+        },
+        "finalize": {
+          "count": 18,
+          "medianMs": 522.7000000178814,
+          "minMs": 504.19999998807907,
+          "maxMs": 738.8999999761581
+        },
+        "signature_verify": {
+          "count": 18,
+          "medianMs": 7.6500000059604645,
+          "minMs": 6.800000011920929,
+          "maxMs": 12
+        },
+        "sign_total": {
+          "count": 18,
+          "medianMs": 2851.0999999940395,
+          "minMs": 1046.5,
+          "maxMs": 6529.400000035763
+        },
+        "transaction_assembly": {
+          "count": 18,
+          "medianMs": 0.9000000059604645,
+          "minMs": 0.5999999642372131,
+          "maxMs": 1.399999976158142
+        },
+        "commit_total": {
+          "count": 18,
+          "medianMs": 3068.75,
+          "minMs": 1260.800000011921,
+          "maxMs": 6730.300000011921
+        },
+        "public_sdk_call": {
+          "count": 18,
+          "medianMs": 3410.5499999821186,
+          "minMs": 1961.5349999666214,
+          "maxMs": 7163.675000011921
+        },
+        "pool_restore": {
+          "count": 16,
+          "medianMs": 0.30000001192092896,
+          "minMs": 0.2999999523162842,
+          "maxMs": 0.5
+        },
+        "refill_wait": {
+          "count": 16,
+          "medianMs": 1959.1500000059605,
+          "minMs": 440.30000001192093,
+          "maxMs": 5532
+        }
+      },
+      "refillAffectedSamples": 16,
+      "refillWaitAffected": {
+        "count": 16,
+        "medianMs": 1959.1500000059605,
+        "minMs": 440.30000001192093,
+        "maxMs": 5532
+      },
+      "refillWaitAll": {
+        "count": 18,
+        "medianMs": 1728.6500000059605,
+        "minMs": 0,
+        "maxMs": 5532
+      },
+      "firstAfterUnlock": {
+        "count": 6,
+        "medianMs": 3048.9674999713898,
+        "minMs": 1964.9350000023842,
+        "maxMs": 4538.709999978542
+      },
+      "laterInBatch": {
+        "count": 12,
+        "medianMs": 3410.5499999821186,
+        "minMs": 1961.5349999666214,
+        "maxMs": 7163.675000011921
+      },
+      "gateway": {
+        "prepare": {
+          "wallet_gateway_total": {
+            "count": 18,
+            "medianMs": 385.5,
+            "minMs": 346.0,
+            "maxMs": 605.0
+          },
+          "ecdsa_sign_proxy": {
+            "count": 18,
+            "medianMs": 218.0,
+            "minMs": 192.0,
+            "maxMs": 436.0
+          },
+          "ecdsa_sign_total": {
+            "count": 18,
+            "medianMs": 288.0,
+            "minMs": 257.0,
+            "maxMs": 513.0
+          }
+        },
+        "finalize": {
+          "wallet_gateway_total": {
+            "count": 18,
+            "medianMs": 432.0,
+            "minMs": 391.0,
+            "maxMs": 649.0
+          },
+          "ecdsa_sign_proxy": {
+            "count": 18,
+            "medianMs": 264.0,
+            "minMs": 241.0,
+            "maxMs": 481.0
+          },
+          "ecdsa_sign_total": {
+            "count": 18,
+            "medianMs": 341.5,
+            "minMs": 312.0,
+            "maxMs": 556.0
+          }
+        }
+      },
+      "observations": [
+        {
+          "batch": 0,
+          "index": 0,
+          "verified": true,
+          "fullSdkMs": 2163.024999976158,
+          "refillWaitMs": 0,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "verified": true,
+          "fullSdkMs": 1961.5349999666214,
+          "refillWaitMs": 440.30000001192093,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "verified": true,
+          "fullSdkMs": 7163.675000011921,
+          "refillWaitMs": 5532,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "verified": true,
+          "fullSdkMs": 3729.539999961853,
+          "refillWaitMs": 2147,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "verified": true,
+          "fullSdkMs": 4073.6449999809265,
+          "refillWaitMs": 2512.7000000476837,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "verified": true,
+          "fullSdkMs": 2924.7450000047684,
+          "refillWaitMs": 743.8999999761581,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "verified": true,
+          "fullSdkMs": 4538.709999978542,
+          "refillWaitMs": 2620.900000035763,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "verified": true,
+          "fullSdkMs": 3705.9099999666214,
+          "refillWaitMs": 1995.300000011921,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "verified": true,
+          "fullSdkMs": 2210.7799999713898,
+          "refillWaitMs": 586.3999999761581,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 0,
+          "index": 0,
+          "verified": true,
+          "fullSdkMs": 1964.9350000023842,
+          "refillWaitMs": 0,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 0,
+          "index": 1,
+          "verified": true,
+          "fullSdkMs": 3197.5949999690056,
+          "refillWaitMs": 1534.300000011921,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 0,
+          "index": 2,
+          "verified": true,
+          "fullSdkMs": 4001.229999959469,
+          "refillWaitMs": 1923,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 1,
+          "index": 0,
+          "verified": true,
+          "fullSdkMs": 3862.7550000548363,
+          "refillWaitMs": 2013.699999988079,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 1,
+          "index": 1,
+          "verified": true,
+          "fullSdkMs": 3623.5049999952316,
+          "refillWaitMs": 2104.699999988079,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 1,
+          "index": 2,
+          "verified": true,
+          "fullSdkMs": 2892.689999997616,
+          "refillWaitMs": 1128.699999988079,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 2,
+          "index": 0,
+          "verified": true,
+          "fullSdkMs": 2368.3949999809265,
+          "refillWaitMs": 721.3999999761581,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 2,
+          "index": 1,
+          "verified": true,
+          "fullSdkMs": 4328.420000016689,
+          "refillWaitMs": 2783.400000035763,
+          "browserStatusRequests": 1
+        },
+        {
+          "batch": 2,
+          "index": 2,
+          "verified": true,
+          "fullSdkMs": 2907.350000023842,
+          "refillWaitMs": 1215.1000000238419,
+          "browserStatusRequests": 1
+        }
+      ]
+    },
+    "limitations": "Small sequential cohorts, UI automation has settlement time between calls, no p95 or latency guarantee. Stage durations overlap and medians are not additive."
+  },
+  "deployedVersionsBeforeAndAfter": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "versionsUnchanged": true,
+  "source": {
+    "privateCheckoutCommit": "4700e3b0cc8b5ee2e9b4122e3f8c1d2b72e5dac0",
+    "test": {
+      "path": "tests/e2e/hosted-product/mpc-signing-latency.test.ts",
+      "sha256": "51467f575d21946980a2956e4e8d5d6f0b20507e7f6eddebebf947b262948aae"
+    },
+    "priorSourceEvidence": "r152-gateway-console-20261006.json",
+    "frozenBrowserAssets": ".artifacts/mpc-finalize-20261005/candidate-site",
+    "fullSourceManifestSha256": "d85d6d01e9369742d5daaf232455a9ee8865686524243659afcb7b43c8203537"
+  },
+  "worstCase": {
+    "fullSdkMs": 7163.675000011921,
+    "stages": [
+      {
+        "stage": "material_queue",
+        "durationMs": 0,
+        "receivedOffsetMs": 503.04533399999855
+      },
+      {
+        "stage": "material_authorization",
+        "durationMs": 197.60000002384186,
+        "receivedOffsetMs": 700.3522499999999
+      },
+      {
+        "stage": "material_load",
+        "durationMs": 0,
+        "receivedOffsetMs": 700.4447919999984
+      },
+      {
+        "stage": "public_key_validation",
+        "durationMs": 0.3999999761581421,
+        "receivedOffsetMs": 700.7497919999987
+      },
+      {
+        "stage": "pool_lookup",
+        "durationMs": 0,
+        "receivedOffsetMs": 700.861667000001
+      },
+      {
+        "stage": "presignature_reserve",
+        "durationMs": 0.10000002384185791,
+        "receivedOffsetMs": 700.9980839999989
+      },
+      {
+        "stage": "public_key_validation",
+        "durationMs": 0.2999999523162842,
+        "receivedOffsetMs": 701.3045839999977
+      },
+      {
+        "stage": "pool_lookup",
+        "durationMs": 0,
+        "receivedOffsetMs": 701.401084000001
+      },
+      {
+        "stage": "pool_restore",
+        "durationMs": 0.30000001192092896,
+        "receivedOffsetMs": 701.7690839999996
+      },
+      {
+        "stage": "refill_wait",
+        "durationMs": 5532,
+        "receivedOffsetMs": 6233.901750000001
+      },
+      {
+        "stage": "presignature_reserve",
+        "durationMs": 1.699999988079071,
+        "receivedOffsetMs": 6235.541459
+      },
+      {
+        "stage": "prepare",
+        "durationMs": 463.60000002384186,
+        "receivedOffsetMs": 6699.241666999998
+      },
+      {
+        "stage": "presignature_commit",
+        "durationMs": 0.09999996423721313,
+        "receivedOffsetMs": 6700.041709000001
+      },
+      {
+        "stage": "client_share",
+        "durationMs": 0.5,
+        "receivedOffsetMs": 6700.097333999998
+      },
+      {
+        "stage": "finalize",
+        "durationMs": 521.8000000119209,
+        "receivedOffsetMs": 7221.8475
+      },
+      {
+        "stage": "signature_verify",
+        "durationMs": 6.800000011920929,
+        "receivedOffsetMs": 7228.606374999999
+      },
+      {
+        "stage": "sign_total",
+        "durationMs": 6529.400000035763,
+        "receivedOffsetMs": 7229.760875
+      },
+      {
+        "stage": "transaction_assembly",
+        "durationMs": 1,
+        "receivedOffsetMs": 7230.691999999999
+      },
+      {
+        "stage": "commit_total",
+        "durationMs": 6730.300000011921,
+        "receivedOffsetMs": 7230.702916999999
+      },
+      {
+        "stage": "public_sdk_call",
+        "durationMs": 7163.675000011921,
+        "receivedOffsetMs": 7231.709999999999
+      }
+    ],
+    "requestTimings": [
+      {
+        "path": "/wallet/session/status",
+        "status": 200,
+        "serverTiming": "wallet_console_binding_d1;dur=9.000, wallet_console_binding_sql;dur=0.315, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=81.0, wallet_gateway_total;dur=105.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=10.0, ecdsa_presign_material;dur=11.0, ecdsa_presign_proxy;dur=1004.0, ecdsa_presign_total;dur=1025.0, ecdsa_presign_sw_material;dur=47.0, ecdsa_presign_sw_session;dur=937.0, ecdsa_presign_sw_do_total;dur=0.0, ecdsa_presign_sw_total;dur=984.0, wallet_console_binding_d1;dur=11.000, wallet_console_binding_sql;dur=0.646, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=90.0, wallet_gateway_total;dur=1115.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=12.0, ecdsa_presign_material;dur=19.0, ecdsa_presign_proxy;dur=81.0, ecdsa_presign_total;dur=112.0, ecdsa_presign_sw_session;dur=71.0, ecdsa_presign_sw_do_total;dur=0.0, ecdsa_presign_sw_total;dur=71.0, wallet_console_binding_d1;dur=12.000, wallet_console_binding_sql;dur=0.493, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=86.0, wallet_gateway_total;dur=198.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=8.0, ecdsa_presign_material;dur=9.0, ecdsa_presign_proxy;dur=24.0, ecdsa_presign_total;dur=41.0, ecdsa_presign_sw_session;dur=16.0, ecdsa_presign_sw_do_total;dur=0.0, ecdsa_presign_sw_total;dur=16.0, wallet_console_binding_d1;dur=13.000, wallet_console_binding_sql;dur=0.453, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=96.0, wallet_gateway_total;dur=137.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=13.0, ecdsa_presign_material;dur=18.0, ecdsa_presign_proxy;dur=376.0, ecdsa_presign_total;dur=407.0, ecdsa_presign_sw_session;dur=359.0, ecdsa_presign_sw_do_total;dur=1.0, ecdsa_presign_sw_total;dur=359.0, wallet_console_binding_d1;dur=17.000, wallet_console_binding_sql;dur=0.839, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=92.0, wallet_gateway_total;dur=499.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=11.0, ecdsa_presign_material;dur=10.0, ecdsa_presign_proxy;dur=3519.0, ecdsa_presign_total;dur=3540.0, ecdsa_presign_sw_session;dur=3502.0, ecdsa_presign_sw_do_total;dur=0.0, ecdsa_presign_sw_total;dur=3502.0, wallet_console_binding_d1;dur=10.000, wallet_console_binding_sql;dur=0.472, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=86.0, wallet_gateway_total;dur=3626.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=17.0, ecdsa_presign_material;dur=10.0, ecdsa_presign_proxy;dur=173.0, ecdsa_presign_total;dur=200.0, ecdsa_presign_sw_session;dur=14.0, ecdsa_presign_sw_do_total;dur=0.0, ecdsa_presign_sw_admit;dur=134.0, ecdsa_presign_sw_total;dur=148.0, wallet_console_binding_d1;dur=17.000, wallet_console_binding_sql;dur=0.697, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=107.0, wallet_gateway_total;dur=307.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/sign/prepare",
+        "status": 200,
+        "serverTiming": "ecdsa_sign_authorize;dur=13.0, ecdsa_sign_admit;dur=56.0, ecdsa_sign_proxy;dur=217.0, ecdsa_sign_total;dur=286.0, wallet_console_binding_d1;dur=14.000, wallet_console_binding_sql;dur=0.507, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=98.0, wallet_gateway_total;dur=384.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/sign",
+        "status": 200,
+        "serverTiming": "ecdsa_sign_authorize;dur=15.0, ecdsa_sign_admit;dur=14.0, ecdsa_sign_proxy;dur=282.0, ecdsa_sign_complete;dur=47.0, ecdsa_sign_total;dur=358.0, wallet_console_binding_d1;dur=10.000, wallet_console_binding_sql;dur=0.837, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=75.0, wallet_gateway_total;dur=433.0, cfExtPri"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+        "status": 200,
+        "serverTiming": "ecdsa_presign_authenticate;dur=8.0, ecdsa_presign_material;dur=9.0, ecdsa_presign_proxy;dur=1064.0, ecdsa_presign_total;dur=1081.0, ecdsa_presign_sw_material;dur=54.0, ecdsa_presign_sw_session;dur=990.0, ecdsa_presign_sw_do_total;dur=0.0, ecdsa_presign_sw_total;dur=1044.0, wallet_console_binding_d1;dur=11.000, wallet_console_binding_sql;dur=0.407, wallet_console_binding_region;desc=\"APAC\", wallet_console_binding_primary;desc=\"true\", wallet_gateway_binding;dur=103.0, wallet_gateway_total;dur=1184.0, cfExtPri"
+      }
+    ]
+  },
+  "verification": {
+    "measuredSignatureCount": 18,
+    "allSignaturesVerified": true,
+    "bothConcurrentScenariosPassed": true,
+    "observedSigningWindowHttpStatuses": {
+      "200": 150
+    },
+    "observedRefillOutcomes": {
+      "available": 16
+    }
+  },
+  "privateArtifacts": ".artifacts/mpc-consecutive-20261006",
+  "deploymentChanges": false,
+  "newResources": false,
+  "reproduction": "Use tests/playwright.hosted-product.config.mjs with mpc-signing-latency.test.ts --grep back_to_back, saved SEAMS_HOSTED_PROJECTION, frozen SEAMS_HOSTED_CANDIDATE_SITE and SEAMS_WALLET_SERVER_CANDIDATE, SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1, and a new SEAMS_TEST_ARTIFACT_DIR. Repeat once sequentially."
+}

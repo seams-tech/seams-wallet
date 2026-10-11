@@ -1,3 +1,9 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { SignRequest, SignatureBytes } from '../../interfaces/signing';
+import type { EvmFamilyThresholdEcdsaOperation } from './thresholdAdmission';
+import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
+import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from '@shared/utils/routerAbEcdsaDerivation';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -26,10 +32,6 @@ import type {
   ExactEcdsaCapabilityRuntime,
   ExactEcdsaMaterialRuntime,
 } from '../../session/material/ecdsaSealedRuntime';
-import {
-  buildReadySecp256k1SigningMaterial,
-  type ReadySecp256k1SigningMaterial,
-} from './signers/secp256k1';
 import type {
   CanonicalEvmFamilyEcdsaSigningCapability,
   ExactEvmFamilyWalletSessionAuthorization,
@@ -49,6 +51,125 @@ async function hydrateEcdsaRoleLocalMaterialForSigning(args: {
     source: ecdsaRoleLocalPersistedMaterialSource(args.persistedMaterial),
     workerCtx: args.workerCtx,
   });
+}
+
+export type ReusableEcdsaSigningAuthorization = Extract<
+  RouterAbNormalSigningAuthorizationWire,
+  { readonly kind: 'reusable_wallet_session' }
+>;
+
+type ReusableEcdsaSigningCredential = {
+  readonly kind: 'reusable_wallet_session';
+  readonly ownershipGeneration: number;
+  readonly walletSessionToken: string;
+  readonly home: WalletSessionHome;
+};
+
+type OperationStepUpEcdsaSigningCredential = {
+  readonly kind: 'operation_step_up';
+  readonly ownershipGeneration: number;
+  readonly walletSessionToken: string;
+  readonly home: WalletSessionHome;
+};
+
+type ReadySecp256k1SigningMaterialBase = {
+  kind: 'ready_secp256k1_signing_material';
+  walletId: string;
+  signerSession: HydratedEcdsaSignerMaterial;
+  expiresAtMs: number;
+  singleUseEmailOtpSession: boolean;
+};
+
+export type ReadySecp256k1SigningMaterial =
+  | (ReadySecp256k1SigningMaterialBase & {
+      authorization: ReusableEcdsaSigningAuthorization;
+      credential: ReusableEcdsaSigningCredential;
+      operationStepUpPreparation?: never;
+    })
+  | (ReadySecp256k1SigningMaterialBase & {
+      authorization: Extract<
+        RouterAbNormalSigningAuthorizationWire,
+        { readonly kind: 'operation_step_up' }
+      >;
+      credential: OperationStepUpEcdsaSigningCredential;
+      operationStepUpPreparation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
+    });
+
+export type ReadySecp256k1Signer = {
+  readonly algorithm: 'secp256k1';
+  signReady: (
+    req: SignRequest,
+    material: ReadySecp256k1SigningMaterial,
+    operation: EvmFamilyThresholdEcdsaOperation,
+    operationDigests: OperationDigestSet,
+  ) => Promise<SignatureBytes>;
+};
+
+type BuildReadySecp256k1SigningMaterialInputBase = {
+  walletId: unknown;
+  expiresAtMs: number;
+  singleUseEmailOtpSession: boolean;
+  signerSession: HydratedEcdsaSignerMaterial;
+};
+
+export type BuildReadySecp256k1SigningMaterialInput =
+  | (BuildReadySecp256k1SigningMaterialInputBase & {
+      authorization: ReusableEcdsaSigningAuthorization;
+      credential: ReusableEcdsaSigningCredential;
+      operationStepUpPreparation?: never;
+    })
+  | (BuildReadySecp256k1SigningMaterialInputBase & {
+      authorization: Extract<
+        RouterAbNormalSigningAuthorizationWire,
+        { readonly kind: 'operation_step_up' }
+      >;
+      credential: OperationStepUpEcdsaSigningCredential;
+      operationStepUpPreparation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
+    });
+
+export function buildReadySecp256k1SigningMaterial(
+  args: BuildReadySecp256k1SigningMaterialInput,
+): ReadySecp256k1SigningMaterial {
+  const walletId = String(args.walletId || '').trim();
+  if (!walletId) {
+    throw new Error('[multichain] Missing wallet id for ready secp256k1 signing material');
+  }
+  const signerSession = args.signerSession;
+  if (walletId !== String(signerSession.walletId)) {
+    throw new Error('[multichain] ready secp256k1 material wallet identity mismatch');
+  }
+  const expiresAtMs = Math.floor(Number(args.expiresAtMs));
+  if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= Date.now()) {
+    throw new Error('[multichain] ready secp256k1 authorization expiry is invalid');
+  }
+  const base = {
+    kind: 'ready_secp256k1_signing_material',
+    walletId,
+    signerSession,
+    expiresAtMs,
+    singleUseEmailOtpSession: args.singleUseEmailOtpSession,
+  } as const;
+  switch (args.authorization.kind) {
+    case 'reusable_wallet_session': {
+      if (args.credential.kind !== 'reusable_wallet_session') {
+        throw new Error(
+          '[multichain] exact Wallet Session authorization requires its operation credential',
+        );
+      }
+      return { ...base, authorization: args.authorization, credential: args.credential };
+    }
+    case 'operation_step_up': {
+      if (!args.operationStepUpPreparation) {
+        throw new Error('[multichain] operation step-up preparation is required');
+      }
+      return {
+        ...base,
+        authorization: args.authorization,
+        credential: args.credential,
+        operationStepUpPreparation: args.operationStepUpPreparation,
+      };
+    }
+  }
 }
 
 export type ReadySecp256k1SigningMaterialResolution = ReadonlyExclusiveUnion<
@@ -240,6 +361,8 @@ export function attachExactEcdsaWalletSessionAuthorization(args: {
     credential: {
       kind: 'reusable_wallet_session',
       walletSessionToken: operationCredential.token,
+      home: operationCredential.home,
+      ownershipGeneration: operationCredential.ownershipGeneration,
     },
     expiresAtMs: session.expiresAtMs,
     singleUseEmailOtpSession: false,
@@ -327,6 +450,8 @@ export function buildActiveWalletAuthorityReadySecp256k1Material(args: {
     credential: {
       kind: 'reusable_wallet_session',
       walletSessionToken: operationCredential.token,
+      home: operationCredential.home,
+      ownershipGeneration: operationCredential.ownershipGeneration,
     },
     expiresAtMs: session.expiresAtMs,
     singleUseEmailOtpSession: false,

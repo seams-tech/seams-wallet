@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { NonceCoordinator } from '@/core/signingEngine/nonce/NonceCoordinator';
 import type { EmailOtpAuthorityUnlockEd25519Request } from '@/core/signingEngine/session/emailOtp/walletUnlock';
@@ -17,7 +18,6 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ProvisionWarmEd25519CapabilityResult } from '@/core/signingEngine/session/warmCapabilities/types';
-import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type {
   AvailableSigningLanes,
@@ -108,7 +108,6 @@ import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/
 import type { EcdsaBootstrapRequest } from '@/core/signingEngine/session/passkey/ecdsaBootstrap';
 import type { ConnectEd25519SessionArgs } from '@/core/signingEngine/session/passkey/public';
 import type { HydrateWarmSigningSessionInput } from '@/core/signingEngine/session/passkey/warmSessionHydration';
-import type { EmailOtpBootstrapRecovery } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/bootstrapRecovery';
 import type { LoginWithEmailOtpWalletCustodyEd25519Args } from '@/core/signingEngine/walletCustody/ed25519Login';
 import type { EmailOtpEd25519YaoRecoveryBootstrapV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
@@ -138,8 +137,6 @@ import type {
 import type { WalletCustodyCacheEnvelopeV1 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import type { WalletCustodyEd25519Projection } from '@/core/signingEngine/walletCustody/ed25519Projection';
 import type {
-  EnrollEmailOtpInternalArgs,
-  EnrollEmailOtpInternalResult,
   LoginWithEmailOtpEcdsaCapabilityInternalArgs,
   LoginWithEmailOtpEcdsaCapabilityInternalResult,
   PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs,
@@ -149,7 +146,6 @@ import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/
 import type { RegistrationCredentialConfirmationPayload } from '@/core/signingEngine/workerManager/validation';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
-import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import type {
   WarmSessionSealAndPersistResult,
   WarmSessionSealTransportInput,
@@ -375,7 +371,7 @@ export interface Ed25519YaoCapabilityActivationSurface {
  * Establish runs during successful owner registration and ordinary unlock,
  * where the passkey factor is already being presented, and only after the
  * owner Wallet Session named in the input is active. Destroy runs at lock,
- * logout, wallet switch, session retirement, and expiry. The linking flow only
+ * lock, wallet switch, session retirement, and expiry. The linking flow only
  * ever reads; it never establishes and never prompts.
  */
 export interface UnlockedEd25519ExportRootCapabilitySurface {
@@ -410,6 +406,7 @@ export interface WalletCustodyCeremonySurface {
   }): Promise<RecoveredWalletCustodyManifestV1>;
 
   establishWalletCustodyNearEd25519KeySet(args: {
+    readonly home: WalletSessionHome;
     walletId: string;
     factorJson: string;
     factorSecret: ArrayBuffer;
@@ -425,6 +422,7 @@ export interface WalletCustodyCeremonySurface {
   }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1>;
 
   joinWalletCustodyNearEd25519KeySet(args: {
+    readonly routing: WalletSessionHome | { readonly kind: 'discovery' };
     preparation:
       | { readonly kind: 'fresh' }
       | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
@@ -619,6 +617,7 @@ export interface SigningSessionSurface {
   ): Promise<DiscoverPersistedSessionsForWalletResult>;
   readPersistedAvailableSigningLanes(
     args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
+    statusReads: WalletSessionStatusReadScope,
   ): Promise<AvailableSigningLanes>;
   readOwnerScopedSigningLanes(
     args: {
@@ -725,7 +724,6 @@ export type RecentUnlocksSigningSurface = Pick<
 
 export interface EcdsaSessionControlSurface {
   clearVolatileWarmSigningMaterial(walletId?: EcdsaWalletId): Promise<void>;
-  deleteDurableEcdsaPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number>;
   clearThresholdEcdsaSigningQueue(): void;
 }
 
@@ -870,27 +868,6 @@ export interface EmailOtpSigningSessionSurface {
   loginWithEmailOtpEcdsaCapabilityInternal(
     args: LoginWithEmailOtpEcdsaCapabilityInternalArgs,
   ): Promise<LoginWithEmailOtpEcdsaCapabilityInternalResult>;
-  requestEmailOtpSigningSessionChallenge(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-  }): Promise<{ challengeId: string; emailHint?: string }>;
-  refreshEmailOtpSigningSession(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-  }): Promise<{
-    recovery: EmailOtpBootstrapRecovery;
-    bootstrap: ThresholdEcdsaSessionBootstrapResult;
-    authorization: ExactWalletSessionAuthorization;
-    authorizations: readonly [
-      ExactWalletSessionAuthorization,
-      ...ExactWalletSessionAuthorization[],
-    ];
-  }>;
-  enrollEmailOtpInternal(args: EnrollEmailOtpInternalArgs): Promise<EnrollEmailOtpInternalResult>;
 }
 
 export interface KeyExportSigningSurface {

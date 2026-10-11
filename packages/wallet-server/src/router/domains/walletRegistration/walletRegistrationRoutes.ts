@@ -1,3 +1,4 @@
+import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
 import { parseRegistrationSetupOperationId } from '@shared/utils/registrationSetupOperation';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
@@ -8,7 +9,11 @@ import type {
 } from '../../../core/threeRouteRegistrationContracts';
 import type { RouterAbEcdsaRegistrationRequestV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletRegistrationAuthorityInput } from '../../../core/registrationContracts';
-import { resolvePublishableKeyApiCredentialAuth } from '../../auth/routerApiCredentialAuth';
+import {
+  resolvePublishableKeyApiCredentialAuth,
+  resolveWalletRegistrationContext,
+  publishableKeyRoutePrincipal,
+} from '../../auth/routerApiCredentialAuth';
 import { extractRouterApiEnvironmentId } from '../../auth/routerApiKeyAuth';
 import type { RouterApiPublishableKeyAuthAdapter } from '../../framework/routerApi';
 import type {
@@ -66,7 +71,6 @@ import type {
   RouterApiKeyAuthAdapter,
   RouterApiProjectEnvironmentResolver,
   SessionAdapter,
-  RouterApiWalletProjectionAdapter,
 } from '../../framework/routerApi';
 import type {
   HeaderRecord,
@@ -75,6 +79,7 @@ import type {
 } from '../../framework/routeExecutionContext';
 import type { RouteDefinition } from '../../framework/routeDefinitions';
 import type { SigningSessionSealRoutesOptions } from '../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
+import { parseRegistrationPreparedSessionSeal } from './registrationSessionSeal';
 import type { RouteErrorBody } from '../../framework/routeResponses';
 import { routeError, routeJson } from '../../framework/routeResponses';
 import { isPlainObject } from '@shared/utils/validation';
@@ -96,7 +101,6 @@ import type {
   WalletRegistrationActivateInput,
   WalletRegistrationSetupRequest,
 } from './walletRegistrationInputs';
-import { verifyWalletRegistrationSetupClaims } from './walletRegistrationSetupPayload';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { ecdsaClientRootPublicKey33B64uFromString } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { normalizeCorsOrigin } from '../../../core/SessionService';
@@ -158,7 +162,7 @@ type RouterApiWalletRegistrationServices = {
   routerAbPublicKeyset?: RouterAbPublicKeysetV2 | null;
   session?: SessionAdapter | null;
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
-  walletProjection?: RouterApiWalletProjectionAdapter | null;
+  registrationContext?: WalletRegistrationContextResolver | null;
 };
 
 type ParsedRegistrationSignerSet = {
@@ -177,6 +181,7 @@ type RouterApiWalletRegistrationInput = {
   services: RouterApiWalletRegistrationServices;
   sourceIp?: string;
   signingSessionSeal?: SigningSessionSealRoutesOptions | null;
+  waitUntil?: (promise: Promise<unknown>) => void;
 };
 
 type ParseResult<T> = { ok: true; value: T } | { ok: false; code: 'invalid_body'; message: string };
@@ -527,7 +532,7 @@ function parseWalletRegistrationSetupWallet(
   return { ok: true, value: { kind: 'provided', walletId: walletId.value } };
 }
 
-function parseWalletRegistrationSetupRequest(
+export function parseWalletRegistrationSetupRequest(
   body: Record<string, unknown>,
 ): ParseResult<WalletRegistrationSetupRequest> {
   const registrationOperationId = parseRegistrationSetupOperationId(body.registrationOperationId);
@@ -2049,18 +2054,35 @@ export async function handleRouterApiWalletRegistrationSetup(
       'Origin header is required and must be a valid exact origin',
     );
   }
-  const publishableKeyAuth = input.services.publishableKeyAuth;
-  if (!publishableKeyAuth) {
+  const registrationContext = input.services.registrationContext;
+  if (!registrationContext) {
     return routeError(
       500,
       'route_auth_not_configured',
-      'wallet registration setup requires publishable key auth on this server',
+      'Wallet registration context is not configured',
     );
   }
-  /* Publishable key only. The client authenticates directly, so there is no
-     bootstrap token to mint, store, and read back — and deliberately no
-     secret-key or bootstrap-token fallback, which would reintroduce the
-     credential the grant existed to carry. */
+  const request = parseWalletRegistrationSetupRequest(input.body);
+  if (!request.ok) return routeError(400, request.code, request.message);
+  const context = await resolveWalletRegistrationContext({
+    registration: request.value,
+    environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
+    headers: input.headers,
+    missingEnvironmentMessage: 'Environment header is required for wallet registration setup',
+    missingOriginMessage: 'Origin header is required and must be a valid exact origin',
+    missingPublishableKeyMessage: 'Missing publishable key',
+    origin,
+    registrationContext,
+    route: input.route,
+    routeAuthNotConfiguredMessage: 'Wallet registration setup requires API credential auth policy',
+  });
+  if (!context.ok) {
+    if (context.status === 401)
+      return routeError(401, 'unauthorized', `${context.code}: ${context.message}`);
+    if (context.status === 403)
+      return routeError(403, 'forbidden', `${context.code}: ${context.message}`);
+    return routeError(context.status, 'internal', `${context.code}: ${context.message}`);
+  }
   const resolved = await enforceRoutePolicy({
     headers: input.headers,
     logger: input.logger,
@@ -2068,52 +2090,28 @@ export async function handleRouterApiWalletRegistrationSetup(
     route: input.route,
     services: walletRegistrationRoutePolicyServices(input),
     sourceIp: input.sourceIp,
-    resolvers: {
-      apiCredentials: async () =>
-        await resolvePublishableKeyApiCredentialAuth({
-          environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
-          headers: input.headers,
-          missingEnvironmentMessage: 'Environment header is required for wallet registration setup',
-          missingOriginMessage: 'Origin header is required and must be a valid exact origin',
-          missingPublishableKeyMessage: 'Missing publishable key',
-          origin,
-          publishableKeyAuth,
-          route: input.route,
-          routeAuthNotConfiguredMessage:
-            'Wallet registration setup requires API credential auth policy',
-        }),
-    },
+    resolvers: { apiCredentials: publishableKeyRoutePrincipal.bind(undefined, context.principal) },
   });
   if (!resolved.ok) return routeJson(resolved.status, resolved.body);
-  if (resolved.context.principal.kind !== 'api_credentials') {
-    return routeError(500, 'internal', 'wallet registration setup requires API credentials');
-  }
-  const principal = resolved.context.principal.principal;
-  const runtimePolicyScope = await resolveActiveRuntimePolicyScopeForEnvironment({
-    orgProjectEnv: input.services.orgProjectEnv || null,
+  const principal = context.principal;
+  const runtimePolicyScope = {
     orgId: principal.orgId,
-    environmentId: principal.environmentId,
-    projectId: principal.projectId,
-    envId: principal.envId,
-  });
+    projectId: context.environment.projectId,
+    envId: context.environment.key,
+    signingRootVersion: context.environment.signingRootVersion,
+  };
   const session = input.services.session;
   if (!session) {
     return routeError(500, 'internal', 'wallet registration setup requires session signing');
   }
-  const request = parseWalletRegistrationSetupRequest(input.body);
-  if (!request.ok) return routeError(400, request.code, request.message);
   return input.services.walletRegistration.setupWalletRegistration({
     request: request.value,
     orgId: principal.orgId,
     expectedOrigin: origin,
     signer: session,
-    ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
-    ...(runtimePolicyScope
-      ? {
-          signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
-          signingRootVersion: runtimePolicyScope.signingRootVersion,
-        }
-      : {}),
+    runtimePolicyScope,
+    signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
+    signingRootVersion: runtimePolicyScope.signingRootVersion,
   });
 }
 
@@ -2319,39 +2317,6 @@ function parseRegistrationRequestDigestB64u(raw: unknown): string | null {
   }
 }
 
-async function projectActivatedWallet(input: {
-  readonly registrationCeremonyId: string;
-  readonly services: RouterApiWalletRegistrationServices;
-  readonly signedSetup: unknown;
-}): Promise<string | null> {
-  const walletProjection = input.services.walletProjection || null;
-  if (!walletProjection) return null;
-  const verifier = input.services.session;
-  if (!verifier) return 'wallet projection requires setup verification';
-  const verified = await verifyWalletRegistrationSetupClaims(verifier, input.signedSetup, {
-    registrationCeremonyId: input.registrationCeremonyId,
-    nowMs: Date.now(),
-  });
-  if (!verified.ok) return verified.message;
-  if (verified.claims.policy.kind !== 'runtime_policy_scope') {
-    return 'wallet projection requires an exact runtime policy scope';
-  }
-  if (verified.claims.policy.scope.orgId !== verified.claims.orgId) {
-    return 'wallet projection scope does not match its organization';
-  }
-  try {
-    await walletProjection.recordCreatedWallet({
-      orgId: verified.claims.orgId,
-      runtimePolicyScope: verified.claims.policy.scope,
-      walletId: verified.claims.walletId,
-      occurredAt: new Date().toISOString(),
-    });
-    return null;
-  } catch (error: unknown) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
 /**
  * `POST /wallets/register/activate` — activation and finalization behind
  * one Gateway operation row.
@@ -2378,16 +2343,8 @@ export async function handleRouterApiWalletRegistrationActivate(
   const idempotencyKey = String(body.idempotencyKey || '').trim();
   if (!idempotencyKey) return routeError(400, 'invalid_body', 'idempotencyKey is required');
   const planKind = String(body.kind || '').trim();
-  if (
-    planKind !== 'evm_family_ecdsa' &&
-    planKind !== 'near_ed25519_and_evm_family_ecdsa' &&
-    planKind !== 'near_ed25519'
-  ) {
-    return routeError(400, 'invalid_body', 'kind must name the signer plan');
-  }
-  const ed25519Only = planKind === 'near_ed25519';
-  if (ed25519Only && body.ecdsa !== undefined) {
-    return routeError(400, 'invalid_body', 'an Ed25519-only activate carries no ECDSA activation');
+  if (planKind !== 'evm_family_ecdsa' && planKind !== 'near_ed25519_and_evm_family_ecdsa') {
+    return routeError(400, 'invalid_body', 'activation requires an ECDSA signer plan');
   }
   const ecdsa = isPlainObject(body.ecdsa) ? body.ecdsa : null;
   const unknownEcdsaField = ecdsa
@@ -2405,33 +2362,30 @@ export async function handleRouterApiWalletRegistrationActivate(
     );
   }
   if (
-    !ed25519Only &&
-    (!ecdsa ||
-      typeof ecdsa.activationCorrelationId !== 'string' ||
-      typeof ecdsa.activationRequestDigestB64u !== 'string' ||
-      !isPlainObject(ecdsa.clientActivation))
+    !ecdsa ||
+    typeof ecdsa.activationCorrelationId !== 'string' ||
+    typeof ecdsa.activationRequestDigestB64u !== 'string' ||
+    !isPlainObject(ecdsa.clientActivation)
   ) {
     return routeError(400, 'invalid_body', 'browser-verified clientActivation is required');
   }
   let parsedActivation: WalletRegistrationActivateInput['ecdsa'];
-  if (ecdsa) {
-    try {
-      const parsed = parseRouterAbEcdsaRegistrationActivationRequestV1({
-        registrationCeremonyId,
-        ecdsa: {
-          kind: 'router_ab_ecdsa_registration_activation_v1',
-          activationCorrelationId: ecdsa.activationCorrelationId,
-          publicFacts: ecdsa.clientActivation,
-        },
-      });
-      parsedActivation = {
-        activationCorrelationId: parsed.ecdsa.activationCorrelationId,
-        activationRequestDigestB64u: parseDigestB64u(ecdsa.activationRequestDigestB64u),
-        clientActivation: parsed.ecdsa.publicFacts,
-      };
-    } catch {
-      return routeError(400, 'invalid_body', 'ECDSA activation facts are invalid');
-    }
+  try {
+    const parsed = parseRouterAbEcdsaRegistrationActivationRequestV1({
+      registrationCeremonyId,
+      ecdsa: {
+        kind: 'router_ab_ecdsa_registration_activation_v1',
+        activationCorrelationId: ecdsa.activationCorrelationId,
+        publicFacts: ecdsa.clientActivation,
+      },
+    });
+    parsedActivation = {
+      activationCorrelationId: parsed.ecdsa.activationCorrelationId,
+      activationRequestDigestB64u: parseDigestB64u(ecdsa.activationRequestDigestB64u),
+      clientActivation: parsed.ecdsa.publicFacts,
+    };
+  } catch {
+    return routeError(400, 'invalid_body', 'ECDSA activation facts are invalid');
   }
   const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.activateWalletRegistration(
@@ -2440,7 +2394,7 @@ export async function handleRouterApiWalletRegistrationActivate(
       signedSetup,
       idempotencyKey,
       planKind,
-      ...(parsedActivation ? { ecdsa: parsedActivation } : {}),
+      ecdsa: parsedActivation,
       ...(body.emailOtpEnrollment ? { emailOtpEnrollment: body.emailOtpEnrollment } : {}),
       /* Passed through untouched. Rejecting a malformed custody payload at the
          route would fail an activation the wallet's registration survives, and
@@ -2464,27 +2418,13 @@ export async function handleRouterApiWalletRegistrationActivate(
       'Wallet registration activation returned an invalid authority',
     );
   }
-  const projectionError = await projectActivatedWallet({
-    registrationCeremonyId,
-    services: input.services,
-    signedSetup,
-  });
-  if (projectionError) {
-    return routeError(
-      500,
-      'internal',
-      `Wallet was created but its Console projection failed: ${projectionError}`,
-    );
-  }
   return routeJson(200, result, {
     headers: ecdsaGatewayServerTimingHeaders(serverTiming),
   });
 }
 
 /**
- * `POST /wallets/register/near-provisioning` — the non-blocking completion
- * the client calls after activate, once its already-running Yao computation
- * produces an activation.
+ * Commits a NEAR-only wallet or completes a mixed wallet's deferred signer.
  */
 export async function handleRouterApiWalletRegistrationNearProvisioning(
   input: RouterApiWalletRegistrationInput,
@@ -2509,7 +2449,10 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   }
   const ed25519 = parseWalletRegistrationEd25519Finalize(body.ed25519);
   if (!ed25519.ok) return routeError(400, ed25519.code, ed25519.message);
-  const sessionSeal = parseRegistrationPreparedSessionSeal(body.sessionSeal);
+  const sessionSeal = parseRegistrationPreparedSessionSeal(
+    body.sessionSeal,
+    input.signingSessionSeal?.service ?? null,
+  );
   if (!sessionSeal.ok) return routeError(400, sessionSeal.code, sessionSeal.message);
   const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.completeWalletRegistrationNearProvisioning(
@@ -2524,8 +2467,10 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
         ? { walletCustodyCommit: body.walletCustodyCommit }
         : {}),
       verifier: session,
+      onSessionCommitted: sessionSeal.value?.prepare.bind(sessionSeal.value),
     },
     serverTiming,
+    input.waitUntil,
   );
   if (!result.ok) return routeJson(400, result);
   if (sessionSeal.value) {
@@ -2537,11 +2482,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
       );
     }
     const sealStartedAt = Date.now();
-    const sealed = await applyRegistrationPreparedSessionSeal({
-      options: input.signingSessionSeal,
-      request: sessionSeal.value,
-      response: result,
-    });
+    const sealed = await sessionSeal.value.finish(result.registrationEstablishedSession.session);
     serverTiming.push(['near_finalize_session_seal', Math.max(0, Date.now() - sealStartedAt)]);
     if (!sealed.ok) {
       return routeJson(
@@ -2563,111 +2504,6 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   return routeJson(200, result, {
     headers: ecdsaGatewayServerTimingHeaders(serverTiming),
   });
-}
-
-function parseRegistrationPreparedSessionSeal(raw: unknown): ParseResult<
-  | {
-      readonly thresholdSessionId: string;
-      readonly ciphertext: string;
-      readonly keyVersion?: string;
-    }
-  | undefined
-> {
-  if (raw === undefined) return { ok: true, value: undefined };
-  if (!isPlainObject(raw)) {
-    return { ok: false, code: 'invalid_body', message: 'sessionSeal must be an object' };
-  }
-  const fields = Object.keys(raw);
-  if (fields.some((field) => !['thresholdSessionId', 'ciphertext', 'keyVersion'].includes(field))) {
-    return { ok: false, code: 'invalid_body', message: 'sessionSeal has unknown fields' };
-  }
-  const thresholdSessionId = String(raw.thresholdSessionId || '').trim();
-  const ciphertext = String(raw.ciphertext || '').trim();
-  const keyVersion = String(raw.keyVersion || '').trim();
-  if (!thresholdSessionId || !ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'sessionSeal thresholdSessionId and ciphertext are required',
-    };
-  }
-  return {
-    ok: true,
-    value: { thresholdSessionId, ciphertext, ...(keyVersion ? { keyVersion } : {}) },
-  };
-}
-
-async function applyRegistrationPreparedSessionSeal(args: {
-  readonly options: SigningSessionSealRoutesOptions | null | undefined;
-  readonly request: {
-    readonly thresholdSessionId: string;
-    readonly ciphertext: string;
-    readonly keyVersion?: string;
-  };
-  readonly response: Extract<
-    WalletRegistrationNearProvisioningResponseV2,
-    { readonly ok: true; readonly authMethod: { readonly kind: 'passkey' } }
-  >;
-}): Promise<
-  | {
-      readonly ok: true;
-      readonly value: {
-        readonly ciphertext: string;
-        readonly keyVersion: string;
-        readonly expiresAtMs: number;
-        readonly remainingUses: number;
-      };
-    }
-  | { readonly ok: false; readonly code: string; readonly message: string }
-> {
-  if (!args.options) {
-    return {
-      ok: false,
-      code: 'signing_session_seal_unavailable',
-      message: 'Signing-session sealing is unavailable',
-    };
-  }
-  const session = args.response.registrationEstablishedSession.session;
-  const tokens = session.tokens;
-  const ed25519 =
-    tokens.kind === 'near_ed25519' || tokens.kind === 'near_ed25519_and_evm_family_ecdsa'
-      ? tokens.ed25519
-      : null;
-  if (!ed25519 || String(ed25519.thresholdSessionId) !== args.request.thresholdSessionId) {
-    return {
-      ok: false,
-      code: 'invalid_session_seal',
-      message: 'Prepared seal does not match the established Ed25519 session',
-    };
-  }
-  const sealed = await args.options.service.applyServerSeal(args.request, {
-    userId: String(session.walletId),
-    session: {
-      kind: 'exact_wallet_session_operation_credential',
-      curve: 'ed25519',
-      thresholdSessionId: args.request.thresholdSessionId,
-      userId: String(session.walletId),
-      expiresAtMs: session.expiresAtMs,
-    },
-  });
-  if (!sealed.ok) return sealed;
-  const keyVersion = String(sealed.keyVersion || '').trim();
-  if (!keyVersion) {
-    return {
-      ok: false,
-      code: 'invalid_session_seal',
-      message: 'Signing-session seal response is missing its key version',
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      ciphertext: sealed.ciphertext,
-      keyVersion,
-      expiresAtMs: Math.min(sealed.expiresAtMs ?? session.expiresAtMs, session.expiresAtMs),
-      remainingUses: session.remainingUses,
-    },
-  };
 }
 
 function ecdsaGatewayServerTimingHeaders(

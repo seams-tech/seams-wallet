@@ -4,6 +4,8 @@ import * as http from 'node:http';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AddressInfo } from 'node:net';
+import { build } from 'esbuild';
+import type { WorkerRetryResult } from './worker-retry-probe';
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(TEST_DIR, '../..');
@@ -76,20 +78,45 @@ function respondNotFound(response: http.ServerResponse): void {
   response.end('not found');
 }
 
-function createStaticWalletServer(assetsByRoute: ReadonlyMap<string, StaticAsset>): http.Server {
-  return http.createServer((request, response) => {
-    const url = new URL(request.url || '/', 'http://127.0.0.1');
-    const route = normalizeRoute(url.pathname);
-    const asset = assetsByRoute.get(route);
-    if (!asset) {
-      respondNotFound(response);
-      return;
-    }
-    respondWithAsset(response, asset).catch((error) => {
-      response.statusCode = 500;
-      response.end(String(error?.message || error));
-    });
-  });
+class AssetFaults {
+  readonly unavailable = new Set<string>();
+  readonly requests: { route: string; status: number }[] = [];
+}
+
+function handleStaticRequest(
+  assetsByRoute: ReadonlyMap<string, StaticAsset>,
+  faults: AssetFaults,
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+): void {
+  const url = new URL(request.url || '/', 'http://127.0.0.1');
+  const route = normalizeRoute(url.pathname);
+  const asset = assetsByRoute.get(route);
+  if (!asset) {
+    respondNotFound(response);
+    return;
+  }
+  const status = faults.unavailable.has(route) ? 503 : 200;
+  faults.requests.push({ route, status });
+  if (status === 503) {
+    response.statusCode = status;
+    response.setHeader('Cache-Control', 'no-store');
+    response.end('Temporarily unavailable');
+    return;
+  }
+  respondWithAsset(response, asset).catch(respondServerError.bind(null, response));
+}
+
+function respondServerError(response: http.ServerResponse, error: unknown): void {
+  response.statusCode = 500;
+  response.end(String(error instanceof Error ? error.message : error));
+}
+
+function createStaticWalletServer(
+  assetsByRoute: ReadonlyMap<string, StaticAsset>,
+  faults: AssetFaults,
+): http.Server {
+  return http.createServer(handleStaticRequest.bind(null, assetsByRoute, faults));
 }
 
 function listen(server: http.Server): Promise<AddressInfo> {
@@ -114,21 +141,26 @@ async function createWalletServerFixture(): Promise<{
   server: http.Server;
   baseUrl: string;
   assets: StaticAsset[];
+  faults: AssetFaults;
 }> {
   const manifest = await readAssetsManifest();
-  const server = createStaticWalletServer(assetMapByRoute(manifest.assets));
+  const faults = new AssetFaults();
+  const server = createStaticWalletServer(assetMapByRoute(manifest.assets), faults);
   const address = await listen(server);
   return {
     server,
     baseUrl: `http://${address.address}:${address.port}`,
     assets: manifest.assets,
+    faults,
   };
 }
 
 test('static wallet-service loads workers and worker WASM from dist/public', async ({ page }) => {
   const { server, baseUrl, assets } = await createWalletServerFixture();
   try {
-    const response = await page.goto(`${baseUrl}/wallet-service`, { waitUntil: 'domcontentloaded' });
+    const response = await page.goto(`${baseUrl}/wallet-service`, {
+      waitUntil: 'domcontentloaded',
+    });
     expect(response?.ok()).toBe(true);
 
     const workerRoutes = workerRoutesFromAssets(assets);
@@ -210,6 +242,170 @@ test('static wallet-service loads workers and worker WASM from dist/public', asy
       expect(result.contentType).toBe('application/wasm');
     }
   } finally {
+    await close(server);
+  }
+});
+
+const GENERATOR_PUBLIC_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+
+const RETRY_SCENARIOS = [
+  {
+    workerUrl: '/sdk/workers/evm-crypto.worker.js',
+    wasmUrl: '/sdk/workers/evm_crypto_bg.wasm',
+    operation: 'validateSecp256k1PublicKey33',
+    payload: { publicKey33: Array.from(Buffer.from(GENERATOR_PUBLIC_KEY, 'hex')) },
+    expectedResult: { ok: true, hex: GENERATOR_PUBLIC_KEY },
+  },
+  {
+    workerUrl: '/sdk/workers/tempo-signer.worker.js',
+    wasmUrl: '/sdk/workers/tempo_signer_bg.wasm',
+    operation: 'computeTempoSenderHash',
+    payload: {
+      tx: {
+        chainId: 42431,
+        maxPriorityFeePerGas: '1',
+        maxFeePerGas: '2',
+        gasLimit: '21000',
+        calls: [{ to: `0x${'11'.repeat(20)}`, value: '0', input: '0x' }],
+        accessList: [],
+        nonceKey: '0',
+        nonce: '1',
+        feeToken: `0x${'aa'.repeat(20)}`,
+        feePayerSignature: { kind: 'placeholder' },
+      },
+    },
+    // Existing signer-core Tempo vector, checked through the emitted browser worker.
+    expectedResult: {
+      ok: true,
+      hex: '84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870',
+    },
+  },
+  {
+    workerUrl: '/sdk/workers/shamir3pass.worker.js',
+    wasmUrl: '/sdk/workers/shamir3pass_runtime_bg.wasm',
+    operation: 'warmup',
+    payload: {},
+    expectedResult: { ok: true, ready: true },
+  },
+];
+
+function countAssetRequests(faults: AssetFaults, route: string, status: number): number {
+  let count = 0;
+  for (const request of faults.requests) {
+    if (request.route === route && request.status === status) count += 1;
+  }
+  return count;
+}
+
+test('Email OTP loaders retry delivery failure and reuse successful initialization', async function emailOtpLoaderRetry({
+  page,
+}, testInfo) {
+  const { server, baseUrl, faults } = await createWalletServerFixture();
+  const bundle = await build({
+    entryPoints: [path.join(TEST_DIR, 'email-otp-loader-retry-probe.ts')],
+    tsconfig: path.join(REPO_ROOT, 'packages/wallet/tsconfig.json'),
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    write: false,
+  });
+  const evidence = [];
+  try {
+    await page.goto(`${baseUrl}/wallet-service`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate("globalThis.WASM_BASE_URL = new URL('/sdk/workers/', location.href).href");
+    await page.addScriptTag({ content: bundle.outputFiles[0]!.text });
+    for (const [loader, filename] of [
+      ['evm', 'evm_crypto_bg.wasm'],
+      ['email', 'email_otp_runtime_bg.wasm'],
+      ['custody', 'wallet_custody_ceremony_bg.wasm'],
+    ]) {
+      const route = `/sdk/workers/${filename}`;
+      faults.unavailable.add(route);
+      const failed = await page.evaluate<Array<{ ok: boolean }>>(
+        `runEmailOtpLoaderRetry(${JSON.stringify(loader)}, 1)`,
+      );
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.ok).toBe(false);
+      expect(countAssetRequests(faults, route, 503)).toBeGreaterThan(0);
+      faults.unavailable.delete(route);
+      const concurrent = await page.evaluate(
+        `runEmailOtpLoaderRetry(${JSON.stringify(loader)}, 2)`,
+      );
+      expect(concurrent).toEqual([{ ok: true }, { ok: true }]);
+      const reused = await page.evaluate(`runEmailOtpLoaderRetry(${JSON.stringify(loader)}, 1)`);
+      expect(reused).toEqual([{ ok: true }]);
+      expect(countAssetRequests(faults, route, 200)).toBe(1);
+      evidence.push({ loader, failed, concurrent, reused });
+    }
+    const artifact = testInfo.outputPath('email-otp-loader-retry.json');
+    await fs.mkdir(path.dirname(artifact), { recursive: true });
+    await fs.writeFile(
+      artifact,
+      JSON.stringify(
+        {
+          scope:
+            'Production Email OTP loader source bundled for the browser; actual emitted WASM. This probe does not dispatch the full Email OTP worker protocol.',
+          evidence,
+          requests: faults.requests,
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('email-otp-loader-retry.json', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  } finally {
+    await page.close();
+    await close(server);
+  }
+});
+
+test('real workers retry failed WASM initialization and coalesce concurrent operations', async function workerRetry({
+  page,
+}, testInfo) {
+  const { server, baseUrl, faults } = await createWalletServerFixture();
+  const bundle = await build({
+    entryPoints: [path.join(TEST_DIR, 'worker-retry-probe.ts')],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    write: false,
+  });
+  const evidence = [];
+  try {
+    await page.goto(`${baseUrl}/wallet-service`, { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ content: bundle.outputFiles[0]!.text });
+    for (const scenario of RETRY_SCENARIOS) {
+      faults.unavailable.add(scenario.wasmUrl);
+      await page.evaluate(`startWorkerRetryProbe(${JSON.stringify(scenario)})`);
+      const failed = await page.evaluate<WorkerRetryResult[]>('runWorkerRetryProbe(1)');
+      expect(failed).toHaveLength(1);
+      const failure = failed[0]!;
+      expect(failure.ok).toBe(false);
+      if (!failure.ok) expect(failure.error).toContain('WASM initialization failed');
+      expect(countAssetRequests(faults, scenario.wasmUrl, 503)).toBeGreaterThan(0);
+
+      faults.unavailable.delete(scenario.wasmUrl);
+      const concurrent = await page.evaluate<WorkerRetryResult[]>('runWorkerRetryProbe(2)');
+      expect(concurrent).toEqual([scenario.expectedResult, scenario.expectedResult]);
+      const reused = await page.evaluate<WorkerRetryResult[]>('runWorkerRetryProbe(1)');
+      expect(reused).toEqual([scenario.expectedResult]);
+      expect(countAssetRequests(faults, scenario.wasmUrl, 200)).toBe(1);
+      expect(countAssetRequests(faults, scenario.workerUrl, 200)).toBe(1);
+      await page.evaluate('stopWorkerRetryProbe()');
+      evidence.push({ worker: scenario.workerUrl, failed, concurrent, reused });
+    }
+    const artifact = testInfo.outputPath('worker-wasm-retry.json');
+    await fs.mkdir(path.dirname(artifact), { recursive: true });
+    await fs.writeFile(artifact, JSON.stringify({ evidence, requests: faults.requests }, null, 2));
+    await testInfo.attach('worker-wasm-retry.json', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  } finally {
+    await page.close();
     await close(server);
   }
 });

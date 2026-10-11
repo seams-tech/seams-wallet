@@ -1,49 +1,55 @@
-import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
+import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
+import type { ClientConnectionState } from '@/SeamsWeb/publicApi/types';
+import type { PreferenceState } from './client/preferenceState';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { AppearanceConfig, SeamsConfigsReadonly } from '@/core/types/seams';
+import type { AppearanceConfig, SeamsClientConfig, WalletSession } from '@/core/types/seams';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { WalletIframeTransportDiagnostics } from '@/SeamsWeb/walletIframe/client/transport/IframeTransport';
 import type {
   HostedAuthMenuExternalAuthRequest,
-  HostedAuthMenuDemoEmailOtpDelivery,
   HostedAuthMenuExternalAuthResolutionInput,
   HostedAuthMenuOpenRequest,
   HostedAuthMenuOutcome,
   HostedAuthMenuSessionId,
-  PreferencesChangedPayload,
 } from '@/SeamsWeb/walletIframe/shared/messages';
-import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
 import { createWalletIframeRouter } from '@/SeamsWeb/assembly/createWalletIframeRouter';
-import type { WalletIframeWarmupSurface } from '@/SeamsWeb/signingSurface/types';
-import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
+import type { WalletId } from '@shared/utils/domainIds';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { SdkLifecycleEvent } from '@/core/types/sdkSentEvents';
 import type {
   WalletIframeExactSessionIdentity,
   WalletIframeExactSessionLockResult,
   WalletIframeExactSessionState,
+  WalletIframeSessionPublication,
 } from './shared/exactSessionState';
 
-function requireRegistrationRpId(value: string, source: string): WebAuthnRpId {
-  const parsed = parseWebAuthnRpId(value);
-  if (!parsed.ok) {
-    throw new Error(`${source}: ${parsed.error.message}`);
-  }
-  return parsed.value;
+type Connecting = {
+  readonly kind: 'connecting';
+  readonly generation: number;
+  readonly completion: Promise<void>;
+  readonly abort: AbortController;
+};
+type ConnectionLifecycle = Exclude<ClientConnectionState, { kind: 'connecting' }> | Connecting;
+
+function assertNeverConnection(state: never): never {
+  throw new Error(`Unsupported connection state: ${String(state)}`);
 }
 
-function walletOriginHostname(walletOrigin: string): string {
-  try {
-    return new URL(walletOrigin).hostname;
-  } catch {
-    throw new Error('[SeamsWeb] Wallet iframe origin is not a valid URL.');
-  }
+function noSubscription(): void {}
+
+function rejectAbortedConnection(
+  signal: AbortSignal,
+  _resolve: (value: never) => void,
+  reject: (reason: unknown) => void,
+): void {
+  signal.addEventListener('abort', reject.bind(null, new Error('Wallet connection interrupted')), {
+    once: true,
+  });
 }
 
 interface WalletIframeCoordinatorDeps {
-  configs: SeamsConfigsReadonly;
-  signingEngine: WalletIframeWarmupSurface;
-  userPreferences: UserPreferencesManager;
+  configs: SeamsClientConfig;
+  userPreferences: PreferenceState;
   getAppearance: () => AppearanceConfig;
 }
 
@@ -52,80 +58,65 @@ interface WalletIframeCoordinatorDeps {
  * This keeps `SeamsWeb` focused on business flows while preserving one cohesive iframe domain module.
  */
 export class WalletIframeCoordinator {
-  private readonly configs: SeamsConfigsReadonly;
-  private readonly signingEngine: WalletIframeWarmupSurface;
-  private readonly userPreferences: UserPreferencesManager;
+  private readonly configs: SeamsClientConfig;
+  private readonly userPreferences: PreferenceState;
   private readonly getAppearance: () => AppearanceConfig;
 
   private iframeRouter: WalletIframeRouter | null = null;
-  private walletIframeRouterCreationInFlight: Promise<WalletIframeRouter> | null = null;
-  private walletIframeInitInFlight: Promise<void> | null = null;
-  private walletIframeDisposed = false;
+  private connection: ConnectionLifecycle = { kind: 'idle' };
+  private connectionGeneration = 0;
+  private readonly connectionListeners = new Set<(state: ClientConnectionState) => void>();
+  private walletIframeCloseUnsubscribe: (() => void) | null = null;
   private walletIframePrefsUnsubscribe: (() => void) | null = null;
+  private sessionDeliveryRevision = 0;
+  private walletIframeSessionUnsubscribe: (() => void) | null = null;
+  private readonly sessionListeners = new Set<
+    (session: WalletSession) => void
+  >();
   private walletIframeLifecycleUnsubscribe: (() => void) | null = null;
   private walletIframeAuthMenuUnsubscribe: (() => void) | null = null;
-  private walletIframeAuthMenuDemoOtpUnsubscribe: (() => void) | null = null;
   private readonly sdkLifecycleEventListeners = new Set<SdkLifecycleEventListener>();
   private readonly hostedAuthMenuExternalAuthRequestListeners = new Set<
     (request: HostedAuthMenuExternalAuthRequest) => void
-  >();
-  private readonly hostedAuthMenuDemoEmailOtpDeliveryListeners = new Set<
-    (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void
   >();
   private readonly forwardSdkLifecycleEventListener: SdkLifecycleEventListener;
   private readonly forwardHostedAuthMenuExternalAuthRequestListener: (
     request: HostedAuthMenuExternalAuthRequest,
   ) => void;
-  private readonly forwardHostedAuthMenuDemoEmailOtpDeliveryListener: (
-    delivery: HostedAuthMenuDemoEmailOtpDelivery,
-  ) => void;
 
   constructor(deps: WalletIframeCoordinatorDeps) {
     this.configs = deps.configs;
-    this.signingEngine = deps.signingEngine;
     this.userPreferences = deps.userPreferences;
     this.getAppearance = deps.getAppearance;
     this.forwardSdkLifecycleEventListener = this.forwardSdkLifecycleEvent.bind(this);
     this.forwardHostedAuthMenuExternalAuthRequestListener =
       this.forwardHostedAuthMenuExternalAuthRequest.bind(this);
-    this.forwardHostedAuthMenuDemoEmailOtpDeliveryListener =
-      this.forwardHostedAuthMenuDemoEmailOtpDelivery.bind(this);
   }
 
-  /**
-   * True when the SDK is running on the app origin with a wallet iframe configured.
-   * In this mode, sensitive persistence must live in the wallet-iframe origin.
-   */
-  shouldUseWalletIframe(): boolean {
-    return this.configs.wallet.mode === 'iframe' && !__isWalletIframeHostMode();
+  getConnectionState(): ClientConnectionState {
+    const state = this.connection;
+    if (state.kind === 'connecting') return { kind: 'connecting', generation: state.generation };
+    return state;
   }
 
-  resolveRegistrationRpId(localRpId: string): WebAuthnRpId {
-    if (!this.shouldUseWalletIframe()) {
-      return requireRegistrationRpId(localRpId, '[SeamsWeb] Local registration RP ID is invalid');
-    }
-
-    const iframeConfig = this.configs.wallet.iframe;
-    const configuredRpId = String(iframeConfig.rpIdOverride || '').trim();
-    if (configuredRpId) {
-      return requireRegistrationRpId(
-        configuredRpId,
-        '[SeamsWeb] Wallet iframe registration RP ID is invalid',
-      );
-    }
-
-    const walletOrigin = iframeConfig.origin;
-    if (!walletOrigin) {
-      throw new Error('[SeamsWeb] Wallet iframe registration requires a wallet origin.');
-    }
-    return requireRegistrationRpId(
-      walletOriginHostname(walletOrigin),
-      '[SeamsWeb] Wallet iframe origin hostname is not a valid registration RP ID',
-    );
+  onConnectionChange(listener: (state: ClientConnectionState) => void): () => void {
+    if (this.connection.kind !== 'disposed') this.connectionListeners.add(listener);
+    this.deliverConnectionState(listener);
+    return this.connectionListeners.delete.bind(this.connectionListeners, listener);
   }
 
-  isReady(): boolean {
-    return !!this.iframeRouter?.isReady();
+  private deliverConnectionState(listener: (state: ClientConnectionState) => void): void {
+    try {
+      listener(this.getConnectionState());
+    } catch {}
+  }
+
+  private setConnection(state: ConnectionLifecycle): void {
+    this.connection = state;
+    for (const listener of Array.from(this.connectionListeners)) {
+      if (this.connection !== state) break;
+      this.deliverConnectionState(listener);
+    }
   }
 
   getTransportDiagnosticsSnapshot(): WalletIframeTransportDiagnostics | null {
@@ -133,26 +124,102 @@ export class WalletIframeCoordinator {
   }
 
   dispose(): void {
-    if (this.walletIframeDisposed) return;
-    this.walletIframeDisposed = true;
-    this.iframeRouter?.dispose();
+    const previous = this.connection;
+    if (previous.kind === 'disposed') return;
+    this.setConnection({ kind: 'disposed' });
+    if (previous.kind === 'connecting') previous.abort.abort();
+    this.releaseRouter();
+    this.connectionListeners.clear();
+    this.sdkLifecycleEventListeners.clear();
+    this.sessionListeners.clear();
+    this.hostedAuthMenuExternalAuthRequestListeners.clear();
   }
 
-  onReady(listener: () => void): () => void {
+  private releaseRouter(): void {
+    this.sessionDeliveryRevision += 1;
+    this.walletIframeCloseUnsubscribe?.();
+    this.walletIframePrefsUnsubscribe?.();
+    this.walletIframeLifecycleUnsubscribe?.();
+    this.walletIframeSessionUnsubscribe?.();
+    this.walletIframeAuthMenuUnsubscribe?.();
+    this.walletIframeCloseUnsubscribe = null;
+    this.walletIframePrefsUnsubscribe = null;
+    this.walletIframeLifecycleUnsubscribe = null;
+    this.walletIframeSessionUnsubscribe = null;
+    this.walletIframeAuthMenuUnsubscribe = null;
     const router = this.iframeRouter;
-    if (!router) return () => {};
-    return router.onReady(listener);
+    this.iframeRouter = null;
+    router?.dispose();
   }
 
-  onLoginStatusChanged(
-    listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
-  ): () => void {
+  private connectionClosed(): void {
+    const previous = this.connection;
+    if (previous.kind === 'disposed' || previous.kind === 'failed') return;
+    const error = new Error('Wallet connection closed');
+    if (previous.kind === 'connecting') previous.abort.abort();
+    this.releaseRouter();
+    this.setConnection({ kind: 'failed', generation: this.connectionGeneration, error });
+  }
+
+  onSessionChange(listener: (session: WalletSession) => void): () => void {
+    if (this.connection.kind === 'disposed') return noSubscription;
+    this.sessionListeners.add(listener);
+    if (this.connection.kind === 'ready') this.refreshSession();
+    return this.sessionListeners.delete.bind(this.sessionListeners, listener);
+  }
+
+  private refreshSession(): void {
     const router = this.iframeRouter;
-    if (!router) return () => {};
-    return router.onLoginStatusChanged(listener);
+    if (router) {
+      this.publishSessionChange(router.getMirroredExactSessionState(), { kind: 'refresh' });
+    }
+  }
+
+  private publishSessionChange(
+    state: WalletIframeExactSessionState,
+    publication: WalletIframeSessionPublication,
+  ): void {
+    const revision = ++this.sessionDeliveryRevision;
+    const router = this.iframeRouter;
+    if (!router || this.sessionListeners.size === 0) return;
+    if (state.kind === 'wallet_locked') {
+      this.deliverSession(router, revision, buildAnonymousWalletSession());
+      return;
+    }
+    if (publication.kind === 'observed') {
+      this.deliverSession(router, revision, publication.session);
+      return;
+    }
+    void this.publishSession(router, revision, state.walletId).catch(this.reportSessionFailure.bind(this, revision));
+  }
+
+  private reportSessionFailure(revision: number, error: unknown): void {
+    if (revision === this.sessionDeliveryRevision && this.connection.kind !== 'disposed') {
+      console.warn('[WalletIframeClient] Session reconciliation failed:', error);
+    }
+  }
+
+  private async publishSession(
+    router: WalletIframeRouter,
+    revision: number,
+    walletId: WalletId,
+  ): Promise<void> {
+    const session = await router.getWalletSession(walletId);
+    this.deliverSession(router, revision, session);
+  }
+
+  private deliverSession(router: WalletIframeRouter, revision: number, session: WalletSession): void {
+    for (const listener of Array.from(this.sessionListeners)) {
+      if (revision !== this.sessionDeliveryRevision || router !== this.iframeRouter) return;
+      if (!this.sessionListeners.has(listener)) continue;
+      try {
+        listener(session);
+      } catch {}
+    }
   }
 
   onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
+    if (this.connection.kind === 'disposed') return noSubscription;
     this.sdkLifecycleEventListeners.add(listener);
     if (this.iframeRouter) {
       this.ensureWalletIframeLifecycleMirror(this.iframeRouter);
@@ -160,78 +227,72 @@ export class WalletIframeCoordinator {
     return this.removeSdkLifecycleEventListener.bind(this, listener);
   }
 
-  onPreferencesChanged(listener: (payload: PreferencesChangedPayload) => void): () => void {
-    const router = this.iframeRouter;
-    if (!router) return () => {};
-    return router.onPreferencesChanged(listener);
+  connect(): Promise<void> {
+    const current = this.connection;
+    switch (current.kind) {
+      case 'disposed':
+        return Promise.reject(new Error('Wallet client is disposed'));
+      case 'ready':
+        return Promise.resolve();
+      case 'connecting':
+        return current.completion;
+      case 'idle':
+      case 'failed': {
+        const generation = ++this.connectionGeneration;
+        const abort = new AbortController();
+        const interrupted = new Promise<never>(rejectAbortedConnection.bind(null, abort.signal));
+        const completion = Promise.race([
+          Promise.resolve().then(this.initializeConnection.bind(this, generation)),
+          interrupted,
+        ]).finally(abort.abort.bind(abort));
+        this.setConnection({ kind: 'connecting', generation, completion, abort });
+        return completion;
+      }
+      default:
+        return assertNeverConnection(current);
+    }
   }
 
-  async init(_walletId?: string): Promise<WalletIframeExactSessionState> {
-    if (!this.shouldUseWalletIframe()) {
-      await this.signingEngine.warmCriticalResources({ kind: 'none' });
-      return { kind: 'wallet_locked' };
-    }
-
-    // Guardrail: when running inside the wallet service iframe host, never attempt to
-    // initialize a nested wallet iframe client, even if configs accidentally set wallet.mode='iframe'.
-    // The host runs the real SeamsWeb instance and must remain self-contained.
-    if (__isWalletIframeHostMode()) {
-      return { kind: 'wallet_locked' };
-    }
-
-    const walletIframeConfig = this.configs.wallet.iframe;
-    const walletOrigin = walletIframeConfig?.origin;
-    if (!walletOrigin) {
-      return { kind: 'wallet_locked' };
-    }
-
-    // Initialize iframe router once (and prevent concurrent calls from mounting multiple iframes).
-    if (!this.iframeRouter) {
-      if (!this.walletIframeInitInFlight) {
-        this.walletIframeInitInFlight = (async () => {
-          const router = await this.getOrCreateRouter(walletOrigin);
-          await router.init();
-          // Opportunistically warm remote nonce context.
-          try {
-            await router.prefetchBlockheight();
-          } catch {}
-        })();
+  private async initializeConnection(generation: number): Promise<void> {
+    try {
+      this.assertConnecting(generation);
+      const router = await createWalletIframeRouter({
+        configs: this.configs,
+        walletOrigin: this.configs.wallet.iframe.origin,
+        getAppearance: this.getAppearance,
+      });
+      if (this.connection.kind !== 'connecting' || this.connection.generation !== generation) {
+        router.dispose();
+        throw new Error('Wallet router creation was interrupted');
       }
-
-      try {
-        await this.walletIframeInitInFlight;
-      } finally {
-        this.walletIframeInitInFlight = null;
+      this.iframeRouter = router;
+      this.walletIframeCloseUnsubscribe = router.onConnectionClosed(
+        this.connectionClosed.bind(this),
+      );
+      this.ensureWalletIframePreferencesMirror(router);
+      this.ensureWalletIframeLifecycleMirror(router);
+      this.walletIframeSessionUnsubscribe = router.onSessionChange(
+        this.publishSessionChange.bind(this),
+      );
+      this.ensureWalletIframeAuthMenuMirror(router);
+      await router.init();
+      this.assertConnecting(generation);
+      router.getMirroredExactSessionState();
+      this.setConnection({ kind: 'ready', generation });
+    } catch (cause) {
+      if (this.connection.kind === 'connecting' && this.connection.generation === generation) {
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        this.releaseRouter();
+        this.setConnection({ kind: 'failed', generation, error });
       }
-    } else {
-      this.ensureWalletIframePreferencesMirror(this.iframeRouter);
-      this.ensureWalletIframeLifecycleMirror(this.iframeRouter);
-      this.ensureWalletIframeAuthMenuMirror(this.iframeRouter);
-      await this.iframeRouter.init();
-      // Opportunistically warm remote nonce context.
-      try {
-        await this.iframeRouter.prefetchBlockheight();
-      } catch {}
+      throw cause;
     }
+  }
 
-    if (this.iframeRouter) {
-      const exactState = this.iframeRouter.getMirroredExactSessionState();
-      if (exactState.kind !== 'wallet_locked') {
-        this.userPreferences.setCurrentWallet(exactState.walletId);
-      }
-      // Best-effort pull snapshot to cover missed events / older hosts.
-      const cfg = await this.iframeRouter.getConfirmationConfig().catch(() => null);
-      if (cfg) {
-        const confirmationWalletId =
-          exactState.kind === 'wallet_locked' ? null : exactState.walletId;
-        this.userPreferences.applyWalletHostConfirmationConfig({
-          walletId: confirmationWalletId,
-          confirmationConfig: cfg,
-        });
-      }
-      return exactState;
+  private assertConnecting(generation: number): void {
+    if (this.connection.kind !== 'connecting' || this.connection.generation !== generation) {
+      throw new Error('Wallet connection attempt is no longer current');
     }
-    return { kind: 'wallet_locked' };
   }
 
   async getExactSessionState(): Promise<WalletIframeExactSessionState> {
@@ -243,7 +304,7 @@ export class WalletIframeCoordinator {
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
   ): Promise<HostedAuthMenuOutcome> {
-    const router = await this.requireTransportRouter();
+    const router = await this.requireRouter();
     return await router.openHostedAuthMenu(request, anchorElement);
   }
 
@@ -255,18 +316,12 @@ export class WalletIframeCoordinator {
   onHostedAuthMenuExternalAuthRequest(
     listener: (request: HostedAuthMenuExternalAuthRequest) => void,
   ): () => void {
+    if (this.connection.kind === 'disposed') return noSubscription;
     this.hostedAuthMenuExternalAuthRequestListeners.add(listener);
     if (this.iframeRouter) this.ensureWalletIframeAuthMenuMirror(this.iframeRouter);
     return this.removeHostedAuthMenuExternalAuthRequestListener.bind(this, listener);
   }
 
-  onHostedAuthMenuDemoEmailOtpDelivery(
-    listener: (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): () => void {
-    this.hostedAuthMenuDemoEmailOtpDeliveryListeners.add(listener);
-    if (this.iframeRouter) this.ensureWalletIframeAuthMenuMirror(this.iframeRouter);
-    return this.removeHostedAuthMenuDemoEmailOtpDeliveryListener.bind(this, listener);
-  }
 
   async resolveHostedAuthMenuExternalAuth(
     resolution: HostedAuthMenuExternalAuthResolutionInput,
@@ -278,51 +333,16 @@ export class WalletIframeCoordinator {
   async lockExactSession(
     identity: WalletIframeExactSessionIdentity,
   ): Promise<WalletIframeExactSessionLockResult> {
-    const router = await this.requireRouter(String(identity.walletId));
+    const router = await this.requireRouter();
     return await router.lockExactSession(identity);
   }
 
-  async requireRouter(walletId?: string): Promise<WalletIframeRouter> {
-    if (!this.shouldUseWalletIframe()) {
-      throw new Error('[SeamsWeb] Wallet iframe is not configured.');
-    }
-    if (!this.iframeRouter) {
-      await this.init(walletId);
-    }
+  async requireRouter(): Promise<WalletIframeRouter> {
+    await this.connect();
     if (!this.iframeRouter) {
       throw new Error('[SeamsWeb] Wallet iframe is configured but unavailable.');
     }
     return this.iframeRouter;
-  }
-
-  async requireTransportRouter(): Promise<WalletIframeRouter> {
-    if (!this.shouldUseWalletIframe()) {
-      throw new Error('[SeamsWeb] Wallet iframe is not configured.');
-    }
-    const walletOrigin = this.configs.wallet.iframe?.origin;
-    if (!walletOrigin) {
-      throw new Error('[SeamsWeb] Wallet iframe is configured but unavailable.');
-    }
-    return await this.getOrCreateRouter(walletOrigin);
-  }
-
-  private async getOrCreateRouter(walletOrigin: string): Promise<WalletIframeRouter> {
-    if (this.iframeRouter) return this.iframeRouter;
-    this.walletIframeRouterCreationInFlight ??= createWalletIframeRouter({
-      configs: this.configs,
-      walletOrigin,
-      getAppearance: this.getAppearance,
-    });
-    try {
-      const router = await this.walletIframeRouterCreationInFlight;
-      this.iframeRouter = router;
-      this.ensureWalletIframePreferencesMirror(router);
-      this.ensureWalletIframeLifecycleMirror(router);
-      this.ensureWalletIframeAuthMenuMirror(router);
-      return router;
-    } finally {
-      this.walletIframeRouterCreationInFlight = null;
-    }
   }
 
   private ensureWalletIframePreferencesMirror(router: WalletIframeRouter): void {
@@ -353,11 +373,7 @@ export class WalletIframeCoordinator {
         this.forwardHostedAuthMenuExternalAuthRequestListener,
       );
     }
-    if (!this.walletIframeAuthMenuDemoOtpUnsubscribe) {
-      this.walletIframeAuthMenuDemoOtpUnsubscribe = router.onHostedAuthMenuDemoEmailOtpDelivery(
-        this.forwardHostedAuthMenuDemoEmailOtpDeliveryListener,
-      );
-    }
+
   }
 
   private forwardSdkLifecycleEvent(event: SdkLifecycleEvent): void {
@@ -386,19 +402,4 @@ export class WalletIframeCoordinator {
     this.hostedAuthMenuExternalAuthRequestListeners.delete(listener);
   }
 
-  private forwardHostedAuthMenuDemoEmailOtpDelivery(
-    delivery: HostedAuthMenuDemoEmailOtpDelivery,
-  ): void {
-    for (const listener of Array.from(this.hostedAuthMenuDemoEmailOtpDeliveryListeners)) {
-      try {
-        listener(delivery);
-      } catch {}
-    }
-  }
-
-  private removeHostedAuthMenuDemoEmailOtpDeliveryListener(
-    listener: (delivery: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): void {
-    this.hostedAuthMenuDemoEmailOtpDeliveryListeners.delete(listener);
-  }
 }

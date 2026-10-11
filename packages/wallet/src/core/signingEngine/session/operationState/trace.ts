@@ -85,6 +85,7 @@ type Ed25519SigningTimingStage =
   | 'material_resolution_wait'
   | 'transaction_context'
   | 'wallet_session_authorization'
+  | 'prepare_sent'
   | 'prepare'
   | 'client_share'
   | 'finalize'

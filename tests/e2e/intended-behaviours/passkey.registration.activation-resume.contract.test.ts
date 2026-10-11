@@ -3,8 +3,14 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, recoverTransactionAddress } from 'viem';
-import { intendedTest as test } from './harness';
+import {
+  intendedTest as test,
+  requireNearSigningResult,
+  verifyNearEd25519Signature,
+  waitForWalletIframeConfirmationSettlement,
+} from './harness';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
+import { NearRegistrationGate } from './registration-near-gate';
 
 class LostActivationResponse {
   ceremonyId = '';
@@ -13,6 +19,7 @@ class LostActivationResponse {
   exactReplays = 0;
   unlocks = 0;
   otherRegistrationRequests = 0;
+  nearProvisioningRequests = 0;
   nextResponse: 'committed' | 'wrong_activation_digest' = 'committed';
   private originalBody: string | null = null;
   private projection: unknown = null;
@@ -20,13 +27,26 @@ class LostActivationResponse {
   observe(request: Request): void {
     const pathname = new URL(request.url()).pathname;
     if (request.method() !== 'POST') return;
-    if (pathname === '/wallet/unlock/verify') this.unlocks += 1;
-    if (pathname.startsWith('/wallets/register/') && pathname !== '/wallets/register/activate') {
+    if (pathname === '/wallet/unlock/verify') {
+      const body = request.postDataJSON();
+      expect(body.expected_origin).toBe(new URL(request.frame().url()).origin);
+      expect(body.ecdsaSessionPolicy.session_policy.ttl_ms).toBe(600_000);
+      expect(body.ecdsaSessionPolicy.session_policy.remaining_uses).toBe(2);
+      this.unlocks += 1;
+    }
+    if (
+      pathname === '/wallets/register/near-admission' ||
+      pathname === '/wallets/register/near-provisioning'
+    ) {
+      this.nearProvisioningRequests += 1;
+    } else if (pathname.startsWith('/wallets/register/') && pathname !== '/wallets/register/activate') {
       this.otherRegistrationRequests += 1;
     }
   }
 
   async handle(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     try {
       await this.deliverReplay(route);
     } catch (error) {
@@ -88,13 +108,18 @@ class LostActivationResponse {
   }
 }
 
-for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
-  test(`Passkey ${signerPlan} activation response loss resumes the same wallet after reload and signs`, async ({
+for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
+  const signerPlan = scenario === 'ecdsa_only' ? 'ecdsa_only' : 'mixed';
+  const requireNear = scenario === 'mixed_near';
+  test(`Passkey ${scenario} activation response loss resumes the same wallet after reload and signs`, async ({
     harness,
     context,
     page,
   }, testInfo) => {
     const lost = new LostActivationResponse();
+    const nearGate = new NearRegistrationGate();
+    const holdNear = nearGate.hold.bind(nearGate);
+    const nearPath = '**/wallets/register/near-provisioning';
     const gateway = new GatewayRequestEvidence();
     gateway.start(context);
     const handle = lost.handle.bind(lost);
@@ -114,26 +139,59 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       expect(lost.unlocks).toBe(0);
       const registrationRequests = lost.otherRegistrationRequests;
       expect(registrationRequests).toBeGreaterThan(0);
-      await page.reload();
-      await page.getByLabel('Pending wallet', { exact: true }).fill(lost.walletId);
-      await page.getByLabel('Registration ceremony', { exact: true }).fill(lost.ceremonyId);
+      const resumeUrl = new URL(page.url());
+      resumeUrl.searchParams.set('signingSessionTtlMs', '0');
+      resumeUrl.searchParams.set('signingSessionUses', '0');
+      await page.goto(resumeUrl.href);
+      const pendingWallet = page.getByLabel('Wallet to unlock', { exact: true });
+      const recovery = page.getByTestId('wallet-unlock-result');
+      await pendingWallet.fill(lost.walletId);
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
+      await expect(recovery).toHaveAttribute('data-state', 'failed');
+      await expect(recovery).toContainText('requires an enabled signing session policy');
+      expect(lost.exactReplays).toBe(1);
+      expect(lost.unlocks).toBe(0);
+      expect(JSON.parse(await recovery.innerText())).toMatchObject({ errors: 1, completions: 1 });
+      resumeUrl.searchParams.set('signingSessionTtlMs', '600000');
+      resumeUrl.searchParams.set('signingSessionUses', '2');
+      await page.goto(resumeUrl.href);
+      if (scenario === 'mixed') await context.route(nearPath, holdNear);
+      await pendingWallet.fill('unrelated-wallet.testnet');
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
+      await expect(recovery).toHaveAttribute('data-state', 'failed');
+      await expect(recovery).toContainText('wallet unlock');
+      expect(lost.exactReplays).toBe(1);
+      expect(lost.unlocks).toBe(0);
+      await pendingWallet.fill(lost.walletId);
+      if (signerPlan === 'ecdsa_only') {
+        await page.getByLabel('Require NEAR', { exact: true }).check();
+        await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
+        await expect(recovery).toHaveAttribute('data-state', 'failed');
+        await expect(recovery).toContainText('missing the requested capability subject');
+        expect(lost.exactReplays).toBe(1);
+        expect(lost.unlocks).toBe(0);
+        await page.getByLabel('Require NEAR', { exact: true }).uncheck();
+      }
+      if (requireNear) await page.getByLabel('Require NEAR', { exact: true }).check();
       lost.nextResponse = 'wrong_activation_digest';
-      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
-      const recovery = page.getByTestId('registration-resume-result');
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).toHaveAttribute('data-state', 'failed');
       await expect(recovery).toContainText('pending ECDSA activation facts mismatch');
       expect(lost.unlocks).toBe(0);
       const resumeStartedAt = performance.now();
-      await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
+      await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).not.toHaveAttribute('data-state', 'pending', { timeout: 60_000 });
       const resumeEndedAt = performance.now();
-      expect(JSON.parse(await recovery.innerText()).kind).toBe('published');
-      expect(JSON.parse(await recovery.innerText()).result).toEqual({
-        kind: 'published',
+      expect(JSON.parse(await recovery.innerText()).kind).toBe('unlocked');
+      const unlocked = JSON.parse(await recovery.innerText());
+      expect(unlocked.result).toMatchObject({
+        success: true,
+        kind: requireNear ? 'near_wallet_unlocked' : 'ecdsa_wallet_unlocked',
         walletId: lost.walletId,
-        registrationCeremonyId: lost.ceremonyId,
-        sessionResult: 'already_committed',
+        signingSession: { status: 'active', remainingUses: 2, authMethod: 'passkey' },
       });
+      expect(unlocked.completions).toBe(1);
+      expect(unlocked.events).toContain('unlock.completed');
       expect(lost.exactReplays).toBe(3);
       expect(lost.unlocks).toBe(1);
       expect(lost.otherRegistrationRequests).toBe(registrationRequests);
@@ -157,6 +215,43 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         registeredKey.thresholdOwnerAddress.toLowerCase(),
       );
 
+      if (signerPlan === 'mixed') {
+        if (!requireNear) {
+          await expect.poll(nearGate.observed.bind(nearGate), { timeout: 60_000 }).toBeGreaterThan(0);
+        }
+        const pendingSession = await harness.readCurrentWalletSessionStatus();
+        expect(pendingSession.remainingUses).toBe(1);
+        expect(pendingSession.expiresAtMs - pendingSession.authorization.issuedAtMs).toBeLessThanOrEqual(600_000);
+        nearGate.release();
+        await waitForWalletIframeConfirmationSettlement(page);
+        await page.getByTestId('intended-await-near-ready').click({ timeout: 10_000 });
+        await expect(result).toContainText('near_provisioning_ready', { timeout: 60_000 });
+        const ready = JSON.parse(await result.innerText()).action.result;
+        expect(ready.walletId).toBe(lost.walletId);
+        const readySession = await harness.readCurrentWalletSessionStatus();
+        expect(readySession.walletSessionId).toBe(pendingSession.walletSessionId);
+        expect(readySession.quotaId).toBe(pendingSession.quotaId);
+        expect(readySession.remainingUses).toBe(pendingSession.remainingUses);
+        expect(readySession.expiresAtMs).toBe(pendingSession.expiresAtMs);
+        expect(readySession.authorization.capabilitySubjects).toEqual(
+          expect.arrayContaining([...pendingSession.authorization.capabilitySubjects]),
+        );
+        await page.getByTestId('intended-sign-near').click();
+        await confirm.click({ timeout: 30_000 });
+        await expect(result).toContainText('near_sign_success', { timeout: 60_000 });
+        const nearResult = requireNearSigningResult(JSON.parse(await result.innerText()), {
+          walletId: lost.walletId,
+          nearAccountId: ready.nearAccountId,
+        });
+        await verifyNearEd25519Signature({
+          registration: { operationalPublicKey: ready.operationalPublicKey },
+          result: nearResult,
+        });
+        expect(lost.unlocks).toBe(1);
+        expect(lost.otherRegistrationRequests).toBe(registrationRequests);
+        expect(lost.nearProvisioningRequests).toBeGreaterThan(0);
+      }
+
       const evidence = {
         kind: 'registration_activation_response_loss_e2e_v1',
         signerPlan,
@@ -171,8 +266,21 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
           elapsedMs: resumeEndedAt - resumeStartedAt,
           gateway: await gateway.window(resumeStartedAt, resumeEndedAt),
         },
-        verifiedSignatures: 1,
+        verifiedSignatures: signerPlan === 'mixed' ? 2 : 1,
+        nearSignatureVerified: signerPlan === 'mixed',
+        evmSignedWhileNearHeld: scenario === 'mixed',
+        nearRequiredBeforeUnlockCompletion: requireNear,
+        nearExtensionPreservedSession: signerPlan === 'mixed',
+        nearProvisioningRequests: lost.nearProvisioningRequests,
         alteredActivationDigestRejectedBeforeUnlock: true,
+        unrelatedWalletRejectedBeforeReplay: true,
+        applicationSuppliesCeremonyId: false,
+        applicationSuppliesPasskeyOrigin: false,
+        normalUnlockOwnsContinuation: true,
+        unlockCompletionCallbacks: unlocked.completions,
+        unlockEvents: unlocked.events,
+        disabledPolicyRejectedBeforeReplay: true,
+        requestedSessionPolicy: { ttlMs: 600_000, remainingUses: 2 },
         registrationRequestsBeforeResume: registrationRequests,
         registrationRequestsAfterResume: lost.otherRegistrationRequests,
         registeredAddress: registeredKey.thresholdOwnerAddress,
@@ -194,7 +302,7 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         throw new Error('Hosted activation recovery requires an arm, region and run identity');
       }
       const suffix = hosted ? `-hosted_${arm}-${region}-${runId}-${testInfo.repeatEachIndex}` : '';
-      const artifactName = `registration-activation-resume-${signerPlan}${suffix}.json`;
+      const artifactName = `registration-activation-resume-${scenario}${suffix}.json`;
       const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
       await mkdir(path.dirname(artifactPath), { recursive: true });
       await writeFile(artifactPath, `${JSON.stringify(evidence, null, 2)}\n`);
@@ -203,6 +311,8 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         contentType: 'application/json',
       });
     } finally {
+      nearGate.release();
+      await context.unroute(nearPath, holdNear);
       gateway.stop(context);
       context.off('request', observe);
       await context.unroute(activatePath, handle);

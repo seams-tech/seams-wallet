@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-07",
+  "scope": "Local production Gateway/D1 composition and real browser NEAR signing; no hosted latency or geographic placement claim.",
+  "outcome": "2 passed (1.4m)",
+  "cases": [
+    {
+      "case": "mixed",
+      "result": {
+        "scope": "The harness discards the committed provisioning reply and retries the identical request before delivering the replay to the SDK.",
+        "signerSet": "mixed",
+        "exactMethodUnlockRequired": false,
+        "statuses": [
+          200,
+          200
+        ],
+        "sameWalletAndSigner": true,
+        "unchangedBudgetAndOperations": true,
+        "verifiedSignatures": 3,
+        "attemptedConsoleCalls": 0
+      },
+      "replay": {
+        "status": 200,
+        "code": null,
+        "consolePaths": []
+      }
+    },
+    {
+      "case": "near-only",
+      "result": {
+        "scope": "The harness discards the committed provisioning reply and retries the identical request before delivering the replay to the SDK.",
+        "signerSet": "near-only",
+        "exactMethodUnlockRequired": true,
+        "statuses": [
+          200,
+          200
+        ],
+        "sameWalletAndSigner": true,
+        "unchangedBudgetAndOperations": true,
+        "verifiedSignatures": 3,
+        "attemptedConsoleCalls": 0
+      },
+      "replay": {
+        "status": 200,
+        "code": null,
+        "consolePaths": []
+      }
+    }
+  ],
+  "verification": {
+    "sdkTypes": "passed",
+    "serverTypes": "passed",
+    "setupAndCredentialFreeTypeFixtures": "passed",
+    "sdkBuild": "passed",
+    "serverBuild": "passed",
+    "bloat": "passed"
+  },
+  "command": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_INTENDED_WALLET_DIST_ROOT=/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-near-only-home/unlock-dist SEAMS_INTENDED_SKIP_BUILD=1 /Users/pta/.nvm/versions/node/v24.18.0/bin/node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"NEAR provisioning reply loss\"",
+  "limits": [
+    "The harness discards the committed provisioning reply and injects its exact retry through WEUR. Automatic SDK network retry is not exercised.",
+    "NEAR-only recovery enables Console for the explicit fresh passkey unlock, then disables Console for all three signatures. Replay and signing each require zero Console calls.",
+    "The passkey E2E does not verify Email OTP outage support. Its header propagation passes typechecking.",
+    "No hosted deployment, new infrastructure or measured latency gain.",
+    "Yao admission/execution and persisted pre-session routing remain separate gates."
+  ],
+  "defectsFixed": [
+    "Setup did not return a home hint for pre-session NEAR-only continuation requests.",
+    "Credential-free NEAR-only replay could not restore local identity when the first issued session reply was lost.",
+    "Immediate unlock could reject missing capabilities before startup restoration completed."
+  ],
+  "excludedAttempts": [
+    "Initial test incorrectly treated credential-free terminal replay as a fresh issued session.",
+    "A test-only Playwright import loaded two installations; the final test uses the public harness installation.",
+    "Test app account metadata was absent after reload. Final test uses the existing account-ID URL input, while unlock and signature verification use production wallet state."
+  ]
+}

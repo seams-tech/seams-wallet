@@ -1,0 +1,110 @@
+{
+  "kind": "wallet_authorization_storage_transfer_evidence_v1",
+  "recordedAt": "2026-10-06T17:37:25.906Z",
+  "walletRevision": "3f78b742a06bb71de10dbe8bc44953aa974099bd",
+  "runnerSha256": "6933b5f12d8d2885241858945029a0d6648aa2c4118ba5ce04250238d902a836",
+  "productionBundleSha256": "b7ab8273b1fdc9498312c3df17792994f1adb26e79d9a8694d5d5090189c8a57",
+  "scope": "Production authorization service and D1 stores with canonical fixture authority; no signing execution, cryptographic material copy, browser, physical geography, complete writer fencing, or coordinator integration.",
+  "reproduce": "node tests/e2e/authorization-storage-transfer.e2e.mjs",
+  "observations": {
+    "executionBeforeActivation": {
+      "destinationGeneration": 2,
+      "destinationActive": false,
+      "retiredSourceCannotReopen": true,
+      "generationImmutable": true,
+      "environmentIsolated": true,
+      "centralOrdinaryReads": 0
+    },
+    "executionAfterCleanup": {
+      "destinationGeneration": 2,
+      "destinationActive": true,
+      "retiredSourceCannotReopen": true,
+      "generationImmutable": true,
+      "environmentIsolated": true,
+      "centralOrdinaryReads": 0
+    },
+    "destinationOperationGeneration": {
+      "newClaimGeneration": 2,
+      "exactRetryGeneration": 2,
+      "quotaChargedOnce": true
+    },
+    "sourceCredentialGeneration": 1,
+    "destinationCredentialGeneration": 2,
+    "operationHistoryBeforeActivation": {
+      "successfulAndFailedResponsesPreserved": true,
+      "multiChunkResponseBytes": 60044,
+      "terminalResultCannotBeReplaced": true,
+      "importedUnexpiredEvidenceCannotAuthorizeNewOperation": true,
+      "exactStepUpReplayPreserved": true,
+      "originalOwnershipGenerationPreserved": true,
+      "auditCount": 2
+    },
+    "operationHistoryAfterActivation": {
+      "successfulAndFailedResponsesPreserved": true,
+      "multiChunkResponseBytes": 60044,
+      "terminalResultCannotBeReplaced": true,
+      "importedUnexpiredEvidenceCannotAuthorizeNewOperation": true,
+      "exactStepUpReplayPreserved": true,
+      "originalOwnershipGenerationPreserved": true,
+      "auditCount": 2
+    },
+    "operationHistoryAfterCleanup": {
+      "successfulAndFailedResponsesPreserved": true,
+      "multiChunkResponseBytes": 60044,
+      "terminalResultCannotBeReplaced": true,
+      "importedUnexpiredEvidenceCannotAuthorizeNewOperation": true,
+      "exactStepUpReplayPreserved": true,
+      "originalOwnershipGenerationPreserved": true,
+      "auditCount": 2
+    },
+    "ceremonyWriteFence": {
+      "realD1Transactions": true,
+      "delayedAuthorityDeletionRejected": true,
+      "sharedWriteAndCompanionRolledBack": true,
+      "reopenedStoreStillFenced": true,
+      "unrelatedWalletStillWritable": true,
+      "frozenReplayDeletionRejected": true,
+      "frozenReplayReassignmentRejected": true,
+      "frozenReplayInsertionRejected": true,
+      "unrelatedSharedReplayUpdateAllowed": true,
+      "frozenCapabilityChangeRejected": true,
+      "frozenCapabilityRehydrationRejected": true,
+      "frozenIdentityIndexDeletionRejected": true,
+      "unrelatedCacheEvictionAllowed": true
+    },
+    "ceremonySettlement": {
+      "pendingFreezeKeepsSourceUnretired": true,
+      "restartedPendingReplyMatches": true,
+      "unsettledSnapshotRejected": true,
+      "admittedWorkCanSettle": true,
+      "lateAdmissionAfterRetirementRejected": true,
+      "sameCommandFreezesAfterSettlement": true,
+      "unrelatedPendingWorkDoesNotBlockFreeze": true,
+      "completedGatewayAdmissionDoesNotBlockFreeze": true,
+      "interruptedOperationBlocksFreeze": true,
+      "exactOperationRetrySettlesOriginalClaim": true,
+      "frozenOperationReplayDoesNotExecuteEffects": true,
+      "frozenOperationWritesRejected": true
+    },
+    "sessionOperationSettlement": {
+      "pendingClaimsBlockRetirement": true,
+      "completionFailureKeepsSessionsAvailableForSettlement": true,
+      "claimBetweenReadAndRetirementRollsBackRetirement": true,
+      "terminalResultsSurviveFreeze": true,
+      "neighboringPendingWalletDoesNotBlockFreeze": true,
+      "obsoleteSessionCannotClaimNewOperation": true,
+      "exactFreezeReplay": true,
+      "operationIds": [
+        "operation:settlement-first",
+        "operation:settlement-second",
+        "operation:settlement-late"
+      ],
+      "manifest": {
+        "schemaJson": "[{\"table\":\"wallet_authorities\",\"columns\":[\"activated_at_ms\",\"authority_digest_b64u\",\"authority_id\",\"continuity_authority_id\",\"created_at_ms\",\"device_id\",\"enrollment_id\",\"env_id\",\"lifecycle_state\",\"link_session_id\",\"local_install_package_set_digest_b64u\",\"namespace\",\"org_id\",\"permissions_json\",\"project_id\",\"provenance_kind\",\"record_json\",\"recovery_operation_id\",\"revocation_epoch\",\"revoked_at_ms\",\"signer_activation_set_digest_b64u\",\"signer_activations_json\",\"source_authority_id\",\"updated_at_ms\",\"wallet_id\"],\"keyColumns\":[\"authority_id\",\"env_id\",\"namespace\",\"org_id\",\"project_id\"]},{\"table\":\"wallet_auth_methods\",\"columns\":[\"activated_at_ms\",\"auth_identifier_key\",\"created_at_ms\",\"credential_id_b64u\",\"credential_public_key_b64u\",\"email_hash_hex\",\"env_id\",\"kind\",\"namespace\",\"org_id\",\"project_id\",\"provider\",\"provider_user_id\",\"record_json\",\"registration_authority_id\",\"revoked_at_ms\",\"rp_id\",\"status\",\"updated_at_ms\",\"wallet_auth_method_id\",\"wallet_authority_id\",\"wallet_id\"],\"keyColumns\":[\"env_id\",\"namespace\",\"org_id\",\"project_id\",\"wallet_auth_method_id\"]},{\"table\":\"authorization_wallet_session_quotas\",\"columns\":[\"expires_at_ms\",\"lifecycle_kind\",\"namespace\",\"principal_id\",\"quota_id\",\"remaining_uses\",\"tenant_id\",\"wallet_session_id\"],\"keyColumns\":[\"namespace\",\"quota_id\",\"tenant_id\"]},{\"table\":\"wallet_session_authorizations_v2\",\"columns\":[\"authority_digest_b64u\",\"authority_id\",\"authority_revocation_epoch\",\"authorization_id\",\"capability_subjects_json\",\"env_id\",\"expires_at_ms\",\"issued_at_ms\",\"mint_id\",\"namespace\",\"operation_credential_hash\",\"org_id\",\"principal_id\",\"project_id\",\"quota_id\",\"record_json\",\"retired_at_ms\",\"tenant_id\",\"wallet_auth_method_id\",\"wallet_id\",\"wallet_session_id\"],\"keyColumns\":[\"authorization_id\",\"env_id\",\"namespace\",\"org_id\",\"project_id\",\"tenant_id\"]},{\"table\":\"wallet_session_hosted_credentials_v2\",\"columns\":[\"app_origin\",\"authority_id\",\"authorization_id\",\"credential_digest_b64u\",\"env_id\",\"expires_at_ms\",\"hosted_credential_id\",\"issued_at_ms\",\"lifecycle_kind\",\"namespace\",\"org_id\",\"principal_id\",\"project_id\",\"quota_id\",\"retired_at_ms\",\"tenant_id\",\"wallet_auth_method_id\",\"wallet_id\",\"wallet_origin\",\"wallet_session_id\"],\"keyColumns\":[\"env_id\",\"hosted_credential_id\",\"namespace\",\"org_id\",\"project_id\",\"tenant_id\"]},{\"table\":\"wallet_session_hosted_exchange_codes_v2\",\"columns\":[\"app_origin\",\"authority_id\",\"authorization_id\",\"code_hash\",\"consumed_at_ms\",\"env_id\",\"exchange_code_id\",\"expires_at_ms\",\"hosted_credential_id\",\"issued_at_ms\",\"lifecycle_kind\",\"namespace\",\"nonce_digest\",\"org_id\",\"principal_id\",\"project_id\",\"quota_id\",\"tenant_id\",\"wallet_auth_method_id\",\"wallet_id\",\"wallet_origin\",\"wallet_session_id\"],\"keyColumns\":[\"env_id\",\"exchange_code_id\",\"namespace\",\"org_id\",\"project_id\",\"tenant_id\"]},{\"table\":\"verified_wallet_operation_evidence_sets\",\"columns\":[\"assurance\",\"audience\",\"authority_digest\",\"capability_kind\",\"display_digest\",\"env_id\",\"evidence_json\",\"evidence_set_digest\",\"evidence_set_id\",\"expires_at_ms\",\"intent_digest\",\"lane_digest\",\"namespace\",\"operation_kind\",\"org_id\",\"principal_id\",\"project_id\",\"request_origin\",\"tenant_id\",\"verified_at_ms\",\"wallet_id\"],\"keyColumns\":[\"evidence_set_id\",\"namespace\",\"tenant_id\"]},{\"table\":\"authorized_operations\",\"columns\":[\"audit_event_id\",\"authorization_grant_kind\",\"authorization_id\",\"authorization_source_kind\",\"authorized_operation_id\",\"capability_id\",\"capability_kind\",\"claimed_at_ms\",\"completed_at_ms\",\"display_digest\",\"evidence_set_digest\",\"intent_digest\",\"lane_digest\",\"lifecycle_kind\",\"material_activation_capability\",\"material_activation_id\",\"material_activation_key_binding\",\"material_activation_lifecycle_binding\",\"material_activation_owner\",\"material_activation_signing_worker\",\"namespace\",\"operation_fingerprint_digest\",\"operation_id\",\"operation_kind\",\"owner_scope_env_id\",\"owner_scope_org_id\",\"owner_scope_project_id\",\"ownership_generation\",\"principal_id\",\"quota_id\",\"quota_kind\",\"result_body_text\",\"result_content_type\",\"result_digest\",\"result_kind\",\"result_status\",\"tenant_id\"],\"keyColumns\":[\"authorized_operation_id\",\"namespace\",\"tenant_id\"]},{\"table\":\"authorized_operation_audit_events\",\"columns\":[\"audit_event_id\",\"authorization_grant_kind\",\"authorization_id\",\"authorization_source_kind\",\"authorized_operation_id\",\"claimed_at_ms\",\"completed_at_ms\",\"evidence_set_digest\",\"material_activation_capability\",\"material_activation_id\",\"material_activation_key_binding\",\"material_activation_lifecycle_binding\",\"material_activation_owner\",\"material_activation_signing_worker\",\"namespace\",\"operation_fingerprint_digest\",\"owner_scope_env_id\",\"owner_scope_org_id\",\"owner_scope_project_id\",\"quota_id\",\"result_kind\",\"tenant_id\"],\"keyColumns\":[\"audit_event_id\",\"namespace\",\"tenant_id\"]}]",
+        "chunkCount": 10,
+        "recordCount": 10,
+        "digestHex": "8f991081b972b6b323c4fb4ab87bf7a728516fe465d43bd92852b2b85459309a"
+      }
+    }
+  }
+}

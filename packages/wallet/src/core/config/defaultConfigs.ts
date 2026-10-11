@@ -1,15 +1,14 @@
 import { UserVerificationPolicy } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
-import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../signingEngine/workerManager/ecdsaPresignLifecycle';
+import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '@/core/config/presignatures';
 import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/sessionPolicy';
 import type {
   SeamsChainConfig,
   SeamsConfigsInput,
-  SeamsConfigsReadonly,
+  SeamsClientConfig,
   RouterAbEcdsaDerivationPresignaturePoolPolicy,
 } from '../types/seams';
 import { buildConfigsFromDefaults } from './configBuilder';
-import type { BuildConfigsOptions } from './configBuilder';
 
 export {
   THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID,
@@ -93,7 +92,7 @@ const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
 /// Seams Client SDK configs
 //////////////////////////////
 
-export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
+export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
   network: {
     chains: DEFAULT_CHAIN_CONFIGS,
     relayer: {
@@ -147,7 +146,7 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
   },
   // Configure iframeWallet in application code to point at your dedicated wallet origin when available.
   wallet: {
-    mode: 'direct',
+    mode: 'iframe',
     iframe: {
       origin: 'https://wallet.example.localhost',
       servicePath: '/wallet-service',
@@ -180,13 +179,11 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
 
 export function buildConfigsFromEnv(
   overrides: SeamsConfigsInput = {},
-  options?: BuildConfigsOptions,
-): SeamsConfigsReadonly {
+): SeamsClientConfig {
   return buildConfigsFromDefaults({
     defaults: PASSKEY_MANAGER_DEFAULT_CONFIGS,
     overrides,
     fallbackRouterAbEcdsaDerivationPresignaturePoolPolicy:
       DEFAULT_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_POLICY,
-    options,
   });
 }

@@ -13,15 +13,15 @@ The behavioral source is NEAR `threshold-signatures` commit
 
 | ID | Pinned source evidence | Purpose-built implementation | Alignment | Confidence |
 | --- | --- | --- | --- | --- |
-| `BROT-PARAM-01` | `src/crypto/constants.rs` fixes `SECURITY_PARAMETER = 128`; `batch_random_ot.rs:76-100` and `232-257` run one exchange per security bit | `src/triples/base_rot.rs:16-18,322-371,374-417` uses fixed arrays of exactly 128 OTs and 16-byte keys | Full fixed-parameter match | `1.00` |
-| `BROT-SENDER-01` | `batch_random_ot.rs:56-112` samples `y`, sends `Y = yG`, and derives branches from `yX` and `yX - yY` | `src/triples/base_rot.rs:298-320,374-417` computes `Y = yG`, `K0 = H(yX)`, and `K1 = H(y(X-Y))` | Full mathematical match | `1.00` |
-| `BROT-RECV-01` | `batch_random_ot.rs:206-262` samples choice `d` and `x`, sends `X = xG + dY`, and derives `H(xY)` | `src/triples/base_rot.rs:322-371` uses constant-time point selection for the same equation and derives the chosen key from `xY` | Full mathematical match | `1.00` |
-| `BROT-POINT-01` | `batch_random_ot.rs:227-229` relies on point deserialization to reject the identity | `src/triples/base_rot.rs:114-166,374-390,505-511` parses all received points as non-identity and also rejects `X - Y = identity` | Code is stronger at the boundary | `0.98` |
-| `BROT-BIND-01` | `batch_random_ot.rs:22-51` hashes the OT index, `X`, `Y`, and the Diffie-Hellman point under a fixed domain | `src/triples/base_rot.rs:449-481` binds those values plus scope, pair, triple index, sender role, and branch in a tagged SHA-256 transcript | Full KDF inputs with stronger session and role binding; deliberate domain divergence | `1.00` |
-| `BROT-STATE-01` | NEAR routes the exchange through generic asynchronous channels | `src/triples/base_rot.rs:175-266` exposes consuming Client and SigningWorker role states and fixed message types; the eleven-round driver and canonical codec carry them through the fixed transport | Full purpose-built state and transport specialization | `0.98` |
+| `BROT-PARAM-01` | `src/crypto/constants.rs` fixes `SECURITY_PARAMETER = 128`; `batch_random_ot.rs:76-100` and `232-257` run one exchange per security bit | `BASE_OT_COUNT`, `BASE_OT_KEY_SIZE`, `receive_sender_hello`, and `finish_sender` in `src/triples/base_rot.rs` use fixed arrays of exactly 128 OTs and 16-byte keys | Full fixed-parameter match | `1.00` |
+| `BROT-SENDER-01` | `batch_random_ot.rs:56-112` samples `y`, sends `Y = yG`, and derives branches from `yX` and `yX - yY` | `start_sender` and `finish_sender` compute `Y = yG`, `K0 = H(yX)`, and `K1 = H(yX-yY)` | Full mathematical match | `1.00` |
+| `BROT-RECV-01` | `batch_random_ot.rs:206-262` samples choice `d` and `x`, sends `X = xG + dY`, and derives `H(xY)` | `receive_sender_hello` uses constant-time point selection for the same equation and derives the chosen key from `xY` | Full mathematical match | `1.00` |
+| `BROT-POINT-01` | `batch_random_ot.rs:227-229` relies on point deserialization to reject the identity | `define_hello`, `define_choices`, `parse_point`, and `finish_sender` parse all received points as non-identity and also reject `X - Y = identity` | Code is stronger at the boundary | `0.98` |
+| `BROT-BIND-01` | `batch_random_ot.rs:22-51` hashes the OT index, `X`, `Y`, and the Diffie-Hellman point under a fixed domain | `derive_key` binds those values plus scope, pair, triple index, sender role, and branch in a tagged SHA-256 transcript | Full KDF inputs with stronger session and role binding; deliberate domain divergence | `1.00` |
+| `BROT-STATE-01` | NEAR routes the exchange through generic asynchronous channels | The public role-specific start and receive functions in `src/triples/base_rot.rs` expose consuming Client and SigningWorker role states and fixed message types; the eleven-round driver and canonical codec carry them through the fixed transport | Full purpose-built state and transport specialization | `0.98` |
 
-Line numbers refer to the pinned source and the checkpoint-4 formatted source.
-Later edits must update this table alongside the code.
+Line numbers refer to the pinned upstream source. Local function names refer to
+`src/triples/base_rot.rs`.
 
 ## Equations
 
@@ -41,6 +41,18 @@ When `d_i = 0`, `yX_i = x_iY`. When `d_i = 1`,
 `y(X_i - Y) = x_iY`. The receiver therefore learns exactly its selected key
 under the Diffie-Hellman assumption and random-oracle model inherited from the
 pinned construction.
+
+The implementation computes `yY` once per sender batch. Each branch-one point
+uses `yX_i - yY`, which equals `y(X_i - Y)`. This removes 127 scalar
+multiplications per 128-OT batch. The temporary `yY` point is zeroized on drop.
+The receiver reuses the `x_i G` point already computed during safe-scalar
+sampling. This removes another 128 scalar multiplications per batch without
+changing randomness consumption, rejection checks, or the transcript.
+
+Point subtraction uses k256's complete projective addition formula. The change
+adds no secret-dependent branch, table lookup, or variable loop count. This is a
+source-level assessment; it does not establish constant-time behavior of a
+JavaScript/WASM runtime.
 
 ## Boundary and state invariants
 

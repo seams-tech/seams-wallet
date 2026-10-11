@@ -3,6 +3,13 @@ use serde::de::DeserializeOwned;
 use wasm_bindgen::JsValue;
 use worker::{D1Database, D1DatabaseSession, D1SessionConstraint, Env, Method, Request, Response};
 
+mod ecdsa_material;
+pub(crate) use ecdsa_material::load_cloudflare_signing_worker_ecdsa_active_material_v1;
+mod ecdsa_effect;
+pub(crate) use ecdsa_effect::{
+    prepare_cloudflare_signing_worker_ecdsa_finalize_v1, EcdsaFinalizePreparation,
+};
+
 pub const SIGNING_WORKER_PRIVATE_D1_BINDING_V1: &str = "SIGNING_WORKER_PRIVATE_DB";
 
 pub const SIGNING_WORKER_PRIVATE_D1_SCHEMA_V1: &str = r#"
@@ -414,70 +421,6 @@ pub async fn claim_cloudflare_signing_worker_near_effect_v1(
     let authorization_json =
         encode_json("SigningWorker effect authorization", &request.effect_claim)?;
     let authorization_key = request.effect_claim.near_authorization_key();
-    claim_cloudflare_signing_worker_authorization_effect_v1(
-        &session,
-        &operation_key,
-        &authorization_key,
-        &request_digest_hex,
-        &authorization_json,
-        claimed_at_ms,
-    )
-    .await
-}
-
-/// Reads an exact ECDSA terminal result before applying fresh-request checks.
-pub async fn replay_cloudflare_signing_worker_ecdsa_terminal_v1(
-    env: &Env,
-    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-) -> RouterAbProtocolResult<Option<String>> {
-    request.validate()?;
-    let operation_key = request.effect_operation_key()?;
-    let request_digest_hex = private_d1_digest_hex_v1(request.effect_request_digest()?);
-    let database = signing_worker_private_d1_from_env_v1(env)?;
-    let session = database
-        .with_session_constraint(D1SessionConstraint::FirstPrimary)
-        .map_err(|error| map_d1_error("SigningWorker ECDSA effect replay session failed", error))?;
-    load_cloudflare_signing_worker_terminal_response_v1(
-        &session,
-        &operation_key,
-        &request_digest_hex,
-    )
-    .await
-}
-
-/// Claims one ECDSA signing effect before presignature material is consumed.
-pub async fn claim_cloudflare_signing_worker_ecdsa_effect_v1(
-    env: &Env,
-    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-    claimed_at_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerNearEffectClaimV1> {
-    request.validate()?;
-    require_positive_ms("SigningWorker ECDSA effect claimed_at_ms", claimed_at_ms)?;
-    let operation_key = request.effect_operation_key()?;
-    let request_digest_hex = private_d1_digest_hex_v1(request.effect_request_digest()?);
-    let database = signing_worker_private_d1_from_env_v1(env)?;
-    let session = database
-        .with_session_constraint(D1SessionConstraint::FirstPrimary)
-        .map_err(|error| {
-            map_d1_error("SigningWorker ECDSA effect primary session failed", error)
-        })?;
-    if let Some(response_json) = load_cloudflare_signing_worker_terminal_response_v1(
-        &session,
-        &operation_key,
-        &request_digest_hex,
-    )
-    .await?
-    {
-        return Ok(CloudflareSigningWorkerNearEffectClaimV1::Replay {
-            terminal_json: response_json,
-        });
-    }
-    request.request.validate_at(claimed_at_ms)?;
-    let authorization_json = encode_json(
-        "SigningWorker ECDSA effect authorization",
-        &request.effect_claim,
-    )?;
-    let authorization_key = request.effect_authorization_key()?;
     claim_cloudflare_signing_worker_authorization_effect_v1(
         &session,
         &operation_key,
@@ -1510,8 +1453,19 @@ async fn ecdsa_pool_mutate_v1(
                 )
             })
             .transpose()?;
+        let terminal = current_record.as_ref().is_some_and(|record| {
+            matches!(
+                record.lifecycle,
+                router_ab_ecdsa_pool::PoolRecord::Consumed(_)
+                    | router_ab_ecdsa_pool::PoolRecord::Tombstone(_)
+            )
+        });
         let outcome =
             apply_cloudflare_signing_worker_ecdsa_pool_command_v1(current_record, command.clone())?;
+        if terminal {
+            outcome.validate()?;
+            return Ok(CloudflareSigningWorkerPrivateD1ResponseV1::EcdsaPoolMutated { outcome });
+        }
         let stored = match current {
             None => insert_ecdsa_pool_record_v1(db, cipher, &key, outcome.record()).await?,
             Some(row) => {
@@ -1604,146 +1558,4 @@ pub async fn execute_cloudflare_signing_worker_private_d1_request_v1(
     }?;
     response.validate_for_request(request)?;
     Ok(response)
-}
-
-/// Local only, in dev builds: the route by which the local Gateway arms a
-/// hold on one wallet's next NEAR finalize, or reads the hold's state.
-#[cfg(feature = "local-intended-signing-hold")]
-pub const CLOUDFLARE_SIGNING_WORKER_LOCAL_INTENDED_HOLD_PATH: &str =
-    "/router-ab/signing-worker/local-intended/hold";
-
-/// How long a held finalize waits for its activation's retirement.
-#[cfg(feature = "local-intended-signing-hold")]
-const LOCAL_INTENDED_HOLD_POLLS: u32 = 300;
-#[cfg(feature = "local-intended-signing-hold")]
-const LOCAL_INTENDED_HOLD_POLL_INTERVAL: std::time::Duration =
-    std::time::Duration::from_millis(500);
-
-#[cfg(feature = "local-intended-signing-hold")]
-#[derive(Debug, Deserialize)]
-#[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
-enum LocalIntendedHoldCommandV1 {
-    Arm { wallet_id: String },
-    Read { wallet_id: String },
-}
-
-#[cfg(feature = "local-intended-signing-hold")]
-#[derive(Debug, Deserialize, Serialize)]
-struct LocalIntendedHoldStateV1 {
-    state: Option<String>,
-}
-
-#[cfg(feature = "local-intended-signing-hold")]
-async fn local_intended_hold_session_v1(env: &Env) -> RouterAbProtocolResult<D1DatabaseSession> {
-    let database = signing_worker_private_d1_from_env_v1(env)?;
-    let session = database
-        .with_session_constraint(D1SessionConstraint::FirstPrimary)
-        .map_err(|error| map_d1_error("SigningWorker hold session failed", error))?;
-    session
-        .prepare(
-            "CREATE TABLE IF NOT EXISTS signing_worker_local_intended_holds (
-               wallet_id TEXT PRIMARY KEY,
-               state TEXT NOT NULL
-             )",
-        )
-        .run()
-        .await
-        .map_err(|error| map_d1_error("SigningWorker hold table failed", error))?;
-    Ok(session)
-}
-
-#[cfg(feature = "local-intended-signing-hold")]
-async fn local_intended_hold_state_v1(
-    session: &D1DatabaseSession,
-    wallet_id: &str,
-) -> RouterAbProtocolResult<LocalIntendedHoldStateV1> {
-    Ok(session
-        .prepare("SELECT state FROM signing_worker_local_intended_holds WHERE wallet_id = ?1")
-        .bind(&[js_string(wallet_id)])
-        .map_err(|error| map_d1_error("SigningWorker hold read bind failed", error))?
-        .first::<LocalIntendedHoldStateV1>(None)
-        .await
-        .map_err(|error| map_d1_error("SigningWorker hold read failed", error))?
-        .unwrap_or(LocalIntendedHoldStateV1 { state: None }))
-}
-
-/// Arms a hold on the wallet's next NEAR finalize, or reads the hold: none,
-/// `armed`, `holding`, `released_retired` or `released_unretired`.
-#[cfg(feature = "local-intended-signing-hold")]
-pub async fn handle_cloudflare_signing_worker_local_intended_hold_v1(
-    mut request: Request,
-    env: &Env,
-) -> RouterAbProtocolResult<Response> {
-    let command = request
-        .json::<LocalIntendedHoldCommandV1>()
-        .await
-        .map_err(|error| d1_error(format!("SigningWorker hold command is malformed: {error}")))?;
-    let session = local_intended_hold_session_v1(env).await?;
-    let wallet_id = match &command {
-        LocalIntendedHoldCommandV1::Arm { wallet_id } => {
-            require_non_empty("SigningWorker hold wallet_id", wallet_id)?;
-            session
-                .prepare(
-                    "INSERT OR REPLACE INTO signing_worker_local_intended_holds (wallet_id, state)
-                     VALUES (?1, 'armed')",
-                )
-                .bind(&[js_string(wallet_id)])
-                .map_err(|error| map_d1_error("SigningWorker hold arm bind failed", error))?
-                .run()
-                .await
-                .map_err(|error| map_d1_error("SigningWorker hold arm failed", error))?;
-            wallet_id
-        }
-        LocalIntendedHoldCommandV1::Read { wallet_id } => wallet_id,
-    };
-    let state = local_intended_hold_state_v1(&session, wallet_id).await?;
-    Response::from_json(&state)
-        .map_err(|error| d1_error(format!("SigningWorker hold state is invalid: {error}")))
-}
-
-/// Holds a NEAR finalize that has loaded its activation's material and
-/// signed, before it commits, when a hold is armed for its wallet: until the
-/// activation is retired, or the wait runs out. It stands for a finalize that
-/// loaded its material just before a recovery promoted.
-#[cfg(feature = "local-intended-signing-hold")]
-pub(crate) async fn hold_cloudflare_signing_worker_near_finalize_v1(
-    env: &Env,
-    activation: &CloudflareActiveSigningWorkerStateLookupV1,
-) -> RouterAbProtocolResult<()> {
-    let active_key = activation_active_key_v1(activation)?;
-    let session = local_intended_hold_session_v1(env).await?;
-    let claimed = session
-        .prepare(
-            "UPDATE signing_worker_local_intended_holds SET state = 'holding'
-             WHERE wallet_id = ?1 AND state = 'armed'",
-        )
-        .bind(&[js_string(&activation.account_id)])
-        .map_err(|error| map_d1_error("SigningWorker hold claim bind failed", error))?
-        .run()
-        .await
-        .map_err(|error| map_d1_error("SigningWorker hold claim failed", error))?;
-    if d1_changes(&claimed)? != 1 {
-        return Ok(());
-    }
-    let mut retired = false;
-    for _ in 0..LOCAL_INTENDED_HOLD_POLLS {
-        if activation_revocation_fence_exists_v1(&session, &active_key).await? {
-            retired = true;
-            break;
-        }
-        worker::Delay::from(LOCAL_INTENDED_HOLD_POLL_INTERVAL).await;
-    }
-    let released = if retired {
-        "released_retired"
-    } else {
-        "released_unretired"
-    };
-    session
-        .prepare("UPDATE signing_worker_local_intended_holds SET state = ?2 WHERE wallet_id = ?1")
-        .bind(&[js_string(&activation.account_id), js_string(released)])
-        .map_err(|error| map_d1_error("SigningWorker hold release bind failed", error))?
-        .run()
-        .await
-        .map_err(|error| map_d1_error("SigningWorker hold release failed", error))?;
-    Ok(())
 }

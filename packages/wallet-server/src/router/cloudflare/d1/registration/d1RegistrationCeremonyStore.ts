@@ -1,4 +1,4 @@
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1PreparedStatementLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   StoredAddAuthMethodIntent,
@@ -27,6 +27,7 @@ import {
   D1RegistrationCeremonyRecordStore,
   type D1RegistrationCeremonyRecordScope,
 } from './d1RegistrationCeremonyRecordStore';
+import { prepareD1RegistrationHomeReservation } from './d1WalletExecutionAuthority';
 
 type RegistrationCeremonyIntentScope =
   | 'ceremony'
@@ -59,10 +60,15 @@ type D1WalletRegistrationEcdsaCeremonyClaimV1 = {
   readonly version: number;
 };
 
+type D1WalletRegistrationCeremonyCommitV1 = {
+  readonly expected: D1WalletRegistrationEcdsaCeremonyClaimV1;
+  readonly next: StoredWalletRegistrationCeremony;
+};
+
 export class CloudflareD1RegistrationCeremonyIntentStore {
   private readonly storage: D1RegistrationCeremonyRecordStore;
 
-  constructor(input: RegistrationCeremonyIntentStoreConfig) {
+  constructor(private readonly input: RegistrationCeremonyIntentStoreConfig) {
     this.storage = new D1RegistrationCeremonyRecordStore(input);
   }
 
@@ -74,54 +80,34 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     return ceremony;
   }
 
+  /** One batch stores the setup snapshot, ceremony, and authenticated execution identity. */
   async reserveSetupCeremony(
     proposed: StoredWalletRegistrationCeremony,
+    ownershipGeneration: number,
   ): Promise<StoredWalletRegistrationCeremony> {
-    const stored = await this.storage.insertOrRead({
-      scope: 'setup-ceremony',
-      id: proposed.registrationCeremonyId,
-      value: encodeRecord(proposed),
-      expiresAtMs: proposed.expiresAtMs,
-    });
-    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (
-      !ceremony ||
-      ceremony.registrationCeremonyId !== proposed.registrationCeremonyId ||
-      ceremony.expiresAtMs !== proposed.expiresAtMs ||
-      ceremony.orgId !== proposed.orgId ||
-      ceremony.digestB64u !== proposed.digestB64u ||
-      ceremony.foundingWalletAuthorityId !== proposed.foundingWalletAuthorityId ||
-      ceremony.foundingDeviceId !== proposed.foundingDeviceId ||
-      ceremony.foundingWalletAuthMethodId !== proposed.foundingWalletAuthMethodId ||
-      ceremony.expectedOrigin !== proposed.expectedOrigin
-    ) {
+    const stored = await this.storage.insertOrReadWithCopy(
+      {
+        scope: 'setup-ceremony',
+        id: proposed.registrationCeremonyId,
+        value: encodeRecord(proposed),
+        expiresAtMs: proposed.expiresAtMs,
+      },
+      'ceremony',
+      prepareD1RegistrationHomeReservation(this.input.database, this.input.scope, {
+        walletId: proposed.intent.walletId,
+        ceremonyId: proposed.registrationCeremonyId,
+        ownershipGeneration,
+      }),
+    );
+    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.record.value);
+    if (!ceremony || !sameSetupReservation(ceremony, proposed)) {
       throw new Error('Registration setup snapshot conflicts with its reservation');
     }
-    await this.ensureSetupCeremony(ceremony);
-    return ceremony;
-  }
-
-  async ensureSetupCeremony(setup: StoredWalletRegistrationCeremony): Promise<void> {
-    const stored = await this.storage.insertOrRead({
-      scope: 'ceremony',
-      id: setup.registrationCeremonyId,
-      value: encodeRecord(setup),
-      expiresAtMs: setup.expiresAtMs,
-    });
-    const current = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (
-      !current ||
-      current.registrationCeremonyId !== setup.registrationCeremonyId ||
-      current.expiresAtMs !== setup.expiresAtMs ||
-      current.orgId !== setup.orgId ||
-      current.digestB64u !== setup.digestB64u ||
-      current.foundingWalletAuthorityId !== setup.foundingWalletAuthorityId ||
-      current.foundingDeviceId !== setup.foundingDeviceId ||
-      current.foundingWalletAuthMethodId !== setup.foundingWalletAuthMethodId ||
-      current.expectedOrigin !== setup.expectedOrigin
-    ) {
+    const current = parseD1StoredWalletRegistrationCeremony(stored.copy.value);
+    if (!current || !sameSetupReservation(current, ceremony)) {
       throw new Error('Registration ceremony conflicts with its setup snapshot');
     }
+    return ceremony;
   }
 
   async getCeremony(
@@ -130,16 +116,43 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     return (await this.getCeremonySnapshot(registrationCeremonyId))?.ceremony ?? null;
   }
 
+  prepareCeremonyRead(registrationCeremonyId: string): D1PreparedStatementLike {
+    return this.storage.prepareGet('ceremony', registrationCeremonyId);
+  }
+
+  async parseCeremonyRead(
+    registrationCeremonyId: string,
+    result: D1ResultLike<Record<string, unknown>>,
+  ): Promise<StoredWalletRegistrationCeremony | null> {
+    return (await this.parseCeremonySnapshotRead(registrationCeremonyId, result))?.ceremony ?? null;
+  }
+
+  async parseCeremonySnapshotRead(
+    registrationCeremonyId: string,
+    result: D1ResultLike<Record<string, unknown>>,
+  ): Promise<D1WalletRegistrationEcdsaCeremonyClaimV1 | null> {
+    if (!result.success) throw new Error('Registration ceremony D1 read failed');
+    const stored = await this.storage.parseGet(
+      'ceremony',
+      registrationCeremonyId,
+      result.results?.[0] ?? null,
+    );
+    if (!stored) return null;
+    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
+    return ceremony && ceremony.expiresAtMs > Date.now()
+      ? { ceremony, version: stored.version }
+      : null;
+  }
+
   async getCeremonySnapshot(
     registrationCeremonyId: string,
   ): Promise<D1WalletRegistrationEcdsaCeremonyClaimV1 | null> {
     const id = toOptionalTrimmedString(registrationCeremonyId);
     if (!id) return null;
-    const stored = await this.storage.get('ceremony', id);
-    if (!stored) return null;
-    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
-    if (!ceremony || ceremony.expiresAtMs <= Date.now()) return null;
-    return { ceremony, version: stored.version };
+    return this.parseCeremonySnapshotRead(
+      id,
+      await this.prepareCeremonyRead(id).all<Record<string, unknown>>(),
+    );
   }
 
   async updateCeremony(input: {
@@ -202,20 +215,15 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     });
   }
 
-  async commitEcdsaClaim(input: {
-    readonly expected: D1WalletRegistrationEcdsaCeremonyClaimV1;
-    readonly next: StoredWalletRegistrationCeremony;
-  }): Promise<void> {
-    if (input.expected.ceremony.registrationCeremonyId !== input.next.registrationCeremonyId) {
-      throw new Error('ECDSA registration claim commit cannot change its ceremony identity');
-    }
-    await this.storage.updateExpectedVersion({
-      scope: 'ceremony',
-      id: input.next.registrationCeremonyId,
-      expectedVersion: input.expected.version,
-      next: encodeRecord(input.next),
-      expiresAtMs: input.next.expiresAtMs,
-    });
+  async commitEcdsaClaim(input: D1WalletRegistrationCeremonyCommitV1): Promise<void> {
+    await this.storage.updateExpectedVersion(ceremonyCommitUpdate(input));
+  }
+
+  /** `commitEcdsaClaim` as statements for a batch that another store owns on this database. */
+  prepareEcdsaClaimCommit(input: D1WalletRegistrationCeremonyCommitV1): {
+    readonly statements: readonly D1PreparedStatementLike[];
+  } {
+    return { statements: this.storage.prepareExpectedVersionUpdate(ceremonyCommitUpdate(input)) };
   }
 
   async deleteCeremony(registrationCeremonyId: string): Promise<boolean> {
@@ -529,4 +537,34 @@ function addSignerFinalizeReplayKey(input: {
 function encodeRecord(value: unknown): Record<string, unknown> {
   if (!isPlainObject(value)) throw new Error('Registration ceremony record must be an object');
   return value;
+}
+
+function ceremonyCommitUpdate(input: D1WalletRegistrationCeremonyCommitV1) {
+  if (input.expected.ceremony.registrationCeremonyId !== input.next.registrationCeremonyId) {
+    throw new Error('ECDSA registration claim commit cannot change its ceremony identity');
+  }
+  return {
+    scope: 'ceremony',
+    id: input.next.registrationCeremonyId,
+    expectedVersion: input.expected.version,
+    next: encodeRecord(input.next),
+    expiresAtMs: input.next.expiresAtMs,
+  };
+}
+
+/** The facts a reservation fixes for its setup snapshot and its ceremony. */
+function sameSetupReservation(
+  stored: StoredWalletRegistrationCeremony,
+  expected: StoredWalletRegistrationCeremony,
+): boolean {
+  return (
+    stored.registrationCeremonyId === expected.registrationCeremonyId &&
+    stored.expiresAtMs === expected.expiresAtMs &&
+    stored.orgId === expected.orgId &&
+    stored.digestB64u === expected.digestB64u &&
+    stored.foundingWalletAuthorityId === expected.foundingWalletAuthorityId &&
+    stored.foundingDeviceId === expected.foundingDeviceId &&
+    stored.foundingWalletAuthMethodId === expected.foundingWalletAuthMethodId &&
+    stored.expectedOrigin === expected.expectedOrigin
+  );
 }

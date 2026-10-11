@@ -26,6 +26,8 @@ import {
   type D1WalletStoreScope,
 } from '../../../../core/d1WalletStore';
 import type { WalletRecord, WalletSignerRecord } from '../../../../core/WalletStore';
+import { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+import { commitRouterAbEd25519YaoRegistrationCapability } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoCapabilityCommit';
 import {
   prepareD1WebAuthnCredentialBindingPutStatement,
   type WebAuthnCredentialBindingRecord,
@@ -49,6 +51,15 @@ import {
   type D1WebAuthnStoreScope,
 } from '../webauthn/d1WebAuthnStore';
 import type { D1EmailOtpRegistrationCommitPlan } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
+
+export type D1RegistrationCommitBatch = (
+  statements: readonly D1PreparedStatementLike[],
+) => Promise<readonly D1ResultLike[]>;
+
+type ReservedWalletRegistrationCommit = (
+  input: D1WalletRegistrationCommitInput,
+  executeBatch?: D1RegistrationCommitBatch,
+) => Promise<void>;
 
 type D1WalletRegistrationCommitBase = {
   readonly wallet: WalletRecord;
@@ -74,17 +85,17 @@ type D1WalletRegistrationFoundingFields =
 type D1WalletRegistrationCommitInput =
   | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
       readonly kind: 'passkey_wallet_registration_commit_v1';
-      readonly authority: Extract<RegistrationAuthority, { readonly kind: 'passkey' }>;
       readonly emailOtp?: never;
     })
   | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
       readonly kind: 'email_otp_wallet_registration_commit_v1';
-      readonly authority: Extract<RegistrationAuthority, { readonly kind: 'email_otp' }>;
       readonly emailOtp: D1EmailOtpRegistrationCommitPlan;
     });
 
 export interface D1WalletRegistrationCommitStore {
-  commit(input: D1WalletRegistrationCommitInput): Promise<void>;
+  reserveAuthority(
+    authority: RegistrationAuthority,
+  ): Promise<ReservedWalletRegistrationCommit>;
 }
 
 type D1WalletRegistrationCommitScope = D1WalletStoreScope &
@@ -106,8 +117,18 @@ function normalizeScope(input: D1WalletRegistrationCommitScope): D1WalletRegistr
   };
 }
 
-function assertCommitWalletIdentity(input: D1WalletRegistrationCommitInput): void {
-  if (input.authority.walletId !== input.wallet.walletId) {
+function assertCommitWalletIdentity(
+  input: D1WalletRegistrationCommitInput,
+  authority: RegistrationAuthority,
+): void {
+  const expectedKind =
+    authority.kind === 'passkey'
+      ? 'passkey_wallet_registration_commit_v1'
+      : 'email_otp_wallet_registration_commit_v1';
+  if (input.kind !== expectedKind) {
+    throw new Error('Registration commit does not match its reserved authority');
+  }
+  if (authority.walletId !== input.wallet.walletId) {
     throw new Error('Registration authority walletId does not match wallet record');
   }
   if (input.foundingAuthority) {
@@ -345,7 +366,7 @@ async function prepareFoundingStatements(input: {
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (!input.foundingAuthority) return [];
   const foundingAuthMethod = requireFoundingAuthMethod(input.foundingAuthMethod);
-  const authorityRow = await input.database
+  const authorityRead = input.database
     .prepare(
       `SELECT record_json
          FROM wallet_authorities
@@ -362,9 +383,8 @@ async function prepareFoundingStatements(input: {
       input.scope.projectId,
       input.scope.envId,
       String(input.foundingAuthority.authorityId),
-    )
-    .first<D1RegistrationRecordJsonRow>();
-  const authMethodRow = await input.database
+    );
+  const authMethodRead = input.database
     .prepare(
       `SELECT record_json
          FROM wallet_auth_methods
@@ -381,8 +401,14 @@ async function prepareFoundingStatements(input: {
       input.scope.projectId,
       input.scope.envId,
       String(foundingAuthMethod.walletAuthMethodId),
-    )
-    .first<D1RegistrationRecordJsonRow>();
+    );
+  const results = await input.database.batch<D1ResultLike<D1RegistrationRecordJsonRow>>([
+    authorityRead,
+    authMethodRead,
+  ]);
+  assertBatchSucceeded({ expectedStatementCount: 2, results });
+  const authorityRow = results[0]?.results?.[0] ?? null;
+  const authMethodRow = results[1]?.results?.[0] ?? null;
   let persistedAuthority: ActiveWalletAuthorityV1 | null = null;
   if (authorityRow) {
     const parsedAuthority = parseWalletAuthorityV1(
@@ -503,56 +529,99 @@ export class CloudflareD1WalletRegistrationCommitStore
     this.scope = normalizeScope(input);
   }
 
-  async commit(input: D1WalletRegistrationCommitInput): Promise<void> {
-    assertCommitWalletIdentity(input);
-    if (input.authority.kind === 'passkey') {
+  async reserveAuthority(
+    authority: RegistrationAuthority,
+  ): Promise<ReservedWalletRegistrationCommit> {
+    if (authority.kind === 'passkey') {
       await reservePasskeyCredential(this.credentialClaims, {
-        walletId: input.authority.walletId,
-        rpId: input.authority.rpId,
-        credentialIdB64u: input.authority.credentialIdB64u,
+        walletId: authority.walletId,
+        rpId: authority.rpId,
+        credentialIdB64u: authority.credentialIdB64u,
       });
     }
-    const foundingStatements = await prepareFoundingStatements({
-      database: this.database,
-      scope: this.scope,
-      foundingAuthority: input.foundingAuthority,
-      foundingAuthMethod: input.foundingAuthMethod,
-      now: input.now,
-    });
-    const statements: D1PreparedStatementLike[] = [
-      prepareD1WalletPutSubjectStatement({
+    return this.commit.bind(this, authority);
+  }
+
+  private async commit(
+    authority: RegistrationAuthority,
+    input: D1WalletRegistrationCommitInput,
+    executeBatch?: D1RegistrationCommitBatch,
+  ): Promise<void> {
+    assertCommitWalletIdentity(input, authority);
+    const ed25519Signer = input.walletSigners.find(isEd25519Signer);
+    if (ed25519Signer) {
+      const capability = ed25519Signer.activeYaoCapability;
+      if (capability.version !== 'wallet_ed25519_yao_registration_capability_v1') {
+        throw new Error('A registration commit requires its registration capability');
+      }
+      const store = createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
         database: this.database,
         scope: this.scope,
-        record: input.wallet,
-      }),
-    ];
-    for (const signer of input.walletSigners) {
-      statements.push(
-        prepareD1WalletPutSignerStatement({
-          database: this.database,
-          scope: this.scope,
-          record: signer,
-        }),
+      });
+      const installed = await commitRouterAbEd25519YaoRegistrationCapability(
+        store,
+        {
+          kind: 'router_ab_ed25519_yao_registration_finalize_capability_v1',
+          activeCapabilityBinding: capability.activeCapabilityBinding,
+          nearAccountId: capability.nearAccountId,
+          registrationAdmissionRequest: capability.admissionRequest,
+          registrationAdmissionReceipt: capability.admissionReceipt,
+          registrationResult: capability.activationResult,
+          runtimePolicyScope: capability.runtimePolicyScope,
+        },
+        prepareWalletWrite(this.database, this.scope, authority, input, executeBatch),
       );
+      if (!installed.ok) throw new Error(installed.message);
+      return;
     }
-    statements.push(
-      ...prepareAuthorityStatements({
-        database: this.database,
-        scope: this.scope,
-        authority: input.authority,
-        walletSigners: input.walletSigners,
-        foundingAuthority: input.foundingAuthority,
-        foundingAuthMethod: input.foundingAuthMethod,
-        foundingStatements,
-        now: input.now,
-      }),
-    );
-    statements.push(...emailOtpCommitStatements(input));
-    statements.push(...input.decisionStatements);
-    const results = await this.database.batch<D1ResultLike>(statements);
+    const { statements } = await prepareWalletWrite(this.database, this.scope, authority, input);
+    const results = executeBatch
+      ? await executeBatch(statements)
+      : await this.database.batch<D1ResultLike>(statements);
     assertBatchSucceeded({
       expectedStatementCount: statements.length,
       results,
     });
   }
+}
+
+async function prepareWalletWrite(
+  database: D1DatabaseLike,
+  scope: D1WalletRegistrationCommitScope,
+  authority: RegistrationAuthority,
+  input: D1WalletRegistrationCommitInput,
+  executeBatch?: D1RegistrationCommitBatch,
+) {
+  const foundingStatements = await prepareFoundingStatements({
+    database,
+    scope,
+    foundingAuthority: input.foundingAuthority,
+    foundingAuthMethod: input.foundingAuthMethod,
+    now: input.now,
+  });
+  const statements: D1PreparedStatementLike[] = [
+    prepareD1WalletPutSubjectStatement({ database, scope, record: input.wallet }),
+  ];
+  for (const signer of input.walletSigners) {
+    statements.push(prepareD1WalletPutSignerStatement({ database, scope, record: signer }));
+  }
+  statements.push(
+    ...prepareAuthorityStatements({
+      database,
+      scope,
+      authority,
+      walletSigners: input.walletSigners,
+      foundingAuthority: input.foundingAuthority,
+      foundingAuthMethod: input.foundingAuthMethod,
+      foundingStatements,
+      now: input.now,
+    }),
+    ...emailOtpCommitStatements(input),
+    ...input.decisionStatements,
+  );
+  return { statements, executeBatch };
+}
+
+function isEd25519Signer(signer: WalletSignerRecord) {
+  return signer.version === 'wallet_signer_ed25519_v1';
 }

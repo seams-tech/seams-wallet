@@ -9,8 +9,7 @@
  * a timing branch — it is a timing helper, not a general utility.
  */
 
-import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/signingEngine/walletCustody/ceremonyDriver';
-export { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/signingEngine/walletCustody/ceremonyDriver';
+import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/registration';
 import { isObject } from '@shared/utils/validation';
 import type {
   RegistrationHooksOptions,
@@ -44,7 +43,6 @@ const YAO_SERVER_TIMING_BUCKET_BY_METRIC = new Map<string, RegistrationTimingBuc
     yao_router_execution: 'yaoServerRouterExecutionMs',
     yao_result_reconstruction: 'yaoServerResultReconstructionMs',
     yao_router_prepare_pair: 'yaoServerRouterPreparePairMs',
-    yao_router_verify_readiness: 'yaoServerRouterVerifyReadinessMs',
     yao_router_role_execution: 'yaoServerRouterRoleExecutionMs',
     yao_router_signing_worker_delivery: 'yaoServerRouterSigningWorkerDeliveryMs',
     ecdsa_respond_d1_claim: 'ecdsaRespondD1ClaimMs',
@@ -161,9 +159,6 @@ export function parseYaoServerTimingBuckets(
   }
   return parsed;
 }
-
-export const WALLET_IFRAME_TRANSPORT_TIMING_LABEL =
-  '[Registration] wallet iframe transport timing summary';
 
 export function emitNearRegistrationTiming(input: {
   ceremonyId: string;
@@ -329,7 +324,6 @@ const REGISTRATION_TIMING_BUCKETS = [
   'registrationWarmupNoncePrefetchMs',
   'registrationWarmupKeyMaterialReadMs',
   'registrationWarmupUiConfirmPrewarmMs',
-  'registrationWarmupSignerWorkerPrewarmMs',
   'registrationWarmupEmailOtpWorkerPrewarmMs',
   'registrationWarmupEmailOtpYaoWasmInitMs',
   'managedRegistrationGrantMs',
@@ -352,7 +346,6 @@ const REGISTRATION_TIMING_BUCKETS = [
   'yaoServerRouterExecutionMs',
   'yaoServerResultReconstructionMs',
   'yaoServerRouterPreparePairMs',
-  'yaoServerRouterVerifyReadinessMs',
   'yaoServerRouterRoleExecutionMs',
   'yaoServerRouterSigningWorkerDeliveryMs',
   // Gateway-reported ECDSA boundaries, parsed from the respond/activate
@@ -902,7 +895,6 @@ export class RegistrationTimingRecorder {
     this.buckets.registrationWarmupNoncePrefetchMs = diagnostics.noncePrefetchMs;
     this.buckets.registrationWarmupKeyMaterialReadMs = diagnostics.keyMaterialReadMs;
     this.buckets.registrationWarmupUiConfirmPrewarmMs = diagnostics.uiConfirmPrewarmMs;
-    this.buckets.registrationWarmupSignerWorkerPrewarmMs = diagnostics.signerWorkerPrewarmMs;
     this.buckets.registrationWarmupEmailOtpWorkerPrewarmMs = diagnostics.emailOtpWorkerPrewarmMs;
     this.buckets.registrationWarmupEmailOtpYaoWasmInitMs = diagnostics.emailOtpYaoWasmInitMs;
     this.emailOtpYaoPrewarm = { ...diagnostics.emailOtpYaoPrewarm };

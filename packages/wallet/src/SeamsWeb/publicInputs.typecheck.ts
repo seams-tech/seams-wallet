@@ -3,13 +3,10 @@ import {
   nearAccountRefFromAccountId,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { ExactEcdsaSigningLaneIdentity } from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
 import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigning.types';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type {
-  BootstrapThresholdEcdsaSessionArgs,
   ExecuteEvmFamilyTransactionArgs,
-  EvmSignerCapability,
   KeyExportCapability,
   NearSignerCapability,
   RegistrationCapability,
@@ -27,7 +24,6 @@ const tempoChainTarget = {
   networkSlug: 'tempo-local',
 } satisfies ThresholdEcdsaChainTarget;
 const tempoRequest = {} as SignTempoArgs['request'];
-declare const exactEcdsaLaneIdentity: ExactEcdsaSigningLaneIdentity;
 
 const invalidSignTempoAccountIdentity: SignTempoArgs = {
   walletSession,
@@ -168,32 +164,6 @@ const invalidTempoExecuteWithEvmPayloadExpectation: Extract<
 };
 void invalidTempoExecuteWithEvmPayloadExpectation;
 
-const validEcdsaBootstrapInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-};
-void validEcdsaBootstrapInput;
-
-const validNearEmailOtpRegistrationInput: Parameters<
-  NearSignerCapability['registerNearWallet']
->[0] = {
-  authMethod: {
-    kind: 'email_otp',
-    proofKind: 'otp_challenge',
-    email: 'alice@example.test',
-    providerSubject: 'email:alice@example.test',
-    otpCode: '123456',
-  },
-};
-void validNearEmailOtpRegistrationInput;
-
-// @ts-expect-error Generic NEAR registration requires an explicit auth method.
-const invalidNearRegistrationWithoutAuth: Parameters<
-  NearSignerCapability['registerNearWallet']
->[0] = {};
-void invalidNearRegistrationWithoutAuth;
-
 declare const signedNearTransaction: SignedTransaction;
 
 // Omitting the subject is valid: it resolves to the authenticated wallet.
@@ -224,29 +194,9 @@ const validNearSendTransactionInput: Parameters<NearSignerCapability['sendTransa
 };
 void validNearSendTransactionInput;
 
-const validEvmEmailOtpRegistrationInput: Parameters<EvmSignerCapability['registerEvmWallet']>[0] = {
-  chainTargets: [tempoChainTarget],
-  participantIds: [1, 2],
-  authMethod: {
-    kind: 'email_otp',
-    proofKind: 'otp_challenge',
-    email: 'alice@example.test',
-    providerSubject: 'email:alice@example.test',
-    otpCode: '123456',
-  },
-};
-void validEvmEmailOtpRegistrationInput;
-
-// @ts-expect-error Generic EVM registration requires an explicit auth method.
-const invalidEvmRegistrationWithoutAuth: Parameters<EvmSignerCapability['registerEvmWallet']>[0] = {
-  chainTargets: [tempoChainTarget],
-  participantIds: [1, 2],
-};
-void invalidEvmRegistrationWithoutAuth;
-
 declare const registrationCapability: RegistrationCapability;
-void registrationCapability.getNearProvisioningState({ walletId: 'alice.testnet' });
-const unsubscribeNearProvisioning = registrationCapability.onNearProvisioningStateChanged(
+void registrationCapability.getNearAccountState({ walletId: 'alice.testnet' });
+const unsubscribeNearProvisioning = registrationCapability.onNearAccountChange(
   (event) => {
     const walletId: string = event.walletId;
     const status = event.state.status;
@@ -256,11 +206,11 @@ const unsubscribeNearProvisioning = registrationCapability.onNearProvisioningSta
 );
 unsubscribeNearProvisioning();
 // @ts-expect-error wallet identity is required for a provisioning-state read.
-void registrationCapability.getNearProvisioningState({});
+void registrationCapability.getNearAccountState({});
 const legacyPublicNearMode = ['ed25519', 'only'].join('_');
 const legacyPublicEvmMode = ['ecdsa', 'only'].join('_');
 
-void registrationCapability.registerWithEmailOtp({
+void registrationCapability.registerWallet({
   wallet: {
     kind: 'provided',
     walletId: 'alice.testnet' as import('@shared/utils/registrationIntent').WalletId,
@@ -311,7 +261,7 @@ void registrationCapability.registerWallet({
   },
 });
 
-void registrationCapability.registerWithEmailOtp({
+void registrationCapability.registerWallet({
   wallet: {
     kind: 'provided',
     walletId: 'alice.testnet' as import('@shared/utils/registrationIntent').WalletId,
@@ -334,86 +284,6 @@ void registrationCapability.registerWithEmailOtp({
   },
 });
 
-const forbiddenProjectionField = ['smart', 'Account'].join('') as `${'smart'}${'Account'}`;
-const forbiddenProjectionAddressField = ['counter', 'factual', 'Address'].join(
-  '',
-) as `${'counter'}${'factual'}Address`;
-const forbiddenProjectionSponsorField = ['pay', 'master'].join('') as `${'pay'}${'master'}`;
-const forbiddenProjectionRelayField = ['bundle', 'rUrl'].join('') as `${'bundle'}rUrl`;
-const forbiddenProjectionProtocolField = ['erc', '4337'].join('') as `${'erc'}4337`;
-
-const invalidEcdsaBootstrapKeyIdInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects caller-supplied internal key identity.
-  ecdsaThresholdKeyId: 'ecdsa-key',
-};
-void invalidEcdsaBootstrapKeyIdInput;
-
-const invalidEcdsaBootstrapParticipantIdsInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects caller-supplied internal participant identity.
-  participantIds: [1, 2],
-};
-void invalidEcdsaBootstrapParticipantIdsInput;
-
-const invalidEcdsaBootstrapProjectionInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionField]: { chainId: 1313 },
-};
-void invalidEcdsaBootstrapProjectionInput;
-
-const invalidEcdsaBootstrapProjectionAddressInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionAddressField]: `0x${'11'.repeat(20)}`,
-};
-void invalidEcdsaBootstrapProjectionAddressInput;
-
-const invalidEcdsaBootstrapSponsorInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionSponsorField]: { enabled: true },
-};
-void invalidEcdsaBootstrapSponsorInput;
-
-const invalidEcdsaBootstrapRouterApiInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionRelayField]: 'https://relay.example',
-};
-void invalidEcdsaBootstrapRouterApiInput;
-
-const invalidEcdsaBootstrapProtocolInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public bootstrap rejects projection fields.
-  [forbiddenProjectionProtocolField]: true,
-};
-void invalidEcdsaBootstrapProtocolInput;
-
-const invalidEcdsaBootstrapSubjectInput: BootstrapThresholdEcdsaSessionArgs = {
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: tempoChainTarget,
-  // @ts-expect-error Public base-ECDSA warm bootstrap derives subject from walletSession.walletId.
-  subjectId: 'wallet',
-};
-void invalidEcdsaBootstrapSubjectInput;
-
 declare const publicEcdsaBootstrapResult: PublicThresholdEcdsaSessionBootstrapResult;
 const invalidPublicBootstrapEcdsaKeyId =
   // @ts-expect-error Public bootstrap keyRef hides internal threshold key identity.
@@ -431,21 +301,28 @@ const invalidPublicBootstrapExportArtifact =
   // @ts-expect-error Public bootstrap keyRef hides internal export artifact identity.
   publicEcdsaBootstrapResult.thresholdEcdsaKeyRef.ecdsaDerivationExportArtifact;
 void invalidPublicBootstrapExportArtifact;
-type PublicKeyExportInput = Parameters<KeyExportCapability['exportKeypairWithUI']>[0];
+type PublicKeyExportInput = Parameters<KeyExportCapability['exportKey']>[0];
 
 const validEcdsaExportInput: PublicKeyExportInput = {
   kind: 'ecdsa',
   walletSession,
   chainTarget: tempoChainTarget,
-  laneIdentity: exactEcdsaLaneIdentity,
   options: {},
 };
 void validEcdsaExportInput;
 
+const invalidEcdsaExportLaneInput: PublicKeyExportInput = {
+  kind: 'ecdsa',
+  chainTarget: tempoChainTarget,
+  // @ts-expect-error Public export resolves the lane internally.
+  laneIdentity: {},
+};
+void invalidEcdsaExportLaneInput;
+
 const invalidEcdsaExportUserIdInput: PublicKeyExportInput = {
   kind: 'ecdsa',
   chainTarget: tempoChainTarget,
-  // @ts-expect-error ECDSA public export requires a walletSession object.
+  // @ts-expect-error Public export accepts walletSession, not a raw session user id.
   walletSessionUserId: 'wallet-user',
   options: {},
 };
@@ -462,25 +339,60 @@ const invalidEcdsaExportSubjectInput: PublicKeyExportInput = {
 void invalidEcdsaExportSubjectInput;
 
 // NEAR signing accepts a bare account id, or no subject at all.
-const nearExecuteActionWithAccountId: Parameters<NearSignerCapability['executeAction']>[0] = {
+const nearSignAndSendTransactionWithAccountId: Parameters<NearSignerCapability['signAndSendTransaction']>[0] = {
   nearAccount: 'wallet.testnet',
   receiverId: 'contract.testnet',
-  actionArgs: [],
+  actions: [],
 };
-void nearExecuteActionWithAccountId;
+void nearSignAndSendTransactionWithAccountId;
 
-const nearExecuteActionWithoutSubject: Parameters<NearSignerCapability['executeAction']>[0] = {
+const nearSignAndSendTransactionWithoutSubject: Parameters<NearSignerCapability['signAndSendTransaction']>[0] = {
   receiverId: 'contract.testnet',
-  actionArgs: [],
+  actions: [],
 };
-void nearExecuteActionWithoutSubject;
+void nearSignAndSendTransactionWithoutSubject;
 
-const invalidNearExecuteAction: Parameters<NearSignerCapability['executeAction']>[0] = {
+const invalidNearSignAndSendTransaction: Parameters<NearSignerCapability['signAndSendTransaction']>[0] = {
   receiverId: 'contract.testnet',
-  actionArgs: [],
+  actions: [],
   // @ts-expect-error nearAccount must be a NearAccountRef or an account id string.
   nearAccount: { accountId: 'wallet.testnet' },
 };
-void invalidNearExecuteAction;
+void invalidNearSignAndSendTransaction;
 
 export {};
+
+// @ts-expect-error Wallet creation requires an explicit authentication method.
+void registrationCapability.registerWallet({
+  wallet: { kind: 'server_allocated' },
+  signerSelection: { kind: 'signer_set', signers: [] },
+});
+// @ts-expect-error Use registerWallet with a passkey authentication method.
+void registrationCapability.registerPasskey;
+// @ts-expect-error Use registerWallet with an email authentication method.
+void registrationCapability.registerWithEmailOtp;
+
+// @ts-expect-error Use getNearAccountState for the public account-state read.
+void registrationCapability.getNearProvisioningState;
+// @ts-expect-error Use waitForNearAccount for the public readiness wait.
+void registrationCapability.awaitNearReady;
+// @ts-expect-error Use onNearAccountChange for the public subscription.
+void registrationCapability.onNearProvisioningStateChanged;
+
+// @ts-expect-error Use addSigner to add a wallet signer.
+void registrationCapability.addWalletSigner;
+// @ts-expect-error Use addEmail to add email authentication.
+void registrationCapability.addEmailOtp;
+// @ts-expect-error Use removeAuthMethod to retire an authentication method.
+void registrationCapability.revokeAuthMethod;
+
+declare const nearCapability: NearSignerCapability;
+// @ts-expect-error NEAR transaction submission uses signAndSendTransaction.
+void nearCapability.executeAction;
+
+// @ts-expect-error NEAR signing uses signTransaction.
+void nearCapability.signTransactionWithActions;
+// @ts-expect-error NEP-413 signing uses signMessage.
+void nearCapability.signNEP413Message;
+// @ts-expect-error Delegate submission uses sendDelegateAction.
+void nearCapability.sendDelegateActionViaRelayer;

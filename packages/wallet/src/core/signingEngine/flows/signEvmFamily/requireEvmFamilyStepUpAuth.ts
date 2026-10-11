@@ -16,7 +16,7 @@ import type {
 } from './stepUpAuthorization';
 import type { EvmFamilySigningAuthSideEffect } from './freshAuthRetryPolicy';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
-import type { ReadySecp256k1SigningMaterial } from './signers/secp256k1';
+import type { ReadySecp256k1SigningMaterial } from './readySecp256k1Material';
 import type { PreparedEcdsaOperationStepUp } from '../../threshold/ecdsa/operationStepUp';
 import type { HydratedEcdsaSignerMaterial } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';

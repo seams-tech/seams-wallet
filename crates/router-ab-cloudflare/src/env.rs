@@ -104,18 +104,6 @@ pub const DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
 /// Previous signer-envelope HPKE public-key retirement timestamp.
 pub const ROUTER_AB_PREVIOUS_ENVELOPE_HPKE_RETIRE_AT_MS_ENV: &str =
     "ROUTER_AB_PREVIOUS_ENVELOPE_HPKE_RETIRE_AT_MS";
-/// Deriver A A/B peer-message Ed25519 signing secret binding-name env key.
-pub const DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV: &str = "DERIVER_A_PEER_SIGNING_KEY_BINDING";
-/// Deriver A A/B peer-message Ed25519 signing key epoch env key.
-pub const DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV: &str = "DERIVER_A_PEER_SIGNING_KEY_EPOCH";
-/// Deriver B A/B peer-message Ed25519 signing secret binding-name env key.
-pub const DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV: &str = "DERIVER_B_PEER_SIGNING_KEY_BINDING";
-/// Deriver B A/B peer-message Ed25519 signing key epoch env key.
-pub const DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV: &str = "DERIVER_B_PEER_SIGNING_KEY_EPOCH";
-/// Deriver A A/B peer-message Ed25519 verifying key env key.
-pub const DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV: &str = "DERIVER_A_PEER_VERIFYING_KEY_HEX";
-/// Deriver B A/B peer-message Ed25519 verifying key env key.
-pub const DERIVER_B_PEER_VERIFYING_KEY_HEX_ENV: &str = "DERIVER_B_PEER_VERIFYING_KEY_HEX";
 /// Router JWT issuer env key.
 pub const ROUTER_JWT_ISSUER_ENV: &str = "ROUTER_JWT_ISSUER";
 /// Router JWT audience env key.
@@ -287,10 +275,6 @@ pub(crate) const TENANT_ROOT_CONTROL_PLANE_FORBIDDEN_ENV_KEYS: &[&str] = &[
     DERIVER_A_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
     // Role signing IDs are selected from the retained public keyset. Direct
     // role-ID configuration is forbidden here so the issuer cannot diverge
     // from the active selectors shared by Router and Derivers.
@@ -332,10 +316,6 @@ pub(crate) const ROUTER_FORBIDDEN_ENV_KEYS: &[&str] = &[
     DERIVER_A_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
     DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
@@ -372,8 +352,6 @@ pub(crate) const DERIVER_A_FORBIDDEN_ENV_KEYS: &[&str] = &[
     TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV,
     DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
     DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
     DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
     DERIVER_B_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV,
@@ -408,8 +386,6 @@ pub(crate) const DERIVER_B_FORBIDDEN_ENV_KEYS: &[&str] = &[
     SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_A_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
     DERIVER_A_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV,
@@ -436,12 +412,8 @@ pub(crate) const SIGNING_WORKER_FORBIDDEN_ENV_KEYS: &[&str] = &[
     TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV,
     DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_A_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_A_PEER_SIGNING_KEY_EPOCH_ENV,
     DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
     DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-    DERIVER_B_PEER_SIGNING_KEY_EPOCH_ENV,
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
     DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
@@ -878,8 +850,6 @@ fn reject_reused_operational_secret_bindings(
         DERIVER_A_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
         DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
         DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
-        DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-        DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
         DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
         DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
     ];
@@ -917,7 +887,6 @@ fn validate_operational_secret_binding_name(
     };
     if !binding_name.starts_with(tenant_root_prefix)
         || binding_name.contains("ENVELOPE_HPKE")
-        || binding_name.contains("PEER_SIGNING_KEY")
         || binding_name.contains("CREATION_SIGNING")
     {
         return Err(RouterAbProtocolError::new(
@@ -1261,10 +1230,7 @@ fn validate_role_specific_binding_name(
         TwoPartyDeriverRole::DeriverA => ("DERIVER_A_", "DERIVER_B_"),
         TwoPartyDeriverRole::DeriverB => ("DERIVER_B_", "DERIVER_A_"),
     };
-    if !binding_name.starts_with(role_prefix)
-        || binding_name.starts_with(peer_prefix)
-        || binding_name.contains("PEER_SIGNING_KEY")
-    {
+    if !binding_name.starts_with(role_prefix) || binding_name.starts_with(peer_prefix) {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "tenant-root role-signing Secret binding is not role-specific",
@@ -2206,12 +2172,10 @@ pub fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
 pub fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1> {
-    let key_set = decode_role_verifying_keys(&read_required_raw_env_text(
+    decode_role_verifying_keys(&read_required_raw_env_text(
         env,
         ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON_ENV,
-    )?)?;
-    validate_tenant_root_creation_role_verifying_keys_against_peer_v1(env, &key_set)?;
-    Ok(key_set)
+    )?)
 }
 
 /// Parses the published control-plane issuer verifying key set from Env.
@@ -2345,7 +2309,6 @@ pub(crate) fn parse_cloudflare_tenant_root_creation_role_signing_key_binding_v1(
         read_required_tenant_root_identifier(env, signing_key_id_key)?,
         read_required_tenant_root_identifier(env, binding_key)?,
     )?;
-    reject_reused_peer_signing_binding(env, &binding)?;
     binding.validate_visible_to(worker_role)?;
     Ok(binding)
 }
@@ -2362,7 +2325,6 @@ pub(crate) fn parse_cloudflare_tenant_root_creation_role_signing_key_selection_v
         ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON_ENV,
     )?;
     let key_set = decode_role_verifying_keys(&key_set_json)?;
-    validate_tenant_root_creation_role_verifying_keys_against_peer_v1(env, &key_set)?;
     key_set.reject_ambiguous_role_selection(binding.role(), binding.signing_key_id())?;
     key_set.require_active_role_selection(binding.role(), binding.signing_key_id())?;
     let verifying_key = key_set.for_role_and_key_id(binding.role(), binding.signing_key_id())?;
@@ -2410,11 +2372,6 @@ impl TenantRootCreationRoleVerifyingKeysV1 {
                 "tenant-root creation role signing key is not trusted",
             )
         })
-    }
-
-    fn contains_verifying_key(&self, verifying_key: &[u8; 32]) -> bool {
-        self.deriver_a.values().any(|key| key == verifying_key)
-            || self.deriver_b.values().any(|key| key == verifying_key)
     }
 
     fn reject_ambiguous_role_selection(
@@ -2668,63 +2625,6 @@ fn read_required_tenant_root_identifier(
     let value = read_required_raw_env_text(env, key)?;
     validate_tenant_root_identifier(key, &value)?;
     Ok(value)
-}
-
-fn reject_reused_peer_signing_binding(
-    env: &impl CloudflareEnvReaderV1,
-    binding: &CloudflareTenantRootCreationRoleSigningKeyBindingV1,
-) -> RouterAbProtocolResult<()> {
-    for key in [
-        DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-        DERIVER_B_PEER_SIGNING_KEY_BINDING_ENV,
-    ] {
-        if let Some(peer_binding) = env.get_text(key)? {
-            validate_tenant_root_identifier("A/B peer-signing Secret binding name", &peer_binding)?;
-            if peer_binding == binding.binding_name() {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                    "tenant-root role-signing Secret cannot reuse an A/B peer-signing Secret",
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn validate_tenant_root_creation_role_verifying_keys_against_peer_v1(
-    env: &impl CloudflareEnvReaderV1,
-    key_set: &TenantRootCreationRoleVerifyingKeysV1,
-) -> RouterAbProtocolResult<()> {
-    for (role, key) in [
-        (
-            TwoPartyDeriverRole::DeriverA,
-            DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV,
-        ),
-        (
-            TwoPartyDeriverRole::DeriverB,
-            DERIVER_B_PEER_VERIFYING_KEY_HEX_ENV,
-        ),
-    ] {
-        let Some(value) = env.get_text(key)? else {
-            continue;
-        };
-        let verifying_key = decode_lower_hex_32(&value)?;
-        VerifyingKey::from_bytes(&verifying_key).map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("{key} is not a valid Ed25519 point"),
-            )
-        })?;
-        if key_set.contains_verifying_key(&verifying_key) {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                format!(
-                    "tenant-root role verifying key cannot reuse the {role:?} A/B peer verifier"
-                ),
-            ));
-        }
-    }
-    Ok(())
 }
 
 fn decode_lower_hex_32(value: &str) -> RouterAbProtocolResult<[u8; 32]> {
@@ -3428,101 +3328,9 @@ mod tests {
     }
 
     #[test]
-    fn role_signing_rejects_peer_aliases_and_opposite_role_key() {
+    fn role_signing_rejects_opposite_role_key() {
         let signing_key_a = SigningKey::from_bytes(&[0xa1; 32]);
         let signing_key_b = SigningKey::from_bytes(&[0xb1; 32]);
-        let key_set = role_key_set_json(
-            "tenant-root-a",
-            &signing_key_a,
-            "tenant-root-b",
-            &signing_key_b,
-        );
-        let reused_peer_env = CloudflareEnvMapV1::new(vec![
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
-                "DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY".to_owned(),
-            ),
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
-                "tenant-root-a".to_owned(),
-            ),
-            (
-                DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-                "DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY".to_owned(),
-            ),
-        ]);
-        assert!(
-            parse_cloudflare_tenant_root_creation_role_signing_key_binding_v1(
-                CloudflareWorkerRoleV1::DeriverA,
-                &reused_peer_env,
-            )
-            .is_err()
-        );
-        let whitespace_peer_env = CloudflareEnvMapV1::new(vec![
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
-                "DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY".to_owned(),
-            ),
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
-                "tenant-root-a".to_owned(),
-            ),
-            (
-                DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-                " DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY".to_owned(),
-            ),
-        ]);
-        assert!(
-            parse_cloudflare_tenant_root_creation_role_signing_key_binding_v1(
-                CloudflareWorkerRoleV1::DeriverA,
-                &whitespace_peer_env,
-            )
-            .is_err()
-        );
-        let static_peer_alias_env = CloudflareEnvMapV1::new(vec![
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
-                "DERIVER_A_PEER_SIGNING_KEY",
-            ),
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
-                "tenant-root-a",
-            ),
-        ]);
-        assert!(
-            parse_cloudflare_tenant_root_creation_role_signing_key_binding_v1(
-                CloudflareWorkerRoleV1::DeriverA,
-                &static_peer_alias_env,
-            )
-            .is_err()
-        );
-
-        let reused_peer_verifier_env = CloudflareEnvMapV1::new(vec![
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
-                "DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY".to_owned(),
-            ),
-            (
-                DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
-                "tenant-root-a".to_owned(),
-            ),
-            (
-                ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON_ENV,
-                key_set,
-            ),
-            (
-                DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV,
-                lower_hex(&signing_key_a.verifying_key().to_bytes()),
-            ),
-        ]);
-        assert!(
-            parse_cloudflare_tenant_root_creation_role_signing_key_selection_v1(
-                CloudflareWorkerRoleV1::DeriverA,
-                &reused_peer_verifier_env,
-            )
-            .is_err()
-        );
-
         let opposite_role_key_env = role_signing_env(
             "DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY",
             "tenant-root-b",
@@ -3540,29 +3348,6 @@ mod tests {
             )
             .expect_err("Deriver A must not select Deriver B key")
             .code(),
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding
-        );
-    }
-
-    #[test]
-    fn role_verifying_key_validator_rejects_peer_verifier_for_router_loader() {
-        let signing_key_a = SigningKey::from_bytes(&[0xa1; 32]);
-        let signing_key_b = SigningKey::from_bytes(&[0xb1; 32]);
-        let key_set = decode_role_verifying_keys(&role_key_set_json(
-            "tenant-root-a",
-            &signing_key_a,
-            "tenant-root-b",
-            &signing_key_b,
-        ))
-        .expect("trusted role key set");
-        let env = CloudflareEnvMapV1::new(vec![(
-            DERIVER_A_PEER_VERIFYING_KEY_HEX_ENV,
-            lower_hex(&signing_key_a.verifying_key().to_bytes()),
-        )]);
-        assert_eq!(
-            validate_tenant_root_creation_role_verifying_keys_against_peer_v1(&env, &key_set)
-                .expect_err("Router loader must reject peer verifier reuse")
-                .code(),
             RouterAbProtocolErrorCode::ForbiddenLocalBinding
         );
     }
@@ -3762,7 +3547,7 @@ mod tests {
             .is_err()
         );
 
-        let reused_binding_env = env.clone().with_overrides(vec![(
+        let reused_binding_env = env.with_overrides(vec![(
             DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING_ENV,
             "DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY",
         )]);
@@ -3772,20 +3557,6 @@ mod tests {
                 &reused_binding_env,
             )
             .expect_err("online and backup Secret bindings must be distinct")
-            .code(),
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding
-        );
-
-        let peer_alias_env = env.with_overrides(vec![(
-            DERIVER_A_PEER_SIGNING_KEY_BINDING_ENV,
-            "DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY",
-        )]);
-        assert_eq!(
-            parse_cloudflare_tenant_root_operational_rotation_provider_config_v1(
-                CloudflareWorkerRoleV1::DeriverA,
-                &peer_alias_env,
-            )
-            .expect_err("operational Secret must not reuse peer Secret")
             .code(),
             RouterAbProtocolErrorCode::ForbiddenLocalBinding
         );

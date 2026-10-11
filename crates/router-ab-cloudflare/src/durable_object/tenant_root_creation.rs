@@ -55,13 +55,11 @@ use sha2::{Digest, Sha256};
 
 #[cfg(all(test, feature = "workers-rs"))]
 use crate::tenant_root_role_d1::CloudflareTenantRootPendingShareV1;
-#[cfg(feature = "workers-rs")]
-use crate::CloudflareWorkerEnvReaderV1;
 use crate::{
     decode_base64url_bytes_v1, decode_role_verifying_keys, encode_base64url_bytes_v1,
-    validate_tenant_root_creation_role_verifying_keys_against_peer_v1, RouterAbProtocolError,
-    RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootCreationRoleVerifyingKeysV1,
-    TenantRootCutoverRecordUpdateV1, TenantRootCutoverRecordV1,
+    RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    TenantRootCreationRoleVerifyingKeysV1, TenantRootCutoverRecordUpdateV1,
+    TenantRootCutoverRecordV1,
 };
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
@@ -8459,15 +8457,10 @@ pub(crate) fn read_required_worker_var(
 fn read_tenant_root_creation_role_verifying_keys(
     env: &worker::Env,
 ) -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1> {
-    let role_keys = decode_role_verifying_keys(&read_required_worker_var(
+    decode_role_verifying_keys(&read_required_worker_var(
         env,
         crate::ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON_ENV,
-    )?)?;
-    validate_tenant_root_creation_role_verifying_keys_against_peer_v1(
-        &CloudflareWorkerEnvReaderV1::new(env),
-        &role_keys,
-    )?;
-    Ok(role_keys)
+    )?)
 }
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]

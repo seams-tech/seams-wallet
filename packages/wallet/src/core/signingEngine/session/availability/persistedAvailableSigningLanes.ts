@@ -154,6 +154,7 @@ export async function readPersistedAvailableSigningLanes(
   deps: PersistedAvailableSigningLanesDeps,
   args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
   ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[],
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<AvailableSigningLanes> {
   return await readPersistedAvailableSigningLanesForTargets(
     deps,
@@ -162,7 +163,7 @@ export async function readPersistedAvailableSigningLanes(
       ecdsaChainTargets,
       requiredEcdsaCapability: 'sign',
     },
-    new WalletSessionStatusReadScope(),
+    statusReads,
     'all',
   );
 }
@@ -221,7 +222,12 @@ export async function readPersistedAvailableSigningLanesForSigning(
     );
   }
   const { curve, ...availableLanesArgs } = args;
-  return await readPersistedAvailableSigningLanes(deps, availableLanesArgs, []);
+  return await readPersistedAvailableSigningLanes(
+    deps,
+    availableLanesArgs,
+    [],
+    new WalletSessionStatusReadScope(),
+  );
 }
 
 function sealedRecordHasEd25519ThresholdSession(record: SigningSessionSealedStoreRecord): boolean {

@@ -1,0 +1,32 @@
+{
+  "signerSet": "near-only",
+  "requests": [
+    {
+      "path": "/router-ab/ed25519/yao/registration/admit",
+      "ingress": "WEUR",
+      "home": "US",
+      "status": 200,
+      "consolePaths": [
+        "/internal/wallet-console/v1/tenant-root/active-lineage"
+      ]
+    },
+    {
+      "path": "/router-ab/ed25519/yao/registration/execute",
+      "ingress": "APAC",
+      "home": "US",
+      "status": 200,
+      "consolePaths": []
+    }
+  ],
+  "verifiedSignatures": 3,
+  "signingConsoleCalls": 0,
+  "scope": "Console is unavailable during subsequent signing. Registration retains its tenant-root context dependency; admission and execution carry the known home through foreign ingress.",
+  "environment": "local composed browser acceptance with real protocol roles and regional D1 emulation",
+  "hostedLatencyMeasured": false,
+  "verification": {
+    "walletTypecheck": "passed",
+    "routingTypeFixture": "passed",
+    "sdkBuild": "passed",
+    "bloatCheck": "passed"
+  }
+}

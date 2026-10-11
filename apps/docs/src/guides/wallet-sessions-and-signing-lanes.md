@@ -1,6 +1,6 @@
 ---
 title: Wallet sessions and signing lanes
-description: Unlock provisions a bounded signing session for low-friction signing; lanes identify the custody and policy path per operation family.
+description: Unlock creates a signing session with a use limit and expiry. Lanes identify the custody and policy path for each operation family.
 ---
 
 # Wallet sessions and signing lanes
@@ -15,17 +15,15 @@ Locking clears reusable session access while preserving wallet identity.
 
 ## Unlock: provision a signing session
 
-Call `unlock` with the `walletId` returned during registration. The result has
-separate NEAR and EVM-family success branches; read `nearAccountId` only from
-the NEAR branch.
+Call `unlock` with the `walletId` returned during registration. The result has separate
+NEAR and EVM-family success branches. Read `nearAccountId` only from the NEAR branch.
 
 <<< ../examples/unlock.ts
 
-The returned wallet session backs subsequent signing calls until it expires or
-runs out of uses. The next signing operation can request same-method step-up
-for that exact operation. Explicitly unlock again when you want a fresh reusable
-allowance. Size the session's lifetime and budget for the expected burst of
-operations.
+The returned wallet session backs subsequent signing calls until it expires or runs out
+of uses. The next signing operation can request fresh authentication with the same
+method for that exact operation. Unlock again when you want a fresh reusable allowance.
+Size the session's lifetime and budget for the expected burst of operations.
 
 ## Before you call a signing method
 
@@ -36,8 +34,8 @@ family. With a session provisioned:
 2. Derive its exact reference from validated wallet identity.
 3. Derive the NEAR account or EVM-family chain target from validated
    configuration.
-4. Confirm that the requested lane is ready, then pass the same session
-   reference through the complete operation.
+4. Confirm that the requested lane is ready.
+5. Pass the same session reference through the complete operation.
 
 Start with [Signing](/examples/signing) for a complete flow.
 

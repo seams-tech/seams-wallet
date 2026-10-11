@@ -91,7 +91,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   showCamera = true,
 }) => {
   const { theme, tokens } = useTheme();
-  const { cancelDeviceLinking } = useSeams();
+  const { cancelLinking } = useSeams();
   const scopedTokens = React.useMemo(
     () => (theme === 'dark' ? { dark: tokens } : { light: tokens }),
     [theme, tokens],
@@ -306,8 +306,8 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     if (scannerState.kind === 'scanning') return;
     if (cancellationRequestedRef.current || completionReportedRef.current) return;
     cancellationRequestedRef.current = true;
-    void cancelDeviceLinking().catch(() => undefined);
-  }, [cancelDeviceLinking, scannerState.kind]);
+    void cancelLinking().catch(() => undefined);
+  }, [cancelLinking, scannerState.kind]);
 
   const handleClose = useCallback(() => {
     stopScanning();
@@ -445,7 +445,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             <p role="alert">{qrCamera.error}</p>
             <button
               type="button"
-              onClick={() => qrCamera.setError(null)}
+              onClick={qrCamera.startScanning}
               className="qr-scanner-error-button"
             >
               Try Again
@@ -654,7 +654,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                     <select
                       name="camera"
                       value={qrCamera.selectedCamera}
-                      onChange={(e) => qrCamera.handleCameraChange(e.target.value)}
+                      onChange={(e) => qrCamera.selectCamera(e.target.value)}
                       className="qr-scanner-camera-selector"
                     >
                       {qrCamera.cameras.map((camera) => (

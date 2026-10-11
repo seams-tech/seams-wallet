@@ -4,7 +4,6 @@ import {
   LinkedDeviceEmailOtpBaseFactorChoiceV1,
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
-  parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
   parseQrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking';
@@ -229,7 +228,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
   const pendingEmailOtpBaseFactorSelections: PendingEmailOtpBaseFactorSelectionStoreV1 = new Map();
   return {
     PM_START_DEVICE2_LINKING_FLOW: async (req: Req<'PM_START_DEVICE2_LINKING_FLOW'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload;
       if (!payload) throw new Error('PM_START_DEVICE2_LINKING_FLOW requires a payload');
       const { ui, cameraId, options } = payload;
@@ -248,7 +247,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
       if (deps.respondIfCancelled(req.requestId)) return;
       const activationId = String(req.requestId || '').trim();
       if (!activationId) throw new Error('Device-link target-factor activation id is required');
-      const result = await pm.devices.startDevice2LinkingFlow({
+      const result = await pm.devices.startLinking({
         ...target,
         ...(ui ? { ui } : {}),
         ...(cameraId ? { cameraId } : {}),
@@ -291,9 +290,9 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_CANCEL_DEVICE_LINKING: async (req: Req<'PM_CANCEL_DEVICE_LINKING'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.devices.cancelDeviceLinking();
+      await pm.devices.cancelLinking();
       activeTargetFactor.current = null;
       /* A scan parked on the Email OTP method chooser is part of what this
          cancels: rejecting the pending selection is what unparks that
@@ -311,11 +310,11 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_SCAN_AND_LINK_DEVICE: async (req: Req<'PM_SCAN_AND_LINK_DEVICE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { qrData, options } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       try {
-        const result = await pm.devices.scanAndLinkDevice(
+        const result = await pm.devices.approveLinking(
           parseQrLinkedDeviceSessionPayloadV5(qrData),
           {
             ...withProgress(deps, req.requestId, options || {}),
@@ -340,14 +339,14 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_HAS_PASSKEY: async (req: Req<'PM_HAS_PASSKEY'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId } = req.payload!;
-      const result = await pm.auth.hasPasskeyCredential(walletId);
+      const result = await pm.auth.hasPasskey(walletId);
       respondOkResult(deps, req.requestId, result);
     },
 
     PM_LIST_LINKED_DEVICES: async (req: Req<'PM_LIST_LINKED_DEVICES'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload;
       if (!payload) throw new Error('PM_LIST_LINKED_DEVICES requires a payload');
       const request = parseLinkedDeviceListRequestV1({
@@ -356,7 +355,7 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
         limit: payload.limit,
         cursor: payload.cursor,
       });
-      const result = await pm.devices.listLinkedDevices({
+      const result = await pm.devices.list({
         walletId: String(request.walletId),
         limit: request.limit,
         cursor: request.cursor,
@@ -365,21 +364,13 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
     },
 
     PM_REVOKE_LINKED_DEVICE: async (req: Req<'PM_REVOKE_LINKED_DEVICE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload;
       if (!payload) throw new Error('PM_REVOKE_LINKED_DEVICE requires a payload');
       if (deps.respondIfCancelled(req.requestId)) return;
-      const request = parseLinkedDeviceRevokeRequestV1({
-        kind: 'linked_device_revoke_request_v1',
+      const result = await pm.devices.remove({
         walletId: payload.walletId,
         walletAuthMethodId: payload.walletAuthMethodId,
-        requestedAtMs: payload.requestedAtMs,
-      });
-      const result = await pm.devices.revokeLinkedDevice({
-        walletId: String(request.walletId),
-        walletAuthMethodId: String(request.walletAuthMethodId),
-        requestedAtMs: request.requestedAtMs,
-        sourceProof: payload.sourceProof,
       });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, parseLinkedDeviceRevokeResultV1(result));

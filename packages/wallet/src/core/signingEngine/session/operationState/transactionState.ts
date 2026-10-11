@@ -204,7 +204,6 @@ export async function prepareTransactionSigningOperation<
   operation?: SigningOperationContext;
   forceFreshAuth?: boolean;
   sensitiveOperationPolicy?: SensitiveOperationPolicy | null;
-  missingWhenExpiresAtMissing?: boolean;
   onPlannerTrace?: (event: SigningPlannerDecisionTraceEvent) => void;
 }): Promise<PreparedTransactionSigningOperation<TLane, TSigningLane, TMetadata>> {
   let transactionLane: TLane | null = null;
@@ -244,7 +243,6 @@ export async function prepareTransactionSigningOperation<
     ...(args.operation ? { operation: args.operation } : {}),
     forceFreshAuth: args.forceFreshAuth,
     sensitiveOperationPolicy: args.sensitiveOperationPolicy,
-    missingWhenExpiresAtMissing: args.missingWhenExpiresAtMissing,
     onPlannerTrace: args.onPlannerTrace,
   });
 

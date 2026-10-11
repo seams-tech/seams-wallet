@@ -88,7 +88,8 @@ export type ThresholdEd25519ComputeNep413SigningDigestRequest = {
   message: string;
   recipient: string;
   nonce: string;
-  state?: string;
+  callbackUrl: string | null;
+  state?: never;
 };
 
 export type ThresholdEd25519ComputeSigningDigestResult = {

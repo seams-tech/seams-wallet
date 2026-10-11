@@ -1,3 +1,6 @@
+mod bound_share;
+pub use bound_share::tenant_root_deriver_load_bound_role_share_v1;
+pub(crate) use bound_share::load_role_share_with_access;
 use rand_core_06::SeedableRng;
 use router_ab_core::MpcPrfSigningRootShareWireV1;
 use router_ab_core::{
@@ -1393,10 +1396,10 @@ pub trait TenantRootDeriverHostV1:
     /// wallet objects, and its admissions never name one.
     async fn reconcile_wallet_object_pair(
         &self,
-        pair_object_name: &str,
+        pair_object_id: &str,
         request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
     ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
-        let _ = (pair_object_name, request);
+        let _ = (pair_object_id, request);
         Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "this Deriver host keeps no wallet objects",
@@ -1657,7 +1660,7 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
             )),
         };
     };
-    match (admission.status.as_str(), admission.pair_object_name) {
+    match (admission.status.as_str(), admission.pair_object_id) {
         ("settled", _) => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Completed),
         ("cancelled", _) => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Fenced),
         ("admitted", None) => {
@@ -1680,10 +1683,10 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
                 )),
             }
         }
-        ("admitted", Some(pair_object_name)) => {
+        ("admitted", Some(pair_object_id)) => {
             let reconciliation = host
                 .reconcile_wallet_object_pair(
-                    &pair_object_name,
+                    &pair_object_id,
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: request.session_hex.clone(),
                         fence: true,
@@ -1695,7 +1698,7 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
             store
                 .record_wallet_object_reconciliation(
                     &request.session_hex,
-                    &pair_object_name,
+                    &pair_object_id,
                     reconciliation,
                 )
                 .await
@@ -1725,7 +1728,7 @@ pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV
 
 /// A wallet object that could not answer leaves its admission pending; the
 /// cleanup is retried.
-#[cfg(any(feature = "wallet-do-harness", feature = "wallet-do-b-harness"))]
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", feature = "strict-worker-deriver-b-entrypoint"))]
 fn wallet_object_unreachable_error_v1(error: worker::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
@@ -1760,115 +1763,6 @@ fn tenant_root_epoch_not_yet_active_error_v1() -> RouterAbProtocolError {
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
         "the tenant-root epoch this operation is bound to is not yet active at this Deriver; retry",
     )
-}
-
-/// Loads the tenant-root role share an authenticated custody binding names.
-///
-/// The custody binding is resolved by the authenticated request boundary. The
-/// operation is admitted on the binding's epoch first, and the store returns
-/// that epoch's share: the active share, or, for an operation admitted before
-/// a refresh retired the epoch, the retired share until it is erased. An
-/// unused binding for a retired epoch and a binding for an epoch not yet
-/// active here are refused. The host's role chooses the local role; no
-/// selector is accepted from the request body.
-pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDeriverHostV1>(
-    host: &Host,
-    authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
-    attempt: &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1,
-    now_ms: u64,
-) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
-    let worker_role = host.worker_role();
-    let expected_role = match worker_role {
-        crate::CloudflareWorkerRoleV1::DeriverA => TwoPartyDeriverRole::DeriverA,
-        crate::CloudflareWorkerRoleV1::DeriverB => TwoPartyDeriverRole::DeriverB,
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidRole,
-                "this Worker has no tenant-root role share",
-            ));
-        }
-    };
-    authenticated_custody_binding
-        .validate()
-        .map_err(crate::map_root_share_to_protocol)?;
-
-    let store = host.role_store().map_err(|error| {
-        crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
-    })?;
-    let stored = match store
-        .load_bound(authenticated_custody_binding, attempt, now_ms)
-        .await
-        .map_err(|error| {
-            crate::map_cloudflare_tenant_root_role_store_error_v1(
-                "tenant-root bound role-share lookup",
-                error,
-            )
-        })? {
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::Readable(stored) => stored,
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::EpochClosed => {
-            return Err(tenant_root_epoch_closed_error_v1());
-        }
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::NotYetActive => {
-            return Err(tenant_root_epoch_not_yet_active_error_v1());
-        }
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::AttemptConflict => {
-            return Err(tenant_root_attempt_conflict_error_v1());
-        }
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::Cancelled => {
-            return Err(tenant_root_attempt_cancelled_error_v1());
-        }
-        crate::tenant_root_role_d1::TenantRootBoundShareV1::Erased => {
-            return Err(tenant_root_epoch_erased_error_v1());
-        }
-    };
-    let sealed = stored.into_bound_online_role_share_artifact().map_err(|error| {
-        crate::map_cloudflare_tenant_root_role_store_error_v1(
-            "tenant-root online role-share reconstruction",
-            error,
-        )
-    })?;
-    if sealed.binding().role() != expected_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "tenant-root bound role-share row does not belong to this Deriver",
-        ));
-    }
-
-    let mut provider =
-        crate::env::load_tenant_root_operational_rotation_provider_v1(worker_role, host.env())?;
-    let opened = open_tenant_root_online_role_share_v1(sealed, &mut provider)
-        .map_err(crate::map_root_share_to_protocol)?;
-    if opened.role() != expected_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "tenant-root online role-share provider returned the wrong Deriver role",
-        ));
-    }
-    // An ECDSA operation reads its share once per request; having read it, it
-    // needs the epoch no longer. Its settlement races recovery's cancellation
-    // for the admission, and the share is used only if a settlement of this
-    // exact attempt won. A Yao pair settles when its record here completes.
-    if matches!(
-        attempt,
-        crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::EcdsaOperation
-    ) {
-        match store
-            .settle_root_use_admission(attempt, authenticated_custody_binding)
-            .await
-            .map_err(|error| {
-                crate::map_cloudflare_tenant_root_role_store_error_v1(
-                    "tenant-root root-use settlement",
-                    error,
-                )
-            })? {
-            crate::tenant_root_role_d1::TenantRootSettlementOutcomeV1::Won
-            | crate::tenant_root_role_d1::TenantRootSettlementOutcomeV1::AlreadySettled => {}
-            crate::tenant_root_role_d1::TenantRootSettlementOutcomeV1::CancellationWon => {
-                return Err(tenant_root_attempt_cancelled_error_v1());
-            }
-        }
-    }
-    Ok(opened)
 }
 
 /// The Cloudflare Deriver host.
@@ -2009,30 +1903,30 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
 
     async fn reconcile_wallet_object_pair(
         &self,
-        pair_object_name: &str,
+        pair_object_id: &str,
         request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
     ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
-        #[cfg(feature = "wallet-do-harness")]
+        #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverA) {
             return crate::durable_object::reconcile_deriver_a_wallet_pair_v1(
                 self.env,
-                pair_object_name,
+                pair_object_id,
                 request,
             )
             .await
             .map_err(wallet_object_unreachable_error_v1);
         }
-        #[cfg(feature = "wallet-do-b-harness")]
+        #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
         if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverB) {
             return crate::durable_object::reconcile_deriver_b_wallet_pair_v1(
                 self.env,
-                pair_object_name,
+                pair_object_id,
                 request,
             )
             .await
             .map_err(wallet_object_unreachable_error_v1);
         }
-        let _ = (pair_object_name, request);
+        let _ = (pair_object_id, request);
         Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "this Deriver build keeps no wallet objects",
@@ -6985,7 +6879,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 .is_ok_and(|admitted_at_ms| admitted_at_ms <= admitted_at_or_before_ms);
             let reconciliation = host
                 .reconcile_wallet_object_pair(
-                    &admission.pair_object_name,
+                    &admission.pair_object_id,
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: admission.attempt_key_hex.clone(),
                         fence,
@@ -7010,7 +6904,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 )
                 .await?;
                 host.reconcile_wallet_object_pair(
-                    &admission.pair_object_name,
+                    &admission.pair_object_id,
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: admission.attempt_key_hex.clone(),
                         fence: true,
@@ -7025,7 +6919,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
             store
                 .record_wallet_object_reconciliation(
                     &admission.attempt_key_hex,
-                    &admission.pair_object_name,
+                    &admission.pair_object_id,
                     reconciliation,
                 )
                 .await

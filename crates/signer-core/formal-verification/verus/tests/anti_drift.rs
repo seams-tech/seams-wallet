@@ -76,7 +76,7 @@ struct Nep413DigestVector {
     recipient: String,
     nonce32_hex: String,
     nonce_base64: String,
-    state: Option<String>,
+    callback_url: Option<String>,
     prefix_le_hex: String,
     borsh_payload_hex: String,
     prefixed_payload_hex: String,
@@ -198,13 +198,13 @@ fn nep413_borsh_payload(
     message: &str,
     recipient: &str,
     nonce32: &[u8; 32],
-    state: Option<&str>,
+    callback_url: Option<&str>,
 ) -> Vec<u8> {
     let mut out = Vec::new();
     out.extend_from_slice(&borsh_string(message));
-    out.extend_from_slice(&borsh_string(recipient));
     out.extend_from_slice(nonce32);
-    out.extend_from_slice(&borsh_option_string(state));
+    out.extend_from_slice(&borsh_string(recipient));
+    out.extend_from_slice(&borsh_option_string(callback_url));
     out
 }
 
@@ -212,10 +212,15 @@ fn nep413_prefixed_payload(
     message: &str,
     recipient: &str,
     nonce32: &[u8; 32],
-    state: Option<&str>,
+    callback_url: Option<&str>,
 ) -> Vec<u8> {
     let mut out = 2_147_484_061u32.to_le_bytes().to_vec();
-    out.extend_from_slice(&nep413_borsh_payload(message, recipient, nonce32, state));
+    out.extend_from_slice(&nep413_borsh_payload(
+        message,
+        recipient,
+        nonce32,
+        callback_url,
+    ));
     out
 }
 
@@ -223,9 +228,15 @@ fn nep413_digest_formula(
     message: &str,
     recipient: &str,
     nonce32: &[u8; 32],
-    state: Option<&str>,
+    callback_url: Option<&str>,
 ) -> [u8; 32] {
-    Sha256::digest(nep413_prefixed_payload(message, recipient, nonce32, state)).into()
+    Sha256::digest(nep413_prefixed_payload(
+        message,
+        recipient,
+        nonce32,
+        callback_url,
+    ))
+    .into()
 }
 
 #[test]
@@ -356,12 +367,12 @@ fn anti_drift_nep413_digest_matches_committed_vectors() {
         let expected_borsh_payload = hex_to_vec(&vector.borsh_payload_hex);
         let expected_prefixed_payload = hex_to_vec(&vector.prefixed_payload_hex);
         let expected_digest32 = hex_to_array::<32>(&vector.digest32_hex);
-        let state = vector.state.as_deref();
+        let callback_url = vector.callback_url.as_deref();
 
         let borsh_payload =
-            nep413_borsh_payload(&vector.message, &vector.recipient, &nonce32, state);
+            nep413_borsh_payload(&vector.message, &vector.recipient, &nonce32, callback_url);
         let prefixed_payload =
-            nep413_prefixed_payload(&vector.message, &vector.recipient, &nonce32, state);
+            nep413_prefixed_payload(&vector.message, &vector.recipient, &nonce32, callback_url);
         assert_eq!(
             2_147_484_061u32.to_le_bytes().as_slice(),
             expected_prefix,
@@ -379,7 +390,7 @@ fn anti_drift_nep413_digest_matches_committed_vectors() {
             vector.name
         );
         assert_eq!(
-            nep413_digest_formula(&vector.message, &vector.recipient, &nonce32, state),
+            nep413_digest_formula(&vector.message, &vector.recipient, &nonce32, callback_url),
             expected_digest32,
             "{} independent digest formula drifted",
             vector.name
@@ -389,14 +400,14 @@ fn anti_drift_nep413_digest_matches_committed_vectors() {
             &vector.message,
             &vector.recipient,
             nonce32,
-            state,
+            callback_url,
         )
         .unwrap_or_else(|err| panic!("{} nonce-bytes digest failed: {err}", vector.name));
         let digest_from_nonce_base64 = compute_nep413_signing_digest_from_nonce_base64(
             &vector.message,
             &vector.recipient,
             &vector.nonce_base64,
-            state,
+            callback_url,
         )
         .unwrap_or_else(|err| panic!("{} nonce-base64 digest failed: {err}", vector.name));
         assert_eq!(

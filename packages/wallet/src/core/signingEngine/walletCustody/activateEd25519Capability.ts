@@ -129,6 +129,7 @@ async function buildWalletSessionState(args: {
     signingRootVersion: session.signingRootVersion,
     routerAbNormalSigning: session.routerAbNormalSigning,
     walletSessionToken: args.operationCredential.token,
+    home: args.operationCredential.home,
     nowMs: Date.now(),
   });
   if (!signingWalletSession.ok) {

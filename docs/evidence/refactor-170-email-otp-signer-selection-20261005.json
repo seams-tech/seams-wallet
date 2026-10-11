@@ -1,0 +1,400 @@
+{
+  "baseCommit": "1e8c11e2b9ac51fe6b0536c099c3a2296d222e85",
+  "scope": "Google registration preparation follows selected signers. NEAR-only Email OTP material restoration uses the existing Ed25519 completion branch; combined restoration retains exact ECDSA activation.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow.ts": "4baf408c4bee637d2d36bfaf3dedb9600bcea778fee7ab7e0e4604cf5fa16595",
+    "packages/wallet/src/SeamsWeb/operations/registration/registration.ts": "77129be7882a3c5ca77ea125bc07c20f579e36329e8a8618e20344c5ca151e4b",
+    "packages/wallet/src/SeamsWeb/operations/registration/registrationSignerSet.ts": "96dbd6a0f6830a78c12e8fcbe623c335891257df79786725cdfa21c80cc23e04",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "6117cd6f200cc6d5f3b02ead5be81a9bb69dd3081073508d118cf2ce7d20331b",
+    "packages/wallet/src/core/signingEngine/workerManager/workerTypes.ts": "fb975c36f7e982b3f06df7c5a275ec0420aa5fa6f5fae99089ed6915bdb4a5cb",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/recovery.ts": "5b6f7d521c4be7363bb51d12f3942b1b5bf246760ea8c1bcf0c7387248bff211",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/requestEnvelope.ts": "3033e42f5c6bd2e7b97191699553c8cd3f638f71357683aeb4b0d849916283e7",
+    "tests/e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts": "d22b95c57c350c967ebf059b398a243826a1f3f6e2a61563ff3d0c5cd2f11ff1",
+    "tests/e2e/intended-behaviours/harness.ts": "24c14e67b1db0f143bec48f65379bcea8da22d51a85735bb114c1cce963b1099",
+    "tests/e2e/intended-behaviours/wallet-asset-fixture.ts": "e1915fe0810d26b9aed8c95df461992f283f0a88cc20a6155413573f111be820",
+    "tests/typecheck/email-otp-near-restore.typecheck.ts": "f255e18eaaf31400e8a85999a42e122901b8eed3d1f08c0a0cfcdcd33fcc28bd",
+    "tests/tsconfig.wallet-typecheck.json": "608d2a1243157bcf4a4f6a9d2fa7852dee6e840633d3157669d41ee3a40a2379",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "4daea028af45b3a59f9b2cd20d47a07f6756ac4a44cc0fb46abda9793673aadc"
+  },
+  "sourceLines": {
+    "added": 212,
+    "removed": 110,
+    "net": 102
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "walletStateTypeFixtures": "passed, including invalid literals/spreads/branch assertions",
+    "productionBuild": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "ecdsaOnlyProduction": "passed (32.2s)",
+    "nearOnlyProduction": "passed (31.5s), includes reload and restored signing",
+    "combinedEmailOtpLifecycle": "passed (48.5s)",
+    "passkeyAssetFixture": "passed (34.8s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scenarios": [
+    {
+      "artifact": ".artifacts/wallet-assets/production-email-otp-ecdsa-only-registration-loads-selected-signer-assets.json",
+      "artifactSha256": "62ce1e4c7968ecf0f687fceea2a64f9be213ab04e42ef473860a65d3ec9f8359",
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791172196025,
+          "durationMs": 392.0466660000001
+        },
+        {
+          "name": "email-otp-ecdsa-registration",
+          "startedAtMs": 1791172196417,
+          "durationMs": 1245.496708
+        },
+        {
+          "name": "email-otp-ecdsa-sign",
+          "startedAtMs": 1791172197663,
+          "durationMs": 1479.0331660000002
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791172199142,
+          "durationMs": 2.043290999999954
+        }
+      ],
+      "wasmRequests": [
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/router_ab_ecdsa_client_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 791949
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 93393
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 93393
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/email_otp_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 23786
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet_custody_ceremony_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 543199
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        },
+        {
+          "phase": "email-otp-ecdsa-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo_signer.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 102252
+          }
+        }
+      ],
+      "workerCreations": [
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-registration",
+          "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-ecdsa-sign",
+          "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        }
+      ],
+      "bodyCaptureFailureCount": 9,
+      "networkCollectorFailures": [],
+      "serverEncodedBodyBytes": 3542054
+    },
+    {
+      "artifact": ".artifacts/wallet-assets/production-email-otp-near-only-registration-loads-selected-signer-assets.json",
+      "artifactSha256": "d5ffbcee8e2f46c08883e465413b4673fd06a6387df70d3428cf5e12be007cd8",
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791172227264,
+          "durationMs": 360.35450000000003
+        },
+        {
+          "name": "email-otp-near-registration",
+          "startedAtMs": 1791172227624,
+          "durationMs": 1189.9133340000003
+        },
+        {
+          "name": "email-otp-near-sign",
+          "startedAtMs": 1791172228814,
+          "durationMs": 721.3174170000002
+        },
+        {
+          "name": "email-otp-near-restored-sign",
+          "startedAtMs": 1791172229535,
+          "durationMs": 1102.0019579999998
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791172230637,
+          "durationMs": 2.506582999999864
+        }
+      ],
+      "wasmRequests": [
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/router_ab_ed25519_yao_client_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 731188
+          }
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 93393
+          }
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 93393
+          }
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/email_otp_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 23786
+          }
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet_custody_ceremony_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 543199
+          }
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "email-otp-near-sign",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/email_otp_runtime_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 23786
+          }
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/router_ab_ed25519_yao_client_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 731188
+          }
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        }
+      ],
+      "workerCreations": [
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-sign",
+          "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        },
+        {
+          "phase": "email-otp-near-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "pageOrigin": "http://localhost:4201"
+        }
+      ],
+      "bodyCaptureFailureCount": 8,
+      "networkCollectorFailures": [],
+      "serverEncodedBodyBytes": 5921833
+    }
+  ],
+  "failureClassifications": [
+    "valid_test_needs_update: signer-specific Email OTP registration did not retain the rerolled wallet ID; corrected to match the general helper.",
+    "valid_test_needs_update: Email OTP cases initially lived in a passkey-only suite. Shared the asset fixture and retained separate suite auth guards.",
+    "production_regression: NEAR-only Email OTP restoration unconditionally required an ECDSA manifest. Corrected from authoritative signer ownership.",
+    "production_regression during implementation: factor identity needed an Email OTP branch guard before reading providerUserId; wallet type-check caught the invalid union access."
+  ],
+  "limits": [
+    "Routed scenarios disable HTTP cache; this is no warm-cache or deployed delivery performance claim.",
+    "Injected Google preparation failure followed by operation retry remains open.",
+    "Asset body capture can fail across worker/context lifetime changes; request-start network observations and their collector failures are reported separately."
+  ],
+  "commands": [
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'production NEAR-only wallet records'"
+  ]
+}

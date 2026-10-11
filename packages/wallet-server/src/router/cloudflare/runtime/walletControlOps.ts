@@ -1,3 +1,4 @@
+import { handleWalletRelocationRequest, type WalletRelocationRuntimeBindings } from './walletRelocationOps';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import type { WalletRuntimeServiceBinding } from './walletRuntimeOps';
@@ -120,7 +121,7 @@ function deriverOperations(role: 'a' | 'b'): readonly WalletControlOperation[] {
   );
 }
 
-export interface WalletControlRuntimeBindings {
+export interface WalletControlRuntimeBindings extends WalletRelocationRuntimeBindings {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
   readonly TENANT_ROOT_CONTROL_PLANE: CloudflareServiceBindingFetcher;
   readonly DERIVER_A: CloudflareServiceBindingFetcher;
@@ -182,6 +183,8 @@ export async function handleWalletControlRequest(
   request: Request,
   env: WalletControlRuntimeBindings,
 ): Promise<Response | null> {
+  const relocation = await handleWalletRelocationRequest(request, env);
+  if (relocation) return relocation;
   const url = new URL(request.url);
   if (!url.pathname.startsWith(`${WALLET_CONTROL_BASE_PATH_V1}/`)) return null;
   if (url.origin !== WALLET_CONTROL_SERVICE_ORIGIN_V1) return null;

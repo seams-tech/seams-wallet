@@ -1,3 +1,6 @@
+#[path = "cloudflare_private_d1_fixture/ed25519_signing.rs"]
+mod ed25519_signing;
+
 use base64::Engine;
 use router_ab_core::{
     LocalServiceRoleV1, MpcMaterialActivationRefV1, RootShareEpoch,
@@ -25,6 +28,9 @@ use signer_core::ed25519_yao_derivation::{
 use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "../../router-ab-cloudflare/tests/fixtures/linked_ecdsa_scope.rs"]
+mod linked_scope;
+
 const INTERNAL_AUTH_SECRET: &str = "private-d1-integration-auth";
 const GATEWAY_TO_ROUTER_AUTH_SECRET: &str = "private-d1-gateway-router-auth";
 const TENANT_ROOT_ISSUER_KEY_ID: &str = "miniflare-tenant-root-control-plane-issuer-v1";
@@ -40,7 +46,83 @@ const TENANT_ROOT_DERIVER_A_CUSTODY_SEED: [u8; 32] = [0xd4; 32];
 const TENANT_ROOT_DERIVER_B_CUSTODY_SEED: [u8; 32] = [0xd6; 32];
 
 #[derive(Serialize)]
+struct LinkedPresignFixture {
+    request:
+        router_ab_cloudflare::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+    active_signing_worker_state: router_ab_core::ActiveSigningWorkerStateV1,
+    relayer_share32_b64u: String,
+}
+
+fn linked_presign_init_fixture() -> Result<LinkedPresignFixture, Box<dyn std::error::Error>> {
+    use router_ab_cloudflare::{
+        CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+        CloudflareSigningWorkerWalletScopeV1,
+    };
+    use router_ab_core::{
+        NormalSigningAuthorizationV1, RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
+        RouterAbEcdsaDerivationOperationDigestsV1,
+    };
+    let mut scope = linked_scope::scope();
+    scope.wallet_id = "ecdsa-live-account".to_owned();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
+    let expires_at_ms = now + 120_000;
+    let request = CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
+        ownership_generation: 1,
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1::new(
+            "org-miniflare",
+            "project-r120",
+            "project-environment-miniflare",
+            &scope.wallet_id,
+        )?,
+        material_source: linked_scope::material_source(&scope),
+        presign_session_id: "linked-transfer-source-session".to_owned(),
+        expires_at_ms,
+        request: RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1 {
+            material_activation: scope.material_activation.clone(),
+            scope,
+            request_id: "linked-transfer-request".to_owned(),
+            operation_id: "linked-transfer-operation".to_owned(),
+            operation_digests: RouterAbEcdsaDerivationOperationDigestsV1 {
+                lane_digest_b64u: linked_scope::digest(1),
+                intent_digest_b64u: linked_scope::digest(2),
+                display_digest_b64u: linked_scope::digest(3),
+            },
+            authorization: NormalSigningAuthorizationV1::ReusableWalletSession {
+                wallet_session_id: "linked-transfer-wallet-session".to_owned(),
+            },
+            client_presignature_id: "linked-transfer-server-presignature".to_owned(),
+            expires_at_ms,
+            signing_digest_b64u: linked_scope::digest(2),
+            client_rerandomization_commitment32_b64u: linked_scope::digest(5),
+        },
+    };
+    request.validate_at(now)?;
+    let scope = &request.request.scope;
+    let server = router_ab_core::ServerIdentityV1::new(
+        scope.signing_worker_participant_id.clone(),
+        scope.signing_worker_recipient_key_id.clone(),
+        scope.signing_worker_hpke_public_key_b64u.clone(),
+    )?;
+    let active_signing_worker_state = router_ab_core::ActiveSigningWorkerStateV1::new(
+        scope.wallet_id.clone(),
+        scope.material_activation.clone(),
+        "linked-transfer-account-key",
+        server,
+        router_ab_core::PublicDigest32::new([7; 32]),
+        router_ab_core::PublicDigest32::new([8; 32]),
+        "linked-transfer-material",
+        now,
+    )?;
+    Ok(LinkedPresignFixture {
+        request,
+        active_signing_worker_state,
+        relayer_share32_b64u: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode([1; 32]),
+    })
+}
+
+#[derive(Serialize)]
 struct RequestFixture {
+    client_recipient_seed: [u8; 32],
     gateway_request: RouterEd25519YaoGatewayExecuteTargetV2,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
@@ -48,6 +130,7 @@ struct RequestFixture {
 
 #[derive(Serialize)]
 struct PrivateD1Fixture {
+    linked_presign_init: LinkedPresignFixture,
     router_env: BTreeMap<String, String>,
     deriver_a_env: BTreeMap<String, String>,
     deriver_b_env: BTreeMap<String, String>,
@@ -101,6 +184,9 @@ struct TenantRootCreationRequestFixture {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.as_slice() == ["--ed25519-signing"] {
+        return ed25519_signing::run();
+    }
     if let [mode, label, lifetime_ms] = args.as_slice() {
         if mode == "--creation-grant" {
             return print_recovery_creation_grant(label, lifetime_ms.parse()?);
@@ -121,11 +207,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         x25519_public_key(router_local, "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY")?;
 
     let fixture = PrivateD1Fixture {
-        router_env: cloudflare_router_env(router_local, deriver_a_local)?,
+        linked_presign_init: linked_presign_init_fixture()?,
+        router_env: cloudflare_router_env(router_local)?,
         deriver_a_env: cloudflare_deriver_a_env(deriver_a_local, router_local)?,
         deriver_b_env: cloudflare_deriver_b_env(deriver_b_local, router_local)?,
         signing_worker_env: cloudflare_signing_worker_env(signing_worker_local)?,
-        tenant_root_control_plane_env: cloudflare_tenant_root_control_plane_env(deriver_a_local)?,
+        tenant_root_control_plane_env: cloudflare_tenant_root_control_plane_env()?,
         managed_restore: managed_restore_authorization_fixture(),
         tenant_root_creation: tenant_root_creation_fixture()?,
         role_retry: request_fixture(
@@ -223,8 +310,13 @@ fn managed_restore_signer_fixture(signing_seed: [u8; 32]) -> ManagedRestoreSigne
 
 fn tenant_root_creation_fixture() -> Result<TenantRootCreationFixture, Box<dyn std::error::Error>> {
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
-    let identity =
-        TenantRootIdentityV1::new("org-miniflare", "project-r120", "test", "project:local", "v1")?;
+    let identity = TenantRootIdentityV1::new(
+        "org-miniflare",
+        "project-r120",
+        "test",
+        "project:local",
+        "v1",
+    )?;
     let second_tenant_identity = TenantRootIdentityV1::new(
         "org-miniflare-second",
         "project-r120-second",
@@ -268,7 +360,8 @@ fn print_recovery_creation_grant(
     lineage[0] |= 1;
     nonce[0] |= 1;
     let lineage = TenantRootCustodyLineageId::from_bytes(lineage)?;
-    let issued_at_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())? - 1_000;
+    let issued_at_ms =
+        u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())? - 1_000;
     let expires_at_ms = issued_at_ms + lifetime_ms;
     let grant = TenantRootCreationGrantV1::sign(
         &identity,
@@ -421,11 +514,13 @@ fn request_fixture(
     let input_b =
         seal_local_ed25519_yao_activation_deriver_b_input_v1(&request_b, deriver_b_public)?;
     let gateway_request = RouterEd25519YaoGatewayExecuteTargetV2::registration(
+        1,
         admission.binding.clone(),
         input_a,
         input_b,
     )?;
     Ok(RequestFixture {
+        client_recipient_seed: [client_root_bytes[0].wrapping_add(0x40); 32],
         gateway_request,
         application: application_binding,
         participant_ids: [1, 2],
@@ -434,7 +529,6 @@ fn request_fixture(
 
 fn cloudflare_router_env(
     local: &BTreeMap<String, String>,
-    deriver_local: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
     let mut env = BTreeMap::from([
         ("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING".into(), "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET".into()),
@@ -447,8 +541,6 @@ fn cloudflare_router_env(
         ("DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY".into(), required(local, "DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY")),
         ("DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH".into(), "epoch-1".into()),
         ("DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY".into(), required(local, "DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY")),
-        ("DERIVER_A_PEER_VERIFYING_KEY_HEX".into(), required(deriver_local, "DERIVER_A_PEER_VERIFYING_KEY")),
-        ("DERIVER_B_PEER_VERIFYING_KEY_HEX".into(), required(deriver_local, "DERIVER_B_PEER_VERIFYING_KEY")),
         ("SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH".into(), "epoch-1".into()),
         ("SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY".into(), required(local, "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY")),
         ("DERIVER_A_PEER_BINDING".into(), "DERIVER_A".into()),
@@ -556,26 +648,6 @@ fn cloudflare_deriver_env(
                 router_local,
                 &format!("{peer_binding}_ED25519_YAO_INPUT_PUBLIC_KEY"),
             ),
-        ),
-        (
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY_BINDING"),
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY"),
-        ),
-        (
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY"),
-            required(local, &format!("DERIVER_{suffix}_PEER_SIGNING_KEY")),
-        ),
-        (
-            format!("DERIVER_{suffix}_PEER_SIGNING_KEY_EPOCH"),
-            "epoch-1".into(),
-        ),
-        (
-            "DERIVER_A_PEER_VERIFYING_KEY_HEX".into(),
-            required(local, "DERIVER_A_PEER_VERIFYING_KEY"),
-        ),
-        (
-            "DERIVER_B_PEER_VERIFYING_KEY_HEX".into(),
-            required(local, "DERIVER_B_PEER_VERIFYING_KEY"),
         ),
     ]);
     env.insert(format!("{peer_binding}_PEER_BINDING"), peer_binding.into());
@@ -697,7 +769,6 @@ fn cloudflare_tenant_root_role_verifying_keys_json() -> String {
 }
 
 fn cloudflare_tenant_root_control_plane_env(
-    deriver_local: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
     let grant_key = ed25519_dalek::SigningKey::from_bytes(&TENANT_ROOT_GRANT_SEED).verifying_key();
     let operations_key =
@@ -753,14 +824,6 @@ fn cloudflare_tenant_root_control_plane_env(
         (
             "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON".into(),
             cloudflare_tenant_root_role_verifying_keys_json(),
-        ),
-        (
-            "DERIVER_A_PEER_VERIFYING_KEY_HEX".into(),
-            required(deriver_local, "DERIVER_A_PEER_VERIFYING_KEY"),
-        ),
-        (
-            "DERIVER_B_PEER_VERIFYING_KEY_HEX".into(),
-            required(deriver_local, "DERIVER_B_PEER_VERIFYING_KEY"),
         ),
     ]))
 }

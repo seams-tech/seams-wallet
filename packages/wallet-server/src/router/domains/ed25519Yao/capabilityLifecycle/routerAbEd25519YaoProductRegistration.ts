@@ -28,6 +28,8 @@ import {
   createRouterAbEd25519YaoRegistrationModule,
   InMemoryRouterAbEd25519YaoRegistrationStateV1,
   type RouterAbEd25519YaoRegistrationAuthorizationAdapter,
+  type RouterAbEd25519YaoRegistrationAuthorizationResult,
+  type RouterAbEd25519YaoRegistrationAuthorizationFailure,
   type RouterAbEd25519YaoRegistrationService,
 } from '../registration/routerAbEd25519YaoRegistration';
 import {
@@ -58,9 +60,7 @@ import {
   type RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
   type RouterAbEd25519YaoRecoveryAuthorizationAdapter,
   type RouterAbEd25519YaoRecoveryService,
-  type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
   type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1,
-  type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1,
   type WarmBootstrapLinkedEd25519AuthorityReaderV1,
 } from '../recovery/routerAbEd25519YaoRecovery';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
@@ -71,7 +71,12 @@ import {
   type RouterAbEd25519YaoExportService,
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
-import { parseRouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import {
+  parseRouterAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoRegistrationSigningRootIdV1,
+  type RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
+import type { RouterAbEd25519YaoPreparedWriteV1 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
@@ -120,13 +125,23 @@ export type RouterAbEd25519YaoWalletSessionMintInputV1 =
     });
 
 export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
-  RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 &
-    RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
+  RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
     RouterAbEd25519YaoActiveCapabilityResolverV1 & {
       readonly kind: 'router_ab_ed25519_yao_product_registration_runtime_v1';
       readonly signingWorkerId: string;
+      /**
+       * Starts the tenant-root read of a registration admission. The read
+       * needs the signing root ID and epoch alone, so it can run before the
+       * proof is verified. A runtime that pins no tenant root at admission
+       * starts nothing.
+       */
+      startRegistrationDispatchRoot(
+        signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
+      ): RouterAbEd25519YaoStartedDispatchRootV1 | null;
       bindAndAdmitVerifiedRegistration(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+        companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
+        startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
       bindVerifiedIntent(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
@@ -136,11 +151,35 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
       ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1>;
     };
 
+/** A tenant-root read in flight, with the signing root ID that it was started for. */
+export type RouterAbEd25519YaoStartedDispatchRootV1 = {
+  readonly signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1;
+  readonly dispatchRoot: Promise<RouterAbEd25519YaoTenantRootWireV1>;
+};
+
+/**
+ * Prepares another store's write for the admission request that was bound.
+ * It commits in the batch of a new admission, or it does not run.
+ */
+export type RouterAbEd25519YaoAdmissionCompanionWriteV1 = (
+  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+) => RouterAbEd25519YaoPreparedWriteV1;
+
 export type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1 =
   | Extract<RouterAbEd25519YaoRegistrationIntentBindingResult, { readonly ok: false }>
-  | RouterAbEd25519YaoRegistrationServiceResult<
-      RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>
-    >;
+  | Extract<RouterAbEd25519YaoRegistrationAuthorizationResult, { readonly ok: false }>
+  | Extract<RouterAbEd25519YaoRegistrationServiceResult<never>, { readonly ok: false }>
+  | {
+      readonly ok: true;
+      readonly status: 200;
+      readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+      readonly value: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      /**
+       * `not_committed` when the admission already existed, or when this
+       * runtime has no batch to share: the caller then writes for itself.
+       */
+      readonly companionWrite: 'committed' | 'not_committed';
+    };
 
 export type RouterAbEd25519YaoProductRegistrationCompositionV1 = {
   readonly kind: 'router_ab_ed25519_yao_product_registration_composition_v1';
@@ -158,6 +197,12 @@ export interface RouterAbEd25519YaoProductRegistrationServicePortV1
   extends RouterAbEd25519YaoRegistrationService, RouterAbEd25519YaoActivationConsumerV1 {}
 
 export interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1 extends RouterAbEd25519YaoRegistrationAuthorizationAdapter {
+  bindAndAuthorizeAdmission(
+    input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+  ): Promise<
+    | RouterAbEd25519YaoRegistrationIntentBindingResult
+    | RouterAbEd25519YaoRegistrationAuthorizationFailure
+  >;
   bindVerifiedIntent(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
@@ -166,7 +211,6 @@ export interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1 extend
 export interface RouterAbEd25519YaoProductRecoveryServicePortV1
   extends
     RouterAbEd25519YaoRecoveryService,
-    RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1,
     RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
     RouterAbEd25519YaoActiveCapabilityResolverV1 {}
 
@@ -283,6 +327,46 @@ function isWalletOwnershipMap(input: unknown): input is Map<string, string> {
   return true;
 }
 
+function hasIntentAuthorityGeneration(input: unknown): boolean {
+  return (
+    isPlainObject(input) &&
+    INTENT_AUTHORITY_KINDS.has(String(input.kind)) &&
+    typeof input.ownershipGeneration === 'number' &&
+    Number.isSafeInteger(input.ownershipGeneration) &&
+    input.ownershipGeneration > 0
+  );
+}
+
+function hasRecoveryOwnershipGenerations(input: unknown): boolean {
+  if (!(input instanceof Map)) return false;
+  for (const state of input.values()) {
+    if (!isPlainObject(state) || !isPlainObject(state.context)) return false;
+    const authorization = state.context.authorization;
+    if (
+      !isPlainObject(authorization) ||
+      typeof authorization.ownershipGeneration !== 'number' ||
+      !Number.isSafeInteger(authorization.ownershipGeneration) ||
+      authorization.ownershipGeneration < 1
+    )
+      return false;
+  }
+  return true;
+}
+
+function hasExportOwnershipGenerations(input: unknown): boolean {
+  if (!(input instanceof Map)) return false;
+  for (const state of input.values()) {
+    if (
+      !isPlainObject(state) ||
+      typeof state.ownershipGeneration !== 'number' ||
+      !Number.isSafeInteger(state.ownershipGeneration) ||
+      state.ownershipGeneration < 1
+    )
+      return false;
+  }
+  return true;
+}
+
 function hasProductStateCollections(
   input: unknown,
 ): input is RouterAbEd25519YaoProductRegistrationStateV1 {
@@ -310,14 +394,14 @@ function hasProductStateCollections(
       )) &&
     isDispatchRootMap(registration.dispatchRoots) &&
     Array.isArray(authorization.authorities) &&
-    authorization.authorities.every(
-      (authority) => isPlainObject(authority) && INTENT_AUTHORITY_KINDS.has(String(authority.kind)),
-    ) &&
+    authorization.authorities.every(hasIntentAuthorityGeneration) &&
     isStringMapWithStateKinds(recovery.capabilities, CAPABILITY_STATE_KINDS) &&
     isStringMap(recovery.identityCapabilities) &&
     isStringMapWithStateKinds(recovery.recoveries, RECOVERY_STATE_KINDS) &&
+    hasRecoveryOwnershipGenerations(recovery.recoveries) &&
     isStringMap(recovery.recoverySessions) &&
     isStringMapWithStateKinds(exportState.exports, EXPORT_STATE_KINDS) &&
+    hasExportOwnershipGenerations(exportState.exports) &&
     isWalletOwnershipMap(exportState.authorizationNonceOwners) &&
     isWalletOwnershipMap(exportState.authorizationUncertainOwners)
   );
@@ -457,8 +541,7 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
       readonly signingWorkerId: string;
       readonly registrationService: RouterAbEd25519YaoProductRegistrationServicePortV1;
       readonly authorization: RouterAbEd25519YaoProductRegistrationAuthorizationPortV1;
-      readonly capabilityInstaller: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 &
-        RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
+      readonly capabilityInstaller: RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
       readonly capabilityResolver: RouterAbEd25519YaoActiveCapabilityResolverV1;
     },
   ) {
@@ -472,12 +555,26 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
     return await this.input.authorization.bindVerifiedIntent(input);
   }
 
+  /** The registration service of this runtime resolves the tenant root when it executes. */
+  startRegistrationDispatchRoot(): null {
+    return null;
+  }
+
   async bindAndAdmitVerifiedRegistration(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
-    const bound = await this.input.authorization.bindVerifiedIntent(input);
+    const bound = await this.input.authorization.bindAndAuthorizeAdmission(input);
     if (!bound.ok) return bound;
-    return await this.input.registrationService.admit(bound.admissionRequest);
+    const admitted = await this.input.registrationService.admit(bound.admissionRequest);
+    if (!admitted.ok) return admitted;
+    return {
+      ok: true,
+      status: 200,
+      admissionRequest: bound.admissionRequest,
+      value: admitted.value,
+      // This runtime keeps its state in memory and shares no batch.
+      companionWrite: 'not_committed',
+    };
   }
 
   async consumeActivated(
@@ -486,12 +583,6 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
     const activationConsumer: RouterAbEd25519YaoActivationConsumerV1 =
       this.input.registrationService;
     return await activationConsumer.consumeActivated(request);
-  }
-
-  async installRegistrationFinalizeCapability(
-    input: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
-  ): Promise<RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1> {
-    return await this.input.capabilityInstaller.installRegistrationFinalizeCapability(input);
   }
 
   async installPersistedActiveCapability(
@@ -561,8 +652,7 @@ export function createRouterAbEd25519YaoProductRegistrationRuntimeV1(input: {
   readonly signingWorkerId: string;
   readonly registrationService: RouterAbEd25519YaoProductRegistrationServicePortV1;
   readonly authorization: RouterAbEd25519YaoProductRegistrationAuthorizationPortV1;
-  readonly capabilityInstaller: RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallerV1 &
-    RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
+  readonly capabilityInstaller: RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1;
   readonly capabilityResolver: RouterAbEd25519YaoActiveCapabilityResolverV1;
 }): RouterAbEd25519YaoProductRegistrationRuntimeV1 {
   return new RouterAbEd25519YaoProductRegistrationRuntime(input);

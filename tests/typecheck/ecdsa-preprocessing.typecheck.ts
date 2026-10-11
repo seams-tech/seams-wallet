@@ -79,3 +79,33 @@ void missingPreparedSession;
 void mixedRuntimeInput;
 void mixedDirectRuntimeInput;
 void castRuntimeInput;
+
+// Linked presign admission carries the trusted deployment scope through transport.
+type LinkedPresignInit = Parameters<
+  import('../../packages/wallet-server/src/core/routerAbSigning/RouterAbEcdsaPresignRuntime').RouterAbEcdsaPresignRuntime['initializeLinkedDevicePresign']
+>[0];
+declare const linkedWithoutWalletScope: Omit<LinkedPresignInit, 'walletScope'>;
+// @ts-expect-error A request cannot admit linked presigning without deployment scope.
+const unscopedLinkedPresign: LinkedPresignInit = linkedWithoutWalletScope;
+// @ts-expect-error A broad spread cannot supply the missing deployment scope.
+const unscopedLinkedPresignSpread: LinkedPresignInit = { ...linkedWithoutWalletScope };
+void unscopedLinkedPresign;
+void unscopedLinkedPresignSpread;
+
+// Prepare binds fresh session authority to the admitted reusable operation.
+type PrepareSessionResult =
+  import('../../packages/wallet/src/core/rpcClients/relayer/ecdsaPrepareSession').EcdsaPrepareSessionResult;
+declare const sessionPrepare: Extract<PrepareSessionResult, { kind: 'reusable_wallet_session' }>;
+declare const stepUpPrepare: Extract<PrepareSessionResult, { kind: 'operation_step_up' }>;
+// @ts-expect-error Reusable prepare requires its admitted session projection.
+const missingPrepareSession: PrepareSessionResult = {
+  kind: 'reusable_wallet_session',
+  signing: sessionPrepare.signing,
+};
+// @ts-expect-error A broad spread cannot attach reusable session authority to step-up.
+const mixedPrepareSession: PrepareSessionResult = { ...sessionPrepare, kind: 'operation_step_up' };
+// @ts-expect-error These branches have incompatible authority discriminants.
+const castPrepareSession = stepUpPrepare as typeof sessionPrepare;
+void missingPrepareSession;
+void mixedPrepareSession;
+void castPrepareSession;

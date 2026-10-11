@@ -24,7 +24,7 @@ let activity: Activity | null = null;
 export function beginTransactionActivity(request: ParentToChildEnvelope, post: Activity['post']): void {
   if (!request.requestId) return;
   switch (request.type) {
-    case 'PM_SIGN_TX_WITH_ACTIONS': case 'PM_SIGN_AND_SEND_TX': case 'PM_EXECUTE_ACTION':
+    case 'PM_SIGN_TX_WITH_ACTIONS': case 'PM_SIGN_AND_SEND_TX':
     case 'PM_SIGN_DELEGATE_ACTION': case 'PM_SIGN_NEP413': case 'PM_SIGN_TEMPO':
       activity?.surface?.dispose();
       activity = { requestId: request.requestId, post, surface: null, state: { kind: 'signing' }, view: 'expanded', retained: false, signingHash: null };

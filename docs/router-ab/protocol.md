@@ -80,8 +80,10 @@ Each boundary authenticates the narrowest caller it accepts:
 - The Tenant Root Control Plane signs role-specific tenant-root commands. A
   Deriver verifies the issuer, role, tenant identity, custody lineage, revision,
   epoch, nonce, and validity window before acting.
-- Deriver peer messages are role- and transcript-bound. Same-role traffic and
-  swapped A/B identities are rejected.
+- The two Derivers exchange messages only for the Ed25519 Yao pair, over the
+  authenticated service transport and bound to one wallet object, pair, and
+  execution. ECDSA derivation sends no message from one Deriver to the other:
+  each Deriver answers the Router. Neither role signs a peer message.
 - Recipient output packages use recipient-specific HPKE keys. Client material
   can be opened only by the client recipient; SigningWorker material can be
   opened only by SigningWorker.
@@ -218,12 +220,42 @@ root or a complete recipient lane. Recipient encryption keeps client and
 SigningWorker output material separate. Normal signing does not expose
 tenant-root shares and does not call either Deriver.
 
-The current Cloudflare deployment places the five Router A/B Workers in one
-account and connects them with service bindings. Separate Workers, Secrets,
-databases, buckets, and typed protocol boundaries limit accidental authority
-and single-role compromise. This topology does not claim protection from a
-Cloudflare account administrator, a deployment principal able to replace
-multiple Workers, or A+B collusion.
+One trusted organisation operates both Derivers. Separate Workers, Secrets,
+databases, and buckets restrict each role to its own plaintext inputs, private
+keys, and tenant-root share. The role split does not require independent
+organisations or mutually distrusting operators.
+
+The current Cloudflare deployment uses one account and service bindings. The
+organisation may use separate accounts for additional administrative isolation.
+Both arrangements require authenticated transport, exact wallet and operation
+binding, durable one-use execution claims, and current ownership and cancellation
+checks. Account separation alone does not protect against an operator or
+deployment authority that can control both roles. Combining both roles' secrets
+is outside the separation guarantee.
+
+An Ed25519 Yao pair starts without signed statements between the Derivers.
+The Router sends Deriver B its preparation and Deriver A its execution at the
+same time, and awaits both. Deriver A prepares, reserves the pair, and connects
+to Deriver B's wallet object over the authenticated transport. Deriver B admits
+the connection once its own preparation of the same Router run has landed. It
+waits for that preparation until the run's deadline, which the Router derives
+from its registration claim and the ceremony bound.
+
+Deriver B's upgrade response is its durable claim on the execution. Deriver A
+claims after it and only then sends protocol material. Before it claims,
+Deriver B can answer that it holds no claim for the exact execution: its
+preparation did not arrive, failed, or expired. Deriver A then releases its
+reservation, nothing burns, and an exact retry runs the pair. Any other failure
+of the connection leaves the execution uncertain and burns it.
+
+Each role validates its own prepared root-metadata digest against its own
+root. The two roles' digests differ and are never compared. The target-proof
+preface checks each peer's share against the commitment in the Router-supplied
+activation receipt. [R155C](../refactor-155C-yao-peer-connection.md) records the
+design and its evidence.
+
+No step uses a Deriver peer-signing or peer-verifying key, and no Worker is
+configured with one.
 
 ## Source map
 

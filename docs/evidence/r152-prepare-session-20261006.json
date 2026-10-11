@@ -1,0 +1,1565 @@
+{
+  "kind": "r152_prepare_session_comparison_v1",
+  "scope": "Native NRT browser, APAC wallet; full SDK signing with automated approval; blockchain excluded.",
+  "requestAccounting": "Gateway POST requests initiated inside the measurement window, including background and unfinished requests.",
+  "historicalCheckpoint": {
+    "ready": {
+      "count": 12,
+      "medianMs": 1745,
+      "minMs": 1557,
+      "maxMs": 1838
+    },
+    "consecutive": {
+      "count": 18,
+      "medianMs": 3411,
+      "minMs": 1962,
+      "maxMs": 7164
+    }
+  },
+  "cohorts": {
+    "control": {
+      "prefilled": {
+        "artifactSha256": "2d00e756ccd9637ecdeb9d9122d045841ee71aff47dfd39f3f982c09be59dc03",
+        "sdk": {
+          "count": 6,
+          "medianMs": 1593.6475000083447,
+          "minMs": 1498.9750000238419,
+          "maxMs": 1987.7599999904633
+        },
+        "refillWaitAffected": {
+          "count": 0
+        },
+        "refillWaitAll": {
+          "count": 6,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 27,
+          "/wallet/session/status": 6,
+          "/router-ab/ecdsa-derivation/sign/prepare": 6,
+          "/router-ab/ecdsa-derivation/sign": 6,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1791.425000011921,
+              "minMs": 1498.9750000238419,
+              "maxMs": 1987.7599999904633
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1586.9399999976158,
+              "minMs": 1581.9449999928474,
+              "maxMs": 1600.3550000190735
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": true,
+        "prefillWaits": [
+          {
+            "batch": 0,
+            "elapsedMs": 9882.525624999995
+          },
+          {
+            "batch": 1,
+            "elapsedMs": 5865.13616699999
+          },
+          {
+            "batch": 2,
+            "elapsedMs": 4864.836208000008
+          }
+        ],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1987.7599999904633,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 1586.9399999976158,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 1498.9750000238419,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 1600.3550000190735,
+            "refillWaitMs": 0,
+            "requests": {
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 1791.425000011921,
+            "refillWaitMs": 0,
+            "requests": {
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 1581.9449999928474,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          }
+        ]
+      },
+      "back_to_back": {
+        "artifactSha256": "45161e46cdb67a87da2cd0a2bf32a01887cb04fa49a76ee33c58e39fbd1ee29b",
+        "sdk": {
+          "count": 9,
+          "medianMs": 2634.610000014305,
+          "minMs": 1515.664999961853,
+          "maxMs": 3412.479999959469
+        },
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 1086.5999999940395,
+          "minMs": 142.89999997615814,
+          "maxMs": 1937.300000011921
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1055,
+          "minMs": 0,
+          "maxMs": 1937.300000011921
+        },
+        "requests": {
+          "/wallet/session/status": 9,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 9,
+          "/router-ab/ecdsa-derivation/sign/prepare": 9,
+          "/router-ab/ecdsa-derivation/sign": 9,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 42
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 3347.3299999833107,
+              "minMs": 1515.664999961853,
+              "maxMs": 3412.479999959469
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1230.199999988079,
+              "minMs": 0,
+              "maxMs": 1937.300000011921
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2744.1700000166893,
+              "minMs": 2539.4200000166893,
+              "maxMs": 3014.4700000286102
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1118.199999988079,
+              "minMs": 1027.3999999761581,
+              "maxMs": 1183.1000000238419
+            }
+          },
+          "3": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2447.25,
+              "minMs": 2254.074999988079,
+              "maxMs": 2634.610000014305
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 863.4000000357628,
+              "minMs": 142.89999997615814,
+              "maxMs": 1055
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": true,
+        "prefillWaits": [],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1515.664999961853,
+            "refillWaitMs": 0,
+            "requests": {
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 2539.4200000166893,
+            "refillWaitMs": 1027.3999999761581,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 3,
+            "sdkMs": 2634.610000014305,
+            "refillWaitMs": 1055,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 3412.479999959469,
+            "refillWaitMs": 1937.300000011921,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 3014.4700000286102,
+            "refillWaitMs": 1118.199999988079,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 3,
+            "sdkMs": 2254.074999988079,
+            "refillWaitMs": 142.89999997615814,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 3347.3299999833107,
+            "refillWaitMs": 1230.199999988079,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 2744.1700000166893,
+            "refillWaitMs": 1183.1000000238419,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 3,
+            "sdkMs": 2447.25,
+            "refillWaitMs": 863.4000000357628,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/wallet/session/status": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          }
+        ]
+      }
+    },
+    "candidate": {
+      "prefilled": {
+        "artifactSha256": "18ef14b8caa50c20dbe42aecb19be3e96f862a5752138ab1dedf1c9c4bd9fffe",
+        "sdk": {
+          "count": 6,
+          "medianMs": 1465.7849999964237,
+          "minMs": 1230.3800000548363,
+          "maxMs": 1777.125
+        },
+        "refillWaitAffected": {
+          "count": 0
+        },
+        "refillWaitAll": {
+          "count": 6,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 23,
+          "/router-ab/ecdsa-derivation/sign/prepare": 6,
+          "/router-ab/ecdsa-derivation/sign": 6,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1490.9050000309944,
+              "minMs": 1230.3800000548363,
+              "maxMs": 1590.5649999976158
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1440.664999961853,
+              "minMs": 1309.4350000023842,
+              "maxMs": 1777.125
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": false,
+        "prefillWaits": [
+          {
+            "batch": 0,
+            "elapsedMs": 6874.802750000003
+          },
+          {
+            "batch": 1,
+            "elapsedMs": 4872.486666999997
+          },
+          {
+            "batch": 2,
+            "elapsedMs": 5870.714791999999
+          }
+        ],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1590.5649999976158,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 1777.125,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 1490.9050000309944,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 1309.4350000023842,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 1230.3800000548363,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 1440.664999961853,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3
+            },
+            "verified": true
+          }
+        ]
+      },
+      "back_to_back": {
+        "artifactSha256": "fd827bb738729a2d07f43f77f942a8674461b910cdd4211bf200a609bd88a099",
+        "sdk": {
+          "count": 9,
+          "medianMs": 2402.785000026226,
+          "minMs": 1450.8349999785423,
+          "maxMs": 3461.2099999785423
+        },
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 1024.2000000178814,
+          "minMs": 118.39999997615814,
+          "maxMs": 2208.099999964237
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1001.5,
+          "minMs": 0,
+          "maxMs": 2208.099999964237
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 9,
+          "/router-ab/ecdsa-derivation/sign/prepare": 9,
+          "/router-ab/ecdsa-derivation/sign": 9,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 44
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 3353.5800000429153,
+              "minMs": 1450.8349999785423,
+              "maxMs": 3461.2099999785423
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1527,
+              "minMs": 0,
+              "maxMs": 2208.099999964237
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2402.785000026226,
+              "minMs": 2288.600000023842,
+              "maxMs": 2704.5150000452995
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1046.9000000357628,
+              "minMs": 378.39999997615814,
+              "maxMs": 1383.199999988079
+            }
+          },
+          "3": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2367.9849999547005,
+              "minMs": 1855.9750000238419,
+              "maxMs": 2541.0450000166893
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 679.1000000238419,
+              "minMs": 118.39999997615814,
+              "maxMs": 1001.5
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": false,
+        "prefillWaits": [],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1450.8349999785423,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 2402.785000026226,
+            "refillWaitMs": 378.39999997615814,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 3,
+            "sdkMs": 2541.0450000166893,
+            "refillWaitMs": 679.1000000238419,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 3353.5800000429153,
+            "refillWaitMs": 1527,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 2288.600000023842,
+            "refillWaitMs": 1046.9000000357628,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 3,
+            "sdkMs": 1855.9750000238419,
+            "refillWaitMs": 118.39999997615814,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 3461.2099999785423,
+            "refillWaitMs": 2208.099999964237,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 2704.5150000452995,
+            "refillWaitMs": 1383.199999988079,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 3,
+            "sdkMs": 2367.9849999547005,
+            "refillWaitMs": 1001.5,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          }
+        ]
+      }
+    },
+    "candidate-repeat": {
+      "prefilled": {
+        "artifactSha256": "d3fcd432acf346faf5090dd6706e62ecaa1dee416175a884123b569c4911b34a",
+        "sdk": {
+          "count": 6,
+          "medianMs": 1326.4150000214577,
+          "minMs": 1217.8849999904633,
+          "maxMs": 1462.2549999952316
+        },
+        "refillWaitAffected": {
+          "count": 0
+        },
+        "refillWaitAll": {
+          "count": 6,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/sign/prepare": 6,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 17,
+          "/router-ab/ecdsa-derivation/sign": 6,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1274.5550000071526,
+              "minMs": 1217.8849999904633,
+              "maxMs": 1288.3550000190735
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1416.2900000214577,
+              "minMs": 1364.4750000238419,
+              "maxMs": 1462.2549999952316
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": true,
+        "prefillWaits": [
+          {
+            "batch": 0,
+            "elapsedMs": 8873.599875
+          },
+          {
+            "batch": 1,
+            "elapsedMs": 4859.771833999999
+          },
+          {
+            "batch": 2,
+            "elapsedMs": 5861.046665999995
+          }
+        ],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1217.8849999904633,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 1416.2900000214577,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 1274.5550000071526,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 1364.4750000238419,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 1288.3550000190735,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 1462.2549999952316,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+            },
+            "verified": true
+          }
+        ]
+      },
+      "back_to_back": {
+        "artifactSha256": "d23b28ad81ec52d66f326fdd6f73294377661ea5f11710671ee8a0507ed6e8bb",
+        "sdk": {
+          "count": 9,
+          "medianMs": 2694.574999988079,
+          "minMs": 1452.1050000190735,
+          "maxMs": 3903.914999961853
+        },
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 1435.8499999940395,
+          "minMs": 648.3999999761581,
+          "maxMs": 1916.1000000238419
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1366.5,
+          "minMs": 0,
+          "maxMs": 1916.1000000238419
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 9,
+          "/router-ab/ecdsa-derivation/sign/prepare": 9,
+          "/router-ab/ecdsa-derivation/sign": 9,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 48
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 3054.589999973774,
+              "minMs": 1452.1050000190735,
+              "maxMs": 3155.310000002384
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1828.800000011921,
+              "minMs": 0,
+              "maxMs": 1916.1000000238419
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2570.0049999952316,
+              "minMs": 1889.5,
+              "maxMs": 2694.574999988079
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1209.300000011921,
+              "minMs": 648.3999999761581,
+              "maxMs": 1366.5
+            }
+          },
+          "3": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 3049.7300000190735,
+              "minMs": 2491.2450000047684,
+              "maxMs": 3903.914999961853
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1505.199999988079,
+              "minMs": 965.1999999880791,
+              "maxMs": 1770
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": true,
+        "prefillWaits": [],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1452.1050000190735,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 2570.0049999952316,
+            "refillWaitMs": 1209.300000011921,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 3,
+            "sdkMs": 3903.914999961853,
+            "refillWaitMs": 1770,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 3054.589999973774,
+            "refillWaitMs": 1828.800000011921,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 2694.574999988079,
+            "refillWaitMs": 1366.5,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 3,
+            "sdkMs": 3049.7300000190735,
+            "refillWaitMs": 1505.199999988079,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 3155.310000002384,
+            "refillWaitMs": 1916.1000000238419,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 1889.5,
+            "refillWaitMs": 648.3999999761581,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 3,
+            "sdkMs": 2491.2450000047684,
+            "refillWaitMs": 965.1999999880791,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          }
+        ]
+      }
+    },
+    "candidate-final": {
+      "prefilled": {
+        "artifactSha256": "1af6c9ee8280a29d262818d428490a7775c1441f3eed286ea9c9a571958432e2",
+        "sdk": {
+          "count": 6,
+          "medianMs": 1440.949999988079,
+          "minMs": 1396.8699999451637,
+          "maxMs": 1709.2699999809265
+        },
+        "refillWaitAffected": {
+          "count": 0
+        },
+        "refillWaitAll": {
+          "count": 6,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/sign/prepare": 6,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 20,
+          "/router-ab/ecdsa-derivation/sign": 6,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1436.4199999570847,
+              "minMs": 1396.8699999451637,
+              "maxMs": 1709.2699999809265
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 1445.4800000190735,
+              "minMs": 1417.7650000452995,
+              "maxMs": 1622.7799999713898
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 0,
+              "minMs": 0,
+              "maxMs": 0
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": true,
+        "prefillWaits": [
+          {
+            "batch": 0,
+            "elapsedMs": 10873.073541000005
+          },
+          {
+            "batch": 1,
+            "elapsedMs": 5867.622833000016
+          },
+          {
+            "batch": 2,
+            "elapsedMs": 4859.322709
+          }
+        ],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1396.8699999451637,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 1622.7799999713898,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 1436.4199999570847,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 1445.4800000190735,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 1709.2699999809265,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 1417.7650000452995,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          }
+        ]
+      },
+      "back_to_back": {
+        "artifactSha256": "7fe553f1b1178e56acb63f49f2c636ff85df707fdc1c1f26114c25f70299ae93",
+        "sdk": {
+          "count": 9,
+          "medianMs": 2392.6200000047684,
+          "minMs": 1324.9199999570847,
+          "maxMs": 3028.9200000166893
+        },
+        "refillWaitAffected": {
+          "count": 8,
+          "medianMs": 1136.4000000357628,
+          "minMs": 646.6000000238419,
+          "maxMs": 1668.5
+        },
+        "refillWaitAll": {
+          "count": 9,
+          "medianMs": 1109.1000000238419,
+          "minMs": 0,
+          "maxMs": 1668.5
+        },
+        "requests": {
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 9,
+          "/router-ab/ecdsa-derivation/sign/prepare": 9,
+          "/router-ab/ecdsa-derivation/sign": 9,
+          "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 40
+        },
+        "byPosition": {
+          "1": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2392.6200000047684,
+              "minMs": 1324.9199999570847,
+              "maxMs": 3028.9200000166893
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1163.7000000476837,
+              "minMs": 0,
+              "maxMs": 1668.5
+            }
+          },
+          "2": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2191.175000011921,
+              "minMs": 2055.050000011921,
+              "maxMs": 2467.7699999809265
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 973,
+              "minMs": 786.5,
+              "maxMs": 1109.1000000238419
+            }
+          },
+          "3": {
+            "sdk": {
+              "count": 3,
+              "medianMs": 2739.6949999928474,
+              "minMs": 2019.1699999570847,
+              "maxMs": 2788.600000023842
+            },
+            "refillWait": {
+              "count": 3,
+              "medianMs": 1366.5,
+              "minMs": 646.6000000238419,
+              "maxMs": 1420.3999999761581
+            }
+          }
+        },
+        "allVerified": true,
+        "concurrencyVerified": true,
+        "prefillWaits": [],
+        "observations": [
+          {
+            "batch": 0,
+            "position": 1,
+            "sdkMs": 1324.9199999570847,
+            "refillWaitMs": 0,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/sign": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 2,
+            "sdkMs": 2191.175000011921,
+            "refillWaitMs": 973,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 0,
+            "position": 3,
+            "sdkMs": 2019.1699999570847,
+            "refillWaitMs": 646.6000000238419,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 3,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 1,
+            "sdkMs": 2392.6200000047684,
+            "refillWaitMs": 1163.7000000476837,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 2,
+            "sdkMs": 2055.050000011921,
+            "refillWaitMs": 786.5,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 1,
+            "position": 3,
+            "sdkMs": 2739.6949999928474,
+            "refillWaitMs": 1366.5,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 1,
+            "sdkMs": 3028.9200000166893,
+            "refillWaitMs": 1668.5,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 2,
+            "sdkMs": 2467.7699999809265,
+            "refillWaitMs": 1109.1000000238419,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          },
+          {
+            "batch": 2,
+            "position": 3,
+            "sdkMs": 2788.600000023842,
+            "refillWaitMs": 1420.3999999761581,
+            "requests": {
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+              "/router-ab/ecdsa-derivation/sign/prepare": 1,
+              "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+              "/router-ab/ecdsa-derivation/sign": 1
+            },
+            "verified": true
+          }
+        ]
+      }
+    }
+  },
+  "timingCohort": "candidate-final",
+  "authorizationAcceptance": "authorization-final",
+  "restoration": {
+    "gatewayVersion": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+    "activated": true,
+    "bindingsPreserved": true,
+    "placementPreserved": true
+  },
+  "earlierCandidateLimitations": "candidate: obsolete status-request capture assumption; candidate and candidate-repeat omitted existing retired-session guards; candidate-final retained the admission guard omission and failed the retirement test. All timed signatures verified. Separate authorization-final evidence validates the complete committed reader and typed authorization error propagation.",
+  "source": {
+    "controlGateway": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+    "controlClient": ".artifacts/mpc-refill-20261006/candidate-site",
+    "publicBaselineSource": ".artifacts/mpc-refill-20261006/source",
+    "privateBaselineSource": ".artifacts/mpc-console-20261006/source",
+    "payloadSha256": {
+      "gateway-payload/4a6ce90d4de5770978e4f8d55765275330601767-evm_crypto_bg.wasm": "db68ab3dfd1d43a8f52b3a25e86aca072a06dd1ab05290744f4e15b71ef9d9ff",
+      "gateway-payload/d1GatewayWorker.js": "980ce551dc0c5d63c58af6b33fcf3290c198694f5249cb6679378a02bf826665",
+      "gateway-payload/README.md": "0f43c1fc6494bb02d3f80747a0aee1605d045851d706d1a203aa433c86492f26",
+      "gateway-payload/10b122e32085494bdf4e0b94aae1146a9a0f2aa7-shamir3pass_runtime_bg.wasm": "99bbb650019c6c07ea6cba1cc756c817cee954e347216177891256699461edd3",
+      "gateway-payload/75f8787af663be8474440c45c7a277303f51654d-wasm_signer_worker_bg.wasm": "27d2cbf2071723dc3a4370503922594ba727200df7675b1c74c51ea51e57d7b3",
+      "gateway-payload-final/4a6ce90d4de5770978e4f8d55765275330601767-evm_crypto_bg.wasm": "db68ab3dfd1d43a8f52b3a25e86aca072a06dd1ab05290744f4e15b71ef9d9ff",
+      "gateway-payload-final/d1GatewayWorker.js": "eaf04d1a6f34b4a92a7cafd84606dca96b8b6b507faafb5adde27371ff15b830",
+      "gateway-payload-final/README.md": "2b9ac32cc1f2e1635feb6c02eeb4e11a218cbc2894020eca40c52e82f03da446",
+      "gateway-payload-final/10b122e32085494bdf4e0b94aae1146a9a0f2aa7-shamir3pass_runtime_bg.wasm": "99bbb650019c6c07ea6cba1cc756c817cee954e347216177891256699461edd3",
+      "gateway-payload-final/75f8787af663be8474440c45c7a277303f51654d-wasm_signer_worker_bg.wasm": "27d2cbf2071723dc3a4370503922594ba727200df7675b1c74c51ea51e57d7b3",
+      "gateway-payload-final/d1GatewayWorker.js.map": "7fe2b9213b71a5945db0f86e752ed3f75f3510b0bca52813a7c7d0c480f2a9c2",
+      "gateway-payload-acceptance/4a6ce90d4de5770978e4f8d55765275330601767-evm_crypto_bg.wasm": "db68ab3dfd1d43a8f52b3a25e86aca072a06dd1ab05290744f4e15b71ef9d9ff",
+      "gateway-payload-acceptance/d1GatewayWorker.js": "3ab773c15d740b83bd4ba721ca3e75032aab93aaa988802f0c723a188535bed5",
+      "gateway-payload-acceptance/README.md": "2570cf274adf030d8101aef251abca99abb50b4f3ba22b8d436ec31a26882009",
+      "gateway-payload-acceptance/10b122e32085494bdf4e0b94aae1146a9a0f2aa7-shamir3pass_runtime_bg.wasm": "99bbb650019c6c07ea6cba1cc756c817cee954e347216177891256699461edd3",
+      "gateway-payload-acceptance/75f8787af663be8474440c45c7a277303f51654d-wasm_signer_worker_bg.wasm": "27d2cbf2071723dc3a4370503922594ba727200df7675b1c74c51ea51e57d7b3",
+      "gateway-payload-acceptance/d1GatewayWorker.js.map": "d89beb55dc59297db5b95ffc7f7a0e5554abba762a748276f1b3a9c73f19668a"
+    },
+    "poolConfiguration": "Frozen intended-app login prefill 1, SDK maintenance target 5; unchanged in both cohorts.",
+    "initialGateway": [
+      {
+        "version_id": "f49c671e-c1d5-4d04-9c0a-7ab06a21974a",
+        "percentage": 100
+      }
+    ],
+    "measuredGateway": "51cd1fb7-fb39-480c-939e-c2f75f493457",
+    "authorizationAcceptanceGateway": "211be1d3-fc04-4a4f-a89b-f827f9ec917f",
+    "authorizationClientAssetTreeSha256": "f925ec20c71cc4ff43cbc951af176e19a62dd8ec840be5bbb8969c5128d4c781",
+    "sourceAssemblyNotes": "The measured candidate omitted an existing ECDSA admission retired-session guard. The authorization acceptance build restores the complete committed D1 reader. The acceptance client also preserves typed prepare authorization failures for the existing step-up retry policy. Neither change alters successful active-session signing.",
+    "patchSha256": {
+      "committed-implementation.patch": "1b6f41d71ea4afcf6fbcf3501bad215490620d48b4ebd3891701dab01fe1fa41",
+      "auth-reader-diff.patch": "d5517de9cea57c9f54c1b1d8d8690a6e6ef7333ddc89328837f6fd2afd1d8033",
+      "harness.patch": "88652f32298a7b01a4e09b3b8daecc84df8887e68fe0060084ab71b034bcc7e9",
+      "implementation.patch": "4e9b727f520fc6976b54361dbae27f7e075ef6c85e79b4a2ea8cbeb8ceb5d40c",
+      "sdk.patch": "185edb1d887537ed4ae546d82ab7bd8c6c674d0a92b7a438d5714a5d396f89ac",
+      "sdk-final.patch": "3a6e7d2e0fe25225ec17c81ba077e62e308a3cb6f2c61f4d3f09cfa79d3d948e",
+      "preserve-auth-errors.patch": "c6c30830cb5cbd00b29ffcaede44589044c730a9d7997bbd173e7c6785c2cc9c"
+    }
+  },
+  "commits": {
+    "active": "e6890e7dbe9d79cad67b1da5821ccb91ab73dfd9",
+    "dev": "30efde86a58db021e7be85b844f4cb202cdc8dd1",
+    "devParent": "41c4f094e6863411e7d587297967f2d7816175d9",
+    "authorizationErrorFix": {
+      "active": "aba1b42acc869b51c359b1e0520146fd52fd54b2",
+      "dev": "2824871c25ad7522d45e6674548a3329ec0b8611"
+    },
+    "privateAcceptance": "ffe8c31"
+  },
+  "approval": {
+    "rounds": [
+      {
+        "prepareMode": "unavailable",
+        "preApprovalStatusRequests": 0,
+        "postApprovalStatusRequests": 0,
+        "signingPrepareRequests": 1,
+        "signingFinalizeRequests": 0,
+        "verifiedSignature": false
+      },
+      {
+        "prepareMode": "wrong_session",
+        "preApprovalStatusRequests": 0,
+        "postApprovalStatusRequests": 0,
+        "signingPrepareRequests": 1,
+        "signingFinalizeRequests": 0,
+        "verifiedSignature": false
+      },
+      {
+        "prepareMode": "success",
+        "preApprovalStatusRequests": 0,
+        "postApprovalStatusRequests": 0,
+        "signingPrepareRequests": 1,
+        "signingFinalizeRequests": 1,
+        "verifiedSignature": true
+      }
+    ],
+    "stepUpVerified": true,
+    "postStepUpBudgetStatus": "exhausted"
+  },
+  "retirement": {
+    "retiredSessionRejected": true,
+    "rejectedSigningRequests": [
+      {
+        "path": "/router-ab/ecdsa-derivation/sign/prepare",
+        "status": 401,
+        "code": "wallet_session_invalid"
+      },
+      {
+        "path": "/router-ab/ecdsa-derivation/sign",
+        "status": 401,
+        "code": "wallet_session_invalid"
+      }
+    ],
+    "replacementSignatureVerified": true
+  },
+  "refillOverlap": {
+    "scope": "Hold the first prepare until background refill supplies at least two available entries; then verify three signatures with the hosted backend.",
+    "verifiedSignatures": 3,
+    "completedWhilePreparePending": {
+      "receivedAtMs": 22012.714584,
+      "outcome": "available",
+      "code": null,
+      "depth": 2,
+      "targetDepth": 5
+    },
+    "refills": [
+      {
+        "receivedAtMs": 10426.369167,
+        "outcome": "available",
+        "code": null,
+        "depth": 1,
+        "targetDepth": 1
+      },
+      {
+        "receivedAtMs": 18912.720625,
+        "outcome": "available",
+        "code": null,
+        "depth": 1,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 22012.714584,
+        "outcome": "available",
+        "code": null,
+        "depth": 2,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 24978.868875,
+        "outcome": "available",
+        "code": null,
+        "depth": 2,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 27970.758292,
+        "outcome": "available",
+        "code": null,
+        "depth": 2,
+        "targetDepth": 5
+      }
+    ]
+  },
+  "readyMedianSavingMs": 152.69750002026558
+}

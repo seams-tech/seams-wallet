@@ -1,11 +1,6 @@
 /** Email OTP enrollment: seals a new factor secret with the Router and derives its unlock key. */
 import { base64UrlEncode } from '@shared/utils/base64';
-import { toOptionalTrimmedNonEmptyString } from '@shared/utils/validation';
-import {
-  EMAIL_OTP_CHANNEL,
-  WALLET_EMAIL_OTP_ACTIONS,
-  type WalletEmailOtpChannel,
-} from '@shared/utils/emailOtpDomain';
+import { EMAIL_OTP_CHANNEL, type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import type {
@@ -32,7 +27,7 @@ import {
   ensureEvmCryptoWasm,
   generateRandomSecret32,
 } from './crypto';
-import { emailOtpRouteSessionAuth, postEmailOtpChallenge } from './otpVerification';
+import { emailOtpRouteSessionAuth } from './otpVerification';
 
 const EMAIL_OTP_UNLOCK_KEY_VERSION = 'email-otp-unlock-v1';
 
@@ -49,21 +44,15 @@ export function emailOtpWalletRegistrationEcdsaHandleResult(
   return { kind: 'not_requested' };
 }
 
-export async function completeEmailOtpEnrollmentFromSecret32(args: {
+export async function prepareEmailOtpEnrollmentFromSecret32(args: {
   relayUrl: string;
   walletId: string;
   userId: string;
-  challengeId?: string;
-  otpCode?: string;
   groupId: string;
   routePlan: EmailOtpRoutePlan;
   clientSecret32?: Uint8Array;
-  returnClientSecret32?: boolean;
-  skipServerFinalize?: boolean;
-  googleEmailOtpRegistrationAttemptId?: string;
   onProgress?: (code: EmailOtpWorkerProgressCode) => void;
 }): Promise<{
-  challengeId: string;
   otpChannel: WalletEmailOtpChannel;
   enrollmentId: string;
   enrollmentSealKeyVersion: string;
@@ -76,7 +65,6 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
     clientUnlockPublicKeyB64u: string;
     unlockKeyVersion: string;
   };
-  clientSecret32?: Uint8Array;
 }> {
   await ensureEvmCryptoWasm();
   const runtime = await getShamir3PassRuntime();
@@ -84,7 +72,6 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
   const walletId = readString(args.walletId, 'walletId');
   const userId = resolveEmailOtpAuthSubjectId({ userId: args.userId });
   readSigningSessionSealGroupId(args.groupId);
-  const otpCode = args.skipServerFinalize ? '' : readString(args.otpCode, 'otpCode');
   const keyHandle = readString(
     (await runtime.createClientKeyHandle({ groupId: SIGNING_SESSION_SEAL_GROUP_ID })).keyHandle,
     'keyHandle',
@@ -96,23 +83,6 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
   let unlockPublicKey33: Uint8Array | null = null;
   try {
     const sessionAuth = emailOtpRouteSessionAuth(args.routePlan);
-    let challengeId = toOptionalTrimmedNonEmptyString(args.challengeId);
-    if (!challengeId && !args.skipServerFinalize) {
-      const challenge = await postEmailOtpChallenge({
-        relayUrl,
-        routePlan: args.routePlan,
-        body: {
-          walletId,
-          otpChannel: EMAIL_OTP_CHANNEL,
-        },
-        expectedAction: WALLET_EMAIL_OTP_ACTIONS.registration,
-        label: 'Email OTP registration challenge',
-      });
-      challengeId = readString(
-        (challenge.challenge as Record<string, unknown>)?.challengeId,
-        'challengeId',
-      );
-    }
     const wrappedCiphertext = await addClientSealFromBytes({
       runtime,
       keyHandle,
@@ -147,39 +117,10 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
     unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32);
     const clientUnlockPublicKeyB64u = base64UrlEncode(unlockPublicKey33);
     const enrollmentId = emailOtpDeviceEnrollmentId(walletId, userId);
-    if (!args.skipServerFinalize) {
-      const googleEmailOtpRegistrationAttemptId = toOptionalTrimmedNonEmptyString(
-        args.googleEmailOtpRegistrationAttemptId,
-      );
-      await postEmailOtpJson({
-        relayUrl,
-        route: emailOtpRoutePath(args.routePlan, 'finalize'),
-        ...(sessionAuth ? { sessionAuth } : {}),
-        body: {
-          walletId,
-          challengeId,
-          otpCode,
-          otpChannel: EMAIL_OTP_CHANNEL,
-          enrollmentSealKeyVersion,
-          serverSealedFactorCiphertextB64u,
-          clientUnlockPublicKeyB64u,
-          unlockKeyVersion: EMAIL_OTP_UNLOCK_KEY_VERSION,
-          ...(googleEmailOtpRegistrationAttemptId ? { googleEmailOtpRegistrationAttemptId } : {}),
-        },
-      });
-      args.onProgress?.('otp.verify.succeeded');
-    }
     args.onProgress?.('signer.email_otp.enroll.started');
     args.onProgress?.('signer.email_otp.enroll.succeeded');
 
-    const returnedClientSecret32 =
-      args.returnClientSecret32 && clientSecret32 ? clientSecret32 : null;
-    if (returnedClientSecret32) {
-      clientSecret32 = null;
-    }
-
     return {
-      challengeId: challengeId || '',
       otpChannel: EMAIL_OTP_CHANNEL,
       enrollmentId,
       enrollmentSealKeyVersion,
@@ -192,7 +133,6 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
         clientUnlockPublicKeyB64u,
         unlockKeyVersion: EMAIL_OTP_UNLOCK_KEY_VERSION,
       },
-      ...(returnedClientSecret32 ? { clientSecret32: returnedClientSecret32 } : {}),
     };
   } finally {
     zeroizeBytes(clientSecret32);
@@ -210,18 +150,4 @@ export function enrollmentClientSecret32(value: ArrayBuffer | undefined): {
   return value instanceof ArrayBuffer
     ? { clientSecret32: requireFixed32ArrayBuffer(value, 'clientSecret32') }
     : {};
-}
-
-/** The enrollment facts both enrollment requests return to the main thread. */
-export function emailOtpEnrollmentFacts(
-  result: Awaited<ReturnType<typeof completeEmailOtpEnrollmentFromSecret32>>,
-) {
-  return {
-    otpChannel: result.otpChannel,
-    enrollmentId: result.enrollmentId,
-    enrollmentSealKeyVersion: result.enrollmentSealKeyVersion,
-    serverSealedFactorCiphertextB64u: result.serverSealedFactorCiphertextB64u,
-    clientUnlockPublicKeyB64u: result.clientUnlockPublicKeyB64u,
-    unlockKeyVersion: result.unlockKeyVersion,
-  };
 }

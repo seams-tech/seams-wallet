@@ -8,7 +8,7 @@ export async function startGoogleEmailOtpLogin(
   seams: SeamsWeb,
   googleIdToken: string,
 ): Promise<GoogleEmailOtpWalletAuthLoginFlow> {
-  const started = await seams.auth.beginGoogleEmailOtpWalletAuth({
+  const started = await seams.auth.startGoogleSignIn({
     idToken: googleIdToken,
     mode: 'login',
     loginTarget: { kind: 'discoverable' },

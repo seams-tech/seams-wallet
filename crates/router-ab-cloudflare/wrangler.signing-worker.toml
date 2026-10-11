@@ -16,11 +16,16 @@ migrations_dir = "migrations/signing-worker"
 [durable_objects]
 bindings = [
   { name = "SIGNING_WORKER_PRESIGN_SESSION_DO", class_name = "RouterAbSigningWorkerPresignSessionDurableObject" },
+  { name = "SIGNING_WORKER_WALLET_DO", class_name = "RouterAbSigningWorkerWalletDurableObject" },
 ]
 
 [[migrations]]
 tag = "router_ab_signing_worker_v4"
 new_sqlite_classes = ["RouterAbSigningWorkerPresignSessionDurableObject"]
+
+[[migrations]]
+tag = "r150-signing-worker-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
 
 [vars]
 ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING = "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET"
@@ -45,6 +50,18 @@ migrations_dir = "migrations/signing-worker"
 name = "SIGNING_WORKER_PRESIGN_SESSION_DO"
 class_name = "RouterAbSigningWorkerPresignSessionDurableObject"
 
+[[env.staging.durable_objects.bindings]]
+name = "SIGNING_WORKER_WALLET_DO"
+class_name = "RouterAbSigningWorkerWalletDurableObject"
+
+[[env.staging.migrations]]
+tag = "router_ab_signing_worker_v4"
+new_sqlite_classes = ["RouterAbSigningWorkerPresignSessionDurableObject"]
+
+[[env.staging.migrations]]
+tag = "r150-signing-worker-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
+
 [env.staging.vars]
 ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING = "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET"
 SIGNING_WORKER_PRESIGN_SESSION_DO_BINDING = "SIGNING_WORKER_PRESIGN_SESSION_DO"
@@ -68,6 +85,18 @@ migrations_dir = "migrations/signing-worker"
 [[env.production-testnet.durable_objects.bindings]]
 name = "SIGNING_WORKER_PRESIGN_SESSION_DO"
 class_name = "RouterAbSigningWorkerPresignSessionDurableObject"
+
+[[env.production-testnet.durable_objects.bindings]]
+name = "SIGNING_WORKER_WALLET_DO"
+class_name = "RouterAbSigningWorkerWalletDurableObject"
+
+[[env.production-testnet.migrations]]
+tag = "router_ab_signing_worker_v4"
+new_sqlite_classes = ["RouterAbSigningWorkerPresignSessionDurableObject"]
+
+[[env.production-testnet.migrations]]
+tag = "r150-signing-worker-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
 
 [env.production-testnet.vars]
 ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING = "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET"

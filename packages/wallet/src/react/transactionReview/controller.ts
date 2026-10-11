@@ -147,7 +147,7 @@ export class ReviewHostController {
         'Mount TransactionReviewHost inside SeamsWebProvider before reviewing a transaction',
       );
     const bridge = getTransactionReviewBridge(this.seams.near);
-    if (!bridge || !bridge.getWalletIframe().shouldUseWalletIframe()) {
+    if (!bridge) {
       throw new TransactionReviewError(
         'review_unsupported_mode',
         'Transaction review requires the hosted wallet iframe',
@@ -216,7 +216,7 @@ class ReviewCall<T> {
       const bridge = getTransactionReviewBridge(this.host.seams.near);
       if (!bridge)
         throw new TransactionReviewError('review_host_unavailable', 'Review host is unavailable');
-      const router = await bridge.getWalletIframe().requireTransportRouter();
+      const router = await bridge.getWalletIframe().requireRouter();
       const reservation = await router.reserveTransactionReview({
         walletId: this.walletId,
         title: this.review.title,

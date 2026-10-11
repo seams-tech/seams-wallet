@@ -314,20 +314,14 @@ pub fn local_http_service_binding_path_v1(path: LocalHttpPathV1) -> &'static str
     match path {
         LocalHttpPathV1::RouterToSignerA => super::LOCAL_DERIVER_A_PRIVATE_PATH,
         LocalHttpPathV1::RouterToSignerB => super::LOCAL_DERIVER_B_PRIVATE_PATH,
-        LocalHttpPathV1::SignerAToSignerB => super::LOCAL_DERIVER_B_PEER_PATH,
-        LocalHttpPathV1::SignerBToSignerA => super::LOCAL_DERIVER_A_PEER_PATH,
     }
 }
 
 /// Returns the destination role that owns a checked local transport path.
 pub fn local_http_service_binding_owner_v1(path: LocalHttpPathV1) -> LocalServiceRoleV1 {
     match path {
-        LocalHttpPathV1::RouterToSignerA | LocalHttpPathV1::SignerBToSignerA => {
-            LocalServiceRoleV1::DeriverA
-        }
-        LocalHttpPathV1::RouterToSignerB | LocalHttpPathV1::SignerAToSignerB => {
-            LocalServiceRoleV1::DeriverB
-        }
+        LocalHttpPathV1::RouterToSignerA => LocalServiceRoleV1::DeriverA,
+        LocalHttpPathV1::RouterToSignerB => LocalServiceRoleV1::DeriverB,
     }
 }
 

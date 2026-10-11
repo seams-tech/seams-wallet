@@ -1,0 +1,47 @@
+{
+  "baseCommit": "a079510408d4bb4be659646456554feca5fa8d6c",
+  "scope": "Establish existing exact-method registration continuation guarantees before replacing the public resume operation.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "00aac1564ec2609db4294f348cf902c87c917e4519a1e9de4f5e9de11c40aaba",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createSessionCommands.ts": "45b2e34a0e953c4b1e5f13aea313f80127c0de298244a359da67600a19e9bbac",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts": "2f86631a5c602318b38f89cc048677e4eea0f7d671e82392f4afb984a4f46eb5",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery.ts": "7a83044c931d657d18420d5c65c2f9c7b687cab1b6ae80acb012be4aad2f982d",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryUnlock.ts": "9018927bf6cb8322e0aa694b044e839a48c29239cbc37161baaf6a3b3d899a1f",
+    "packages/wallet/src/SeamsWeb/operations/registration/registration.ts": "77129be7882a3c5ca77ea125bc07c20f579e36329e8a8618e20344c5ca151e4b",
+    "tests/e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts": "8010cb66c6538fb048b65fd40998eb2d373ac2b5ec5ee83012b1df1820b02873",
+    "tests/intended-app/src/ResumeRegistration.tsx": "5562e34052ee59ba71c08f7df0ee2506bff8684bbb36bf363c169666128b523b"
+  },
+  "scenarios": [
+    {
+      "signerPlan": "ecdsa_only",
+      "result": "passed (28.3s)",
+      "artifact": ".artifacts/r150/registration-activation-resume-ecdsa_only.json",
+      "artifactSha256": "623b09a08c959cb5fd52697cc49eddb1fc230db53ef264ae16b7c17ab3c3f230",
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "registrationRequestsBeforeResume": 2,
+      "registrationRequestsAfterResume": 2
+    },
+    {
+      "signerPlan": "mixed",
+      "result": "passed (28.3s)",
+      "artifact": ".artifacts/r150/registration-activation-resume-mixed.json",
+      "artifactSha256": "cf9ea5b207cccd72c1931d61d8783ae491b208ed10cb828d968ef3aab526ba10",
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "registrationRequestsBeforeResume": 2,
+      "registrationRequestsAfterResume": 2
+    }
+  ],
+  "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+  "limits": [
+    "Both cases use the explicit public resume form. Neither proves automatic continuation through auth.unlock.",
+    "The mixed case verifies one EVM signature, not NEAR provisioning or NEAR signing.",
+    "Email OTP activation-response loss is not covered by these two passkey cases.",
+    "Source audit finds startup returns unlock_required for ECDSA/mixed rows; normal unlock does not consume those results."
+  ]
+}

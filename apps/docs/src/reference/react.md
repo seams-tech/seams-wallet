@@ -27,9 +27,8 @@ import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/r
 
 ### `useWallet`
 
-Returns `{ status, wallet, near, evm, tempo, walletId, nearAccountId }`.
-`near`, `evm`, and `tempo` are lifted to the top level so the common path is a
-single check:
+Returns `{ status, wallet, near, evm, tempo, walletId, nearAccountId }`. `near`, `evm`,
+and `tempo` are top-level fields. Check the relevant field before signing:
 
 ```tsx [Partial example]
 const { near } = useWallet();
@@ -45,35 +44,50 @@ await near.signAndSendTransaction({
 no NEAR account. Read `status` — `'signed_out' | 'no_near_account' | 'ready'` —
 when the UI needs to say something different about each.
 
-`useWalletAuth` and `useWalletDevices` are views over the same context, not a
-second one; `useSeams` still exposes everything.
+`useWalletAuth` and `useWalletDevices` read different parts of the same context.
+`useSeams` exposes the complete context.
+
+### Refresh session and account input
+
+Use `refreshSession(walletId?)` from `useSeams` or `useWalletAuth` to refresh
+React's session display after a wallet operation. It returns `Promise<void>`.
+Use `getSession` when you need the session result itself.
+
+Use `setAccountName(name)` from `useSeams` or `useAccountInput` to update the
+account input. It retains lowercase normalization and saved-wallet matching.
 
 ## Components
 
-The stable surface includes `HostedSeamsAuthMenu`,
-`AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`.
-Use the hosted auth menu when the wallet-origin boundary owns the complete auth
-experience. `SeamsAuthMenuMock` is an inert loading shell and display preview;
-`HostedSeamsAuthMenu` shows it while the wallet surface opens.
+The stable surface includes `HostedSeamsAuthMenu`, `WalletSettingsPage`,
+`AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`. Use the
+hosted auth menu when the wallet-origin boundary owns the complete auth experience.
+`SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
+`HostedSeamsAuthMenu` shows it while the wallet UI opens.
+
+`WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
+export, and transaction-preference settings. It uses the same provider and
+wallet-origin operations. Signed-out users see hosted authentication. The page
+also shows the wallet region setting, which moves the wallet to another region when
+the deployment and the current device allow it.
 
 Focused entrypoints are available for applications that need smaller or
 SSR-specific imports:
 
-- `@seams/wallet/react/provider`;
-- `@seams/wallet/react/profile`;
-- `@seams/wallet/react/hosted-seams-auth-menu`;
+- `@seams/wallet/react/provider`.
+- `@seams/wallet/react/profile`.
+- `@seams/wallet/react/hosted-seams-auth-menu`.
 - `@seams/wallet/react/styles`.
 
 ## Custom transaction review
 
 Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
-`near.signAndSendTransaction`, `near.executeAction`, or the EVM and Tempo
-`signTransaction` and `executeTransaction` methods returned by `useWallet()`.
+`near.signAndSendTransaction` or the EVM and Tempo
+`signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 
 | Export | Purpose |
 | --- | --- |
 | `TransactionReviewHost` | Hosts app review content in the SDK dialog. |
-| `TransactionReview` | Required `title`, `validity`, and `render`; optional `className`. |
+| `TransactionReview` | Requires `title`, `validity`, and `render`. Accepts optional `className`. |
 | `TransactionReviewControls` | `continueToWallet()`, `cancel()`, and `fail(error)`. |
 | `TransactionReviewValidity` | `{ kind: 'unbounded' }` or `{ kind: 'expires_at', atMs: number }`. |
 | `TransactionReviewError` | Review failure class with a typed `code`. |

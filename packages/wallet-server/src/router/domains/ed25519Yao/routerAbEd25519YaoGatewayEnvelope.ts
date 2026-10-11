@@ -71,11 +71,27 @@ export async function routerAbEd25519YaoTenantRootWireV1(
   };
 }
 
+/**
+ * Identifies the signing root that a registration is created under. Its
+ * tenant root depends on these two values alone, so it can be read before the
+ * admission request exists.
+ */
+export type RouterAbEd25519YaoRegistrationSigningRootIdV1 = {
+  readonly signing_root_id: string;
+  readonly root_share_epoch: string;
+};
+
+export function routerAbEd25519YaoRegistrationSigningRootIdV1(
+  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+): RouterAbEd25519YaoRegistrationSigningRootIdV1 {
+  return {
+    signing_root_id: admissionRequest.application_binding.signing_root_id,
+    root_share_epoch: admissionRequest.scope.root_share_epoch,
+  };
+}
+
 export type RouterAbEd25519YaoTenantRootResolutionInputV1 =
-  | {
-      readonly operation: 'registration';
-      readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-    }
+  | ({ readonly operation: 'registration' } & RouterAbEd25519YaoRegistrationSigningRootIdV1)
   | {
       readonly operation: 'recovery';
       readonly admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1;

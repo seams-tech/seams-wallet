@@ -1,0 +1,83 @@
+{
+  "scope": "Local composed production Gateway with real D1 deployment admission and transactional deployment fences; role services run locally. No hosted placement or latency claim.",
+  "cases": {
+    "ecdsa": {
+      "verifiedSignatures": 3,
+      "attemptedConsoleCalls": 0,
+      "homeResponses": {
+        "/router-ab/ecdsa-derivation/presignature-pool/fill/init": {
+          "200": 7
+        },
+        "/router-ab/ecdsa-derivation/sign/prepare": {
+          "200": 3
+        },
+        "/router-ab/ecdsa-derivation/presignature-pool/fill/step": {
+          "200": 35
+        },
+        "/router-ab/ecdsa-derivation/sign": {
+          "200": 3
+        }
+      },
+      "rawArtifact": "seams-monorepo/.artifacts/r155b/console-outage/ecdsa/console-outage.json"
+    },
+    "ed25519": {
+      "verifiedSignatures": 3,
+      "attemptedConsoleCalls": 0,
+      "homeResponses": {
+        "/wallet/session/status": {
+          "200": 6
+        },
+        "/wallet/execution-lane/owner": {
+          "200": 6
+        },
+        "/router-ab/ed25519/sign/prepare": {
+          "200": 3
+        },
+        "/router-ab/ed25519/sign": {
+          "200": 3
+        }
+      },
+      "rawArtifact": "seams-monorepo/.artifacts/r155b/console-outage/ed25519/console-outage.json"
+    },
+    "restart-ecdsa": {
+      "verifiedSignatures": 3,
+      "attemptedConsoleCalls": 0,
+      "homeResponses": {
+        "/router-ab/ecdsa-derivation/presignature-pool/fill/init": {
+          "200": 7
+        },
+        "/router-ab/ecdsa-derivation/sign/prepare": {
+          "200": 3
+        },
+        "/router-ab/ecdsa-derivation/presignature-pool/fill/step": {
+          "200": 35
+        },
+        "/router-ab/ecdsa-derivation/sign": {
+          "200": 3
+        }
+      },
+      "rawArtifact": "seams-monorepo/.artifacts/r155b/console-outage/restart-ecdsa/console-outage.json"
+    },
+    "restart-ed25519": {
+      "verifiedSignatures": 3,
+      "attemptedConsoleCalls": 0,
+      "homeResponses": {
+        "/wallet/session/status": {
+          "200": 6
+        },
+        "/wallet/execution-lane/owner": {
+          "200": 6
+        },
+        "/router-ab/ed25519/sign/prepare": {
+          "200": 3
+        },
+        "/router-ab/ed25519/sign": {
+          "200": 3
+        }
+      },
+      "rawArtifact": "seams-monorepo/.artifacts/r155b/console-outage/restart-ed25519/console-outage.json"
+    }
+  },
+  "testedHarnessSha256": "a5957de5d52524b4303be0e201686239ca4d533e1de2697d3956d887ff4b8e37",
+  "verification": "Four existing browser contracts passed: both curves across three remote ingresses, then both curves after Gateway and role-process restart. Twelve signatures verified; provider proofs remain controlled fixtures."
+}

@@ -33,6 +33,19 @@ import {
   rerollIcon,
 } from './icons';
 
+import { demoEmailOtpCodeFromDelivery } from '@/core/signingEngine/session/emailOtp/challengeDelivery';
+import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
+
+function renderDemoEmailCode(delivery: EmailOtpChallengeDelivery): ComponentChildren {
+  const code = demoEmailOtpCodeFromDelivery(delivery);
+  if (code === null) return null;
+  return (
+    <p class="seams-otp-description">
+      Demo email code: <code>{code}</code>
+    </p>
+  );
+}
+
 const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
 const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
 
@@ -85,6 +98,9 @@ function passkeyButtonLabel(mode: AuthMenuViewModel['mode']): string {
 
 /** The failure the footer strip reports. Only the menu itself reports there. */
 function menuNotice(viewModel: AuthMenuViewModel): string | null {
+  if (viewModel.kind === 'google_otp_login' || viewModel.kind === 'google_registration') {
+    return viewModel.error || null;
+  }
   return viewModel.kind === 'passkey' &&
     viewModel.status.kind === 'recoverable' &&
     viewModel.status.reason === 'error'
@@ -1123,6 +1139,7 @@ export class AuthMenuSurface extends Component<
           {this.renderHeader(viewModel)}
           <div class="seams-otp-prompt" aria-live="polite">
             <p class="seams-otp-description">{deliveryMessage}</p>
+            {renderDemoEmailCode(viewModel.delivery)}
             <label class="seams-field-label" for="seams-recovery-google-otp">
               Email code
             </label>
@@ -1679,6 +1696,7 @@ export class AuthMenuSurface extends Component<
               {viewModel.heading}
             </div>
             <p class="seams-otp-description">{deliveryMessage}</p>
+            {renderDemoEmailCode(viewModel.delivery)}
             <div class="seams-otp-account" title={viewModel.walletId}>
               <span class="seams-otp-account-label">Wallet</span>
               <span class="seams-otp-account-value">{viewModel.walletId}</span>

@@ -50,7 +50,7 @@ const EXPORT_LANE = exactEcdsaSigningLaneIdentity({
 });
 
 /**
- * Answers the two requests these tests drive, and records the export payload so
+ * Records the export payload while the shared harness handles preferences, so
  * the test can read back the variant the parent stamped. The export request is
  * deliberately left open until the test releases it, so the dialog can be
  * inspected while the surface is still up.
@@ -63,14 +63,6 @@ const RECORDING_STUB = String.raw`
         const originalHandler = adoptedPort.onmessage;
         adoptedPort.onmessage = (event) => {
           const data = event.data || {};
-          if (data && data.type === 'PM_SET_CONFIRMATION_CONFIG') {
-            adoptedPort.postMessage({
-              type: 'PM_RESULT',
-              requestId: data.requestId,
-              payload: { ok: true, result: undefined },
-            });
-            return;
-          }
           if (data && data.type === 'PM_EXPORT_KEYPAIR_UI') {
             const options = (data.payload && data.payload.options) || {};
             window.parent.postMessage(
@@ -186,6 +178,7 @@ test.describe('wallet iframe export surface variant', () => {
             });
 
             const router = new WalletIframeRouter({
+              hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
               walletOrigin,
               servicePath: '/wallet-service',
               connectTimeoutMs: 3000,

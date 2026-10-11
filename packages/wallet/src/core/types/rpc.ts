@@ -1,7 +1,6 @@
 import type { AccessKeyView, TxExecutionStatus } from '@near-js/types';
 
 export const DEFAULT_WAIT_STATUS = {
-  executeAction: 'EXECUTED_OPTIMISTIC' as TxExecutionStatus,
   // Threshold AddKey is safe to treat optimistically; finality will converge shortly after.
   thresholdAddKey: 'EXECUTED_OPTIMISTIC' as TxExecutionStatus,
   // See default finality settings:

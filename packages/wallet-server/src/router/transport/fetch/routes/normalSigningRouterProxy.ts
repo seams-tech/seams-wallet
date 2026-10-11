@@ -1,3 +1,5 @@
+import { isPlainObject } from '@shared/utils/validation';
+import { walletObjectIdentity, walletObjectIdentityHeaders } from '../../../cloudflare/runtime/walletObjectAddresses';
 import { json } from '../../../framework/http';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
 import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
@@ -30,6 +32,14 @@ export async function proxyNormalSigningRequestToMpcRouter(input: {
 
   try {
     const headers = new Headers(input.request.headers);
+    const envelope = input.body?.authorized_operation;
+    if (!isPlainObject(envelope) || !isPlainObject(envelope.binding)) {
+      throw new Error('Signing requires an admitted wallet binding');
+    }
+    const identity = walletObjectIdentity(envelope.binding.account_id, envelope.binding.ownership_generation, { orgId: envelope.binding.org_id, projectId: envelope.binding.project_id, envId: envelope.binding.project_environment_id });
+    for (const [name, value] of Object.entries(walletObjectIdentityHeaders(identity))) {
+      headers.set(name, value);
+    }
     // Wallet Session bearer tokens are gateway-only credentials. The Router
     // receives the validated owner or linked-device admission in the body.
     if (input.body && parseNormalSigningSessionAdmission(input.body)) {
@@ -83,6 +93,7 @@ type NormalSigningReusableBindingRecord = {
 
 type NormalSigningGatewayOwnerBindingRecord = {
   readonly kind: unknown;
+  readonly ownership_generation: unknown;
   readonly subject_id: unknown;
   readonly account_id: unknown;
   readonly authorization_id: unknown;
@@ -141,7 +152,7 @@ function isNormalSigningGatewayOwnerBindingRecord(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   return (
     Object.keys(value).sort().join('|') ===
-    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|project_environment_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
+    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|ownership_generation|project_environment_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
   );
 }
 
@@ -166,6 +177,10 @@ function isNormalSigningGatewayOwnerBindingValues(
   record: NormalSigningGatewayOwnerBindingRecord,
 ): boolean {
   return (
+    record.kind === 'gateway_owner_wallet_session' &&
+    typeof record.ownership_generation === 'number' &&
+    Number.isSafeInteger(record.ownership_generation) &&
+    record.ownership_generation > 0 &&
     typeof record.subject_id === 'string' &&
     record.subject_id.trim().length > 0 &&
     typeof record.account_id === 'string' &&

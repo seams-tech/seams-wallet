@@ -111,10 +111,6 @@ export class SignerWorkerManager {
     };
   }
 
-  async prewarmWorkers(): Promise<void> {
-    await this.workerTransport.prewarmWorkers();
-  }
-
   async clearEcdsaClientWorkerState(target: EcdsaClientPresignCleanupTarget): Promise<void> {
     await this.workerTransport.clearEcdsaClientWorkerState(target);
   }

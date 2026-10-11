@@ -1,3 +1,5 @@
+import { walletObjectIdentity, walletObjectIdentityHeaders, type WalletObjectIdentity } from '../../../cloudflare/runtime/walletObjectAddresses';
+import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from './routerAbEd25519YaoRegistrationExecutionRecord';
 import {
   parseRouterAbEd25519YaoActivationKeysetV1,
   parseRouterAbEd25519YaoActivationResultV1,
@@ -16,10 +18,18 @@ import type {
   RouterAbEd25519YaoRegistrationBackendFailure,
   RouterAbEd25519YaoRegistrationBackendResult,
 } from './routerAbEd25519YaoRegistration';
-import type { RouterAbEd25519YaoExportBackend } from '../export/routerAbEd25519YaoExport';
-import type { RouterAbEd25519YaoRecoveryBackend } from '../recovery/routerAbEd25519YaoRecovery';
+import type {
+  RouterAbEd25519YaoExportBackend,
+  RouterAbEd25519YaoExportExecuteClaimV1,
+} from '../export/routerAbEd25519YaoExport';
+import type {
+  RouterAbEd25519YaoRecoveryBackend,
+  RouterAbEd25519YaoRecoveryExecuteClaimV1,
+} from '../recovery/routerAbEd25519YaoRecovery';
 import {
+  routerAbEd25519YaoRegistrationSigningRootIdV1,
   routerAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoRegistrationSigningRootIdV1,
   type RouterAbEd25519YaoTenantRootResolverV1,
   type RouterAbEd25519YaoTenantRootWireV1,
 } from '../routerAbEd25519YaoGatewayEnvelope';
@@ -423,12 +433,14 @@ function activeReceiptMatchesRecoveryActivation(
 type RouterExecuteTargetBoundary =
   | {
       operation: 'registration';
+      ownership_generation: number;
       binding: RouterAbEd25519YaoRegistrationExecuteRequestV1['binding'];
       deriver_a_input: RouterAbEd25519YaoRegistrationExecuteRequestV1['deriver_a_input'];
       deriver_b_input: RouterAbEd25519YaoRegistrationExecuteRequestV1['deriver_b_input'];
     }
   | {
       operation: 'recovery';
+      ownership_generation: number;
       binding: RouterAbEd25519YaoRecoveryExecuteRequestV1['binding'];
       attempt: number;
       deriver_a_input: RouterAbEd25519YaoRecoveryExecuteRequestV1['deriver_a_input'];
@@ -436,6 +448,7 @@ type RouterExecuteTargetBoundary =
     }
   | {
       operation: 'export';
+      ownership_generation: number;
       binding: RouterAbEd25519YaoExportExecuteRequestV1['binding'];
       deriver_a_input: RouterAbEd25519YaoExportExecuteRequestV1['deriver_a_input'];
       deriver_b_input: RouterAbEd25519YaoExportExecuteRequestV1['deriver_b_input'];
@@ -451,16 +464,19 @@ type RouterExecuteBoundary = {
 type RouterExecuteInput =
   | {
       readonly operation: 'registration';
+      readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoRegistrationExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
     }
   | {
       readonly operation: 'recovery';
+      readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoRecoveryExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
     }
   | {
       readonly operation: 'export';
+      readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoExportExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1;
     };
@@ -468,14 +484,13 @@ type RouterExecuteInput =
 export interface RouterAbEd25519YaoPinnedRegistrationBackend
   extends RouterAbEd25519YaoRegistrationBackend {
   resolveRegistrationDispatchRoot(
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
   ): Promise<RouterAbEd25519YaoTenantRootWireV1>;
   /// Executes one registration at the Router, which claims it and records
   /// its terminal answer: an exact retry gets that answer.
   executePinnedRegistration(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
     traceContext: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult>;
   /// Consumes a completed registration's activation at the Router, for one
@@ -486,9 +501,7 @@ export interface RouterAbEd25519YaoPinnedRegistrationBackend
 }
 
 export type RouterAbEd25519YaoRegistrationConsumeInputV1 = {
-  readonly tenantRoot: RouterAbEd25519YaoTenantRootWireV1;
-  readonly walletId: string;
-  readonly lifecycleId: string;
+  readonly authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1;
   readonly sessionId: readonly number[];
   readonly consumerBinding: string;
 };
@@ -518,6 +531,7 @@ function registrationRouterExecuteRequest(
     participant_ids: input.admissionRequest.participant_ids,
     target: {
       operation: 'registration',
+      ownership_generation: input.ownershipGeneration,
       binding: input.request.binding,
       deriver_a_input: input.request.deriver_a_input,
       deriver_b_input: input.request.deriver_b_input,
@@ -536,6 +550,7 @@ function recoveryRouterExecuteRequest(
     participant_ids: input.admissionRequest.participant_ids,
     target: {
       operation: 'recovery',
+      ownership_generation: input.ownershipGeneration,
       binding: input.request.binding,
       attempt,
       deriver_a_input: input.request.deriver_a_input,
@@ -554,7 +569,7 @@ async function routerExecuteRequest(
       const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
         await resolveTenantRoot({
           operation: 'registration',
-          admissionRequest: input.admissionRequest,
+          ...routerAbEd25519YaoRegistrationSigningRootIdV1(input.admissionRequest),
         }),
       );
       return registrationRouterExecuteRequest(input, tenantRoot);
@@ -569,6 +584,7 @@ async function routerExecuteRequest(
         participant_ids: input.admissionRequest.participant_ids,
         target: {
           operation: 'export',
+          ownership_generation: input.ownershipGeneration,
           binding: input.request.binding,
           deriver_a_input: input.request.deriver_a_input,
           deriver_b_input: input.request.deriver_b_input,
@@ -838,11 +854,16 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
 
   async executeExport(
     request: RouterAbEd25519YaoExportExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1,
+    claim: RouterAbEd25519YaoExportExecuteClaimV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
-      { operation: 'export', request, admissionRequest },
+      {
+        operation: 'export',
+        request,
+        admissionRequest: claim.admissionRequest,
+        ownershipGeneration: claim.ownershipGeneration,
+      },
       false,
       traceContext,
     );
@@ -929,35 +950,40 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   async execute(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
-      { operation: 'registration', request, admissionRequest },
+      { operation: 'registration', request, admissionRequest, ownershipGeneration },
       false,
       traceContext,
     );
   }
 
   async resolveRegistrationDispatchRoot(
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
   ): Promise<RouterAbEd25519YaoTenantRootWireV1> {
     return await routerAbEd25519YaoTenantRootWireV1(
-      await this.config.resolveTenantRoot({ operation: 'registration', admissionRequest }),
+      await this.config.resolveTenantRoot({ operation: 'registration', ...signingRootId }),
     );
   }
 
   async executePinnedRegistration(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
     traceContext: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    const routerInput = { operation: 'registration', request, admissionRequest } as const;
+    const routerInput = {
+      operation: 'registration',
+      request,
+      admissionRequest: authority.admissionRequest,
+      ownershipGeneration: authority.ownershipGeneration,
+    } as const;
     // The Router decides a registration's replay from its own claim, so a
     // retry after a lost reply is the exact request, unmarked.
     return await this.sendRouterRequest(
       routerInput,
-      registrationRouterExecuteRequest(routerInput, dispatchRoot),
+      registrationRouterExecuteRequest(routerInput, authority.dispatchRoot),
       traceContext.value,
       'exact',
       false,
@@ -971,10 +997,12 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     try {
       response = await this.post(
         ROUTER_REGISTRATION_CONSUME_PATH,
+        walletObjectIdentity(input.authority.admissionReceipt.binding.lifecycle.account_id, input.authority.ownershipGeneration, input.authority.dispatchRoot.identity),
         {
-          tenant_root: input.tenantRoot,
-          wallet_id: input.walletId,
-          lifecycle_id: input.lifecycleId,
+          tenant_root: input.authority.dispatchRoot,
+          ownership_generation: input.authority.ownershipGeneration,
+          wallet_id: input.authority.admissionReceipt.binding.lifecycle.account_id,
+          lifecycle_id: input.authority.lifecycleId,
           session_id: Array.from(input.sessionId),
           consumer_binding: input.consumerBinding,
         },
@@ -998,19 +1026,21 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
 
   async executeRecovery(
     request: RouterAbEd25519YaoRecoveryExecuteRequestV1,
-    admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
-    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
-    attempt: number,
-    replay: boolean,
+    claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    const routerInput = { operation: 'recovery', request, admissionRequest } as const;
+    const routerInput = {
+      operation: 'recovery',
+      request,
+      admissionRequest: claim.admissionRequest,
+      ownershipGeneration: claim.ownershipGeneration,
+    } as const;
     return await this.sendRouterRequest(
       routerInput,
-      recoveryRouterExecuteRequest(routerInput, dispatchRoot, attempt),
+      recoveryRouterExecuteRequest(routerInput, claim.dispatchRoot, claim.attempt),
       (traceContext ?? createRouterAbTraceContextV1()).value,
       'replay',
-      replay,
+      claim.replay,
     );
   }
 
@@ -1062,6 +1092,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     try {
       const response = await this.post(
         ROUTER_EXECUTE_PATH,
+        walletObjectIdentity(request.admissionRequest.application_binding.wallet_id, request.ownershipGeneration, routerRequest.tenant_root.identity),
         routerRequest,
         traceId,
         retryAfterTransportFailure,
@@ -1096,12 +1127,14 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   async activateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     // The root names the wallet's SigningWorker, as it did for the delivery.
     const promoted = await this.post(
       ROUTER_RECOVERY_PROMOTE_PATH,
-      { ...request, tenant_root: dispatchRoot },
+      walletObjectIdentity(request.binding.lifecycle.account_id, ownershipGeneration, dispatchRoot.identity),
+      { ...request, tenant_root: dispatchRoot, ownership_generation: ownershipGeneration },
       (traceContext ?? createRouterAbTraceContextV1()).value,
     );
     if (!promoted.ok) return promoted;
@@ -1124,6 +1157,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   /// the Router's replay.
   private async post(
     path: string,
+    identity: WalletObjectIdentity,
     body: unknown,
     traceId: string,
     retryAfterTransportFailure: 'none' | 'exact' | 'replay' = 'none',
@@ -1131,7 +1165,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   ): Promise<HttpResult> {
     const init: RequestInit = {
       method: 'POST',
-      headers: this.headers(traceId),
+      headers: { ...this.headers(traceId), ...walletObjectIdentityHeaders(identity) },
       body: JSON.stringify(body),
     };
     return await this.request(
@@ -1193,7 +1227,6 @@ function parseRouterServerTiming(value: string | null): string | null {
   const metrics = value.split(',').map((metric) => metric.trim());
   const allowedNames = new Set([
     'yao_router_prepare_pair',
-    'yao_router_verify_readiness',
     'yao_router_role_execution',
     'yao_router_signing_worker_delivery',
   ]);

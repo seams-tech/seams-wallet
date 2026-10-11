@@ -1,0 +1,583 @@
+{
+  "kind": "reusable_presign_host_comparison_v1",
+  "date": "2026-10-06",
+  "scope": "Native NRT browser, APAC staging wallet, same frozen SDK and Gateway. Full MPC SDK call includes automated approval and excludes blockchain broadcast or confirmation.",
+  "candidateVersion": "99980e4e-51ca-4d57-8819-19ecd629ee5e",
+  "historicalCombinedPrepareMediansMs": {
+    "ready": 1441,
+    "consecutive": 2393
+  },
+  "caveats": [
+    "Fresh control and candidate use the currently deployed separate session-status flow. Historical combined-prepare cohorts are separate.",
+    "Request windows include overlapping background work. Counts and spans are not a complete refill census.",
+    "Initialization spans mix first and subsequent calls; they do not independently identify object cold starts.",
+    "Registration and each unlock-delay scenario have one sample per arm. Idle duration does not prove eviction."
+  ],
+  "arms": {
+    "control": {
+      "back_to_back": {
+        "signing": {
+          "count": 9,
+          "medianMs": 2844.195,
+          "maximumMs": 3222.04
+        },
+        "refillWaitAboveOneMs": {
+          "count": 8,
+          "medianMs": 1048.4,
+          "maximumMs": 1735
+        },
+        "observedInitWorkerToDo": {
+          "count": 11,
+          "medianMs": 742,
+          "maximumMs": 812
+        },
+        "requestCountsByWindow": [
+          {
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 2
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          }
+        ],
+        "allSignaturesVerified": true,
+        "concurrencyVerified": true
+      },
+      "prefilled": {
+        "signing": {
+          "count": 6,
+          "medianMs": 1474.333,
+          "maximumMs": 1705.52
+        },
+        "refillWaitAboveOneMs": {
+          "count": 0,
+          "medianMs": null,
+          "maximumMs": null
+        },
+        "observedInitWorkerToDo": {
+          "count": 6,
+          "medianMs": 728.0,
+          "maximumMs": 784
+        },
+        "requestCountsByWindow": [
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 4,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          }
+        ],
+        "allSignaturesVerified": true,
+        "concurrencyVerified": true
+      },
+      "earlyPreparation": [
+        {
+          "phase": "registration_immediate",
+          "delayMs": 0,
+          "registrationMs": 5754.95575,
+          "unlockMs": null,
+          "signingMs": 4054.064999997616,
+          "refillWaitMs": 2347.900000035763,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 0,
+          "registrationMs": null,
+          "unlockMs": 2901.6336659999997,
+          "signingMs": 3448.820000052452,
+          "refillWaitMs": 634.8999999761581,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 2000,
+          "registrationMs": null,
+          "unlockMs": 2917.2575829999987,
+          "signingMs": 1638.8299999833107,
+          "refillWaitMs": 34.60000002384186,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 5000,
+          "registrationMs": null,
+          "unlockMs": 3444.9617910000015,
+          "signingMs": 2123.3449999690056,
+          "refillWaitMs": 0,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 15000,
+          "registrationMs": null,
+          "unlockMs": 2892.9303329999966,
+          "signingMs": 1453.6500000357628,
+          "refillWaitMs": 0,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 90000,
+          "registrationMs": null,
+          "unlockMs": 3525.2714170000036,
+          "signingMs": 1740.4000000357628,
+          "refillWaitMs": 0,
+          "verified": true
+        }
+      ]
+    },
+    "candidate": {
+      "back_to_back": {
+        "signing": {
+          "count": 9,
+          "medianMs": 1559.475,
+          "maximumMs": 1899.48
+        },
+        "refillWaitAboveOneMs": {
+          "count": 1,
+          "medianMs": 461.7,
+          "maximumMs": 461.7
+        },
+        "observedInitWorkerToDo": {
+          "count": 11,
+          "medianMs": 74,
+          "maximumMs": 493
+        },
+        "requestCountsByWindow": [
+          {
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 7,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 5,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 6,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 3,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 10,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          }
+        ],
+        "allSignaturesVerified": true,
+        "concurrencyVerified": true
+      },
+      "prefilled": {
+        "signing": {
+          "count": 6,
+          "medianMs": 1463.448,
+          "maximumMs": 1595.015
+        },
+        "refillWaitAboveOneMs": {
+          "count": 0,
+          "medianMs": null,
+          "maximumMs": null
+        },
+        "observedInitWorkerToDo": {
+          "count": 8,
+          "medianMs": 87.0,
+          "maximumMs": 113
+        },
+        "requestCountsByWindow": [
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 9,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 8,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 2,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1
+          },
+          {
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/step": 10,
+            "/wallet/session/status": 1,
+            "/router-ab/ecdsa-derivation/sign/prepare": 1,
+            "/router-ab/ecdsa-derivation/sign": 1,
+            "/router-ab/ecdsa-derivation/presignature-pool/fill/init": 1
+          }
+        ],
+        "allSignaturesVerified": true,
+        "concurrencyVerified": true
+      },
+      "earlyPreparation": [
+        {
+          "phase": "registration_immediate",
+          "delayMs": 0,
+          "registrationMs": 5587.286791999999,
+          "unlockMs": null,
+          "signingMs": 3518.3700000047684,
+          "refillWaitMs": 1864.800000011921,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 0,
+          "registrationMs": null,
+          "unlockMs": 3463.079417000001,
+          "signingMs": 1608.6949999928474,
+          "refillWaitMs": 0,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 2000,
+          "registrationMs": null,
+          "unlockMs": 3009.1053749999846,
+          "signingMs": 1513.824999988079,
+          "refillWaitMs": 0,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 5000,
+          "registrationMs": null,
+          "unlockMs": 2846.412000000011,
+          "signingMs": 1662.739999949932,
+          "refillWaitMs": 0,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 15000,
+          "registrationMs": null,
+          "unlockMs": 2865.789000000019,
+          "signingMs": 1495.5149999856949,
+          "refillWaitMs": 0,
+          "verified": true
+        },
+        {
+          "phase": "unlock_delay",
+          "delayMs": 90000,
+          "registrationMs": null,
+          "unlockMs": 2911.714042000007,
+          "signingMs": 1810.3149999976158,
+          "refillWaitMs": 0,
+          "verified": true
+        }
+      ]
+    }
+  },
+  "implementationCommit": "3df1c9d3afe1aec25befe7b04c45c031c675a0e8",
+  "protocolE2E": {
+    "kind": "reusable_owner_presign_host_e2e_v1",
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --reusable-owner-presign-host",
+    "verifiedSignatures": 8,
+    "interruptedSessionFailedSafelyAndFreshSessionSigned": true,
+    "separateWalletsVerified": true,
+    "concurrentPreparationVerified": true,
+    "expiredSessionRejectedAndOtherSessionSurvived": true,
+    "newSessionAfterEvictionVerified": true,
+    "burnedIdentityReplayRejected": true,
+    "tenantIsolationVerified": true,
+    "newHosts": 1,
+    "completedPoolAndBundledPrepare": true,
+    "signatureDigests": [
+      "7f43d6fbb32c7e4b171166646405524ced3893e6acec1faa7c0bdf64a7c9b884",
+      "c6c6d093a5be82dc0be13da436ffd9ac91340c041878349707ef6b53e955c5a0",
+      "3f9c4a98835733112343b848cfb17e042923d604c4868ef4bea0dc41b7d12d89",
+      "bd29885e6d17f951ac33d19a81d1ac7c6a5784fbf8a2d0a82f7fe51243238789",
+      "e9951daad2d8e578826e8da11540bfcdcfc3817d3c11ba13efcf593abe59fddc",
+      "0f99e4003c87d5720cad97438e76867e3a4061ba9d3f48082f6e9f6714a63679",
+      "0003792678adc92adb02bb011ef6fbde9b0b7143429d63bfa40187c546a49571",
+      "d961623e7c1e88bd7fbfb546592f46d3775d1636899f11c563b5f8887961617b"
+    ]
+  },
+  "stagingRestored": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "refillOverlap": {
+    "scope": "Hold the first prepare until background refill supplies at least two available entries; then verify three signatures with the hosted backend.",
+    "verifiedSignatures": 3,
+    "completedWhilePreparePending": {
+      "receivedAtMs": 18294.450834,
+      "outcome": "available",
+      "code": null,
+      "depth": 2,
+      "targetDepth": 5
+    },
+    "refills": [
+      {
+        "receivedAtMs": 10139.23925,
+        "outcome": "available",
+        "code": null,
+        "depth": 1,
+        "targetDepth": 1
+      },
+      {
+        "receivedAtMs": 16339.625584,
+        "outcome": "available",
+        "code": null,
+        "depth": 1,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 18294.450834,
+        "outcome": "available",
+        "code": null,
+        "depth": 2,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 20087.142167,
+        "outcome": "available",
+        "code": null,
+        "depth": 3,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 22106.902125,
+        "outcome": "available",
+        "code": null,
+        "depth": 3,
+        "targetDepth": 5
+      },
+      {
+        "receivedAtMs": 23875.182209,
+        "outcome": "available",
+        "code": null,
+        "depth": 3,
+        "targetDepth": 5
+      }
+    ]
+  },
+  "authorizationAcceptance": {
+    "candidate": "failed",
+    "restoredControl": "failed",
+    "refill": {
+      "status": 401,
+      "code": "wallet_session_invalid"
+    },
+    "prepare": {
+      "status": 503,
+      "code": "wallet_session_unavailable"
+    },
+    "expectedPrepareStatus": 401,
+    "classification": "pre-existing hosted failure; no test or production behavior changed to conceal it",
+    "notReached": [
+      "finalize replay",
+      "replacement signing"
+    ]
+  },
+  "reproduceHosted": "Set the frozen hosted projection and candidate site, then run: node node_modules/playwright/cli.js test -c tests/playwright.hosted-product.config.mjs mpc-signing-latency.test.ts mpc-refill-overlap.test.ts refill-session.test.ts --reporter=line (private seams-monorepo)."
+}

@@ -1,0 +1,88 @@
+{
+  "baseCommit": "f8be57dec347110e75a0eeec90c433820fb25685",
+  "scope": "Resume saved mixed-wallet NEAR provisioning from the same authenticated passkey result used to recover lost ECDSA registration activation.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery.ts": "deafb631a9433592616f8b2f10244fc4278c1eedebcdce0398c8a95d61ac989c",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryUnlock.ts": "a72e411b577165e7f18a102f33c50941052e9417873e2fb35a42203b1e168790",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts": "ed006b507a6928c9af82b0de3ee821d32a51a21c080a1fd8dd742b6c34690fc9",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts": "b2a667c3d7045041d15b828ca573a145478655bba0167906edeffe8d559ec456",
+    "packages/wallet/src/SeamsWeb/operations/registration/registration.ts": "2a00d94f4ed9582924dd02cb74d7b13f32e631b6aeae7e1409fb8050a9876b18",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createRegistrationCommands.ts": "35dfbabdb2572437bdb37ac806d6fe3bc98b95707d5eb49e4fabf79a6ef0e909",
+    "tests/e2e/intended-behaviours/harness.ts": "a4083786d650d4e5c0eefb2e34ca4d04011a20678f7fae22a83c729417157ef1",
+    "tests/e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts": "f4443da2ccceea0b0764a603ea53cb8e28891fc153759768b9a23ea6114fcef8",
+    "tests/e2e/intended-behaviours/registration-near-gate.ts": "80e94c433021a218ca3503cb4946516145d68b536821f3959e1e931ad74c3cb9",
+    "tests/typecheck/registration-checkpoint.typecheck.ts": "18fd0ac6b7d02f2d16dbdd41c0ee991218362216ccfccdd75b56dc2e3a2ba9d3"
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "walletStateTypes": "passed",
+    "docsTypes": "passed",
+    "productionBuild": "passed",
+    "packedDeclarations": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "productionEcdsaOnly": "passed (27.8s)",
+    "productionMixed": "passed (27.7s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "productionSourceNetLines": 47,
+  "protocolVersion": "11.0.0 (unchanged)",
+  "scenarios": {
+    "ecdsa_only": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "nearSignatureVerified": false,
+      "evmSignedWhileNearHeld": false,
+      "nearExtensionPreservedSession": false,
+      "nearProvisioningRequests": 0,
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-ecdsa_only.json",
+      "artifactSha256": "9cb4c869ae78856725a691ccc14d729d6f2f3bd2d1fb68a6d9ce2270a01e2416"
+    },
+    "mixed": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 2,
+      "nearSignatureVerified": true,
+      "evmSignedWhileNearHeld": true,
+      "nearExtensionPreservedSession": true,
+      "nearProvisioningRequests": 1,
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-mixed.json",
+      "artifactSha256": "b260877810cc895d53e7cfb677777b1ceaec71eb140d251d117d0a3c32298209"
+    }
+  },
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts --grep 'Passkey mixed activation response loss resumes the same wallet after reload and signs'",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "testRepair": {
+    "classification": "valid_test_needs_update",
+    "cause": "Completed EVM transaction receipt intercepted the next page button. Active Playwright trace showed the blocked click.",
+    "repair": "Reuse the existing wallet iframe confirmation settlement helper before the NEAR readiness action.",
+    "initialRun": "ECDSA-only passed. Mixed worker was stopped after the known receipt wait; SIGINT and SIGTERM did not exit it, so its specific PID was killed.",
+    "rerun": "Mixed case passed. No production behavior was changed to repair the receipt wait."
+  },
+  "limits": [
+    "Normal auth.unlock integration and public resume API removal remain open.",
+    "Email OTP activation recovery does not yet supply the NEAR continuation factor; its consolidation remains open.",
+    "Public recovery result remains unchanged and contains no credential or custody material.",
+    "NEAR work remains asynchronous and owns a factor-secret copy that the existing continuation zeroizes.",
+    "No publication or deployment performed."
+  ]
+}

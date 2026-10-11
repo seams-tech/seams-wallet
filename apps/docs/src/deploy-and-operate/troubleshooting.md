@@ -5,16 +5,31 @@ description: Diagnose common Seams registration, iframe, session, signing, provi
 
 # Troubleshooting
 
-Start with the visible symptom, identify the boundary, inspect stable state and
-codes, then choose the supported recovery action. Avoid blind retries for
-operations whose broadcast state is uncertain.
+Start with the visible symptom. Identify the responsible component or boundary. Inspect
+its state and error codes before choosing a supported recovery action. Do not retry
+operations while their broadcast state is uncertain.
 
 ## Wallet surface does not load
 
 **Boundary:** application-to-wallet iframe. Check the configured wallet origin,
 service route, CSP `frame-src`, frame-ancestor policy, asset content types, and
-browser console origin errors. Correct the deployment or origin allowlist, then
-reload the wallet surface.
+browser console origin errors. Correct the deployment or origin allowlist. Then reload the wallet UI.
+
+## An older client receives an upgrade-required response
+
+**Boundary:** SDK, hosted wallet assets, and backend release identity. Version
+0.9.0 rejects unsupported wallet-management protocols with HTTP 409 and an
+upgrade message. Display it and reload the matching application and wallet
+assets. Stop automatic retries of the same incompatible request. Follow the
+[0.9.0 cutover instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-9-0).
+
+## A regional wallet cannot be routed
+
+**Boundary:** wallet-home directory and regional bindings. Check the wallet's
+recorded home and the serving Worker/D1 binding evidence. A directory outage
+requires restoring directory access and retrying the same operation safely.
+Wrong-home rejection requires correcting routing. Never write to a fallback
+region or assign an existing wallet a new home to bypass the failure.
 
 ## Passkey prompt is unavailable
 
@@ -56,18 +71,17 @@ hourly gate, HTTP 429 with `tenant_root_refresh_throttled` returns `retryAtMs`
 and `Retry-After`. Wait until that server-computed time before starting a new
 manual refresh. HTTP 409 with `tenant_root_refresh_in_progress` identifies a
 different operation already in progress. Preserve the original `operationId`
-when retrying an interrupted request; generating new IDs cannot resume it.
+when retrying an interrupted request. Generating new IDs cannot resume it.
 
-Throttle deployment is pending. These responses describe the implemented
-contract, not an assurance that every deployed environment already enforces it.
+Verify the release and policy of the actual environment. The implemented
+contract alone does not establish deployment configuration.
 
 ## Tenant-root backup cannot be opened
 
 **Boundary:** role-local backup provider. Check the affected role's KMS key
 reference, enabled key version, service-account access, and retained R2 object
 against the authoritative activation evidence. Keep credentials and decrypted
-material out of logs. Restore access to the recorded key version; creating a
-replacement key cannot decrypt ciphertext written under the lost version.
+material out of logs. Restore access to the recorded key version. A replacement key cannot decrypt ciphertext written under the lost version.
 
 A complete database-loss incident also requires authoritative identity and
 activation records. Follow [tenant-root backup recovery requirements](/deploy-and-operate/tenant-root-backups#backup-refresh-and-restore).

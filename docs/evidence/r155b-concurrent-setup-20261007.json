@@ -1,0 +1,34 @@
+{
+  "simultaneousIngress": [
+    "US",
+    "APAC",
+    "OC"
+  ],
+  "statuses": [
+    200,
+    200,
+    200
+  ],
+  "competingOperation": [
+    {
+      "status": 409,
+      "code": "wallet_conflict"
+    },
+    {
+      "status": 409,
+      "code": "wallet_conflict"
+    }
+  ],
+  "home": "US",
+  "identicalWalletAndCeremony": true,
+  "establishedDirectoryRows": 1,
+  "verifiedSignatures": 3,
+  "signingConsoleCalls": 0,
+  "scope": "Concurrent copies of one SDK registration operation, then a different operation claims the reserved wallet through two regions. Credential conflicts remain a separate check.",
+  "environment": "Local composed browser acceptance with real custody processes and regional D1 emulation",
+  "passed": 1,
+  "duration": "56.0s",
+  "privateTestCommit": "57781b8",
+  "testInputCorrection": "Replaced an invalid UUID with the production registration-operation ID builder. Initial HTTP 400 rejection was correct.",
+  "hostedLatencyMeasured": false
+}

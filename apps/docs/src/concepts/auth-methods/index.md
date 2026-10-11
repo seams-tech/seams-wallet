@@ -5,8 +5,7 @@ description: Compare passkeys, email OTP, VoiceID, and other proofs across the s
 
 # Auth methods
 
-Auth methods are adapters over the same custody, policy, lane, and session
-model.
+Authentication methods use the same custody, policy, signing-lane, and session model.
 
 | Method    | Role                                                            |
 | --------- | --------------------------------------------------------------- |

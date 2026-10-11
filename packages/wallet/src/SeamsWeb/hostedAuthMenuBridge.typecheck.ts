@@ -19,10 +19,10 @@ if (!authMenuSessionId || !externalAuthRequestId) {
 }
 
 const request = buildHostedAuthMenuOpenRequest({ authMenuSessionId });
-const outcome: Promise<HostedAuthMenuOutcome> = seams.openHostedAuthMenu(request);
+const outcome: Promise<HostedAuthMenuOutcome> = seams.authMenu.open(request);
 void outcome;
 
-const unsubscribe = seams.onHostedAuthMenuExternalAuthRequest(
+const unsubscribe = seams.authMenu.onExternalAuthRequest(
   (externalRequest: HostedAuthMenuExternalAuthRequest) => {
     const resolution: HostedAuthMenuExternalAuthResolutionInput = {
       kind: 'hosted_auth_menu_external_auth_resolution_v1',
@@ -30,14 +30,14 @@ const unsubscribe = seams.onHostedAuthMenuExternalAuthRequest(
       externalAuthRequestId: externalRequest.externalAuthRequestId,
       evidence: { kind: 'cancelled', reason: 'user_cancelled' },
     };
-    void seams.resolveHostedAuthMenuExternalAuth(resolution);
+    void seams.authMenu.resolveExternalAuth(resolution);
   },
 );
 void unsubscribe;
 
-void seams.cancelHostedAuthMenu({ authMenuSessionId });
+void seams.authMenu.cancel({ authMenuSessionId });
 
-void seams.resolveHostedAuthMenuExternalAuth({
+void seams.authMenu.resolveExternalAuth({
   kind: 'hosted_auth_menu_external_auth_resolution_v1',
   authMenuSessionId,
   externalAuthRequestId,
@@ -45,3 +45,16 @@ void seams.resolveHostedAuthMenuExternalAuth({
   requestId: 'wallet-owned-request-id',
   evidence: { kind: 'cancelled', reason: 'user_cancelled' },
 });
+
+// @ts-expect-error Hosted UI operations belong to the authMenu namespace.
+seams.openHostedAuthMenu(request);
+// @ts-expect-error Hosted UI cancellation has one public name.
+seams.cancelHostedAuthMenu({ authMenuSessionId });
+// @ts-expect-error External authentication subscription belongs to authMenu.
+seams.onHostedAuthMenuExternalAuthRequest(() => {});
+// @ts-expect-error External authentication resolution belongs to authMenu.
+seams.resolveHostedAuthMenuExternalAuth({});
+const stopEvents: () => void = seams.events.subscribe(() => {});
+void stopEvents;
+// @ts-expect-error General event subscriptions belong to events.
+seams.onSdkLifecycleEvent(() => {});

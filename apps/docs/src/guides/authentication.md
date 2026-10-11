@@ -6,18 +6,19 @@ description: Select passkey, email OTP, and step-up authentication flows while p
 # Authentication
 
 Start with [Wallet setup and authentication](/examples/wallet-setup-and-authentication)
-to configure the provider, register a wallet, and unlock it. Use this guide to
-choose the factor and keep the resulting state explicit.
+to configure the provider, register a wallet, and unlock it. Use this guide to choose an
+authentication method and handle each resulting state.
 
 ## Choose a flow
 
 - **Passkey** — primary registration and unlock on supported browsers. The
-  wallet origin and RP ID own the credential scope.
+  wallet origin and relying party ID (RP ID) define where the credential can be used.
 - **Google plus email OTP** — account discovery with a recoverable second
-  factor. The application supplies the Google token; the wallet flow owns OTP
+  factor. The application supplies the Google token. The wallet flow manages OTP
   and recovery state.
-- **VoiceID or another step-up** — an additional proof for a high-risk
-  operation. Define consent, fallback, and retention rules before enabling it.
+- **VoiceID** — a proposed additional proof for a high-risk operation. Version
+  0.9.0 has no public VoiceID enrollment or authentication API. See the
+  [concept](/concepts/auth-methods/voiceid) for the intended boundary.
 
 ## Keep auth state explicit
 

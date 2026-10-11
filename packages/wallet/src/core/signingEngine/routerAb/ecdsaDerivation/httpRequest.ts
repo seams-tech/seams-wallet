@@ -1,3 +1,5 @@
+import { fetchWithWalletHomeDiscovery } from '../../../rpcClients/relayer/relayerHttp';
+
 const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_REQUEST_TIMEOUT_MS = 20_000;
 
 function resolveRequestTimeoutMs(timeoutMs: number | undefined): number {
@@ -51,10 +53,12 @@ export async function fetchRouterAbEcdsaDerivationJson<TData = unknown>(args: {
         abortController.abort();
       }, timeoutMs);
 
-      response = await fetch(args.url, { ...baseInit, signal: abortController.signal });
+      response = await fetchWithWalletHomeDiscovery(
+        new Request(args.url, { ...baseInit, signal: abortController.signal }),
+      );
     } else {
       response = await Promise.race([
-        fetch(args.url, baseInit),
+        fetchWithWalletHomeDiscovery(new Request(args.url, baseInit)),
         new Promise<Response>((_, reject) => {
           timeoutId = setTimeout(() => {
             didTimeout = true;

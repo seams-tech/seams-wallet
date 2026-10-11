@@ -1,3 +1,4 @@
+import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/registration';
 /**
  * Strict Router A/B ECDSA family registration: the ceremony, its activation
  * commit, and the wallet-key assertions that guard it.
@@ -79,7 +80,6 @@ import {
 import {
   RegistrationTimingRecorder,
   assertNever,
-  isRegistrationBenchmarkDiagnosticsEnabled,
 } from './registrationTiming';
 export function registrationRouteHeaders(
   traceContext?: RouterAbTraceContextV1,

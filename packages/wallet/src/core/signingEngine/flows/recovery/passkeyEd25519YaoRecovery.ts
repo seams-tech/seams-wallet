@@ -425,6 +425,7 @@ export function buildRecoveredWalletSessionState(input: {
     signingRootVersion: String(signingRoot.signingRootVersion || ''),
     routerAbNormalSigning: session.routerAbNormalSigning,
     walletSessionToken: walletSessionTokenForSigning(session),
+    home: 'operationCredential' in session ? session.operationCredential.home : session.home,
     nowMs: Math.min(Date.now(), session.expiresAtMs - 1),
   });
   if (!signingWalletSession.ok) {

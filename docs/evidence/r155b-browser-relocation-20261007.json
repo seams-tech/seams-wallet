@@ -1,0 +1,56 @@
+{
+  "kind": "r155b_browser_session_after_native_relocation_v1",
+  "date": "2026-10-07",
+  "privateCommit": "d44897603528db8718a8d46342dff2a18fd730dc",
+  "publicDevParent": "276b86170511d6bc265c3e50063d4d9b0b617161",
+  "browser": {
+    "observations": [
+      {
+        "state": "moving",
+        "authentication": "authenticated",
+        "lockRequests": 0
+      },
+      {
+        "state": "completed",
+        "authentication": "signed_out",
+        "lockRequests": 1
+      },
+      {
+        "state": "completed",
+        "authentication": "signed_out",
+        "lockRequests": 1
+      }
+    ],
+    "reloadPreservedGenerationFence": true,
+    "scope": "Chromium IndexedDB with the real issued session and registered authority. Production SDK reconciles actual coordinator responses. Session installation uses production persistence directly. Excludes iframe transport, browser registration, Gateway status HTTP routing and fresh unlock after move."
+  },
+  "signingRace": {
+    "sourceWaitedForPendingRound": true,
+    "pendingRounds": 1,
+    "signatureSha256Hex": "a76608ac13c247325baa0a5f3a5871a7564368ed43fd57df6098c422a5224137",
+    "lostFinalizeReplyRecoveredBeforeCutover": true,
+    "retiredSourceReasonVerified": true,
+    "changedFinalizationReasonVerified": true,
+    "retiredSourceStatus": 500,
+    "destinationTerminalReplayVerified": true,
+    "changedFinalizationStatus": 500,
+    "scope": "Native signing prepared before move admission. Finalize reply lost after commit and recovered while source was still freezing. Exact terminal result replayed at destination after completed move; changed finalization rejected. Does not cover SDK session reconciliation after cutover."
+  },
+  "destinationSigning": {
+    "signatureSha256Hex": "d914af7c5b916ebe51d10d2fd5d50615d2b47c1463d46d65c47a44a7cf0b0ea4",
+    "staleGenerationRejected": true,
+    "prepareReplayAfterEviction": true,
+    "finalizeReplayAfterEviction": true
+  },
+  "browserBundleSha256": "8b5a73dd9c355071476299104bc91ee351b02b96ccc7003a7c85da627780c4a3",
+  "artifactsSha256": {
+    "browser-session.json": "a6aa94f7e47c0955424a4af987595efdf963347d7c3903420ca65919511fb52c",
+    "coordinator-progress.json": "517fd908e2d396f96f62b62d44332a3cc70741a844868ea981e4c070ae939c20",
+    "destination-signing.json": "0346900a1b53793a80d6c7cc27ac40fd41c9fb8f984ffd6072fc6b3e116a3ce0",
+    "signing-race.json": "e51bb5150c6e7d6dac08c20b209ee600ca275b0f44db7180cdf523936df47b1f"
+  },
+  "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/relocation-custody.e2e.mjs (private repository, Node 24, installed Chromium)",
+  "sourceScope": "Local sources include concurrent R153 work. Custody binary hashes remain those in r155b-near-empty-presign-20261007.json. No custody source change in this slice.",
+  "cloudflareDeployment": false,
+  "cloudflareSpend": 0
+}

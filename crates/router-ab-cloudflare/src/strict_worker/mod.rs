@@ -7,7 +7,10 @@
 ))]
 
 use crate::cloudflare_router_error_status;
-#[cfg(feature = "strict-worker-router-entrypoint")]
+#[cfg(any(
+    feature = "strict-worker-router-entrypoint",
+    feature = "strict-worker-deriver-a-entrypoint"
+))]
 use crate::set_cloudflare_internal_service_auth_header_v1;
 #[cfg(any(
     feature = "strict-worker-deriver-a-entrypoint",
@@ -171,13 +174,8 @@ use crate::{
 };
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 use crate::{
-    handle_cloudflare_ed25519_yao_deriver_a_burn_pair_v1,
-    handle_cloudflare_ed25519_yao_deriver_a_execute_pair_v1,
-    handle_cloudflare_ed25519_yao_deriver_a_prepare_pair_v1,
-    handle_cloudflare_ed25519_yao_deriver_a_read_pair_status_v1, CloudflareDeriverAWorkerRuntimeV1,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
+    CloudflareDeriverAWorkerRuntimeV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
     CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PRIVATE_REQUEST_PATH,
@@ -208,7 +206,7 @@ use router_ab_core::RouterEd25519YaoExecuteFailureCodeV1;
     feature = "strict-worker-deriver-a-entrypoint",
     feature = "strict-worker-deriver-b-entrypoint"
 ))]
-use router_ab_core::{AbPeerMessageVerifyingKeyV1, Role, RouterAbProtocolResult, SignerSetV1};
+use router_ab_core::{Role, RouterAbProtocolResult};
 use worker::Method;
 use worker::{Context, Env, Request, Response};
 
@@ -239,6 +237,9 @@ use tenant_root_control_plane::handle_strict_tenant_root_control_plane_fetch_v1;
 /// Deployable workers-rs fetch entrypoint for strict Router/A/B proof-bundle Workers.
 #[worker::event(fetch)]
 pub async fn fetch(request: Request, env: Env, _ctx: Context) -> worker::Result<Response> {
+    if request.path() == crate::durable_object::custody_target::PATH {
+        return crate::durable_object::custody_target::inspect(request, &env).await;
+    }
     #[cfg(feature = "strict-worker-router-entrypoint")]
     {
         return handle_strict_router_fetch_v1(request, env).await;
@@ -253,7 +254,7 @@ pub async fn fetch(request: Request, env: Env, _ctx: Context) -> worker::Result<
     }
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     {
-        return handle_strict_signing_worker_fetch_v1(request, env).await;
+        return handle_strict_signing_worker_fetch_v1(request, env, _ctx).await;
     }
     #[cfg(feature = "strict-worker-tenant-root-control-plane-entrypoint")]
     {
@@ -277,11 +278,37 @@ pub(super) fn cloudflare_prewarm_response_v1(request: &Request) -> worker::Resul
     Response::from_json(&serde_json::json!({ "ok": true }))
 }
 
+/// Asks the Worker behind a service binding for its prewarm answer, which
+/// loads that Worker where the caller runs.
+#[cfg(any(
+    feature = "strict-worker-router-entrypoint",
+    feature = "strict-worker-deriver-a-entrypoint"
+))]
+pub(crate) async fn prewarm_service_binding_v1(env: &Env, binding_name: &str) -> Result<(), ()> {
+    let fetcher = env.service(binding_name).map_err(|_| ())?;
+    let headers = worker::Headers::new();
+    set_cloudflare_internal_service_auth_header_v1(env, &headers, "Worker prewarm")
+        .map_err(|_| ())?;
+    let mut init = worker::RequestInit::new();
+    init.with_method(Method::Post).with_headers(headers);
+    let request =
+        Request::new_with_init("https://router-ab-prewarm.internal/internal/prewarm", &init)
+            .map_err(|_| ())?;
+    let mut response = fetcher.fetch_request(request).await.map_err(|_| ())?;
+    if !(200..=299).contains(&response.status_code()) {
+        return Err(());
+    }
+    // An unread answer leaves the called Worker's invocation open until this
+    // caller's request ends, and that Worker records it as cancelled.
+    response.bytes().await.map_err(|_| ())?;
+    Ok(())
+}
+
 #[cfg(any(
     feature = "strict-worker-deriver-a-entrypoint",
     feature = "strict-worker-deriver-b-entrypoint"
 ))]
-pub(super) fn cloudflare_role_failure_response_v1(
+pub(crate) fn cloudflare_role_failure_response_v1(
     err: RouterAbProtocolError,
 ) -> worker::Result<Response> {
     worker::console_error!("{:?}: {}", err.code(), err.message());

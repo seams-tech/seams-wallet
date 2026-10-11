@@ -1,7 +1,4 @@
-import { DeviceLinkingDomain } from '@/SeamsWeb/operations/devices/linkDevice';
-import type { DeviceLinkingFlowPortsV1 } from '@/SeamsWeb/operations/devices/deviceLinkingPorts';
-import type { DeviceLinkingWebContext, DevicesCapability } from '@/SeamsWeb/signingSurface/types';
-import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
+import type { DevicesCapability } from '@/SeamsWeb/signingSurface/types';
 import {
   parseWalletAuthMethodId,
   parseWalletId,
@@ -9,11 +6,9 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import type { LinkedDeviceListResultV1, LinkedDeviceRevokeResultV1 } from '@shared/device-linking';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
-  parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
 } from '@shared/device-linking';
 
@@ -42,99 +37,54 @@ export type LinkedDeviceManagementPortV1 = {
   revokeLinkedDevice(input: {
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
-    readonly requestedAtMs: number;
-    readonly sourceProof: WalletAuthMethodRevocationProof;
   }): Promise<LinkedDeviceRevokeResultV1>;
 };
 
-export type DevicesCapabilityDomainMethods =
-  | {
-      readonly kind: 'iframe';
-      readonly linkedDeviceManagement: LinkedDeviceManagementPortV1;
-    }
-  | {
-      readonly kind: 'direct';
-      readonly linkedDeviceManagement: LinkedDeviceManagementPortV1;
-      readonly deviceLinkingPorts: DeviceLinkingFlowPortsV1;
-    };
+export type DeviceCommands = Pick<
+  DevicesCapability,
+  'startLinking' | 'cancelLinking' | 'approveLinking'
+> & { readonly linkedDeviceManagement: LinkedDeviceManagementPortV1 };
 
-type DevicesCapabilityDependencies = {
-  readonly getContext: () => DeviceLinkingWebContext;
-  readonly walletIframe: Pick<WalletIframeCoordinator, 'shouldUseWalletIframe' | 'requireRouter'>;
-  readonly domain: DevicesCapabilityDomainMethods;
-};
-
-export function createWalletIframeLinkedDeviceManagementPortV1(deps: {
-  readonly walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>;
-}): LinkedDeviceManagementPortV1 {
+export function createDevicesCapability(commands: DeviceCommands): DevicesCapability {
+  const devices = new DeviceManagement(commands.linkedDeviceManagement);
   return {
-    listLinkedDevices: async ({ walletId, limit, cursor }) => {
-      const router = await deps.walletIframe.requireRouter(walletId);
-      return await router.listLinkedDevices({ walletId: String(walletId), limit, cursor });
-    },
-    revokeLinkedDevice: async ({ walletId, walletAuthMethodId, requestedAtMs, sourceProof }) => {
-      const router = await deps.walletIframe.requireRouter(walletId);
-      return await router.revokeLinkedDevice({
-        walletId: String(walletId),
-        walletAuthMethodId: String(walletAuthMethodId),
-        requestedAtMs,
-        sourceProof,
-      });
-    },
+    startLinking: commands.startLinking,
+    cancelLinking: commands.cancelLinking,
+    approveLinking: commands.approveLinking,
+    list: devices.list.bind(devices),
+    remove: devices.remove.bind(devices),
   };
 }
 
-export function createDevicesCapability(deps: DevicesCapabilityDependencies): DevicesCapability {
-  const deviceLinking =
-    deps.domain.kind === 'direct'
-      ? new DeviceLinkingDomain({
-          kind: 'direct',
-          getContext: deps.getContext,
-          walletIframe: deps.walletIframe,
-          ports: deps.domain.deviceLinkingPorts,
-        })
-      : new DeviceLinkingDomain({
-          kind: 'iframe',
-          getContext: deps.getContext,
-          walletIframe: deps.walletIframe,
-        });
-  return {
-    startDevice2LinkingFlow: async (args) => await deviceLinking.startDevice2LinkingFlow(args),
-    cancelDeviceLinking: async () => await deviceLinking.cancelDeviceLinking(),
-    scanAndLinkDevice: async (qrData, options) =>
-      await deviceLinking.scanAndLinkDevice(qrData, options),
-    listLinkedDevices: async (args) => {
-      const request = parseLinkedDeviceListRequestV1({
-        kind: 'linked_device_list_request_v1',
-        walletId: parseWalletIdForPublicCall(args.walletId),
-        limit: args.limit,
-        cursor: args.cursor,
-      });
-      const managementRequest = {
-        walletId: request.walletId,
-        limit: request.limit,
-        cursor: request.cursor,
-      };
-      const result = await deps.domain.linkedDeviceManagement.listLinkedDevices(managementRequest);
-      return parseLinkedDeviceListResultV1(result);
-    },
-    revokeLinkedDevice: async (args) => {
-      const request = parseLinkedDeviceRevokeRequestV1({
-        kind: 'linked_device_revoke_request_v1',
-        walletId: parseWalletIdForPublicCall(args.walletId),
-        walletAuthMethodId: parseWalletAuthMethodIdForPublicCall(args.walletAuthMethodId),
-        requestedAtMs: args.requestedAtMs,
-      });
-      const rawResult = await deps.domain.linkedDeviceManagement.revokeLinkedDevice({
-        walletId: request.walletId,
-        walletAuthMethodId: request.walletAuthMethodId,
-        requestedAtMs: request.requestedAtMs,
-        sourceProof: args.sourceProof,
-      });
-      const result = parseLinkedDeviceRevokeResultV1(rawResult);
-      return result;
-    },
-  } satisfies DevicesCapability;
+class DeviceManagement {
+  constructor(private readonly management: LinkedDeviceManagementPortV1) {}
+
+  async list(
+    args: Parameters<DevicesCapability['list']>[0],
+  ): ReturnType<DevicesCapability['list']> {
+    const request = parseLinkedDeviceListRequestV1({
+      kind: 'linked_device_list_request_v1',
+      walletId: parseWalletIdForPublicCall(args.walletId),
+      limit: args.limit,
+      cursor: args.cursor,
+    });
+    const result = await this.management.listLinkedDevices({
+      walletId: request.walletId,
+      limit: request.limit,
+      cursor: request.cursor,
+    });
+    return parseLinkedDeviceListResultV1(result);
+  }
+
+  async remove(
+    args: Parameters<DevicesCapability['remove']>[0],
+  ): ReturnType<DevicesCapability['remove']> {
+    const result = await this.management.revokeLinkedDevice({
+      walletId: parseWalletIdForPublicCall(args.walletId),
+      walletAuthMethodId: parseWalletAuthMethodIdForPublicCall(args.walletAuthMethodId),
+    });
+    return parseLinkedDeviceRevokeResultV1(result);
+  }
 }
 
 function parseWalletIdForPublicCall(raw: string): WalletId {

@@ -28,16 +28,16 @@ different persistent ECDSA key or displayed signer address.
 
 ## Uncertain broadcasts and retries
 
-A timeout or expired local lease does not prove that the chain rejected a
-transaction. Preserve its transaction hash and request identifier, then let the
-SDK reconcile the exact lane against chain state before submitting another
-transaction. An identical retry keeps its operation fingerprint; a changed
-payload is a new operation. Clearing local state does not cancel a transaction.
+A timeout or expired local lease does not prove that the chain rejected a transaction.
+Preserve its transaction hash and request identifier. Let the SDK reconcile the exact
+lane against chain state before submitting another transaction. An identical retry keeps
+its operation fingerprint. A changed payload is a new operation. Clearing local state
+does not cancel a transaction.
 
-Nonce coordination and signing quota have separate owners. A broadcast failure
-does not refund an already-consumed signing allowance, and resetting nonce
-state cannot refill a Wallet Session. Browser coordination covers tabs on the
-same origin; it does not provide cross-device exclusion.
+Nonce coordination and signing quota have separate owners. A broadcast failure does not
+refund an already-consumed signing allowance, and resetting nonce state cannot refill a
+Wallet Session. Browser coordination covers tabs on the same origin. It does not prevent
+conflicts between devices.
 
 NEAR signing also uses managed nonce coordination, scoped to the network,
 account, and access key. Nonfinal acceptance remains protected until

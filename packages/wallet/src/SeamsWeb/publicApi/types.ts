@@ -1,3 +1,11 @@
+import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
+import type {
+  HostedAuthMenuOpenRequest,
+  HostedAuthMenuOutcome,
+  HostedAuthMenuSessionId,
+  HostedAuthMenuExternalAuthRequest,
+  HostedAuthMenuExternalAuthResolutionInput,
+} from '@/SeamsWeb/walletIframe/shared/messages';
 import type {
   NearAccountRef,
   TempoChainTarget,
@@ -12,13 +20,13 @@ import type {
 import type { WalletSessionInput } from '@/SeamsWeb/publicApi/currentWallet';
 import type {
   EmailOtpChallengeDelivery,
-  EmailOtpEnrollmentResult,
-  DemoEmailOtpCodeResponse,
+  EmailOtpEnrollmentMaterial,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
-import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type {
+  AppearanceConfigInput,
+  ThemeMode,
   ActionResult,
   DelegateRouterApiResult,
   EmailOtpAuthPolicy,
@@ -30,10 +38,8 @@ import type {
   SignAndSendDelegateActionResult,
   SignDelegateActionResult,
   SignTransactionResult,
-  SeamsRegistrationNearAccountProvisioning,
 } from '@/core/types/seams';
 import type {
-  ActionHooksOptions,
   DelegateActionHooksOptions,
   DelegateRelayHooksOptions,
   LoginHooksOptions,
@@ -49,10 +55,8 @@ import type {
   UnlockFlowEvent,
   NearProvisioningStateChangedEvent,
 } from '@/core/types/sdkSentEvents';
-import type { AwaitNearReadyResult } from '@/SeamsWeb/publicApi/awaitNearReady';
+import type { WaitForNearAccountResult } from '@/SeamsWeb/publicApi/waitForNearAccount';
 import type { EmailOtpProvider } from '@shared/utils/walletAuthAuthority';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   ConfirmationBehavior,
   ConfirmationConfig,
@@ -84,10 +88,6 @@ import type {
 import type { WalletRecoveryRotationAuthorization } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
 import type { WalletRecoveryRotationOutcome } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
 import type {
-  PendingEcdsaRegistrationResumeRequest,
-  ResumePendingEcdsaRegistrationResult,
-} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
-import type {
   EvmAddress,
   EvmBytes,
   EvmSigningRequest,
@@ -96,8 +96,6 @@ import type { TempoSigningRequest } from '@/core/signingEngine/chains/tempo/temp
 import type { TempoFeeTokenValidation } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmFamilyNonceLaneStatus } from '@/core/signingEngine/flows/signEvmFamily/types';
 import type {
-  SigningEngineResolveExactKeyExportLaneInput,
-  SigningEngineResolveExactKeyExportLaneResult,
   SigningEngineExportKeypairWithUIInput,
 } from '@/core/signingEngine/flows/recovery/public';
 import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
@@ -115,12 +113,10 @@ import type {
 } from '@shared/device-linking';
 import type {
   WalletEmailOtpChannel,
-  WalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
 import type { WalletId } from '@shared/utils/registrationIntent';
 import type {
   AddSignerSelection,
-  RegistrationNearAccountProvisioning,
   RegistrationSignerSetSelection,
 } from '@shared/utils/registrationSignerPlan';
 import type {
@@ -128,12 +124,52 @@ import type {
   RegisterWalletInput,
 } from '@shared/utils/registrationAuthMethodInput';
 import type { ExclusiveUnion } from '@shared/utils/variant';
+
+export type ClientConnectionState = ExclusiveUnion<
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'connecting'; readonly generation: number }
+  | { readonly kind: 'ready'; readonly generation: number }
+  | { readonly kind: 'failed'; readonly generation: number; readonly error: Error }
+  | { readonly kind: 'disposed' }
+>;
+
+export interface ConnectionCapability {
+  connect(): Promise<void>;
+  getState(): ClientConnectionState;
+  onChange(listener: (state: ClientConnectionState) => void): () => void;
+  dispose(): void;
+}
+
+export interface EventsCapability {
+  subscribe(listener: SdkLifecycleEventListener): () => void;
+}
+
+export interface AuthMenuCapability {
+  open(
+    request: HostedAuthMenuOpenRequest,
+    anchorElement?: HTMLElement,
+  ): Promise<HostedAuthMenuOutcome>;
+  cancel(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void>;
+  onExternalAuthRequest(listener: (request: HostedAuthMenuExternalAuthRequest) => void): () => void;
+  resolveExternalAuth(resolution: HostedAuthMenuExternalAuthResolutionInput): Promise<void>;
+}
+
+export interface ConfigCapability {
+  setTheme(theme: ThemeMode): void;
+  /** Update appearance locally and forward it to the wallet host asynchronously. */
+  setAppearance(appearance: AppearanceConfigInput): void;
+  /** Resolve a target. Network, chain ID, and family selectors require exactly one match. */
+  chainTarget(selector: EcdsaChainSelector): ThresholdEcdsaChainTarget;
+  /** All configured ECDSA chain targets. */
+  configuredChainTargets(): readonly ThresholdEcdsaChainTarget[];
+}
+
 export type {
   WalletIframeRequestId,
   WalletIframeSurfaceId,
 } from '@/core/types/walletIframeIdentity';
 export type { WalletSessionInput } from '@/SeamsWeb/publicApi/currentWallet';
-export type { AwaitNearReadyResult } from '@/SeamsWeb/publicApi/awaitNearReady';
+export type { WaitForNearAccountResult } from '@/SeamsWeb/publicApi/waitForNearAccount';
 export type {
   AddPasskeyAuthorization,
   AddPasskeyHooksOptions,
@@ -150,10 +186,6 @@ export type {
   WalletCustodyEmailOtpChallengeResult,
 } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 export type { WalletRecoveryRotationAuthorization } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
-export type {
-  PendingEcdsaRegistrationResumeRequest,
-  ResumePendingEcdsaRegistrationResult,
-} from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 export type { WalletRecoveryRotationOutcome } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
 export type {
   LinkedDeviceEmailOtpActivationStateV1,
@@ -243,54 +275,6 @@ export type SetTempoFeeTokenPreferenceArgs = {
     shouldAbort?: () => boolean;
     onEvent?: (event: TempoNonceLifecycleEvent) => void;
   };
-};
-
-type RegisterNearImplicitWalletArgs = {
-  accountProvisioning?: Extract<RegistrationNearAccountProvisioning, { kind: 'implicit_account' }>;
-  nearAccountId?: never;
-  wallet?: Extract<RegisterWalletInput, { kind: 'provided' }>;
-  authMethod: RegistrationAuthMethodInput;
-  options?: RegistrationHooksOptions;
-};
-
-type RegisterNearSponsoredWalletArgs = {
-  accountProvisioning: Extract<
-    RegistrationNearAccountProvisioning,
-    { kind: 'sponsored_named_account' }
-  >;
-  wallet: Extract<RegisterWalletInput, { kind: 'provided' }>;
-  nearAccountId?: never;
-  authMethod: RegistrationAuthMethodInput;
-  options?: RegistrationHooksOptions;
-};
-
-type RegisterNearWalletArgs = RegisterNearImplicitWalletArgs | RegisterNearSponsoredWalletArgs;
-
-export type FundImplicitNearAccountForTestingResult =
-  | {
-      ok: true;
-      walletId: string;
-      nearAccountId: string;
-      fundedAmountYocto: string;
-      transactionHash?: string;
-      message?: string;
-    }
-  | {
-      ok: false;
-      code: string;
-      message: string;
-    };
-
-export type PasskeyRegistrationOptions = RegistrationHooksOptions & {
-  wallet?: Extract<RegisterWalletInput, { kind: 'provided' }>;
-  nearAccountProvisioning?: SeamsRegistrationNearAccountProvisioning;
-};
-
-type RegisterEvmWalletArgs = {
-  chainTargets: readonly ThresholdEcdsaChainTarget[];
-  participantIds: readonly number[];
-  authMethod: RegistrationAuthMethodInput;
-  options?: RegistrationHooksOptions;
 };
 
 export type TempoNonceLifecycleEvent = SigningFlowEvent;
@@ -434,7 +418,7 @@ type ExecuteTempoTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs, 'ch
 
 /**
  * The shared execute shape. Prefer the family-specific
- * `seams.evm.executeTransaction` / `seams.tempo.executeTransaction`, which keep
+ * `seams.evm.signAndSendTransaction` / `seams.tempo.signAndSendTransaction`, which keep
  * the request, the chain, and the payload expectation matched to one family.
  */
 export type ExecuteEvmFamilyTransactionArgs =
@@ -445,27 +429,6 @@ export type ExecuteEvmFamilyTransactionResult = {
   txHash: `0x${string}`;
   signedResult: TempoSignedResult | EvmSignedResult;
   payloadVerification: FinalizedEvmTxPayloadVerification;
-};
-
-export type BootstrapThresholdEcdsaSessionArgs = {
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-  relayerUrl?: string;
-  runtimeScopeBootstrap?: {
-    projectEnvironmentId: string;
-    publishableKey: string;
-  };
-  ttlMs?: number;
-  remainingUses?: number;
-  kind: 'reuse_warm_ecdsa_bootstrap';
-  source?: 'login' | 'registration' | 'manual-bootstrap' | 'email_otp';
-  ecdsaThresholdKeyId?: never;
-  participantIds?: never;
-  sessionIdentity?: never;
-  routeAuth?: never;
-  webauthnAuthentication?: never;
-  passkeyPrfFirstB64u?: never;
-  emailOtpAuthContext?: never;
 };
 
 export type EmailOtpChallengeResult = {
@@ -482,12 +445,7 @@ export type EmailOtpOperationChallengeResult = EmailOtpChallengeResult & {
   signerSelection: import('@/core/signingEngine/session/emailOtp/publicTypes').EmailOtpUnlockSignerSelection;
 };
 
-export type { EmailOtpEnrollmentResult };
-
-export type GoogleEmailOtpRegistrationEnrollmentResult = Omit<
-  EmailOtpEnrollmentResult,
-  'challengeId'
-> & {
+export type GoogleEmailOtpRegistrationEnrollmentResult = EmailOtpEnrollmentMaterial & {
   registrationAuthorityId: string;
   challengeId?: never;
   otpCode?: never;
@@ -685,7 +643,6 @@ type GoogleEmailOtpWalletAuthStartBaseInput = {
   relayUrl?: string;
   ecdsaTargets?: GoogleEmailOtpWalletAuthEcdsaTargets;
   emailOtpAuthPolicy?: EmailOtpAuthPolicy;
-  onDemoOtp?: (response: DemoEmailOtpCodeResponse) => void;
   onEvent?: (event: RegistrationFlowEvent | UnlockFlowEvent) => void;
 };
 
@@ -709,74 +666,37 @@ export type GoogleEmailOtpWalletAuthStartInput = GoogleEmailOtpWalletAuthStartBa
         >;
       }
   >;
+export type RequestEmailCodeInput = ExclusiveUnion<
+  | { method: 'google'; idToken: string; target: GoogleEmailOtpWalletAuthLoginTarget }
+  | { method: 'email'; walletId: string; email: string }
+> & {
+  onEvent?: GoogleEmailOtpWalletAuthStartInput['onEvent'];
+};
+
 export interface AuthCapability {
+  onSessionChange(listener: (session: WalletSession) => void): () => void;
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
   lock(): Promise<void>;
-  logout(): Promise<void>;
-  getWalletSession(walletId?: string): Promise<WalletSession>;
+  getSession(walletId?: string): Promise<WalletSession>;
   getRecentUnlocks(): Promise<GetRecentUnlocksResult>;
-  hasPasskeyCredential(walletId: string): Promise<boolean>;
-  prefillRouterAbEcdsaDerivationPresignaturePool(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    waitForPoolReady?: boolean;
-  }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
-  requestEmailOtpChallenge(args: {
-    walletId: string;
-    walletAuthMethodId?: string;
-    relayUrl?: string;
-    operation?: WalletEmailOtpLoginOperation;
-    operationFingerprintDigest?: DigestB64u;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpOperationChallengeResult>;
-  requestEmailOtpSigningSessionChallenge(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<Pick<EmailOtpChallengeResult, 'challengeId' | 'emailHint'>>;
-  refreshEmailOtpSigningSession(args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-    onEvent?: (event: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpEcdsaCapabilityResult>;
-  loginWithEmailOtpEcdsaCapability(
-    args: EmailOtpEcdsaCapabilityArgs,
-  ): Promise<EmailOtpEcdsaCapabilityResult>;
-  /**
-   * Unlock through an Email OTP method added to an existing authority.
-   *
-   * Distinct from `loginWithEmailOtpEcdsaCapability`, which establishes one
-   * curve's capability. A method added to an authority that already has signer
-   * activations wants all of them, so this asks the authority what it has and
-   * unlocks against that - one code, every family the wallet owns. The address
-   * is the identity; no Google token is involved.
-   */
-  unlockAddedEmailOtpWallet(args: {
-    walletId: string;
-    walletAuthMethodId: string;
-    email: string;
-    providerSubjectId: string;
-    challengeId: string;
-    otpCode: string;
-    relayUrl: string;
-  }): Promise<void>;
-  beginGoogleEmailOtpWalletAuth(
+  hasPasskey(walletId: string): Promise<boolean>;
+  requestEmailCode(
+    args: RequestEmailCodeInput,
+  ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthLoginFlow>>;
+  unlockWithEmailCode(args: {
+    challenge: GoogleEmailOtpWalletAuthLoginFlow;
+    code: string;
+  }): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthSubmitSuccess>>;
+  startGoogleSignIn(
     args: GoogleEmailOtpWalletAuthStartInput,
   ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>>;
 }
 
 export interface RegistrationCapability {
-  resumePendingEcdsaRegistration(
-    args: PendingEcdsaRegistrationResumeRequest,
-  ): Promise<ResumePendingEcdsaRegistrationResult>;
-  getNearProvisioningState(args: {
+  getNearAccountState(args: {
     walletId: WalletId | string;
   }): Promise<NearProvisioningState | null>;
-  onNearProvisioningStateChanged(
+  onNearAccountChange(
     listener: (event: NearProvisioningStateChangedEvent) => void,
   ): () => void;
   /**
@@ -789,12 +709,12 @@ export interface RegistrationCapability {
    *
    * @param args.timeoutMs defaults to 120_000
    */
-  awaitNearReady(args: {
+  waitForNearAccount(args: {
     walletId: WalletId | string;
     timeoutMs?: number;
     signal?: AbortSignal;
-  }): Promise<AwaitNearReadyResult>;
-  addWalletSigner(args: {
+  }): Promise<WaitForNearAccountResult>;
+  addSigner(args: {
     walletId: WalletId | string;
     rpId: string;
     signerSelection: AddSignerSelection;
@@ -811,7 +731,7 @@ export interface RegistrationCapability {
    * caller supplies only the address being verified and the code that verifies
    * it, the same way `registerWallet` and `loginWithEmailOtp*` do.
    */
-  addEmailOtp(args: {
+  addEmail(args: {
     walletId: WalletId | string;
     emailAddress: string;
     options?: AddEmailOtpHooksOptions;
@@ -823,7 +743,7 @@ export interface RegistrationCapability {
    * method being removed, so a credential the user has lost can still be
    * retired by the one they still hold.
    */
-  revokeAuthMethod(args: {
+  removeAuthMethod(args: {
     walletId: WalletId | string;
     walletAuthMethodId: string;
   }): Promise<RevokeAuthMethodResult>;
@@ -833,32 +753,6 @@ export interface RegistrationCapability {
     signerSelection: RegistrationSignerSetSelection;
     options?: RegistrationHooksOptions;
   }): Promise<RegistrationResult>;
-  /**
-   * @deprecated Use `registerWallet` with an `email_otp` `authMethod` — this is
-   * the same function, only narrower. Two names for one operation makes the
-   * registration surface look larger than it is.
-   */
-  registerWithEmailOtp(args: {
-    authMethod: Extract<RegistrationAuthMethodInput, { kind: 'email_otp' }>;
-    wallet: RegisterWalletInput;
-    signerSelection: RegistrationSignerSetSelection;
-    options?: RegistrationHooksOptions;
-  }): Promise<RegistrationResult>;
-  registerPasskey(options?: PasskeyRegistrationOptions): Promise<RegistrationResult>;
-  requestEmailOtpEnrollmentChallenge(args: {
-    walletId: string;
-    relayUrl?: string;
-    onEvent?: (event: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpChallengeResult>;
-  enrollEmailOtp(args: {
-    walletId: string;
-    otpCode: string;
-    relayUrl?: string;
-    challengeId?: string;
-    groupId?: string;
-    clientSecret32?: Uint8Array;
-    onEvent?: (event: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpEnrollmentResult>;
 }
 
 /**
@@ -876,21 +770,9 @@ type NearSubjectInput = {
 };
 
 export interface NearSignerCapability {
-  registerNearWallet(args: RegisterNearWalletArgs): Promise<RegistrationResult>;
+  /** Returns false only for an absent account; unavailable RPC reads reject. */
+  accountExists(accountId: string): Promise<boolean>;
 
-  fundImplicitNearAccountForTesting(args: {
-    walletSession: WalletSessionRef;
-    nearAccount: NearAccountRef;
-    nearPublicKey: string;
-  }): Promise<FundImplicitNearAccountForTestingResult>;
-
-  executeAction(
-    args: NearSubjectInput & {
-      receiverId: string;
-      actionArgs: ActionArgs | ActionArgs[];
-      options?: ActionHooksOptions;
-    },
-  ): Promise<ActionResult>;
 
   signAndSendTransaction(
     args: NearSubjectInput & {
@@ -900,7 +782,7 @@ export interface NearSignerCapability {
     },
   ): Promise<ActionResult>;
 
-  signTransactionWithActions(
+  signTransaction(
     args: NearSubjectInput & {
       transaction: TransactionInput;
       options?: SignTransactionHooksOptions;
@@ -921,7 +803,7 @@ export interface NearSignerCapability {
     },
   ): Promise<SignDelegateActionResult>;
 
-  sendDelegateActionViaRelayer(args: {
+  sendDelegateAction(args: {
     relayerUrl: string;
     signedDelegate: SignedDelegate | WasmSignedDelegate;
     hash: string;
@@ -938,7 +820,7 @@ export interface NearSignerCapability {
     },
   ): Promise<SignAndSendDelegateActionResult>;
 
-  signNEP413Message(
+  signMessage(
     args: NearSubjectInput & {
       params: SignNEP413MessageParams;
       options?: SignNEP413HooksOptions;
@@ -947,14 +829,7 @@ export interface NearSignerCapability {
 }
 
 /**
- * Tempo-specific operations.
- *
- * The generic EVM-family entry points live on `seams.evm` — `seams.evm.execute`
- * sends on any configured EVM-family chain, Tempo included. What remains here
- * is what only Tempo has: the fee-token preference.
- */
-/**
- * Post-broadcast lifecycle. `executeTransaction` drives all of it; reach for
+ * Post-broadcast lifecycle. `signAndSendTransaction` drives all of it; reach for
  * these only when your application broadcasts the signed payload itself.
  */
 interface EvmFamilyAdvancedCapability {
@@ -963,9 +838,6 @@ interface EvmFamilyAdvancedCapability {
   reportFinalized(args: ReportTempoFinalizedArgs): Promise<void>;
   reportDroppedOrReplaced(args: ReportTempoDroppedOrReplacedArgs): Promise<void>;
   reconcileNonceLane(args: ReconcileTempoNonceLaneArgs): Promise<TempoNonceLaneStatus>;
-  bootstrapEcdsaSession(
-    args: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<PublicThresholdEcdsaSessionBootstrapResult>;
 }
 
 /**
@@ -980,37 +852,16 @@ export interface TempoSignerCapability {
   /** Sign an EIP-2718 typed transaction without broadcasting. */
   signTransaction(args: SignTempoArgs): Promise<TempoSignedResult>;
   /** Sign, broadcast, and await finalization. The usual entry point. */
-  executeTransaction(args: ExecuteTempoTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
-  /** Post-broadcast lifecycle reporting; `executeTransaction` already drives it. */
+  signAndSendTransaction(args: ExecuteTempoTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
+  /** Post-broadcast lifecycle reporting; `signAndSendTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
 
   /** Tempo pays fees in a configurable token; this is that preference. */
-  getFeeTokenPreference(args: GetTempoFeeTokenPreferenceArgs): Promise<EvmAddress | null>;
+  getFeeToken(args: GetTempoFeeTokenPreferenceArgs): Promise<EvmAddress | null>;
   validateFeeToken(args: ValidateTempoFeeTokenArgs): Promise<TempoFeeTokenValidation>;
-  setFeeTokenPreference(
+  setFeeToken(
     args: SetTempoFeeTokenPreferenceArgs,
   ): Promise<ExecuteEvmFamilyTransactionResult>;
-
-  /** @deprecated Renamed to `signTransaction`, to mirror `seams.evm`. */
-  signTempo(args: SignTempoArgs): Promise<TempoSignedResult>;
-  /** @deprecated Renamed to `executeTransaction`, to mirror `seams.evm`. */
-  executeEvmFamilyTransaction(
-    args: ExecuteEvmFamilyTransactionArgs,
-  ): Promise<ExecuteEvmFamilyTransactionResult>;
-  /** @deprecated Use `seams.tempo.advanced.reportBroadcastAccepted`. */
-  reportBroadcastAccepted(args: ReportTempoBroadcastAcceptedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reportBroadcastRejected`. */
-  reportBroadcastRejected(args: ReportTempoBroadcastRejectedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reportFinalized`. */
-  reportFinalized(args: ReportTempoFinalizedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reportDroppedOrReplaced`. */
-  reportDroppedOrReplaced(args: ReportTempoDroppedOrReplacedArgs): Promise<void>;
-  /** @deprecated Use `seams.tempo.advanced.reconcileNonceLane`. */
-  reconcileNonceLane(args: ReconcileTempoNonceLaneArgs): Promise<TempoNonceLaneStatus>;
-  /** @deprecated Use `seams.tempo.advanced.bootstrapEcdsaSession`. */
-  bootstrapEcdsaSession(
-    args: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<PublicThresholdEcdsaSessionBootstrapResult>;
 }
 
 /**
@@ -1024,16 +875,9 @@ export interface EvmSignerCapability {
   /** Sign an EIP-1559 transaction without broadcasting. */
   signTransaction(args: SignEvmTransactionArgs): Promise<EvmSignedResult>;
   /** Sign, broadcast, and await finalization. The usual entry point. */
-  executeTransaction(args: ExecuteEvmTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
-  /** Post-broadcast lifecycle reporting; `executeTransaction` already drives it. */
+  signAndSendTransaction(args: ExecuteEvmTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
+  /** Post-broadcast lifecycle reporting; `signAndSendTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
-
-  registerEvmWallet(args: RegisterEvmWalletArgs): Promise<RegistrationResult>;
-
-  /** @deprecated Use `seams.evm.advanced.bootstrapEcdsaSession`. */
-  bootstrapEcdsaSession(
-    args: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<PublicThresholdEcdsaSessionBootstrapResult>;
 }
 
 export interface RecoveryCapability {
@@ -1042,9 +886,9 @@ export interface RecoveryCapability {
     options?: SyncAccountHooksOptions;
   }): Promise<SyncAccountResult>;
 
-  getWalletRecoveryCodeStatus(args: { walletId: string }): Promise<WalletRecoveryCodeStatusResult>;
+  getCodeStatus(args: { walletId: string }): Promise<WalletRecoveryCodeStatusResult>;
 
-  acknowledgeWalletRecoveryCodeBackup(args: {
+  confirmBackup(args: {
     walletId: string;
   }): Promise<WalletRecoveryBackupAcknowledgementResult>;
 
@@ -1056,52 +900,40 @@ export interface RecoveryCapability {
     requestOrigin?: string;
   }): Promise<WalletCustodyEmailOtpChallengeResult>;
 
-  rotateWalletRecoveryCodes(args: {
+  rotateCodes(args: {
     walletId: string;
     authorization: WalletRecoveryRotationAuthorization;
   }): Promise<WalletRecoveryRotationOutcome>;
 }
 
 export interface DevicesCapability {
-  startDevice2LinkingFlow(
+  startLinking(
     args: StartDevice2LinkingFlowArgs,
   ): Promise<StartDevice2LinkingFlowResults>;
 
-  cancelDeviceLinking(): Promise<void>;
+  cancelLinking(): Promise<void>;
 
-  scanAndLinkDevice(
+  approveLinking(
     qrData: QrLinkedDeviceSessionPayloadV5,
     options: ScanAndLinkDeviceOptionsDevice1,
   ): Promise<LinkDeviceResult>;
 
-  listLinkedDevices(args: {
+  list(args: {
     walletId: string;
     limit: number;
     cursor: string | null;
   }): Promise<LinkedDeviceListResultV1>;
 
-  revokeLinkedDevice(args: {
+  remove(args: {
     walletId: string;
     walletAuthMethodId: string;
-    requestedAtMs: number;
-    sourceProof: WalletAuthMethodRevocationProof;
   }): Promise<LinkedDeviceRevokeResultV1>;
 }
 
 type KeyExportUiOptions = SigningEngineExportKeypairWithUIInput['options'];
 
-/** Every field of the UI options is optional, so the bag itself is too. */
-type WithOptionalOptions<T> = T extends unknown
-  ? Omit<T, 'options'> & { options?: KeyExportUiOptions }
-  : never;
-
-export type ExportKeypairWithUIInput = WithOptionalOptions<SigningEngineExportKeypairWithUIInput>;
-
-export type ResolveExactKeyExportLaneInput = SigningEngineResolveExactKeyExportLaneInput;
-export type ResolveExactKeyExportLaneResult = SigningEngineResolveExactKeyExportLaneResult;
-
 /**
- * What `exportKeypair` did.
+ * What `exportKey` did.
  *
  * `relink_required` is a real, reachable state — the wallet has no canonical
  * owner binding on this device — and is returned rather than thrown so the
@@ -1111,7 +943,7 @@ export type KeyExportOutcome =
   | { kind: 'exported' }
   | { kind: 'relink_required'; reason: 'missing_canonical_owner_binding' };
 
-export type ExportKeypairInput = ExclusiveUnion<
+export type ExportKeyInput = ExclusiveUnion<
   | {
       kind: 'ed25519';
       /** A `WalletSessionRef` or bare wallet id. Omitted, resolves to the authenticated wallet. */
@@ -1137,22 +969,17 @@ export interface KeyExportCapability {
    * One call: the lane resolution feeds straight into the export, and the
    * `relink_required` lane comes back as a result instead of an exception.
    */
-  exportKeypair(input: ExportKeypairInput): Promise<KeyExportOutcome>;
-
-  /** Lower-level: resolve the lane without exporting (e.g. to pre-check availability). */
-  resolveExactKeyExportLane(
-    input: ResolveExactKeyExportLaneInput,
-  ): Promise<ResolveExactKeyExportLaneResult>;
-  /** Lower-level: export with a lane you already resolved. */
-  exportKeypairWithUI(input: ExportKeypairWithUIInput): Promise<void>;
+  exportKey(input: ExportKeyInput): Promise<KeyExportOutcome>;
 }
 
 export interface PreferencesCapability {
+  /** Wait for writes queued before this call; reject if any of them failed. */
+  flush(): Promise<void>;
   setCurrentWallet(walletId: WalletId): void;
   getCurrentWalletId(): WalletId | null;
   onConfirmationConfigChange(callback: (config: ConfirmationConfig) => void): () => void;
   onCurrentWalletChange(callback: (walletId: WalletId | null) => void): () => void;
-  setConfirmBehavior(behavior: ConfirmationBehavior): void;
+  setConfirmationBehavior(behavior: ConfirmationBehavior): void;
   setConfirmationConfig(config: Partial<ConfirmationConfig>): void;
   getConfirmationConfig(): ConfirmationConfig;
 }

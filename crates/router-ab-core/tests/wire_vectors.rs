@@ -50,8 +50,6 @@ fn wire_vectors_cover_every_message_kind() {
     let expected = [
         WireMessageKindV1::RouterToSignerA,
         WireMessageKindV1::RouterToSignerB,
-        WireMessageKindV1::SignerAToSignerB,
-        WireMessageKindV1::SignerBToSignerA,
         WireMessageKindV1::RecipientProofBundle,
     ]
     .into_iter()

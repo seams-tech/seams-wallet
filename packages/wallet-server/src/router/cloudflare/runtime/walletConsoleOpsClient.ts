@@ -1,4 +1,3 @@
-import type { RouterApiWalletProjectionAdapter } from '../../framework/routerApi';
 import type {
   RouterApiKeyAuthAdapter,
   RouterApiKeyAuthFailureCode,
@@ -10,7 +9,14 @@ import type {
   RouterApiPublishableKeyAuthResult,
   RouterApiProjectEnvironmentResolver,
   RouterApiUsageMeterAdapter,
+  RouterApiPublishableKeyAuthRequest,
+  WalletRegistrationContextResolver,
+  WalletRegistrationContextResult,
 } from '../../framework/apiCredentialPorts';
+import {
+  unavailableRegistrationContext,
+  walletRegistrationContext,
+} from '../../auth/walletRegistrationContext';
 import { ROUTER_API_CREDENTIAL_SCOPES } from '../../framework/apiCredentialPorts';
 import {
   decodeWalletConsoleTenantRootActiveLineageResponseV1,
@@ -29,8 +35,8 @@ export interface WalletConsoleServiceBinding {
 export interface WalletConsoleOpsClient {
   readonly apiKeyAuth: RouterApiKeyAuthAdapter;
   readonly publishableKeyAuth: RouterApiPublishableKeyAuthAdapter;
+  readonly registrationContext: WalletRegistrationContextResolver;
   readonly usageMeter: RouterApiUsageMeterAdapter;
-  readonly walletProjection: RouterApiWalletProjectionAdapter;
   readonly projectEnvironments: RouterApiProjectEnvironmentResolver;
   readonly tenantRootActiveLineage: WalletConsoleTenantRootActiveLineageResolverV1;
 }
@@ -216,6 +222,49 @@ function parseProjectEnvironmentsResponse(value: unknown): RouterApiProjectEnvir
   return environments;
 }
 
+async function resolveRegistrationContext(
+  service: WalletConsoleServiceBinding,
+  input: RouterApiPublishableKeyAuthRequest,
+): Promise<WalletRegistrationContextResult> {
+  try {
+    const { status, body } = await postJson(
+      service,
+      WALLET_CONSOLE_OP_PATHS_V1.registrationContext,
+      input,
+    );
+    return parseWalletRegistrationContextResponse(input, status, body);
+  } catch {
+    return unavailableRegistrationContext();
+  }
+}
+
+export function parseWalletRegistrationContextResponse(
+  input: RouterApiPublishableKeyAuthRequest,
+  status: number,
+  body: unknown,
+): WalletRegistrationContextResult {
+  if (status === 401 || status === 403) {
+    const failure = parsePublishableKeyAuthResponse(body, status);
+    return failure && !failure.ok ? failure : unavailableRegistrationContext();
+  }
+  if (status !== 200 || typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return unavailableRegistrationContext();
+  }
+  const record = body as Readonly<Record<string, unknown>>;
+  if (record.ok !== true || Object.keys(record).some(unexpectedRegistrationContextField)) {
+    return unavailableRegistrationContext();
+  }
+  const principal = parseRouterApiKeyPrincipal(record.principal);
+  const environment = parseProjectEnvironment(record.environment);
+  return principal && environment
+    ? walletRegistrationContext(input, principal, environment)
+    : unavailableRegistrationContext();
+}
+
+function unexpectedRegistrationContextField(field: string): boolean {
+  return field !== 'ok' && field !== 'principal' && field !== 'environment';
+}
+
 function isUsageEventsSuccessResponse(value: unknown): boolean {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const record = value as Readonly<Record<string, unknown>>;
@@ -271,6 +320,7 @@ export function createWalletConsoleOpsClient(
         );
       },
     },
+    registrationContext: { resolve: resolveRegistrationContext.bind(undefined, service) },
     projectEnvironments: {
       async listEnvironments(context, filters) {
         const { status, body } = await postJson(
@@ -317,9 +367,6 @@ export function createWalletConsoleOpsClient(
         return lineage;
       },
     },
-    walletProjection: {
-      recordCreatedWallet: recordCreatedWallet.bind(undefined, service),
-    },
     usageMeter: {
       async recordEvent(input) {
         const { status, body } = await postJson(
@@ -335,18 +382,4 @@ export function createWalletConsoleOpsClient(
       },
     },
   };
-}
-
-async function recordCreatedWallet(
-  service: WalletConsoleServiceBinding,
-  input: Parameters<RouterApiWalletProjectionAdapter['recordCreatedWallet']>[0],
-): Promise<void> {
-  const { status, body } = await postJson(
-    service,
-    WALLET_CONSOLE_OP_PATHS_V1.walletProjection,
-    input,
-  );
-  if (status !== 200 || !isUsageEventsSuccessResponse(body)) {
-    throw new Error(`Wallet Console projection failed (HTTP ${status})`);
-  }
 }

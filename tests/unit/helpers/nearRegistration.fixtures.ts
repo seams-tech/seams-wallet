@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
+import { deriveWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import {
   parseWalletAuthMethodId,
   parseWalletId,
@@ -5,17 +8,37 @@ import {
   type DomainIdParseResult,
 } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
+import {
+  parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  parseRouterAbEd25519YaoRecoveryAdmissionRequestV1,
+  type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+} from '@shared/utils/routerAbEd25519Yao';
 import {
   registrationIntentGrantFromString,
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
 import { buildMpcMaterialActivationRefFixture } from './ecdsaMaterialRef.fixtures';
-import { InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter } from '../../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
+  InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1,
+} from '../../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 
 function required<T>(parsed: DomainIdParseResult<T>): T {
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
+}
+
+export function buildPasskeyRegistrationAuthorityFixture(label: string): RegistrationAuthority {
+  return {
+    kind: 'passkey',
+    walletId: required(parseWalletId(`wallet-${label}`)),
+    rpId: required(parseWebAuthnRpId('localhost')),
+    credentialIdB64u: createHash('sha256').update(label).digest('base64url'),
+    credentialPublicKeyB64u: 'AQID',
+    counter: 0,
+    device: deriveWebAuthnAuthenticatorDeviceInfo({}),
+    registrationIntentDigestB64u: createHash('sha256').update(`intent-${label}`).digest('base64url'),
+  };
 }
 
 export async function buildNearRegistrationAuthorityFixture(label: string) {
@@ -58,21 +81,63 @@ export async function buildNearRegistrationAuthorityFixture(label: string) {
       ],
     },
     foundingWalletAuthMethodId: required(parseWalletAuthMethodId(`method-${label}`)),
-    runtimePolicyScope: { projectId: 'project', envId: 'dev', signingRootVersion: 'v1' },
+    runtimePolicyScope: {
+      orgId: 'organization',
+      projectId: 'project',
+      envId: 'dev',
+      signingRootVersion: 'v1',
+    },
     nonceB64u: 'AQ',
   };
-  const adapter = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter();
+  const state = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1();
+  const adapter = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(state);
   const credential = `original-grant-${label}`;
   const expiresAtMs = Date.now() + 60_000;
   const bound = await adapter.bindVerifiedIntent({
     kind: 'verified_registration_intent',
+    ownershipGeneration: 1,
     registrationIntentGrant: registrationIntentGrantFromString(credential),
     intent,
     admissionRequest: admission.value,
     expiresAtMs,
   });
   if (!bound.ok) throw new Error(bound.message);
-  return { adapter, admission: admission.value, credential, intent, expiresAtMs };
+  return { adapter, state, admission: admission.value, credential, intent, expiresAtMs };
+}
+
+export function buildNearRecoveryAdmissionFixture(
+  registration: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+) {
+  const active = registration.scope.material_activation;
+  const parsed = parseRouterAbEd25519YaoRecoveryAdmissionRequestV1({
+    scope: {
+      lifecycle_id: `${registration.scope.lifecycle_id}-recovery`,
+      root_share_epoch: registration.scope.root_share_epoch,
+      account_id: registration.scope.account_id,
+      threshold_session_id: `${registration.scope.threshold_session_id}-recovery`,
+      signer_set_id: registration.scope.signer_set_id,
+      signing_worker_id: registration.scope.signing_worker_id,
+      material_activation: routerAbMpcMaterialActivationRefToWire({
+        kind: active.kind,
+        activationId: `${active.activation_id}-recovery`,
+        capability: active.capability,
+        materialOwner: active.material_owner,
+        keyBinding: active.key_binding,
+        lifecycleBinding: `${active.lifecycle_binding}-recovery`,
+        signingWorker: active.signing_worker,
+      }),
+    },
+    active_material_activation: active,
+    application_binding: registration.application_binding,
+    participant_ids: registration.participant_ids,
+    active_capability_binding: new Array(32).fill(1),
+    replacement_capability_binding: Array.from(
+      createHash('sha256').update(registration.application_binding.wallet_id).digest(),
+    ),
+    registered_public_key: new Array(32).fill(3),
+  });
+  if (!parsed.ok) throw new Error(parsed.message);
+  return parsed.value;
 }
 
 export async function replaceNearFixtureAuthority(

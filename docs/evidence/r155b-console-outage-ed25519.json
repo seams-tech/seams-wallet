@@ -1,0 +1,185 @@
+{
+  "consoleRequests": [],
+  "requests": [
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "entry": "ingress"
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "entry": "ingress"
+    }
+  ]
+}

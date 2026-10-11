@@ -35,7 +35,7 @@ class PreviousProtocolRequest {
   }
 }
 
-class PublishedClientModule {
+class BrowserProbeModule {
   constructor(readonly source: string) {}
 
   async serve(route: Route): Promise<void> {
@@ -162,7 +162,7 @@ async function verifyPublishedClientRejection(
 ): Promise<void> {
   const definition = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   expect(definition.name).toBe('@seams/wallet');
-  expect(definition.version).toBe('0.7.3');
+  expect(definition.version).toBe('0.8.0');
   const bundle = await build({
     entryPoints: [path.join(root, 'dist/esm/core/rpcClients/relayer/walletRegistration.js')],
     bundle: true,
@@ -171,7 +171,7 @@ async function verifyPublishedClientRejection(
     write: false,
     logLevel: 'silent',
   });
-  const module = new PublishedClientModule(bundle.outputFiles[0].text);
+  const module = new BrowserProbeModule(bundle.outputFiles[0].text);
   const serve = module.serve.bind(module);
   await page.route('**/__published-client.js', serve);
   try {
@@ -222,7 +222,7 @@ export async function verifyWalletProtocolCutover(
   expect(await unsupported.json()).toMatchObject({ ok: false, code: 'wallet_protocol_mismatch' });
 
   const previousVersion = await context.request.post(previous.url, {
-    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '1' },
+    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '2' },
     data: '{invalid JSON',
   });
   expect(previousVersion.status()).toBe(409);
@@ -273,13 +273,31 @@ export async function verifyWalletProtocolCutover(
   await harness.awaitNearReady();
   await setupReplay.verifyAfterCommit(context.request);
   await context.unroute('**/wallets/register/respond', captureRespond);
-  const databaseModule = `/@fs/${path.resolve(import.meta.dirname, '../../../packages/wallet/dist/esm/core/indexedDB/singletons.js')}`;
-  const acceptedSetupOperations = await page
-    .locator('iframe[allow*="publickey-credentials-get"]')
-    .last()
-    .contentFrame()
-    .locator('body')
-    .evaluate(readAcceptedSetupOperations, databaseModule);
+  const databaseBundle = await build({
+    entryPoints: [
+      path.resolve(import.meta.dirname, '../../../packages/wallet/src/core/indexedDB/singletons.ts'),
+    ],
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    write: false,
+    logLevel: 'silent',
+  });
+  const databaseProbe = new BrowserProbeModule(databaseBundle.outputFiles[0].text);
+  const serveDatabase = databaseProbe.serve.bind(databaseProbe);
+  const databaseModule = '/__registration-database.js';
+  await page.route('**/__registration-database.js', serveDatabase);
+  let acceptedSetupOperations: string[];
+  try {
+    acceptedSetupOperations = await page
+      .locator('iframe[allow*="publickey-credentials-get"]')
+      .last()
+      .contentFrame()
+      .locator('body')
+      .evaluate(readAcceptedSetupOperations, databaseModule);
+  } finally {
+    await page.unroute('**/__registration-database.js', serveDatabase);
+  }
   expect(acceptedSetupOperations).toEqual([]);
   await writeFile(
     testInfo.outputPath('wallet-protocol-cutover.json'),

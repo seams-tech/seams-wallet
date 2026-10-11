@@ -47,8 +47,7 @@ import {
   rotateEmailOtpWalletRecoverySet,
 } from './recovery';
 import {
-  completeEmailOtpEnrollmentFromSecret32,
-  emailOtpEnrollmentFacts,
+  prepareEmailOtpEnrollmentFromSecret32,
   emailOtpWalletRegistrationEcdsaHandleResult,
   enrollmentClientSecret32,
 } from './enrollment';
@@ -183,59 +182,30 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
         postToMainThread({ id: msg.id, ok: true, result });
         return;
       }
-      case 'enrollEmailOtpWallet': {
-        const routePlan = readRoutePlan(msg.payload.routePlan, 'enrollEmailOtpWallet');
-        const result = await completeEmailOtpEnrollmentFromSecret32({
-          relayUrl: readString(msg.payload.relayUrl, 'relayUrl'),
-          walletId: readString(msg.payload.walletId, 'walletId'),
-          userId: msg.payload.userId,
-          challengeId: msg.payload.challengeId,
-          otpCode: readString(msg.payload.otpCode, 'otpCode'),
-          groupId: readString(msg.payload.groupId, 'groupId'),
-          routePlan,
-          googleEmailOtpRegistrationAttemptId: msg.payload.googleEmailOtpRegistrationAttemptId,
-          onProgress: (code) => postEmailOtpWorkerProgress(msg.id, code),
-          ...enrollmentClientSecret32(msg.payload.clientSecret32),
-        });
-        postToMainThread({
-          id: msg.id,
-          ok: true,
-          result: { challengeId: result.challengeId, ...emailOtpEnrollmentFacts(result) },
-        });
-        return;
-      }
       case 'prepareEmailOtpRegistrationEnrollmentMaterial': {
         const routePlan = readRoutePlan(
           msg.payload.routePlan,
           'prepareEmailOtpRegistrationEnrollmentMaterial',
         );
-        const result = await completeEmailOtpEnrollmentFromSecret32({
+        const result = await prepareEmailOtpEnrollmentFromSecret32({
           relayUrl: readString(msg.payload.relayUrl, 'relayUrl'),
           walletId: readString(msg.payload.walletId, 'walletId'),
           userId: msg.payload.userId,
           groupId: readString(msg.payload.groupId, 'groupId'),
           routePlan,
-          returnClientSecret32: false,
-          skipServerFinalize: true,
           onProgress: (code) => postEmailOtpWorkerProgress(msg.id, code),
           ...enrollmentClientSecret32(msg.payload.clientSecret32),
         });
-        try {
-          readString(msg.payload.walletId, 'walletId');
-          const emailOtpSessionHandle: EmailOtpWalletRegistrationEcdsaPrepareHandleResult =
-            emailOtpWalletRegistrationEcdsaHandleResult(msg.payload.ecdsaSessionHandle);
-          postToMainThread({
-            id: msg.id,
-            ok: true,
-            result: {
-              ...emailOtpEnrollmentFacts(result),
-              emailOtpSessionHandle,
-              emailOtpEnrollment: result.emailOtpEnrollment,
-            },
-          });
-        } finally {
-          zeroizeBytes(result.clientSecret32);
-        }
+        const emailOtpSessionHandle: EmailOtpWalletRegistrationEcdsaPrepareHandleResult =
+          emailOtpWalletRegistrationEcdsaHandleResult(msg.payload.ecdsaSessionHandle);
+        postToMainThread({
+          id: msg.id,
+          ok: true,
+          result: {
+            ...result,
+            emailOtpSessionHandle,
+          },
+        });
         return;
       }
       case 'releaseWalletRecoveryEmailOtpFactor': {

@@ -1,0 +1,41 @@
+{
+  "scope": "Preserve Email OTP policy and custom delegate routes across application-to-host configuration and appearance updates.",
+  "baseRevision": "c4d6e46752fcd5e5f2ef6725e0304c1f2307aa03",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/assembly/createWalletIframeRouter.ts": "10e2dfeafdcf64c809d401e6945e6ec4f885a122b0ce8cead0e83280f3f63c00",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "5172a5b6ff9346a2b0b3c1f248855a37cb64deb285a0c3f648614c6ec1fe66fb",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/context.ts": "f246c8d9921d18a80060572f6ee395dd29c6874259a0c9df95d08b96ea1ec0cb",
+    "tests/wallet-iframe/config.forwarding.test.ts": "7df8f4e4a43d9bd25c99d383a35ca44674b255fcf01279919b7fa98b05f00e0e"
+  },
+  "browserReceipt": {
+    "initial": {
+      "authPolicy": "per_operation",
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "dark"
+    },
+    "updated": {
+      "authPolicy": "per_operation",
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "light"
+    }
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "productionBuild": "passed",
+    "configurationBrowser": "1 passed",
+    "browserTypes": "passed",
+    "bloatGate": "passed"
+  },
+  "reproduce": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C packages/wallet build:prod",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/config.forwarding.test.ts --project=chromium",
+    "pnpm report:bloat --check"
+  ],
+  "limitations": [
+    "Browser probe bundles source entry points because the host context is internal to the production host bundle. It uses the real client router, MessagePort transport, host config application and normalization; it does not perform authentication or signing.",
+    "Per-operation Email OTP lifecycle behavior, execution-policy replacement with an active session, and normalized client/host type separation remain to verify."
+  ]
+}

@@ -1,5 +1,4 @@
 import type { SensitiveOperationPolicy, SignerAuthMethod } from '@shared/utils/signerDomain';
-import type { WalletSessionStatusIdentity } from '../lifecycle/walletSessionStatus';
 import type {
   SigningPlannerDecisionTraceEvent,
   SigningSessionReadiness,
@@ -33,8 +32,6 @@ export type ThresholdSigningReadinessInput = {
   readiness: SigningSessionReadiness;
   expiresAtMs?: number;
   remainingUses?: number;
-  usesNeeded?: number;
-  trustedStatusAuth?: WalletSessionStatusIdentity;
 };
 
 export type ThresholdSigningOperationCoordinator = {
@@ -44,11 +41,8 @@ export type ThresholdSigningOperationCoordinator = {
       readiness: SigningSessionReadiness;
       expiresAtMs?: number;
       remainingUses?: number;
-      usesNeeded?: number;
-      trustedStatusAuth?: WalletSessionStatusIdentity;
       forceFreshAuth?: boolean;
       sensitiveOperationPolicy?: SensitiveOperationPolicy | null;
-      missingWhenExpiresAtMissing?: boolean;
     },
     onTrace?: (event: SigningPlannerDecisionTraceEvent) => void,
   ): Promise<{
@@ -70,7 +64,6 @@ export type PreparedThresholdSigningOperation<
   readiness: SigningSessionReadiness;
   expiresAtMs: number;
   remainingUses: number;
-  trustedStatusAuth?: WalletSessionStatusIdentity;
   availableLanesGeneration: number;
   metadata: TMetadata;
 };
@@ -98,7 +91,6 @@ export async function prepareThresholdSigningOperation<
   operation?: SigningOperationContext;
   forceFreshAuth?: boolean;
   sensitiveOperationPolicy?: SensitiveOperationPolicy | null;
-  missingWhenExpiresAtMissing?: boolean;
   onPlannerTrace?: (event: SigningPlannerDecisionTraceEvent) => void;
 }): Promise<PreparedThresholdSigningOperation<TLane, TMetadata>> {
   const lifecycle = await args.lifecycleAdapter.prepare({
@@ -112,19 +104,13 @@ export async function prepareThresholdSigningOperation<
     readiness: lifecycle.readiness.readiness,
     expiresAtMs: lifecycle.readiness.expiresAtMs,
     remainingUses: lifecycle.readiness.remainingUses,
-    usesNeeded: lifecycle.readiness.usesNeeded,
-    ...(lifecycle.readiness.trustedStatusAuth
-      ? { trustedStatusAuth: lifecycle.readiness.trustedStatusAuth }
-      : {}),
     forceFreshAuth: args.forceFreshAuth || lifecycle.forceFreshAuth,
     sensitiveOperationPolicy: args.sensitiveOperationPolicy,
-    missingWhenExpiresAtMissing: args.missingWhenExpiresAtMissing,
   };
   const resolved = await args.coordinator.resolveAuthPlanFromReadiness(
     coordinatorInput,
     args.onPlannerTrace,
   );
-
   return {
     ...(args.operation ? { operation: args.operation } : {}),
     lane: lifecycle.lane,
@@ -133,9 +119,6 @@ export async function prepareThresholdSigningOperation<
     readiness: resolved.readiness,
     expiresAtMs: resolved.expiresAtMs,
     remainingUses: resolved.remainingUses,
-    ...(lifecycle.readiness.trustedStatusAuth
-      ? { trustedStatusAuth: lifecycle.readiness.trustedStatusAuth }
-      : {}),
     availableLanesGeneration: Math.max(
       0,
       Math.floor(Number(lifecycle.availableLanesGeneration) || 0),

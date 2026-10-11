@@ -1,3 +1,11 @@
+import type { WalletRegistrationContextResolver } from './router/framework/apiCredentialPorts';
+import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
+import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTITY_HEADER, WALLET_OBJECT_ADDRESSES_HEADER, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
+import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
+import { parseTenantId } from '@shared/authorization/capabilityKinds';
+import { parseSessionOrigin } from './authorization/domain';
+import { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
 import type { WalletLifecycleRoutingPublisher } from './authorization/lifecycleRouting';
 import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root';
 import { resolveRuntimeTenantRootLineage } from './cloud-host';
@@ -67,6 +75,7 @@ import {
   ROUTER_AB_SIGNING_WORKER_ORIGIN,
   type RouterAbServiceBindingEnv,
 } from './cloud-host';
+import type { WalletId } from '@shared/utils/registrationIntent';
 import { handleRouterAbEd25519YaoRegistrationRequestScopedCloudflareV1 } from './cloud-host';
 import { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './cloud-host';
 import { RouterAbEd25519YaoRecoveryWalletSessionAuthorizationAdapter } from './cloud-host';
@@ -162,8 +171,8 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 }
 
 export interface HostedWalletGatewayDependenciesV1 {
+  readonly registrationContext?: WalletRegistrationContextResolver;
   readonly identityStore?: CloudflareD1RouterApiAuthServiceOptions['identityStore'];
-  readonly emailOtpRateLimitCounter?: CloudflareD1RouterApiAuthServiceOptions['emailOtpRateLimitCounter'];
   readonly googleRegistrationAttempts?: CloudflareD1RouterApiAuthServiceOptions['googleRegistrationAttempts'];
   readonly sessionRouting?: CloudflareD1RouterApiAuthServiceOptions['sessionRouting'];
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
@@ -193,6 +202,17 @@ type RouterApiTenantScope = {
 const RELAY_SIGNER_READY_TABLES = Object.freeze([
   'wallets',
   'wallet_auth_methods',
+  'wallet_relocation_challenges',
+  'wallet_relocation_approvals',
+  'wallet_relocation_session_fences',
+  'wallet_relocation_authorization_fences',
+  'wallet_relocation_authorization_snapshots',
+  'wallet_relocation_authorization_chunks',
+  'wallet_relocation_authorization_intakes',
+  'wallet_relocation_authorization_intake_chunks',
+  'wallet_relocation_authorization_imports',
+  'wallet_relocation_authorization_import_context',
+  'wallet_relocation_authorization_import_receipts',
   'authorization_wallet_session_quotas',
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',
@@ -367,8 +387,8 @@ async function resolveStagingRegistrationTenantRoot(
       return await resolveStagingDeploymentTenantRoot(
         context.scope,
         context.tenantRootCustodyLineage,
-        input.admissionRequest.application_binding,
-        input.admissionRequest.scope.root_share_epoch,
+        input,
+        input.root_share_epoch,
       );
     case 'recovery':
     case 'export':
@@ -387,8 +407,8 @@ async function resolveStagingTenantRoot(
       return await resolveStagingDeploymentTenantRoot(
         context.scope,
         context.tenantRootCustodyLineage,
-        input.admissionRequest.application_binding,
-        input.admissionRequest.scope.root_share_epoch,
+        input,
+        input.root_share_epoch,
       );
     case 'recovery':
       return await context.resolveActiveTenantRoot({
@@ -461,6 +481,7 @@ async function createStagingRouterApiAuthComposition(
   yaoRuntime: RouterAbEd25519YaoProductRegistrationRuntimeV1,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
   dependencies: HostedWalletGatewayDependenciesV1,
+  startRegistrationWallets?: CloudflareD1RouterApiAuthServiceOptions['startRegistrationWallets'],
 ) {
   const ecdsaCeremonyTokenIssuer = createStagingEcdsaCeremonyTokenIssuer(env);
   const topology = requireStagingEcdsaRegistrationTopology(env);
@@ -470,12 +491,14 @@ async function createStagingRouterApiAuthComposition(
     environment: scope.envId,
   };
   const ecdsaStrictRegistration = createRouterAbEcdsaStrictRegistrationPort({
+    internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
     router: env.MPC_ROUTER,
     tokenIssuer: ecdsaCeremonyTokenIssuer,
     tokenScope,
     topology,
   });
   const ecdsaStrictPostRegistration = createRouterAbEcdsaStrictPostRegistrationPort({
+    internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
     router: env.MPC_ROUTER,
     tokenIssuer: ecdsaCeremonyTokenIssuer,
     tokenScope,
@@ -484,12 +507,12 @@ async function createStagingRouterApiAuthComposition(
   const service = createCloudflareD1RouterApiAuthService({
     database: env.SIGNER_DB,
     identityStore: dependencies.identityStore,
-    emailOtpRateLimitCounter: dependencies.emailOtpRateLimitCounter,
     googleRegistrationAttempts: dependencies.googleRegistrationAttempts,
     sessionRouting: dependencies.sessionRouting,
     recoveryRouting: dependencies.recoveryRouting,
     lifecycleRouting: dependencies.lifecycleRouting,
     registrationAuthority: dependencies.registrationAuthority,
+    startRegistrationWallets,
     credentialClaims: dependencies.credentialClaims,
     syncChallenges: dependencies.syncChallenges,
     linkedDeviceProofNonces: dependencies.linkedDeviceProofNonces,
@@ -580,7 +603,9 @@ async function resolveStagingRecoveryAuthorizationServices(
   context: StagingServiceLoader,
 ): Promise<StagingRecoveryAuthorizationServices> {
   const { service } = await loadStagingRouterApiAuthComposition(context);
+  const authority = service.walletExecution;
   return {
+    admitEstablishedHome: authority.admitEstablishedHome.bind(authority),
     authorizationSessions: service.authorizationSessions,
     preparedRecoveryAdmission: service.passkeyCustody,
     resolveEd25519MaterialActivation:
@@ -674,6 +699,7 @@ function stagingLinkedDeviceSessionComposition(
           tenant: scope,
         }),
         deactivationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1({
+          admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, env.SIGNER_DB, scope),
           fetch: serviceFetch,
           internalServiceAuthSecret,
           tenant: scope,
@@ -681,6 +707,7 @@ function stagingLinkedDeviceSessionComposition(
       },
       sourceContributionRouter: createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(
         {
+          admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, env.SIGNER_DB, scope),
           fetch: serviceFetch,
           internalServiceAuthSecret: requireEnvString(
             env,
@@ -706,6 +733,7 @@ function stagingLinkedDeviceSessionComposition(
 export async function createHostedWalletGatewayCompositionV1(
   env: CloudflareD1GatewayEnv,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
+  background: CfExecutionContext | null = null,
 ) {
   const scope = stagingTenantScope(env);
   const session = stagingSessionAdapter(env);
@@ -722,12 +750,32 @@ export async function createHostedWalletGatewayCompositionV1(
     yaoRuntime,
     tenantRootCustodyLineage,
     dependencies,
+    background ? scheduleRegistrationRouterStartup.bind(undefined, env, background) : undefined,
   );
+  const tenantId = parseTenantId(scope.orgId);
+  if (!tenantId.ok) throw new Error('Wallet placement authorization tenant is invalid');
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
+    registrationContext: dependencies.registrationContext,
     signerDatabase: env.SIGNER_DB,
     signerStorageNamespace: scope.namespace,
+    routeExtensions: [
+      new WalletAuthorizationRelocationRoutes({
+        database: env.SIGNER_DB,
+        scope,
+        directory: env.WALLET_CONSOLE,
+      }),
+      new WalletPlacementRoutes({
+        emailOtp: service.relocationEmailOtp,
+        database: env.SIGNER_DB,
+        scope,
+        tenantId: tenantId.value,
+        allowedOrigins: readStagingHostedWalletOrigins(env).map(parseSessionOrigin),
+        authorizationSessions: service.authorizationSessions,
+        directory: env.WALLET_CONSOLE,
+      }),
+    ],
     router: {
       healthz: true,
       readyz: true,
@@ -758,8 +806,9 @@ export async function createHostedWalletGatewayCompositionV1(
 export async function createSplitGatewayRouterHandler(
   env: CloudflareD1GatewayEnv,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
+  background: CfExecutionContext | null = null,
 ): Promise<FetchHandler> {
-  const composition = await createHostedWalletGatewayCompositionV1(env, dependencies);
+  const composition = await createHostedWalletGatewayCompositionV1(env, dependencies, background);
   return composition.handler;
 }
 
@@ -868,6 +917,10 @@ export async function handleSplitGatewayRequest(
   ctx: CfExecutionContext,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
 ): Promise<Response> {
+  const headers = new Headers(request.headers);
+  headers.delete(WALLET_OBJECT_IDENTITY_HEADER);
+  headers.delete(WALLET_OBJECT_ADDRESSES_HEADER);
+  request = new Request(request, { headers });
   if (request.method === 'GET' && new URL(request.url).pathname === ROUTER_AB_CEREMONY_JWKS_PATH) {
     return routerAbCeremonyJwksResponse(env);
   }
@@ -883,7 +936,7 @@ export async function handleSplitGatewayRequest(
     withCors(response.headers, { corsOrigins: readCsvList(env.RELAY_CORS_ORIGINS) }, request);
     return response;
   }
-  const handler = await createSplitGatewayRouterHandler(env, dependencies);
+  const handler = await createSplitGatewayRouterHandler(env, dependencies, ctx);
   return await handler(request, env, ctx);
 }
 
@@ -1232,7 +1285,11 @@ async function handlePartitionedD1Operation(
       return await handleRouterAbEd25519YaoExportRequestScopedCloudflareV1({
         request,
         lifecycleRouting: dependencies.lifecycleRouting,
-        ...createStagingExportRequestScopedDependencies(env, service, tenantRootCustodyLineage),
+        ...createStagingExportRequestScopedDependencies(
+          env,
+          service,
+          tenantRootCustodyLineage,
+        ),
       });
     }
   }
@@ -1271,6 +1328,62 @@ function createStagingYaoRequestScopedRuntime(
     registrationBackend: createStagingEd25519YaoBackend(env, resolveTenantRoot),
     loadPersistedActiveCapability: loadStagingPersistedActiveCapability.bind(undefined, env),
   });
+}
+
+async function scheduleRegistrationRouterStartup(
+  env: CloudflareD1GatewayBaseEnv,
+  background: CfExecutionContext,
+  registration: { readonly walletId: WalletId; readonly ownershipGeneration: number },
+): Promise<void> {
+  const tenant = stagingTenantScope(env);
+  const identity = walletObjectIdentity(registration.walletId, registration.ownershipGeneration, tenant);
+  const addresses = new D1WalletObjectAddresses(env.SIGNER_DB, tenant);
+  await addresses.initialize(identity, env.MPC_ROUTER, requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'));
+  background.waitUntil(startRegistrationRouter(env, identity));
+}
+
+async function startRegistrationRouter(
+  env: CloudflareD1GatewayBaseEnv,
+  registration: WalletObjectIdentity,
+): Promise<void> {
+  const started = Date.now();
+  let outcome: 'success' | 'failure' = 'failure';
+  try {
+    const scope = stagingTenantScope(env);
+    const response = await env.MPC_ROUTER.fetch(
+      `${ROUTER_AB_MPC_ROUTER_ORIGIN}/router-ab/router/wallet/start`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...walletObjectIdentityHeaders(registration),
+          'x-router-ab-internal-service-auth': requireEnvString(
+            env,
+            'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',
+          ),
+        },
+        body: JSON.stringify({
+          owner: {
+            org_id: scope.orgId,
+            project_id: scope.projectId,
+            env_id: scope.envId,
+            wallet_id: registration.walletId,
+          },
+          ownership_generation: registration.ownershipGeneration,
+        }),
+        signal: AbortSignal.timeout(3_000),
+      },
+    );
+    await response.arrayBuffer();
+    if (response.ok) outcome = 'success';
+  } catch {
+    // Startup has no authority or durable effects. Execution still claims the wallet normally.
+  }
+  console.log(JSON.stringify({
+    event: 'registration_router_startup',
+    outcome,
+    duration_ms: Date.now() - started,
+  }));
 }
 
 /**
@@ -1353,6 +1466,7 @@ export function createStagingExportRequestScopedDependencies(
   readonly authorization: RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter;
   readonly capabilities: RouterAbEd25519YaoProductRegistrationRuntimeV1;
 } {
+  const authority = service.walletExecution;
   const scope = stagingTenantScope(env);
   const registrationTenantRootResolver = createStagingRegistrationTenantRootResolver(
     scope,
@@ -1373,6 +1487,7 @@ export function createStagingExportRequestScopedDependencies(
       service.walletAuthMethods,
       service.authorizedOperations,
       service.walletRegistration.resolveEd25519MaterialActivation.bind(service.walletRegistration),
+      authority.admitEstablishedHome.bind(authority),
     ),
     capabilities: createStagingYaoRequestScopedRuntime(env, registrationTenantRootResolver),
   };

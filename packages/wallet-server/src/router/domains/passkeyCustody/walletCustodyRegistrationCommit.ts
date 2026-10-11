@@ -256,20 +256,29 @@ function buildWalletCustodyRegistrationRecords(args: {
   };
 }
 
+/** The write that a reservation left for after the registration's wallet commit. */
+export type WalletCustodyRegistrationReserved = {
+  readonly kind: 'reserved';
+  readonly commit: () => Promise<WalletCustodyRegistrationCommitOutcome>;
+};
+
 /**
- * Builds and commits in one call.
+ * Builds the records and claims their recovery-code routes.
  *
  * A payload this server cannot parse becomes `rejected` rather than an
  * exception, so a malformed ceremony result is a request outcome and not a
- * route crash. Nothing is written in that case: the records are built before
- * the store is touched.
+ * route crash. Nothing is claimed or written in that case: the records are
+ * built before the store is touched.
  */
-export async function commitWalletCustodyRegistration(input: {
+export async function reserveWalletCustodyRegistration(input: {
   readonly payload: WalletCustodyCeremonyCommitPayload;
   readonly factor: unknown;
   readonly nowMs: number;
   readonly store: CloudflareD1WalletCustodyCommitStore;
-}): Promise<WalletCustodyRegistrationCommitOutcome> {
+}): Promise<
+  | WalletCustodyRegistrationReserved
+  | Extract<WalletCustodyRegistrationCommitOutcome, { kind: 'rejected' }>
+> {
   let records: WalletCustodyRegistrationRecords;
   try {
     records = buildWalletCustodyRegistrationRecords(input);
@@ -280,7 +289,14 @@ export async function commitWalletCustodyRegistration(input: {
     };
   }
 
-  const stored = await input.store.commitRegistration(records);
+  const reserved = await input.store.reserveRegistration(records);
+  if (reserved.kind === 'inconsistent') return { kind: 'rejected', reason: reserved.reason };
+  return { kind: 'reserved', commit: async () => commitOutcome(await reserved.commit()) };
+}
+
+function commitOutcome(
+  stored: WalletCustodyRegistrationCommitResult,
+): WalletCustodyRegistrationCommitOutcome {
   switch (stored.kind) {
     case 'committed':
       return {

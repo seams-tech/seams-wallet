@@ -12,15 +12,17 @@ use router_ab_cloudflare::{
 };
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1,
-    Ed25519YaoPairRecordV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
+    Ed25519YaoOuterBindingV2, Ed25519YaoPairExecutorV1, Ed25519YaoPairRecordV1,
     Ed25519YaoPairStoreResultV1, LocalServiceRoleV1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootSignedActivationReceiptV1,
 };
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, fs, path::PathBuf};
+use std::{cell::RefCell, collections::BTreeMap, fs, path::PathBuf};
 
 const STATE_KEY: &str = "ed25519-yao/worker-state-v2";
+/// How many failed preparations one Deriver B process remembers at most.
+const FAILED_B_PREPARATION_LIMIT: usize = 64;
 const DERIVER_B_PAIR_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS local_deriver_b_yao_pairs (
     session_hex TEXT PRIMARY KEY,
     pair_digest_hex TEXT NOT NULL,
@@ -79,9 +81,24 @@ pub(crate) fn ensure_local_deriver_b_pair_schema_v1(
         .map_err(pair_lookup_error)
 }
 
+enum RoleStateCommit {
+    Ordinary,
+    WalletMutation {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    },
+    InitialEd25519 {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    },
+}
+
 pub struct LocalEd25519YaoSqliteHostV1 {
     connection: RefCell<Connection>,
     role_state_snapshot: RefCell<Option<Vec<u8>>>,
+    /// The Router run whose Deriver B preparation last failed in this
+    /// process, by pair session. A connection from Deriver A waiting for that
+    /// run's preparation stops waiting. It is never persisted: without it the
+    /// connection waits until the run ends.
+    failed_b_preparations: RefCell<BTreeMap<[u8; 32], Ed25519YaoOuterBindingV2>>,
 }
 
 impl LocalEd25519YaoSqliteHostV1 {
@@ -112,6 +129,7 @@ impl LocalEd25519YaoSqliteHostV1 {
         Ok(Self {
             connection: RefCell::new(connection),
             role_state_snapshot: RefCell::new(None),
+            failed_b_preparations: RefCell::default(),
         })
     }
 
@@ -139,6 +157,49 @@ impl LocalEd25519YaoSqliteHostV1 {
         role: LocalServiceRoleV1,
         state: &LocalEd25519YaoWorkerStateV1,
     ) -> RouterAbProtocolResult<()> {
+        self.persist_state_with_authority(role, state, RoleStateCommit::Ordinary)
+    }
+
+    pub fn persist_initial_ed25519_registration(
+        &self,
+        state: &LocalEd25519YaoWorkerStateV1,
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        self.persist_state_with_authority(
+            LocalServiceRoleV1::SigningWorker,
+            state,
+            RoleStateCommit::InitialEd25519 { scope },
+        )
+    }
+
+    pub fn require_wallet_unfenced(
+        &self,
+        scope: &router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        let connection = self.connection.borrow();
+        let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(&connection);
+        router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_unfenced(scope)
+    }
+
+    pub fn persist_wallet_mutation(
+        &self,
+        state: &LocalEd25519YaoWorkerStateV1,
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        self.persist_state_with_authority(
+            LocalServiceRoleV1::SigningWorker,
+            state,
+            RoleStateCommit::WalletMutation { scope },
+        )
+    }
+
+    fn persist_state_with_authority(
+        &self,
+        role: LocalServiceRoleV1,
+        state: &LocalEd25519YaoWorkerStateV1,
+        purpose: RoleStateCommit,
+    ) -> RouterAbProtocolResult<()> {
         let bytes = state.encode_durable_state_for_role_v1(role)?;
         if matches!(
             role,
@@ -154,7 +215,17 @@ impl LocalEd25519YaoSqliteHostV1 {
                     "role state changed in another process",
                 ));
             }
+            if let RoleStateCommit::WalletMutation { scope } = &purpose {
+                let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(&transaction);
+                router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+                    .require_unfenced(scope)?;
+            }
             storage.put_bytes(STATE_KEY, &bytes)?;
+            if let RoleStateCommit::InitialEd25519 { scope } = purpose {
+                let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(&transaction);
+                router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+                    .register(&scope)?;
+            }
             transaction.commit().map_err(pair_lookup_error)?;
             *self.role_state_snapshot.borrow_mut() = Some(bytes);
             return Ok(());
@@ -170,8 +241,19 @@ impl LocalEd25519YaoSqliteHostV1 {
         material: CloudflareServerOutputMaterialRecordV1,
         now_ms: u64,
     ) -> RouterAbProtocolResult<String> {
-        let connection = self.connection.borrow();
-        local_signing_worker_near_sqlite::prepare(&connection, request, active, material, now_ms)
+        let mut connection = self.connection.borrow_mut();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(pair_lookup_error)?;
+        let result = local_signing_worker_near_sqlite::prepare(
+            &transaction,
+            request,
+            active,
+            material,
+            now_ms,
+        )?;
+        transaction.commit().map_err(pair_lookup_error)?;
+        Ok(result)
     }
 
     pub fn finalize_near(
@@ -181,8 +263,19 @@ impl LocalEd25519YaoSqliteHostV1 {
         material: CloudflareServerOutputMaterialRecordV1,
         now_ms: u64,
     ) -> RouterAbProtocolResult<String> {
-        let connection = self.connection.borrow();
-        local_signing_worker_near_sqlite::finalize(&connection, request, active, material, now_ms)
+        let mut connection = self.connection.borrow_mut();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(pair_lookup_error)?;
+        let result = local_signing_worker_near_sqlite::finalize(
+            &transaction,
+            request,
+            active,
+            material,
+            now_ms,
+        )?;
+        transaction.commit().map_err(pair_lookup_error)?;
+        Ok(result)
     }
 
     pub fn read_near_terminal(
@@ -191,6 +284,34 @@ impl LocalEd25519YaoSqliteHostV1 {
     ) -> RouterAbProtocolResult<Option<String>> {
         let connection = self.connection.borrow();
         local_signing_worker_near_sqlite::read_terminal(&connection, request)
+    }
+
+    /// Records how Deriver B's preparation for one Router run ended here.
+    pub(crate) fn record_b_preparation(
+        &self,
+        session: [u8; 32],
+        outer_binding: Ed25519YaoOuterBindingV2,
+        prepared: bool,
+    ) {
+        let mut failed = self.failed_b_preparations.borrow_mut();
+        if prepared {
+            failed.remove(&session);
+        } else {
+            if failed.len() >= FAILED_B_PREPARATION_LIMIT {
+                failed.clear();
+            }
+            failed.insert(session, outer_binding);
+        }
+    }
+
+    /// Whether Deriver B's preparation for the Router run named by
+    /// `outer_binding` failed in this process.
+    pub(crate) fn b_preparation_failed(
+        &self,
+        session: [u8; 32],
+        outer_binding: &Ed25519YaoOuterBindingV2,
+    ) -> bool {
+        self.failed_b_preparations.borrow().get(&session) == Some(outer_binding)
     }
 
     pub fn read_b_pair(
@@ -391,19 +512,28 @@ impl LocalEd25519YaoSqliteHostV1 {
     pub fn reserve_a_pair(
         &self,
         scope: &LocalDeriverAPairScopeV1,
-        reservation: Ed25519YaoPairReservationV1<'_>,
+        executor: Ed25519YaoPairExecutorV1<'_>,
     ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
         let mut connection = self.connection.borrow_mut();
-        self.a_store(&mut connection, scope)?.reserve(reservation)
+        self.a_store(&mut connection, scope)?.reserve(executor)
+    }
+
+    pub fn release_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        executor: Ed25519YaoPairExecutorV1<'_>,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?.release(executor)
     }
 
     pub fn claim_a_pair(
         &self,
         scope: &LocalDeriverAPairScopeV1,
-        claim: Ed25519YaoPairStartClaimV1<'_>,
+        executor: Ed25519YaoPairExecutorV1<'_>,
     ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
         let mut connection = self.connection.borrow_mut();
-        self.a_store(&mut connection, scope)?.claim(claim)
+        self.a_store(&mut connection, scope)?.claim(executor)
     }
 
     pub fn complete_a_pair(

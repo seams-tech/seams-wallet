@@ -1,3 +1,4 @@
+import { acceptWalletOwnershipGeneration } from './walletOwnershipGeneration';
 import {
   parseWalletSessionAuthorizationId,
   parseMpcWalletSigningQuotaId,
@@ -16,11 +17,7 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
-import {
-  SEAMS_WALLET_INDEXES,
-  SEAMS_WALLET_STORES,
-  type SeamsWalletStoreName,
-} from '../schemaNames';
+import { SEAMS_WALLET_INDEXES, SEAMS_WALLET_STORES } from '../schemaNames';
 import { seamsWalletDB } from '../singletons';
 import type { SeamsWalletDBManager, SeamsWalletTransactionContext } from './manager';
 import type {
@@ -272,32 +269,6 @@ function storedWalletSessionRowKey(value: unknown): string {
     throw new Error('Stored Wallet Session authorization key is invalid');
   }
   return key;
-}
-
-async function settleAbortedTransaction(transaction: {
-  readonly done: Promise<unknown>;
-}): Promise<void> {
-  try {
-    await transaction.done;
-  } catch {}
-}
-
-function walletSessionStoreForTransaction<Name extends SeamsWalletStoreName>(
-  tx: SeamsWalletTransactionContext['tx'],
-  _name: Name,
-): ReturnType<SeamsWalletTransactionContext['store']> {
-  return tx.objectStore(STORE);
-}
-
-function walletSessionTransactionContext(
-  db: SeamsWalletTransactionContext['db'],
-  tx: SeamsWalletTransactionContext['tx'],
-): SeamsWalletTransactionContext {
-  return {
-    db,
-    tx,
-    store: walletSessionStoreForTransaction.bind(null, tx),
-  };
 }
 
 function walletCapabilitySubjectKey(subject: WalletCapabilitySubjectV1): string {
@@ -612,7 +583,13 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
     throw new Error('Active Wallet Session v1 is invalid');
   }
   const operationCredential = parseWalletSessionOperationCredentialV1(args.operationCredential);
+  await acceptWalletOwnershipGeneration(
+    args.ctx,
+    incoming.walletId,
+    operationCredential.ownershipGeneration,
+  );
   const incomingRow = toStoredExactWalletSessionAuthorizationRowV6(incoming, operationCredential);
+  let requiresWrite = true;
   const store = args.ctx.store(STORE);
   const rows = await store.index(SEAMS_WALLET_INDEXES.walletId).getAll(incoming.walletId);
   for (const raw of rows) {
@@ -631,6 +608,21 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
     }
     const current = parsedCurrent.record;
     if (
+      parsedCurrent.operationCredential.walletSessionId === operationCredential.walletSessionId &&
+      (parsedCurrent.operationCredential.token !== operationCredential.token ||
+        parsedCurrent.operationCredential.ownershipGeneration !==
+          operationCredential.ownershipGeneration)
+    ) {
+      throw new Error('Stored Wallet Session conflicts with the issued operation credential');
+    }
+    if (
+      parsedCurrent.operationCredential.ownershipGeneration <
+      operationCredential.ownershipGeneration
+    ) {
+      await store.delete(parsedCurrent.physicalKey);
+      continue;
+    }
+    if (
       current.kind !== 'active_wallet_session_v1' ||
       current.authorityId !== incoming.authorityId ||
       current.authMethodId !== incoming.authMethodId
@@ -641,14 +633,12 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
       current.authorizationId === incoming.authorizationId &&
       parsedCurrent.operationCredential.walletSessionId === operationCredential.walletSessionId
     ) {
-      if (parsedCurrent.operationCredential.token !== operationCredential.token) {
-        throw new Error('Stored Wallet Session conflicts with the issued operation credential');
-      }
+      requiresWrite = !activeWalletSessionV1RecordsEqual(current, incoming);
       continue;
     }
     await store.delete(parsedCurrent.physicalKey);
   }
-  await store.put(incomingRow);
+  if (requiresWrite) await store.put(incomingRow);
   return incoming;
 }
 
@@ -745,75 +735,21 @@ export class WalletSessionAuthorizationRepository {
     }
     const operationCredential = parseWalletSessionOperationCredentialV1(input.operationCredential);
     const incomingRow = toStoredExactWalletSessionAuthorizationRowV6(incoming, operationCredential);
-    const db = await this.manager.getDB();
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    try {
-      const raw = await store.get(operationCredential.walletSessionId);
-      if (raw === undefined) {
-        await tx.done;
-        return 'superseded';
-      }
-      const current = parseStoredExactWalletSessionAuthorizationRowV6(raw);
-      if (!current) throw new Error('Stored Wallet Session authorization v6 is corrupt');
-      // Compare and update share the transaction with lock's deletion of this row.
-      if (
-        !activeWalletSessionV1RecordsEqual(current.record, expected) ||
-        current.operationCredential.token !== operationCredential.token
-      ) {
-        await tx.done;
-        return 'superseded';
-      }
-      await store.put(incomingRow);
-      await tx.done;
-      return 'updated';
-    } catch (error) {
-      try {
-        tx.abort();
-      } catch {}
-      await settleAbortedTransaction(tx);
-      throw error;
-    }
+    return this.manager.runTransaction(
+      [STORE],
+      'readwrite',
+      refreshExactSessionInTransaction.bind(null, expected, incomingRow),
+    );
   }
 
   async readExact(
     walletSessionId: WalletSessionId,
   ): Promise<WalletSessionAuthorizationRecord | null> {
-    const db = await this.manager.getDB();
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    try {
-      const raw = await store.get(walletSessionId);
-      if (raw === undefined) {
-        await tx.done;
-        return null;
-      }
-      const classification = classifyWalletSessionAuthorizationRow(raw);
-      switch (classification.kind) {
-        case 'future':
-          throw new WalletSessionAuthorizationUpgradeRequiredError(
-            'Wallet Session authorization requires a newer client',
-          );
-        case 'legacy':
-          await store.delete(storedWalletSessionRowKey(raw));
-          await tx.done;
-          return null;
-        case 'current':
-          break;
-        case 'unknown':
-          throw new Error('Stored Wallet Session authorization v6 is corrupt');
-      }
-      const parsed = parseStoredExactWalletSessionAuthorizationRowV6(raw);
-      if (!parsed) throw new Error('Stored Wallet Session authorization v6 is corrupt');
-      await tx.done;
-      return parsed.record;
-    } catch (error) {
-      try {
-        tx.abort();
-      } catch {}
-      await settleAbortedTransaction(tx);
-      throw error;
-    }
+    return this.manager.runTransaction(
+      [STORE],
+      'readwrite',
+      readExactSessionInTransaction.bind(null, walletSessionId),
+    );
   }
 
   async readExactWithOperationCredential(input: {
@@ -840,30 +776,13 @@ export class WalletSessionAuthorizationRepository {
     readonly authMethodId: WalletAuthMethodId;
   }): Promise<WalletSessionAuthorizationExactActiveReadResult> {
     try {
-      const db = await this.manager.getDB();
-      const tx = db.transaction(STORE, 'readwrite');
-      try {
-        const result = await readExactActiveWalletSessionForScopeInTransaction({
-          ctx: walletSessionTransactionContext(db, tx),
-          ...input,
-        });
-        if (result.kind === 'corrupt') {
-          try {
-            tx.abort();
-          } catch {}
-          await settleAbortedTransaction(tx);
-          return result;
-        }
-        await tx.done;
-        return result;
-      } catch {
-        try {
-          tx.abort();
-        } catch {}
-        await settleAbortedTransaction(tx);
-        return { kind: 'persistence_unavailable' };
-      }
-    } catch {
+      return await this.manager.runTransaction(
+        [STORE],
+        'readwrite',
+        readExactActiveSessionInTransaction.bind(null, input),
+      );
+    } catch (error) {
+      if (error instanceof CorruptWalletSessionAuthorizationError) return { kind: 'corrupt' };
       return { kind: 'persistence_unavailable' };
     }
   }
@@ -876,85 +795,157 @@ export class WalletSessionAuthorizationRepository {
     if (!isNonNegativeSafeInteger(args.retiredAtMs)) {
       throw new Error('Wallet Session v1 retirement time is invalid');
     }
-    const db = await this.manager.getDB();
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    const retired: RetiredWalletSessionV1[] = [];
-    try {
-      const rows = await store.index(SEAMS_WALLET_INDEXES.walletId).getAll(args.walletId);
-      for (const raw of rows) {
-        const classification = classifyWalletSessionAuthorizationRow(raw);
-        if (classification.kind === 'future') continue;
-        if (classification.kind === 'legacy') {
-          await store.delete(storedWalletSessionRowKey(raw));
-          continue;
-        }
-        if (classification.kind !== 'current') continue;
-        const parsedCurrent = parseStoredExactWalletSessionAuthorizationRowV6(raw);
-        if (!parsedCurrent) {
-          tx.abort();
-          throw new Error('Stored Wallet Session authorization v6 is corrupt');
-        }
-        const current = parsedCurrent.record;
-        if (current.kind !== 'active_wallet_session_v1') continue;
-        const next = retireWalletSessionV1({
-          active: current,
-          reason: args.reason,
-          retiredAtMs: args.retiredAtMs,
-        });
-        await store.delete(parsedCurrent.physicalKey);
-        retired.push(next);
-      }
-      await tx.done;
-      return retired;
-    } catch (error) {
-      try {
-        tx.abort();
-      } catch {}
-      await settleAbortedTransaction(tx);
-      throw error;
-    }
+    return this.manager.runTransaction(
+      [STORE],
+      'readwrite',
+      retireExactSessionsInTransaction.bind(null, args),
+    );
   }
 
   async replaceExactActive(args: {
     readonly active: ActiveWalletSessionV1;
     readonly operationCredential: WalletSessionOperationCredentialV1;
   }): Promise<ActiveWalletSessionV1> {
-    const db = await this.manager.getDB();
-    const tx = db.transaction(STORE, 'readwrite');
-    try {
-      const incoming = await replaceExactActiveWalletSessionAuthorizationInTransaction({
-        ctx: walletSessionTransactionContext(db, tx),
-        active: args.active,
-        operationCredential: args.operationCredential,
-      });
-      await tx.done;
-      return incoming;
-    } catch (error) {
-      try {
-        tx.abort();
-      } catch {}
-      await settleAbortedTransaction(tx);
-      throw error;
-    }
+    return this.manager.runTransaction(
+      [STORE, SEAMS_WALLET_STORES.appState, SEAMS_WALLET_STORES.ecdsaClientPresignatures],
+      'readwrite',
+      replaceExactSessionInTransaction.bind(null, args),
+    );
   }
 
   async clearWallet(walletId: WalletId): Promise<void> {
-    const db = await this.manager.getDB();
-    const keys = await db.getAllKeysFromIndex(STORE, SEAMS_WALLET_INDEXES.walletId, walletId);
-    if (keys.length === 0) return;
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    for (const key of keys) {
-      await store.delete(key);
-    }
-    await tx.done;
+    await this.manager.runTransaction(
+      [STORE],
+      'readwrite',
+      clearWalletSessionsInTransaction.bind(null, walletId),
+    );
   }
 
   async clearAll(): Promise<void> {
-    const db = await this.manager.getDB();
-    await db.clear(STORE);
+    await this.manager.runTransaction([STORE], 'readwrite', clearAllSessionsInTransaction);
   }
+}
+
+class CorruptWalletSessionAuthorizationError extends Error {}
+
+async function refreshExactSessionInTransaction(
+  expected: ActiveWalletSessionV1,
+  incomingRow: StoredExactWalletSessionAuthorizationRowV6,
+  context: SeamsWalletTransactionContext,
+): Promise<'updated' | 'superseded'> {
+  const store = context.store(STORE);
+  const operationCredential = incomingRow.operation_credential;
+  const raw = await store.get(operationCredential.walletSessionId);
+  if (raw === undefined) return 'superseded';
+  const current = parseStoredExactWalletSessionAuthorizationRowV6(raw);
+  if (!current) throw new Error('Stored Wallet Session authorization v6 is corrupt');
+  // Compare and update share the transaction with lock's deletion of this row.
+  if (
+    !activeWalletSessionV1RecordsEqual(current.record, expected) ||
+    current.operationCredential.token !== operationCredential.token
+  ) {
+    return 'superseded';
+  }
+  await store.put(incomingRow);
+  return 'updated';
+}
+
+async function readExactSessionInTransaction(
+  walletSessionId: WalletSessionId,
+  context: SeamsWalletTransactionContext,
+): Promise<WalletSessionAuthorizationRecord | null> {
+  const store = context.store(STORE);
+  const raw = await store.get(walletSessionId);
+  if (raw === undefined) return null;
+  const classification = classifyWalletSessionAuthorizationRow(raw);
+  switch (classification.kind) {
+    case 'future':
+      throw new WalletSessionAuthorizationUpgradeRequiredError(
+        'Wallet Session authorization requires a newer client',
+      );
+    case 'legacy':
+      await store.delete(storedWalletSessionRowKey(raw));
+      return null;
+    case 'current':
+      break;
+    case 'unknown':
+      throw new Error('Stored Wallet Session authorization v6 is corrupt');
+  }
+  const parsed = parseStoredExactWalletSessionAuthorizationRowV6(raw);
+  if (!parsed) throw new Error('Stored Wallet Session authorization v6 is corrupt');
+  return parsed.record;
+}
+
+async function readExactActiveSessionInTransaction(
+  input: Parameters<WalletSessionAuthorizationRepository['readExactActiveForWallet']>[0],
+  ctx: SeamsWalletTransactionContext,
+): Promise<WalletSessionAuthorizationExactOperationCredentialReadResult> {
+  const result = await readExactActiveWalletSessionForScopeInTransaction({
+    ctx,
+    walletId: input.walletId,
+    authorityId: input.authorityId,
+    authMethodId: input.authMethodId,
+  });
+  if (result.kind === 'corrupt') {
+    throw new CorruptWalletSessionAuthorizationError(
+      'Stored Wallet Session authorization v6 is corrupt',
+    );
+  }
+  return result;
+}
+
+async function retireExactSessionsInTransaction(
+  args: Parameters<WalletSessionAuthorizationRepository['retireExactActiveForWallet']>[0],
+  context: SeamsWalletTransactionContext,
+): Promise<readonly RetiredWalletSessionV1[]> {
+  const store = context.store(STORE);
+  const retired: RetiredWalletSessionV1[] = [];
+  const rows = await store.index(SEAMS_WALLET_INDEXES.walletId).getAll(args.walletId);
+  for (const raw of rows) {
+    const classification = classifyWalletSessionAuthorizationRow(raw);
+    if (classification.kind === 'future') continue;
+    if (classification.kind === 'legacy') {
+      await store.delete(storedWalletSessionRowKey(raw));
+      continue;
+    }
+    if (classification.kind !== 'current') continue;
+    const parsedCurrent = parseStoredExactWalletSessionAuthorizationRowV6(raw);
+    if (!parsedCurrent) throw new Error('Stored Wallet Session authorization v6 is corrupt');
+    const current = parsedCurrent.record;
+    if (current.kind !== 'active_wallet_session_v1') continue;
+    const next = retireWalletSessionV1({
+      active: current,
+      reason: args.reason,
+      retiredAtMs: args.retiredAtMs,
+    });
+    await store.delete(parsedCurrent.physicalKey);
+    retired.push(next);
+  }
+  return retired;
+}
+
+function replaceExactSessionInTransaction(
+  args: Parameters<WalletSessionAuthorizationRepository['replaceExactActive']>[0],
+  ctx: SeamsWalletTransactionContext,
+): Promise<ActiveWalletSessionV1> {
+  return replaceExactActiveWalletSessionAuthorizationInTransaction({
+    ctx,
+    active: args.active,
+    operationCredential: args.operationCredential,
+  });
+}
+
+async function clearWalletSessionsInTransaction(
+  walletId: WalletId,
+  context: SeamsWalletTransactionContext,
+): Promise<void> {
+  const store = context.store(STORE);
+  const keys = await store.index(SEAMS_WALLET_INDEXES.walletId).getAllKeys(walletId);
+  for (const key of keys) await store.delete(key);
+}
+
+function clearAllSessionsInTransaction(context: SeamsWalletTransactionContext): Promise<void> {
+  return context.store(STORE).clear();
 }
 
 export const walletSessionAuthorizations = new WalletSessionAuthorizationRepository();

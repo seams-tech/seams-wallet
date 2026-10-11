@@ -60,6 +60,12 @@ export const emailOtpChallengeRows = {
   insert: (prepare: ScopedD1Prepare, record: EmailOtpChallengeRecord) =>
     prepare(INSERT_CHALLENGE_SQL, challengeValues(record)),
 
+  insertIfAbsent: (prepare: ScopedD1Prepare, record: EmailOtpChallengeRecord) =>
+    prepare(
+      `${INSERT_CHALLENGE_SQL} ON CONFLICT(namespace, org_id, project_id, env_id, challenge_id) DO NOTHING`,
+      challengeValues(record),
+    ),
+
   delete: (prepare: ScopedD1Prepare, challengeId: string) =>
     prepare(
       `DELETE FROM email_otp_challenges

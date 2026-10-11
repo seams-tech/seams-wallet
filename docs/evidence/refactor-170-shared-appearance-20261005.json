@@ -1,0 +1,101 @@
+{
+  "scope": "Remove host-specific appearance parsing and merging; reuse the shared resolver and render typed theme values.",
+  "baseRevision": "106a24450b6246c396f98a97068ecf5c83d0c10f",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/walletIframe/host/context.ts": "062d9d6d10f5c34c5e79f8c579cd4e7e4495ebe0434e637fbb4c7816058c3dff",
+    "tests/wallet-iframe/config.forwarding.test.ts": "7e0c27562675abab4dd6faf98b4701512a3a30e2d1e3355b5325af6867ac12fb"
+  },
+  "productionLineChange": {
+    "added": 15,
+    "removed": 102,
+    "net": -87
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBundles": "passed",
+    "appearanceBrowser": "1 passed",
+    "bloatGate": "passed",
+    "browserTypes": "passed"
+  },
+  "browserReceipt": {
+    "initial": {
+      "rendered": {
+        "accentPrimary": "#123456",
+        "buttonBackground": "#abcdef",
+        "card": "8px",
+        "control": ""
+      },
+      "authPolicy": "per_operation",
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "dark",
+      "themeId": "first",
+      "colors": {
+        "accentPrimary": "#123456",
+        "buttonBackground": "#abcdef"
+      },
+      "shape": {
+        "card": "8px"
+      },
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    },
+    "updated": {
+      "rendered": {
+        "accentPrimary": "#112233",
+        "buttonBackground": "#abcdef",
+        "card": "8px",
+        "control": "4px"
+      },
+      "authPolicy": "per_operation",
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "light",
+      "themeId": "first",
+      "colors": {
+        "accentPrimary": "#112233",
+        "buttonBackground": "#abcdef"
+      },
+      "shape": {
+        "card": "8px",
+        "control": "4px"
+      },
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    },
+    "switched": {
+      "rendered": {
+        "accentPrimary": "#654321",
+        "buttonBackground": "",
+        "card": "",
+        "control": ""
+      },
+      "authPolicy": "per_operation",
+      "delegateRoute": "/custom/delegate",
+      "relayerUrl": "https://relay.example.localhost",
+      "theme": "light",
+      "themeId": "second",
+      "colors": {
+        "accentPrimary": "#654321"
+      },
+      "shape": {},
+      "walletMode": "direct",
+      "hasNestedOrigin": false,
+      "rpId": "wallet.example.localhost"
+    }
+  },
+  "limitations": [
+    "This verifies configuration transport, same-theme merge, theme replacement and rendered CSS. It does not complete normalized wire transport or protocol ordering."
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/config.forwarding.test.ts --project=chromium",
+    "pnpm -C tests exec tsc --noEmit -p tsconfig.wallet-browser.json",
+    "pnpm report:bloat --check"
+  ]
+}

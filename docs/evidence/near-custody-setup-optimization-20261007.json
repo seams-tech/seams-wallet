@@ -1,0 +1,1615 @@
+{
+  "candidateCommit": "2ee2b6960e04ebfcc67085eb33d741ca1b8e5282",
+  "localE2E": {
+    "regionalPlacement": {
+      "kind": "authenticated_wallet_home_placement_e2e_v1",
+      "regions": [
+        {
+          "home": "US",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "enam"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "enam"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "enam"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "enam"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        },
+        {
+          "home": "WEUR",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "weur"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "weur"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "weur"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "weur"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        },
+        {
+          "home": "APAC",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "apac"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "apac"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "apac"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "apac"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        },
+        {
+          "home": "OC",
+          "roleObjects": {
+            "router": {
+              "objectId": "4492c4e322d3c5295184a7a0ac6d824fbaff97e4776bf7d6bf0612f5ccbed79e",
+              "calls": 2,
+              "hint": "oc"
+            },
+            "deriver_a": {
+              "objectId": "cbc42e539329113e4fc8180a0955718aa694058aaf297200c39560afb72eb3ec",
+              "calls": 4,
+              "hint": "oc"
+            },
+            "deriver_b": {
+              "objectId": "539e8ffa5d967892cd52aae2b4fec633ee4c3f01708373c35db986b6de71fc37",
+              "calls": 3,
+              "hint": "oc"
+            },
+            "signing_worker": {
+              "objectId": "32248dea68c63a6f386b9362e9397ea13b5ece90229b315cee808ad62de849e8",
+              "calls": 1,
+              "hint": "oc"
+            }
+          },
+          "firstStatusLookups": [
+            {
+              "role": "deriver_a",
+              "generation": 1,
+              "firstStatus": "missing"
+            },
+            {
+              "role": "deriver_b",
+              "generation": 1,
+              "firstStatus": "missing"
+            }
+          ],
+          "invalidHomeRejectedBeforePlacement": true,
+          "unauthorizedHomeRejected": true,
+          "callerHomeOverwritten": true,
+          "completedReplyLossReplayedExactly": true,
+          "replayRanNoAdditionalCustody": true,
+          "forgedReadinessRejectedBeforeValidExecution": true,
+          "bProtocolRunsInWalletObject": true,
+          "bRemoteBeginAndCompleteCalls": 0
+        }
+      ],
+      "limitation": "Local Workers verify the requested hints and real custody lifecycle. They do not prove physical Cloudflare locations or hosted latency gains.",
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+    },
+    "lostReply": {
+      "kind": "deriver_a_wallet_do_lost_reply_e2e_v1",
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply",
+      "outcomeSha256Hex": "3b1db590dc1a7a1b0b526e2226ce65dd4ed710a334708074579920e998fea442",
+      "aD1PairRows": 0,
+      "bPairLifecycle": "completed",
+      "bExecutionUnchangedOnReplay": true,
+      "bOfflineDuringRouterReplay": true,
+      "routerScopedReplayStayedPendingWithoutActivation": true,
+      "wrongTenantRootAndExecutionCancellationLeftStateUnchanged": true,
+      "exactReplayAfterLostReplyAndEviction": true
+    },
+    "admissionSettlement": {
+      "kind": "tenant_root_wallet_object_admission_workers_e2e_v1",
+      "fence": {
+        "admissionsWhileHeld": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "deriverBRetired": [
+          "retired_deleted",
+          1
+        ],
+        "objectsAfterRetirement": {
+          "deriverA": "fenced",
+          "deriverB": "fenced"
+        },
+        "heldRegistration": [
+          200,
+          "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+        ],
+        "deriverARetired": [
+          "retired_deleted",
+          1
+        ],
+        "freshRegistration": "succeeded",
+        "admissionsAfter": [
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ],
+            [
+              2,
+              "settled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ],
+            [
+              2,
+              "settled",
+              true
+            ]
+          ]
+        ]
+      },
+      "lostAcknowledgement": {
+        "admissionsAfterRevert": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "retired": [
+          [
+            "retired_deleted",
+            0
+          ],
+          [
+            "retired_deleted",
+            0
+          ]
+        ],
+        "admissionsAfterReconciliation": [
+          [
+            [
+              1,
+              "settled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "settled",
+              true
+            ]
+          ]
+        ],
+        "objectReports": [
+          "completed",
+          "completed"
+        ]
+      }
+    },
+    "executionAndRelocation": {
+      "kind": "deriver_a_wallet_do_execution_e2e_v1",
+      "deriverSourceFences": {
+        "scope": "Terminal pair stores, destination activation, and resumable cleanup; tenant-root settlement and assembled relocation are not covered",
+        "receipts": [
+          {
+            "fence": {
+              "kind": "settled_fence",
+              "request": {
+                "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                "destination_generation": 2,
+                "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                "owner": {
+                  "env_id": "test",
+                  "org_id": "org-miniflare-second",
+                  "project_id": "project-r120-second",
+                  "wallet_id": "second-tenant-ed25519-account"
+                },
+                "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                "source_generation": 1
+              },
+              "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+            },
+            "snapshot": {
+              "imported": {
+                "verified": {
+                  "kind": "verified",
+                  "receipt": {
+                    "digest_hex": "a06c5fd29aa9bc9e79d0a41886c5254f2734b7e37e05684107b667f61c1c7b57",
+                    "record_count": 2,
+                    "segment_count": 9,
+                    "source": {
+                      "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                      "destination_generation": 2,
+                      "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                      "owner": {
+                        "env_id": "test",
+                        "org_id": "org-miniflare-second",
+                        "project_id": "project-r120-second",
+                        "wallet_id": "second-tenant-ed25519-account"
+                      },
+                      "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                      "source_generation": 1
+                    },
+                    "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+                  }
+                },
+                "activation": {
+                  "receipt": {
+                    "destination_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa",
+                    "source": {
+                      "digest_hex": "a06c5fd29aa9bc9e79d0a41886c5254f2734b7e37e05684107b667f61c1c7b57",
+                      "record_count": 2,
+                      "segment_count": 9,
+                      "source": {
+                        "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                        "destination_generation": 2,
+                        "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                        "owner": {
+                          "env_id": "test",
+                          "org_id": "org-miniflare-second",
+                          "project_id": "project-r120-second",
+                          "wallet_id": "second-tenant-ed25519-account"
+                        },
+                        "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                        "source_generation": 1
+                      },
+                      "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+                    }
+                  },
+                  "cleanupCommands": 4,
+                  "lostActivationReplyRecovered": true,
+                  "preparationReplayPreservesActivation": true,
+                  "lateImportPreservesActivation": true,
+                  "cleanupResumesAfterEviction": true,
+                  "sourceRemainsFenced": true,
+                  "destinationWritableAfterCleanup": true,
+                  "freshReturnObjectId": "46d2c8125791b4491f94f31d23bac1ee20221ea582b8508555889ffdf94cf4df",
+                  "delayedCleanupPreservesReturnReservation": true,
+                  "ordinaryLookupUsesDestinationGeneration": true,
+                  "staleGenerationCannotReadDestination": true
+                },
+                "exactAcknowledgementsAfterRestart": true,
+                "corruptedCiphertextRollsBack": true,
+                "finalDigestFailureRollsBack": true,
+                "incompleteAndOutOfOrderRejected": true,
+                "ordinaryReadersMatchSource": true,
+                "destinationInactiveUntilActivation": true,
+                "destinationCommandsUseAuthorizedRuntime": true
+              },
+              "receipt": {
+                "digest_hex": "a06c5fd29aa9bc9e79d0a41886c5254f2734b7e37e05684107b667f61c1c7b57",
+                "record_count": 2,
+                "segment_count": 9,
+                "source": {
+                  "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+                  "destination_generation": 2,
+                  "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                  "owner": {
+                    "env_id": "test",
+                    "org_id": "org-miniflare-second",
+                    "project_id": "project-r120-second",
+                    "wallet_id": "second-tenant-ed25519-account"
+                  },
+                  "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                  "source_generation": 1
+                },
+                "source_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+              },
+              "captureCalls": 11,
+              "restartDuringCapture": true,
+              "sealedReplayAfterRestart": true,
+              "boundedSegments": true,
+              "reconstructedDigestMatches": true,
+              "conflictingMoveRejected": true,
+              "admissionFenceHistoryPreserved": true,
+              "journalReceiptReplyRecovered": true,
+              "sourceCommandsUseAuthorizedRuntime": true
+            }
+          },
+          {
+            "fence": {
+              "kind": "settled_fence",
+              "request": {
+                "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                "destination_generation": 2,
+                "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                "owner": {
+                  "env_id": "test",
+                  "org_id": "org-miniflare-second",
+                  "project_id": "project-r120-second",
+                  "wallet_id": "second-tenant-ed25519-account"
+                },
+                "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                "source_generation": 1
+              },
+              "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+            },
+            "snapshot": {
+              "imported": {
+                "verified": {
+                  "kind": "verified",
+                  "receipt": {
+                    "digest_hex": "78b0b6e415a777eefcbe9a2e66ec437c4f5d45ccd1732dc65123fddaa9ddd1c0",
+                    "record_count": 2,
+                    "segment_count": 3,
+                    "source": {
+                      "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                      "destination_generation": 2,
+                      "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                      "owner": {
+                        "env_id": "test",
+                        "org_id": "org-miniflare-second",
+                        "project_id": "project-r120-second",
+                        "wallet_id": "second-tenant-ed25519-account"
+                      },
+                      "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                      "source_generation": 1
+                    },
+                    "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+                  }
+                },
+                "activation": {
+                  "receipt": {
+                    "destination_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340",
+                    "source": {
+                      "digest_hex": "78b0b6e415a777eefcbe9a2e66ec437c4f5d45ccd1732dc65123fddaa9ddd1c0",
+                      "record_count": 2,
+                      "segment_count": 3,
+                      "source": {
+                        "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                        "destination_generation": 2,
+                        "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                        "owner": {
+                          "env_id": "test",
+                          "org_id": "org-miniflare-second",
+                          "project_id": "project-r120-second",
+                          "wallet_id": "second-tenant-ed25519-account"
+                        },
+                        "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                        "source_generation": 1
+                      },
+                      "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+                    }
+                  },
+                  "cleanupCommands": 4,
+                  "lostActivationReplyRecovered": true,
+                  "preparationReplayPreservesActivation": true,
+                  "lateImportPreservesActivation": true,
+                  "cleanupResumesAfterEviction": true,
+                  "sourceRemainsFenced": true,
+                  "destinationWritableAfterCleanup": true,
+                  "freshReturnObjectId": "e37fcd216678c8bbcfabdb8710cdcb86320d70dff98922f3e300d7b1667636ee",
+                  "delayedCleanupPreservesReturnReservation": true,
+                  "ordinaryLookupUsesDestinationGeneration": true,
+                  "staleGenerationCannotReadDestination": true
+                },
+                "exactAcknowledgementsAfterRestart": true,
+                "corruptedCiphertextRollsBack": true,
+                "finalDigestFailureRollsBack": true,
+                "incompleteAndOutOfOrderRejected": true,
+                "ordinaryReadersMatchSource": true,
+                "destinationInactiveUntilActivation": true,
+                "destinationCommandsUseAuthorizedRuntime": true
+              },
+              "receipt": {
+                "digest_hex": "78b0b6e415a777eefcbe9a2e66ec437c4f5d45ccd1732dc65123fddaa9ddd1c0",
+                "record_count": 2,
+                "segment_count": 3,
+                "source": {
+                  "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+                  "destination_generation": 2,
+                  "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+                  "owner": {
+                    "env_id": "test",
+                    "org_id": "org-miniflare-second",
+                    "project_id": "project-r120-second",
+                    "wallet_id": "second-tenant-ed25519-account"
+                  },
+                  "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+                  "source_generation": 1
+                },
+                "source_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+              },
+              "captureCalls": 5,
+              "restartDuringCapture": true,
+              "sealedReplayAfterRestart": true,
+              "boundedSegments": true,
+              "reconstructedDigestMatches": true,
+              "conflictingMoveRejected": true,
+              "admissionFenceHistoryPreserved": true,
+              "journalReceiptReplyRecovered": true,
+              "sourceCommandsUseAuthorizedRuntime": true
+            }
+          }
+        ],
+        "livePairsDeferFence": true,
+        "settlementRemainsOpenUntilFence": true,
+        "runtimeRequiresDirectoryAuthorization": true,
+        "deniedOrCorruptCommandsDoNotReachFence": true,
+        "exactReplayAfterEviction": true,
+        "conflictingMoveRejected": true,
+        "ordinaryMutationRejected": true
+      },
+      "deriverPreparation": {
+        "deriverA": {
+          "kind": "prepared",
+          "request": {
+            "owner": {
+              "org_id": "org-miniflare-second",
+              "project_id": "project-r120-second",
+              "env_id": "test",
+              "wallet_id": "second-tenant-ed25519-account"
+            },
+            "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+            "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+            "cipher_context_digest_hex": "c20af6e3a0996cb84fd52c89902d872c5778b72043c04eaeab8f663ccf407261",
+            "source_generation": 1,
+            "destination_generation": 2
+          },
+          "destination_object": "deriver-a-wallet-5696ef60bc7df789506f64acbf639ac747abbf1a3efbf7074aaf2b3bb87bf7aa"
+        },
+        "deriverB": {
+          "kind": "prepared",
+          "request": {
+            "owner": {
+              "org_id": "org-miniflare-second",
+              "project_id": "project-r120-second",
+              "env_id": "test",
+              "wallet_id": "second-tenant-ed25519-account"
+            },
+            "move_id": "wmove_ddddddddddddddddddddddddddddddddddddddddddd",
+            "request_digest_hex": "adadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadad",
+            "cipher_context_digest_hex": "efd1bdc7e1f3857e9c703c0a9062db187cb6bee5ae7580836e2517da1a3a467f",
+            "source_generation": 1,
+            "destination_generation": 2
+          },
+          "destination_object": "deriver-b-wallet-5e373dd34aa6097e98987e083158b7796bb301a21a1b919c7310e43c536fc340"
+        },
+        "physicalObjects": {
+          "deriverA": {
+            "source": "c567a377992c4acf719b3b0690300074f5cba1b1a7970570413407ceecf7f250",
+            "destination": "c8c8bf190af7c679840f77c33e6ff91a2c650cc42eb6ea6352115dab43928db8"
+          },
+          "deriverB": {
+            "source": "cf0da4b5930a7245f67be5da99b3f049cd3bf5264f52446c0ea01fae73331dda",
+            "destination": "e94cb95612fde33a2e26bdc6a3e823cbb0b9227f2a34b0e4ae4da4ce7ca70ac7"
+          }
+        },
+        "sourceAndDestinationShareNamespace": true,
+        "privateRuntimePreparation": true,
+        "cipherContextsCheckedBeforeReservation": true,
+        "mismatchedPrivateKeyRejected": true,
+        "changedEncryptionEnvironmentRejected": true,
+        "freshDestinationReservedInSourceNamespace": true,
+        "wrongCredentialsRejected": true,
+        "exactReplayAfterEviction": true,
+        "changedDigestsRejected": true,
+        "ordinaryPairWritesRejected": true,
+        "reconciliationWriteRejected": true,
+        "destinationsRemainEmpty": true
+      },
+      "ed25519Snapshot": {
+        "routerExport": {
+          "recordCount": 1,
+          "chunkCount": 6,
+          "exactReplay": true,
+          "storedReceiptMatchesExport": true,
+          "destinationVerifiedThroughRuntime": true,
+          "destinationActivatedThroughRuntime": true,
+          "activationReceiptLostReplyRecovered": true,
+          "sourceCleanupPreservesDestinationActivation": true,
+          "destinationPreparedBeforeSourceFinalizationAndFreeze": true,
+          "activatedObjectMatchesPreparedObject": true,
+          "sourceDigestHex": "cb432151f3ba180f3d92f4707e19846e31aedffbc49c65b4970642ce60419e7e"
+        },
+        "restoration": {
+          "returned": {
+            "ownershipGeneration": 3,
+            "registrationAndTerminalHistoryRestored": true,
+            "oldCleanupReplayPreservesReturnedWallet": true,
+            "signatureSha256Hex": "7429b702cf33ad09a255da260f1591f355de5b0efc2003283b3507fb75042617",
+            "freshSignatureVerified": true
+          },
+          "cleanup": {
+            "calls": 3,
+            "resumesAfterEviction": true,
+            "exactCompletionReplay": true,
+            "changedReceiptRejected": true,
+            "sourceRegistrationCannotReopen": true,
+            "commandsUseJournalActivation": true,
+            "cleanedSnapshotUnavailable": true
+          },
+          "signatureSha256Hex": "98d4599d92949827935fcceacdcdb1aabfa8cbfe37aec2ff040ea2e52d2fd793",
+          "freshSignatureVerified": true,
+          "staleGenerationRejected": true,
+          "prepareReplayAfterEviction": true,
+          "preparationDoesNotRequireFutureInvalidationTime": true,
+          "firstReceiptPinsInvalidationTime": true,
+          "finalizeReplayAfterEviction": true,
+          "newTerminalIncludedInNextSnapshot": true,
+          "destinationPreparedBeforeSourceSettlement": true,
+          "initialRegistrationWriteBlockedDuringPreparation": true,
+          "historicalRegistrationReplayPreserved": true,
+          "incompleteAndOutOfOrderImportsRejected": true,
+          "finalDigestFailureRollsBackImportProgress": true,
+          "exactAcknowledgementsAfterEviction": true,
+          "transferResumesFromDestinationCursor": true,
+          "sourceCommandsUseAuthenticatedRouterTransport": true,
+          "sourceCommandsUsePrivateRuntimeTransport": true,
+          "sourceCommandsRequireDirectoryAuthorization": true,
+          "routerReceiptLostAcknowledgementRetries": true,
+          "deniedOrCorruptAuthorizationDoesNotReachRouter": true,
+          "exactCiphertextAndIndexesRestored": true,
+          "ownershipGeneration": 2,
+          "activationReplayPreservesLaterFence": true,
+          "lateKnownChunkPreservesRestoredRows": true
+        },
+        "recordCount": 1,
+        "segmentCount": 4,
+        "snapshotDigestHex": "888200892c7619863e184ce6e37a977c0f1e044ec8b8bb98a28e8ec0ff86dee6",
+        "captureCalls": 5,
+        "settlementRequired": true,
+        "boundedSegments": true,
+        "captureAndExportResumeAfterEviction": true,
+        "sourceReceiptLostReplyRecovered": true,
+        "activationReceiptLostReplyRecovered": true,
+        "transferUsesJournalAuthorizedRuntime": true,
+        "exactDigestReconstructed": true,
+        "changedMoveAndReceiptRejected": true,
+        "bothCurvesPreparedInSameDestinationBeforeSourceSettlement": true,
+        "sharedNamespaceGenerationRouting": true,
+        "bothPreparationReceiptsSurviveEviction": true,
+        "scope": "Worker registration transfer and fresh Ed25519 signing; excludes linked-device transfer and assembled relocation"
+      },
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node ./scripts/test-private-d1.mjs --do-pair-execution",
+      "registeredPublicKey": [
+        245,
+        151,
+        110,
+        172,
+        59,
+        199,
+        147,
+        49,
+        50,
+        193,
+        179,
+        64,
+        140,
+        147,
+        197,
+        208,
+        13,
+        163,
+        117,
+        247,
+        34,
+        110,
+        193,
+        87,
+        207,
+        80,
+        32,
+        9,
+        46,
+        85,
+        93,
+        210
+      ],
+      "outcomeSha256Hex": "54d2c71834ed5961faed32d1059fef5807b3053b769b6630c3081f7b70002dd2",
+      "aD1PairRows": 0,
+      "bPairLifecycle": "completed",
+      "bExecutionUnchangedOnReplay": true,
+      "aPairRevisionAfterConcurrentCalls": 4,
+      "replayAfterObjectEviction": true,
+      "exactReplayAfterBCompleted": true,
+      "stableOwnerDerivationAcrossRootVersions": true,
+      "crossTenantAndWalletReadsRejected": true,
+      "secondTenantRegistrationUsedSeparateWalletObject": true,
+      "mismatchedRootReceiptRejectedWithoutWrite": true
+    },
+    "admissionRaces": {
+      "kind": "tenant_root_admission_race_workers_e2e_v1",
+      "unusedBinding": {
+        "heldBefore": "deriver_a_prepare_pair",
+        "refreshStatus": 200,
+        "deriverAPreparationStatus": 503,
+        "deriverAPreparationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+        "registrationStatus": 200,
+        "registrationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+        "admissionsAfterRefusal": {
+          "deriverA": [],
+          "deriverB": [
+            1
+          ]
+        },
+        "freshRegistration": "succeeded",
+        "admissionsAfterFresh": {
+          "deriverA": [
+            2
+          ],
+          "deriverB": [
+            1,
+            2
+          ]
+        },
+        "statusesAfterFresh": {
+          "deriverA": [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          "deriverB": [
+            [
+              1,
+              "admitted"
+            ],
+            [
+              2,
+              "settled"
+            ]
+          ]
+        },
+        "deriverAEpochOneRetirement": [
+          200,
+          "retired_deleted"
+        ],
+        "deriverBEpochOneRetirement": [
+          503,
+          "LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+        ]
+      },
+      "deliveryGate": {
+        "fault": "deriver_b_unreachable_for_refresh_activation",
+        "refreshStatus": 500,
+        "deliveryAfterRefresh": {
+          "deriverA": "delivered",
+          "deriverB": "pending"
+        },
+        "registrationWhilePendingStatus": 503,
+        "admissionsWhilePending": {
+          "deriverA": [],
+          "deriverB": []
+        },
+        "registrationAfterReachable": "succeeded",
+        "deliveryAfter": {
+          "deriverA": "delivered",
+          "deriverB": "delivered"
+        },
+        "admissionsAfter": {
+          "deriverA": [
+            2
+          ],
+          "deriverB": [
+            2
+          ]
+        },
+        "statusesAfter": {
+          "deriverA": [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          "deriverB": [
+            [
+              2,
+              "settled"
+            ]
+          ]
+        }
+      }
+    },
+    "replayAfterErasure": {
+      "kind": "tenant_root_replay_after_erasure_workers_e2e_v1",
+      "build": "wallet_objects",
+      "registration": "succeeded on epoch 1",
+      "retired": [
+        [
+          "retired_deleted",
+          0
+        ],
+        [
+          "retired_deleted",
+          0
+        ]
+      ],
+      "epochOneShares": [
+        0,
+        0
+      ],
+      "routerReplay": [
+        200,
+        "original result"
+      ],
+      "deriverAExecuteReplay": [
+        200,
+        "stored response"
+      ],
+      "changedExecute": [
+        503,
+        "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+      ],
+      "admissionsAfter": [
+        [
+          [
+            1,
+            "settled"
+          ]
+        ],
+        [
+          [
+            1,
+            "settled"
+          ]
+        ]
+      ]
+    }
+  },
+  "hostedStatus": "passed; original staging versions restored; two-second target unmet",
+  "databaseDecision": {
+    "roundTripsPerBoundRootLoad": 2,
+    "roundTripsPerPair": 8,
+    "sqlStatementsPerPair": 20,
+    "reason": "The decrypted row supplies the role commitment and authenticated activation metadata. SQL admission cannot verify those fields before writing without additional persistence design."
+  },
+  "preparedMaterialReuse": "Deferred; no broad cache or additional invalidation system added",
+  "verification": {
+    "releaseWorkers": [
+      "router",
+      "deriver-a",
+      "deriver-b",
+      "signing-worker",
+      "tenant-root-control-plane"
+    ],
+    "bloatCheck": "passed",
+    "newResources": 0,
+    "deploymentsChanged": "A and B temporarily changed for comparison; exact original versions restored",
+    "disconnect": {
+      "kind": "yao_peer_disconnect_e2e_v1",
+      "interrupted": {
+        "connections": 1,
+        "aMessages": 1,
+        "bMessages": 2,
+        "disconnected": true
+      },
+      "bothRolesPersistedBurned": true,
+      "exactRetryDidNotRestartProtocol": true,
+      "independentWalletCompletedAfterDisconnect": true,
+      "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs"
+    }
+  },
+  "commands": [
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-pair-execution",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-pair-lost-reply",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-admission-settlement",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --admission-races",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --replay-after-erasure",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs"
+  ],
+  "hostedComparison": {
+    "candidateCommit": "2ee2b6960e04ebfcc67085eb33d741ca1b8e5282",
+    "method": "Three fresh NEAR-only wallets per arm; fixed browser assets and harness; only A and B deployments vary.",
+    "limitations": [
+      "Provider CPU and wall times describe whole invocations, not individual cryptographic operations.",
+      "Application clocks freeze during CPU work; application spans are not transport timers.",
+      "Small sequential samples do not establish a latency percentile or placement success rate.",
+      "D1 counts cover bound-root loads only; total Gateway D1 and backend Console calls are unavailable.",
+      "No diagnostic location fetches were added. Physical colocation is not proved.",
+      "Hosted per-operation CPU profiles and internal payload-byte counts are unavailable. A separate local sample is recorded below."
+    ],
+    "completed": {
+      "freshWallets": 12,
+      "verifiedSignatures": 84,
+      "allVersionsRestored": true
+    },
+    "releaseWorkers": {
+      "router": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-router-entrypoint",
+          "started_at_ms": 1791372885252
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "e0baee38df45c375003409bcf5447406a7cef40d5ccc95f38f41c31fc5bb99c0",
+          "index_bg.wasm": "e08c87775d62c979dd1a89cb61d9de92f1a9c23e00abcea40a60ae12ba19b499"
+        }
+      },
+      "deriver-a": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-a-entrypoint",
+          "started_at_ms": 1791372627778
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "e7a635fb86fed47cad1dff8d935b12516f2986462de40f86842172aad30ad451",
+          "index_bg.wasm": "3508858be54c4de9e402c136961312c1268db5d5588a8bdbeac3762b569a650c"
+        }
+      },
+      "deriver-b": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-b-entrypoint",
+          "started_at_ms": 1791372763515
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "09246be5ee8a454a446b42bec7851774951d4cfa3886d6341e5fd5b1d108b00f",
+          "index_bg.wasm": "a284c25e8e1996b7d6b6a377d6a99a2ce222fc66b810b65ae5c9cac4dc790a20"
+        }
+      },
+      "signing-worker": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-signing-worker-entrypoint",
+          "started_at_ms": 1791373023101
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "d87ab11a84eafbe0d2e970018801555c84fd196525273c4a2e7e60817b5dda42",
+          "index_bg.wasm": "b72b29107a6c3a32e1f9623845d23f638596e8d96fc724359bf8ecfd1db77705"
+        }
+      },
+      "tenant-root-control-plane": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": false,
+          "features": "strict-worker-tenant-root-control-plane-entrypoint",
+          "started_at_ms": 1791373168873
+        },
+        "files": {
+          "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+          "index.js": "a6d41332c2140b96da29800d9fbd227f4547291836a7ab012bd951e66462dcbb",
+          "index_bg.wasm": "7382e866e40b44b0c5c8f12954b0b7210305705ccfeefcc9786730699801fac8"
+        }
+      }
+    },
+    "harnessHashes": {
+      "tests/playwright.hosted-product.config.mjs": "0cdaf025e35a127760b80ee702fc041c8e695d16a1bbe955d5c7cb5aaac1957a",
+      "tests/e2e/hosted-product/candidate-assets.ts": "8dcfdc13816c9fac5f93c14f27dcdda9589f664d9eac56e7aae50ac1f7dad43b",
+      "tests/e2e/hosted-product/near-signing-latency.test.ts": "c80751f685599b0cbbc59f88c1e8852a7c2083b26212f2e6e7083f4de937ce93"
+    },
+    "arms": [
+      {
+        "name": "control-before",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 24273.386,
+            "minimumMs": 21318.676,
+            "maximumMs": 24405.591
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 9383.675,
+            "minimumMs": 8294.415,
+            "maximumMs": 9500.49
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 5808.488,
+            "minimumMs": 5648.828,
+            "maximumMs": 6768.385
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3044.933,
+            "minimumMs": 2264.114,
+            "maximumMs": 4566.378
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2764.882,
+            "minimumMs": 2043.715,
+            "maximumMs": 3726.035
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 6473.754,
+            "minimumMs": 5771.542,
+            "maximumMs": 6543.793
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 2883.67,
+            "minimumMs": 2352.36,
+            "maximumMs": 2929.285
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 3034.149,
+            "minimumMs": 2231.455,
+            "maximumMs": 3795.553
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 2218.8,
+            "minimumMs": 1468.44,
+            "maximumMs": 2879.76
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            14,
+            14,
+            15
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "name": "validation-only",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 21370.67,
+            "minimumMs": 19834.951,
+            "maximumMs": 21509.187
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 6986.13,
+            "minimumMs": 6699.325,
+            "maximumMs": 7674.49
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 5722.745,
+            "minimumMs": 5658.346,
+            "maximumMs": 6690.903
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3012.344,
+            "minimumMs": 2247.641,
+            "maximumMs": 3042.175
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2423.517,
+            "minimumMs": 1976.365,
+            "maximumMs": 2634.58
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 4966.119,
+            "minimumMs": 4963.888,
+            "maximumMs": 4988.411
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 1954.035,
+            "minimumMs": 1572.04,
+            "maximumMs": 1995.095
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 3031.892,
+            "minimumMs": 2243.158,
+            "maximumMs": 3048.203
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 2188.27,
+            "minimumMs": 1577.225,
+            "maximumMs": 2645.885
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            15,
+            14
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "name": "validation-and-local-b",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 19891.333,
+            "minimumMs": 18183.763,
+            "maximumMs": 21442.265
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 8106.425,
+            "minimumMs": 6166.12,
+            "maximumMs": 9236.165
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 4928.674,
+            "minimumMs": 4923.906,
+            "maximumMs": 5204.315
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3047.652,
+            "minimumMs": 3033.589,
+            "maximumMs": 3886.272
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2318.12,
+            "minimumMs": 2165.47,
+            "maximumMs": 3159.91
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 5021.313,
+            "minimumMs": 4998.382,
+            "maximumMs": 6044.242
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 1915.61,
+            "minimumMs": 1505.54,
+            "maximumMs": 1958.41
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 2272.228,
+            "minimumMs": 2235.552,
+            "maximumMs": 3049.433
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 2012.57,
+            "minimumMs": 1465.425,
+            "maximumMs": 2293.33
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            14,
+            14
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "name": "control-after",
+        "result": "passed",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "timings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 19706.471,
+            "minimumMs": 18229.209,
+            "maximumMs": 23608.309
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 6186.67,
+            "minimumMs": 6050.735,
+            "maximumMs": 9989.03
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 6423.263,
+            "minimumMs": 5005.861,
+            "maximumMs": 6719.659
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3022.68,
+            "minimumMs": 2262.464,
+            "maximumMs": 3050.393
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2372.75,
+            "minimumMs": 1975.545,
+            "maximumMs": 2704.19
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 5713.531,
+            "minimumMs": 4955.839,
+            "maximumMs": 5713.971
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 2397.74,
+            "minimumMs": 1883.66,
+            "maximumMs": 2502.625
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 2267.101,
+            "minimumMs": 2216.537,
+            "maximumMs": 3047.643
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 1889.325,
+            "minimumMs": 1621.055,
+            "maximumMs": 2487.085
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            15,
+            14
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        }
+      }
+    ],
+    "restored": true,
+    "privateEvidence": "seams-monorepo/docs/evidence/r155b-custody-phase6b-20261007.json"
+  },
+  "localCpuProfile": {
+    "method": "CDP Profiler, 100 microsecond requested sampling interval, local workerd, same release WASM hashes as hosted candidate. One successful fresh wallet after one interrupted wallet warmed the processes.",
+    "localRouterSetupSpanMs": 380,
+    "localAProtocolSpanMs": 155,
+    "limitations": [
+      "One diagnostic sample, with profiler overhead; not a controlled performance comparison.",
+      "Sample weights are elapsed microseconds between samples, not provider CPU billing.",
+      "Inlining and async boundaries prevent complete attribution to receipt verification, encryption, serialization, and protocol.",
+      "Visible stack categories overlap; do not add their totals.",
+      "Local hardware and local database behavior differ from hosted Workers."
+    ],
+    "roles": {
+      "deriver-a": {
+        "sha256": "2abc8a7212e555aeb6dfd10d1050c8efef0e383321baf9b54a972d062bb5bd62",
+        "profileDurationMs": 399.175,
+        "samples": 1211,
+        "visibleStackSampleWeightsMs": {
+          "visibleSignatureVerification": 9.886,
+          "visibleEncryptionAndDecryption": 4.844,
+          "visibleJsonSerializationAndParsing": 0.766,
+          "visibleYaoProtocol": 128.474
+        },
+        "largestSelfSampleWeights": [
+          {
+            "function": "<ed25519_yao::passive::role_protocol::benchmark::Activation128KiBDeriverA as router_ab_ed25519_yao::duplex::FixedYaoRole>::handle",
+            "sampleWeightMs": 61.861
+          },
+          {
+            "function": "js_sys::futures::future_to_promise::<core::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+            "sampleWeightMs": 54.249
+          },
+          {
+            "function": "(program)",
+            "sampleWeightMs": 31.112
+          },
+          {
+            "function": "<&curve25519_dalek::backend::serial::u32::field::FieldElement2625 as core::ops::arith::Mul>::mul",
+            "sampleWeightMs": 20.74
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::u32::field::FieldElement2625>::square_inner",
+            "sampleWeightMs": 18.812
+          },
+          {
+            "function": "router_ab_ed25519_yao::duplex::next_event::<router_ab_cloudflare::ed25519_yao_websocket::CloudflareEd25519YaoWebSocketTransportV1>::{closure#0}",
+            "sampleWeightMs": 17.971
+          },
+          {
+            "function": "sha2::sha256::compress256",
+            "sampleWeightMs": 14.869
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::curve_models::ProjectivePoint>::double",
+            "sampleWeightMs": 11.957
+          },
+          {
+            "function": "aes::soft::fixslice::sub_bytes",
+            "sampleWeightMs": 9.691
+          },
+          {
+            "function": "<ed25519_yao::passive::WireLabel as zeroize::Zeroize>::zeroize",
+            "sampleWeightMs": 7.255
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::u32::field::FieldElement2625>::pow2k",
+            "sampleWeightMs": 6.899
+          },
+          {
+            "function": "aes::soft::fixslice::aes128_encrypt",
+            "sampleWeightMs": 6.688
+          },
+          {
+            "function": "(idle)",
+            "sampleWeightMs": 6.649
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::curve_models::ProjectiveNielsPoint as subtle::ConditionallySelectable>::conditional_assign",
+            "sampleWeightMs": 5.737
+          },
+          {
+            "function": "ed25519_yao::passive::prepare_hash_block",
+            "sampleWeightMs": 5.305
+          }
+        ]
+      },
+      "deriver-b": {
+        "sha256": "9443a4dcdd48b7f16c0b150840d8a6fec683ab5ed6975c8b14522415b2037e3e",
+        "profileDurationMs": 413.774,
+        "samples": 1094,
+        "visibleStackSampleWeightsMs": {
+          "visibleSignatureVerification": 2.8,
+          "visibleEncryptionAndDecryption": 5.753,
+          "visibleJsonSerializationAndParsing": 1.792,
+          "visibleYaoProtocol": 66.032
+        },
+        "largestSelfSampleWeights": [
+          {
+            "function": "(program)",
+            "sampleWeightMs": 75.397
+          },
+          {
+            "function": "wasm-to-js",
+            "sampleWeightMs": 69.533
+          },
+          {
+            "function": "<&curve25519_dalek::backend::serial::u32::field::FieldElement2625 as core::ops::arith::Mul>::mul",
+            "sampleWeightMs": 27.572
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::u32::field::FieldElement2625>::square_inner",
+            "sampleWeightMs": 19.125
+          },
+          {
+            "function": "router_ab_ed25519_yao::duplex::next_event::<router_ab_cloudflare::ed25519_yao_websocket::CloudflareEd25519YaoWebSocketTransportV1>::{closure#0}",
+            "sampleWeightMs": 15.985
+          },
+          {
+            "function": "sha2::sha256::compress256",
+            "sampleWeightMs": 14.307
+          },
+          {
+            "function": "<alloc::string::String as core::fmt::Write>::write_str[8]",
+            "sampleWeightMs": 9.072
+          },
+          {
+            "function": "<ed25519_yao::passive::WireLabel as zeroize::Zeroize>::zeroize",
+            "sampleWeightMs": 6.637
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::curve_models::ProjectiveNielsPoint as subtle::ConditionallySelectable>::conditional_assign",
+            "sampleWeightMs": 6.611
+          },
+          {
+            "function": "(idle)",
+            "sampleWeightMs": 6.357
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::u32::field::FieldElement2625>::pow2k",
+            "sampleWeightMs": 6.223
+          },
+          {
+            "function": "aes::soft::fixslice::sub_bytes",
+            "sampleWeightMs": 5.514
+          },
+          {
+            "function": "aes::soft::fixslice::aes128_encrypt",
+            "sampleWeightMs": 5.153
+          },
+          {
+            "function": "<curve25519_dalek::backend::serial::curve_models::ProjectivePoint>::double",
+            "sampleWeightMs": 4.217
+          },
+          {
+            "function": "<ed25519_yao::passive::stream_runtime::EvaluatorMachine<ed25519_yao::passive::stream::ExportStream, ed25519_yao::passive::stream::Chunk128KiB>>::process_non_and_gates",
+            "sampleWeightMs": 3.235
+          }
+        ]
+      }
+    }
+  }
+}

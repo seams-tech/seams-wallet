@@ -65,6 +65,17 @@ const joinedWithCheckpoint = { ...joined, checkpointJson: prepared.checkpointJso
 const invalidJoined: PendingWalletRegistrationCommitV1 = joinedWithCheckpoint;
 void [invalidPlanned, invalidMixed, invalidPrepared, invalidJoined];
 
+type PendingActivation = Extract<
+  PendingWalletRegistrationCommitV1,
+  { readonly operation: 'registration_activate' }
+>;
+// @ts-expect-error NEAR-only registration has one finalization checkpoint.
+const nearOnlyActivation: PendingActivation['signerPlanKind'] = 'near_ed25519';
+const changedActivationPlan = { ...mixed, signerPlanKind: 'near_ed25519' as const };
+// @ts-expect-error A broad spread cannot restore the removed NEAR activation branch.
+const invalidNearActivation: PendingWalletRegistrationCommitV1 = changedActivationPlan;
+void [nearOnlyActivation, invalidNearActivation];
+
 import type {
   IssuedWalletSessionAuthorizationV2,
   LiveWalletSessionAuthorizationProjectionV2,
@@ -80,3 +91,43 @@ const spreadRegistrationAllowance: IssuedWalletSessionAuthorizationV2 = {
 };
 void reusableRegistrationAllowance;
 void spreadRegistrationAllowance;
+
+import type { PendingEcdsaRegistrationUnlockMaterial } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
+import type { LoginAndCreateSessionResult } from '../../packages/wallet/src/core/types/seams';
+
+declare const pendingEmailUnlock: Extract<
+  PendingEcdsaRegistrationUnlockMaterial,
+  { kind: 'email_otp' }
+>;
+declare const pendingPasskeyUnlock: Extract<
+  PendingEcdsaRegistrationUnlockMaterial,
+  { kind: 'passkey' }
+>;
+
+// @ts-expect-error A passkey continuation requires its verified credential and custody envelope.
+const missingPasskeyProof: PendingEcdsaRegistrationUnlockMaterial = {
+  ...pendingEmailUnlock,
+  kind: 'passkey',
+};
+// @ts-expect-error An email result cannot inherit passkey custody through a spread.
+const mixedPendingProof: PendingEcdsaRegistrationUnlockMaterial = {
+  ...pendingPasskeyUnlock,
+  kind: 'email_otp',
+};
+declare const publicUnlockResult: LoginAndCreateSessionResult;
+// @ts-expect-error Internal continuation credentials never cross the public result boundary.
+publicUnlockResult.credential;
+void [missingPasskeyProof, mixedPendingProof];
+
+import type { UnlockSessionPolicy } from '../../packages/wallet/src/SeamsWeb/operations/auth/unlockSessionPolicy';
+import type { PendingEcdsaRegistrationUnlockInput } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
+
+declare const disabledSessionPolicy: Extract<UnlockSessionPolicy, { kind: 'disabled' }>;
+declare const pendingUnlockInput: PendingEcdsaRegistrationUnlockInput;
+const withDisabledPolicy = { ...pendingUnlockInput, sessionPolicy: disabledSessionPolicy };
+// @ts-expect-error Pending activation recovery cannot mint an enabled session from disabled policy.
+const invalidRecoveryPolicy: PendingEcdsaRegistrationUnlockInput = withDisabledPolicy;
+const { sessionPolicy: removedPolicy, ...withoutPolicy } = pendingUnlockInput;
+// @ts-expect-error Recovery policy must come from the unlock boundary.
+const missingRecoveryPolicy: PendingEcdsaRegistrationUnlockInput = withoutPolicy;
+void [invalidRecoveryPolicy, missingRecoveryPolicy, removedPolicy];

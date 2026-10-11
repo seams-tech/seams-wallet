@@ -1,20 +1,16 @@
+import type { WalletHostSessionObserver } from './sessionObserver';
 import { MinimalNearClient } from '@/core/rpcClients/near/NearClient';
-import { SeamsWeb } from '@/SeamsWeb';
-import type { SeamsWebInternalOptions } from '@/SeamsWeb/SeamsWeb';
+import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import { __setWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
-import type { AppearanceConfigInput, SeamsConfigsInput, ThemeMode } from '@/core/types/seams';
-import type { PMSetConfigPayload } from '../shared/messages';
+import type { AppearanceConfig } from '@/core/types/seams';
 import type { SdkLifecycleEvent, SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletSessionId } from '@/core/types/sdkSentEvents';
 import type { WalletId } from '@shared/utils/domainIds';
-import { isString } from '@shared/utils/validation';
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
-import { cloneChainConfig, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
-import {
-  assertWalletHostConfigsNoNestedIframeWallet,
-  sanitizeWalletHostConfigs,
-} from './config-guards';
+import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
+import { walletHostExecutionFingerprint } from '../shared/configuration';
+import type { ConfiguredWalletHost, WalletHostConfigurationState } from '../shared/configuration';
 import {
   createCspStylesheetManager,
   getDefaultCspNonce,
@@ -44,63 +40,6 @@ function getThemeOverrideStyleManager(): ReturnType<typeof createCspStylesheetMa
     });
   }
   return themeOverrideStyleManager;
-}
-
-function toStringRecord(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object') return {};
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v === 'string') out[k] = v;
-  }
-  return out;
-}
-
-function coerceThemeMode(value: unknown): ThemeMode | undefined {
-  return value === 'light' || value === 'dark' ? value : undefined;
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
-function normalizeForStableSerialize(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalizeForStableSerialize(entry));
-  }
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const normalized: Record<string, unknown> = {};
-    for (const key of Object.keys(record).sort()) {
-      normalized[key] = normalizeForStableSerialize(record[key]);
-    }
-    return normalized;
-  }
-  return value;
-}
-
-function stableSerialize(value: unknown): string {
-  try {
-    return JSON.stringify(normalizeForStableSerialize(value));
-  } catch {
-    return '';
-  }
-}
-
-function buildWalletRuntimeResetFingerprint(config: SeamsConfigsInput | null | undefined): string {
-  return stableSerialize({
-    chains: config?.chains,
-    relayerAccount: config?.relayerAccount,
-    relayer: config?.relayer,
-    registration: config?.registration,
-    signingSessionDefaults: config?.signingSessionDefaults,
-    signingSessionPersistenceMode: config?.signingSessionPersistenceMode,
-    routerAb: config?.routerAb,
-    routerAbEcdsaDerivationPresignaturePool: config?.routerAbEcdsaDerivationPresignaturePool,
-    provisioningDefaults: config?.provisioningDefaults,
-    authenticatorOptions: config?.authenticatorOptions,
-    iframeWallet: config?.iframeWallet,
-  });
 }
 
 function sanitizeTokenName(name: string): string | null {
@@ -134,85 +73,16 @@ function serializeTokenOverrides(
   return lines;
 }
 
-function appearanceMode(appearance: unknown): ThemeMode | undefined {
-  const record = objectRecord(appearance);
-  if (!record) return undefined;
-  const theme = record.theme;
-  const legacyTheme = coerceThemeMode(theme);
-  if (legacyTheme) return legacyTheme;
-  return coerceThemeMode(objectRecord(theme)?.mode);
-}
-
-function appearanceThemeId(appearance: unknown, fallback: string): string {
-  const theme = objectRecord(objectRecord(appearance)?.theme);
-  const rawId = typeof theme?.id === 'string' ? theme.id.trim() : '';
-  return rawId || fallback;
-}
-
-function legacyAppearanceColors(appearance: unknown, mode: ThemeMode): Record<string, string> {
-  const tokens = objectRecord(objectRecord(appearance)?.tokens);
-  return toStringRecord(objectRecord(objectRecord(tokens?.[mode])?.colors));
-}
-
-function objectAppearanceColors(appearance: unknown, mode: ThemeMode): Record<string, string> {
-  const theme = objectRecord(objectRecord(appearance)?.theme);
-  if (coerceThemeMode(theme?.mode) !== mode) return {};
-  return toStringRecord(theme?.colors);
-}
-
-function appearanceColors(appearance: unknown, mode: ThemeMode): Record<string, string> {
-  return {
-    ...legacyAppearanceColors(appearance, mode),
-    ...objectAppearanceColors(appearance, mode),
-  };
-}
-
-function appearanceShape(appearance: unknown): Record<string, string> {
-  const theme = objectRecord(objectRecord(appearance)?.theme);
-  return toStringRecord(theme?.shape);
-}
-
-function normalizeWalletHostAppearance(args: {
-  previous?: AppearanceConfigInput;
-  incoming?: AppearanceConfigInput;
-}): AppearanceConfigInput | undefined {
-  if (args.incoming === undefined) return args.previous;
-  const mode = appearanceMode(args.incoming) ?? appearanceMode(args.previous);
-  if (!mode) return args.previous;
-  const previousId = appearanceThemeId(args.previous, 'default');
-  const id = appearanceThemeId(args.incoming, previousId);
-  /* A different theme id is a theme switch: replace colors/shape wholesale so
-     keys the new theme doesn't define can't leak from the old one. */
-  const isThemeSwitch = id !== previousId;
-  const colors = {
-    ...(isThemeSwitch ? {} : appearanceColors(args.previous, mode)),
-    ...appearanceColors(args.incoming, mode),
-  };
-  const shape = {
-    ...(isThemeSwitch ? {} : appearanceShape(args.previous)),
-    ...appearanceShape(args.incoming),
-  };
-  return {
-    theme: {
-      id,
-      mode,
-      colors,
-      ...(Object.keys(shape).length > 0 ? { shape } : {}),
-    },
-    palette: 'default',
-  };
-}
-
-function upsertThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
-  const mode = appearanceMode(appearance);
-  const colors = mode ? appearanceColors(appearance, mode) : {};
+function upsertThemeOverrideStyle(appearance: AppearanceConfig): void {
+  const mode = appearance.theme.mode;
+  const colors = appearance.theme.colors;
   const lines = [
     ...serializeTokenOverrides(colors, 'colors'),
-    ...serializeTokenOverrides(appearanceShape(appearance), 'shape'),
+    ...serializeTokenOverrides(appearance.theme.shape ?? {}, 'shape'),
   ];
   const cssBlocks: string[] = [];
 
-  if (mode && lines.length > 0) {
+  if (lines.length > 0) {
     const selector = mode === 'light' ? SEAMS_THEME_LIGHT_SELECTOR : SEAMS_THEME_DARK_SELECTOR;
     cssBlocks.push(`${selector} {\n${lines.join('\n')}\n}`);
   }
@@ -228,11 +98,13 @@ function upsertThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
 export interface HostContext {
   parentOrigin: string | null;
   port: MessagePort | null;
-  walletConfigs: SeamsConfigsInput | null;
+  configuration: WalletHostConfigurationState;
+  preferencesRevision: number;
+  sessionObserver: WalletHostSessionObserver | null;
   nearClient: MinimalNearClient | null;
-  seamsWeb: SeamsWeb | null;
+  walletRuntime: WalletHostRuntime | null;
   prefsUnsubscribe?: (() => void) | null;
-  lifecycleSource: SeamsWeb | null;
+  lifecycleSource: WalletHostRuntime | null;
   lifecycleUnsubscribe: (() => void) | null;
   lifecycleListener: SdkLifecycleEventListener | null;
   expiredSessionsByWallet: Map<WalletId, Set<WalletSessionId>>;
@@ -242,9 +114,11 @@ export function createHostContext(): HostContext {
   return {
     parentOrigin: null,
     port: null,
-    walletConfigs: null,
+    configuration: { kind: 'unconfigured' },
+    preferencesRevision: 0,
+    sessionObserver: null,
     nearClient: null,
-    seamsWeb: null,
+    walletRuntime: null,
     prefsUnsubscribe: null,
     lifecycleSource: null,
     lifecycleUnsubscribe: null,
@@ -254,37 +128,26 @@ export function createHostContext(): HostContext {
   };
 }
 
-function resolveWalletHostInternalOptionsV1(): Extract<
-  SeamsWebInternalOptions,
-  { readonly kind: 'wallet_host' }
-> {
-  return { kind: 'wallet_host' };
-}
-
-export function ensureSeamsWeb(ctx: HostContext): SeamsWeb {
-  const { walletConfigs } = ctx;
-  if (!walletConfigs) {
+export function ensureWalletRuntime(ctx: HostContext): WalletHostRuntime {
+  const { configuration } = ctx;
+  if (configuration.kind === 'unconfigured') {
     throw new Error('Wallet service not configured. Call PM_SET_CONFIG first.');
   }
-  const internalOptions = resolveWalletHostInternalOptionsV1();
-  const nearRpcUrl = resolvePrimaryNearRpcUrl(walletConfigs.chains || []);
+  const nearRpcUrl = resolvePrimaryNearRpcUrl(configuration.config.network.chains);
   if (!ctx.nearClient) {
     ctx.nearClient = new MinimalNearClient(nearRpcUrl);
   }
-  if (!ctx.seamsWeb) {
-    const cfg = sanitizeWalletHostConfigs(walletConfigs);
-    assertWalletHostConfigsNoNestedIframeWallet(cfg);
+  if (!ctx.walletRuntime) {
     __setWalletIframeHostMode(true);
-    ctx.seamsWeb = new SeamsWeb(cfg, ctx.nearClient, internalOptions);
-    void ctx.seamsWeb.prewarm({ workers: true }).catch(() => {});
+    ctx.walletRuntime = new WalletHostRuntime(configuration.config, ctx.nearClient);
     updateThemeBridge(ctx);
   }
-  return ctx.seamsWeb;
+  return ctx.walletRuntime;
 }
 
 function updateThemeBridge(ctx: HostContext): void {
   try {
-    const pm = ctx.seamsWeb;
+    const pm = ctx.walletRuntime;
     if (!pm) return;
     const theme = pm.theme;
     if (theme === 'light' || theme === 'dark') {
@@ -293,114 +156,65 @@ function updateThemeBridge(ctx: HostContext): void {
   } catch {}
 }
 
-export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload): void {
-  const prev = ctx.walletConfigs || {};
-  const prevRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
-  const nextSigningSessionPersistenceMode =
-    payload?.signingSessionPersistenceMode ?? prev.signingSessionPersistenceMode;
-  const nextChains = Array.isArray(payload?.chains)
-    ? payload.chains.map(cloneChainConfig)
-    : Array.isArray(prev.chains)
-      ? prev.chains.map(cloneChainConfig)
-      : [];
-  const nextAppearance = normalizeWalletHostAppearance({
-    previous: prev.appearance,
-    incoming: payload?.appearance,
-  });
-  const nextTheme = appearanceMode(nextAppearance);
-
-  const base = {
-    chains: nextChains,
-    relayerAccount: payload?.relayerAccount ?? prev.relayerAccount ?? '',
-    signingSessionDefaults: payload?.signingSessionDefaults ?? prev.signingSessionDefaults,
-    signingSessionPersistenceMode: nextSigningSessionPersistenceMode,
-    routerAb: payload?.routerAb ?? prev.routerAb,
-    routerAbEcdsaDerivationPresignaturePool:
-      payload?.routerAbEcdsaDerivationPresignaturePool ??
-      prev.routerAbEcdsaDerivationPresignaturePool,
-    provisioningDefaults: payload?.provisioningDefaults ?? prev.provisioningDefaults,
-    relayer:
-      payload?.relayer || prev.relayer
-        ? {
-            ...(prev.relayer || {}),
-            ...(payload?.relayer || {}),
-          }
-        : undefined,
-    registration: payload?.registration === undefined ? prev.registration : payload.registration,
-    authenticatorOptions: payload?.authenticatorOptions ?? prev.authenticatorOptions,
-    iframeWallet: {
-      ...(prev.iframeWallet || {}),
-      ...(payload?.iframeWallet || {}),
-    },
-    appearance: nextAppearance,
-  };
-  ctx.walletConfigs = sanitizeWalletHostConfigs(base);
-  const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
+export function applyWalletConfig(ctx: HostContext, configuration: ConfiguredWalletHost): void {
+  const previous = ctx.configuration.kind === 'configured' ? ctx.configuration.config : null;
+  const prevRuntimeResetFingerprint = walletHostExecutionFingerprint(previous);
+  const nextRuntimeResetFingerprint = walletHostExecutionFingerprint(configuration.config);
+  ctx.configuration = configuration;
+  const nextAppearance = configuration.config.ui.appearance;
+  const nextTheme = nextAppearance.theme.mode;
 
   // Keep wallet-host theme and dynamic appearance tokens in sync with app config.
   try {
-    if (nextTheme) {
-      document.documentElement.setAttribute('data-seams-theme', nextTheme);
-    }
+    document.documentElement.setAttribute('data-seams-theme', nextTheme);
     upsertThemeOverrideStyle(nextAppearance);
   } catch {}
 
-  if (
-    ctx.seamsWeb &&
-    nextAppearance &&
-    nextRuntimeResetFingerprint === prevRuntimeResetFingerprint
-  ) {
+  if (ctx.walletRuntime && nextRuntimeResetFingerprint === prevRuntimeResetFingerprint) {
     try {
-      ctx.seamsWeb.setAppearance(nextAppearance);
+      ctx.walletRuntime.setAppearance(nextAppearance);
     } catch {}
   }
 
-  // Configure the base URL used by SDK-hosted UI assets.
-  try {
-    const assetsBaseUrl = payload?.assetsBaseUrl;
-    const safeOrigin = window.location.origin || window.location.href;
-    const defaultRoot = (() => {
-      try {
-        const base = new URL('/sdk/', safeOrigin).toString();
-        return base.endsWith('/') ? base : base + '/';
-      } catch {
-        return '/sdk/';
-      }
-    })();
-    let resolvedBase = defaultRoot;
-    const assetsBaseUrlCandidate = isString(assetsBaseUrl) ? assetsBaseUrl : undefined;
-    if (assetsBaseUrlCandidate !== undefined) {
-      try {
-        const u = new URL(assetsBaseUrlCandidate, safeOrigin);
-        if (u.origin === safeOrigin) {
-          const norm = u.toString().endsWith('/') ? u.toString() : u.toString() + '/';
-          resolvedBase = norm;
-        }
-      } catch {}
-    }
-    setEmbeddedBase(resolvedBase);
-  } catch {}
+  setEmbeddedBase(resolveHostAssetBase(configuration.assetsBaseUrl));
 
   // Reset runtime instances only when signing/runtime config changes. Cosmetic config updates
   // (theme, tokens, and asset base) must not drop warm signing session state.
   if (nextRuntimeResetFingerprint !== prevRuntimeResetFingerprint) {
-    ctx.seamsWeb?.dispose();
+    const previousRuntime = ctx.walletRuntime;
+    ctx.walletRuntime = null;
+    ctx.sessionObserver?.dispose();
+    ctx.sessionObserver = null;
+    ctx.lifecycleSource = null;
+    ctx.surfaceMeasurementBinding = { kind: 'disabled' };
     ctx.prefsUnsubscribe?.();
     ctx.lifecycleUnsubscribe?.();
     ctx.prefsUnsubscribe = null;
-    ctx.lifecycleSource = null;
     ctx.lifecycleUnsubscribe = null;
     ctx.nearClient = null;
-    ctx.seamsWeb = null;
+    previousRuntime?.dispose();
   }
-
 }
 
-export function ensureWalletHostLifecycleSubscription(ctx: HostContext, pm: SeamsWeb): void {
+function resolveHostAssetBase(value: string): string {
+  const origin = window.location.origin;
+  try {
+    const url = new URL(value, origin);
+    if (url.origin === origin) return url.href.endsWith('/') ? url.href : `${url.href}/`;
+  } catch {}
+  return new URL('/sdk/', origin).href;
+}
+
+export function ensureWalletHostLifecycleSubscription(
+  ctx: HostContext,
+  pm: WalletHostRuntime,
+): void {
   if (ctx.lifecycleSource === pm) return;
   ctx.lifecycleUnsubscribe?.();
   ctx.lifecycleSource = pm;
-  ctx.lifecycleUnsubscribe = pm.onSdkLifecycleEvent(handleWalletHostLifecycleEvent.bind(null, ctx));
+  ctx.lifecycleUnsubscribe = pm.onSdkLifecycleEvent(
+    handleWalletHostLifecycleEvent.bind(null, ctx, pm),
+  );
 }
 
 export function setWalletHostLifecycleListener(
@@ -408,14 +222,19 @@ export function setWalletHostLifecycleListener(
   listener: SdkLifecycleEventListener,
 ): void {
   ctx.lifecycleListener = listener;
-  if (ctx.seamsWeb) ensureWalletHostLifecycleSubscription(ctx, ctx.seamsWeb);
+  if (ctx.walletRuntime) ensureWalletHostLifecycleSubscription(ctx, ctx.walletRuntime);
 }
 
 function assertNeverSdkLifecycleEvent(value: never): never {
   throw new Error(`Unhandled SDK lifecycle event: ${String(value)}`);
 }
 
-function handleWalletHostLifecycleEvent(ctx: HostContext, event: SdkLifecycleEvent): void {
+function handleWalletHostLifecycleEvent(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+  event: SdkLifecycleEvent,
+): void {
+  if (ctx.lifecycleSource !== runtime) return;
   switch (event.event) {
     case 'signing_session.expired': {
       const sessions = ctx.expiredSessionsByWallet.get(event.walletId);

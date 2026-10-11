@@ -1,0 +1,223 @@
+{
+  "baseline": [
+    {
+      "case": "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium",
+      "requestCounts": {
+        "/wallet/session/status": 18,
+        "/wallet/execution-lane/owner": 4,
+        "/router-ab/ed25519/sign/prepare": 4,
+        "/router-ab/ed25519/sign": 2
+      },
+      "signingIntervals": [
+        {
+          "statusCalls": 5,
+          "postPaths": [
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet-session/seal/remove-server-seal",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium",
+      "requestCounts": {
+        "/wallet/session/status": 17,
+        "/wallet/execution-lane/owner": 4,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "signingIntervals": [
+        {
+          "statusCalls": 2,
+          "postPaths": [
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "e2e-intended-behaviours-pa-a03c6-mediately-and-after-refresh-chromium",
+      "requestCounts": {
+        "/wallet/session/status": 19,
+        "/wallet/execution-lane/owner": 5,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "signingIntervals": [
+        {
+          "statusCalls": 2,
+          "postPaths": [
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        },
+        {
+          "statusCalls": 2,
+          "postPaths": [
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        },
+        {
+          "statusCalls": 5,
+          "postPaths": [
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet-session/seal/remove-server-seal",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        }
+      ]
+    }
+  ],
+  "candidate": [
+    {
+      "case": "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium",
+      "requestCounts": {
+        "/wallet/session/status": 15,
+        "/wallet/execution-lane/owner": 4,
+        "/router-ab/ed25519/sign/prepare": 4,
+        "/router-ab/ed25519/sign": 2
+      },
+      "signingIntervals": [
+        {
+          "statusCalls": 4,
+          "postPaths": [
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/wallet/session/status",
+            "/wallet/session/status",
+            "/wallet-session/seal/remove-server-seal",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium",
+      "requestCounts": {
+        "/wallet/session/status": 14,
+        "/wallet/execution-lane/owner": 4,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "signingIntervals": [
+        {
+          "statusCalls": 1,
+          "postPaths": [
+            "/wallet/execution-lane/owner",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "e2e-intended-behaviours-pa-a03c6-mediately-and-after-refresh-chromium",
+      "requestCounts": {
+        "/wallet/session/status": 16,
+        "/wallet/execution-lane/owner": 5,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "signingIntervals": [
+        {
+          "statusCalls": 1,
+          "postPaths": [
+            "/wallet/execution-lane/owner",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        },
+        {
+          "statusCalls": 1,
+          "postPaths": [
+            "/wallet/execution-lane/owner",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/",
+            "/",
+            "/",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        },
+        {
+          "statusCalls": 4,
+          "postPaths": [
+            "/wallet/session/status",
+            "/",
+            "/",
+            "/",
+            "/wallet/session/status",
+            "/",
+            "/wallet/session/status",
+            "/wallet-session/seal/remove-server-seal",
+            "/wallet/session/status",
+            "/wallet/execution-lane/owner",
+            "/router-ab/ed25519/sign/prepare",
+            "/router-ab/ed25519/sign"
+          ]
+        }
+      ]
+    }
+  ],
+  "scope": "Local production SDK E2E request counts. Baseline is the prior near-signing-observation candidate. No hosted latency inference.",
+  "contracts": "Three existing contracts passed: immediate/reload signing, NEAR messages/reload, changed prepare authority rejected before finalize followed by valid signing.",
+  "disposition": "REJECTED and source reverted: composed budget step-up fails twice at owner-lane preflight with HTTP 503 wallet_session_unavailable. Previous frozen SDK passes the same case. Lower counts are not shipped.",
+  "regionalAcceptance": {
+    "linkedDeviceRevocation": "passed",
+    "candidateBudgetStepUp": "failed twice",
+    "baselineBudgetStepUp": "passed"
+  }
+}

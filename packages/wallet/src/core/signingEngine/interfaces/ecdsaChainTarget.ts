@@ -164,7 +164,7 @@ export function thresholdEcdsaChainTargetFromChainFamily(args: {
  * `rpcUrl` and `explorerUrl` are accepted so a full `SeamsChainConfig` stays
  * assignable, but they are ignored: the RPC endpoint is resolved at execution
  * time from `configs.network.chains` by target key (`resolveEvmFamilyRpcUrl`).
- * Prefer `seams.chainTarget(selector)`, which can only name a configured chain.
+ * Prefer `seams.config.chainTarget(selector)`, which can only name a configured chain.
  */
 export function thresholdEcdsaChainTargetFromConfig(
   chain: ThresholdEcdsaChainTargetConfigInput,

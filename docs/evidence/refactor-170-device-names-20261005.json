@@ -1,0 +1,83 @@
+{
+  "baseCommit": "372a81498a0e4bed66bb2c46f96c1e53e5a8f047",
+  "scope": "Public device method names and React bindings; remove redundant React wrappers.",
+  "publicMethods": [
+    "devices.startLinking",
+    "devices.approveLinking",
+    "devices.cancelLinking",
+    "devices.list",
+    "devices.remove"
+  ],
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/publicApi/devices.ts": "31d5fd9e2deb7229dfdc31b3f40fd82816f583e1be62f8c5c2739b93e4435c58",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "fd5950c5d4897413c088e380ef42ba5bf6357cdac941bd413ec1925bc790dae6",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "e43ad73417768496b4f3711afe661fa297c44673fb2a398981fa8c025bc40e70",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/deviceCommands.ts": "7af4caf15e6147121bcd7defdba6925be108aba6812fc5bffc950fa986a05057",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/controller.ts": "4b1e03defcd8658b75da81a6c1ead1e9288b153d0f7af9f1979441dac0839f47",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createDeviceDomain.ts": "c39522f60813b522d7d9fb202eec6647bde6fd5c8f745bc2541cb5f2e306019f",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/deviceLink.ts": "4b6251418360f942af0390a1dfa2c865e76174fb86d86f18f60e9f17fc8acb43",
+    "packages/wallet/src/react/components/AccountMenuButton/AuthenticationMethodsModal.tsx": "5fc8133651e094b4880af6881c46fd6499bd4466f322a6ea513a202dbb670559",
+    "packages/wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.tsx": "2c92e576ff88b53b62087af8866fb7c98a0c7ff0f0aa24bb7ca78d3b0d8d2114",
+    "packages/wallet/src/react/components/QRCodeScanner.tsx": "f4dea7f92920874b8909541423b20cfc1339e4c60e640758a9fc06586019d944",
+    "packages/wallet/src/react/components/ShowQRCode.tsx": "a1c661c9a4b87e2f7ac86a0f9fc5d24578dcc654025fdcc0776953e4283ae6a3",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "a166d11497280ab05fb234780b26b3c830ceffd4b73a3a2a5477a10bb4ba662f",
+    "packages/wallet/src/react/hooks/useDeviceLinking.ts": "067a241642abaab493312e414770a6432588ba680f4ba1e96c4a8aa172da1ba7",
+    "packages/wallet/src/react/hooks/useWalletDevices.ts": "4d23c9ab2770c94d9dff22ffe708c08396a888461ea9f3acf18189d2408ae6a6",
+    "packages/wallet/src/react/types.ts": "7f8b6ad9e7db583af047bee030cd8184bb424ce103e474321cde898cdb3027df",
+    "tests/intended-app/src/page.tsx": "ce3ca77e108f8405d9a3500a7e72e2671d43ba8cb94a96f99d0bb6330e8d4b2b",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "04f9132c610ade000fc671d6b4b1c1eb28814a01296ab2505ab4db3677e42052",
+    "tests/unit/accountMenuModalResponsiveness.unit.test.ts": "f54bd63763756601990773bb22cd4c66b764475de1e82f9a59d8ebdd1c642fa9"
+  },
+  "productionLines": {
+    "added": 65,
+    "removed": 76,
+    "net": -11,
+    "scope": "SDK production source excluding type fixtures"
+  },
+  "preserved": [
+    "Iframe protocol 4.0.0 and wire discriminators",
+    "QR validation and proof-bound device admission",
+    "Existing pagination and removal result semantics",
+    "Timestamp-bound removal proof inputs"
+  ],
+  "limitations": [
+    "Full device cancellation/expiry and cross-browser acceptance remain open.",
+    "Email proof-flow internalization remains open; this change does not move proof orchestration.",
+    "No new whole-wallet transfer or first-sign latency claim.",
+    "Internal router and management-port names remain descriptive and are not public compatibility aliases."
+  ],
+  "verification": {
+    "production": {
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts --grep 'a second device links with a passkey|a linked device links a third device on an ECDSA-only wallet|a linked device revoked with an email code'",
+      "cases": [
+        "[wallet-intended] 1/3 e2e/intended-behaviours/passkey.device-linking.contract.test.ts:115 a second device links with a passkey, signs NEAR and Tempo, and is revoked",
+        "[wallet-intended] 2/3 e2e/intended-behaviours/passkey.device-linking.contract.test.ts:168 a linked device links a third device on an ECDSA-only wallet, which signs Tempo",
+        "[wallet-intended] 3/3 e2e/intended-behaviours/passkey.device-linking.contract.test.ts:306 a linked device revoked with an email code across a refused commit is answered from what committed"
+      ],
+      "passes": [
+        "1 passed (34.4s)",
+        "1 passed (37.5s)",
+        "1 passed (37.6s)"
+      ],
+      "exitCode": 0
+    },
+    "browser": {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/router.cancellationProgress.test.ts --project=chromium --output=../.artifacts/r170-device-browser",
+      "result": "8 passed (4.8s)",
+      "scope": "Stub-host transport/session cancellation and expiry; does not prove complete real-device cancellation/expiry."
+    },
+    "passedCommands": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests type-check:intended",
+      "pnpm -C tests type-check:wallet-state",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C packages/wallet build:prod",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "pnpm report:bloat --check",
+      "git diff --check"
+    ],
+    "tarballIntegrity": "sha512-oq2955CIKm5X4kdYjthW1EQjiuaoh08XVzJMJA56ep0xFNNxId5ZmQbGqdGmKENW0aXVSiNdxvxyLZUP9iVnaQ=="
+  }
+}

@@ -95,7 +95,7 @@ export function createCurrentWalletResolver(deps: {
       }
       if (!identity.nearAccountId) {
         throw new Error(
-          '[seams] this wallet has no NEAR account yet (NEAR provisioning may still be pending): pass an explicit `nearAccount`, or await `seams.registration.awaitNearReady`.',
+          '[seams] this wallet has no NEAR account yet (NEAR provisioning may still be pending): pass an explicit `nearAccount`, or await `seams.registration.waitForNearAccount`.',
         );
       }
       return {

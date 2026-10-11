@@ -1,3 +1,5 @@
+import { parseWalletId } from '@shared/utils/domainIds';
+import type { WalletExecutionAuthority } from '../../walletRegistration/walletRegistrationReservation';
 import {
   ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1,
   sameRouterAbEd25519YaoByteSequence,
@@ -46,7 +48,18 @@ export interface PreparedEd25519RecoveryAdmissionReaderV1 {
   }): Promise<PreparedEd25519RecoveryAdmissionV1 | null>;
 }
 
+type RecoveryCredentialAuthorizationResult =
+  | {
+      readonly ok: true;
+      readonly authorization: Extract<
+        RouterAbEd25519YaoRecoveryAuthorizationResult,
+        { readonly ok: true }
+      >['authorization'];
+    }
+  | RecoveryAuthorizationFailure;
+
 export type RouterAbEd25519YaoRecoveryAuthorizationServicesV1 = {
+  readonly admitEstablishedHome: WalletExecutionAuthority['admitEstablishedHome'];
   readonly authorizationSessions: RouterApiAuthorizationSessionService;
   readonly preparedRecoveryAdmission: PreparedEd25519RecoveryAdmissionReaderV1;
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
@@ -110,7 +123,7 @@ async function authorizePreparedRecovery(input: {
     { readonly kind: 'admit' }
   >;
   readonly services: RouterAbEd25519YaoRecoveryAuthorizationServicesV1;
-}): Promise<RouterAbEd25519YaoRecoveryAuthorizationResult> {
+}): Promise<RecoveryCredentialAuthorizationResult> {
   const challengeId = String(
     input.request.request.headers.get(ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1) || '',
   ).trim();
@@ -460,7 +473,7 @@ async function authorizeV2RecoveryAdmission(input: {
     { readonly kind: 'admit' }
   >;
   readonly services: RouterAbEd25519YaoRecoveryAuthorizationServicesV1;
-}): Promise<RouterAbEd25519YaoRecoveryAuthorizationResult> {
+}): Promise<RecoveryCredentialAuthorizationResult> {
   const resolved = await resolveExactEd25519OperationCredentialMaterial({
     request: input.request.request,
     services: input.services,
@@ -488,7 +501,7 @@ async function authorizeV2WarmBootstrap(input: {
     { readonly kind: 'bootstrap' }
   >;
   readonly services: RouterAbEd25519YaoRecoveryAuthorizationServicesV1;
-}): Promise<RouterAbEd25519YaoRecoveryAuthorizationResult> {
+}): Promise<RecoveryCredentialAuthorizationResult> {
   const active = await resolveExactEd25519OperationCredentialMaterial({
     request: input.request.request,
     services: input.services,
@@ -573,7 +586,7 @@ async function authorizeRecoveryContinuation(input: {
     { readonly kind: 'execute' | 'activate' }
   >;
   readonly services: RouterAbEd25519YaoRecoveryAuthorizationServicesV1;
-}): Promise<RouterAbEd25519YaoRecoveryAuthorizationResult> {
+}): Promise<RecoveryCredentialAuthorizationResult> {
   if (!extractBearerCredential(input.request.request.headers)) {
     return {
       ok: true,
@@ -613,6 +626,31 @@ async function authorizeRecoveryContinuation(input: {
   };
 }
 
+async function authorizeRecoveryCredential(
+  input: RouterAbEd25519YaoRecoveryAuthorizationInput,
+  services: RouterAbEd25519YaoRecoveryAuthorizationServicesV1,
+): Promise<RecoveryCredentialAuthorizationResult> {
+  switch (input.kind) {
+    case 'bootstrap': {
+      return await authorizeV2WarmBootstrap({ request: input, services });
+    }
+    case 'admit': {
+      const challengeId = String(
+        input.request.headers.get(ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1) || '',
+      ).trim();
+      if (challengeId) return await authorizePreparedRecovery({ request: input, services });
+      if (extractBearerCredential(input.request.headers)) {
+        return await authorizeV2RecoveryAdmission({ request: input, services });
+      }
+      return await authorizePreparedRecovery({ request: input, services });
+    }
+    case 'execute':
+    case 'activate': {
+      return await authorizeRecoveryContinuation({ request: input, services });
+    }
+  }
+}
+
 export class RouterAbEd25519YaoRecoveryWalletSessionAuthorizationAdapter implements RouterAbEd25519YaoRecoveryAuthorizationAdapter {
   constructor(
     private readonly resolveServices: () => Promise<RouterAbEd25519YaoRecoveryAuthorizationServicesV1>,
@@ -631,24 +669,45 @@ export class RouterAbEd25519YaoRecoveryWalletSessionAuthorizationAdapter impleme
         message: 'wallet recovery admission is unavailable',
       });
     }
-    switch (input.kind) {
-      case 'bootstrap': {
-        return await authorizeV2WarmBootstrap({ request: input, services });
-      }
-      case 'admit': {
-        const challengeId = String(
-          input.request.headers.get(ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1) || '',
-        ).trim();
-        if (challengeId) return await authorizePreparedRecovery({ request: input, services });
-        if (extractBearerCredential(input.request.headers)) {
-          return await authorizeV2RecoveryAdmission({ request: input, services });
-        }
-        return await authorizePreparedRecovery({ request: input, services });
-      }
-      case 'execute':
-      case 'activate': {
-        return await authorizeRecoveryContinuation({ request: input, services });
-      }
+    const credential = await authorizeRecoveryCredential(input, services);
+    if (!credential.ok) return credential;
+    const authorization = credential.authorization;
+    if (input.kind === 'execute' || input.kind === 'activate') {
+      return { ok: true, ownershipGeneration: input.ownershipGeneration, authorization };
     }
+    let walletIdentity: string;
+    switch (authorization.kind) {
+      case 'wallet_recovery':
+        walletIdentity = authorization.walletId;
+        break;
+      case 'wallet_session_v2':
+        walletIdentity = authorization.context.authorization.session.walletId;
+        break;
+      case 'wallet_session_v2_exhausted_candidate':
+        walletIdentity = authorization.context.status.session.walletId;
+        break;
+    }
+    const walletId = parseWalletId(walletIdentity);
+    if (!walletId.ok) {
+      return authorizationFailure({
+        status: 403,
+        code: 'wallet_recovery_scope_mismatch',
+        message: 'Recovery wallet identity is invalid',
+      });
+    }
+    let home: Awaited<ReturnType<WalletExecutionAuthority['admitEstablishedHome']>>;
+    try {
+      home = await services.admitEstablishedHome({ walletId: walletId.value });
+    } catch {
+      return authorizationFailure({
+        status: 503,
+        code: 'wallet_home_unavailable',
+        message: 'Recovery wallet home is unavailable',
+      });
+    }
+    if (!home.ok) {
+      return authorizationFailure({ status: 409, code: home.code, message: home.message });
+    }
+    return { ok: true, ownershipGeneration: home.ownershipGeneration, authorization };
   }
 }

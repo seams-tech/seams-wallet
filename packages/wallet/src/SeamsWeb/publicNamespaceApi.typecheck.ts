@@ -25,15 +25,10 @@ const tempoChainTarget = thresholdEcdsaChainTargetFromChainFamily({
   networkSlug: 'tempo',
 });
 
-void seams.registration.enrollEmailOtp({
-  walletId: 'alice.testnet',
-  otpCode: '123456',
-});
-
 void seams.auth.unlock('alice.testnet');
-void seams.auth.getWalletSession('alice.testnet');
+void seams.auth.getSession('alice.testnet');
 
-void seams.near.signNEP413Message({
+void seams.near.signMessage({
   walletSession,
   nearAccount,
   params: {
@@ -43,19 +38,31 @@ void seams.near.signNEP413Message({
   options: {},
 });
 
-void seams.evm.registerEvmWallet({
-  chainTargets: [evmChainTarget],
-  participantIds: [1, 2],
+void seams.registration.registerWallet({
+  wallet: { kind: 'server_allocated' },
   authMethod: { kind: 'passkey', rpId },
+  signerSelection: {
+    kind: 'signer_set',
+    signers: [
+      {
+        kind: 'evm_family_ecdsa',
+        chainTargets: [evmChainTarget],
+        participantIds: [1, 2],
+      },
+    ],
+  },
 });
+// @ts-expect-error Chain namespaces do not create wallets.
+void seams.evm.registerEvmWallet;
+// @ts-expect-error Chain namespaces do not create wallets.
+void seams.near.registerNearWallet;
 
-void seams.evm.bootstrapEcdsaSession({
-  kind: 'reuse_warm_ecdsa_bootstrap',
-  walletSession,
-  chainTarget: evmChainTarget,
-});
+// @ts-expect-error Authentication owns ECDSA bootstrap.
+void seams.evm.advanced.bootstrapEcdsaSession;
+// @ts-expect-error Authentication owns ECDSA bootstrap.
+void seams.tempo.advanced.bootstrapEcdsaSession;
 
-void seams.tempo.signTempo({
+void seams.tempo.signTransaction({
   walletSession,
   chainTarget: tempoChainTarget,
   request: {
@@ -79,7 +86,7 @@ void seams.tempo.signTempo({
   },
 });
 
-void seams.tempo.getFeeTokenPreference({
+void seams.tempo.getFeeToken({
   chainTarget: tempoChainTarget,
   account: '0x1111111111111111111111111111111111111111',
 });
@@ -87,7 +94,7 @@ void seams.tempo.validateFeeToken({
   chainTarget: tempoChainTarget,
   feeToken: '0x20c0000000000000000000000000000000000001',
 });
-void seams.tempo.setFeeTokenPreference({
+void seams.tempo.setFeeToken({
   walletSession,
   chainTarget: tempoChainTarget,
   account: '0x1111111111111111111111111111111111111111',
@@ -120,37 +127,94 @@ void seams.evm.signTransaction({
 void seams.recovery.syncAccount({ walletId: 'frost-vermillion-k7p9m2' });
 // @ts-expect-error syncAccount identifies a wallet, not a NEAR account-shaped accountId.
 void seams.recovery.syncAccount({ accountId: 'alice.testnet' });
-void seams.recovery.getWalletRecoveryCodeStatus({ walletId: 'frost-vermillion-k7p9m2' });
-void seams.recovery.acknowledgeWalletRecoveryCodeBackup({ walletId: 'frost-vermillion-k7p9m2' });
+void seams.recovery.getCodeStatus({ walletId: 'frost-vermillion-k7p9m2' });
+void seams.recovery.confirmBackup({ walletId: 'frost-vermillion-k7p9m2' });
 
-void seams.devices.cancelDeviceLinking();
-void seams.devices.listLinkedDevices({
+void seams.devices.cancelLinking();
+void seams.devices.list({
   walletId: 'frost-vermillion-k7p9m2',
   limit: 50,
   cursor: null,
 });
-void seams.devices.revokeLinkedDevice({
+void seams.devices.remove({
   walletId: 'frost-vermillion-k7p9m2',
   walletAuthMethodId: 'email_otp:wallet:method-1',
-  requestedAtMs: Date.now(),
-  sourceProof: {
-    kind: 'webauthn_assertion',
-    rpId,
-    credential: {},
-    expectedChallengeDigestB64u: 'operation-digest',
-  },
 });
-// @ts-expect-error revocation requires the exact requested-at timestamp.
-void seams.devices.revokeLinkedDevice({
+void seams.devices.remove({
   walletId: 'frost-vermillion-k7p9m2',
   walletAuthMethodId: 'email_otp:wallet:method-1',
-  sourceProof: {
-    kind: 'webauthn_assertion',
-    rpId,
-    credential: {},
-    expectedChallengeDigestB64u: 'operation-digest',
-  },
+  // @ts-expect-error The host owns removal proof collection.
+  sourceProof: {},
 });
 
-seams.preferences.setConfirmBehavior('requireClick');
+seams.preferences.setConfirmationBehavior('requireClick');
 void seams.preferences.getConfirmationConfig();
+
+// @ts-expect-error Use signAndSendTransaction for EVM submission.
+void seams.evm.executeTransaction;
+// @ts-expect-error Use signAndSendTransaction for Tempo submission.
+void seams.tempo.executeTransaction;
+// @ts-expect-error Use signTransaction for Tempo signing.
+void seams.tempo.signTempo;
+// @ts-expect-error Select a chain namespace for transaction submission.
+void seams.tempo.executeEvmFamilyTransaction;
+// @ts-expect-error Broadcast reporting belongs to advanced.
+void seams.tempo.reportBroadcastAccepted;
+// @ts-expect-error Broadcast reporting belongs to advanced.
+void seams.tempo.reportBroadcastRejected;
+// @ts-expect-error Finalization reporting belongs to advanced.
+void seams.tempo.reportFinalized;
+// @ts-expect-error Replacement reporting belongs to advanced.
+void seams.tempo.reportDroppedOrReplaced;
+// @ts-expect-error Nonce reconciliation belongs to advanced.
+void seams.tempo.reconcileNonceLane;
+// @ts-expect-error Bootstrap is absent from the ordinary signing namespace.
+void seams.tempo.bootstrapEcdsaSession;
+// @ts-expect-error Bootstrap is absent from the ordinary signing namespace.
+void seams.evm.bootstrapEcdsaSession;
+// @ts-expect-error Use getFeeToken.
+void seams.tempo.getFeeTokenPreference;
+// @ts-expect-error Use setFeeToken.
+void seams.tempo.setFeeTokenPreference;
+
+// @ts-expect-error Use devices.startLinking.
+void seams.devices.startDevice2LinkingFlow;
+// @ts-expect-error Use devices.cancelLinking.
+void seams.devices.cancelDeviceLinking;
+// @ts-expect-error Use devices.approveLinking.
+void seams.devices.scanAndLinkDevice;
+// @ts-expect-error Use devices.list.
+void seams.devices.listLinkedDevices;
+// @ts-expect-error Use devices.remove.
+void seams.devices.revokeLinkedDevice;
+
+// @ts-expect-error Use recovery.getCodeStatus.
+void seams.recovery.getWalletRecoveryCodeStatus;
+// @ts-expect-error Use recovery.confirmBackup.
+void seams.recovery.acknowledgeWalletRecoveryCodeBackup;
+// @ts-expect-error Use recovery.rotateCodes.
+void seams.recovery.rotateWalletRecoveryCodes;
+
+// @ts-expect-error Use preferences.setConfirmationBehavior.
+void seams.preferences.setConfirmBehavior;
+
+void seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+// @ts-expect-error Use keys.exportKey.
+void seams.keys.exportKeypair;
+// @ts-expect-error Export lane resolution belongs to internal dispatch.
+void seams.keys.resolveExactKeyExportLane;
+// @ts-expect-error The public operation owns the viewer and lane handoff.
+void seams.keys.exportKeypairWithUI;
+
+void seams.auth.requestEmailCode({
+  method: 'google',
+  idToken: 'provider-token',
+  target: { kind: 'wallet', walletId: 'alice.testnet' },
+});
+void seams.auth.requestEmailCode({ method: 'email', walletId: 'alice.testnet', email: 'alice@example.com' });
+// @ts-expect-error Signing challenges cannot enter the unlock API.
+void seams.auth.requestEmailCode({ method: 'email', walletId: 'alice.testnet', email: 'alice@example.com', operation: 'transaction_sign' });
+// @ts-expect-error Specialized unlock is internal to the host.
+void seams.auth.loginWithEmailOtpEcdsaCapability;
+// @ts-expect-error Added email methods use the unified unlock API.
+void seams.auth.unlockAddedEmailOtpWallet;

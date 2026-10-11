@@ -1,3 +1,4 @@
+import { buildWalletSessionAuthorizationHeaders } from '@/core/rpcClients/relayer/relayerHttp';
 import { stripTrailingSlashes, toTrimmedString } from '@shared/utils/validation';
 import {
   ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_FILL_INIT_PATH,
@@ -56,7 +57,13 @@ function resolvePresignAuthHeaders(args: RouterAbEcdsaDerivationPoolFillAuth):
             'Missing opaque Wallet Session token for Router A/B ECDSA derivation presign pool fill',
         };
       }
-      headers.Authorization = `Bearer ${walletSessionToken}`;
+      Object.assign(
+        headers,
+        buildWalletSessionAuthorizationHeaders({
+          token: walletSessionToken,
+          home: args.credential.home,
+        }),
+      );
       return { ok: true, headers, credentials: 'omit' };
     }
   }

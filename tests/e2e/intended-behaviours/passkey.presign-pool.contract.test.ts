@@ -378,8 +378,17 @@ function isForegroundRefill(stage: { stage: string }): boolean {
 class FailedBackgroundRefill {
   failures = 0;
 
+  constructor(private readonly timing: SigningTimingEvidence) {}
+
   async intercept(route: Route): Promise<void> {
-    if (presignRefillTag(route.request()) === 'background') {
+    // A signature schedules a refill when it starts. The signer that waits for it
+    // promotes its requests to the foreground tag, so the tag does not identify
+    // that refill. Fail every refill until a signer has stopped waiting; the first
+    // refill to pass is then the signer's own.
+    if (
+      presignRefillTag(route.request()) === 'background' ||
+      !this.timing.reported('refill_wait')
+    ) {
       this.failures += 1;
       await route.abort('connectionclosed');
       return;
@@ -397,7 +406,7 @@ test('failed background refill falls back to timed foreground refill and preserv
   await page.evaluate(enableSigningSessionDebugInFrame);
   const timing = new SigningTimingEvidence();
   page.on('console', timing.record.bind(timing));
-  const fault = new FailedBackgroundRefill();
+  const fault = new FailedBackgroundRefill(timing);
   const intercept = fault.intercept.bind(fault);
   const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
   await context.route(initPath, intercept);
@@ -642,10 +651,7 @@ function requestedEcdsaBackendProfile(): string {
     return `hosted_${arm}`;
   }
   if (process.env.SEAMS_INTENDED_WALLET_HOST === 'vm') return 'local_vm';
-  const walletDoRequested =
-    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
-    process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
-  return walletDoRequested ? 'local_wallet_do_harness_requested' : 'local_default_d1';
+  return 'local_wallet_objects';
 }
 
 async function measureFirstWarmAndBurstSigning(
@@ -1116,6 +1122,31 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
 
 type SigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'unrelated';
 
+/** Namespace, org, project, environment and signing root version of a policy record. */
+type SigningPolicyTenant = readonly [string, string, string, string, string];
+
+type SigningPolicyInsert = ReturnType<InstanceType<NodeSqliteModule['DatabaseSync']>['prepare']>;
+
+// The Gateway table requires a record key to start with the record's own scope.
+function insertProjectRejection(insert: SigningPolicyInsert, tenant: SigningPolicyTenant): void {
+  const key = tenant.slice(1).join('\x1f');
+  insert.run(...tenant, 'project_policy', key, null, 'rejected', 1000, Date.now());
+}
+
+// An abuse record also names its wallet, in its own column and in its key.
+function insertAbuseDecision(
+  insert: SigningPolicyInsert,
+  tenant: SigningPolicyTenant,
+  walletId: string,
+  activationId: string,
+  decision: 'rejected' | 'rate_limited',
+): void {
+  const key = [...tenant.slice(1), walletId, `material_activation:${activationId}`, 'ecdsa'].join(
+    '\x1f',
+  );
+  insert.run(...tenant, 'abuse', key, walletId, decision, 1000, Date.now());
+}
+
 async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy): Promise<void> {
   const body: unknown = request.postDataJSON();
   if (
@@ -1127,6 +1158,8 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
   ) {
     throw new Error('Expected an ECDSA signing request');
   }
+  const walletId = body.scope.wallet_id;
+  const activationId = body.material_activation.activation_id;
   const sqliteModule: string = 'node:sqlite';
   const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
   const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
@@ -1136,7 +1169,7 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
         `SELECT DISTINCT namespace, json_extract(record_json, '$.runtimePolicyScope') AS scope_json
        FROM wallet_signers WHERE wallet_id = ? AND signer_family = 'ecdsa'`,
       )
-      .all(body.scope.wallet_id);
+      .all(walletId);
     if (
       rows.length !== 1 ||
       typeof rows[0].namespace !== 'string' ||
@@ -1145,24 +1178,15 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
       throw new Error('Expected one isolated ECDSA material policy scope');
     }
     const scope = normalizeRuntimePolicyScope(JSON.parse(rows[0].scope_json));
-    const scopeKey = [scope.orgId, scope.projectId, scope.envId, scope.signingRootVersion].join(
-      '\x1f',
-    );
-    const abuseKey = [
-      scopeKey,
-      body.scope.wallet_id,
-      `material_activation:${body.material_activation.activation_id}`,
-      'ecdsa',
-    ].join('\x1f');
     // This database belongs to this single-wallet scenario; policy rows are test-owned.
     database.prepare('DELETE FROM router_ab_normal_signing_admission_records').run();
     const insert = database.prepare(
       `INSERT INTO router_ab_normal_signing_admission_records
        (namespace, org_id, project_id, env_id, signing_root_version,
-        record_kind, record_key, decision, retry_after_ms, updated_at_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        record_kind, record_key, wallet_id, decision, retry_after_ms, updated_at_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    const tenant = [
+    const tenant: SigningPolicyTenant = [
       rows[0].namespace,
       scope.orgId,
       scope.projectId,
@@ -1170,7 +1194,7 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
       scope.signingRootVersion,
     ];
     if (policy === 'unrelated') {
-      const otherScopes = [
+      const otherScopes: SigningPolicyTenant[] = [
         [
           rows[0].namespace + ':other',
           scope.orgId,
@@ -1208,32 +1232,16 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
         ],
       ];
       for (const other of otherScopes) {
-        insert.run(...other, 'project_policy', scopeKey, 'rejected', 1000, Date.now());
-        insert.run(...other, 'abuse', abuseKey, 'rejected', 1000, Date.now());
+        insertProjectRejection(insert, other);
+        insertAbuseDecision(insert, other, walletId, activationId, 'rejected');
       }
-      for (const otherKey of [
-        [
-          scopeKey,
-          body.scope.wallet_id + ':other',
-          `material_activation:${body.material_activation.activation_id}`,
-          'ecdsa',
-        ].join('\x1f'),
-        [
-          scopeKey,
-          body.scope.wallet_id,
-          `material_activation:${body.material_activation.activation_id}:other`,
-          'ecdsa',
-        ].join('\x1f'),
-      ]) {
-        insert.run(...tenant, 'abuse', otherKey, 'rejected', 1000, Date.now());
-      }
+      insertAbuseDecision(insert, tenant, walletId + ':other', activationId, 'rejected');
+      insertAbuseDecision(insert, tenant, walletId, activationId + ':other', 'rejected');
       return;
     }
     const abuseDecision = policy === 'rate_limited' ? 'rate_limited' : 'rejected';
-    insert.run(...tenant, 'abuse', abuseKey, abuseDecision, 1000, Date.now());
-    if (policy === 'project_and_abuse') {
-      insert.run(...tenant, 'project_policy', scopeKey, 'rejected', 1000, Date.now());
-    }
+    insertAbuseDecision(insert, tenant, walletId, activationId, abuseDecision);
+    if (policy === 'project_and_abuse') insertProjectRejection(insert, tenant);
   } finally {
     database.close();
   }

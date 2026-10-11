@@ -1,38 +1,29 @@
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { IndexedDBManager } from '@/core/indexedDB';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
-import { respondOk, respondOkResult } from './shared';
+import { respondOkResult } from './shared';
 
 export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     PM_SET_CONFIRM_BEHAVIOR: async (req: Req<'PM_SET_CONFIRM_BEHAVIOR'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { behavior, walletId } = req.payload!;
       if (walletId) {
         pm.preferences.setCurrentWallet(toWalletId(walletId));
       }
-      pm.preferences.setConfirmBehavior(behavior);
-      respondOk(deps, req.requestId);
+      await pm.preferences.setConfirmationBehavior(behavior);
+      respondOkResult(deps, req.requestId, deps.readPreferences());
     },
 
     PM_SET_CONFIRMATION_CONFIG: async (req: Req<'PM_SET_CONFIRMATION_CONFIG'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId } = req.payload || {};
-      const incoming = req.payload?.config || {};
-      let patch: Record<string, unknown> = { ...incoming };
-      if (walletId) {
-        pm.preferences.setCurrentWallet(toWalletId(walletId));
-        const preferences = await IndexedDBManager.getWalletPreferences(walletId).catch(() => null);
-        patch = { ...preferences?.confirmationConfig, ...incoming };
-      }
-      const base = pm.preferences.getConfirmationConfig();
-      pm.preferences.setConfirmationConfig({ ...base, ...patch });
-      respondOk(deps, req.requestId);
+      if (walletId) pm.preferences.setCurrentWallet(toWalletId(walletId));
+      await pm.preferences.setConfirmationConfig(req.payload?.config || {});
+      respondOkResult(deps, req.requestId, deps.readPreferences());
     },
 
     PM_GET_CONFIRMATION_CONFIG: async (req: Req<'PM_GET_CONFIRMATION_CONFIG'>) => {
-      const pm = deps.getSeamsWeb();
-      const result = pm.preferences.getConfirmationConfig();
+      const result = deps.readPreferences();
       respondOkResult(deps, req.requestId, result);
     },
   };

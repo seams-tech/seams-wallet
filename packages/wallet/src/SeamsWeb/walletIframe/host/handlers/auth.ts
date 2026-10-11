@@ -1,3 +1,4 @@
+import { createPlacementWalletIframeHandlers } from './placement';
 import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
 import type { WalletSession } from '@/core/types/seams';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
@@ -5,15 +6,8 @@ import { respondOk, respondOkResult, withProgress } from './shared';
 import {
   exactSessionIdentitiesMatch,
   parseWalletIframeExactSessionIdentity,
-  readSelectedWalletIframeExactSessionState,
-  type WalletIframeExactSessionReadDependencies,
-  type WalletIframeExactSessionStatus,
-  type WalletIframeExactSessionState,
+  type WalletIframeExactSessionSnapshot,
 } from '../../shared/exactSessionState';
-import {
-  reconcileWalletIframeExactSessions,
-  type WalletIframeExactSessionReconciliationDependencies,
-} from '../../shared/exactSessionReconciliation';
 import {
   pmUnlockPayloadToLoginHooksOptions,
   requirePMUnlockPayload,
@@ -25,52 +19,8 @@ import {
   clearHostedWalletSessions,
 } from '../hostedWalletSeamsSession';
 import { createHostedAuthMenuHandlers } from './authMenu';
-import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { IndexedDBManager } from '@/core/indexedDB';
-import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
+import { resolveExactWalletSessionState } from '../sessionObserver';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-
-async function readWalletIframeExactSessionStatus(
-  relayUrl: string,
-  reads: WalletSessionStatusReadScope,
-  input: Parameters<WalletIframeExactSessionReadDependencies['readStatus']>[0],
-): Promise<WalletIframeExactSessionStatus> {
-  const normalizedRelayUrl = String(relayUrl || '').trim();
-  if (!normalizedRelayUrl) throw new Error('Wallet iframe relayer URL is required');
-  return await reads.read(
-    {
-      relayerUrl: normalizedRelayUrl,
-      operationCredential: input.operationCredential,
-    },
-    {
-      walletSessionId: input.operationCredential.walletSessionId,
-      quotaId: input.authorization.quotaId,
-    },
-  );
-}
-
-function exactSessionReadDependenciesForRelay(
-  relayUrl: string,
-): WalletIframeExactSessionReadDependencies & WalletIframeExactSessionReconciliationDependencies {
-  const reads = new WalletSessionStatusReadScope();
-  return {
-    resolveSelectedWalletAuthority:
-      IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
-    listWalletAuthMethodsV2ForWallet:
-      IndexedDBManager.listWalletAuthMethodsV2ForWallet.bind(IndexedDBManager),
-    resolveWalletAuthorityForMethod:
-      IndexedDBManager.resolveWalletAuthorityForMethod.bind(IndexedDBManager),
-    readExactActiveForWallet: walletSessionAuthorizations.readExactActiveForWallet.bind(
-      walletSessionAuthorizations,
-    ),
-    readStatus: readWalletIframeExactSessionStatus.bind(null, relayUrl, reads),
-    refreshExactWithOperationCredential:
-      walletSessionAuthorizations.refreshExactWithOperationCredential.bind(
-        walletSessionAuthorizations,
-      ),
-    nowMs: Date.now,
-  };
-}
 
 function assertUnlockPayloadHasNoParentBearer(payload: unknown): void {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
@@ -124,7 +74,7 @@ function walletOriginUnlockOptions(
 }
 
 function walletSessionRequestWalletId(
-  pm: Pick<ReturnType<HandlerDeps['getSeamsWeb']>, 'preferences'>,
+  pm: Pick<ReturnType<HandlerDeps['getWalletRuntime']>, 'preferences'>,
   payload: Req<'PM_GET_WALLET_SESSION'>['payload'],
 ): string | undefined {
   const requestedWalletId = String(payload?.walletId || '').trim();
@@ -133,66 +83,31 @@ function walletSessionRequestWalletId(
   return currentWalletId || undefined;
 }
 
-async function resolvePersistedCurrentWalletId(
-  pm: ReturnType<HandlerDeps['getSeamsWeb']>,
-): Promise<string | undefined> {
-  const currentWalletId = String(pm.preferences.getCurrentWalletId() || '').trim();
-  if (currentWalletId) return currentWalletId;
-  const recentUnlocks = await pm.auth.getRecentUnlocks();
-  const lastUsedWalletId = String(recentUnlocks.lastUsedAccount?.walletId || '').trim();
-  if (lastUsedWalletId) return lastUsedWalletId;
-  const walletIds = recentUnlocks.walletIds
-    .map((walletId) => String(walletId).trim())
-    .filter(Boolean);
-  return walletIds.length === 1 ? walletIds[0] : undefined;
-}
-
-async function resolveExactWalletSessionState(
-  pm: ReturnType<HandlerDeps['getSeamsWeb']>,
-  payload: PMGetExactWalletSessionStatePayload,
-): Promise<WalletIframeExactSessionState> {
-  let walletId: string | undefined;
-  switch (payload.wallet.kind) {
-    case 'current': {
-      walletId = await resolvePersistedCurrentWalletId(pm);
-      if (walletId) {
-        pm.preferences.setCurrentWallet(toWalletId(walletId));
-      }
-      break;
-    }
-    case 'exact':
-      walletId = payload.wallet.walletId.trim();
-      if (!walletId) throw new Error('Wallet iframe exact session walletId is invalid');
-      break;
-  }
-  if (!walletId) return { kind: 'wallet_locked' };
-  const dependencies = exactSessionReadDependenciesForRelay(pm.configs.network.relayer.url);
-  const reconciliation = await reconcileWalletIframeExactSessions(
-    { walletId: toWalletId(walletId) },
-    dependencies,
-  );
-  if (reconciliation.kind === 'failed') {
-    return {
-      kind: 'wallet_unlocked_without_signing_session',
-      walletId: toWalletId(walletId),
-      reason: reconciliation.reason,
-    };
-  }
-  return await readSelectedWalletIframeExactSessionState(
-    { walletId: toWalletId(walletId) },
-    dependencies,
-  );
-}
-
 function reportRestoredSessionPresignaturePrefillFailure(error: unknown): void {
   console.warn('[WalletIframeHost] Restored-session presignature prefill failed:', error);
+}
+
+function publishSessionResponse(
+  deps: HandlerDeps,
+  pm: ReturnType<HandlerDeps['getWalletRuntime']>,
+  requestId: string | undefined,
+  payload: PMGetExactWalletSessionStatePayload,
+  snapshot: WalletIframeExactSessionSnapshot,
+): void {
+  if (deps.respondIfCancelled(requestId)) return;
+  respondOkResult(deps, requestId, snapshot);
+  if (payload.authenticationRead === 'restore') {
+    void pm
+      .prefillRestoredWalletSession(snapshot.state)
+      .catch(reportRestoredSessionPresignaturePrefillFailure);
+  }
 }
 
 export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ...createHostedAuthMenuHandlers(deps),
     PM_UNLOCK: async (req: Req<'PM_UNLOCK'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       assertUnlockPayloadHasNoParentBearer(req.payload);
       const payload = requirePMUnlockPayload(req.payload);
       const requestedOptions = pmUnlockPayloadToLoginHooksOptions(payload);
@@ -204,30 +119,26 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       );
       if (deps.respondIfCancelled(req.requestId)) return;
       if (!result.success) clearHostedWalletSessions();
+      await deps.publishCurrentSession();
+      if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
 
     PM_LOCK: async (req: Req<'PM_LOCK'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       clearHostedWalletSessions();
       await pm.auth.lock();
       respondOk(deps, req.requestId);
     },
 
-    PM_LOGOUT: async (req: Req<'PM_LOGOUT'>) => {
-      const pm = deps.getSeamsWeb();
-      clearHostedWalletSessions();
-      await pm.auth.logout();
-      respondOk(deps, req.requestId);
-    },
-
     PM_LOCK_EXACT_WALLET_SESSION: async (req: Req<'PM_LOCK_EXACT_WALLET_SESSION'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const expected = parseWalletIframeExactSessionIdentity(req.payload);
-      const current = await resolveExactWalletSessionState(pm, {
-        authenticationRead: 'current',
-        wallet: { kind: 'current' },
-      });
+      const current = await resolveExactWalletSessionState(
+        pm,
+        { authenticationRead: 'current', wallet: { kind: 'current' } },
+        new WalletSessionStatusReadScope(),
+      );
       if (
         (current.kind !== 'active_session' && current.kind !== 'expired_session') ||
         !exactSessionIdentitiesMatch(current, expected)
@@ -240,15 +151,17 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, { kind: 'locked', identity: expected });
     },
 
+    ...createPlacementWalletIframeHandlers(deps),
+
     PM_GET_WALLET_SESSION: async (req: Req<'PM_GET_WALLET_SESSION'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const walletId = walletSessionRequestWalletId(pm, req.payload);
-      const result: WalletSession = await pm.auth.getWalletSession(walletId);
+      const result: WalletSession = await pm.auth.getSession(walletId);
       respondOkResult(deps, req.requestId, result);
     },
 
     PM_GET_EXACT_WALLET_SESSION_STATE: async (req: Req<'PM_GET_EXACT_WALLET_SESSION_STATE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload;
       if (
         !payload ||
@@ -259,17 +172,14 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       ) {
         throw new Error('Wallet iframe exact session read mode is invalid');
       }
-      const state = await resolveExactWalletSessionState(pm, payload);
-      if (payload.authenticationRead === 'restore') {
-        void pm.prefillRestoredWalletSession(state).catch(
-          reportRestoredSessionPresignaturePrefillFailure,
-        );
-      }
-      respondOkResult(deps, req.requestId, state);
+      await deps.observeSession(
+        payload,
+        publishSessionResponse.bind(null, deps, pm, req.requestId, payload),
+      );
     },
 
     PM_GET_RECENT_UNLOCKS: async (req: Req<'PM_GET_RECENT_UNLOCKS'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const result = await pm.auth.getRecentUnlocks();
       respondOkResult(deps, req.requestId, result);
     },

@@ -1,7 +1,14 @@
 import {
-  intendedIndexedDbModulePath,
-  readPendingWalletRecoveryCommitIdentitiesInBrowser,
-} from './recovery-journal';
+  captureWalletBudgetStatusRequest,
+  capturePreparedWalletBudgetStatus,
+  type CapturedWalletBudgetStatusRequest,
+} from './wallet-budget-evidence';
+import type {
+  SignNEP413MessageParams,
+  SignNEP413MessageResult,
+} from '../../../packages/wallet/src/core/types/sdkPublicResults';
+import { verifyNearMessageSignature } from './near-message-signatures';
+import { readPendingWalletRecoveryCommitIdentity } from './recovery-journal';
 import {
   concealFirstRecoveryFinalizationResponse,
   createRecoveryFinalizationResponseLoss,
@@ -36,9 +43,7 @@ import {
 import * as ed25519 from '@noble/ed25519';
 import { base58Decode, base64UrlEncode } from '@shared/utils/encoders';
 import { decodeWalletRecoveryCode } from '@shared/wallet-recovery/recoveryCodes';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
-import { createReadableWalletId, walletIdFromString } from '@shared/utils/registrationIds';
-import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import { createReadableWalletId } from '@shared/utils/registrationIds';
 import { parseQrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking/parsers';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
@@ -148,18 +153,13 @@ const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'revokeLinkedDeviceWithEmailOtp',
 ]);
 
-/** Test hooks into one signing action's lifecycle. */
-type IntendedSigningActionHooks = {
-  /** Runs as soon as the page reports the action started. */
-  readonly onActionStarted?: () => void;
-};
-
 type TraceEntry = {
   atMs: number;
   kind: 'stage' | 'console' | 'pageerror' | 'request' | 'requestfailed' | 'response' | 'service';
   message: string;
   url?: string;
   status?: number;
+  walletSessionStatusIdentity?: string;
 };
 
 const WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS = {
@@ -225,8 +225,6 @@ const LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-revoke-fau
 const LOCAL_INTENDED_REVOKE_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-revoke-fault-proof-v1';
 /* The SigningWorker's refusal of an activation a recovery replaced. */
 const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is retired';
-const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE =
-  'SigningWorker activation is retired: retired after this finalize loaded its material, before it committed';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1 = 'x-seams-intended-yao-export-fault-v1';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-export-fault-token-v1';
@@ -273,7 +271,6 @@ const ROUTER_AB_ED25519_YAO_EXPORT_PATHS = [
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
 ] as const;
 
-const ROUTER_AB_WALLET_BUDGET_STATUS_PATH = '/wallet/session/status';
 const ROUTER_AB_WALLET_RECOVERY_PREPARE_PATH = '/wallets/recovery/prepare';
 const ROUTER_AB_WALLET_RECOVERY_FINALIZE_PATH = '/wallets/recovery/finalize';
 const ROUTER_AB_WALLET_RECOVERY_GOOGLE_EMAIL_OTP_FINALIZE_PATH =
@@ -875,15 +872,6 @@ type SigningAuthEventSummary = {
   thresholdReconnectSucceeded: boolean;
 };
 
-type CapturedWalletBudgetStatusRequest = {
-  url: string;
-  authorization: string;
-  contentType: string;
-  body: string;
-  walletSessionId: string;
-  quotaId: string;
-};
-
 type RecoveryAuthorityProjection = {
   readonly walletId: string;
   readonly authorityId: string;
@@ -1144,9 +1132,10 @@ function ignoreNearDemoStatusReadError(): null {
 
 type IntendedGatewayRequests = {
   get: APIRequestContext['get'];
-  post(url: string, options?: Parameters<APIRequestContext['post']>[1]): Promise<
-    Pick<APIResponse, 'status' | 'ok' | 'text' | 'json'>
-  >;
+  post(
+    url: string,
+    options?: Parameters<APIRequestContext['post']>[1],
+  ): Promise<Pick<APIResponse, 'status' | 'ok' | 'text' | 'json'>>;
 };
 
 export class IntendedBehaviourHarness {
@@ -1186,6 +1175,10 @@ export class IntendedBehaviourHarness {
    */
   private operatingAuthFamily: 'passkey' | 'email_otp' | null = null;
 
+  private browserSession:
+    | { readonly kind: 'uninitialized' }
+    | { readonly kind: 'ready'; readonly session: CDPSession } = { kind: 'uninitialized' };
+
   private passkeyPromptCount = 0;
 
   private latestPageSnapshot: IntendedPageSnapshot | null = null;
@@ -1210,6 +1203,7 @@ export class IntendedBehaviourHarness {
   private latestSigningRemainingUses: number | null = null;
 
   private latestWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
+  private preparedWalletBudgetStatus: Promise<void> | null = null;
 
   private sourceWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
 
@@ -1637,37 +1631,9 @@ export class IntendedBehaviourHarness {
     if (!linked || extra.length > 0) {
       throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
     }
-    const owner = requireSingleOwnerPasskey(before);
-    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
-    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
-    const requestedAtMs = Date.now();
-    const operationFingerprintDigest = String(
-      await computeWalletAuthMethodRevokeOperationFingerprintV1({
-        walletId: walletIdFromString(this.walletId),
-        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
-        requestedAtMs,
-      }),
-    );
-    const rpId = new URL(this.config.walletOrigin).hostname;
-    const walletFrame = await walletServiceFrame(this.page, this.config.walletOrigin);
-    const credential = await walletFrame.evaluate(getWalletOriginPasskeyAssertion, {
-      rpId,
-      challengeB64u: operationFingerprintDigest,
-      credentialIdB64u: owner.credentialIdB64u,
-    });
-    this.passkeyPromptCount += 1;
     await this.page.evaluate(
       presentLinkedDeviceRevocationToIntendedPage,
-      JSON.stringify({
-        walletAuthMethodId: linked.walletAuthMethodId,
-        requestedAtMs,
-        sourceProof: {
-          kind: 'webauthn_assertion',
-          rpId,
-          credential,
-          expectedChallengeDigestB64u: operationFingerprintDigest,
-        },
-      }),
+      JSON.stringify({ walletAuthMethodId: linked.walletAuthMethodId }),
     );
     const snapshot = await this.runIntendedPageAction(
       'revokeLinkedDevice',
@@ -1714,23 +1680,9 @@ export class IntendedBehaviourHarness {
     if (!linked || extra.length > 0) {
       throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
     }
-    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
-    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
-    const requestedAtMs = Date.now();
-    const operationFingerprintDigest = String(
-      await computeWalletAuthMethodRevokeOperationFingerprintV1({
-        walletId: walletIdFromString(this.walletId),
-        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
-        requestedAtMs,
-      }),
-    );
     await this.page.evaluate(
       presentLinkedDeviceRevocationToIntendedPage,
-      JSON.stringify({
-        walletAuthMethodId: linked.walletAuthMethodId,
-        requestedAtMs,
-        operationFingerprintDigest,
-      }),
+      JSON.stringify({ walletAuthMethodId: linked.walletAuthMethodId }),
     );
     const refusedCommit = options.refuseFirstRevocationCommit
       ? await this.refuseFirstRevocationCommitOnce('linked_device')
@@ -2128,7 +2080,10 @@ export class IntendedBehaviourHarness {
     const finalizePath = /\/wallets\/[^/]+\/signers\/finalize$/;
     const attempts: { readonly idempotencyKey: string; readonly body: string }[] = [];
     const handler = async (route: Route): Promise<void> => {
-      if (route.request().method() !== 'POST' || !finalizePath.test(new URL(route.request().url()).pathname)) {
+      if (
+        route.request().method() !== 'POST' ||
+        !finalizePath.test(new URL(route.request().url()).pathname)
+      ) {
         await route.fallback();
         return;
       }
@@ -2152,13 +2107,17 @@ export class IntendedBehaviourHarness {
       assertReplayed: () => {
         const [lost, replayed] = attempts;
         if (attempts.length !== 2 || !lost || !replayed) {
-          throw new Error(`Add-signer finalize expected one lost and one replayed response, saw ${attempts.length}`);
+          throw new Error(
+            `Add-signer finalize expected one lost and one replayed response, saw ${attempts.length}`,
+          );
         }
         if (!lost.idempotencyKey || lost.idempotencyKey !== replayed.idempotencyKey) {
           throw new Error('Add-signer finalize retry changed its idempotency key');
         }
         expect(JSON.parse(replayed.body)).toEqual(JSON.parse(lost.body));
-        this.recordService('add-signer finalize lost its response and replayed the committed outcome');
+        this.recordService(
+          'add-signer finalize lost its response and replayed the committed outcome',
+        );
       },
     };
   }
@@ -2566,11 +2525,8 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * The Gateway answers the Google verification without this wallet: on
-   * fresh services no wallet is enrolled for the Google identity any more
-   * (`stale_identity_mapping` naming this wallet); where another wallet is
-   * enrolled for it, the answer names that one. The menu keeps the refusal on
-   * screen and never settles, so the harness closes it.
+   * Google verification refuses the selected wallet after revocation removes
+   * its enrollment. The harness closes the menu after checking that refusal.
    */
   private async refuseRevokedRegisteredEmailOtpUnlock(): Promise<string> {
     const verification = this.page.waitForResponse(
@@ -2586,21 +2542,14 @@ export class IntendedBehaviourHarness {
     /* Settled below, once the menu is closed. */
     action.catch(() => undefined);
     const response = await verification;
-    const answer = (await response.json().catch(() => null)) as {
-      readonly code?: unknown;
-      readonly walletId?: unknown;
-    } | null;
-    const refusedHere =
-      response.status() === 400 &&
-      answer?.code === 'stale_identity_mapping' &&
-      answer.walletId === this.walletId;
-    const answeredAnotherWallet =
-      response.ok() && typeof answer?.walletId === 'string' && answer.walletId !== this.walletId;
-    if (!refusedHere && !answeredAnotherWallet) {
-      throw new Error(
-        `revoked Email OTP verification answered ${response.status()}: ${JSON.stringify(answer)}`,
-      );
-    }
+    expect(response.request().postDataJSON()).toMatchObject({ wallet_id: this.walletId });
+    expect(response.status()).toBe(400);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      mode: 'wallet_identity_mismatch',
+      code: 'wallet_identity_mismatch',
+      walletId: this.walletId,
+    });
     await this.page
       .locator('iframe[allow*="publickey-credentials-get"]')
       .last()
@@ -2612,9 +2561,7 @@ export class IntendedBehaviourHarness {
     if (detail !== 'Google Email OTP unlock ended with cancelled') {
       throw new Error(`revoked Email OTP unlock ended for another reason: ${detail}`);
     }
-    return refusedHere
-      ? `Google verification found no enrollment for ${this.walletId}`
-      : `Google verification answered wallet ${String(answer?.walletId)}`;
+    return `Google verification refused the revoked enrollment for ${this.walletId}`;
   }
 
   /** The wallet's session no longer lists the revoked method. */
@@ -2767,6 +2714,7 @@ export class IntendedBehaviourHarness {
     if (result.ecdsaTargetProfile === 'none') {
       throw new Error('ECDSA-only Email OTP registration provisioned no ECDSA target');
     }
+    this.walletId = result.walletId;
     this.registeredWallet = result;
     this.currentWarmSigningStage = 'post_registration';
     this.emailOtpVerificationCount += 1;
@@ -2794,6 +2742,7 @@ export class IntendedBehaviourHarness {
     if (result.ecdsaTargetProfile !== 'none') {
       throw new Error('Ed25519-only Email OTP registration provisioned an ECDSA signer');
     }
+    this.walletId = result.walletId;
     this.registeredWallet = result;
     this.currentWarmSigningStage = 'post_registration';
     this.emailOtpVerificationCount += 1;
@@ -3061,21 +3010,17 @@ export class IntendedBehaviourHarness {
 
   async unlockPasskeyWallet(): Promise<void> {
     this.recordStage('unlock_passkey_wallet');
-    const registration = requireNearReadyRegisteredWallet(
-      this.requireRegisteredWalletForSigning(),
-      'Passkey unlock',
-    );
+    const registration = this.requireRegisteredWalletForSigning();
+    if (registration.nearReadiness === 'pending') {
+      throw new Error('Use the pending-NEAR unlock scenario while provisioning is incomplete');
+    }
     await this.resetRuntimeOnlyState();
     const traceStartIndex = this.trace.length;
     const snapshot = await this.runIntendedPageAction(
       'unlockPasskeyWallet',
       'intended-unlock-passkey',
     );
-    const result = requirePasskeyUnlockResult(snapshot, {
-      walletId: this.walletId,
-      nearAccountId: registration.nearAccountId,
-      operationalPublicKey: registration.operationalPublicKey,
-    });
+    const result = requirePasskeyUnlockResult(snapshot, registration);
     const observedPaths = this.trace
       .slice(traceStartIndex)
       .map((entry) => routePathAtRouter(entry.url, this.config.routerUrl))
@@ -3086,20 +3031,39 @@ export class IntendedBehaviourHarness {
     if (observedPaths.includes('/router-ab/wallet-session/ed25519')) {
       throw new Error('Passkey unlock requested a second Ed25519 Wallet Session ceremony');
     }
+    const walletPage = this.page.getByTestId('intended-e2e-page');
+    await expect(walletPage).toHaveAttribute('data-login-state', 'logged_in');
+    await expect(walletPage).toHaveAttribute('data-login-wallet-id', this.walletId);
+    await expect(walletPage).toHaveAttribute(
+      'data-login-near-ready',
+      registration.nearReadiness === 'ready' ? 'ready' : 'pending',
+    );
     const unlockRequests = this.trace.slice(traceStartIndex).filter(isRequestTraceEntry);
     const verifyIndex = unlockRequests.findIndex(isWalletUnlockVerifyRequest);
     const statusReads = unlockRequests.slice(verifyIndex + 1).filter(isWalletSessionStatusRequest);
+    const statusIdentities = new Set<string>();
+    for (const read of statusReads) {
+      if (!read.walletSessionStatusIdentity) {
+        throw new Error('Wallet status request omitted its exact session identity');
+      }
+      statusIdentities.add(read.walletSessionStatusIdentity);
+    }
+    // Each sibling session requires its own authenticated reconciliation read.
+    // Keep the original allowance of two further reads across the whole unlock.
     expect(
-      statusReads.length,
-      'post-passkey unlock must avoid redundant session-status reads',
-    ).toBeLessThanOrEqual(3);
+      statusReads.length - statusIdentities.size,
+      'post-passkey unlock must avoid redundant reads of the same session',
+    ).toBeLessThanOrEqual(2);
+    this.recordService(
+      `unlock status reads=${statusReads.length} distinctSessions=${statusIdentities.size}`,
+    );
     this.assertNoRouterAbEd25519YaoRecoveryRoutes(traceStartIndex, {
       kind: 'passkey_unlock',
     });
     this.currentWarmSigningStage = 'post_unlock';
     this.passkeyPromptCount += 1;
     this.recordService(
-      `passkey unlock succeeded wallet=${result.walletId} near=${result.nearAccountId}`,
+      `passkey unlock succeeded wallet=${result.walletId} near=${registration.nearReadiness}`,
     );
   }
 
@@ -3615,6 +3579,7 @@ export class IntendedBehaviourHarness {
     if (!recoveryCode) {
       throw new Error(`${input.action.target} recovery requires a captured recovery code`);
     }
+    await this.preparedWalletBudgetStatus;
     this.sourceWalletBudgetStatusRequest = this.latestWalletBudgetStatusRequest;
     if (!this.sourceWalletBudgetStatusRequest) {
       throw new Error('Source Wallet Session authorization was not captured before recovery');
@@ -3682,22 +3647,28 @@ export class IntendedBehaviourHarness {
     finalization: RecoveryRequestIdentity,
     expectation: 'present' | 'absent',
   ): Promise<void> {
-    const modulePath = intendedIndexedDbModulePath(this.config.appUrl);
+    if (this.browserSession.kind !== 'ready') {
+      throw new Error('Recovery evidence requires the initialized browser session');
+    }
     const frame = await walletServiceFrame(this.page, this.config.walletOrigin);
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
-      const pending = await frame.evaluate(readPendingWalletRecoveryCommitIdentitiesInBrowser, {
-        modulePath,
-      });
-      const matching = pending.filter(
-        (record) =>
-          record.walletId === finalization.walletId &&
-          record.recoveryOperationId === finalization.recoveryOperationId,
+      const pending = await readPendingWalletRecoveryCommitIdentity(
+        this.browserSession.session,
+        frame,
+        finalization.recoveryOperationId,
       );
+      if (
+        pending &&
+        (pending.walletId !== finalization.walletId ||
+          pending.recoveryOperationId !== finalization.recoveryOperationId)
+      ) {
+        throw new Error('Recovery journal identity does not match the selected operation');
+      }
       const matchesExpectation =
         expectation === 'present'
-          ? matching.length === 1 && matching[0]?.stage === 'awaiting_server_promotion'
-          : matching.length === 0;
+          ? pending?.stage === 'awaiting_server_promotion'
+          : pending === null;
       if (matchesExpectation) {
         this.recordService(
           `durable recovery journal ${expectation} for wallet=${finalization.walletId} operation=${finalization.recoveryOperationId}`,
@@ -3771,6 +3742,17 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `email otp unlock succeeded wallet=${result.walletId} near=${result.nearAccountId}`,
     );
+  }
+
+  async signNearMessage(
+    message: string,
+    options?: Pick<SignNEP413MessageParams, 'callbackUrl' | 'state'>,
+  ) {
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'NEAR message signing',
+    );
+    return await signAndVerifyNearMessage(this.page, message, registration, options);
   }
 
   async signNearTransaction(stage: IntendedNearSigningStage): Promise<SigningAuthEventSummary> {
@@ -3870,13 +3852,18 @@ export class IntendedBehaviourHarness {
     });
   }
 
-  async assertWalletLocked(): Promise<void> {
+  /** The application reads its session, so the wallet reads fresh server status. */
+  async readWalletAuthenticationKind(): Promise<string> {
     const state = await this.page.evaluate(async () => {
       const read = window.__seamsIntendedE2EReadWalletLockState;
       if (!read) throw new Error('Wallet lock-state helper is unavailable');
       return await read();
     });
-    expect(state.authenticationKind).not.toBe('authenticated');
+    return state.authenticationKind;
+  }
+
+  async assertWalletLocked(): Promise<void> {
+    expect(await this.readWalletAuthenticationKind()).not.toBe('authenticated');
   }
 
   async assertLockedPageReloadStaysLocked(): Promise<void> {
@@ -3963,16 +3950,12 @@ export class IntendedBehaviourHarness {
     };
   }
 
-  async signTempoTransaction(
-    stage: IntendedSigningStage,
-    options: IntendedSigningActionHooks = {},
-  ): Promise<SigningAuthEventSummary> {
+  async signTempoTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:tempo.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signTempoTransaction',
       'intended-sign-tempo',
-      options,
     );
     const result = requireTempoSigningResult(snapshot, {
       walletId: this.walletId,
@@ -3990,16 +3973,12 @@ export class IntendedBehaviourHarness {
     return summary;
   }
 
-  async signArcEvmTransaction(
-    stage: IntendedSigningStage,
-    options: IntendedSigningActionHooks = {},
-  ): Promise<SigningAuthEventSummary> {
+  async signArcEvmTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:arc_evm.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signArcEvmTransaction',
       'intended-sign-arc-evm',
-      options,
     );
     const result = requireArcEvmSigningResult(snapshot, {
       walletId: this.walletId,
@@ -4022,6 +4001,7 @@ export class IntendedBehaviourHarness {
     const registration = this.requireRegisteredWalletForSigning();
     await this.ensureIntendedPageOpen();
     this.latestWalletBudgetStatusRequest = null;
+    this.preparedWalletBudgetStatus = null;
     await this.page.evaluate(installIntendedConcurrentActionObserver);
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let rawSnapshots: unknown[];
@@ -4082,7 +4062,7 @@ export class IntendedBehaviourHarness {
       this.recordService('signing remaining spend already exhausted');
       return;
     }
-    if (this.latestWalletBudgetStatusRequest) {
+    if (this.latestWalletBudgetStatusRequest || this.preparedWalletBudgetStatus) {
       const replay = await this.replayLatestWalletBudgetStatus();
       if (replay.kind === 'exhausted') {
         this.latestSigningRemainingUses = 0;
@@ -4101,7 +4081,7 @@ export class IntendedBehaviourHarness {
       if (remainingUses === 0) {
         return;
       }
-      if (this.latestWalletBudgetStatusRequest) {
+      if (this.latestWalletBudgetStatusRequest || this.preparedWalletBudgetStatus) {
         const replay = await this.replayLatestWalletBudgetStatus();
         if (replay.kind === 'exhausted') {
           this.latestSigningRemainingUses = 0;
@@ -4195,94 +4175,6 @@ export class IntendedBehaviourHarness {
     this.recordService(
       'the recovery retired the replaced activation: a delayed finalize was refused, a made signature answered again',
     );
-  }
-
-  /**
-   * A NEAR finalize that loaded the replaced activation's material before a
-   * recovery promoted is refused at its commit, and its signature never
-   * answers. Only the Workers D1 SigningWorker signs and commits in separate
-   * steps; the wallet object and the VM SigningWorker commit in the step that
-   * loads the material. The Gateway withholds the finalize of a signature
-   * authorized before the recovery, and the SigningWorker is asked to hold
-   * the wallet's next finalize after it signs, until its activation is
-   * retired. The withheld finalize reaches the Router, and the SigningWorker
-   * holds it. The recovery promotes, retiring the activation, and the held
-   * finalize's commit is refused.
-   */
-  async recoverPasskeyWalletWhileAFinalizeHoldsTheReplacedMaterial(): Promise<void> {
-    this.recordStage('recover_passkey_wallet_while_finalize_holds_replaced_material');
-    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
-    const withheld = await this.keepNearSigningFinalize('withhold_signing_finalize');
-    const armed = await this.commandSigningWorkerHold('arm_signing_worker_hold');
-    if (armed !== 'armed') {
-      throw new Error(`The SigningWorker did not arm its finalize hold: ${armed}`);
-    }
-    const held = this.releaseNearSigningFinalize(withheld, 300_000).then(
-      (released) => ({ kind: 'answered' as const, released }),
-      (error: unknown) => ({ kind: 'failed' as const, error }),
-    );
-    await this.waitForSigningWorkerHold('holding');
-    this.recordService(
-      'the SigningWorker holds a finalize that has signed with the active material',
-    );
-    await this.recoverPasskeyWalletFromFreshBrowser();
-    const outcome = await held;
-    if (outcome.kind === 'failed') throw outcome.error;
-    const refused = outcome.released;
-    if (
-      refused.status < 400 ||
-      !refused.body.includes(SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE)
-    ) {
-      throw new Error(
-        `A finalize held across the recovery's promotion was not refused at its commit: ${refused.status} ${refused.body}`,
-      );
-    }
-    const released = await this.commandSigningWorkerHold('read_signing_worker_hold');
-    if (released !== 'released_retired') {
-      throw new Error(`The SigningWorker's hold did not end on the retirement: ${released}`);
-    }
-    this.recordService(
-      'a finalize that signed with the replaced material before the recovery promoted was refused at its commit',
-    );
-  }
-
-  /** Arms or reads the SigningWorker's hold on this wallet's next NEAR finalize. */
-  private async commandSigningWorkerHold(
-    mode: 'arm_signing_worker_hold' | 'read_signing_worker_hold',
-  ): Promise<string | null> {
-    const response = await this.page.request.post(
-      new URL(ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH, this.config.routerUrl).href,
-      {
-        headers: {
-          [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: mode,
-          [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: randomUUID(),
-        },
-        data: { wallet_id: this.requireRegisteredWalletForSigning().walletId },
-      },
-    );
-    if (!response.ok()) {
-      throw new Error(
-        `The SigningWorker hold command failed: ${response.status()} ${await response.text()}`,
-      );
-    }
-    const reply = requireRecord(await response.json(), 'SigningWorker hold reply');
-    const body = requireString(reply.body, 'SigningWorker hold body');
-    if (Number(reply.status) !== 200) {
-      throw new Error(`The SigningWorker refused the hold command: ${reply.status} ${body}`);
-    }
-    const state = requireRecord(JSON.parse(body), 'SigningWorker hold state').state;
-    return typeof state === 'string' ? state : null;
-  }
-
-  private async waitForSigningWorkerHold(expected: string): Promise<void> {
-    const deadline = Date.now() + 60_000;
-    let state: string | null = null;
-    while (Date.now() < deadline) {
-      state = await this.commandSigningWorkerHold('read_signing_worker_hold');
-      if (state === expected) return;
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    throw new Error(`The SigningWorker's finalize hold stayed ${state}, not ${expected}`);
   }
 
   /** Signs NEAR once with every finalize of it kept by the Gateway, run or withheld. */
@@ -4503,6 +4395,7 @@ export class IntendedBehaviourHarness {
     const client = await this.context.newCDPSession(this.page);
     await client.send('WebAuthn.enable');
     await addWebAuthnVirtualAuthenticator(client);
+    this.browserSession = { kind: 'ready', session: client };
     this.recordService('webauthn virtual authenticator ready');
   }
 
@@ -4610,8 +4503,6 @@ export class IntendedBehaviourHarness {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
       onRecoveryCodes?: (codes: readonly string[]) => void;
-      /** Runs as soon as the page reports the action started. */
-      onActionStarted?: () => void;
     },
   ): Promise<IntendedPageSnapshot> {
     if (opts?.nearAccountId && !this.registeredWallet) {
@@ -4626,14 +4517,14 @@ export class IntendedBehaviourHarness {
     await this.page.getByTestId(buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action);
     timing.actionObservedAt = performance.now();
-    opts?.onActionStarted?.();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let diagnosticsRecorded = false;
     try {
       const snapshot = await autoConfirmWalletIframeUntil(
         this.page,
-        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success')
-          .then(timing.complete.bind(timing)),
+        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success').then(
+          timing.complete.bind(timing),
+        ),
         {
           timeoutMs: 120_000,
           intervalMs: 250,
@@ -4769,7 +4660,7 @@ export class IntendedBehaviourHarness {
 
   private async handleIntendedYaoFaultRoute(route: Route): Promise<void> {
     const current = this.intendedYaoFaultInjection;
-    if (current.kind === 'idle') {
+    if (current.kind === 'idle' || route.request().method() !== 'POST') {
       await route.continue();
       return;
     }
@@ -4905,15 +4796,23 @@ export class IntendedBehaviourHarness {
 
   private handleRequest(request: Request): void {
     const routePath = routePathAtRouter(request.url(), this.config.routerUrl);
+    const captured = captureWalletBudgetStatusRequest(request, this.config.routerUrl);
     if (routePath) {
       this.trace.push({
         atMs: Date.now(),
         kind: 'request',
         message: `${request.method()} ${routePath}`,
         url: request.url(),
+        ...(captured
+          ? {
+              walletSessionStatusIdentity: JSON.stringify([
+                captured.walletSessionId,
+                captured.quotaId,
+              ]),
+            }
+          : {}),
       });
     }
-    const captured = captureWalletBudgetStatusRequest(request, this.config.routerUrl);
     if (captured) this.latestWalletBudgetStatusRequest = captured;
   }
 
@@ -4928,6 +4827,7 @@ export class IntendedBehaviourHarness {
   }
 
   async readCurrentWalletSessionStatus() {
+    await this.preparedWalletBudgetStatus;
     const captured = this.latestWalletBudgetStatusRequest;
     if (!captured) throw new Error('Signing has not read Wallet Session status');
     const walletSessionId = parseWalletSessionId(captured.walletSessionId);
@@ -4946,9 +4846,10 @@ export class IntendedBehaviourHarness {
   }
 
   private async replayLatestWalletBudgetStatus(): Promise<AuthoritativeWalletBudgetReplay> {
+    await this.preparedWalletBudgetStatus;
     const captured = this.latestWalletBudgetStatusRequest;
     if (!captured) {
-      throw new Error('Signing did not issue an authenticated wallet budget status request');
+      throw new Error('Signing did not expose an authenticated Wallet Session identity');
     }
     return await this.replayWalletBudgetStatus(captured);
   }
@@ -4983,7 +4884,19 @@ export class IntendedBehaviourHarness {
     return this.request.post(captured.url, { headers, data: captured.body });
   }
 
+  private async capturePreparedWalletBudget(response: Response): Promise<void> {
+    const captured = await capturePreparedWalletBudgetStatus(response);
+    if (captured) this.latestWalletBudgetStatusRequest = captured;
+  }
+
   private handleResponse(response: Response): void {
+    if (
+      response.ok() &&
+      routePathAtRouter(response.url(), this.config.routerUrl) ===
+        '/router-ab/ecdsa-derivation/sign/prepare'
+    ) {
+      this.preparedWalletBudgetStatus = this.capturePreparedWalletBudget(response);
+    }
     const status = response.status();
     const faultProof = response.headers()[LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1];
     if (faultProof) this.intendedYaoFaultProofs.push(faultProof);
@@ -5131,6 +5044,7 @@ export class IntendedBehaviourHarness {
       throw new Error('An intended Yao transport fault is already armed');
     }
     requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    if (mode === 'return_terminal_burned_once') requireLocalIntendedRouterBurnBuild();
     const token = randomUUID();
     this.intendedYaoFaultInjection = { kind: 'armed', mode, token };
     return token;
@@ -5498,6 +5412,21 @@ export function requireLocalIntendedYaoFaultRouterOrigin(routerUrl: string): voi
   throw new Error(`Intended Yao fault injection requires ${expected}; received ${origin}`);
 }
 
+/** A Workers Router ends an execution burned on request only when built with
+ * `local-intended-router-burn`, which the dev profile selects. The VM script
+ * builds its Router with that feature. A release Router runs the execution. */
+function requireLocalIntendedRouterBurnBuild(): void {
+  if (
+    process.env.SEAMS_INTENDED_WALLET_HOST === 'vm' ||
+    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
+  ) {
+    return;
+  }
+  throw new Error(
+    'The terminal-failure fault needs a dev-profile Router: build and run the Workers with ROUTER_AB_WORKER_BUILD_PROFILE=dev',
+  );
+}
+
 function emailOtpEcdsaTargetProfileFromEnv(raw: string | undefined): EcdsaTargetProfileName {
   return ecdsaTargetProfileFromEnv({
     raw,
@@ -5527,11 +5456,13 @@ function uniqueWalletId(): string {
 function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
-    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume))?\.contract\.test\.ts$/u.test(
+    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume|assets))?\.contract\.test\.ts$/u.test(
       normalized,
     ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
+    normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
+    normalized.endsWith('passkey.near-registration-commit.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
@@ -5548,6 +5479,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.registration.contract.test.ts') ||
+    normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
     normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.benchmark.test.ts')
@@ -5556,6 +5488,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.unlock.contract.test.ts') ||
+    normalized.endsWith('email-otp.challenge-expiry.contract.test.ts') ||
     normalized.endsWith('email-otp.unlock.benchmark.test.ts')
   ) {
     return 'email_otp.unlock';
@@ -6277,7 +6210,7 @@ async function readSettledDeviceLinkState(page: Page): Promise<DeviceLinkSettled
   }
 }
 
-function requireNearSigningResult(
+export function requireNearSigningResult(
   snapshot: IntendedPageSnapshot,
   expected: {
     walletId: string;
@@ -6308,11 +6241,7 @@ function requireNearSigningResult(
 
 function requirePasskeyUnlockResult(
   snapshot: IntendedPageSnapshot,
-  expected: {
-    walletId: string;
-    nearAccountId: string;
-    operationalPublicKey: string;
-  },
+  expected: RegisteredWalletSnapshot & { nearReadiness: 'ready' | 'absent' },
 ): PasskeyUnlockResultSnapshot {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Passkey unlock did not succeed: ${snapshot.action.status}`);
@@ -6324,14 +6253,23 @@ function requirePasskeyUnlockResult(
   if (result.walletId !== expected.walletId) {
     throw new Error(`Passkey unlock wallet mismatch: ${result.walletId}`);
   }
-  if (result.nearIdentity !== 'ready') {
-    throw new Error('Passkey unlock did not return its expected NEAR identity');
-  }
-  if (result.nearAccountId !== expected.nearAccountId) {
-    throw new Error(`Passkey unlock NEAR account mismatch: ${result.nearAccountId}`);
-  }
-  if (result.operationalPublicKey !== expected.operationalPublicKey) {
-    throw new Error('Passkey unlock operational public key mismatch');
+  switch (expected.nearReadiness) {
+    case 'ready':
+      if (result.nearIdentity !== 'ready') {
+        throw new Error('Passkey unlock did not return its expected NEAR identity');
+      }
+      if (result.nearAccountId !== expected.nearAccountId) {
+        throw new Error(`Passkey unlock NEAR account mismatch: ${result.nearAccountId}`);
+      }
+      if (result.operationalPublicKey !== expected.operationalPublicKey) {
+        throw new Error('Passkey unlock operational public key mismatch');
+      }
+      break;
+    case 'absent':
+      if (result.nearIdentity !== 'absent') {
+        throw new Error('ECDSA-only Passkey unlock unexpectedly returned a NEAR identity');
+      }
+      break;
   }
   if (result.authenticationKind !== 'authenticated') {
     throw new Error(`Passkey unlock did not authenticate the wallet: ${result.authenticationKind}`);
@@ -6638,8 +6576,8 @@ function requireEd25519ExportResult(
   return result;
 }
 
-async function verifyNearEd25519Signature(args: {
-  registration: NearReadyRegisteredWalletSnapshot;
+export async function verifyNearEd25519Signature(args: {
+  registration: Pick<NearReadyRegisteredWalletSnapshot, 'operationalPublicKey'>;
   result: NearSigningResultSnapshot;
 }): Promise<void> {
   const registeredPublicKey = parseNearEd25519PublicKey(args.registration.operationalPublicKey);
@@ -7633,59 +7571,6 @@ function routerAbEd25519YaoExportPath(
   return null;
 }
 
-function captureWalletBudgetStatusRequest(
-  request: Request,
-  routerUrl: string,
-): CapturedWalletBudgetStatusRequest | null {
-  if (request.method() !== 'POST') return null;
-  let requestUrl: URL;
-  let routerOrigin: string;
-  try {
-    requestUrl = new URL(request.url());
-    routerOrigin = new URL(routerUrl).origin;
-  } catch {
-    return null;
-  }
-  if (
-    requestUrl.origin !== routerOrigin ||
-    requestUrl.pathname !== ROUTER_AB_WALLET_BUDGET_STATUS_PATH
-  ) {
-    return null;
-  }
-
-  const headers = request.headers();
-  const authorization = headers.authorization?.trim() ?? '';
-  const contentType = headers['content-type']?.trim() ?? 'application/json';
-  const body = request.postData();
-  if (!authorization.startsWith('Bearer ') || !body) return null;
-
-  let walletSessionId: string;
-  let quotaId: string;
-  try {
-    const parsed: unknown = JSON.parse(body);
-    const requestBody = requireRecord(parsed, 'wallet budget status request body');
-    if (
-      Object.keys(requestBody).length !== 2 ||
-      typeof requestBody.walletSessionId !== 'string' ||
-      typeof requestBody.quotaId !== 'string'
-    )
-      return null;
-    walletSessionId = requestBody.walletSessionId;
-    quotaId = requestBody.quotaId;
-  } catch {
-    return null;
-  }
-
-  return {
-    url: request.url(),
-    authorization,
-    contentType,
-    body,
-    walletSessionId,
-    quotaId,
-  };
-}
-
 function parseAuthoritativeWalletBudgetStatus(args: {
   readonly responseText: string;
   readonly expectedWalletSessionId: string;
@@ -7930,68 +7815,6 @@ function assertOwnerDevicesUnchanged(
       `${label} changed Device 1's founding methods: ${describe(before)} -> ${describe(after)}`,
     );
   }
-}
-
-type IntendedWebAuthnAssertionRequest = {
-  readonly rpId: string;
-  readonly challengeB64u: string;
-  readonly credentialIdB64u: string;
-};
-
-/**
- * Runs inside the wallet frame, so the assertion's client data names the
- * wallet origin - the origin the Gateway expects for a request the wallet
- * host sends. Playwright serializes this function alone; keep it
- * self-contained.
- */
-async function getWalletOriginPasskeyAssertion(
-  input: IntendedWebAuthnAssertionRequest,
-): Promise<Record<string, unknown>> {
-  function decodeB64u(value: string): Uint8Array {
-    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-  }
-  function encodeB64u(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  const credential = await navigator.credentials.get({
-    publicKey: {
-      rpId: input.rpId,
-      challenge: decodeB64u(input.challengeB64u),
-      allowCredentials: [{ type: 'public-key', id: decodeB64u(input.credentialIdB64u) }],
-      userVerification: 'required',
-      timeout: 30_000,
-    },
-  });
-  if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error('Wallet-origin passkey assertion returned no public-key credential');
-  }
-  const response = credential.response;
-  if (!(response instanceof AuthenticatorAssertionResponse)) {
-    throw new Error('Wallet-origin passkey assertion returned a non-assertion response');
-  }
-  return {
-    id: credential.id,
-    rawId: encodeB64u(credential.rawId),
-    type: credential.type,
-    authenticatorAttachment: credential.authenticatorAttachment ?? null,
-    response: {
-      clientDataJSON: encodeB64u(response.clientDataJSON),
-      authenticatorData: encodeB64u(response.authenticatorData),
-      signature: encodeB64u(response.signature),
-      userHandle: response.userHandle ? encodeB64u(response.userHandle) : null,
-    },
-    clientExtensionResults: {},
-  };
 }
 
 async function hostedAuthMenuFrame(page: Page): Promise<FrameLocator> {
@@ -8518,7 +8341,7 @@ function walletIframeSecureConfirmationControl(frame: FrameLocator): Locator {
     .last();
 }
 
-async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
+export async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
   const iframe = page.locator('iframe[allow*="publickey-credentials-get"]').last();
   if ((await iframe.count()) === 0) return;
   await walletIframeSecureConfirmationControl(iframe.contentFrame()).waitFor({
@@ -8753,7 +8576,7 @@ async function waitForWalletRecoveryCodeBackup(
   throw new Error('Wallet registration did not present recovery codes');
 }
 
-async function autoConfirmWalletIframeUntil<T>(
+export async function autoConfirmWalletIframeUntil<T>(
   page: Page,
   task: Promise<T>,
   opts?: {
@@ -8938,7 +8761,10 @@ async function releaseHeldWalletStore(): Promise<void> {
 }
 
 function isNearRegistrationExecutionResponse(response: Response): boolean {
-  return new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1;
+  return (
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1
+  );
 }
 
 function isNearProvisioningFinalizeResponse(response: Response): boolean {
@@ -8946,4 +8772,32 @@ function isNearProvisioningFinalizeResponse(response: Response): boolean {
     response.request().method() === 'POST' &&
     new URL(response.url()).pathname === WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1
   );
+}
+
+export async function signAndVerifyNearMessage(
+  page: Page,
+  message: string,
+  registration: { readonly nearAccountId: string; readonly operationalPublicKey: string },
+  options: Pick<SignNEP413MessageParams, 'callbackUrl' | 'state'> = { state: 'quote-170' },
+) {
+  const params = { message, recipient: 'checkout.example', ...options };
+  const result = await autoConfirmWalletIframeUntil(
+    page,
+    page.evaluate(invokeIntendedSignMessage, { nearAccountId: registration.nearAccountId, params }),
+  );
+  if (!result.success) throw new Error(result.error);
+  expect(result.accountId).toBe(registration.nearAccountId);
+  expect(result.publicKey).toBe(registration.operationalPublicKey);
+  const proof = await verifyNearMessageSignature(params, result);
+  await waitForWalletIframeConfirmationSettlement(page);
+  return proof;
+}
+
+async function invokeIntendedSignMessage(input: {
+  nearAccountId: string;
+  params: SignNEP413MessageParams;
+}): Promise<SignNEP413MessageResult> {
+  const sign = window.__seamsIntendedE2ESignMessage;
+  if (!sign) throw new Error('Intended message-signing helper is unavailable');
+  return await sign(input);
 }

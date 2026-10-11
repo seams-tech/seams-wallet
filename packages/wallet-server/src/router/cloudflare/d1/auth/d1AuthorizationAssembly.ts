@@ -37,8 +37,10 @@ export function createD1AuthorizationAssembly(
 
 export function createD1WalletCustodyStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
+  walletAuthMethodStore: D1WalletAuthMethodStore,
 ) {
   return new CloudflareD1WalletCustodyCommitStore({
+    walletAuthMethodStore,
     credentialClaims: options.credentialClaims,
     database: options.database,
     scope: {
@@ -106,7 +108,7 @@ export function createD1EmailOtpRateLimits(
 ) {
   return new CloudflareD1EmailOtpRateLimitStore({
     prepare,
+    batch: options.database.batch.bind(options.database),
     rateLimits: options.emailOtp.rateLimits,
-    counter: options.emailOtpRateLimitCounter,
   });
 }

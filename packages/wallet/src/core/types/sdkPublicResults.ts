@@ -3,6 +3,7 @@ import type { ExclusiveUnion } from '@shared/utils/variant';
 export type SignNEP413MessageParams = {
   message: string;
   recipient: string;
+  callbackUrl?: string;
   state?: string;
 };
 

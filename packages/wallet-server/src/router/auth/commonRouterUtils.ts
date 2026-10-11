@@ -1,8 +1,13 @@
-import type { D1EcdsaAdmissionPolicyRead } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type {
+  D1EcdsaAdmissionPolicyRead,
+  D1Ed25519AdmissionPolicyRead,
+} from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../../core/d1EcdsaSignerRead';
+import type { Ed25519SignerRead } from '../../core/d1Ed25519SignerRead';
 import type { ThresholdRuntimePolicyScope } from '../../core/types';
 import type { RouterApiAuthorizationSessionService } from '../framework/authServicePort';
 import type {
+  RouterApiEd25519WalletSessionSigningRead,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
   RouterApiWalletSessionExactOperationContext,
   RouterApiWalletSessionSigningCandidate,
@@ -221,6 +226,9 @@ export type ThresholdEd25519SessionInputs =
         { readonly curve: 'ed25519' }
       >;
       readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+      /** The session wallet's signer and policy rows, read in the session's statement. */
+      readonly signerRead: Ed25519SignerRead;
+      readonly policyRead: D1Ed25519AdmissionPolicyRead;
     }
   | AuthorizeErr;
 
@@ -232,6 +240,8 @@ export async function validateRouterAbEd25519WalletSessionInputs(input: {
     WalletSessionAuthorizationV2RequestedOperation,
     { readonly keyFamily: 'ed25519' }
   >['operationKind'];
+  /** The material the request names; the session must admit exactly this activation. */
+  materialActivation: import('@shared/utils/routerAbNormalSigningIdentity').RouterAbMpcMaterialActivationRefWire;
 }): Promise<ThresholdEd25519SessionInputs> {
   const authorizationSessions = input.authorizationSessions;
   if (!authorizationSessions) {
@@ -245,28 +255,31 @@ export async function validateRouterAbEd25519WalletSessionInputs(input: {
   const token = extractBearerCredential(input.headers);
   if (!token) return walletSessionFailure('wallet_session_missing');
   const nowMs = input.nowMs || Date.now;
-  let resolution: WalletSessionOperationCredentialResolution;
+  let read: RouterApiEd25519WalletSessionSigningRead | null;
+  let resolution: ReturnType<typeof resolveWalletSessionOperationCredentialAdmissionFromContext>;
   try {
-    resolution = await resolveWalletSessionOperationCredentialAdmission({
-      authorizationSessions,
+    read = await authorizationSessions.readEd25519WalletSessionSigningReadByOperationCredential({
+      tenantId: authorizationSessions.tenantId,
       token,
+      nowMs: nowMs(),
+      materialActivation: input.materialActivation,
+    });
+    if (!read) {
+      return {
+        ok: false,
+        code: 'wallet_session_invalid',
+        message: walletSessionFailureMessage('wallet_session_invalid'),
+      };
+    }
+    resolution = resolveWalletSessionOperationCredentialAdmissionFromContext({
+      context: read.context,
       nowMs: nowMs(),
       operation: { keyFamily: 'ed25519', operationKind: input.operationKind },
     });
   } catch {
     return walletSessionFailure('wallet_session_unavailable');
   }
-  if (resolution.kind === 'rejected') {
-    return walletSessionFailure('wallet_session_scope_mismatch');
-  }
-  if (resolution.kind === 'not_found') {
-    return {
-      ok: false,
-      code: 'wallet_session_invalid',
-      message: walletSessionFailureMessage('wallet_session_invalid'),
-    };
-  }
-  if (resolution.admission.curve !== 'ed25519') {
+  if (resolution.kind === 'rejected' || resolution.admission.curve !== 'ed25519') {
     return walletSessionFailure('wallet_session_scope_mismatch');
   }
   return {
@@ -274,6 +287,8 @@ export async function validateRouterAbEd25519WalletSessionInputs(input: {
     kind: 'wallet_session_operation_credential_v1',
     admission: resolution.admission,
     context: resolution.admission.context,
+    signerRead: read.signerRead,
+    policyRead: read.policyRead,
   };
 }
 

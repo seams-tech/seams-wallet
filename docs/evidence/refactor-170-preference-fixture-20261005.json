@@ -1,0 +1,18 @@
+{
+  "baseCommit": "7b238676fa06de7184509e3c429947a9c86b2727",
+  "classification": "valid_test_needs_update",
+  "invariant": "Preference acknowledgements wait for durable persistence, and delayed reads remain bound to their requested wallet.",
+  "failure": "Fixture published wallet Alice through its real preference manager while the common stub returned a null-wallet exact-session snapshot. Current session snapshot admission correctly rejected the mismatched selection.",
+  "fix": "Publish the same preference snapshot to the common stub state and the application event. Session snapshot selection now agrees with the real preference manager.",
+  "sourceSha256": {
+    "tests/wallet-iframe/preferences.persistence.test.ts": "bfd376c31821461457cb6e7d7121810a6a366d412330f4dae94fdba4afeaa8b4"
+  },
+  "productionBehaviorChanged": false,
+  "expectationsChanged": false,
+  "verification": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/preferences.persistence.test.ts --project=chromium --output=../.artifacts/r170-preference-persistence",
+    "result": "1 passed (1.2s)",
+    "scope": "Actual UserPreferencesManager, IndexedDB, and host preference handlers behind the stub transport.",
+    "workingTreeContext": "Ran with the pending setConfirmationBehavior rename. This fixture uses setConfirmationConfig; its API calls and expectations did not change."
+  }
+}

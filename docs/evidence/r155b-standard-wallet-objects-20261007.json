@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-07",
+  "scope": "Default wallet-object topology; local dev and optimized release production Workers. No live deployment.",
+  "checks": {
+    "nativeNearCoordinatorAndBrowserSession": "passed",
+    "nativeEcdsaPoolRelocationReplayAndCleanup": "passed",
+    "browserOtpOutage": "passed: two NEAR signatures, three ECDSA signatures, two OTP step-ups, zero Console requests",
+    "allManifestWalletBindingsAndMigrations": "passed",
+    "syntaxAndPatchChecks": "passed",
+    "bloat": "passed"
+  },
+  "artifactSha256": {
+    "near": "3d21d3f1e0a61f592ac7825a6b08a95222461b5e6adfaa166ae43ff61d6c0e7d",
+    "ecdsa": "498e67b010773b54ce87407d8e29fbdeb58b744e545b81906d843d8dd9665d96",
+    "browser": "ecdffc03e95f3704a3045a4d9357238fd92013bb58686ec898cda0839930ad49"
+  },
+  "sourceQualification": "Direct Git blob comparison confirms all 3549 working files match public dev at 1b3fbb895501077201ca69cc3a94cadcc1cc88e9. The checkout branch and its index differ, but tested file contents are committed.",
+  "initialBrowserFailure": "Late browser refill reached a disposed Miniflare database during teardown. Waiting for route handlers before disposal repaired the test lifecycle; the same scenario then passed.",
+  "commands": [
+    "ROUTER_AB_WORKER_BUILD_PROFILE=dev SEAMS_WALLET_SERVER_CANDIDATE=<wallet-server> node tests/e2e/relocation-custody.e2e.mjs (private repository)",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --ecdsa-wallet-do-pool (router-ab-cloudflare)",
+    "SEAMS_WALLET_SERVER_CANDIDATE=<wallet-server> ROUTER_AB_WORKER_BUILD_PROFILE=dev node tests/scripts/run-regional-real.mjs google-email-otp.recovery.contract.test.ts --grep \"Email OTP budget exhaustion\" (private repository)"
+  ],
+  "releaseAcceptance": {
+    "nativeNearCoordinatorAndBrowserSession": "passed; exit 0",
+    "nativeEcdsaPoolRelocationReplayAndCleanup": "passed; exit 0",
+    "builds": {
+      "router": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-router-entrypoint,wallet-do-router-harness",
+          "started_at_ms": 1791321483000
+        },
+        "wasmSha256": "25119c0b6b2b858a9ddc95163f48d9299d0fae684277c903dea19aa72cea9fd4"
+      },
+      "deriver-a": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-a-entrypoint,wallet-do-harness",
+          "started_at_ms": 1791321603000
+        },
+        "wasmSha256": "f02d2d6329a15747150ff91e7f40be1dc71ded52b1d6a457cbfccd1eb3af97ff"
+      },
+      "deriver-b": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-b-entrypoint,wallet-do-b-harness",
+          "started_at_ms": 1791321730000
+        },
+        "wasmSha256": "024ace856c1fb2bb841e8f585f125147650cbed100a8f14656d4849704abd7aa"
+      },
+      "signing-worker": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-signing-worker-entrypoint,wallet-do-signing-worker-harness",
+          "started_at_ms": 1791321840000
+        },
+        "wasmSha256": "7a5a6f792943d8720a7c0d1a0adc98540da464e51c8fbc5f5df9633da1103f2f"
+      },
+      "tenant-root-control-plane": {
+        "stamp": {
+          "profile": "release",
+          "wallet_objects": false,
+          "features": "strict-worker-tenant-root-control-plane-entrypoint",
+          "started_at_ms": 1791321967000
+        },
+        "wasmSha256": "1fa17935d9d4457eb9d5be25ade90337b0481ee0c6486e4ac75adce5ee44e884"
+      }
+    },
+    "artifactSha256": {
+      "nearTopology": "65ff66ab3749e3817f4174ca0f45b9eb022c9982a19cb43717522e0ce0f7c11c",
+      "nearSigningRace": "b7fe078678782fc2a07f526762f916b00bb14f6b3c3755853e0f1b036bb5a346",
+      "browserSession": "a6aa94f7e47c0955424a4af987595efdf963347d7c3903420ca65919511fb52c",
+      "ecdsa": "07cf1aaaffc36aa6dba5c7e618f33b318ad3713f28b284d3dadbaf003ebd3f13"
+    },
+    "commands": [
+      "ROUTER_AB_WORKER_BUILD_PROFILE=release SEAMS_WALLET_SERVER_CANDIDATE=<wallet-server> node tests/e2e/relocation-custody.e2e.mjs (private repository)",
+      "ROUTER_AB_WORKER_BUILD_PROFILE=release node scripts/test-private-d1.mjs --ecdsa-wallet-do-pool (router-ab-cloudflare)"
+    ],
+    "limits": "Local correctness checks only. ECDSA uses harness-selected Gateway routing. NEAR browser coverage checks persisted session invalidation, not the full post-move authentication journey. No hosted latency claim.",
+    "candidateSourceRevision": "1b3fbb895501077201ca69cc3a94cadcc1cc88e9",
+    "releaseFaultExcluded": true
+  },
+  "sourceAudit": {
+    "dev": "1b3fbb895501077201ca69cc3a94cadcc1cc88e9",
+    "trackedFileCount": 3549,
+    "changed": [],
+    "missing": [],
+    "extra": []
+  },
+  "privateSourceRevision": "3dea157"
+}

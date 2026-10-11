@@ -21,6 +21,7 @@ const auth = {
   walletSessionToken: 'wallet-session-token',
   credential: {
     kind: 'wallet_session_opaque',
+    home: { kind: 'direct' },
     walletSessionToken: 'wallet-session-token',
   },
 } satisfies RouterAbSigningWalletSessionAuth;

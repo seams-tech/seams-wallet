@@ -1,0 +1,60 @@
+--- a/crates/router-ab-cloudflare/src/durable_object/worker_storage.rs
++++ b/crates/router-ab-cloudflare/src/durable_object/worker_storage.rs
+@@ -41,6 +41,9 @@
+         matches!(result, Ok(true)),
+         worker::Date::now().as_millis().saturating_sub(started_at),
+     );
++    if let Err(error) = probe_do_lookup(&env, &binding).await {
++        worker::console_log!("do_lookup_probe failed={error}");
++    }
+ }
+
+ pub(crate) struct CloudflareDurableObjectJsonResponseV1<TResponse> {
+@@ -182,3 +185,47 @@
+         encode_base64url_bytes_v1(&digest)
+     ))
+ }
++
++// Temporary staging diagnostic: no wallet identity, storage, sessions, or cryptographic work.
++async fn probe_do_lookup(
++    env: &worker::Env,
++    binding: &CloudflareSigningWorkerPresignSessionBindingV1,
++) -> worker::Result<()> {
++    let namespace = env.durable_object(&binding.binding_name)?;
++    for group in 0..4 {
++        let nonce = namespace.unique_id()?.to_string();
++        let names = [format!("lookup-probe-{nonce}-default"), format!("lookup-probe-{nonce}-apac")];
++        let random_default = namespace.unique_id()?;
++        let random_apac = namespace.unique_id()?;
++        for repeat in 0..3 {
++            for offset in 0..4 {
++                let arm = (group + offset) % 4;
++                let (label, stub) = match arm {
++                    0 => ("named_default", namespace.get_by_name(&names[0])?),
++                    1 => ("random_default", random_default.get_stub()?),
++                    2 => ("named_apac", namespace.get_by_name_with_location_hint(&names[1], "apac")?),
++                    3 => ("random_apac", random_apac.get_stub_with_location_hint("apac")?),
++                    _ => unreachable!(),
++                };
++                let mut init = worker::RequestInit::new();
++                init.with_method(worker::Method::Post);
++                let request = worker::Request::new_with_init(
++                    "https://router-ab-do.internal/internal/prewarm", &init,
++                )?;
++                let start = worker::Date::now().as_millis();
++                let mut response = stub.fetch_with_request(request).await?;
++                let headers_ms = worker::Date::now().as_millis().saturating_sub(start);
++                let status = response.status_code();
++                let ready = response.json::<bool>().await?;
++                let total_ms = worker::Date::now().as_millis().saturating_sub(start);
++                worker::console_log!(
++                    "do_lookup_probe arm={label} group={group} repeat={repeat} headers_ms={headers_ms} total_ms={total_ms} status={status} ready={ready}"
++                );
++                if status != 200 || !ready {
++                    return Err(worker::Error::RustError("DO lookup probe failed".into()));
++                }
++            }
++        }
++    }
++    Ok(())
++}

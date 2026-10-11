@@ -5,7 +5,7 @@ use router_ab_core::{
     Ed25519YaoDeriverBPrefaceInFlightV2, Ed25519YaoDeriverBToATargetProofPayloadV2,
     Ed25519YaoEncryptedInputV1, Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1,
     Ed25519YaoLaneJobV1, Ed25519YaoOuterBindingV2, Ed25519YaoPairSessionIdV2,
-    Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleStartAcceptanceV1, RouterAbDerivationError,
+    RouterAbDerivationError,
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
     RouterAbProtocolResult, RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
     RouterEd25519YaoGatewayExecuteTargetV2, TenantRootActivationReceiptBindingV1,
@@ -213,6 +213,8 @@ pub fn cloudflare_ed25519_yao_tenant_root_bindings_v2(
 /// Builds the exact V2 context after the local or Worker boundary has
 /// authenticated the active receipt and selected server-owned application facts.
 pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
+    wallet_route: crate::WalletObjectRoute,
+    ownership_generation: u64,
     identity: TenantRootIdentityV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     derivers: TenantRootDeriverIdentitiesV1,
@@ -242,6 +244,8 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
         expires_at_ms,
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        wallet_route,
+        ownership_generation,
         identity,
         custody_binding,
         outer_binding,
@@ -507,6 +511,8 @@ fn invalid_target_preface(message: impl Into<String>) -> RouterAbProtocolError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoTenantRootContextV2 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub identity: TenantRootIdentityV1,
     pub custody_binding: CloudflareTenantRootCustodyBindingWireV1,
     pub outer_binding: Ed25519YaoOuterBindingV2,
@@ -519,6 +525,7 @@ impl CloudflareEd25519YaoTenantRootContextV2 {
         &self,
         pair_binding: &Ed25519YaoInputPairBindingV1,
     ) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.custody_binding.validate()?;
         self.outer_binding.validate()?;
         pair_binding.validate()?;
@@ -579,8 +586,13 @@ pub struct CloudflareEd25519YaoPairPrepareRequestV1 {
     pub input: Ed25519YaoEncryptedInputV1,
 }
 
-/// Exact pair, encrypted A input, and both readiness receipts sent to the A
-/// execute-pair route.
+/// Exact pair and encrypted A input sent to the A execute-pair route. Deriver
+/// A prepares, reserves and executes the pair in this one request.
+///
+/// The Router sends Deriver B its preparation at the same time, so A may
+/// reach B first. `deadline_ms` is when the Router's run ends: B waits for
+/// its own preparation until then. The tenant-root context is stamped once
+/// per run, so its outer binding names the run to both roles.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoPairExecuteRequestV1 {
@@ -588,8 +600,52 @@ pub struct CloudflareEd25519YaoPairExecuteRequestV1 {
     pub tenant_root: CloudflareEd25519YaoTenantRootContextV2,
     pub work: CloudflareEd25519YaoPairWorkV1,
     pub input: Ed25519YaoEncryptedInputV1,
-    pub local_receipt: Ed25519YaoRoleReadinessReceiptV1,
-    pub peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
+    pub deadline_ms: u64,
+}
+
+/// What Deriver B's pair record holds after a preparation request: the
+/// preparation it stored, or the execution that already used it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareEd25519YaoPairPreparationV1 {
+    Prepared,
+    Running,
+    Completed,
+}
+
+/// Why Deriver B refused a pair connection while holding no claim for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CloudflareEd25519YaoPairStartRefusalReasonV1 {
+    /// B's own preparation did not arrive, or failed, before the run ended.
+    NotPrepared,
+    /// B's preparation outlived its lifetime before A connected.
+    Expired,
+}
+
+/// Deriver B's answer to a pair connection it refuses before claiming. It
+/// names the exact execution and says B holds no claim for it, so Deriver A
+/// may release its reservation: no protocol message was exchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareEd25519YaoPairStartRefusalV1 {
+    pub session: [u8; 32],
+    pub pair_digest: [u8; 32],
+    pub execution_id: Ed25519YaoExecutionIdV1,
+    pub reason: CloudflareEd25519YaoPairStartRefusalReasonV1,
+}
+
+impl CloudflareEd25519YaoPairStartRefusalV1 {
+    /// Whether this refusal answers the exact execution Deriver A reserved.
+    pub fn answers(
+        &self,
+        pair_binding: &Ed25519YaoInputPairBindingV1,
+        execution_id: Ed25519YaoExecutionIdV1,
+    ) -> bool {
+        self.session == pair_binding.session()
+            && self.pair_digest == pair_binding.pair_digest().bytes
+            && self.execution_id == execution_id
+    }
 }
 
 /// A's sealed execution plus B's opaque, already-persisted sealed execution.
@@ -598,15 +654,6 @@ pub struct CloudflareEd25519YaoPairExecuteRequestV1 {
 pub struct CloudflareEd25519YaoPairExecuteResponseV1 {
     pub deriver_a_execution: Ed25519YaoRoleExecutionV1,
     pub deriver_b_sealed_execution_json: String,
-}
-
-/// Pair start confirmation sent after Deriver B accepted the exact execution.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CloudflareEd25519YaoPairStartRequestV1 {
-    pub pair_binding: Ed25519YaoInputPairBindingV1,
-    pub execution_id: Ed25519YaoExecutionIdV1,
-    pub acceptance: Ed25519YaoRoleStartAcceptanceV1,
 }
 
 /// Exact pair lookup sent to a role status or burn route.
@@ -621,12 +668,15 @@ pub struct CloudflareEd25519YaoPairLookupRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverBWalletPairScopeV1 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
 }
 
 impl CloudflareDeriverBWalletPairScopeV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.root_identity.digest().map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
@@ -642,6 +692,8 @@ impl CloudflareDeriverBWalletPairScopeV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
 }
@@ -649,6 +701,8 @@ pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverAWalletPairBurnRequestV1 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub root_identity: TenantRootIdentityV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
     pub execution_id: Ed25519YaoExecutionIdV1,

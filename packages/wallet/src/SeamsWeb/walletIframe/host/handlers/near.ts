@@ -1,7 +1,4 @@
-import type { ActionHooksOptions } from '@/core/types/sdkSentEvents';
 import {
-  type PMExecuteActionPayload,
-  type PMFundImplicitNearAccountForTestingPayload,
   type PMRegistrationAuthMethodInput,
   type PMSendTxPayload,
 } from '../../shared/messages';
@@ -16,10 +13,9 @@ import {
   isPlainSignedTransactionLike,
   type PlainSignedTransactionLike,
 } from '@shared/utils/validation';
-import type { ActionArgs } from '@/core/types';
 import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
-import { respondOk, respondOkResult, withProgress, withRegistrationProgress } from './shared';
+import { respondOkResult, withProgress, withRegistrationProgress } from './shared';
 
 function walletSessionFromWalletId(walletIdRaw: unknown) {
   const walletId = toWalletId(walletIdRaw);
@@ -103,7 +99,7 @@ function walletOriginRegistrationAuthMethod(
 export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     PM_REGISTER_WALLET: async (req: Req<'PM_REGISTER_WALLET'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withRegistrationProgress(deps, req.requestId, payload.options || {});
@@ -117,25 +113,19 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_RESUME_PENDING_ECDSA_REGISTRATION: async (
-      req: Req<'PM_RESUME_PENDING_ECDSA_REGISTRATION'>,
-    ) => {
-      const pm = deps.getSeamsWeb();
-      if (deps.respondIfCancelled(req.requestId)) return;
-      const result = await pm.registration.resumePendingEcdsaRegistration(req.payload!);
+      // The parent receives the registered session before the result, so it
+      // does not ask for it again.
+      if (result.success) await deps.publishCurrentSession();
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
 
     PM_ADD_WALLET_SIGNER: async (req: Req<'PM_ADD_WALLET_SIGNER'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
-      const result = await pm.registration.addWalletSigner({
+      const result = await pm.registration.addSigner({
         walletId: payload.walletId,
         rpId: payload.rpId,
         signerSelection: payload.signerSelection,
@@ -149,7 +139,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_ADD_PASSKEY: async (req: Req<'PM_ADD_PASSKEY'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
@@ -166,11 +156,11 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_ADD_EMAIL_OTP: async (req: Req<'PM_ADD_EMAIL_OTP'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
-      const result = await pm.registration.addEmailOtp({
+      const result = await pm.registration.addEmail({
         walletId: payload.walletId,
         emailAddress: payload.emailAddress,
         options: hooksOptions,
@@ -179,20 +169,11 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_UNLOCK_ADDED_EMAIL_OTP_WALLET: async (req: Req<'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET'>) => {
-      const pm = deps.getSeamsWeb();
-      const payload = req.payload!;
-      if (deps.respondIfCancelled(req.requestId)) return;
-      await pm.auth.unlockAddedEmailOtpWallet(payload);
-      if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, { ok: true });
-    },
-
     PM_REVOKE_AUTH_METHOD: async (req: Req<'PM_REVOKE_AUTH_METHOD'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const result = await pm.registration.revokeAuthMethod({
+      const result = await pm.registration.removeAuthMethod({
         walletId: payload.walletId,
         walletAuthMethodId: payload.walletAuthMethodId,
       });
@@ -201,22 +182,16 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_GET_NEAR_PROVISIONING_STATE: async (req: Req<'PM_GET_NEAR_PROVISIONING_STATE'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const walletId = toWalletId(req.payload?.walletId);
-      const result = await pm.registration.getNearProvisioningState({ walletId });
+      const result = await pm.registration.getNearAccountState({ walletId });
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_PREFETCH_BLOCKHEIGHT: async (req: Req<'PM_PREFETCH_BLOCKHEIGHT'>) => {
-      const pm = deps.getSeamsWeb();
-      await pm.prefetchBlockheight().catch(() => undefined);
-      respondOk(deps, req.requestId);
-    },
-
     PM_SIGN_TX_WITH_ACTIONS: async (req: Req<'PM_SIGN_TX_WITH_ACTIONS'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, transaction, options } = req.payload!;
-      const result = await pm.near.signTransactionWithActions({
+      const result = await pm.near.signTransaction({
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         transaction,
@@ -230,7 +205,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_SIGN_AND_SEND_TX: async (req: Req<'PM_SIGN_AND_SEND_TX'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, transaction, options } = req.payload!;
       const result = await pm.near.signAndSendTransaction({
         walletSession: walletSessionFromWalletId(walletId),
@@ -246,24 +221,8 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING: async (
-      req: Req<'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING'>,
-    ) => {
-      const pm = deps.getSeamsWeb();
-      const { walletId, nearAccountId, nearPublicKey } =
-        req.payload || ({} as Partial<PMFundImplicitNearAccountForTestingPayload>);
-      const result = await pm.near.fundImplicitNearAccountForTesting({
-        walletSession: walletSessionFromWalletId(walletId),
-        nearAccount: nearAccountRefFromAccountId(nearAccountId),
-        nearPublicKey: String(nearPublicKey || ''),
-      });
-
-      if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, result);
-    },
-
     PM_SEND_TRANSACTION: async (req: Req<'PM_SEND_TRANSACTION'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, signedTransaction, options } =
         req.payload || ({} as Partial<PMSendTxPayload>);
       const result = await pm.near.sendTransaction({
@@ -279,25 +238,8 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_EXECUTE_ACTION: async (req: Req<'PM_EXECUTE_ACTION'>) => {
-      const pm = deps.getSeamsWeb();
-      const { walletId, nearAccountId, receiverId, actionArgs, options } =
-        req.payload || ({} as Partial<PMExecuteActionPayload>);
-      const result = await pm.near.executeAction({
-        walletSession: walletSessionFromWalletId(walletId),
-        nearAccount: nearAccountRefFromAccountId(nearAccountId),
-        receiverId: receiverId as string,
-        actionArgs: actionArgs as ActionArgs | ActionArgs[],
-        options: {
-          ...withProgress(deps, req.requestId, options || {}),
-        } as ActionHooksOptions,
-      });
-      if (deps.respondIfCancelled(req.requestId)) return;
-      respondOkResult(deps, req.requestId, result);
-    },
-
     PM_SIGN_DELEGATE_ACTION: async (req: Req<'PM_SIGN_DELEGATE_ACTION'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, delegate, options } = req.payload!;
       const result = await pm.near.signDelegateAction({
         walletSession: walletSessionFromWalletId(walletId),
@@ -312,9 +254,9 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     },
 
     PM_SIGN_NEP413: async (req: Req<'PM_SIGN_NEP413'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, params, options } = req.payload!;
-      const result = await pm.near.signNEP413Message({
+      const result = await pm.near.signMessage({
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         params,

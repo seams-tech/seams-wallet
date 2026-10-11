@@ -15,14 +15,14 @@ device.
 3. The owner worker creates a distinct holder share for the linked device.
 4. The server creates the matching server share for the linked-device lane.
 5. The linked device receives an encrypted holder-share package.
-6. The lane activates after delivery receipt and address parity checks.
+6. The lane activates after checks confirm delivery and an unchanged wallet address.
 
 The linked device has its own `laneId`, `laneShareEpoch`, holder-share envelope,
 permission policy, revocation status, and audit history.
 
-Owner-equivalent linked-device lanes should require local user presence for
-signing. Scoped linked-device lanes should use the same mandate admission model
-as delegated agents.
+Version 0.9.0 links owner-controlled devices to the same wallet and its regional home.
+The selected operation still requires local user presence and server admission. Scoped
+mandate-based device or agent delegation is a separate planned capability.
 
 ## Link from the app
 

@@ -1,0 +1,212 @@
+{
+  "task": "R170 raw calldata disclosure motion acceptance",
+  "baseCommit": "1fea33ef",
+  "classification": "production_regression",
+  "before": {
+    "cardBeforePx": 675.6875,
+    "cardAfterPx": 969.6875,
+    "iframeBeforePx": 676,
+    "iframeAfterPx": 970,
+    "announcedResize": false,
+    "overflowPx": 293.6875
+  },
+  "cause": "Raw data used native details instead of the shared ReviewDisclosure that announces and clamps hosted height changes.",
+  "fix": "Reuse ReviewDisclosure with raw presentation and preserve preformatted content styles.",
+  "observations": {
+    "opening": {
+      "begin": {
+        "deltaCssPx": 298,
+        "viewportPx": 676,
+        "hostPx": 675.6875,
+        "surface": "wallet-iframe"
+      },
+      "measurements": [
+        974
+      ],
+      "frames": [
+        {
+          "viewportPx": 676,
+          "cardPx": 675.6875,
+          "pinned": false
+        },
+        {
+          "viewportPx": 676,
+          "cardPx": 675.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 775,
+          "cardPx": 774.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 856,
+          "cardPx": 855.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 904,
+          "cardPx": 903.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 932,
+          "cardPx": 931.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 948,
+          "cardPx": 947.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 959,
+          "cardPx": 958.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 966,
+          "cardPx": 965.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 972,
+          "cardPx": 971.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 974,
+          "cardPx": 973.6875,
+          "pinned": false
+        },
+        {
+          "viewportPx": 974,
+          "cardPx": 973.6875,
+          "pinned": false
+        }
+      ],
+      "finalHostPx": 973.6875,
+      "blipFrames": 0
+    },
+    "closing": {
+      "begin": {
+        "deltaCssPx": -298,
+        "viewportPx": 974,
+        "hostPx": 973.6875,
+        "surface": "wallet-iframe"
+      },
+      "measurements": [
+        676
+      ],
+      "frames": [
+        {
+          "viewportPx": 974,
+          "cardPx": 973.6875,
+          "pinned": false
+        },
+        {
+          "viewportPx": 974,
+          "cardPx": 973.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 874,
+          "cardPx": 873.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 793,
+          "cardPx": 792.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 745,
+          "cardPx": 744.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 718,
+          "cardPx": 717.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 702,
+          "cardPx": 701.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 691,
+          "cardPx": 690.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 684,
+          "cardPx": 683.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 680,
+          "cardPx": 679.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 678,
+          "cardPx": 677.6875,
+          "pinned": true
+        },
+        {
+          "viewportPx": 676,
+          "cardPx": 675.6875,
+          "pinned": false
+        },
+        {
+          "viewportPx": 676,
+          "cardPx": 675.6875,
+          "pinned": false
+        }
+      ],
+      "finalHostPx": 675.6875,
+      "blipFrames": 0
+    },
+    "reducedOpening": {
+      "open": true,
+      "cardHeight": 973.6875,
+      "viewportHeight": 974,
+      "fits": true
+    },
+    "reducedClosing": {
+      "open": false,
+      "cardHeight": 675.6875,
+      "viewportHeight": 676,
+      "fits": true
+    }
+  },
+  "checks": [
+    {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/confirmSurface.treeGrowth.integration.test.ts --project=chromium --output=../.artifacts/r170-raw-motion",
+      "result": "4 passed",
+      "seconds": 15.1
+    },
+    {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/confirmSurface.treeGrowth.integration.test.ts --grep \"revealing the raw calldata\" --project=chromium --output=../.artifacts/r170-raw-motion-reduced",
+      "result": "1 passed, including reduced-motion opening and closing",
+      "seconds": 6.9
+    }
+  ],
+  "otherPassedChecks": [
+    "wallet type-check",
+    "browser type-check",
+    "build:prod",
+    "check:runtime-entry-bundles",
+    "build:check:fresh"
+  ],
+  "sdkProductionLines": {
+    "added": 10,
+    "removed": 8,
+    "net": 2
+  },
+  "limits": [
+    "Chromium acceptance with the emitted confirmation entry and a controlled signing host.",
+    "No real-chain broadcast is exercised by this UI scenario."
+  ]
+}

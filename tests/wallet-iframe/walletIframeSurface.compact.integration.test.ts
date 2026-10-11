@@ -147,14 +147,10 @@ async function startHostedAuthMenu(
       if (!router) {
         const routerModule = await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
         const newRouter = new routerModule.WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           sdkBasePath: '/sdk',
-          relayer: { url: window.location.origin },
-          registration: {
-            projectEnvironmentId: 'proj_local:test',
-            publishableKey: 'pk_local',
-          },
           requestTimeoutMs: 10_000,
           testOptions: { ownerTag },
         });

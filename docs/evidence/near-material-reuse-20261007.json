@@ -1,0 +1,122 @@
+{
+  "kind": "near_same_operation_material_reuse_v1",
+  "sourceBase": "2bee39abb947a6524a42e8c74c6ff7b89c1a7acb",
+  "sourceFile": "packages/wallet/src/core/signingEngine/flows/signNear/signNear.ts",
+  "sourceSha256": "94a2809a0814ab89438e28662265350d1a22080c5ff7bebce8ea76048b85673a",
+  "behavior": "Transaction planning passes its existing preparation and executor to execution. Fresh prepare authority reconciliation and finalization remain unchanged.",
+  "hosted": {
+    "wallets": 1,
+    "verifiedSignatures": 7,
+    "outcome": "succeeded",
+    "artifactSha256": "3cd2897283e3c78ff570e0b2d7b5cf5b30788e2a610c924a87876e46586110dd",
+    "ordinarySignatureRequestCounts": {
+      "before": {
+        "status": 2,
+        "ownerLane": 2,
+        "prepare": 1,
+        "finalize": 1
+      },
+      "after": {
+        "status": 2,
+        "ownerLane": 1,
+        "prepare": 1,
+        "finalize": 1
+      }
+    },
+    "ordinarySamples": [
+      {
+        "workload": "warm_signing",
+        "sdkSigningMs": 2055.6900000572205,
+        "verified": true,
+        "paths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "workload": "warm_signing",
+        "sdkSigningMs": 2231.5599999427795,
+        "verified": true,
+        "paths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "workload": "three_consecutive",
+        "sdkSigningMs": 1690.375,
+        "verified": true,
+        "paths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "workload": "three_consecutive",
+        "sdkSigningMs": 1771.7350000143051,
+        "verified": true,
+        "paths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "workload": "three_consecutive",
+        "sdkSigningMs": 1963.7799999713898,
+        "verified": true,
+        "paths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      }
+    ],
+    "firstAfterUnlockSdkMs": 1894.960000038147,
+    "warmMedianMs": 2143.625,
+    "consecutiveMedianMs": 1771.7350000143051
+  },
+  "regionalCorrectness": {
+    "linkedDeviceRevocation": "passed",
+    "sharedBudgetExhaustionAndBothCurveStepUps": "passed",
+    "logSha256": "ef1386b64bc6150bc4514cc4334939d4ea96a7196b0a3d9f31acfb8ba4fd24b1"
+  },
+  "limitations": [
+    "One hosted wallet validates request counts and observed timing, not a controlled population latency improvement.",
+    "Custody deployments were restored before this SDK experiment.",
+    "Separate status-call consolidation remains open.",
+    "Initial local test launch lacked the native initializer; this infrastructure failure is excluded.",
+    "An initial public-contract invocation used the wrong app origin and reached a 404 before SDK execution. It is excluded; the explicit-origin rerun passed."
+  ],
+  "sdkBuildManifests": {
+    ".build-inputs.sha256": "8faa5b460db91b947995b7d91b166d25c8f5fc3bd647a66b78144e5507f5d8ea",
+    "public/wallet-assets.manifest.json": "f0a8182dd5595f9b4485640b82a439e53b978d42359044dc7805e354d929e6b1"
+  },
+  "publicContracts": {
+    "outcome": "3 passed (43.8s)",
+    "cases": [
+      "NEAR transaction signing immediately and after reload",
+      "NEAR message signatures verify across reload",
+      "Changed prepare authority rejected before finalize, then valid signing succeeds"
+    ],
+    "logSha256": "d7aaf74c9b9578876915993d8b87b462f9fbda8f28eebd65d8428219a30f9e93",
+    "artifactHashes": {
+      ".last-run.json": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+      "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium/near-message-signatures.json": "84f59214b02c5425b4e2cbe767e58bbd7aa344c8764921e29a3e0b0fc864939c",
+      "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium/near-prepare-authority.json": "c7b2dfbe1155697739146b7be313b7d9526294dc05ee1c530a9d1e44af5b8d5a"
+    }
+  }
+}

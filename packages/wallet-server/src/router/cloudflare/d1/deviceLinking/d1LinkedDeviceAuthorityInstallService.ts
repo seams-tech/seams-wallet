@@ -1,3 +1,5 @@
+import { admitD1EstablishedWalletHome } from '../registration/d1WalletExecutionAuthority';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import {
   reservePasskeyCredential,
   type PasskeyCredentialClaims,
@@ -188,6 +190,7 @@ type WorkerOrdinarySignerMaterialReservationPreparationV1 =
 /** The only worker authority mutation accepted by the linked-device cutover. */
 export type OrdinaryInactiveSignerMaterialActivationPortV1 = {
   activateOrdinaryInactiveSignerMaterialV1(input: {
+    readonly ownershipGeneration: number;
     readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
     readonly reservationId: string;
     readonly materialActivation: MpcMaterialActivationRef;
@@ -395,6 +398,7 @@ type AuthorityAllocationPreparation = {
 };
 
 type ServerReservationRecordV1<F extends 'ed25519' | 'ecdsa_secp256k1'> = {
+  readonly ownershipGeneration: number;
   readonly reservationId: string;
   readonly preparation: Extract<
     WorkerOrdinarySignerMaterialReservationPreparationV1,
@@ -1645,6 +1649,13 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     ];
   }> {
     assertRecipientRequestsMatchManifest(input);
+    const admitted = await admitD1EstablishedWalletHome(
+      this.options.database,
+      this.options.scope,
+      { walletId: input.walletId },
+    );
+    if (!admitted.ok) throw new Error(admitted.message);
+    const ownershipGeneration = admitted.ownershipGeneration;
     let ed25519: OrdinaryEd25519SignerMaterialReservationV1 | undefined;
     let ecdsa: OrdinaryEcdsaSignerMaterialReservationV1 | undefined;
     let ed25519Preparation: OrdinaryEd25519SignerMaterialReservationPreparationV1 | undefined;
@@ -1696,6 +1707,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         const reservation =
           await this.options.reservationService.reserveOrdinaryInactiveSignerMaterialV1({
             kind: 'ordinary_ed25519_signer_material_reservation_request_v1',
+            ownershipGeneration,
             keyFamily: 'ed25519',
             signer,
             plannedActivationRef: targetMaterialActivation,
@@ -1719,6 +1731,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       const reservation =
         await this.options.reservationService.reserveOrdinaryInactiveSignerMaterialV1({
           kind: 'ordinary_ecdsa_signer_material_reservation_request_v1',
+          ownershipGeneration,
           keyFamily: 'ecdsa_secp256k1',
           signer,
           plannedActivationRef: targetMaterialActivation,
@@ -1745,10 +1758,12 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         ordinarySignerMaterialPreparations: sourceContributionPreparation,
         serverReservationIds: {
           ed25519: {
+            ownershipGeneration,
             reservationId: ed25519.serverMaterial.reservationId,
             preparation: ed25519Preparation,
           },
           ecdsa_secp256k1: {
+            ownershipGeneration,
             reservationId: ecdsa.serverMaterial.reservationId,
             preparation: ecdsaPreparation,
           },
@@ -1766,6 +1781,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         ordinarySignerMaterialPreparations: sourceContributionPreparation,
         serverReservationIds: {
           ed25519: {
+            ownershipGeneration,
             reservationId: ed25519.serverMaterial.reservationId,
             preparation: ed25519Preparation,
           },
@@ -1783,6 +1799,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       ordinarySignerMaterialPreparations: sourceContributionPreparation,
       serverReservationIds: {
         ecdsa_secp256k1: {
+          ownershipGeneration,
           reservationId: ecdsa.serverMaterial.reservationId,
           preparation: ecdsaPreparation,
         },
@@ -1802,6 +1819,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         if (!reservation || !packageValue)
           throw new Error('server reservation for ed25519 is missing');
         await activation.activateOrdinaryInactiveSignerMaterialV1({
+          ownershipGeneration: reservation.ownershipGeneration,
           keyFamily: 'ed25519',
           reservationId: reservation.reservationId,
           materialActivation: packageValue.materialActivation,
@@ -1814,6 +1832,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       const reservation = stored.serverReservationIds.ecdsa_secp256k1;
       if (!reservation || !packageValue) throw new Error('server reservation for ECDSA is missing');
       await activation.activateOrdinaryInactiveSignerMaterialV1({
+        ownershipGeneration: reservation.ownershipGeneration,
         keyFamily: 'ecdsa_secp256k1',
         reservationId: reservation.reservationId,
         materialActivation: packageValue.materialActivation,
@@ -3251,7 +3270,13 @@ function parseServerReservationIds(raw: unknown): Readonly<{
 
 function parseEd25519ServerReservationRecord(raw: unknown): ServerReservationRecordV1<'ed25519'> {
   const record = requireRecord(raw, 'Ed25519 server reservation');
-  requireExactKeys(record, ['reservationId', 'preparation'], 'Ed25519 server reservation');
+  requireExactKeys(
+    record,
+    Object.hasOwn(record, 'ownershipGeneration')
+      ? ['reservationId', 'preparation', 'ownershipGeneration']
+      : ['reservationId', 'preparation'],
+    'Ed25519 server reservation',
+  );
   const preparationRecord = requireRecord(record.preparation, 'Ed25519 reservation preparation');
   requireExactKeys(
     preparationRecord,
@@ -3275,6 +3300,7 @@ function parseEd25519ServerReservationRecord(raw: unknown): ServerReservationRec
     throw new Error('Ed25519 target binding must use registration');
   }
   return {
+    ownershipGeneration: storedReservationGeneration(record),
     reservationId: requireReservationId(record.reservationId, 'Ed25519 server reservation id'),
     preparation: {
       kind: 'ordinary_ed25519_signer_material_reservation_preparation_v1',
@@ -3289,7 +3315,13 @@ function parseEcdsaServerReservationRecord(
   raw: unknown,
 ): ServerReservationRecordV1<'ecdsa_secp256k1'> {
   const record = requireRecord(raw, 'ECDSA server reservation');
-  requireExactKeys(record, ['reservationId', 'preparation'], 'ECDSA server reservation');
+  requireExactKeys(
+    record,
+    Object.hasOwn(record, 'ownershipGeneration')
+      ? ['reservationId', 'preparation', 'ownershipGeneration']
+      : ['reservationId', 'preparation'],
+    'ECDSA server reservation',
+  );
   const preparationRecord = requireRecord(record.preparation, 'ECDSA reservation preparation');
   requireExactKeys(
     preparationRecord,
@@ -3300,6 +3332,7 @@ function parseEcdsaServerReservationRecord(
     throw new Error('ECDSA reservation preparation kind is invalid');
   }
   return {
+    ownershipGeneration: storedReservationGeneration(record),
     reservationId: requireReservationId(record.reservationId, 'ECDSA server reservation id'),
     preparation: {
       kind: 'ordinary_ecdsa_signer_material_reservation_preparation_v1',
@@ -3629,11 +3662,7 @@ async function sealLinkedDeviceWalletSessionCredentialV1(input: {
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
   readonly installationReceiptDigestB64u: DigestB64u;
-  readonly operationCredential: {
-    readonly kind: 'opaque_wallet_session_operation_credential_v1';
-    readonly token: string;
-    readonly walletSessionId: LinkedDeviceWalletSessionCredentialDeliveryAadV1['walletSessionId'];
-  };
+  readonly operationCredential: WalletSessionOperationCredentialV1;
 }): Promise<LinkedDeviceWalletSessionCredentialDeliveryV1> {
   const recipientPublicKey = requireP256PublicKey(
     input.recipientPublicKey65B64u,
@@ -3770,4 +3799,12 @@ function requireTime(raw: unknown, label: string): number {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function storedReservationGeneration(record: Record<string, unknown>): number {
+  const generation = Object.hasOwn(record, 'ownershipGeneration') ? record.ownershipGeneration : 1;
+  if (typeof generation !== 'number' || !Number.isSafeInteger(generation) || generation < 1) {
+    throw new Error('Stored reservation ownership generation is invalid');
+  }
+  return generation;
 }

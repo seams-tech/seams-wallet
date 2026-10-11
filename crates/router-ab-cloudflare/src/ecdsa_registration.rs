@@ -26,6 +26,7 @@ pub struct CloudflareRouterAbEcdsaRegistrationForwardV1 {
     request: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
     custody_binding_digest: TenantRootProtocolDigestV1,
     wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+    ownership_generation: u64,
     environment_key: String,
 }
 
@@ -62,7 +63,7 @@ where
         request.request_digest()?,
         verifier,
     )?;
-    let (verified_metadata, project_environment_id) =
+    let (verified_metadata, project_environment_id, ownership_generation) =
         session.verify_ecdsa_ceremony_session(&public_request)?;
     let trusted_admission = derive_cloudflare_router_trusted_admission_from_signed_policy_v1(
         &public_request,
@@ -119,6 +120,7 @@ where
             request,
             custody_binding_digest,
             wallet_scope,
+            ownership_generation,
             environment_key: verified_metadata.environment,
         }),
     ))
@@ -168,6 +170,7 @@ impl CloudflareRouterAbEcdsaRegistrationForwardV1 {
         response.validate_for_router_payload(&router_payload)?;
         let pending_activation =
             CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
+                self.ownership_generation,
                 self.request,
                 self.custody_binding_digest,
                 self.wallet_scope,
@@ -209,7 +212,7 @@ where
         command.pending.registration.request_digest()?,
         verifier,
     )?;
-    let (verified_metadata, project_environment_id) =
+    let (verified_metadata, project_environment_id, ownership_generation) =
         session.verify_ecdsa_ceremony_session(&public_request)?;
     let verified_scope = CloudflareSigningWorkerWalletScopeV1::new(
         &verified_metadata.org_id,
@@ -217,7 +220,9 @@ where
         project_environment_id,
         &verified_metadata.account_id,
     )?;
-    if command.pending.wallet_scope != verified_scope {
+    if command.pending.wallet_scope != verified_scope
+        || command.pending.ownership_generation != ownership_generation
+    {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "ECDSA activation owner differs from the verified ceremony session",
@@ -238,11 +243,6 @@ pub trait CloudflareDeriverSignerRuntimeV1 {
     fn worker_role(&self) -> CloudflareWorkerRoleV1;
     /// The role's signer-envelope HPKE decrypt-key descriptors.
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1;
-    /// Trusted A/B peer verifying keys bound to a request signer set.
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>>;
 }
 
 impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverAWorkerRuntimeV1 {
@@ -253,13 +253,6 @@ impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverAWorkerRuntimeV1 {
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         CloudflareDeriverAWorkerRuntimeV1::envelope_decrypt_key(self)
     }
-
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        CloudflareDeriverAWorkerRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
-    }
 }
 
 impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverBWorkerRuntimeV1 {
@@ -269,13 +262,6 @@ impl CloudflareDeriverSignerRuntimeV1 for CloudflareDeriverBWorkerRuntimeV1 {
 
     fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
         CloudflareDeriverBWorkerRuntimeV1::envelope_decrypt_key(self)
-    }
-
-    fn peer_verifying_keys_for_signer_set(
-        &self,
-        signer_set: &SignerSetV1,
-    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
-        CloudflareDeriverBWorkerRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
     }
 }
 
@@ -294,8 +280,7 @@ pub(crate) fn preload_cloudflare_deriver_signer_host_v1(
     let bootstrap = &authenticated_request.bootstrap;
     let preload_plan =
         CloudflareSignerHostPreloadPlanV1::from_private_bootstrap(worker_role, bootstrap)?;
-    let verifying_keys = runtime.peer_verifying_keys_for_signer_set(&preload_plan.signer_set)?;
-    let preload_input = preload_plan.to_host_preload_input(Vec::new(), verifying_keys, 0)?;
+    let preload_input = preload_plan.to_host_preload_input(0)?;
     let root_share_metadata = CloudflareRootShareStartupMetadataV1::new(
         preload_plan.signer_set_id.clone(),
         protocol_role,
@@ -499,6 +484,10 @@ pub fn open_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_v1(
 
 impl CloudflareSigningWorkerEcdsaActivationV1 {
     /// The wallet that owns this activation.
+    pub fn ownership_generation(&self) -> u64 {
+        self.activation.pending.ownership_generation
+    }
+
     pub fn wallet_scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         &self.activation.pending.wallet_scope
     }

@@ -100,7 +100,6 @@ import {
   waitForWalletSessionQuotaAdmissionRetry,
 } from '../../session/operationState/authorizationAdmission';
 import type { RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { WalletSessionStatusIdentity } from '../../session/lifecycle/walletSessionStatus';
 import {} from '../../threshold/sessionPolicy';
 import { signingAuthPlanFromSigningSessionPlan } from '../shared/signingConfirmation';
 import { resolveNearSigningSessionAuthContext } from './shared/signingSessionAuthMode';
@@ -204,6 +203,7 @@ type SignNep413MessagePayload = {
   message: string;
   recipient: string;
   nonce: string;
+  callbackUrl: string | null;
   state: string | null;
   commandSubject: NearCommandSubject;
   onEvent?: (update: SigningFlowEvent) => void;
@@ -307,13 +307,13 @@ export async function signNear<TRequest extends NearSignIntentRequest>(
         getSignerWorkerContext: reviewedNearContext.bind(null, context, admission.beforeSigning),
       };
     }
-    return (await signTransactionWithActions(deps, request.args)) as NearSignIntentResult<TRequest>;
+    return (await signTransaction(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   if (request.kind === 'delegateAction') {
     return (await signDelegateAction(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   if (request.kind === 'nep413') {
-    return (await signNEP413Message(deps, request.args)) as NearSignIntentResult<TRequest>;
+    return (await signMessage(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   throw new Error(
     `[SigningEngine] unsupported near signing intent: ${String((request as { kind?: unknown }).kind || '')}`,
@@ -329,6 +329,7 @@ type NearEd25519SelectedTransactionLane = TransactionLaneSelectedState<
 
 type PreparedNearEd25519TransactionSigningSession = {
   preparation: NearEd25519YaoSigningPreparation;
+  executor: NearEd25519YaoMaterialExecutor;
   signingAuthPlan: SigningAuthPlan;
   signingLane: NearTransactionSigningLane;
   transactionLane: SelectedEd25519Lane;
@@ -510,17 +511,6 @@ function requireResolvedNearEd25519SigningLane(
     walletSessionId: SigningSessionIds.walletSession(walletSessionId),
     quotaId: SigningSessionIds.walletSessionQuota(quotaId),
     thresholdSessionId: SigningSessionIds.thresholdEd25519Session(thresholdSessionId),
-  };
-}
-
-function walletSessionStatusIdentityFromNearPreparation(
-  preparation: NearEd25519YaoSigningPreparation,
-): WalletSessionStatusIdentity | null {
-  if (preparation.authorization.kind !== 'authorized') return null;
-  const authorization = preparation.authorization.authorization;
-  return {
-    walletSessionId: authorization.operationCredential.walletSessionId,
-    quotaId: authorization.session.quotaId,
   };
 }
 
@@ -991,6 +981,7 @@ async function withThresholdEd25519CommitQueue<T>(args: {
 
 async function prepareNearAuthorizationRequiredTransaction(args: {
   deps: NearSigningApiDeps;
+  availableLanes: AvailableSigningLanes | null;
   input: SignTransactionWithActionsInput;
   commandSubject: NearCommandSubject;
   operationId: SigningOperationId;
@@ -1001,11 +992,7 @@ async function prepareNearAuthorizationRequiredTransaction(args: {
   passkeyEd25519OperationStepUp: NearPasskeyEd25519OperationStepUpHook | null;
   emailOtpEd25519StepUp: NearEmailOtpEd25519StepUpHook | null;
 } | null> {
-  const availableLanes = await readNearEd25519AvailableSigningLanes({
-    deps: args.deps,
-    commandSubject: args.commandSubject,
-    authMethod: null,
-  });
+  const availableLanes = args.availableLanes;
   const materialSelection = selectNearEd25519MaterialCandidate({
     availableLanes,
     intent: nearEd25519TransactionSigningIntent({
@@ -1258,18 +1245,14 @@ async function prepareNearEd25519TransactionOperation(args: {
       readiness: readiness.readiness,
       expiresAtMs: readiness.expiresAtMs,
       remainingUses: readiness.remainingUses,
-      usesNeeded: operationUsesNeeded,
     }),
   );
   const transactionOperation = prepareTransactionOperationFromReadiness(transactionReadinessState);
   const identity = requireResolvedNearEd25519SigningLane(lane);
-  const trustedStatusAuth = walletSessionStatusIdentityFromNearPreparation(args.preparation);
   const readinessInput = {
     readiness: readiness.readiness,
     expiresAtMs: readiness.expiresAtMs,
     remainingUses: readiness.remainingUses,
-    usesNeeded: operationUsesNeeded,
-    ...(trustedStatusAuth ? { trustedStatusAuth } : {}),
   };
   return {
     lane,
@@ -1290,6 +1273,7 @@ async function prepareNearEd25519TransactionOperation(args: {
 
 async function prepareNearEd25519TransactionSigningSession(args: {
   deps: NearSigningApiDeps;
+  availableLanes: AvailableSigningLanes | null;
   input: SignTransactionWithActionsInput;
   commandSubject: NearCommandSubject;
   signingSessionCoordinator: SigningSessionCoordinator;
@@ -1298,11 +1282,7 @@ async function prepareNearEd25519TransactionSigningSession(args: {
 }): Promise<PreparedNearEd25519TransactionSigningSession> {
   const nearAccountId = args.commandSubject.nearAccount.accountId;
   const operationUsesNeeded = requiredNearTransactionSignatureUses(args.input.transaction);
-  let availableLanes = await readNearEd25519AvailableSigningLanes({
-    deps: args.deps,
-    commandSubject: args.commandSubject,
-    authMethod: null,
-  });
+  let availableLanes = args.availableLanes;
   let selectedLane = selectSelectedEd25519LaneFromAvailableLanes({
     commandSubject: args.commandSubject,
     availableLanes,
@@ -1408,6 +1388,7 @@ async function prepareNearEd25519TransactionSigningSession(args: {
   });
   return {
     preparation: initialMaterialBoundary.preparation,
+    executor: initialMaterialBoundary.executor,
     signingAuthPlan,
     signingLane,
     transactionLane,
@@ -1431,7 +1412,7 @@ type NearTransactionSigningAttempt = {
   signingSessionCoordinator?: SigningSessionCoordinator;
 };
 
-export async function signTransactionWithActions(
+async function signTransaction(
   deps: NearSigningApiDeps,
   args: SignTransactionWithActionsInput,
 ): Promise<SignTransactionResult> {
@@ -1477,8 +1458,14 @@ async function signTransactionWithActionsAttempt(
   const signingSessionCoordinator =
     attempt.signingSessionCoordinator || deps.signingSessionCoordinator;
   const authorizationProbeStartedAt = performance.now();
+  const availableLanes = await readNearEd25519AvailableSigningLanes({
+    deps,
+    commandSubject: args.commandSubject,
+    authMethod: null,
+  });
   const authorizationRequired = await prepareNearAuthorizationRequiredTransaction({
     deps,
+    availableLanes,
     input: args,
     commandSubject: args.commandSubject,
     operationId: confirmationOperationId,
@@ -1530,6 +1517,7 @@ async function signTransactionWithActionsAttempt(
   const lanePreparationStartedAt = performance.now();
   const preparedSigningSession = await prepareNearEd25519TransactionSigningSession({
     deps,
+    availableLanes,
     input: args,
     commandSubject: args.commandSubject,
     signingSessionCoordinator,
@@ -1560,11 +1548,7 @@ async function signTransactionWithActionsAttempt(
       ),
       task: async () => {
         const ctx = deps.getSignerWorkerContext();
-        const materialBoundary = await prepareNearEd25519YaoMaterialBoundary({
-          deps,
-          commandSubject: args.commandSubject,
-          selectedLane: transactionLane,
-        });
+        const materialBoundary = preparedSigningSession;
         const passkeyEd25519OperationStepUp = buildNearPasskeyEd25519OperationStepUp({
           auth: transactionLane.auth,
           signer: transactionLane.identity.signer,
@@ -1895,6 +1879,7 @@ async function runPreparedNearNep413Signing(args: {
         message: args.input.message,
         recipient: args.input.recipient,
         nonce: args.input.nonce,
+        callbackUrl: args.input.callbackUrl,
         state: args.input.state,
         accountId: nearAccount.accountId,
         signerSlot: args.input.signerSlot,
@@ -1958,7 +1943,7 @@ async function executeNearNep413SigningAttempt(
   }
 }
 
-export async function signNEP413Message(
+async function signMessage(
   deps: NearSigningApiDeps,
   payload: SignNep413MessagePayload,
 ): Promise<SignNep413MessageResult> {

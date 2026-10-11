@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Proves the emitted declarations resolve the way an outside consumer sees
- * them — without this repository's source path aliases.
+ * them from the npm tarball, without this repository's source path aliases.
  *
  * Inside the repo everything resolves, because tsconfig maps `@/*` and
  * `@shared/*` to source. A published consumer has neither. When a declaration
@@ -11,38 +11,134 @@
  * mean nothing was checked at all.
  *
  * So this typechecks a small program against the built package with no `paths`
- * configured, and asserts the public types survive as real types. It is a
- * check, not a framework: one temp directory, one `tsc` invocation.
+ * configured, and asserts the public types survive as real types. Isolated
+ * consumers cover React integration and optional-peer absence.
  */
 
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = resolve(packageRoot, '../..');
 
-/* `never` forces tsc to name each type; a degraded one reports `any`, which is
-   the failure this exists to catch. */
 const CONSUMER_SOURCE = `
 import type { SeamsWeb, NearProvisioningState } from '@seams/wallet';
-type ProvisioningStatus = NearProvisioningState['status'];
-type LaneRegistration = SeamsWeb['registration'];
-declare const status: ProvisioningStatus;
-declare const registration: LaneRegistration;
-declare const provisioning: Awaited<ReturnType<LaneRegistration['getNearProvisioningState']>>;
-export const a: never = status;
-export const b: never = registration;
-export const c: never = provisioning;
+import { SeamsWebProvider, useSeams } from '@seams/wallet/react';
+import { createSigningRuntime } from '@seams/wallet/runtime';
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Assert<T extends true> = T;
+type Registration = SeamsWeb['registration'];
+type AccountState = Awaited<ReturnType<Registration['getNearAccountState']>>;
+type AccountWait = Awaited<ReturnType<Registration['waitForNearAccount']>>;
+export type StateIsTyped = Assert<
+  IsAny<NearProvisioningState['status']> extends false ? true : false
+>;
+export type RegistrationIsTyped = Assert<IsAny<Registration> extends false ? true : false>;
+export type AccountStateIsTyped = Assert<IsAny<AccountState> extends false ? true : false>;
+export type AccountWaitIsTyped = Assert<IsAny<AccountWait> extends false ? true : false>;
+export type ProviderIsTyped = Assert<
+  IsAny<Parameters<typeof SeamsWebProvider>[0]> extends false ? true : false
+>;
+export type ReactContextIsTyped = Assert<
+  IsAny<ReturnType<typeof useSeams>> extends false ? true : false
+>;
+export type RuntimeIsTyped = Assert<
+  IsAny<ReturnType<typeof createSigningRuntime>> extends false ? true : false
+>;
+// @ts-expect-error The obsolete public name must not remain available.
+export type RemovedAccountRead = Registration['getNearProvisioningState'];
+// @ts-expect-error Pending registration resumes through ordinary authentication.
+export type RemovedRegistrationResume = Registration['resumePendingEcdsaRegistration'];
+
+`;
+
+const CORE_CONSUMER_SOURCE = `
+import { SeamsWeb } from '@seams/wallet';
+import { ExternalEvmController } from '@seams/wallet/external-evm';
+declare const seams: SeamsWeb;
+void seams.auth.getSession();
+const challenge = await seams.auth.requestEmailCode({ method: 'email', walletId: 'wallet.testnet', email: 'owner@example.com' });
+if (challenge.ok) await seams.auth.unlockWithEmailCode({ challenge: challenge.value, code: '123456' });
+// @ts-expect-error Custom UI requests email codes through one public method.
+void seams.auth.requestEmailOtpChallenge;
+// @ts-expect-error Test funding is internal to confirmed NEAR signing.
+void seams.near.fundImplicitNearAccountForTesting;
+void seams.registration.registerWallet;
+void seams.registration.addEmail;
+// @ts-expect-error Registration owns its Email OTP enrollment challenge.
+void seams.registration.requestEmailOtpEnrollmentChallenge;
+// @ts-expect-error Wallet creation and email addition own enrollment.
+void seams.registration.enrollEmailOtp;
+// @ts-expect-error Presignature preparation belongs to wallet operations.
+void seams.auth.prefillRouterAbEcdsaDerivationPresignaturePool;
+// @ts-expect-error Signing owns its operation-bound Email OTP challenge.
+void seams.auth.requestEmailOtpSigningSessionChallenge;
+// @ts-expect-error Signing owns its Email OTP session refresh.
+void seams.auth.refreshEmailOtpSigningSession;
+void seams.auth.startGoogleSignIn({ idToken: 'provider-evidence', mode: 'login', loginTarget: { kind: 'discoverable' } });
+// @ts-expect-error Google sign-in has one public entry name.
+void seams.auth.beginGoogleEmailOtpWalletAuth;
+// @ts-expect-error Hosted demo delivery is internal to the wallet UI.
+void seams.onHostedAuthMenuDemoEmailOtpDelivery;
+// @ts-expect-error Custom UI reads the flow delivery result directly.
+void seams.auth.startGoogleSignIn({ idToken: 'provider-evidence', mode: 'login', loginTarget: { kind: 'discoverable' }, onDemoOtp() {} });
+void seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+const external = new ExternalEvmController([]);
+void external.waitForReceipt;
+// @ts-expect-error Receipt lookup was replaced with bounded waiting.
+void external.observeReceipt;
+`;
+
+const CORE_IMPORT_SOURCE = `
+import { createRequire } from 'node:module';
+import { SeamsWeb } from '@seams/wallet';
+import { ExternalEvmController } from '@seams/wallet/external-evm';
+const require = createRequire(import.meta.url);
+for (const dependency of ['react', 'react-dom', '@types/react', '@types/react-dom']) {
+  try {
+    require.resolve(dependency + '/package.json');
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND') continue;
+    throw error;
+  }
+  throw new Error(dependency + ' must be absent from the core consumer');
+}
+if (typeof SeamsWeb !== 'function' || typeof ExternalEvmController !== 'function') {
+  throw new Error('Core package exports did not load');
+}
 `;
 
 const workspace = await mkdtemp(join(tmpdir(), 'seams-decl-check-'));
+const coreWorkspace = await mkdtemp(join(tmpdir(), 'seams-core-consumer-'));
 try {
-  await mkdir(join(workspace, 'node_modules/@seams'), { recursive: true });
-  const { symlink } = await import('node:fs/promises');
-  await symlink(packageRoot, join(workspace, 'node_modules/@seams/wallet'), 'dir');
+  const packed = JSON.parse(
+    execFileSync('npm', ['pack', '--json', '--pack-destination', workspace], {
+      cwd: packageRoot,
+      encoding: 'utf8',
+    }),
+  );
+  const installedPackage = join(workspace, 'node_modules/@seams/wallet');
+  await mkdir(installedPackage, { recursive: true });
+  execFileSync('tar', [
+    '-xzf',
+    join(workspace, packed[0].filename),
+    '--strip-components=1',
+    '-C',
+    installedPackage,
+  ]);
+  const definition = JSON.parse(await readFile(join(installedPackage, 'package.json'), 'utf8'));
+  for (const dependency of Object.keys({
+    ...definition.dependencies,
+    ...definition.peerDependencies,
+  })) {
+    const destination = join(workspace, 'node_modules', dependency);
+    await mkdir(dirname(destination), { recursive: true });
+    await symlink(join(repoRoot, 'node_modules', dependency), destination, 'dir');
+  }
   /* React types are a peer dependency of the declarations. */
   await symlink(
     join(repoRoot, 'node_modules/@types'),
@@ -73,30 +169,69 @@ try {
     'utf8',
   );
 
-  const result = spawnSync(
-    'npx',
-    ['tsc', '--noEmit', '-p', join(workspace, 'tsconfig.json')],
-    { cwd: repoRoot, encoding: 'utf8' },
-  );
+  const result = spawnSync('npx', ['tsc', '--noEmit', '-p', join(workspace, 'tsconfig.json')], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
   const output = `${result.stdout || ''}${result.stderr || ''}`;
 
-  /* Each probe must fail as its real type. `any` means the declaration did not
-     resolve, and an unresolved-module error means a specifier leaked. */
-  const degraded = output.match(/Type 'any' is not assignable to type 'never'/g) || [];
-  const unresolved = output.match(/Cannot find module '([^']+)'/g) || [];
-  if (unresolved.length > 0) {
-    console.error('[declarations] emitted declarations reference unresolvable modules:');
-    console.error([...new Set(unresolved)].join('\n'));
-    process.exit(1);
-  }
-  if (degraded.length > 0) {
-    console.error(
-      `[declarations] ${degraded.length} public type(s) degraded to 'any' for an external consumer.`,
+  if (result.error || result.status !== 0) {
+    console.error('[declarations] external consumer compilation failed:');
+    console.error(result.error?.message ?? output.trim());
+    process.exitCode = 1;
+  } else {
+    console.log(
+      '[declarations] packed root, React, and runtime consumers compile with strict ES2022 declarations',
     );
-    console.error(output.split('\n').slice(0, 20).join('\n'));
-    process.exit(1);
+    console.log(`[declarations] tarball integrity: ${packed[0].integrity}`);
+    await writeFile(
+      join(coreWorkspace, 'package.json'),
+      JSON.stringify({
+        private: true,
+        type: 'module',
+      }),
+    );
+    execFileSync(
+      'npm',
+      [
+        'install',
+        '--ignore-scripts',
+        '--omit=optional',
+        '--legacy-peer-deps',
+        '--no-audit',
+        '--no-fund',
+        join(workspace, packed[0].filename),
+      ],
+      { cwd: coreWorkspace, encoding: 'utf8', timeout: 120_000 },
+    );
+    await writeFile(join(coreWorkspace, 'consumer.ts'), CORE_CONSUMER_SOURCE);
+    await writeFile(join(coreWorkspace, 'import.mjs'), CORE_IMPORT_SOURCE);
+    await writeFile(
+      join(coreWorkspace, 'tsconfig.json'),
+      await readFile(join(workspace, 'tsconfig.json'), 'utf8'),
+    );
+    execFileSync('npx', ['tsc', '--noEmit', '-p', join(coreWorkspace, 'tsconfig.json')], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    execFileSync(process.execPath, [join(coreWorkspace, 'import.mjs')], {
+      cwd: coreWorkspace,
+      encoding: 'utf8',
+    });
+    const coreLock = await readFile(join(coreWorkspace, 'package-lock.json'));
+    const installedVersions = {};
+    for (const [path, dependency] of Object.entries(JSON.parse(coreLock.toString()).packages)) {
+      if (dependency.version) installedVersions[path] = dependency.version;
+    }
+    console.log(`[declarations] core dependency versions: ${JSON.stringify(installedVersions)}`);
+    console.log(
+      `[declarations] core install lock SHA-256: ${createHash('sha256').update(coreLock).digest('hex')}`,
+    );
+    console.log(
+      '[declarations] isolated npm install compiles and imports core/external EVM without React',
+    );
   }
-  console.log('[declarations] public types resolve for an external consumer');
 } finally {
   await rm(workspace, { recursive: true, force: true });
+  await rm(coreWorkspace, { recursive: true, force: true });
 }

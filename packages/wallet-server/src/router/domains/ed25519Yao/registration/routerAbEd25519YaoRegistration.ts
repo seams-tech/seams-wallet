@@ -19,6 +19,7 @@ import {
   type RouterAbTraceContextV1,
 } from '@shared/utils/routerAbTraceContext';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { Variant } from '@shared/utils/variant';
 import { json, readJson } from '../../../framework/http';
 import { createRouterApiModule, type RouterApiModule } from '../../../framework/modules';
 import { defineRoute } from '../../../framework/routeDefinitions';
@@ -82,6 +83,7 @@ export interface RouterAbEd25519YaoRegistrationBackend {
   execute(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRegistrationExecuteAdmissionContextV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ):
     | Promise<RouterAbEd25519YaoRegistrationBackendResult>
@@ -97,6 +99,7 @@ export interface RouterAbEd25519YaoRegistrationService {
   >;
   execute(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationResultV1>>;
 }
@@ -209,13 +212,20 @@ export type RouterAbEd25519YaoRegistrationAuthorizationInput =
     };
 
 export type RouterAbEd25519YaoRegistrationAuthorizationResult =
-  | { ok: true }
+  | { ok: true; ownershipGeneration: number }
   | {
       ok: false;
+      ownershipGeneration?: never;
       status: 401 | 403 | 409 | 429 | 503;
       code: string;
       message: string;
     };
+
+export type RouterAbEd25519YaoRegistrationAuthorizationFailure = Variant<
+  RouterAbEd25519YaoRegistrationAuthorizationResult,
+  'ok',
+  false
+>;
 
 export interface RouterAbEd25519YaoRegistrationAuthorizationAdapter {
   authorize(
@@ -515,7 +525,11 @@ class RouterAbEd25519YaoRegistrationRouteExtension implements RouterApiRouteExte
       body: parsed.value,
     });
     if (!authorization.ok) return routeFailureResponse(authorization);
-    const result = await this.service.execute(parsed.value, traceContext.value);
+    const result = await this.service.execute(
+      parsed.value,
+      authorization.ownershipGeneration,
+      traceContext.value,
+    );
     if (!result.ok) return routeFailureResponse(result);
     return json(result.value, { status: result.status });
   }
@@ -695,6 +709,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
 
   async execute(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
+    ownershipGeneration: number,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationResultV1>> {
     const preparation = this.prepareExecute(request);
@@ -711,6 +726,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
             result: await this.backend.execute(
               request,
               preparation.claim.admissionRequest,
+              ownershipGeneration,
               traceContext,
             ),
           };

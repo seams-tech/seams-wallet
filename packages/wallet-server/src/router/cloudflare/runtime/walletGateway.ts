@@ -1,3 +1,4 @@
+import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
 import { ensureLeadingSlash } from '@shared/utils/validation';
 import {
   createCloudflareD1RouterAbNormalSigningAdmissionStore,
@@ -151,8 +152,8 @@ export function createWalletConsoleRelayProxyExtensionV1(
 type WalletGatewayManagedRouterOption =
   | 'apiKeyAuth'
   | 'publishableKeyAuth'
+  | 'registrationContext'
   | 'apiKeyUsageMeter'
-  | 'walletProjection'
   | 'orgProjectEnv'
   | 'routerAbNormalSigningAdmission'
   | 'routeExtensions';
@@ -160,6 +161,7 @@ type WalletGatewayManagedRouterOption =
 export interface CloudflareWalletGatewayRouterOptionsV1 {
   readonly service: Parameters<typeof createCloudflareRouter>[0];
   readonly walletConsole: WalletConsoleServiceBinding;
+  readonly registrationContext?: WalletRegistrationContextResolver;
   readonly signerDatabase: CloudflareD1RouterAbNormalSigningAdmissionStoreOptions['database'];
   readonly signerStorageNamespace: string;
   readonly routeExtensions?: readonly RouterApiRouteExtension[];
@@ -178,8 +180,8 @@ export function createCloudflareWalletGatewayRouterV1(
     ...input.router,
     apiKeyAuth: consoleOps.apiKeyAuth,
     publishableKeyAuth: consoleOps.publishableKeyAuth,
+    registrationContext: input.registrationContext ?? consoleOps.registrationContext,
     apiKeyUsageMeter: consoleOps.usageMeter,
-    walletProjection: consoleOps.walletProjection,
     orgProjectEnv: consoleOps.projectEnvironments,
     routerAbNormalSigningAdmission: createRouterAbNormalSigningAdmissionAdapter(admissionStore),
     routeExtensions: [

@@ -1,8 +1,12 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type {
+  SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
+} from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
-import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
-import { ActionArgs, TransactionInput } from '@/core/types';
+import { TransactionInput } from '@/core/types';
 import type {
   LinkedDeviceEmailOtpBaseFactorChoiceV1,
   QrLinkedDeviceSessionPayloadV5,
@@ -18,7 +22,6 @@ import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigni
 import type { TempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
-import type { RefreshEmailOtpSigningSessionArgs } from '@/core/signingEngine/flows/signEvmFamily/emailOtpSigningSession';
 import type { KeyExportUiOptions } from '@/core/signingEngine/flows/recovery/keyExportFlow';
 import type {
   EvmEip155ChainTarget,
@@ -27,9 +30,7 @@ import type {
   ThresholdEcdsaChainTarget,
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { EmailOtpAuthPolicy, SeamsConfigsInput } from '@/core/types/seams';
-import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { EmailOtpAuthPolicy } from '@/core/types/seams';
 import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type {
@@ -46,13 +47,10 @@ import type {
   GoogleEmailOtpWalletAuthResolvedMode,
   GoogleEmailOtpWalletAuthRequestedMode,
   GoogleEmailOtpWalletAuthSubmitSuccess,
-  EmailOtpEcdsaCapabilityArgs,
-  PendingEcdsaRegistrationResumeRequest,
-  ResolveExactKeyExportLaneInput,
+  RequestEmailCodeInput,
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
 import type { WalletId } from '@shared/utils/registrationIntent';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   AddSignerSelection,
   RegistrationSignerSetSelection,
@@ -70,7 +68,7 @@ import {
   type WalletIframeRequestId,
 } from '@/core/types/walletIframeIdentity';
 import { isPlainObject } from '@shared/utils/validation';
-import type { WalletIframeExactSessionIdentity } from './exactSessionState';
+import type { WalletIframeExactSessionIdentity, WalletIframeExactSessionSnapshot } from './exactSessionState';
 export type {
   LoginUnlockRequest,
   PMUnlockOptions,
@@ -163,12 +161,6 @@ export type HostedAuthMenuExternalAuthRequest = {
   externalAuthRequestId: HostedAuthMenuExternalAuthRequestId;
   provider: HostedAuthMenuExternalProvider;
   mode: HostedAuthMenuMode;
-};
-
-export type HostedAuthMenuDemoEmailOtpDelivery = {
-  kind: 'hosted_auth_menu_demo_email_otp_delivery_v1';
-  authMenuSessionId: HostedAuthMenuSessionId;
-  delivery: Extract<GoogleEmailOtpWalletAuthDelivery, { otpCode: string }>;
 };
 
 export const HOSTED_AUTH_MENU_ERROR_EVENT = 'seams:hosted-auth-menu-error' as const;
@@ -656,39 +648,6 @@ export function parseHostedAuthMenuExternalAuthRequest(
   return { kind: record.kind, authMenuSessionId, externalAuthRequestId, provider, mode };
 }
 
-export function parseHostedAuthMenuDemoEmailOtpDelivery(
-  value: unknown,
-): HostedAuthMenuDemoEmailOtpDelivery | null {
-  const record = recordFromBoundary(value);
-  if (
-    !record ||
-    !isWireSerializable(record) ||
-    record.kind !== 'hosted_auth_menu_demo_email_otp_delivery_v1' ||
-    !hasOnlyKeys(record, ['kind', 'authMenuSessionId', 'delivery'])
-  ) {
-    return null;
-  }
-  const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(record.authMenuSessionId);
-  const delivery = recordFromBoundary(record.delivery);
-  if (
-    !authMenuSessionId ||
-    !delivery ||
-    !hasOnlyKeys(delivery, ['kind', 'status', 'emailHint', 'otpCode']) ||
-    (delivery.kind !== 'demo_code_response' && delivery.kind !== 'provider_and_demo_code') ||
-    (delivery.status !== 'sent' && delivery.status !== 'reused')
-  ) {
-    return null;
-  }
-  const emailHint = boundaryString(delivery.emailHint, 'emailHint');
-  const otpCode = boundaryString(delivery.otpCode, 'otpCode');
-  if (!emailHint || !otpCode || !/^\d{6}$/.test(otpCode)) return null;
-  return {
-    kind: record.kind,
-    authMenuSessionId,
-    delivery: { kind: delivery.kind, status: delivery.status, emailHint, otpCode },
-  };
-}
-
 export function parseHostedAuthMenuErrorEvent(value: unknown): HostedAuthMenuErrorEvent | null {
   const record = recordFromBoundary(value);
   if (
@@ -841,7 +800,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '2.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '15.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -861,41 +820,34 @@ export type ParentToChildType =
   | 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION'
   // SeamsWeb API surface
   | 'PM_REGISTER_WALLET'
-  | 'PM_RESUME_PENDING_ECDSA_REGISTRATION'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
-  | 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET'
-  | 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION'
   | 'PM_UNLOCK'
   | 'PM_LOCK'
-  | 'PM_LOGOUT'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
+  | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
+  | 'PM_MOVE_WALLET'
+  | 'PM_GET_WALLET_MOVE'
+  | 'PM_GET_WALLET_PLACEMENT'
   | 'PM_GET_WALLET_SESSION'
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
   | 'PM_REQUEST_EMAIL_OTP_CHALLENGE'
-  | 'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE'
-  | 'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE'
   | 'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_RESEND'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_REROLL_WALLET_ID'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_SUBMIT'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION'
   | 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL'
-  | 'PM_ENROLL_EMAIL_OTP'
-  | 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY'
-  | 'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION'
   | 'PM_GET_WALLET_RECOVERY_CODE_STATUS'
   | 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP'
   | 'PM_ROTATE_WALLET_RECOVERY_CODES'
   | 'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE'
   | 'PM_SIGN_TX_WITH_ACTIONS'
   | 'PM_SIGN_AND_SEND_TX'
-  | 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING'
   | 'PM_SEND_TRANSACTION'
-  | 'PM_EXECUTE_ACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
   | 'PM_SIGN_NEP413'
   | 'PM_SIGN_TEMPO'
@@ -907,8 +859,6 @@ export type ParentToChildType =
   | 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE'
   | 'PM_EXPORT_KEYPAIR_UI'
   | 'PM_GET_RECENT_UNLOCKS'
-  | 'PM_PREFETCH_BLOCKHEIGHT'
-  | 'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL'
   | 'PM_SET_CONFIRM_BEHAVIOR'
   | 'PM_SET_CONFIRMATION_CONFIG'
   | 'PM_GET_CONFIRMATION_CONFIG'
@@ -952,13 +902,10 @@ export interface WalletIframeProtocolVersionMismatchDetails {
 export interface PreferencesChangedPayload {
   walletId: string | null;
   confirmationConfig: ConfirmationConfig;
-  updatedAt: number;
+  revision: number;
 }
 
-export interface PMSetConfigPayload extends Partial<SeamsConfigsInput> {
-  // Absolute base URL for SDK browser assets (e.g., https://app.example.com/sdk/)
-  assetsBaseUrl?: string;
-}
+export type PMSetConfigPayload = import('./configuration').WalletConfigurationUpdate;
 
 interface PMCancelPayload {
   requestId?: string; // when omitted, host may attempt best-effort global cancel (close UIs)
@@ -978,6 +925,7 @@ type HostedWalletExchangeNonce = string & {
 };
 
 export type PMRedeemHostedWalletSeamsSessionPayload = {
+  readonly home: WalletSessionHome;
   readonly exchangeCode: HostedWalletExchangeCode;
   readonly nonce: HostedWalletExchangeNonce;
   readonly appOrigin: string;
@@ -986,6 +934,7 @@ export type PMRedeemHostedWalletSeamsSessionPayload = {
 };
 
 const HOSTED_WALLET_REDEMPTION_PAYLOAD_FIELDS = [
+  'home',
   'exchangeCode',
   'nonce',
   'appOrigin',
@@ -1044,6 +993,7 @@ export function parsePMRedeemHostedWalletSeamsSessionPayload(
     }
   }
   return {
+    home: parseWalletSessionHome(value.home),
     exchangeCode: compactHostedWalletExchangeValue<HostedWalletExchangeCode>(
       value.exchangeCode,
       'exchangeCode',
@@ -1056,6 +1006,7 @@ export function parsePMRedeemHostedWalletSeamsSessionPayload(
 }
 
 export function buildPMRedeemHostedWalletSeamsSessionPayload(input: {
+  readonly home: unknown;
   readonly exchangeCode: unknown;
   readonly nonce: unknown;
   readonly appOrigin: unknown;
@@ -1092,7 +1043,6 @@ interface PMRegisterWalletPayload {
   options?: Record<string, unknown>;
 }
 
-type PMResumePendingEcdsaRegistrationPayload = PendingEcdsaRegistrationResumeRequest;
 
 interface PMAddWalletSignerPayload {
   walletId: WalletId | string;
@@ -1113,16 +1063,6 @@ interface PMAddEmailOtpPayload {
   walletId: WalletId | string;
   emailAddress: string;
   options?: Record<string, unknown>;
-}
-
-interface PMUnlockAddedEmailOtpWalletPayload {
-  walletId: string;
-  walletAuthMethodId: string;
-  email: string;
-  providerSubjectId: string;
-  challengeId: string;
-  otpCode: string;
-  relayUrl: string;
 }
 
 interface PMRevokeAuthMethodPayload {
@@ -1239,31 +1179,11 @@ interface PMSignAndSendTxPayload {
   };
 }
 
-export interface PMFundImplicitNearAccountForTestingPayload {
-  walletId: string;
-  nearAccountId: string;
-  nearPublicKey: string;
-}
-
 export interface PMSendTxPayload {
   walletId: string;
   nearAccountId: string;
   signedTransaction: SignedTransaction; // SignedTransaction-like
   options?: Record<string, unknown>;
-}
-
-export interface PMExecuteActionPayload {
-  walletId: string;
-  nearAccountId: string;
-  receiverId: string;
-  actionArgs: ActionArgs | ActionArgs[];
-  options: {
-    waitUntil?: unknown;
-    signerSlot?: number;
-    confirmationConfig?: Partial<ConfirmationConfig>;
-    confirmerText?: { title?: string; body?: string };
-    [key: string]: unknown;
-  };
 }
 
 interface PMSignDelegateActionPayload {
@@ -1281,7 +1201,7 @@ interface PMSignDelegateActionPayload {
 interface PMSignNep413Payload {
   walletId: string;
   nearAccountId: string;
-  params: { message: string; recipient: string; state?: string };
+  params: { message: string; recipient: string; callbackUrl?: string; state?: string };
   options: {
     signerSlot?: number;
     confirmationConfig?: Partial<ConfirmationConfig>;
@@ -1390,27 +1310,9 @@ export type PMGetExactWalletSessionStatePayload =
         | { readonly kind: 'exact'; readonly walletId: string };
     };
 
-interface PMEmailOtpChallengePayload {
-  walletId: string;
-  walletAuthMethodId?: string;
-  relayUrl?: string;
-  operation?: WalletEmailOtpLoginOperation;
-  operationFingerprintDigest?: DigestB64u;
-}
-
-interface PMEmailOtpSigningSessionChallengePayload {
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-}
-
-export interface PMEnrollEmailOtpPayload {
-  walletId: string;
-  otpCode: string;
-  relayUrl?: string;
-  challengeId?: string;
-  groupId?: string;
-  walletSessionToken?: never;
-}
+type PMEmailOtpChallengePayload =
+  | Omit<Extract<RequestEmailCodeInput, { method: 'google' }>, 'onEvent'>
+  | Omit<Extract<RequestEmailCodeInput, { method: 'email' }>, 'onEvent'>;
 
 interface PMWalletRecoverySessionPayload {
   walletId: string;
@@ -1428,31 +1330,6 @@ interface PMRotateWalletRecoveryCodesPayload extends PMWalletRecoverySessionPayl
   authorization: WalletRecoveryRotationAuthorization;
 }
 
-export interface PMEmailOtpEcdsaCapabilityPayload {
-  walletSession: WalletSessionRef;
-  walletAuthMethodId: EmailOtpEcdsaCapabilityArgs['walletAuthMethodId'];
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyHandle: string;
-  providerIdentity: EmailOtpEcdsaCapabilityArgs['providerIdentity'];
-  publicationChainTargets?: readonly ThresholdEcdsaChainTarget[];
-  emailOtpAuthPolicy?: EmailOtpAuthPolicy;
-  relayUrl?: string;
-  challengeId?: string;
-  otpCode: string;
-  groupId?: string;
-  walletSessionToken?: never;
-  registrationAttemptId?: string;
-  emailOtpAuthorityEmail?: string;
-}
-
-interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
-  walletSession: WalletSessionRef;
-  options: {
-    chainTarget: ThresholdEcdsaChainTarget;
-    waitForPoolReady?: boolean;
-  };
-}
-
 interface PMHasPasskeyPayload {
   walletId: string;
 }
@@ -1466,8 +1343,6 @@ interface PMListLinkedDevicesPayload {
 interface PMRevokeLinkedDevicePayload {
   walletId: string;
   walletAuthMethodId: string;
-  requestedAtMs: number;
-  sourceProof: WalletAuthMethodRevocationProof;
 }
 
 export type DeviceLinkEmailOtpBaseFactorSelectionProgressV1 = {
@@ -1730,26 +1605,29 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH', PMResolveAuthMenuExternalAuthPayload>
   | RpcEnvelope<'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION', PMRedeemHostedWalletSeamsSessionPayload>
   | RpcEnvelope<'PM_REGISTER_WALLET', PMRegisterWalletPayload>
-  | RpcEnvelope<'PM_RESUME_PENDING_ECDSA_REGISTRATION', PMResumePendingEcdsaRegistrationPayload>
   | RpcEnvelope<'PM_ADD_WALLET_SIGNER', PMAddWalletSignerPayload>
   | RpcEnvelope<'PM_ADD_PASSKEY', PMAddPasskeyPayload>
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
-  | RpcEnvelope<'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET', PMUnlockAddedEmailOtpWalletPayload>
-  | RpcEnvelope<'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION', BootstrapThresholdEcdsaSessionArgs>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_LOCK'>
-  | RpcEnvelope<'PM_LOGOUT'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>
+  | RpcEnvelope<
+      'PM_MOVE_WALLET',
+      {
+        readonly walletId: string;
+        readonly moveId: string;
+        readonly destinationRegion: string;
+        readonly expectedGeneration: number;
+      }
+    >
+  | RpcEnvelope<'PM_GET_LAST_WALLET_MOVE_REQUEST', { readonly walletId: string }>
+  | RpcEnvelope<'PM_GET_WALLET_MOVE', { readonly walletId: string; readonly moveId: string }>
+  | RpcEnvelope<'PM_GET_WALLET_PLACEMENT', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_WALLET_SESSION', PMGetWalletSessionPayload>
   | RpcEnvelope<'PM_GET_EXACT_WALLET_SESSION_STATE', PMGetExactWalletSessionStatePayload>
   | RpcEnvelope<'PM_GET_NEAR_PROVISIONING_STATE', PMGetNearProvisioningStatePayload>
   | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_CHALLENGE', PMEmailOtpChallengePayload>
-  | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE', PMEmailOtpChallengePayload>
-  | RpcEnvelope<
-      'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE',
-      PMEmailOtpSigningSessionChallengePayload
-    >
   | RpcEnvelope<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH', PMGoogleEmailOtpWalletAuthStartPayload>
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_RESEND', PMGoogleEmailOtpWalletAuthHandlePayload>
   | RpcEnvelope<
@@ -1762,9 +1640,6 @@ export type ParentToChildEnvelope =
       PMGoogleEmailOtpWalletAuthHandlePayload
     >
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL', PMGoogleEmailOtpWalletAuthHandlePayload>
-  | RpcEnvelope<'PM_ENROLL_EMAIL_OTP', PMEnrollEmailOtpPayload>
-  | RpcEnvelope<'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY', PMEmailOtpEcdsaCapabilityPayload>
-  | RpcEnvelope<'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION', RefreshEmailOtpSigningSessionArgs>
   | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ROTATE_WALLET_RECOVERY_CODES', PMRotateWalletRecoveryCodesPayload>
@@ -1774,12 +1649,7 @@ export type ParentToChildEnvelope =
     >
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
-  | RpcEnvelope<
-      'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING',
-      PMFundImplicitNearAccountForTestingPayload
-    >
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>
-  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_EXECUTE_ACTION', PMExecuteActionPayload>>
   | RpcEnvelope<'PM_SIGN_DELEGATE_ACTION', PMSignDelegateActionPayload>
   | RpcEnvelope<'PM_SIGN_NEP413', PMSignNep413Payload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_TEMPO', PMSignTempoPayload>>
@@ -1791,11 +1661,6 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_RESOLVE_EXACT_KEY_EXPORT_LANE', PMResolveExactKeyExportLanePayload>
   | RpcEnvelope<'PM_EXPORT_KEYPAIR_UI', PMExportKeypairUiPayload>
   | RpcEnvelope<'PM_GET_RECENT_UNLOCKS'>
-  | RpcEnvelope<'PM_PREFETCH_BLOCKHEIGHT'>
-  | RpcEnvelope<
-      'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL',
-      PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload
-    >
   | RpcEnvelope<'PM_SET_CONFIRM_BEHAVIOR', PMSetConfirmBehaviorPayload>
   | RpcEnvelope<'PM_SET_CONFIRMATION_CONFIG', PMSetConfirmationConfigPayload>
   | RpcEnvelope<'PM_GET_CONFIRMATION_CONFIG'>
@@ -1843,11 +1708,11 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'READY', ReadyPayload>
   | RpcEnvelope<'PONG'>
   | RpcEnvelope<'PROGRESS', ProgressPayload>
-  | RpcEnvelope<'SDK_LIFECYCLE_EVENT', SdkLifecycleEvent>
+  | RpcEnvelope<'SDK_LIFECYCLE_EVENT', { readonly revision: number; readonly event: SdkLifecycleEvent }>
+  | RpcEnvelope<'SESSION_CHANGED', WalletIframeExactSessionSnapshot>
   | RpcEnvelope<'PREFERENCES_CHANGED', PreferencesChangedPayload>
   | RpcEnvelope<'AUTH_MENU_EXTERNAL_AUTH_REQUEST', HostedAuthMenuExternalAuthRequest>
   | RpcEnvelope<'AUTH_MENU_ERROR', HostedAuthMenuErrorEvent>
-  | RpcEnvelope<'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY', HostedAuthMenuDemoEmailOtpDelivery>
   | RpcEnvelope<'SURFACE_MEASUREMENT', WalletIframeSurfaceMeasurement>
   | RpcEnvelope<'PM_RESULT', PMResultPayload>
   | RpcEnvelope<'ERROR', ErrorPayload>;

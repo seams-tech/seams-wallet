@@ -1,3 +1,4 @@
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
 import type { TransactionSigningIntent } from '../../session/operationState/transactionState';
 import type { SigningAuthPlan } from '../../stepUpConfirmation/types';
@@ -19,7 +20,7 @@ import type { HydratedEcdsaSignerMaterial } from '../../session/identity/evmFami
 import {
   buildReadySecp256k1SigningMaterial,
   type ReadySecp256k1SigningMaterial,
-} from './signers/secp256k1';
+} from './readySecp256k1Material';
 
 /** The operation a step-up authorizes: the intent it was prepared for, and the
  * plan that will authorize it. It carries no `SelectedEcdsaLane` — an
@@ -66,7 +67,7 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   readonly authorization: EvmFamilyEcdsaOperationStepUpAuthorization;
   readonly prepared: PreparedEcdsaOperationStepUp;
   readonly material: HydratedEcdsaSignerMaterial;
-  readonly walletSessionToken: string;
+  readonly operationCredential: WalletSessionOperationCredentialV1;
 }): Promise<ReadySecp256k1SigningMaterial> {
   const proof = operationStepUpProof({
     authority: args.authority,
@@ -74,6 +75,7 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   });
   const authorization = await issueEcdsaOperationStepUpAuthorization({
     relayerUrl: args.relayerUrl,
+    transport: { kind: 'wallet_session', credential: args.operationCredential },
     request: {
       kind: 'router_ab_ecdsa_operation_step_up_v1',
       operation: args.prepared.operation,
@@ -82,7 +84,9 @@ export async function authorizeEvmFamilyEcdsaOperationStepUp(args: {
   });
   const credential = {
     kind: 'operation_step_up' as const,
-    walletSessionToken: args.walletSessionToken,
+    walletSessionToken: args.operationCredential.token,
+    home: args.operationCredential.home,
+    ownershipGeneration: args.operationCredential.ownershipGeneration,
   };
   return buildReadySecp256k1SigningMaterial({
     walletId: args.material.walletId,

@@ -1,0 +1,308 @@
+{
+  "kind": "registration_presign_host_startup_comparison_v1",
+  "date": "2026-10-06",
+  "scope": "NRT native browser, APAC hosted staging, same frozen SDK with registration-response prefill, changed SigningWorker host startup. Full MPC signing includes automated approval and excludes blockchain broadcast and confirmation.",
+  "controlSigningWorkerVersion": "99980e4e-51ca-4d57-8819-19ecd629ee5e",
+  "arms": {
+    "control": {
+      "wallets": 3,
+      "verifiedSignatures": 9,
+      "registration": {
+        "samples": [
+          6607.920125000001,
+          6487.654416,
+          5761.427375
+        ],
+        "medianMs": 6487.654416,
+        "maximumMs": 6607.920125000001
+      },
+      "firstSigning": {
+        "samples": [
+          3847.3650000095367,
+          4010.804999947548,
+          4617.725000023842
+        ],
+        "medianMs": 4010.804999947548,
+        "maximumMs": 4617.725000023842
+      },
+      "firstSigningRefillWait": {
+        "samples": [
+          2037.4000000357628,
+          2369.900000035763,
+          2663.199999988079
+        ],
+        "medianMs": 2369.900000035763,
+        "maximumMs": 2663.199999988079
+      },
+      "initialPrefillScheduling": {
+        "samples": [
+          21.30000001192093,
+          20.899999976158142,
+          17.69999998807907
+        ],
+        "medianMs": 20.899999976158142,
+        "maximumMs": 21.30000001192093
+      },
+      "firstGeneration": {
+        "samples": [
+          3488,
+          3893.100000023842,
+          3843.899999976158
+        ],
+        "medianMs": 3843.899999976158,
+        "maximumMs": 3893.100000023842
+      },
+      "firstInitWorkerToDo": {
+        "samples": [
+          777,
+          859,
+          820
+        ],
+        "medianMs": 820,
+        "maximumMs": 859
+      },
+      "statusRequestsBeforeFirstInit": [
+        2,
+        2,
+        2
+      ],
+      "followingSignatures": {
+        "samples": [
+          2027.3899999856949,
+          2159.8599999547005,
+          4048.300000011921,
+          1879.0800000429153,
+          1809.949999988079,
+          1759.3149999976158
+        ],
+        "medianMs": 1953.2350000143051,
+        "maximumMs": 4048.300000011921
+      }
+    },
+    "candidate": {
+      "wallets": 3,
+      "verifiedSignatures": 9,
+      "registration": {
+        "samples": [
+          6481.357459,
+          5819.1044170000005,
+          5765.666916
+        ],
+        "medianMs": 5819.1044170000005,
+        "maximumMs": 6481.357459
+      },
+      "firstSigning": {
+        "samples": [
+          3923.935000002384,
+          3604.5799999833107,
+          4343.865000009537
+        ],
+        "medianMs": 3923.935000002384,
+        "maximumMs": 4343.865000009537
+      },
+      "firstSigningRefillWait": {
+        "samples": [
+          2274,
+          1827.199999988079,
+          2703.100000023842
+        ],
+        "medianMs": 2274,
+        "maximumMs": 2703.100000023842
+      },
+      "initialPrefillScheduling": {
+        "samples": [
+          21.19999998807907,
+          21.100000023841858,
+          22.399999976158142
+        ],
+        "medianMs": 21.19999998807907,
+        "maximumMs": 22.399999976158142
+      },
+      "firstGeneration": {
+        "samples": [
+          3565.300000011921,
+          3074,
+          3927.2999999523163
+        ],
+        "medianMs": 3565.300000011921,
+        "maximumMs": 3927.2999999523163
+      },
+      "firstInitWorkerToDo": {
+        "samples": [
+          627,
+          597,
+          239
+        ],
+        "medianMs": 597,
+        "maximumMs": 627
+      },
+      "statusRequestsBeforeFirstInit": [
+        2,
+        2,
+        2
+      ],
+      "followingSignatures": {
+        "samples": [
+          4029.4700000286102,
+          1961.6749999523163,
+          1708.4300000071526,
+          1933.410000026226,
+          4150.685000002384,
+          2134.0799999833107
+        ],
+        "medianMs": 2047.8774999678135,
+        "maximumMs": 4150.685000002384
+      }
+    }
+  },
+  "caveats": [
+    "Three fresh wallets per arm; network and cold-start variance remain.",
+    "Startup overlap varies with the remaining registration work. Initialization spans include Worker-to-DO transport and DO handling.",
+    "Following signatures overlap deferred registration and are not a ready-material benchmark.",
+    "The separate diagnostic cohort is excluded from the control/candidate medians.",
+    "The host key now uses tenant/wallet plus the complete canonical material activation reference. Fresh wallets were used; no old-host compatibility route is retained.",
+    "First-call transport and runtime costs remain after successful startup; no guaranteed first-signature bound is established."
+  ],
+  "candidateSigningWorkerVersion": "00d01efe-1aa9-440b-a3e7-3f37caa478f4",
+  "diagnosticSigningWorkerVersion": "8c581d1b-e9a6-4757-b2dd-3ff200ecc638",
+  "protocolE2E": {
+    "kind": "reusable_owner_presign_host_e2e_v1",
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --reusable-owner-presign-host",
+    "verifiedSignatures": 8,
+    "interruptedSessionFailedSafelyAndFreshSessionSigned": true,
+    "separateWalletsVerified": true,
+    "concurrentPreparationVerified": true,
+    "expiredSessionRejectedAndOtherSessionSurvived": true,
+    "newSessionAfterEvictionVerified": true,
+    "burnedIdentityReplayRejected": true,
+    "tenantIsolationVerified": true,
+    "registrationStartedExactHost": true,
+    "newHosts": 0,
+    "completedPoolAndBundledPrepare": true,
+    "signatureDigests": [
+      "49a04d607ef6ea1aee3909c8b3642c6e43348e1acad4e63132979ab8e5062385",
+      "4353c68de415d71a29a43a90e8db8d33132527160fd3e7377e1486d72981cd5d",
+      "ecb6ab1740ed5815386737f6c19635f6802172210b9d510d3ed4d133fd63ab37",
+      "34a1269673261fe613b28713fb854e8467f1e8bf74e42c8e67e56f3555927cc6",
+      "6f065796d2eceb20440d1e7261c21981be9d446ae28b2e8c94b3272670ee2844",
+      "f335eb90a2c00d592390038887137a320c9c169446cf623fe3455ba5f529f4bd",
+      "1af035904a63e666f4244ea07ae2c7a2b5b0ff165e160da363b4ceeebda01049",
+      "cbc0fe74d0718c3032cc47a827f5ae43b1994ff6a40662e2db01280463b7d734"
+    ]
+  },
+  "warmEvents": [
+    {
+      "timestamp": 1791265072200,
+      "messages": [
+        "presign_host_warm success=true duration_ms=627"
+      ]
+    },
+    {
+      "timestamp": 1791265091708,
+      "messages": [
+        "presign_host_warm success=true duration_ms=763"
+      ]
+    },
+    {
+      "timestamp": 1791265107886,
+      "messages": [
+        "presign_host_warm success=true duration_ms=803"
+      ]
+    }
+  ],
+  "hostIdentityProof": [
+    {
+      "timestamp": 1791265391808,
+      "message": "presign_host_route path=/internal/prewarm host=signing-worker-presign-session-4uwrO8gjpirvPydRcVe5Zmso2A-V4pQabPpghXVPu64"
+    },
+    {
+      "timestamp": 1791265392288,
+      "message": "presign_host_warm success=true duration_ms=480"
+    },
+    {
+      "timestamp": 1791265393615,
+      "message": "presign_host_route path=/router-ab/internal/signing-worker/ecdsa-presign-session/init host=signing-worker-presign-session-4uwrO8gjpirvPydRcVe5Zmso2A-V4pQabPpghXVPu64"
+    },
+    {
+      "timestamp": 1791265396333,
+      "message": "presign_host_route path=/router-ab/internal/signing-worker/ecdsa-presign-session/init host=signing-worker-presign-session-4uwrO8gjpirvPydRcVe5Zmso2A-V4pQabPpghXVPu64"
+    },
+    {
+      "timestamp": 1791265401091,
+      "message": "presign_host_route path=/router-ab/internal/signing-worker/ecdsa-presign-session/init host=signing-worker-presign-session-4uwrO8gjpirvPydRcVe5Zmso2A-V4pQabPpghXVPu64"
+    }
+  ],
+  "diagnostic": {
+    "firstSigningMs": 2838.8,
+    "firstInitWorkerToDoMs": 481,
+    "warmCompletedBeforeInitMs": 1327,
+    "verifiedSignatures": 3,
+    "includedInComparison": false
+  },
+  "validation": {
+    "strictWorkerWasmCheck": "passed",
+    "walletDoWasmCheck": "passed",
+    "localProtocolE2E": "8 signatures verified",
+    "hostedControl": "9 signatures verified",
+    "hostedCandidate": "9 signatures verified",
+    "hostedDiagnostic": "3 signatures verified",
+    "bloatCheck": "passed; no ratcheted measure grew"
+  },
+  "sourcePatchSha256": "f46bddd1ad8f7e9f305e9e797c5ea9df780e02732a175c1b38291b3c39c289ab",
+  "restoredStagingVersions": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ]
+}

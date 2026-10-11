@@ -1,3 +1,4 @@
+import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 // Run from the repository root: node tests/e2e/step-up-expiry.e2e.mjs
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -23,6 +24,9 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
+      export { buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { handleThresholdEcdsa } from './packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
       export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
@@ -196,6 +200,7 @@ class DelayedAuthorizationStore extends api.CloudflareD1AuthorizationStore {
 
   async putVerifiedEvidenceSet(evidence) {
     await super.putVerifiedEvidenceSet(evidence);
+    this.scenario.evidenceSet = evidence;
     if (this.scenario.pause === 'evidence') {
       await waitPast(evidence.expiresAtMs);
     }
@@ -341,11 +346,31 @@ async function scenario(host, method, pause) {
 
 async function exerciseStepUpExpiry({ database, migrations }, host, method, pause) {
   const base = await api.buildEcdsaSigningRequestFixture();
+  await seedExecutionGeneration({
+    api,
+    database,
+    walletId: base.scope.wallet_id,
+    scope: {
+      namespace: 'expiry-e2e',
+      orgId: 'tenant:expiry-e2e',
+      projectId: 'expiry-e2e',
+      envId: 'test',
+    },
+  });
   const nowMs = Date.now();
+  let evidenceLifetimeMs = 500;
+  let grantLifetimeMs = 500;
+  if (pause === 'relocation') {
+    evidenceLifetimeMs = 60_000;
+    grantLifetimeMs = 60_000;
+  } else {
+    if (pause === 'none' || pause === 'grant-expiry') evidenceLifetimeMs = 2_000;
+    if (pause === 'none') grantLifetimeMs = 2_000;
+  }
   const state = {
     pause,
-    deadline: nowMs + (pause === 'none' || pause === 'grant-expiry' ? 2_000 : 500),
-    grantDeadline: nowMs + (pause === 'none' ? 2_000 : 500),
+    deadline: nowMs + evidenceLifetimeMs,
+    grantDeadline: nowMs + grantLifetimeMs,
   };
   const signing = api.buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1({
     scope: base.scope,
@@ -489,7 +514,7 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
     assert.equal(quota.lifecycle_kind, 'exhausted');
     assert.equal(quota.expires_at_ms, state.deadline);
     assert.equal(route.grantConsumed, method === 'email_otp' && pause !== 'failed-factor');
-    if (pause === 'none') {
+    if (pause === 'none' || pause === 'relocation') {
       assert.equal(response.status, 200, JSON.stringify(body));
       assert.equal(claims.length, 1);
       assert.equal(audits, 1);
@@ -501,6 +526,10 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
         1,
       );
       result.exactRetry = retry.kind;
+      if (pause === 'relocation') {
+        result.relocation = await verifyStepUpRelocation(database, store, state, retry.operation);
+        return result;
+      }
       await waitPast(state.deadline);
       const expiredRetry = await store.admitAuthorizedOperation(state.claimInput);
       assert.equal(expiredRetry.kind, 'verified_step_up_rejected');
@@ -554,6 +583,228 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
   }
 }
 
+async function verifyStepUpRelocation(database, store, state, operation) {
+  const claimInput = state.claimInput;
+  const scope = {
+    namespace: 'expiry-e2e',
+    orgId: 'tenant:expiry-e2e',
+    projectId: 'expiry-e2e',
+    envId: 'test',
+  };
+  const source = api.WalletRelocationSessionSource.parse({
+    walletId: state.evidenceSet.walletId,
+    moveId: `wmove_${'p'.repeat(43)}`,
+    requestDigestHex: '2'.repeat(64),
+    sourceGeneration: 1,
+  });
+  const sessions = new api.D1WalletRelocationSessions(database, scope);
+  assert.equal(
+    (await store.readPinnedOwnerWalletScope({ operation, walletId: source.walletId }))
+      .ownershipGeneration,
+    1,
+  );
+  await assert.rejects(
+    database.prepare('UPDATE authorized_operations SET ownership_generation = 2').run(),
+    /wallet_operation_execution_generation_immutable/u,
+  );
+  assert.equal(await sessions.hasPendingOperations(source.walletId), true);
+  await assert.rejects(sessions.retire(source, Date.now()), /wallet_operations_unsettled/u);
+  const foreignScope = { ...scope, envId: 'foreign' };
+  assert.equal(
+    await new api.D1WalletRelocationSessions(database, foreignScope).hasPendingOperations(
+      source.walletId,
+    ),
+    false,
+  );
+  const foreignStore = new api.CloudflareD1AuthorizationStore({
+    database,
+    namespace: scope.namespace,
+    walletSignerScope: foreignScope,
+  });
+  await assert.rejects(
+    foreignStore.readPinnedOwnerWalletScope({ operation, walletId: source.walletId }),
+    /Verified step-up operation is not claimed/u,
+  );
+  assert.equal(
+    (await foreignStore.admitAuthorizedOperation(claimInput)).kind,
+    'verified_step_up_rejected',
+  );
+  await assert.rejects(
+    database.prepare('DELETE FROM verified_wallet_operation_evidence_sets').run(),
+    /wallet_operation_evidence_referenced/u,
+  );
+  await assert.rejects(
+    database.prepare("UPDATE verified_wallet_operation_evidence_sets SET env_id = 'foreign'").run(),
+    /wallet_operation_evidence_immutable/u,
+  );
+  const persisted = await database
+    .prepare('SELECT * FROM verified_wallet_operation_evidence_sets')
+    .first();
+  const changedScope = { ...persisted, env_id: 'foreign' };
+  const columns = Object.keys(changedScope);
+  await assert.rejects(
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO verified_wallet_operation_evidence_sets
+    (${columns.join(', ')}) VALUES (${columns.map(sqlParameter).join(', ')})`,
+      )
+      .bind(...Object.values(changedScope))
+      .run(),
+    /wallet_operation_evidence_immutable/u,
+  );
+  await store.putVerifiedEvidenceSet(state.evidenceSet);
+  const scopeMigration = await verifyStepUpScopeMigration(database, scope, operation);
+  const completed = await store.completeAuthorizedOperation({
+    operation,
+    result: 'succeeded',
+    response: {
+      status: 200,
+      contentType: 'application/json',
+      bodyText: '{"result":"settled-before-relocation"}',
+    },
+    completedAtMs: Date.now(),
+  });
+  assert.equal(await sessions.hasPendingOperations(source.walletId), false);
+  const retiredAtMs = await sessions.retire(source, Date.now());
+  assert.equal(
+    await new api.D1WalletRelocationSessions(database, scope).retire(source, Date.now()),
+    retiredAtMs,
+  );
+  assert.ok(
+    Date.now() < state.evidenceSet.expiresAtMs,
+    'Retirement must reject still-valid evidence',
+  );
+  const lateOperation = api.buildAdditionalStepUpOperationInputFixture({
+    admitted: claimInput.operation,
+    label: 'late-step-up',
+    nowMs: Date.now(),
+  });
+  assert.equal(
+    (
+      await store.admitAuthorizedOperation({
+        operation: lateOperation,
+        material: claimInput.material,
+      })
+    ).kind,
+    'verified_step_up_rejected',
+  );
+  await assert.rejects(
+    store.putVerifiedEvidenceSet(state.evidenceSet),
+    /authorization_evidence_claim_rejected/u,
+  );
+  const replay = await store.admitAuthorizedOperation(claimInput);
+  assert.equal(replay.kind, 'replayed');
+  assert.deepEqual(replay.operation, completed);
+  assert.equal(
+    (await database.prepare('SELECT COUNT(*) AS count FROM authorized_operations').first()).count,
+    1,
+  );
+  return {
+    scopeMigration,
+    pendingStepUpBlocksRetirement: true,
+    storedScopeRejectsOtherEnvironment: true,
+    pendingEvidenceCannotDisappearOrChangeOwner: true,
+    retiredSourceRejectsUnexpiredEvidence: true,
+    completedResultReplaysAfterRetirement: true,
+    retiredAtMs,
+  };
+}
+
+async function insertStoredRow(database, table, row) {
+  const columns = Object.keys(row);
+  for (const column of columns) assert.match(column, /^[a-z_]+$/u);
+  await database
+    .prepare(
+      `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map(sqlParameter).join(', ')})`,
+    )
+    .bind(...Object.values(row))
+    .run();
+}
+
+function sqlParameter() {
+  return '?';
+}
+
+async function verifyStepUpScopeMigration(database, scope, operation) {
+  const directory = `${output}/scope-upgrade-migrations`;
+  await mkdir(directory, { recursive: true });
+  const all = (await readdir(signerMigrationsDirectory)).filter(isSqlMigration).sort();
+  for (const name of all) {
+    if (name >= '0062_wallet_step_up_operation_settlement.sql') break;
+    await writeFile(`${directory}/${name}`, await readFile(`${signerMigrationsDirectory}/${name}`));
+  }
+  const sqlite = new DatabaseSync(':memory:');
+  try {
+    const connection = api.nodeSqliteConnection(sqlite);
+    api.applySignerSqlMigrationsV1(connection, directory, Date.now());
+    const historical = api.createSyncSqliteDatabase(connection);
+    const stored = await database
+      .prepare('SELECT * FROM verified_wallet_operation_evidence_sets')
+      .first();
+    const { org_id, project_id, env_id, ...oldEvidence } = stored;
+    assert.deepEqual([org_id, project_id, env_id], [scope.orgId, scope.projectId, scope.envId]);
+    const signer = await database.prepare('SELECT * FROM wallet_signers').first();
+    await insertStoredRow(historical, 'verified_wallet_operation_evidence_sets', oldEvidence);
+    await insertStoredRow(historical, 'wallet_signers', signer);
+    const { ownership_generation, ...oldOperation } = await database
+      .prepare('SELECT * FROM authorized_operations')
+      .first();
+    assert.equal(ownership_generation, 1);
+    await insertStoredRow(historical, 'authorized_operations', oldOperation);
+    await insertStoredRow(historical, 'wallet_signers', { ...signer, env_id: 'ambiguous-scope' });
+    assert.throws(
+      () => api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now()),
+      /wallet_operation_evidence_requires_unique_scope/u,
+    );
+    assert.deepEqual(
+      Object.entries(
+        await historical.prepare('SELECT * FROM verified_wallet_operation_evidence_sets').first(),
+      ),
+      Object.entries(oldEvidence),
+    );
+    await historical.prepare("DELETE FROM wallet_signers WHERE env_id = 'ambiguous-scope'").run();
+    await historical.prepare('DELETE FROM verified_wallet_operation_evidence_sets').run();
+    assert.throws(
+      () => api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now()),
+      /wallet_operation_evidence_requires_unique_scope/u,
+    );
+    await insertStoredRow(historical, 'verified_wallet_operation_evidence_sets', oldEvidence);
+    api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now());
+    assert.deepEqual(
+      Object.entries(
+        await historical.prepare('SELECT * FROM verified_wallet_operation_evidence_sets').first(),
+      ),
+      Object.entries(stored),
+    );
+    const reader = new api.CloudflareD1AuthorizationStore({
+      database: historical,
+      namespace: scope.namespace,
+      walletSignerScope: scope,
+    });
+    assert.deepEqual(
+      await reader.readAuthorizedOperation({
+        tenantId: operation.tenantId,
+        operationFingerprintDigest: operation.operationFingerprintDigest,
+      }),
+      operation,
+    );
+    assert.equal(
+      await new api.D1WalletRelocationSessions(historical, scope).hasPendingOperations(
+        stored.wallet_id,
+      ),
+      true,
+    );
+    return {
+      ambiguousScopeRollsBackMigration: true,
+      missingEvidenceRollsBackMigration: true,
+      uniqueScopePreservesEvidenceAndClaim: true,
+      migratedPendingClaimBlocksRetirement: true,
+    };
+  } finally {
+    sqlite.close();
+  }
+}
+
 const evidence = [];
 for (const host of ['vm_sqlite', 'local_cloudflare_d1']) {
   for (const method of ['passkey', 'email_otp']) {
@@ -562,6 +813,7 @@ for (const host of ['vm_sqlite', 'local_cloudflare_d1']) {
     }
   }
   evidence.push(await scenario(host, 'email_otp', 'grant-expiry'));
+  evidence.push(await scenario(host, 'passkey', 'relocation'));
 }
 const artifact = `${output}/after.json`;
 await writeFile(

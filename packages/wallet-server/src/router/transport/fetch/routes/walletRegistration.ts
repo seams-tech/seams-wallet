@@ -112,10 +112,11 @@ export async function handleWalletRegistration(
       routerAbPublicKeyset: ctx.opts.routerAbPublicKeyset,
       session: ctx.opts.session,
       publishableKeyAuth: ctx.opts.publishableKeyAuth,
-      walletProjection: ctx.opts.walletProjection,
+      registrationContext: ctx.opts.registrationContext,
     },
     sourceIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
     signingSessionSeal: ctx.opts.signingSessionSeal,
+    waitUntil: ctx.runtime.kind === 'background' ? ctx.runtime.waitUntil : undefined,
   };
   let response: RouteResponse<unknown>;
   switch (route.id) {

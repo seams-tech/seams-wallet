@@ -6,7 +6,7 @@ import type { SeamsContextType } from '../types';
 type NearProvisioningRefreshArgs = {
   seams: SeamsWeb;
   currentWalletId: string | null;
-  refreshLoginState: SeamsContextType['refreshLoginState'];
+  refreshSession: SeamsContextType['refreshSession'];
   refreshAccountData: SeamsContextType['refreshAccountData'];
 };
 
@@ -19,7 +19,7 @@ function refreshCurrentWalletAfterNearReady(
   if (currentWalletId !== String(event.walletId)) return;
 
   void Promise.all([
-    args.refreshLoginState(String(event.walletId)),
+    args.refreshSession(String(event.walletId)),
     args.refreshAccountData(),
   ]).catch((error: unknown) => {
     console.warn('[Registration] NEAR-ready React state refresh failed:', error);
@@ -27,7 +27,7 @@ function refreshCurrentWalletAfterNearReady(
 }
 
 function subscribeToNearReady(args: NearProvisioningRefreshArgs): () => void {
-  return args.seams.registration.onNearProvisioningStateChanged(
+  return args.seams.registration.onNearAccountChange(
     refreshCurrentWalletAfterNearReady.bind(null, args),
   );
 }
@@ -36,7 +36,7 @@ export function useNearProvisioningStateRefresh(args: NearProvisioningRefreshArg
   useEffect(subscribeToNearReady.bind(null, args), [
     args.seams,
     args.currentWalletId,
-    args.refreshLoginState,
+    args.refreshSession,
     args.refreshAccountData,
   ]);
 }

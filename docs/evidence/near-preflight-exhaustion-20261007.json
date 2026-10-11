@@ -1,0 +1,74 @@
+{
+  "scope": "Local composed production Gateway E2E; not hosted latency",
+  "preflight": {
+    "curve": "ed25519",
+    "status": 200,
+    "ingress": "WEUR",
+    "home": "US",
+    "precedingReusableSignatures": 3
+  },
+  "consoleRequestCount": 0,
+  "home": "US",
+  "ownership": {
+    "US": {
+      "authorization_grant": 3,
+      "verified_step_up": 2
+    },
+    "WEUR": {},
+    "APAC": {},
+    "OC": {}
+  },
+  "homeResponses": [
+    {
+      "path": "/router-ab/ecdsa-derivation/operation-step-up",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "count": 7
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "count": 35
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "path": "/router-ab/ed25519/sign",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "path": "/router-ab/ed25519/sign/prepare",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "path": "/router-ab/wallet-session/ed25519",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/wallet/execution-lane/owner",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "count": 4
+    }
+  ],
+  "verification": "Budget exhaustion, NEAR and ECDSA step-up, and linked Ed25519 revocation passed. Client status-read optimization is reverted."
+}

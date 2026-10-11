@@ -3,7 +3,8 @@ import type {
   VersionedJsonRecordReadResult,
   VersionedJsonValue,
 } from '../../../framework/versionedJsonRecordStore';
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1PreparedStatementLike, D1ResultLike } from '../../../../storage/tenantRoute';
+import type { InMemoryRouterAbEd25519YaoRecoveryStateV1 } from '../recovery/routerAbEd25519YaoRecovery';
 import {
   buildRouterAbEd25519YaoRegistrationExecutionAuthorityV1,
   type RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
@@ -74,6 +75,9 @@ export type RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1 =
  */
 export type RouterAbEd25519YaoPreparedWriteV1 = {
   readonly statements: readonly D1PreparedStatementLike[];
+  readonly executeBatch?: (
+    statements: readonly D1PreparedStatementLike[],
+  ) => Promise<readonly D1ResultLike[]>;
 };
 
 export type RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 = {
@@ -120,7 +124,46 @@ export type RouterAbEd25519YaoProductRegistrationPartitionedStateCommitResultV1 
     }
   | { readonly kind: 'version_mismatch'; readonly key: 'shared' | 'ceremony' };
 
+/** Registration changes only its own ceremony. Shared capabilities are inaccessible here. */
+export type RouterAbEd25519YaoRegistrationCeremonySnapshotV1 = {
+  readonly lifecycleId: string;
+  readonly state: {
+    readonly registration: RouterAbEd25519YaoProductRegistrationStateV1['registration'];
+    readonly authorization: RouterAbEd25519YaoProductRegistrationStateV1['authorization'];
+    readonly recovery?: never;
+    readonly export?: never;
+  };
+  readonly baseline: {
+    readonly version: string | null;
+    readonly recovery: RouterAbEd25519YaoProductRegistrationCeremonyStateV1['recovery'];
+    readonly export: RouterAbEd25519YaoProductRegistrationCeremonyStateV1['export'];
+  };
+};
+
+export type RouterAbEd25519YaoCapabilitySnapshotV1 = {
+  readonly value: RouterAbEd25519YaoProductRegistrationSharedStateV1;
+  readonly version: string | null;
+};
+
+export type RouterAbEd25519YaoCapabilityMutationV1 = {
+  readonly capabilities: InMemoryRouterAbEd25519YaoRecoveryStateV1['capabilities'];
+  readonly identityCapabilities: InMemoryRouterAbEd25519YaoRecoveryStateV1['identityCapabilities'];
+  readonly recoveries?: never;
+  readonly recoverySessions?: never;
+};
+
 export interface RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
+  loadCapabilities(): Promise<RouterAbEd25519YaoCapabilitySnapshotV1>;
+  commitCapabilities(
+    snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
+    mutation: RouterAbEd25519YaoCapabilityMutationV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
+  ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1>;
+  loadRegistration(lifecycleId: string): Promise<RouterAbEd25519YaoRegistrationCeremonySnapshotV1>;
+  commitRegistration(
+    snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
+  ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1>;
   load(lifecycleId: string): Promise<RouterAbEd25519YaoProductRegistrationPartitionedStateV1>;
   commit(
     input: RouterAbEd25519YaoProductRegistrationPartitionedStateCommitInputV1,
@@ -159,7 +202,7 @@ export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStore
  * loaded ceremony state, or `null` when the lifecycle is not admitted.
  */
 export function routerAbEd25519YaoAdmittedRegistrationAuthorityV1(
-  state: RouterAbEd25519YaoProductRegistrationStateV1,
+  state: RouterAbEd25519YaoRegistrationCeremonySnapshotV1['state'],
   lifecycleId: string,
 ): RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null {
   const sessionKey = state.registration.lifecycleSessions.get(lifecycleId);
@@ -362,6 +405,99 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
     return await this.store.putMany(encodedMutations, companion);
   }
 
+  async loadCapabilities(): Promise<RouterAbEd25519YaoCapabilitySnapshotV1> {
+    const entries = await this.readMany([ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1]);
+    return readSharedRecord(
+      readManyEntry(entries, ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1),
+    );
+  }
+
+  async commitCapabilities(
+    snapshot: RouterAbEd25519YaoCapabilitySnapshotV1,
+    mutation: RouterAbEd25519YaoCapabilityMutationV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
+  ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1> {
+    const shared = boundedRouterAbEd25519YaoProductRegistrationSharedStateV1({
+      kind: 'router_ab_ed25519_yao_product_registration_shared_state_v1',
+      recoveryCapabilities: mutation.capabilities,
+      recoveryIdentityCapabilities: mutation.identityCapabilities,
+      recoverySessions: snapshot.value.recoverySessions,
+      exportAuthorizationNonceOwners: snapshot.value.exportAuthorizationNonceOwners,
+      exportAuthorizationUncertainOwners: snapshot.value.exportAuthorizationUncertainOwners,
+    });
+    /* An unchanged capability set writes nothing. A write would raise the
+       shared version under a lifecycle commit that loaded it before this
+       capability was resolved, and that commit would then conflict. */
+    if (
+      companionWrite === null &&
+      sameRouterAbEd25519YaoSharedStateCanonicalEncodingV1(
+        encodeSharedStateCanonicalEncoding(shared),
+        encodeSharedStateCanonicalEncoding(snapshot.value),
+      )
+    ) {
+      return { kind: 'stored', versions: [] };
+    }
+    return await this.putMany(
+      [
+        {
+          key: ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1,
+          expectedVersion: snapshot.version,
+          value: { kind: SHARED_RECORD_KIND, value: shared },
+        },
+      ],
+      companionWrite,
+    );
+  }
+
+  async loadRegistration(
+    lifecycleId: string,
+  ): Promise<RouterAbEd25519YaoRegistrationCeremonySnapshotV1> {
+    const normalizedLifecycleId = requireLifecycleId(lifecycleId);
+    const entries = await this.readMany([normalizedLifecycleId]);
+    const ceremony = readCeremonyRecord(
+      readManyEntry(entries, normalizedLifecycleId),
+      normalizedLifecycleId,
+    );
+    const empty = readSharedRecord({ kind: 'missing' });
+    const state = materializeState(empty.value, ceremony.value);
+    return {
+      lifecycleId: normalizedLifecycleId,
+      state: { registration: state.registration, authorization: state.authorization },
+      baseline: {
+        version: ceremony.version,
+        recovery: ceremony.value.recovery,
+        export: ceremony.value.export,
+      },
+    };
+  }
+
+  async commitRegistration(
+    snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
+  ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1> {
+    return await this.putMany(
+      [
+        {
+          key: snapshot.lifecycleId,
+          expectedVersion: snapshot.baseline.version,
+          value: {
+            kind: CEREMONY_RECORD_KIND,
+            lifecycleId: snapshot.lifecycleId,
+            value: {
+              kind: 'router_ab_ed25519_yao_product_registration_ceremony_state_v1',
+              lifecycleId: snapshot.lifecycleId,
+              registration: snapshot.state.registration,
+              authorization: snapshot.state.authorization,
+              recovery: snapshot.baseline.recovery,
+              export: snapshot.baseline.export,
+            },
+          },
+        },
+      ],
+      companionWrite,
+    );
+  }
+
   async load(
     lifecycleId: string,
   ): Promise<RouterAbEd25519YaoProductRegistrationPartitionedStateV1> {
@@ -422,7 +558,8 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
     if (result.kind === 'version_mismatch') {
       return {
         kind: 'version_mismatch',
-        key: result.key === ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1 ? 'shared' : 'ceremony',
+        key:
+          result.key === ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1 ? 'shared' : 'ceremony',
       };
     }
     const sharedVersion =

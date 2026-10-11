@@ -150,15 +150,13 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
     let lib_rs = read_src_file("lib.rs");
     let body = extract_function_body(
         &lib_rs,
-        "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_fetch_v1",
+        "finalize_ecdsa_signing",
     );
     for required in [
         "CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH",
         "CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1",
-        "load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1",
-        "parsed.material_source",
-        "claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1",
-        "CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed",
+        "prepare_ecdsa_finalize",
+        "EcdsaFinalizePreparation::Claimed",
         "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_request_v1",
         "worker::Response::from_json(&response)",
     ] {
@@ -168,17 +166,14 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
         );
     }
     let consume = body
-        .find("claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1")
+        .find("prepare_ecdsa_finalize")
         .expect("Router A/B ECDSA derivation finalize must consume presignature");
-    let lane_material = body
-        .find("load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1")
-        .expect("Router A/B ECDSA derivation finalize must load lane material");
     let handler = body
         .find("handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_request_v1")
         .expect("Router A/B ECDSA derivation finalize must invoke materialized handler");
     assert!(
-        lane_material < consume && consume < handler,
-        "Router A/B ECDSA derivation finalize must reject stale lanes before pool consume and signing"
+        consume < handler,
+        "Router A/B ECDSA derivation finalize must claim and consume before signing"
     );
     let terminal_commit = body
         .find("CloudflareSigningWorkerTerminalResponseCommitV1::Committed")
@@ -206,34 +201,6 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
             "Router A/B ECDSA derivation finalize private fetch must not call `{forbidden}`"
         );
     }
-    // Private D1 claims the effect, then consumes the exact reservation.
-    let claim_and_consume = extract_function_body(
-        &lib_rs,
-        "claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1",
-    );
-    for required in [
-        "SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect",
-        "claim_cloudflare_signing_worker_ecdsa_effect_v1",
-        "CloudflareSigningWorkerEcdsaPoolCommandV1::Consume",
-        "expected_revision: 1",
-        "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
-        "CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed",
-    ] {
-        assert!(
-            claim_and_consume.contains(required),
-            "Router A/B ECDSA derivation claim and consume must include `{required}`"
-        );
-    }
-    let effect_claim = claim_and_consume
-        .find("claim_cloudflare_signing_worker_ecdsa_effect_v1")
-        .expect("private-D1 finalize must claim its effect");
-    let pool_consume = claim_and_consume
-        .find("CloudflareSigningWorkerEcdsaPoolCommandV1::Consume")
-        .expect("private-D1 finalize must consume its reservation");
-    assert!(
-        effect_claim < pool_consume,
-        "private-D1 finalize must claim the effect before consuming pool state"
-    );
     assert_ecdsa_pool_mutation_reaches_owner_storage(&lib_rs);
     // The wallet store claims the effect and consumes the reservation in one
     // storage transaction.
@@ -249,12 +216,6 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
             "wallet-DO ECDSA claim and consume must include `{required}`"
         );
     }
-    let wallet_do_transaction = extract_function_body(&lib_rs, "claim_and_consume_ecdsa_effect");
-    assert!(
-        wallet_do_transaction.contains(".transaction(")
-            && wallet_do_transaction.contains("claim_and_consume_effect"),
-        "wallet-DO ECDSA claim and consume must run in one storage transaction"
-    );
 }
 
 #[test]

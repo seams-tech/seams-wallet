@@ -1,8 +1,5 @@
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export const ECDSA_CLIENT_PRESIGNATURE_CAPACITY = 5 as const;
-export const MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS = 90 * 24 * 60 * 60_000;
-
 export type EcdsaClientPresignAdmissionStorage =
   | { readonly kind: 'sealed_indexed_db'; readonly durableRecordId: string }
   | { readonly kind: 'resident'; readonly durableRecordId?: never }

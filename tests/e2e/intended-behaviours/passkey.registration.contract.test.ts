@@ -15,13 +15,14 @@ import {
 import { intendedTest as test, type IntendedSigningStage } from './harness';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
-import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/config/presignatures';
 import { parseYaoServerTimingBuckets } from '../../../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
+import { exhaustWalletSessionQuota } from './local-gateway-database';
 
 const ECDSA_RESPOND_FAULT_HEADER = 'x-seams-intended-ecdsa-respond-fault-v1';
 const ECDSA_RESPOND_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-respond-proof-v1';
@@ -43,6 +44,8 @@ class GatewayEcdsaRespondPinProbe {
   } | null = null;
 
   async handle(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     try {
       const headers = route.request().headers();
       const first = await route.fetch({
@@ -123,14 +126,10 @@ test('Gateway ECDSA respond retries its pinned root after Router reply loss', as
 });
 
 test('mixed registration exposes gateway and finalization timings', async ({ harness, page }) => {
-  const respond = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith('/wallets/register/respond'),
-  );
-  const activate = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith('/wallets/register/activate'),
-  );
-  const nearProvisioning = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith('/wallets/register/near-provisioning'),
+  const respond = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/respond'));
+  const activate = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/activate'));
+  const nearProvisioning = page.waitForResponse(
+    isRegistrationPost.bind(undefined, '/wallets/register/near-provisioning'),
   );
 
   await harness.registerPasskeyWallet();
@@ -197,10 +196,10 @@ test('mixed registration starts one NEAR admission while ECDSA activate is in fl
     undefined,
     nearRequests,
   );
-  const nearAdmission = page.waitForRequest((request) =>
-    new URL(request.url()).pathname.endsWith(
-      ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
-    ),
+  const nearAdmission = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname.endsWith(ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1),
   );
   context.on('request', collectNearRequests);
   await context.route(activatePath, holdActivate);
@@ -225,7 +224,13 @@ type NearRegistrationRequests = {
   admission: Request[];
 };
 
+/** The operation's POST response of a registration route, not an SDK preflight warm-up. */
+function isRegistrationPost(path: string, response: Response): boolean {
+  return response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith(path);
+}
+
 function collectNearRegistrationRequests(requests: NearRegistrationRequests, request: Request): void {
+  if (request.method() !== 'POST') return;
   const path = new URL(request.url()).pathname;
   if (path.endsWith('/wallets/register/near-admission')) {
     requests.authorization.push(request);
@@ -239,7 +244,7 @@ test('custom review requires wallet approval before a live Arc signature', async
   harness,
   context,
   page,
-}, testInfo) => {
+}) => {
   const gateway = new GatewayRequestEvidence();
   const nearGate = new RegistrationPresignGate();
   const nearProvisioning = '**/wallets/register/near-provisioning';
@@ -279,9 +284,24 @@ test('custom review requires wallet approval before a live Arc signature', async
     const beforeConfirmation = await gateway.window(signingStartedAt, performance.now());
     expect(beforeConfirmation.requests.filter(isWalletSessionStatusRequest).length).toBeGreaterThan(0);
     expect(beforeConfirmation.requests.filter(isEcdsaSigningPrepare)).toHaveLength(0);
-    const confirmedAt = performance.now();
-    await confirm.click();
-    await expect(result).toHaveAttribute('data-state', 'signed', { timeout: 60_000 });
+    // Approval needs no further session status: prepare returns the session it
+    // admitted. Every status answer stays withheld until the signature exists.
+    const statusAnswers = await harness.holdWalletSessionStatusAnswers();
+    const prepared = page.waitForResponse(isEcdsaSigningPrepareResponse);
+    try {
+      await confirm.click();
+      expect(await (await prepared).json()).toMatchObject({
+        kind: 'reusable_wallet_session',
+        session_status: {
+          status: 'active',
+          quotaLifecycle: 'active',
+          remainingUses: expect.any(Number),
+        },
+      });
+      await expect(result).toHaveAttribute('data-state', 'signed', { timeout: 60_000 });
+    } finally {
+      await statusAnswers.dispose();
+    }
     const signed = JSON.parse(await result.innerText());
     if (!isHex(signed.rawTxHex)) throw new Error('Expected a serialized signed transaction');
     const transaction = parseTransaction(signed.rawTxHex);
@@ -295,39 +315,7 @@ test('custom review requires wallet approval before a live Arc signature', async
       (await recoverTransactionAddress({ serializedTransaction: signed.rawTxHex })).toLowerCase(),
     ).toBe(expectedAddress.toLowerCase());
     const complete = await gateway.window(signingStartedAt, performance.now());
-    const prepares = complete.requests.filter(isEcdsaSigningPrepare);
-    expect(prepares).toHaveLength(1);
-    const afterConfirmation = await gateway.window(
-      confirmedAt,
-      signingStartedAt + prepares[0].requestObservedOffsetMs,
-    );
-    const statuses = afterConfirmation.requests.filter(isWalletSessionStatusRequest);
-    expect(statuses.length).toBeGreaterThan(0);
-    for (const status of statuses) {
-      expect(status.startedBeforeWindow).toBe(false);
-      expect(status.outcome).toBe('completed');
-      if (status.completedOffsetMs === null) throw new Error('Session refresh did not complete');
-      expect(status.completedOffsetMs).toBeLessThanOrEqual(
-        signingStartedAt + prepares[0].requestObservedOffsetMs - confirmedAt,
-      );
-    }
-    const artifact = `ecdsa-confirmation-session-refresh-${process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local'}.json`;
-    const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifact);
-    const proof = JSON.stringify(
-      {
-        kind: 'ecdsa_confirmation_session_refresh_v1',
-        verifiedSignatures: 1,
-        confirmationOffsetMs: confirmedAt - signingStartedAt,
-        beforeConfirmation,
-        afterConfirmation,
-        complete,
-      },
-      null,
-      2,
-    );
-    await mkdir(path.dirname(artifactPath), { recursive: true });
-    await writeFile(artifactPath, proof, 'utf8');
-    await testInfo.attach(artifact, { body: proof, contentType: 'application/json' });
+    expect(complete.requests.filter(isEcdsaSigningPrepare)).toHaveLength(1);
   } finally {
     gateway.stop(context);
     nearGate.release();
@@ -341,6 +329,13 @@ function isWalletSessionStatusRequest(request: { path: string }): boolean {
 
 function isEcdsaSigningPrepare(request: { path: string }): boolean {
   return request.path === '/router-ab/ecdsa-derivation/sign/prepare';
+}
+
+function isEcdsaSigningPrepareResponse(response: Response): boolean {
+  return (
+    response.request().method() === 'POST' &&
+    isEcdsaSigningPrepare({ path: new URL(response.url()).pathname })
+  );
 }
 
 type SigningRequests = {
@@ -464,7 +459,8 @@ async function assertPresignResponseTiming(response: Response): Promise<void> {
     'ecdsa_presign_proxy',
     'ecdsa_presign_total',
     'ecdsa_presign_sw_session',
-    'ecdsa_presign_sw_do_total',
+    'ecdsa_presign_sw_do_response_headers',
+    'ecdsa_presign_sw_do_response_body',
     'ecdsa_presign_sw_total',
   ]) {
     expect(timing.has(name), `Missing ${name} on ${new URL(response.url()).pathname}`).toBe(true);
@@ -544,6 +540,8 @@ class RegistrationPresignGate {
   }
 
   async hold(route: Route): Promise<void> {
+    // Only the operation's POST is handled. An SDK preflight warm-up passes.
+    if (route.request().method() !== 'POST') return await route.fallback();
     this.requests += 1;
     await this.released;
     await route.continue();
@@ -746,7 +744,7 @@ class StalledPresignExchange {
   private releaseHeld: () => void = () => {};
   private readonly released = new Promise<void>(this.captureRelease.bind(this));
   private foregroundStarted = false;
-  private signingComplete = false;
+  private foregroundRefillComplete = false;
   private readonly identities = new Set<string>();
   private initializations = 0;
   competingBackgroundInitializations = 0;
@@ -765,7 +763,7 @@ class StalledPresignExchange {
       this.identities.add(body.presignSessionId);
       this.initializations += 1;
       if (body.requestTag === 'foreground_presign_pool_refill') this.foregroundStarted = true;
-      else if (this.foregroundStarted && !this.signingComplete) {
+      else if (this.foregroundStarted && !this.foregroundRefillComplete) {
         this.competingBackgroundInitializations += 1;
       }
     } else {
@@ -786,9 +784,16 @@ class StalledPresignExchange {
     this.release();
   }
 
-  response(response: Response): void {
-    if (response.ok() && new URL(response.url()).pathname === '/router-ab/ecdsa-derivation/sign') {
-      this.signingComplete = true;
+  async response(response: Response): Promise<void> {
+    if (
+      !response.ok() ||
+      new URL(response.url()).pathname !== '/router-ab/ecdsa-derivation/presignature-pool/fill/step'
+    ) return;
+    const request: unknown = response.request().postDataJSON();
+    if (!isPlainObject(request) || request.requestTag !== 'foreground_presign_pool_refill') return;
+    const progress: unknown = await response.json();
+    if (isPlainObject(progress) && progress.event === 'presign_done') {
+      this.foregroundRefillComplete = true;
     }
   }
 
@@ -895,18 +900,63 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
   }
 });
 
+function collectRefusedSessionPrepares(refused: Response[], response: Response): void {
+  const pathname = new URL(response.url()).pathname;
+  if (
+    response.status() === 409 &&
+    (pathname === '/router-ab/ed25519/sign/prepare' ||
+      pathname === '/router-ab/ecdsa-derivation/sign/prepare')
+  ) {
+    refused.push(response);
+  }
+}
+
+// Another tab or device shares the Wallet Session and uses the rest of its
+// quota. This page still observes an active session, so its next signature
+// prepares under the session, and the Gateway asks for step-up. That answer
+// ends what the page observed. Each later signature plans step-up before the
+// user confirms, and no other prepare runs under the session.
+test('a prepare that reports the session exhausted makes later signatures plan step-up', async ({
+  harness,
+  context,
+}) => {
+  const refused: Response[] = [];
+  const collect = collectRefusedSessionPrepares.bind(undefined, refused);
+  context.on('response', collect);
+  try {
+    await harness.registerPasskeyWallet();
+    await harness.awaitNearReady();
+    await harness.signTempoTransaction('post_registration');
+    await exhaustWalletSessionQuota(harness.walletId);
+    await harness.signNearTransaction('step_up_required');
+    expect(refused).toHaveLength(1);
+    expect(await refused[0].json()).toMatchObject({
+      code: 'wallet_session_quota_exhausted',
+      authorization_decision: { kind: 'step_up_required', reason: 'wallet_session_exhausted' },
+    });
+    await harness.signTempoTransaction('step_up_required');
+    await harness.signArcEvmTransaction('step_up_required');
+    await harness.signNearTransaction('step_up_required');
+    expect(refused).toHaveLength(1);
+  } finally {
+    context.off('response', collect);
+  }
+});
+
 /**
  * A Wallet Session status the Gateway answered before deferred NEAR
  * provisioning finalized reaches the wallet while provisioning publishes the
  * extended authority and rebinds the session with it. The Workers D1 run that
  * failed "exact ECDSA Wallet Session is unavailable: wallet_session_identity_
  * mismatch (authority digest)" had that older status written over the
- * rebound session. Here the order is forced: the wallet's re-read of its
- * authority, taken for the step-up's status, waits behind a transaction on
- * its auth-method store until provisioning's publication has queued behind
- * it too, so the publication commits between the re-read and the write. The
- * older status must not replace the session: provisioning becomes ready and
- * the ECDSA step-up signs.
+ * rebound session. Signing plans an exhausted session's step-up from what the
+ * wallet already observed, so the application's own session read asks for the
+ * status here. The order is forced: the wallet's re-read of its authority,
+ * taken for that status, waits behind a transaction on its auth-method store
+ * until provisioning's publication has queued behind it too, so the
+ * publication commits between the re-read and the write. The older status
+ * must not replace the session: provisioning becomes ready and the ECDSA
+ * step-up signs.
  */
 test('a Wallet Session status answered before deferred NEAR provisioning keeps the session it rebound', async ({
   harness,
@@ -928,9 +978,9 @@ test('a Wallet Session status answered before deferred NEAR provisioning keeps t
     expect(stage).toBe('step_up_required');
     await expect.poll(nearGate.requestCount.bind(nearGate), { timeout: 30_000 }).toBe(1);
     const statusAnswers = await harness.holdWalletSessionStatusAnswers();
-    let interleaving: Promise<void> = Promise.resolve();
-    const interleave = async (): Promise<void> => {
-      // The step-up asks for its Wallet Session's status; the Gateway answers.
+    try {
+      // The session read asks for the Wallet Session's status; the Gateway answers.
+      const sessionRead = harness.readWalletAuthenticationKind();
       await expect.poll(statusAnswers.heldCount, { timeout: 10_000 }).toBeGreaterThan(0);
       const authMethods = await harness.holdWalletIndexedDbStore('wallet_auth_methods');
       // The answer arrives, and the wallet's re-read of its authority waits.
@@ -941,18 +991,12 @@ test('a Wallet Session status answered before deferred NEAR provisioning keeps t
       await harness.waitForTraceConsoleMessage('"stage":"server_finalize"');
       await page.waitForTimeout(50);
       await authMethods.release();
-    };
-    try {
-      await harness.signArcEvmTransaction('step_up_required', {
-        onActionStarted: () => {
-          interleaving = interleave();
-        },
-      });
+      expect(await sessionRead).toBe('authenticated');
     } finally {
       await statusAnswers.dispose();
     }
-    await interleaving;
     await harness.awaitNearReady();
+    await harness.signArcEvmTransaction('step_up_required');
     await harness.signTempoTransaction('step_up_required');
   } finally {
     nearGate.release();

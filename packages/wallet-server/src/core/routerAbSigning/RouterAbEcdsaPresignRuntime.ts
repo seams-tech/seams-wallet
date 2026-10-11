@@ -9,6 +9,7 @@ import {
   stepRouterAbLinkedDeviceEcdsaPresignSession,
   type RouterAbLinkedDeviceEcdsaExportShareHttpResult,
   type RouterAbEcdsaPresignSessionHttpResult,
+  type RouterAbEcdsaPresignAuthorityV1,
 } from '../ThresholdService/routerAb/ecdsaDerivationPresignBridge';
 import type { RouterAbEcdsaSigningWorkerExportShareBindingV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbConfiguredSigningWorkerPrivateTransport } from './RouterAbNormalSigningRuntime';
@@ -108,6 +109,8 @@ export class RouterAbEcdsaPresignRuntime {
   }
 
   async initializeLinkedDevicePresign(input: {
+    readonly ownershipGeneration: number;
+    readonly walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
     readonly request: Record<string, unknown>;
     readonly materialSource: Record<string, unknown>;
     readonly presignSessionId: string;
@@ -117,6 +120,8 @@ export class RouterAbEcdsaPresignRuntime {
     return await startRouterAbLinkedDeviceEcdsaPresignSession({
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       request: input.request,
+      walletScope: input.walletScope,
+      ownershipGeneration: input.ownershipGeneration,
       materialSource: input.materialSource,
       presignSessionId: input.presignSessionId,
       expiresAtMs: input.expiresAtMs,
@@ -126,6 +131,8 @@ export class RouterAbEcdsaPresignRuntime {
   }
 
   async advanceLinkedDevicePresign(input: {
+    readonly ownershipGeneration: number;
+    readonly walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
     readonly request: Record<string, unknown>;
     readonly materialSource: Record<string, unknown>;
     readonly presignSessionId: string;
@@ -137,6 +144,8 @@ export class RouterAbEcdsaPresignRuntime {
     return await stepRouterAbLinkedDeviceEcdsaPresignSession({
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       request: input.request,
+      walletScope: input.walletScope,
+      ownershipGeneration: input.ownershipGeneration,
       materialSource: input.materialSource,
       presignSessionId: input.presignSessionId,
       requestedStage: input.requestedStage,

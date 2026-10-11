@@ -27,22 +27,24 @@ router_to_a(p) ==> p.assignment.signer.role == SignerA
 router_to_b(p) ==> p.assignment.signer.role == SignerB
 ```
 
-## A/B Peer Direction
+## A/B Proof Batch Direction
 
-Invariant: direct A/B peer messages cross signer roles.
+Invariant: a signer's proof batch names the producing signer and the other
+signer of the A/B pair.
 
 Current Rust boundary:
 
-- `AbPeerMessagePayloadV1::new` accepts `(SignerA, SignerB)` and
+- `EcdsaThresholdPrfProofBatchPayloadV1::new` accepts `(SignerA, SignerB)` and
   `(SignerB, SignerA)`.
-- Same-role peer messages are rejected.
+- Same-role proof batches are rejected.
+- Every proof bundle in the batch must be bound to the producing signer.
 
 Verus target:
 
 ```text
-valid_peer_message(m) ==> (
-  (m.from.role == SignerA && m.to.role == SignerB) ||
-  (m.from.role == SignerB && m.to.role == SignerA)
+valid_proof_batch(b) ==> (
+  (b.from.role == SignerA && b.to.role == SignerB) ||
+  (b.from.role == SignerB && b.to.role == SignerA)
 )
 ```
 

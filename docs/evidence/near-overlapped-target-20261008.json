@@ -1,0 +1,5489 @@
+{
+  "schema": "near_overlapped_target_runtime_evidence_v1",
+  "date": "2026-10-08",
+  "source": {
+    "commit": "ff2c4aecb864bea39ea5b35615ba336b4733cdc7",
+    "tree": "b963992d20a0fe3b91fd89c6a2b2a2db999cd9c5",
+    "parent": "a3807c0ffa81c93411dfe5a109cd1dcd1133ad17",
+    "paths": [
+      "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+      "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs",
+      "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet/linked_ed25519.rs",
+      "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+      "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/deriver_b_start.rs",
+      "crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs",
+      "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/bound_root.rs",
+      "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs"
+    ]
+  },
+  "scope": "Existing staging testnet. Unchanged NEAR-only SDK and harness. No new resources.",
+  "method": "Sequential control/candidate/control after all local builds and E2Es; three fresh NEAR-only wallets and 21 verified signatures per arm. Existing staging resources only.",
+  "decision": {
+    "retained": true,
+    "reason": "Remove repeated request-local runtime parsing and overlap independent target preparation with B connection. The delayed-acceptance E2E verifies the overlap and rejection boundary.",
+    "repeatableHostedSetupImprovementEstablished": false,
+    "hostedSetupTargetMet": false,
+    "protocolExchangeMerged": false,
+    "protocolExchangeDecision": "Opening B with A target proof would delay the connection until the fresh root read and proof preparation finish. Keep those tasks parallel. The existing proof exchange remains necessary to derive the server contribution."
+  },
+  "roundTrips": {
+    "scope": "Bound-root role-private D1 only. Excludes root creation, other D1 work and local DO SQL.",
+    "perSetup": 6,
+    "sqlStatementsPerSetup": 16,
+    "byRole": {
+      "prepare": 2,
+      "execute": 1
+    },
+    "unchanged": true,
+    "protocolAndHttpRequestCountsChangedByImplementation": false,
+    "browserRequestCounts": {
+      "warmOrConsecutiveSignature": 4,
+      "unlockThroughFirstVerifiedSignature": 9,
+      "registrationThroughFirstVerifiedSignature": [
+        14,
+        15
+      ],
+      "registrationVariation": "The extra request is a session-status poll. Baseline samples contain four or five polls. Candidate samples contain five."
+    }
+  },
+  "localVerification": [
+    {
+      "case": "delayed-forged-acceptance",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "delayed-forged-acceptance"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "forged-peer-readiness",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "forged-peer-readiness"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "protocol-disconnect",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "protocol-disconnect"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "connection-refused",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "connection-refused"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "forged-acceptance",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "forged-acceptance"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "admission-settlement",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--do-admission-settlement"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "missing-admission",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "missing-admission"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "cancelled-root",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs",
+        "cancelled-root"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "admission-races",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--admission-races"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "replay-after-erasure",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--replay-after-erasure"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "placement",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "lost-reply",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--do-pair-lost-reply"
+      ],
+      "exitCode": 0
+    },
+    {
+      "case": "execution",
+      "command": [
+        "node",
+        "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+        "--do-pair-execution"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "overlapAndRejectionEvidence": {
+    "kind": "yao_peer_disconnect_e2e_v1",
+    "scenario": "delayed-forged-acceptance",
+    "interrupted": {
+      "connectionAttempts": 1,
+      "connections": 1,
+      "aMessages": 0,
+      "bMessages": 0,
+      "disconnected": false,
+      "aClosed": true,
+      "bClosed": true
+    },
+    "preparationStages": [
+      "deriver_a.target_prepared",
+      "deriver_a.websocket_connect"
+    ],
+    "roleStatesAfterFailure": {
+      "deriverA": "burned",
+      "deriverB": "burned"
+    },
+    "exactRetryDidNotRestartProtocol": true,
+    "independentWalletCompletedAfterDisconnect": true,
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs delayed-forged-acceptance"
+  },
+  "builds": [
+    {
+      "role": "router",
+      "stamp": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-router-entrypoint",
+        "started_at_ms": 1791429483332
+      },
+      "wasmSha256": "7d3331de93fc0b0c448cafe923d62aa49e95c68e57298420aa5aed3945e0b906",
+      "logSha256": "1448ad48d4fba4b30f3983676ef51ebf655ce7486cca68854ecaae2c16a5670c"
+    },
+    {
+      "role": "deriver-a",
+      "stamp": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-deriver-a-entrypoint",
+        "started_at_ms": 1791429633460
+      },
+      "wasmSha256": "321792ef112fd7fe71752b97c47932c92e909fc3bdc21275607abb866c3ec2b3",
+      "logSha256": "9c74c3654e7eac687ffad165bbcf11c6aa89c6b50c203209dca99b38508c9df1"
+    },
+    {
+      "role": "deriver-b",
+      "stamp": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-deriver-b-entrypoint",
+        "started_at_ms": 1791429772717
+      },
+      "wasmSha256": "087c1e7c261493c488c29941d20e2ff75d56339490b5b95631e1d54dc097b79d",
+      "logSha256": "c5377e3253d6d5011f85e13cbe7a56dfbe4cf685b9afd207073197fad194af75"
+    },
+    {
+      "role": "signing-worker",
+      "stamp": {
+        "profile": "release",
+        "wallet_objects": true,
+        "features": "strict-worker-signing-worker-entrypoint",
+        "started_at_ms": 1791429908879
+      },
+      "wasmSha256": "362c631fa9f23f7a4eead237f890212cf7e6a992fbd88173bd60f4ec7cd77d2e",
+      "logSha256": "67e4c6e18d5fb14baf81aefe7b46f052af62492af60f4154a0f277ee586a50c7"
+    },
+    {
+      "role": "tenant-root-control-plane",
+      "stamp": {
+        "profile": "release",
+        "wallet_objects": false,
+        "features": "strict-worker-tenant-root-control-plane-entrypoint",
+        "started_at_ms": 1791430053222
+      },
+      "wasmSha256": "8567b24c866864d9f0b151ee3a6f7a561a4462145ed08fc7112dca384de80379",
+      "logSha256": "7f99f888c4514a756667f04e34663b1a215ac78c9207d4a866b5451e4c416350"
+    }
+  ],
+  "additionalChecks": [
+    {
+      "check": "non-strict Workers host compilation",
+      "passed": true,
+      "logSha256": "1887e8e7fa3dde1038ce05a59510140d0fa1deadb3c5f8a601989988bbb071cf"
+    },
+    {
+      "check": "strict Deriver B compilation",
+      "passed": true,
+      "logSha256": "62a5cd8d6fd5c7af43f9e9cf08148a7803715878362acddb09640a5f3fd79ec6"
+    }
+  ],
+  "bloatCheck": {
+    "passed": true,
+    "command": "pnpm report:bloat --check --rev b963992d20a0fe3b91fd89c6a2b2a2db999cd9c5",
+    "logSha256": "99a6ea1535d09d103a4df53f56efe7c6e1e485a76b8c81746a22cc7bfa47eb08"
+  },
+  "arms": [
+    {
+      "name": "control-before",
+      "completedWallets": 3,
+      "verifiedSignatures": 21,
+      "browserTimings": [
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 17558.804,
+          "minimumMs": 17390.064,
+          "maximumMs": 21644.139
+        },
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 7663.99,
+          "minimumMs": 7652.595,
+          "maximumMs": 7781.16
+        },
+        {
+          "workload": "registration",
+          "metric": "yaoExecuteHttpMs",
+          "samples": 3,
+          "medianMs": 3863.403,
+          "minimumMs": 3141.294,
+          "maximumMs": 4760.306
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 6,
+          "medianMs": 3418.852,
+          "minimumMs": 3046.917,
+          "maximumMs": 3815.829
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "sdkSigningMs",
+          "samples": 6,
+          "medianMs": 2905.007,
+          "minimumMs": 2249.2,
+          "maximumMs": 3204.39
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 5773.49,
+          "minimumMs": 5000.607,
+          "maximumMs": 6042.369
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 1877.415,
+          "minimumMs": 1571.27,
+          "maximumMs": 2134.425
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 9,
+          "medianMs": 3044.985,
+          "minimumMs": 2229.575,
+          "maximumMs": 3559.025
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "sdkSigningMs",
+          "samples": 9,
+          "medianMs": 2370.25,
+          "minimumMs": 1490.225,
+          "maximumMs": 2747.775
+        }
+      ],
+      "requestCounts": {
+        "registration_to_first_verified": [
+          14,
+          14,
+          14
+        ],
+        "warm_signing": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "unlock_to_first_verified": [
+          9,
+          9,
+          9
+        ],
+        "three_consecutive": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "routerDispatch": {
+        "claim_registration": {
+          "samples": 3,
+          "medianMs": 502,
+          "minimumMs": 80,
+          "maximumMs": 552
+        },
+        "finish_registration": {
+          "samples": 3,
+          "medianMs": 58,
+          "minimumMs": 54,
+          "maximumMs": 58
+        },
+        "consume_registration": {
+          "samples": 3,
+          "medianMs": 64,
+          "minimumMs": 61,
+          "maximumMs": 488
+        }
+      },
+      "claimAndFinishPaired": {
+        "samples": 3,
+        "medianMs": 556,
+        "minimumMs": 138,
+        "maximumMs": 610
+      },
+      "coordinatorSpans": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "medianMs": 520,
+          "minimumMs": 94,
+          "maximumMs": 566
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "medianMs": 779,
+          "minimumMs": 399,
+          "maximumMs": 1132
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "medianMs": 909,
+          "minimumMs": 412,
+          "maximumMs": 996
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "medianMs": 909,
+          "minimumMs": 412,
+          "maximumMs": 1132
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "medianMs": 2021,
+          "minimumMs": 1352,
+          "maximumMs": 2152
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "medianMs": 2021,
+          "minimumMs": 1352,
+          "maximumMs": 2152
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "medianMs": 581,
+          "minimumMs": 123,
+          "maximumMs": 900
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "medianMs": 3079,
+          "minimumMs": 2570,
+          "maximumMs": 3979
+        }
+      },
+      "roleSpans": {
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "medianMs": 744,
+          "minimumMs": 326,
+          "maximumMs": 868
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "medianMs": 451,
+          "minimumMs": 388,
+          "maximumMs": 655
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "medianMs": 718,
+          "minimumMs": 361,
+          "maximumMs": 854
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "medianMs": 701,
+          "minimumMs": 488,
+          "maximumMs": 802
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "medianMs": 807,
+          "minimumMs": 594,
+          "maximumMs": 928
+        }
+      },
+      "transport": [
+        {
+          "service": "Wallet startup",
+          "stage": "fetch_headers",
+          "samples": 9,
+          "bytes": [
+            203,
+            203,
+            203,
+            204,
+            204,
+            204,
+            203,
+            203,
+            203
+          ],
+          "fetchHeaders": {
+            "samples": 9,
+            "medianMs": 815,
+            "minimumMs": 655,
+            "maximumMs": 1052
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            11408,
+            11591,
+            11452
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 779,
+            "minimumMs": 399,
+            "maximumMs": 1132
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            921,
+            913,
+            911
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            11431,
+            11531,
+            11468
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 904,
+            "minimumMs": 410,
+            "maximumMs": 993
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            929,
+            945,
+            918
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 2,
+            "maximumMs": 5
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            13314,
+            13422,
+            13330
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 2019,
+            "minimumMs": 1348,
+            "maximumMs": 2148
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            8429,
+            8483,
+            8402
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 4,
+            "minimumMs": 2,
+            "maximumMs": 4
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            5556,
+            5587,
+            5544
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 575,
+            "minimumMs": 120,
+            "maximumMs": 898
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            864,
+            874,
+            878
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 2,
+            "maximumMs": 6
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        }
+      ],
+      "startup": {
+        "calls": 3,
+        "successful": 3,
+        "timing": {
+          "samples": 3,
+          "medianMs": 990,
+          "minimumMs": 867,
+          "maximumMs": 1109
+        }
+      },
+      "boundRootCalls": {
+        "loads": 12,
+        "roundTrips": 18,
+        "statements": 48,
+        "initialRead": {
+          "samples": 12,
+          "medianMs": 41.0,
+          "minimumMs": 0,
+          "maximumMs": 197
+        },
+        "batch": {
+          "samples": 12,
+          "medianMs": 103.5,
+          "minimumMs": 68,
+          "maximumMs": 132
+        }
+      },
+      "firstWorkByRole": {
+        "router": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 21,
+            "minimumMs": 17,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 65,
+            "minimumMs": 62,
+            "maximumMs": 68
+          }
+        },
+        "deriver-a": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 143,
+            "minimumMs": 124,
+            "maximumMs": 153
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 369,
+            "minimumMs": 335,
+            "maximumMs": 370
+          }
+        },
+        "deriver-b": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 140,
+            "minimumMs": 104,
+            "maximumMs": 176
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 402,
+            "minimumMs": 342,
+            "maximumMs": 408
+          }
+        },
+        "signing-worker": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 37,
+            "minimumMs": 32,
+            "maximumMs": 61
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 135,
+            "minimumMs": 94,
+            "maximumMs": 136
+          }
+        }
+      },
+      "claimInstances": {
+        "calls": 3,
+        "firstCommandAfterConstructor": 0,
+        "commands": [
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "3c0be75686bf08bb01fdf4842bc09b152b0e51524c6e84ec6a3528cea3ec9a23",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 699,
+            "status": 200
+          },
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "1e4ace20f44067f4151e138bc6e78ce448f89e8484bd70009dbc7782e940623f",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 224,
+            "status": 200
+          },
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 1,
+            "instance_command": 2,
+            "object_id": "95d09b704d56493e4cff0888ba3ff46212eea8b75af6d011ee69dc06f618d382",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 557,
+            "status": 200
+          }
+        ]
+      },
+      "objectInvocations": {
+        "claim_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 21,
+            "minimumMs": 17,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 65,
+            "minimumMs": 62,
+            "maximumMs": 68
+          }
+        },
+        "finish_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 2,
+            "maximumMs": 3
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 44,
+            "minimumMs": 42,
+            "maximumMs": 45
+          }
+        },
+        "consume_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 9,
+            "minimumMs": 8,
+            "maximumMs": 12
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 51,
+            "minimumMs": 50,
+            "maximumMs": 53
+          }
+        }
+      },
+      "useForLatencyComparison": true
+    },
+    {
+      "name": "overlapped-proof-runtime",
+      "completedWallets": 3,
+      "verifiedSignatures": 21,
+      "browserTimings": [
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 16773.618,
+          "minimumMs": 16757.292,
+          "maximumMs": 19026.389
+        },
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 7361.535,
+          "minimumMs": 5636.6,
+          "maximumMs": 7736.655
+        },
+        {
+          "workload": "registration",
+          "metric": "yaoExecuteHttpMs",
+          "samples": 3,
+          "medianMs": 4205.607,
+          "minimumMs": 2522.785,
+          "maximumMs": 4233.433
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 6,
+          "medianMs": 3049.196,
+          "minimumMs": 3030.291,
+          "maximumMs": 3060.251
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "sdkSigningMs",
+          "samples": 6,
+          "medianMs": 2470.515,
+          "minimumMs": 2252.99,
+          "maximumMs": 2768.055
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 4997.247,
+          "minimumMs": 4993.231,
+          "maximumMs": 5768.932
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 2004.015,
+          "minimumMs": 1418.73,
+          "maximumMs": 2207.315
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 9,
+          "medianMs": 2281.907,
+          "minimumMs": 2251.736,
+          "maximumMs": 3049.859
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "sdkSigningMs",
+          "samples": 9,
+          "medianMs": 1752.115,
+          "minimumMs": 1630.775,
+          "maximumMs": 2816.965
+        }
+      ],
+      "requestCounts": {
+        "registration_to_first_verified": [
+          15,
+          15,
+          15
+        ],
+        "warm_signing": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "unlock_to_first_verified": [
+          9,
+          9,
+          9
+        ],
+        "three_consecutive": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "routerDispatch": {
+        "claim_registration": {
+          "samples": 3,
+          "medianMs": 512,
+          "minimumMs": 85,
+          "maximumMs": 607
+        },
+        "finish_registration": {
+          "samples": 3,
+          "medianMs": 57,
+          "minimumMs": 52,
+          "maximumMs": 59
+        },
+        "consume_registration": {
+          "samples": 3,
+          "medianMs": 526,
+          "minimumMs": 478,
+          "maximumMs": 532
+        }
+      },
+      "claimAndFinishPaired": {
+        "samples": 3,
+        "medianMs": 569,
+        "minimumMs": 144,
+        "maximumMs": 659
+      },
+      "coordinatorSpans": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "medianMs": 529,
+          "minimumMs": 98,
+          "maximumMs": 622
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "medianMs": 882,
+          "minimumMs": 409,
+          "maximumMs": 1150
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "medianMs": 887,
+          "minimumMs": 370,
+          "maximumMs": 1178
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "medianMs": 887,
+          "minimumMs": 409,
+          "maximumMs": 1178
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "medianMs": 1656,
+          "minimumMs": 1386,
+          "maximumMs": 1988
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "medianMs": 1656,
+          "minimumMs": 1386,
+          "maximumMs": 1988
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "medianMs": 539,
+          "minimumMs": 134,
+          "maximumMs": 850
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "medianMs": 3429,
+          "minimumMs": 2212,
+          "maximumMs": 3431
+        }
+      },
+      "roleSpans": {
+        "deriver_a.target_prepared": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "medianMs": 755,
+          "minimumMs": 336,
+          "maximumMs": 835
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "medianMs": 410,
+          "minimumMs": 339,
+          "maximumMs": 438
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "medianMs": 819,
+          "minimumMs": 347,
+          "maximumMs": 852
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "medianMs": 506,
+          "minimumMs": 431,
+          "maximumMs": 704
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "medianMs": 609,
+          "minimumMs": 535,
+          "maximumMs": 812
+        }
+      },
+      "transport": [
+        {
+          "service": "Wallet startup",
+          "stage": "fetch_headers",
+          "samples": 9,
+          "bytes": [
+            204,
+            204,
+            204,
+            206,
+            206,
+            206,
+            201,
+            201,
+            201
+          ],
+          "fetchHeaders": {
+            "samples": 9,
+            "medianMs": 854,
+            "minimumMs": 526,
+            "maximumMs": 1119
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            11533,
+            11493,
+            11396
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 882,
+            "minimumMs": 409,
+            "maximumMs": 1150
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            927,
+            910,
+            924
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            11515,
+            11493,
+            11370
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 885,
+            "minimumMs": 365,
+            "maximumMs": 1177
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            934,
+            914,
+            921
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 2,
+            "minimumMs": 1,
+            "maximumMs": 5
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            13409,
+            13350,
+            13248
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 1654,
+            "minimumMs": 1383,
+            "maximumMs": 1986
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            8416,
+            8469,
+            8475
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 3
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            5547,
+            5577,
+            5574
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 536,
+            "minimumMs": 132,
+            "maximumMs": 848
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            869,
+            869,
+            876
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 3
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        }
+      ],
+      "startup": {
+        "calls": 3,
+        "successful": 3,
+        "timing": {
+          "samples": 3,
+          "medianMs": 1043,
+          "minimumMs": 754,
+          "maximumMs": 1277
+        }
+      },
+      "boundRootCalls": {
+        "loads": 12,
+        "roundTrips": 18,
+        "statements": 48,
+        "initialRead": {
+          "samples": 12,
+          "medianMs": 38.0,
+          "minimumMs": 0,
+          "maximumMs": 191
+        },
+        "batch": {
+          "samples": 12,
+          "medianMs": 103.5,
+          "minimumMs": 72,
+          "maximumMs": 154
+        }
+      },
+      "firstWorkByRole": {
+        "router": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 26,
+            "minimumMs": 26,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 72,
+            "minimumMs": 66,
+            "maximumMs": 137
+          }
+        },
+        "deriver-a": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 102,
+            "minimumMs": 87,
+            "maximumMs": 139
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 298,
+            "minimumMs": 287,
+            "maximumMs": 371
+          }
+        },
+        "deriver-b": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 119,
+            "minimumMs": 117,
+            "maximumMs": 142
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 359,
+            "minimumMs": 324,
+            "maximumMs": 410
+          }
+        },
+        "signing-worker": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 30,
+            "minimumMs": 30,
+            "maximumMs": 49
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 116,
+            "minimumMs": 104,
+            "maximumMs": 139
+          }
+        }
+      },
+      "claimInstances": {
+        "calls": 3,
+        "firstCommandAfterConstructor": 0,
+        "commands": [
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "8790daa55b0f4ddac31b7cff7278e80c44c9a0cd87236ec9e5810835a3a1b6c6",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 469,
+            "status": 200
+          },
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "4d809586062cf97a932468fd2360c59669b428be94765ac8043ae81cf0acebe9",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 0,
+            "status": 200
+          },
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "01a2b506d7788ed061d16e29f2033a02c349471aaf3a39a74ba6a8de9f6bb69d",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 69,
+            "status": 200
+          }
+        ]
+      },
+      "objectInvocations": {
+        "claim_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 26,
+            "minimumMs": 26,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 72,
+            "minimumMs": 66,
+            "maximumMs": 137
+          }
+        },
+        "finish_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 2,
+            "maximumMs": 3
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 43,
+            "minimumMs": 43,
+            "maximumMs": 49
+          }
+        },
+        "consume_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 12,
+            "minimumMs": 8,
+            "maximumMs": 15
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 56,
+            "minimumMs": 48,
+            "maximumMs": 58
+          }
+        }
+      },
+      "useForLatencyComparison": true
+    },
+    {
+      "name": "control-after",
+      "completedWallets": 3,
+      "verifiedSignatures": 21,
+      "browserTimings": [
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 18171.725,
+          "minimumMs": 16626.505,
+          "maximumMs": 19032.825
+        },
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 7836.09,
+          "minimumMs": 7748.435,
+          "maximumMs": 8039.945
+        },
+        {
+          "workload": "registration",
+          "metric": "yaoExecuteHttpMs",
+          "samples": 3,
+          "medianMs": 3728.22,
+          "minimumMs": 2652.892,
+          "maximumMs": 4289.766
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 6,
+          "medianMs": 3025.468,
+          "minimumMs": 2280.238,
+          "maximumMs": 3063.7
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "sdkSigningMs",
+          "samples": 6,
+          "medianMs": 2245.88,
+          "minimumMs": 1872.025,
+          "maximumMs": 2826.935
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 5014.378,
+          "minimumMs": 4984.712,
+          "maximumMs": 5025.466
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 1566.42,
+          "minimumMs": 1529.925,
+          "maximumMs": 1999.535
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 9,
+          "medianMs": 3023.665,
+          "minimumMs": 2249.511,
+          "maximumMs": 3797.118
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "sdkSigningMs",
+          "samples": 9,
+          "medianMs": 2182.15,
+          "minimumMs": 1544.27,
+          "maximumMs": 2993.615
+        }
+      ],
+      "requestCounts": {
+        "registration_to_first_verified": [
+          14,
+          14,
+          15
+        ],
+        "warm_signing": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "unlock_to_first_verified": [
+          9,
+          9,
+          9
+        ],
+        "three_consecutive": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "routerDispatch": {
+        "claim_registration": {
+          "samples": 3,
+          "medianMs": 374,
+          "minimumMs": 64,
+          "maximumMs": 522
+        },
+        "finish_registration": {
+          "samples": 3,
+          "medianMs": 51,
+          "minimumMs": 51,
+          "maximumMs": 57
+        },
+        "consume_registration": {
+          "samples": 3,
+          "medianMs": 346,
+          "minimumMs": 69,
+          "maximumMs": 438
+        }
+      },
+      "claimAndFinishPaired": {
+        "samples": 3,
+        "medianMs": 425,
+        "minimumMs": 115,
+        "maximumMs": 579
+      },
+      "coordinatorSpans": {
+        "router.parse_and_authorize": {
+          "samples": 3,
+          "medianMs": 385,
+          "minimumMs": 76,
+          "maximumMs": 538
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 3,
+          "medianMs": 693,
+          "minimumMs": 372,
+          "maximumMs": 873
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 3,
+          "medianMs": 725,
+          "minimumMs": 372,
+          "maximumMs": 1040
+        },
+        "router.prepare_pair": {
+          "samples": 3,
+          "medianMs": 725,
+          "minimumMs": 372,
+          "maximumMs": 1040
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 3,
+          "medianMs": 1784,
+          "minimumMs": 1765,
+          "maximumMs": 1802
+        },
+        "router.deriver_a_execute": {
+          "samples": 3,
+          "medianMs": 1784,
+          "minimumMs": 1765,
+          "maximumMs": 1802
+        },
+        "router.signing_worker_delivery": {
+          "samples": 3,
+          "medianMs": 606,
+          "minimumMs": 132,
+          "maximumMs": 712
+        },
+        "router.yao_execute": {
+          "samples": 3,
+          "medianMs": 3126,
+          "minimumMs": 2318,
+          "maximumMs": 3533
+        }
+      },
+      "roleSpans": {
+        "deriver_a.websocket_connect": {
+          "samples": 3,
+          "medianMs": 386,
+          "minimumMs": 373,
+          "maximumMs": 826
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 3,
+          "medianMs": 478,
+          "minimumMs": 388,
+          "maximumMs": 579
+        },
+        "deriver_b.session_do": {
+          "samples": 3,
+          "medianMs": 710,
+          "minimumMs": 372,
+          "maximumMs": 864
+        },
+        "deriver_b.begin_pair": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.transport": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 3,
+          "medianMs": 809,
+          "minimumMs": 496,
+          "maximumMs": 818
+        },
+        "deriver_b.output_serialization": {
+          "samples": 3,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 3,
+          "medianMs": 919,
+          "minimumMs": 598,
+          "maximumMs": 924
+        }
+      },
+      "transport": [
+        {
+          "service": "Wallet startup",
+          "stage": "fetch_headers",
+          "samples": 9,
+          "bytes": [
+            203,
+            203,
+            203,
+            203,
+            203,
+            203,
+            205,
+            205,
+            205
+          ],
+          "fetchHeaders": {
+            "samples": 9,
+            "medianMs": 692,
+            "minimumMs": 516,
+            "maximumMs": 961
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            11453,
+            11467,
+            11524
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 691,
+            "minimumMs": 372,
+            "maximumMs": 872
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            934,
+            917,
+            913
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 1,
+            "minimumMs": 0,
+            "maximumMs": 2
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            11507,
+            11434,
+            11431
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 725,
+            "minimumMs": 372,
+            "maximumMs": 1040
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            932,
+            911,
+            917
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            13352,
+            13328,
+            13387
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 1781,
+            "minimumMs": 1762,
+            "maximumMs": 1802
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            8509,
+            8425,
+            8450
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 0,
+            "maximumMs": 3
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            5598,
+            5545,
+            5568
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 604,
+            "minimumMs": 130,
+            "maximumMs": 710
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "read_response",
+          "samples": 3,
+          "bytes": [
+            896,
+            875,
+            875
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 3,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 2
+          },
+          "decode": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        }
+      ],
+      "startup": {
+        "calls": 3,
+        "successful": 3,
+        "timing": {
+          "samples": 3,
+          "medianMs": 871,
+          "minimumMs": 742,
+          "maximumMs": 1009
+        }
+      },
+      "boundRootCalls": {
+        "loads": 12,
+        "roundTrips": 18,
+        "statements": 48,
+        "initialRead": {
+          "samples": 12,
+          "medianMs": 38.0,
+          "minimumMs": 0,
+          "maximumMs": 115
+        },
+        "batch": {
+          "samples": 12,
+          "medianMs": 95.5,
+          "minimumMs": 64,
+          "maximumMs": 132
+        }
+      },
+      "firstWorkByRole": {
+        "router": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 17,
+            "minimumMs": 15,
+            "maximumMs": 23
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 57,
+            "minimumMs": 55,
+            "maximumMs": 63
+          }
+        },
+        "deriver-a": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 124,
+            "minimumMs": 91,
+            "maximumMs": 139
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 317,
+            "minimumMs": 294,
+            "maximumMs": 334
+          }
+        },
+        "deriver-b": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 134,
+            "minimumMs": 119,
+            "maximumMs": 154
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 352,
+            "minimumMs": 326,
+            "maximumMs": 357
+          }
+        },
+        "signing-worker": {
+          "objects": 3,
+          "startupObserved": 3,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 3,
+            "medianMs": 29,
+            "minimumMs": 27,
+            "maximumMs": 33
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 136,
+            "minimumMs": 109,
+            "maximumMs": 145
+          }
+        }
+      },
+      "claimInstances": {
+        "calls": 3,
+        "firstCommandAfterConstructor": 0,
+        "commands": [
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "216be3f99b0769f23768d70496721d58c9b028065547dff2001c7384bde4a0e6",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 401,
+            "status": 200
+          },
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 1,
+            "instance_command": 2,
+            "object_id": "48947186000d6f5c07e7a798f8dfc073362689280d96ce870c688c4b010ea4cb",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 418,
+            "status": 200
+          },
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "3fbee100fda90862ae55427bc6817363ad9abd95be787895a7bcca7bdd8dfe14",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 125,
+            "status": 200
+          }
+        ]
+      },
+      "objectInvocations": {
+        "claim_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 17,
+            "minimumMs": 15,
+            "maximumMs": 23
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 57,
+            "minimumMs": 55,
+            "maximumMs": 63
+          }
+        },
+        "finish_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 2,
+            "maximumMs": 4
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 45,
+            "minimumMs": 42,
+            "maximumMs": 45
+          }
+        },
+        "consume_registration": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 12,
+            "minimumMs": 10,
+            "maximumMs": 13
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 52,
+            "minimumMs": 50,
+            "maximumMs": 54
+          }
+        }
+      },
+      "useForLatencyComparison": true
+    },
+    {
+      "name": "placement-observation",
+      "completedWallets": 1,
+      "verifiedSignatures": 7,
+      "browserTimings": [
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 1,
+          "medianMs": 17524.865,
+          "minimumMs": 17524.865,
+          "maximumMs": 17524.865
+        },
+        {
+          "workload": "registration_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 1,
+          "medianMs": 7141.56,
+          "minimumMs": 7141.56,
+          "maximumMs": 7141.56
+        },
+        {
+          "workload": "registration",
+          "metric": "yaoExecuteHttpMs",
+          "samples": 1,
+          "medianMs": 4250.28,
+          "minimumMs": 4250.28,
+          "maximumMs": 4250.28
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 2,
+          "medianMs": 3420.273,
+          "minimumMs": 3023.249,
+          "maximumMs": 3817.298
+        },
+        {
+          "workload": "warm_signing",
+          "metric": "sdkSigningMs",
+          "samples": 2,
+          "medianMs": 2851.438,
+          "minimumMs": 2776.225,
+          "maximumMs": 2926.65
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 1,
+          "medianMs": 4946.399,
+          "minimumMs": 4946.399,
+          "maximumMs": 4946.399
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "metric": "sdkSigningMs",
+          "samples": 1,
+          "medianMs": 1843.76,
+          "minimumMs": 1843.76,
+          "maximumMs": 1843.76
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "elapsedToVerifiedMs",
+          "samples": 3,
+          "medianMs": 2985.463,
+          "minimumMs": 2296.608,
+          "maximumMs": 3046.413
+        },
+        {
+          "workload": "three_consecutive",
+          "metric": "sdkSigningMs",
+          "samples": 3,
+          "medianMs": 2150.97,
+          "minimumMs": 1748.17,
+          "maximumMs": 2151.22
+        }
+      ],
+      "requestCounts": {
+        "registration_to_first_verified": [
+          14
+        ],
+        "warm_signing": [
+          4,
+          4
+        ],
+        "unlock_to_first_verified": [
+          9
+        ],
+        "three_consecutive": [
+          4,
+          4,
+          4
+        ]
+      },
+      "routerDispatch": {
+        "claim_registration": {
+          "samples": 1,
+          "medianMs": 452,
+          "minimumMs": 452,
+          "maximumMs": 452
+        },
+        "finish_registration": {
+          "samples": 1,
+          "medianMs": 55,
+          "minimumMs": 55,
+          "maximumMs": 55
+        },
+        "consume_registration": {
+          "samples": 1,
+          "medianMs": 441,
+          "minimumMs": 441,
+          "maximumMs": 441
+        }
+      },
+      "claimAndFinishPaired": {
+        "samples": 1,
+        "medianMs": 507,
+        "minimumMs": 507,
+        "maximumMs": 507
+      },
+      "coordinatorSpans": {
+        "router.parse_and_authorize": {
+          "samples": 1,
+          "medianMs": 463,
+          "minimumMs": 463,
+          "maximumMs": 463
+        },
+        "router.prepare_pair.deriver_a": {
+          "samples": 1,
+          "medianMs": 1056,
+          "minimumMs": 1056,
+          "maximumMs": 1056
+        },
+        "router.prepare_pair.deriver_b": {
+          "samples": 1,
+          "medianMs": 1078,
+          "minimumMs": 1078,
+          "maximumMs": 1078
+        },
+        "router.prepare_pair": {
+          "samples": 1,
+          "medianMs": 1078,
+          "minimumMs": 1078,
+          "maximumMs": 1078
+        },
+        "router.verify_readiness_receipts": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "router.deriver_a_execute.http": {
+          "samples": 1,
+          "medianMs": 1773,
+          "minimumMs": 1773,
+          "maximumMs": 1773
+        },
+        "router.deriver_a_execute": {
+          "samples": 1,
+          "medianMs": 1773,
+          "minimumMs": 1773,
+          "maximumMs": 1773
+        },
+        "router.signing_worker_delivery": {
+          "samples": 1,
+          "medianMs": 701,
+          "minimumMs": 701,
+          "maximumMs": 701
+        },
+        "router.yao_execute": {
+          "samples": 1,
+          "medianMs": 3563,
+          "minimumMs": 3563,
+          "maximumMs": 3563
+        }
+      },
+      "roleSpans": {
+        "deriver_a.target_prepared": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_a.websocket_connect": {
+          "samples": 1,
+          "medianMs": 810,
+          "minimumMs": 810,
+          "maximumMs": 810
+        },
+        "deriver_a.yao_protocol": {
+          "samples": 1,
+          "medianMs": 422,
+          "minimumMs": 422,
+          "maximumMs": 422
+        },
+        "deriver_b.session_do": {
+          "samples": 1,
+          "medianMs": 817,
+          "minimumMs": 817,
+          "maximumMs": 817
+        },
+        "deriver_b.begin_pair": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.upgrade_response": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.input_private_key": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.transport": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.yao_protocol": {
+          "samples": 1,
+          "medianMs": 464,
+          "minimumMs": 464,
+          "maximumMs": 464
+        },
+        "deriver_b.output_serialization": {
+          "samples": 1,
+          "medianMs": 0,
+          "minimumMs": 0,
+          "maximumMs": 0
+        },
+        "deriver_b.role_execution": {
+          "samples": 1,
+          "medianMs": 575,
+          "minimumMs": 575,
+          "maximumMs": 575
+        }
+      },
+      "transport": [
+        {
+          "service": "Wallet startup",
+          "stage": "fetch_headers",
+          "samples": 3,
+          "bytes": [
+            202,
+            202,
+            202
+          ],
+          "fetchHeaders": {
+            "samples": 3,
+            "medianMs": 939,
+            "minimumMs": 871,
+            "maximumMs": 949
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "fetch_headers",
+          "samples": 1,
+          "bytes": [
+            11503
+          ],
+          "fetchHeaders": {
+            "samples": 1,
+            "medianMs": 1054,
+            "minimumMs": 1054,
+            "maximumMs": 1054
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair preparation",
+          "stage": "read_response",
+          "samples": 1,
+          "bytes": [
+            922
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 1,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 2
+          },
+          "decode": {
+            "samples": 1,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "fetch_headers",
+          "samples": 1,
+          "bytes": [
+            11453
+          ],
+          "fetchHeaders": {
+            "samples": 1,
+            "medianMs": 1078,
+            "minimumMs": 1078,
+            "maximumMs": 1078
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver B pair preparation",
+          "stage": "read_response",
+          "samples": 1,
+          "bytes": [
+            920
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 1,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "decode": {
+            "samples": 1,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "fetch_headers",
+          "samples": 1,
+          "bytes": [
+            13378
+          ],
+          "fetchHeaders": {
+            "samples": 1,
+            "medianMs": 1771,
+            "minimumMs": 1771,
+            "maximumMs": 1771
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "Deriver A pair execution",
+          "stage": "read_response",
+          "samples": 1,
+          "bytes": [
+            8407
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 1,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 2
+          },
+          "decode": {
+            "samples": 1,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "fetch_headers",
+          "samples": 1,
+          "bytes": [
+            5545
+          ],
+          "fetchHeaders": {
+            "samples": 1,
+            "medianMs": 699,
+            "minimumMs": 699,
+            "maximumMs": 699
+          },
+          "bodyRead": null,
+          "decode": null
+        },
+        {
+          "service": "SigningWorker Yao package delivery",
+          "stage": "read_response",
+          "samples": 1,
+          "bytes": [
+            874
+          ],
+          "fetchHeaders": null,
+          "bodyRead": {
+            "samples": 1,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 2
+          },
+          "decode": {
+            "samples": 1,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          }
+        }
+      ],
+      "startup": {
+        "calls": 1,
+        "successful": 1,
+        "timing": {
+          "samples": 1,
+          "medianMs": 991,
+          "minimumMs": 991,
+          "maximumMs": 991
+        }
+      },
+      "boundRootCalls": {
+        "loads": 4,
+        "roundTrips": 6,
+        "statements": 16,
+        "initialRead": {
+          "samples": 4,
+          "medianMs": 40.0,
+          "minimumMs": 0,
+          "maximumMs": 102
+        },
+        "batch": {
+          "samples": 4,
+          "medianMs": 95.0,
+          "minimumMs": 71,
+          "maximumMs": 137
+        }
+      },
+      "firstWorkByRole": {
+        "router": {
+          "objects": 1,
+          "startupObserved": 1,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 1,
+            "medianMs": 19,
+            "minimumMs": 19,
+            "maximumMs": 19
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 61,
+            "minimumMs": 61,
+            "maximumMs": 61
+          }
+        },
+        "deriver-a": {
+          "objects": 1,
+          "startupObserved": 1,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 1,
+            "medianMs": 103,
+            "minimumMs": 103,
+            "maximumMs": 103
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 310,
+            "minimumMs": 310,
+            "maximumMs": 310
+          }
+        },
+        "deriver-b": {
+          "objects": 1,
+          "startupObserved": 1,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 1,
+            "medianMs": 122,
+            "minimumMs": 122,
+            "maximumMs": 122
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 330,
+            "minimumMs": 330,
+            "maximumMs": 330
+          }
+        },
+        "signing-worker": {
+          "objects": 1,
+          "startupObserved": 1,
+          "firstCommandAfterConstructor": 0,
+          "cpu": {
+            "samples": 1,
+            "medianMs": 43,
+            "minimumMs": 43,
+            "maximumMs": 43
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 2005,
+            "minimumMs": 2005,
+            "maximumMs": 2005
+          }
+        }
+      },
+      "claimInstances": {
+        "calls": 1,
+        "firstCommandAfterConstructor": 0,
+        "commands": [
+          {
+            "event": "wallet_do_command_timing",
+            "first_command_after_constructor": false,
+            "handler_ms": 0,
+            "instance_command": 2,
+            "object_id": "4a8ca3ea6853d3fcbefe5b2915859c663f61f9b882205126fda3490f9f9d6836",
+            "path": "/router-wallet/v1/command",
+            "role": "router",
+            "since_previous_start_ms": 528,
+            "status": 200
+          }
+        ]
+      },
+      "objectInvocations": {
+        "claim_registration": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 19,
+            "minimumMs": 19,
+            "maximumMs": 19
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 61,
+            "minimumMs": 61,
+            "maximumMs": 61
+          }
+        },
+        "finish_registration": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 2,
+            "minimumMs": 2,
+            "maximumMs": 2
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 44,
+            "minimumMs": 44,
+            "maximumMs": 44
+          }
+        },
+        "consume_registration": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 10,
+            "minimumMs": 10,
+            "maximumMs": 10
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 52,
+            "minimumMs": 52,
+            "maximumMs": 52
+          }
+        }
+      },
+      "useForLatencyComparison": false
+    }
+  ],
+  "samples": [
+    {
+      "arm": "control-before",
+      "file": "near-1.json",
+      "sha256": "949b6b5ed1c890030e135e2335583d76e5f075f43bf8daba1be3c6be81d60f5c",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 21644.139291,
+          "sdkSigningMs": 7781.160000085831,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 14,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": [
+            4760.306
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3790.9523750000008,
+          "sdkSigningMs": 3198.7050000429153,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3815.8288329999996,
+          "sdkSigningMs": 3204.389999985695,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 6042.368541,
+          "sdkSigningMs": 1571.2699999809265,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3559.0253329999978,
+          "sdkSigningMs": 2747.774999976158,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3061.519625000001,
+          "sdkSigningMs": 2612.1599999666214,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3044.9847500000033,
+          "sdkSigningMs": 2370.25,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "control-before",
+      "file": "near-2.json",
+      "sha256": "d2c3a02e41fbf43b6519f4cb08eabbc8f27bab819d24de808d5eefdc02476ab6",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 17558.803874999998,
+          "sdkSigningMs": 7652.59500002861,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 14,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": [
+            3141.294
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3060.1159160000097,
+          "sdkSigningMs": 2292.710000038147,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3777.587707999992,
+          "sdkSigningMs": 3192.149999976158,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 5773.489957999991,
+          "sdkSigningMs": 2134.4249999523163,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2261.1614589999954,
+          "sdkSigningMs": 1651.6100000143051,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2278.6016249999957,
+          "sdkSigningMs": 1824.6549999713898,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3045.1535830000066,
+          "sdkSigningMs": 2641.060000061989,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "control-before",
+      "file": "near-3.json",
+      "sha256": "a85179b12110ac47f8eca4a206819b95299992396f28efd763d6ccd082f7315c",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 17390.06412499999,
+          "sdkSigningMs": 7663.990000009537,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 14,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": [
+            3863.403
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3047.225916999989,
+          "sdkSigningMs": 2249.1999999284744,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3046.9171659999993,
+          "sdkSigningMs": 2617.8650000095367,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 5000.607457999999,
+          "sdkSigningMs": 1877.414999961853,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2229.574999999997,
+          "sdkSigningMs": 1490.2250000238419,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2264.5677910000086,
+          "sdkSigningMs": 1891.0099999904633,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3048.9776669999846,
+          "sdkSigningMs": 2701.9700000286102,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "overlapped-proof-runtime",
+      "file": "near-1.json",
+      "sha256": "e65692723864caf0ef7b57cb7d2469029cae7a35168608e8dd602f213f737992",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 16773.618292000003,
+          "sdkSigningMs": 5636.600000023842,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 15,
+          "sessionStatusCalls": 5,
+          "yaoExecuteHttpMs": [
+            4205.607
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3049.8286249999983,
+          "sdkSigningMs": 2410.310000061989,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3048.564166,
+          "sdkSigningMs": 2542.0750000476837,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 4997.246999999999,
+          "sdkSigningMs": 1418.7300000190735,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2264.154834000001,
+          "sdkSigningMs": 1691.4650000333786,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2295.7474169999987,
+          "sdkSigningMs": 1752.1150000095367,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3042.7461669999975,
+          "sdkSigningMs": 2816.9650000333786,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "overlapped-proof-runtime",
+      "file": "near-2.json",
+      "sha256": "9dcbc9504787e10227ce99b36f25816ab4e0089d991ddba816a7c1aa7306c18e",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 19026.389167,
+          "sdkSigningMs": 7736.65499997139,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 15,
+          "sessionStatusCalls": 5,
+          "yaoExecuteHttpMs": [
+            4233.433
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3060.251124999995,
+          "sdkSigningMs": 2252.9900000095367,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3051.916416,
+          "sdkSigningMs": 2530.7200000286102,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 5768.932124999992,
+          "sdkSigningMs": 2207.3150000572205,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2251.7360830000107,
+          "sdkSigningMs": 1630.7750000953674,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2294.71424999999,
+          "sdkSigningMs": 1718.6749999523163,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2278.955083000008,
+          "sdkSigningMs": 2059.6200000047684,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "overlapped-proof-runtime",
+      "file": "near-3.json",
+      "sha256": "fa917302a420beb0bf59f71a6af9a78d5e204b02250bd720d9330feec4ce9fee",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 16757.291834000003,
+          "sdkSigningMs": 7361.535000085831,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 15,
+          "sessionStatusCalls": 5,
+          "yaoExecuteHttpMs": [
+            2522.785
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3030.2905829999945,
+          "sdkSigningMs": 2391.694999933243,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3034.8507090000057,
+          "sdkSigningMs": 2768.054999947548,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 4993.230916,
+          "sdkSigningMs": 2004.0149999856949,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2259.9247919999907,
+          "sdkSigningMs": 1723.4499999284744,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2281.907416000002,
+          "sdkSigningMs": 1814.625,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3049.8587499999994,
+          "sdkSigningMs": 2136.875,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "control-after",
+      "file": "near-1.json",
+      "sha256": "75ef8c44ba28cc5d3ad265eb49a2e2d6186ca7807e772297e8b67353423e33ea",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 19032.825417,
+          "sdkSigningMs": 8039.945000052452,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 14,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": [
+            4289.766
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3022.1323749999974,
+          "sdkSigningMs": 2417.445000052452,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3061.689041999998,
+          "sdkSigningMs": 2534.5599999427795,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 5014.378124999999,
+          "sdkSigningMs": 1529.9249999523163,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3026.3799999999974,
+          "sdkSigningMs": 2247.289999961853,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2300.668291000002,
+          "sdkSigningMs": 1745.414999961853,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3023.6646249999976,
+          "sdkSigningMs": 2182.1500000953674,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "control-after",
+      "file": "near-2.json",
+      "sha256": "c51fa1e41309e311ddd04898a2be1947b088516bd0a7213a2db9c70f6ec46f53",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 18171.725124999997,
+          "sdkSigningMs": 7748.435000061989,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 14,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": [
+            3728.22
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 2281.939542,
+          "sdkSigningMs": 1872.0249999761581,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 2280.2383749999935,
+          "sdkSigningMs": 1971.0250000953674,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 4984.7124579999945,
+          "sdkSigningMs": 1999.5349999666214,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2249.5114170000015,
+          "sdkSigningMs": 1544.2699999809265,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3026.587916999997,
+          "sdkSigningMs": 2201.304999947548,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3797.118291999999,
+          "sdkSigningMs": 2993.6150000095367,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "control-after",
+      "file": "near-3.json",
+      "sha256": "a450d001ce1896a1e29b988669600653320868497010738aa465ad5135cef79a",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 16626.504917,
+          "sdkSigningMs": 7836.090000033379,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 15,
+          "sessionStatusCalls": 5,
+          "yaoExecuteHttpMs": [
+            2652.892
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3063.7002499999944,
+          "sdkSigningMs": 2074.3150000572205,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3028.802833000009,
+          "sdkSigningMs": 2826.9349999427795,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 5025.465666999997,
+          "sdkSigningMs": 1566.4199999570847,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3025.052791000009,
+          "sdkSigningMs": 2188.645000100136,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2311.5579579999903,
+          "sdkSigningMs": 1833.7299998998642,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2294.638917000004,
+          "sdkSigningMs": 2035.3700000047684,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    },
+    {
+      "arm": "placement-observation",
+      "file": "near-1.json",
+      "sha256": "c3f2d476f108a91a1722c70160f46d95d55000f93ca3c02b9793194f8862971a",
+      "outcome": "succeeded",
+      "browserConsoleCalls": [],
+      "samples": [
+        {
+          "workload": "registration_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 17524.864999999998,
+          "sdkSigningMs": 7141.5599999427795,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 14,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": [
+            4250.28
+          ]
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3023.249208000001,
+          "sdkSigningMs": 2776.225000023842,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "warm_signing",
+          "verified": true,
+          "elapsedToVerifiedMs": 3817.2976249999992,
+          "sdkSigningMs": 2926.649999976158,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "unlock_to_first_verified",
+          "verified": true,
+          "elapsedToVerifiedMs": 4946.398625000002,
+          "sdkSigningMs": 1843.7599999904633,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 9,
+          "sessionStatusCalls": 4,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2985.4630000000034,
+          "sdkSigningMs": 2151.219999909401,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 2296.608290999997,
+          "sdkSigningMs": 1748.1699999570847,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        },
+        {
+          "workload": "three_consecutive",
+          "verified": true,
+          "elapsedToVerifiedMs": 3046.412958000001,
+          "sdkSigningMs": 2150.9700000286102,
+          "gatewayConsoleCalls": null,
+          "gatewayHttpCalls": 4,
+          "sessionStatusCalls": 1,
+          "yaoExecuteHttpMs": []
+        }
+      ]
+    }
+  ],
+  "servingVersionAudit": [
+    {
+      "arm": "control-before",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "64374bb2-7351-4f28-89b6-1009a03d51b5"
+          ],
+          "actualInvocationCounts": {
+            "64374bb2-7351-4f28-89b6-1009a03d51b5": 78
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "10e7f03f-eba3-4761-a0eb-f0dc85e58bd6"
+          ],
+          "actualInvocationCounts": {
+            "10e7f03f-eba3-4761-a0eb-f0dc85e58bd6": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "9e99aaf3-57be-4314-955a-3818196bb1ea"
+          ],
+          "actualInvocationCounts": {
+            "9e99aaf3-57be-4314-955a-3818196bb1ea": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "ea6b209b-466b-4105-9384-3caaae29fa8c"
+          ],
+          "actualInvocationCounts": {
+            "ea6b209b-466b-4105-9384-3caaae29fa8c": 104
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652"
+          ],
+          "actualInvocationCounts": {
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652": 192
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "router./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 11,
+            "minimumMs": 7,
+            "maximumMs": 17
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 19,
+            "minimumMs": 9,
+            "maximumMs": 144
+          }
+        },
+        "router./router-wallet/v1/command": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 9,
+            "minimumMs": 2,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 51,
+            "minimumMs": 42,
+            "maximumMs": 68
+          }
+        },
+        "deriver-a./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 32,
+            "minimumMs": 32,
+            "maximumMs": 43
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 40,
+            "minimumMs": 35,
+            "maximumMs": 45
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 143,
+            "minimumMs": 124,
+            "maximumMs": 153
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 369,
+            "minimumMs": 335,
+            "maximumMs": 370
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 747,
+            "minimumMs": 537,
+            "maximumMs": 777
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 2054,
+            "minimumMs": 1398,
+            "maximumMs": 2173
+          }
+        },
+        "deriver-b./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 21,
+            "minimumMs": 14,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 30,
+            "minimumMs": 15,
+            "maximumMs": 203
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 140,
+            "minimumMs": 104,
+            "maximumMs": 176
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 402,
+            "minimumMs": 342,
+            "maximumMs": 408
+          }
+        },
+        "deriver-b./router-ab/deriver-b/ed25519-yao/duplex": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 320,
+            "minimumMs": 312,
+            "maximumMs": 533
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1122,
+            "minimumMs": 918,
+            "maximumMs": 1411
+          }
+        },
+        "signing-worker./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 21,
+            "minimumMs": 19,
+            "maximumMs": 31
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 33,
+            "minimumMs": 20,
+            "maximumMs": 152
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 45,
+            "medianMs": 11,
+            "minimumMs": 6,
+            "maximumMs": 61
+          },
+          "wall": {
+            "samples": 45,
+            "medianMs": 51,
+            "minimumMs": 45,
+            "maximumMs": 136
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 9,
+            "minimumMs": 5,
+            "maximumMs": 101
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 564,
+            "minimumMs": 114,
+            "maximumMs": 716
+          }
+        }
+      }
+    },
+    {
+      "arm": "overlapped-proof-runtime",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "64374bb2-7351-4f28-89b6-1009a03d51b5"
+          ],
+          "actualInvocationCounts": {
+            "64374bb2-7351-4f28-89b6-1009a03d51b5": 78
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "02fc3636-bcf0-406d-93b1-cbbc14933e3d"
+          ],
+          "actualInvocationCounts": {
+            "02fc3636-bcf0-406d-93b1-cbbc14933e3d": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "3e9c399c-9c54-4dab-861d-263850fe3f21"
+          ],
+          "actualInvocationCounts": {
+            "3e9c399c-9c54-4dab-861d-263850fe3f21": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "7969893f-7771-4252-a205-88ea08195fa1"
+          ],
+          "actualInvocationCounts": {
+            "7969893f-7771-4252-a205-88ea08195fa1": 104
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652"
+          ],
+          "actualInvocationCounts": {
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652": 195
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "router./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 16,
+            "minimumMs": 11,
+            "maximumMs": 26
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 20,
+            "minimumMs": 14,
+            "maximumMs": 137
+          }
+        },
+        "router./router-wallet/v1/command": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 12,
+            "minimumMs": 2,
+            "maximumMs": 27
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 56,
+            "minimumMs": 43,
+            "maximumMs": 137
+          }
+        },
+        "deriver-a./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 31,
+            "minimumMs": 29,
+            "maximumMs": 43
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 34,
+            "minimumMs": 31,
+            "maximumMs": 46
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 102,
+            "minimumMs": 87,
+            "maximumMs": 139
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 298,
+            "minimumMs": 287,
+            "maximumMs": 371
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 513,
+            "minimumMs": 451,
+            "maximumMs": 749
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1666,
+            "minimumMs": 1409,
+            "maximumMs": 2026
+          }
+        },
+        "deriver-b./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 18,
+            "minimumMs": 10,
+            "maximumMs": 18
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 119,
+            "minimumMs": 19,
+            "maximumMs": 219
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 119,
+            "minimumMs": 117,
+            "maximumMs": 142
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 359,
+            "minimumMs": 324,
+            "maximumMs": 410
+          }
+        },
+        "deriver-b./router-ab/deriver-b/ed25519-yao/duplex": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 330,
+            "minimumMs": 323,
+            "maximumMs": 343
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1133,
+            "minimumMs": 880,
+            "maximumMs": 1273
+          }
+        },
+        "signing-worker./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 22,
+            "minimumMs": 21,
+            "maximumMs": 43
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 47,
+            "minimumMs": 23,
+            "maximumMs": 163
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 45,
+            "medianMs": 10,
+            "minimumMs": 5,
+            "maximumMs": 49
+          },
+          "wall": {
+            "samples": 45,
+            "medianMs": 49,
+            "minimumMs": 39,
+            "maximumMs": 139
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 6,
+            "minimumMs": 3,
+            "maximumMs": 96
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 533,
+            "minimumMs": 127,
+            "maximumMs": 654
+          }
+        }
+      }
+    },
+    {
+      "arm": "control-after",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "64374bb2-7351-4f28-89b6-1009a03d51b5"
+          ],
+          "actualInvocationCounts": {
+            "64374bb2-7351-4f28-89b6-1009a03d51b5": 78
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "10e7f03f-eba3-4761-a0eb-f0dc85e58bd6"
+          ],
+          "actualInvocationCounts": {
+            "10e7f03f-eba3-4761-a0eb-f0dc85e58bd6": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "9e99aaf3-57be-4314-955a-3818196bb1ea"
+          ],
+          "actualInvocationCounts": {
+            "9e99aaf3-57be-4314-955a-3818196bb1ea": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "ea6b209b-466b-4105-9384-3caaae29fa8c"
+          ],
+          "actualInvocationCounts": {
+            "ea6b209b-466b-4105-9384-3caaae29fa8c": 104
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652"
+          ],
+          "actualInvocationCounts": {
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652": 193
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "router./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 16,
+            "minimumMs": 8,
+            "maximumMs": 22
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 19,
+            "minimumMs": 10,
+            "maximumMs": 30
+          }
+        },
+        "router./router-wallet/v1/command": {
+          "cpu": {
+            "samples": 9,
+            "medianMs": 12,
+            "minimumMs": 2,
+            "maximumMs": 23
+          },
+          "wall": {
+            "samples": 9,
+            "medianMs": 52,
+            "minimumMs": 42,
+            "maximumMs": 63
+          }
+        },
+        "deriver-a./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 39,
+            "minimumMs": 27,
+            "maximumMs": 40
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 43,
+            "minimumMs": 42,
+            "maximumMs": 444
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 124,
+            "minimumMs": 91,
+            "maximumMs": 139
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 317,
+            "minimumMs": 294,
+            "maximumMs": 334
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 827,
+            "minimumMs": 514,
+            "maximumMs": 859
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1802,
+            "minimumMs": 1779,
+            "maximumMs": 1818
+          }
+        },
+        "deriver-b./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 19,
+            "minimumMs": 14,
+            "maximumMs": 20
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 21,
+            "minimumMs": 16,
+            "maximumMs": 22
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 134,
+            "minimumMs": 119,
+            "maximumMs": 154
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 352,
+            "minimumMs": 326,
+            "maximumMs": 357
+          }
+        },
+        "deriver-b./router-ab/deriver-b/ed25519-yao/duplex": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 327,
+            "minimumMs": 324,
+            "maximumMs": 432
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 1212,
+            "minimumMs": 955,
+            "maximumMs": 1302
+          }
+        },
+        "signing-worker./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 19,
+            "minimumMs": 17,
+            "maximumMs": 22
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 20,
+            "minimumMs": 18,
+            "maximumMs": 24
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 45,
+            "medianMs": 9,
+            "minimumMs": 5,
+            "maximumMs": 33
+          },
+          "wall": {
+            "samples": 45,
+            "medianMs": 51,
+            "minimumMs": 44,
+            "maximumMs": 145
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 7,
+            "minimumMs": 2,
+            "maximumMs": 65
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 580,
+            "minimumMs": 123,
+            "maximumMs": 601
+          }
+        }
+      }
+    },
+    {
+      "arm": "placement-observation",
+      "roles": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "64374bb2-7351-4f28-89b6-1009a03d51b5"
+          ],
+          "actualInvocationCounts": {
+            "64374bb2-7351-4f28-89b6-1009a03d51b5": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "fac9185f-e111-4d51-a8b3-d4ea692e7d7b"
+          ],
+          "actualInvocationCounts": {
+            "fac9185f-e111-4d51-a8b3-d4ea692e7d7b": 11
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "a541ba43-c2b3-4b98-90fc-531380e8ce5f"
+          ],
+          "actualInvocationCounts": {
+            "a541ba43-c2b3-4b98-90fc-531380e8ce5f": 11
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "d1f11e0f-86cb-4dd2-8014-888d53c3915d"
+          ],
+          "actualInvocationCounts": {
+            "d1f11e0f-86cb-4dd2-8014-888d53c3915d": 36
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652"
+          ],
+          "actualInvocationCounts": {
+            "0bf32d3c-5445-4c2e-92b2-2ae2d8272652": 65
+          },
+          "allMatched": true
+        }
+      ],
+      "allMatched": true,
+      "invocationTimings": {
+        "router./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 11,
+            "minimumMs": 11,
+            "maximumMs": 11
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 13,
+            "minimumMs": 13,
+            "maximumMs": 13
+          }
+        },
+        "router./router-wallet/v1/command": {
+          "cpu": {
+            "samples": 3,
+            "medianMs": 10,
+            "minimumMs": 2,
+            "maximumMs": 19
+          },
+          "wall": {
+            "samples": 3,
+            "medianMs": 52,
+            "minimumMs": 44,
+            "maximumMs": 61
+          }
+        },
+        "deriver-a./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 25,
+            "minimumMs": 25,
+            "maximumMs": 25
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 27,
+            "minimumMs": 27,
+            "maximumMs": 27
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/prepare-work": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 103,
+            "minimumMs": 103,
+            "maximumMs": 103
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 310,
+            "minimumMs": 310,
+            "maximumMs": 310
+          }
+        },
+        "deriver-a./router-ab/internal/deriver-a/wallet-pair/execute-work": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 493,
+            "minimumMs": 493,
+            "maximumMs": 493
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 3353,
+            "minimumMs": 3353,
+            "maximumMs": 3353
+          }
+        },
+        "deriver-b./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 17,
+            "minimumMs": 17,
+            "maximumMs": 17
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 20,
+            "minimumMs": 20,
+            "maximumMs": 20
+          }
+        },
+        "deriver-b./router-ab/internal/deriver-b/wallet-pair": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 122,
+            "minimumMs": 122,
+            "maximumMs": 122
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 330,
+            "minimumMs": 330,
+            "maximumMs": 330
+          }
+        },
+        "deriver-b./router-ab/deriver-b/ed25519-yao/duplex": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 358,
+            "minimumMs": 358,
+            "maximumMs": 358
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 2048,
+            "minimumMs": 2048,
+            "maximumMs": 2048
+          }
+        },
+        "signing-worker./router-ab/internal/wallet/start": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 29,
+            "minimumMs": 29,
+            "maximumMs": 29
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 52,
+            "minimumMs": 52,
+            "maximumMs": 52
+          }
+        },
+        "signing_worker.package_worker": {
+          "cpu": {
+            "samples": 1,
+            "medianMs": 62,
+            "minimumMs": 62,
+            "maximumMs": 62
+          },
+          "wall": {
+            "samples": 1,
+            "medianMs": 596,
+            "minimumMs": 596,
+            "maximumMs": 596
+          }
+        },
+        "signing-worker./router-ab/internal/signing-worker/wallet": {
+          "cpu": {
+            "samples": 15,
+            "medianMs": 15,
+            "minimumMs": 9,
+            "maximumMs": 43
+          },
+          "wall": {
+            "samples": 15,
+            "medianMs": 1965,
+            "minimumMs": 315,
+            "maximumMs": 2005
+          }
+        }
+      }
+    }
+  ],
+  "placement": {
+    "provider": "Cloudflare GraphQL Workers and Durable Objects analytics",
+    "queryScope": "Each benchmark time window and exact deployed script versions. Adaptive sampling may omit requests.",
+    "correlations": {
+      "method": "Wallet object IDs are matched exactly to Cloudflare analytics. Worker requests match a script/version/time window and one-second bucket. An empty result means unavailable; multiple colos mean an ambiguous bucket.",
+      "arms": [
+        {
+          "arm": "control-before",
+          "walletObjects": [
+            {
+              "role": "deriver-a",
+              "objectId": "48a9baa6eb2e1b399f4578eab5f2325e26c4b6d5b33a6c851cfcb95c50f718ad",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-a",
+              "objectId": "9f2f23bb8aa8136b61b0bb169942e37f37842be5660671f0aa0b5df3a04d407e",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-a",
+              "objectId": "f7de93d9306b7ab58c803243af2127154ce79530fd95430eabe5b22256d369cd",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "56c5e6ce8ca2c1ff67b09182f10ec4c218a6c230b29feeb8e20a3e7142f05175",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "afc2aeb20376387244615512d940491a9c8d2c1b09f9296df255b68d954b7d99",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "e8b8379389fb7280d00c3f5d8787bcab72e7eacb62b4b8921bfab88883f0d080",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "1e4ace20f44067f4151e138bc6e78ce448f89e8484bd70009dbc7782e940623f",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "3c0be75686bf08bb01fdf4842bc09b152b0e51524c6e84ec6a3528cea3ec9a23",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "95d09b704d56493e4cff0888ba3ff46212eea8b75af6d011ee69dc06f618d382",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "1d04961418846952497c4477fda636ea49600febfb58b173d4fa207d22c83448",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "ae66db7768d6f44c5bce74458f489cd624a38ca401a6758eecdc4e98886ed655",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "fbba04b9163bb2290225c42f718009199415abee539e425fbc6c9f4274d61cd8",
+              "colos": [
+                "HKG"
+              ]
+            }
+          ],
+          "workerRequestWindows": [
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:33:37Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 93,
+              "wallMs": 4550
+            },
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:34:26Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 60,
+              "wallMs": 2724
+            },
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:35:07Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 82,
+              "wallMs": 3702
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:33:37Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 28,
+              "wallMs": 873
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:33:38Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 12,
+              "wallMs": 2121
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:34:26Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 16,
+              "wallMs": 395
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:34:26Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 7,
+              "wallMs": 1990
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:35:08Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 104,
+              "wallMs": 774
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:35:09Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 9,
+              "wallMs": 1328
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:33:37Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 41,
+              "wallMs": 743
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:33:38Z",
+              "colos": [],
+              "cpuMs": 74,
+              "wallMs": 498
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:34:26Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 26,
+              "wallMs": 382
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:34:26Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 104,
+              "wallMs": 585
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:35:08Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 100,
+              "wallMs": 906
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:35:09Z",
+              "colos": [],
+              "cpuMs": 69,
+              "wallMs": 168
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:33:40Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 101,
+              "wallMs": 716
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:34:28Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 5,
+              "wallMs": 114
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:35:11Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 9,
+              "wallMs": 564
+            }
+          ]
+        },
+        {
+          "arm": "overlapped-proof-runtime",
+          "walletObjects": [
+            {
+              "role": "deriver-a",
+              "objectId": "28d19dae2425b1b4ff7a704de228160cb26ab3a22bad8046e03555782af2a849",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-a",
+              "objectId": "59b540eec8a0fb45b1920e3515255085aa0ba39e29ad64c1d4996bd5d1c4cec5",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-a",
+              "objectId": "69884d510d1479b0be3b0cb638567fdee26d6253b0fef564683b816b39b3376b",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "0149fa7493a41962287a86fa275be73218f8acf0c73e73aab507ce439dcc9026",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "6a6f3d02b85cf50e1ad065b58fc3a9a45c63da7e17198d3b3806b8d710f78f48",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "dad1a52cc9b483b20de7cde059f68a6b185551a460bf6cde43b41fe043828e37",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "01a2b506d7788ed061d16e29f2033a02c349471aaf3a39a74ba6a8de9f6bb69d",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "4d809586062cf97a932468fd2360c59669b428be94765ac8043ae81cf0acebe9",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "8790daa55b0f4ddac31b7cff7278e80c44c9a0cd87236ec9e5810835a3a1b6c6",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "3060cdb7833957b33ee252e81c59862504775dc2ceb94e0975e20f2df3936213",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "66f3f310dc63c4ed79daf4646a3b4ed5271af12e11a4b585a61c4515d8e240ce",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "d0bc07b825d6619de128312f68cb2230f3d395fc09bbcdf4faeb1061b9896f80",
+              "colos": [
+                "HKG"
+              ]
+            }
+          ],
+          "workerRequestWindows": [
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:37:04Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 114,
+              "wallMs": 4016
+            },
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:37:43Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 20,
+              "wallMs": 4091
+            },
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:38:25Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 64,
+              "wallMs": 2374
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:37:05Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 176,
+              "wallMs": 896
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:37:06Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 11,
+              "wallMs": 1358
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:37:44Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 23,
+              "wallMs": 875
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:37:45Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 14,
+              "wallMs": 1977
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:38:25Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 44,
+              "wallMs": 347
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:38:25Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 22,
+              "wallMs": 1624
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:37:05Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 125,
+              "wallMs": 886
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:37:06Z",
+              "colos": [],
+              "cpuMs": 68,
+              "wallMs": 160
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:37:44Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 29,
+              "wallMs": 871
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:37:45Z",
+              "colos": [],
+              "cpuMs": 72,
+              "wallMs": 577
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:38:25Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 56,
+              "wallMs": 392
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:38:25Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 55,
+              "wallMs": 555
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:37:07Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 96,
+              "wallMs": 654
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:37:47Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 6,
+              "wallMs": 533
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:38:27Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 3,
+              "wallMs": 127
+            }
+          ]
+        },
+        {
+          "arm": "control-after",
+          "walletObjects": [
+            {
+              "role": "deriver-a",
+              "objectId": "0aa2855effd1ba7e8eb328647942c36963f87446df0bfcc779764b8af8dfcad0",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-a",
+              "objectId": "4a2e3cadf685fa0a1707adc21f78d046feb47fcf0e213560d41b48c057dd87c4",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-a",
+              "objectId": "74e6c7c720bc2d29914efddec2d98ea88fb33d6e91c23e4d4c8570cd6a7e67e6",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "07a532af6f33305f648ebc065187c541b9fdf8a38bba9d44b83453d4df8b7a46",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "94cac278bc9dceaf4aa9295d94f796ee79cb8bab6cda04c569ac30c35453cda6",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "bcb8ef24c1413ebcfdd5b55e8684c0bcd26fb30367965f8a29621a8f32b4bf74",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "216be3f99b0769f23768d70496721d58c9b028065547dff2001c7384bde4a0e6",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "3fbee100fda90862ae55427bc6817363ad9abd95be787895a7bcca7bdd8dfe14",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "48947186000d6f5c07e7a798f8dfc073362689280d96ce870c688c4b010ea4cb",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "0191adfe41e2b484e1ce898f2e634bc5b181780fe7029a8afefa9c6a34888fa2",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "649aa14e20f790593cf332c07923bbc925434f5d275e31ec221ef80a6e775728",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "aa3a7b5c277a92e1c40f18bb0420829b01ee8c0095bc328f62d2d8e51ef3a859",
+              "colos": [
+                "HKG"
+              ]
+            }
+          ],
+          "workerRequestWindows": [
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:39:58Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 24,
+              "wallMs": 4117
+            },
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:40:40Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 22,
+              "wallMs": 3555
+            },
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:41:20Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 98,
+              "wallMs": 2466
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:39:58Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 90,
+              "wallMs": 702
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:39:59Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 11,
+              "wallMs": 1754
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:40:40Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 7,
+              "wallMs": 681
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:40:41Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 7,
+              "wallMs": 1771
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:41:20Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 13,
+              "wallMs": 383
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:41:21Z",
+              "colos": [],
+              "cpuMs": 9,
+              "wallMs": 1722
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:39:58Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 79,
+              "wallMs": 912
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:39:59Z",
+              "colos": [],
+              "cpuMs": 54,
+              "wallMs": 623
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:40:40Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 7,
+              "wallMs": 715
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:40:41Z",
+              "colos": [],
+              "cpuMs": 102,
+              "wallMs": 225
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:41:20Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 35,
+              "wallMs": 391
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:41:21Z",
+              "colos": [],
+              "cpuMs": 114,
+              "wallMs": 227
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:40:01Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 65,
+              "wallMs": 580
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:40:43Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 2,
+              "wallMs": 601
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:41:23Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 7,
+              "wallMs": 123
+            }
+          ]
+        },
+        {
+          "arm": "placement-observation",
+          "walletObjects": [
+            {
+              "role": "deriver-a",
+              "objectId": "d949aa09699bbf0764a75fa2d2b85d7a04cae8b64d5ef7a93eff697d43e0bb16",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "deriver-b",
+              "objectId": "45403b9d095313e77d1dec57ff8d1553b8e580eec433893407d308643e5e18f4",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "router",
+              "objectId": "4a8ca3ea6853d3fcbefe5b2915859c663f61f9b882205126fda3490f9f9d6836",
+              "colos": [
+                "HKG"
+              ]
+            },
+            {
+              "role": "signing-worker",
+              "objectId": "cacaef9efaa7ca097baa57caa21a4c324a0a20bf1a7afdab958a327415c903c0",
+              "colos": [
+                "HKG"
+              ]
+            }
+          ],
+          "workerRequestWindows": [
+            {
+              "role": "router",
+              "path": "/router-ab/router/ed25519-yao/execute",
+              "second": "2026-10-08T03:43:03Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 26,
+              "wallMs": 4073
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:43:04Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 98,
+              "wallMs": 883
+            },
+            {
+              "role": "deriver-a",
+              "path": "/router-ab/deriver-a/ed25519-yao/execute-pair",
+              "second": "2026-10-08T03:43:05Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 9,
+              "wallMs": 1761
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/prepare-pair",
+              "second": "2026-10-08T03:43:04Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 111,
+              "wallMs": 877
+            },
+            {
+              "role": "deriver-b",
+              "path": "/router-ab/deriver-b/ed25519-yao/duplex",
+              "second": "2026-10-08T03:43:05Z",
+              "colos": [],
+              "cpuMs": 62,
+              "wallMs": 576
+            },
+            {
+              "role": "signing-worker",
+              "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+              "second": "2026-10-08T03:43:07Z",
+              "colos": [
+                "HKG"
+              ],
+              "cpuMs": 62,
+              "wallMs": 596
+            }
+          ]
+        }
+      ]
+    },
+    "d1Queries": [
+      {
+        "worker": "router-ab-deriver-a-staging",
+        "binding": "DERIVER_ROLE_PRIVATE_DB",
+        "readReplication": {
+          "mode": "disabled"
+        },
+        "query": "SELECT 1",
+        "servedByRegion": "APAC",
+        "servedByColo": "KIX",
+        "servedByPrimary": true,
+        "sqlDurationMs": 0.3023
+      },
+      {
+        "worker": "router-ab-deriver-b-staging",
+        "binding": "DERIVER_ROLE_PRIVATE_DB",
+        "readReplication": {
+          "mode": "disabled"
+        },
+        "query": "SELECT 1",
+        "servedByRegion": "APAC",
+        "servedByColo": "SIN",
+        "servedByPrimary": true,
+        "sqlDurationMs": 0.2297
+      },
+      {
+        "worker": "router-ab-signing-worker-staging",
+        "binding": "SIGNING_WORKER_PRIVATE_DB",
+        "readReplication": {
+          "mode": "disabled"
+        },
+        "query": "SELECT 1",
+        "servedByRegion": "APAC",
+        "servedByColo": "ICN",
+        "servedByPrimary": true,
+        "sqlDurationMs": 0.1536
+      }
+    ],
+    "d1ObservationScope": "Separate read-only API queries against the bound databases before the hosted arms. These are not per-query location traces from the setup requests.",
+    "d1FieldReference": "https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/raw/",
+    "separateOutboundProbes": [
+      {
+        "role": "deriver-a",
+        "context": "wallet_object",
+        "status": "observed",
+        "colo": "HKG",
+        "observations": 1
+      },
+      {
+        "role": "deriver-a",
+        "context": "worker",
+        "status": "observed",
+        "colo": "HKG",
+        "observations": 1
+      },
+      {
+        "role": "deriver-b",
+        "context": "wallet_object",
+        "status": "observed",
+        "colo": "HKG",
+        "observations": 1
+      },
+      {
+        "role": "deriver-b",
+        "context": "worker",
+        "status": "observed",
+        "colo": "HKG",
+        "observations": 1
+      },
+      {
+        "role": "signing-worker",
+        "context": "wallet_object",
+        "status": "observed",
+        "colo": "HKG",
+        "observations": 15
+      },
+      {
+        "role": "signing-worker",
+        "context": "worker",
+        "status": "observed",
+        "colo": "HKG",
+        "observations": 1
+      }
+    ],
+    "outboundProbeLimitation": "Outbound trace reports the destination edge that handled a probe. Use the provider analytics for execution-location conclusions. The probe arm is excluded from latency comparisons.",
+    "rawAnalyticsSha256": "fe1ab197d6615f6c4e364efa7276b4c588933103c49e36885387c499de78cbc7",
+    "providerSchemaSha256": "e137fe0eb8a2bd65be18e3266ad37edda8c8aeff145b3baf33f02f7c8b63258f"
+  },
+  "restoration": {
+    "verified": true,
+    "workers": 13,
+    "versions": {
+      "seams-sdk-d1-console-staging": [
+        {
+          "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-a-staging": [
+        {
+          "version_id": "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-b-staging": [
+        {
+          "version_id": "c700bbc1-b87f-4182-9f64-ff2bf33eead8",
+          "percentage": 100
+        }
+      ],
+      "router-ab-mpc-router-staging": [
+        {
+          "version_id": "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a",
+          "percentage": 100
+        }
+      ],
+      "router-ab-signing-worker-staging": [
+        {
+          "version_id": "c18b2202-8063-4c96-9772-fb1a268494fc",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging": [
+        {
+          "version_id": "12f48c20-df36-4d15-8355-33c2ac72338f",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-oc": [
+        {
+          "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-us": [
+        {
+          "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-weur": [
+        {
+          "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging": [
+        {
+          "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-oc": [
+        {
+          "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-us": [
+        {
+          "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-weur": [
+        {
+          "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+          "percentage": 100
+        }
+      ]
+    },
+    "activation": {
+      "runId": 37724107697,
+      "conclusion": "success",
+      "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37724107697"
+    }
+  },
+  "limitations": [
+    "Three fresh wallets per latency arm. The candidate median exceeds both controls. Small sequential samples do not establish a reliable speedup or regression.",
+    "All builds and local E2Es completed before the hosted comparison.",
+    "Yao execute HTTP time excludes funding, NEAR account provisioning and the first signature. Registration-to-first timings include those separate steps.",
+    "Provider CPU and wall values cover whole invocations. CPU differences in unchanged A preparation code show that cross-arm differences cannot all be attributed to this candidate.",
+    "Application clocks freeze during CPU work. Zero-millisecond target-preparation, B-start and decode spans do not mean zero CPU cost.",
+    "Fetch-to-headers spans include receiver processing, storage completion and transport. Stage medians from different requests cannot be added to reconstruct total latency.",
+    "Object IDs match provider analytics exactly. Worker requests match the same script version and second-level time bucket. Empty buckets are unavailable, not proof of non-execution.",
+    "The broad APAC label does not establish same-data-center D1 placement. Independent primary queries returned KIX for A, SIN for B and ICN for the Signing Worker.",
+    "Gateway D1 and backend Console-call totals are unavailable. Null counters must not be interpreted as zero. Browser Console calls are separately observed.",
+    "The 1\u20132 second hosted Yao setup target remains unmet."
+  ],
+  "reproduction": {
+    "local": "Build the five strict release Workers at the source commit. Run each localVerification command with ROUTER_AB_WORKER_BUILD_PROFILE=release.",
+    "hosted": ".artifacts/r155b-phase6o-hosted/run.py runs the frozen NEAR-only harness, two controls, the candidate and a separate probe arm. It guards and restores existing versions.",
+    "analysisCommands": [
+      "python3 .artifacts/r155b-phase6o-hosted/analyze.py",
+      "python3 .artifacts/r155b-phase6o-hosted/summarize.py",
+      "python3 .artifacts/r155b-phase6o-hosted/audit.py",
+      "python3 .artifacts/r155b-phase6o-hosted/collect-placement.py",
+      "python3 .artifacts/r155b-phase6o-hosted/correlate-placement.py"
+    ],
+    "rawArtifacts": ".artifacts/r155b-phase6o-hosted; public .artifacts/r155b-phase6o"
+  },
+  "rawTailSha256": {
+    "router": "09f99176a8354c361003957eff97c498c042d36ed42bac9293ce94bd645a6859",
+    "deriver-a": "1b5b76feaff18b145881bc738fd93b94cf9bce8a05415fc3c27644473bc66280",
+    "deriver-b": "8083999b8381961308ac227f1a60970b893519f603ae34191933680b77265da0",
+    "signing-worker": "1b889f8603c083fefb5aa5d6e380e7c8d2704336042bf1152d968ce03c7ef59d",
+    "gateway": "f7d0d3c67080ac8741b6cd9db55599d814c3e93b3b99221f06ff4048bb1bffe1"
+  }
+}

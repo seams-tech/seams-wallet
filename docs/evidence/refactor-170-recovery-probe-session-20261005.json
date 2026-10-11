@@ -1,0 +1,47 @@
+{
+  "baseCommit": "550473bd7728d4e97f4fa0fa439db5fc29fb1e3a",
+  "scope": "Preserve the virtual passkey authenticator while reading recovery-journal identity evidence.",
+  "classification": "environment_or_infrastructure_failure",
+  "rootCause": "The recovery-journal observer detached a separate CDP session, disabling the virtual WebAuthn environment owned by the test harness. The next passkey unlock had no virtual authenticator.",
+  "diagnostics": {
+    "afterJournalRead": {
+      "environmentDisabled": true
+    },
+    "afterReenable": {
+      "authenticatorMissing": true
+    },
+    "secrets": "Only lifecycle labels, counts, and booleans retained; no credentials, key material, recovery codes, or auth tokens.",
+    "instrumentation": "Temporary diagnostics removed before final verification."
+  },
+  "fix": "Use the harness-owned initialized CDP session for journal reads. Release the inspected remote object instead of detaching the session.",
+  "sourceSha256": {
+    "tests/e2e/intended-behaviours/harness.ts": "f4dca3cfc103ea0480843e3f8ce1c17bd534d27573caeecf5904cff600f71d9f",
+    "tests/e2e/intended-behaviours/recovery-journal.ts": "bfaee1a925313f56c518de0db6f16f7aa9aebfb394e6073ad587002d9089d014"
+  },
+  "productionCodeChanged": false,
+  "testExpectationsChanged": false,
+  "chromiumReference": "https://chromium.googlesource.com/chromium/src/+/HEAD/content/browser/devtools/protocol/webauthn_handler.cc",
+  "verification": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.recovery.contract.test.ts e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts --grep 'a committed .* recovery survives a lost finalization response and runtime reset'",
+    "cases": [
+      "[wallet-intended] 1/2 e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts:66 a committed Google recovery survives a lost finalization response and runtime reset",
+      "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.recovery.contract.test.ts:99 a committed Passkey recovery survives a lost finalization response and runtime reset"
+    ],
+    "passes": [
+      "1 passed (32.6s)",
+      "1 passed (30.3s)"
+    ],
+    "exitCode": 0,
+    "types": "pnpm -C tests type-check:intended passed",
+    "additionalChecks": [
+      "pnpm -C packages/wallet build:check:fresh passed",
+      "pnpm report:bloat --check passed",
+      "git diff --cached --check passed"
+    ]
+  },
+  "limitations": [
+    "Direct rotateCodes and syncAccount acceptance remain open.",
+    "Full worker-loading and cross-browser matrix remains open.",
+    "Other CDP observers must finish after the last WebAuthn operation."
+  ]
+}

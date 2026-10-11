@@ -1,0 +1,104 @@
+{
+  "baseCommit": "6370224f76ab8c3df5cd96af530882db28b7301b",
+  "scope": "Migrate the public NEAR account read, wait, and subscription; use the SDK wait in the intended app; restore its documented default timeout.",
+  "publicMethods": [
+    "registration.getNearAccountState",
+    "registration.waitForNearAccount",
+    "registration.onNearAccountChange"
+  ],
+  "removedAliases": [
+    "getNearProvisioningState",
+    "awaitNearReady",
+    "onNearProvisioningStateChanged"
+  ],
+  "sourceSha256": {
+    "apps/docs/src/examples/registration.tsx": "6d66f4e6734d29ee65d1a1d2803d39cdf51224dea0154287898fbf9d35acdf8f",
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "34650739873f072d00cf1e4c71e45d15ec93d4cdf516561130c5d5d81788c6b2",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "0c4f2a69d66fe11d5b2b04b817c9a4ba9fe39a6c80cadd64de1427f4f61e587c",
+    "packages/wallet/src/SeamsWeb/publicApi/currentWallet.ts": "c7ae712c4626b81927defccca28faaa6acfb5cafb7a1bfc6c24c81176b5d12a3",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "58bab6388f0414fcbfdcf1eaf6aa753dd503edb2e8ca65de12c99791dccaf2b0",
+    "packages/wallet/src/SeamsWeb/publicApi/waitForNearAccount.ts": "4f165bf59da7c49b5e733fb093f9b7127529f87e35efbad39beff42a05faeb7a",
+    "packages/wallet/src/SeamsWeb/publicInputs.typecheck.ts": "3eb2aae314f6f6643f1aa9fd7127541b552e425424a593e65b469dc3f8816503",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/registrationCommands.ts": "e87d1811153c8cb8831f0598f4adee9e99c52c9b1fb899362870c1e048f6d42e",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "19502a2a62f174229af9372e6b27c88b86dea56b795bd8996699392f1b694ce2",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "60854e2182d5005aa37d7bbd608de6f9585b2432462cf77dfc1dcdeabcf7a72f",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createRegistrationCommands.ts": "e46dcf9fdd132dc3085e4c84fd3962fa3589476e77102cf088768ae2989556cc",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "ff24b39164ddb3b720ac11133cfb69e781943a1142ee91766ea40556afadc89d",
+    "packages/wallet/src/react/components/AccountMenuButton/index.tsx": "cf31d20cb7d2e222d65d0eb9c18abcd25ab51f92698334464eb23fb53f535581",
+    "packages/wallet/src/react/context/useNearProvisioningStateRefresh.ts": "fe82088faafc3661510b6b020bedab2c9620083d31ad61d25650bad8d988cdbe",
+    "tests/e2e/intended-behaviours/registration-near-gate.ts": "8042f8fb197f809e4ce0998a9e726d251792356ed54638025e57217d6b1870e0",
+    "tests/intended-app/src/page.tsx": "e87e01bf5eeefb27df9d338c0cc11ec657466ec4428e4854925023686262fb40",
+    "packages/wallet/scripts/checks/check-declarations-resolve-externally.mjs": "575ab47f8020e9b136dfdab1961dc94ff26c819deef36513505be908255525e2"
+  },
+  "deletedPaths": [
+    "packages/wallet/src/SeamsWeb/publicApi/awaitNearReady.ts"
+  ],
+  "productionLineDelta": {
+    "added": 129,
+    "removed": 137,
+    "net": -8
+  },
+  "testLineDelta": {
+    "added": 40,
+    "removed": 68,
+    "net": -28
+  },
+  "defaultTimeoutFix": {
+    "previousExpressionDefaultMs": 1,
+    "configuredDefaultMs": 120000,
+    "cause": "Math.max clamped missing input to 1 before the default fallback.",
+    "fix": "Select the configured default with nullish coalescing before clamping.",
+    "runtimeAssertion": "Four real registration cases assert the public default wait remains running for 250 ms while NEAR is held, then resolves and supports signing after release."
+  },
+  "verification": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"EVM registration and signatures complete while NEAR|immediately usable owner session\"",
+    "cases": [
+      "[wallet-intended] 1/5 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:40 EVM registration and signatures complete while NEAR admission is held",
+      "[wallet-intended] 2/5 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:51 EVM registration and signatures complete while NEAR execution is held",
+      "[wallet-intended] 3/5 e2e/intended-behaviours/passkey.registration.contract.test.ts:459 passkey registration establishes an immediately usable owner session without waiting for presignatures",
+      "[wallet-intended] 4/5 e2e/intended-behaviours/passkey.registration.contract.test.ts:855 EVM registration and signatures complete while NEAR admission is held",
+      "[wallet-intended] 5/5 e2e/intended-behaviours/passkey.registration.contract.test.ts:866 EVM registration and signatures complete while NEAR execution is held"
+    ],
+    "passReceipts": [
+      "1 passed (29.3s)",
+      "1 passed (28.0s)",
+      "1 passed (29.8s)",
+      "1 passed (30.5s)",
+      "1 passed (29.0s)"
+    ],
+    "terminalExit": 0,
+    "attachment": "Each gated case attaches near-account-readiness.json. Repeat a single case to inspect that artifact before a subsequent isolated Playwright run replaces its output.",
+    "checks": [
+      "wallet type-check",
+      "intended type-check",
+      "wallet-state type-check",
+      "browser type-check",
+      "docs TypeScript",
+      "wallet build:prod",
+      "build:check:fresh",
+      "check:declarations-external",
+      "check:runtime-entry-bundles",
+      "report:bloat --check"
+    ]
+  },
+  "preservedContracts": [
+    "Readiness state and event shapes",
+    "Subscribe before initial state read",
+    "Wallet-specific event filtering",
+    "Explicit timeout and abort cleanup",
+    "Existing provisioning wire discriminator",
+    "EVM signing while NEAR is pending"
+  ],
+  "limits": [
+    "These cases verify default waiting across delayed readiness, not a measured full 120-second timeout.",
+    "No new abort or cross-browser acceptance is claimed.",
+    "The remaining R170/R171 operations, worker matrix, latency measurements, and release adoption remain open.",
+    "The external declaration checker covers resolution and any degradation only. Its initial raw ES2022 diagnostics also exposed Symbol.dispose library errors in generated WASM declarations; broader consumer compilation remains a pending acceptance item."
+  ],
+  "fixtureRepair": {
+    "classification": "valid_test_needs_update",
+    "failure": "External declaration probe still referenced getNearProvisioningState.",
+    "repair": "Use getNearAccountState without weakening its any-degradation or unresolved-module checks.",
+    "finalExit": 0
+  }
+}

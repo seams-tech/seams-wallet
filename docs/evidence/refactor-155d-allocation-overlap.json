@@ -1,0 +1,364 @@
+{
+  "date": "2026-10-10",
+  "scope": "Overlap registration address initialization with the setup ceremony read and write. No hosted deployment or new latency cohort.",
+  "publicParent": "2fea06ef65955bc593b99dc51107ea332365aeb6",
+  "privateRevision": "535af1b679b92e562286ec6bb0955969d75ee7c0",
+  "source": {
+    "path": "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationSetupExecution.ts",
+    "sha256": "27567f41cc85f34d79d4d2d56bd4e82ccc3ab7aea4034dbfba5829758e0b5fe4"
+  },
+  "historicalAllocation": {
+    "source": "docs/evidence/refactor-155d-completion-console-hosted.json",
+    "samples": [
+      {
+        "sample": "registration-1.json",
+        "allocation": {
+          "service": "MPC_ROUTER",
+          "path": "/router-ab/router/wallet/allocate",
+          "startedMs": 665,
+          "elapsedMs": 308
+        },
+        "ceremonyReadMs": 18,
+        "addressReadMs": 74
+      },
+      {
+        "sample": "registration-2.json",
+        "allocation": {
+          "service": "MPC_ROUTER",
+          "path": "/router-ab/router/wallet/allocate",
+          "startedMs": 270,
+          "elapsedMs": 538
+        },
+        "ceremonyReadMs": 14,
+        "addressReadMs": 58
+      },
+      {
+        "sample": "registration-3.json",
+        "allocation": {
+          "service": "MPC_ROUTER",
+          "path": "/router-ab/router/wallet/allocate",
+          "startedMs": 219,
+          "elapsedMs": 19
+        },
+        "ceremonyReadMs": 8,
+        "addressReadMs": 10
+      }
+    ],
+    "roleInvocations": {
+      "baseline": {
+        "router": {
+          "cpuMs": {
+            "median": 7,
+            "min": 4,
+            "max": 10,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 17,
+            "min": 15,
+            "max": 309,
+            "samples": 3
+          }
+        },
+        "deriver-a": {
+          "cpuMs": {
+            "median": 2,
+            "min": 2,
+            "max": 5,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 3,
+            "min": 2,
+            "max": 8,
+            "samples": 3
+          }
+        },
+        "deriver-b": {
+          "cpuMs": {
+            "median": 1,
+            "min": 1,
+            "max": 7,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 2,
+            "min": 1,
+            "max": 9,
+            "samples": 3
+          }
+        },
+        "signing-worker": {
+          "cpuMs": {
+            "median": 2,
+            "min": 1,
+            "max": 108,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 2,
+            "min": 1,
+            "max": 114,
+            "samples": 3
+          }
+        }
+      },
+      "candidate": {
+        "router": {
+          "cpuMs": {
+            "median": 9,
+            "min": 4,
+            "max": 58,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 288,
+            "min": 15,
+            "max": 405,
+            "samples": 3
+          }
+        },
+        "deriver-a": {
+          "cpuMs": {
+            "median": 2,
+            "min": 1,
+            "max": 95,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 2,
+            "min": 2,
+            "max": 95,
+            "samples": 3
+          }
+        },
+        "deriver-b": {
+          "cpuMs": {
+            "median": 2,
+            "min": 1,
+            "max": 89,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 3,
+            "min": 2,
+            "max": 91,
+            "samples": 3
+          }
+        },
+        "signing-worker": {
+          "cpuMs": {
+            "median": 63,
+            "min": 2,
+            "max": 103,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 64,
+            "min": 2,
+            "max": 105,
+            "samples": 3
+          }
+        }
+      },
+      "control": {
+        "router": {
+          "cpuMs": {
+            "median": 4,
+            "min": 2,
+            "max": 8,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 17,
+            "min": 8,
+            "max": 187,
+            "samples": 3
+          }
+        },
+        "deriver-a": {
+          "cpuMs": {
+            "median": 2,
+            "min": 1,
+            "max": 3,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 2,
+            "min": 2,
+            "max": 4,
+            "samples": 3
+          }
+        },
+        "deriver-b": {
+          "cpuMs": {
+            "median": 1,
+            "min": 1,
+            "max": 42,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 1,
+            "min": 1,
+            "max": 42,
+            "samples": 3
+          }
+        },
+        "signing-worker": {
+          "cpuMs": {
+            "median": 1,
+            "min": 0,
+            "max": 3,
+            "samples": 3
+          },
+          "wallMs": {
+            "median": 2,
+            "min": 1,
+            "max": 4,
+            "samples": 3
+          }
+        }
+      }
+    },
+    "limitation": "Whole-invocation CPU and wall times do not isolate startup, runtime parsing, and provider dispatch."
+  },
+  "controlledBarrier": {
+    "parent": {
+      "outcome": "expected failure",
+      "reason": "Allocation cannot start while the ceremony read is held. The scenario times out after 10000 ms.",
+      "source": {
+        "path": ".artifacts/registration-allocation-overlap/parent-setup.ts",
+        "sha256": "e87da15ab3df88e406b7b704a1c1eb19ee92debde825c6cec83002ef36740696"
+      },
+      "runner": {
+        "path": ".artifacts/registration-allocation-overlap/parent-scenario.mjs",
+        "sha256": "8aedd339f42b69708c07976af28546e9becccea341a1a4af42f98535806ac669"
+      },
+      "log": {
+        "path": ".artifacts/registration-allocation-overlap/parent.log",
+        "sha256": "f680bfa9b0cc3c0a18f362f50dedf83069cf9c30f71aefb2d9d674ca7536843d"
+      }
+    },
+    "candidate": {
+      "outcome": "passed",
+      "checks": {
+        "replayUsesStoredAddresses": true,
+        "independentWallets": true,
+        "lostAllocationReplyRecovered": true,
+        "concurrentAllocations": 8,
+        "persistedWinners": 1,
+        "distinctDestinationGeneration": true,
+        "forwardedStoredAddresses": true,
+        "exactSnapshotAvoidsRead": true,
+        "changedGenerationReadsDestination": true,
+        "forgedAddressesReplaced": true,
+        "missingGenerationRefused": true,
+        "wrongTenantRefused": true,
+        "immutableAddresses": true,
+        "hostWithoutStarterCompletes": true,
+        "ceremonyWritesPerSetup": 1,
+        "allocationOverlapsCeremonyRead": true,
+        "allocationBesideCeremonyWrite": true,
+        "ceremonySettledBeforeAllocationFailureReply": true,
+        "setupCommitsRegistrationHome": true,
+        "continuationDirectoryReads": 0,
+        "unknownCeremonyRefusedLocally": true,
+        "homeFailureRollsBackCeremony": true,
+        "cancelledSetupCannotReopen": true,
+        "cancellationSurvivesUnavailableDirectory": true
+      },
+      "log": {
+        "path": ".artifacts/registration-allocation-overlap/candidate.log",
+        "sha256": "d7d0b370f2a9c2fcfb2a0bc0e90909d214cd50f82c6c7231dc3c0aad5c87fd8e"
+      }
+    },
+    "limitation": "This proves the dependency was removed. The imposed barrier is not a latency benchmark."
+  },
+  "checks": [
+    {
+      "name": "Wallet server build",
+      "outcome": "passed",
+      "log": {
+        "path": ".artifacts/registration-allocation-overlap/server-build.log",
+        "sha256": "e79a1be5ad401ab3fb5a03b067bf7a1633ccef1a1766208fc928ef98a1831905"
+      }
+    },
+    {
+      "name": "Bloat check",
+      "outcome": "passed",
+      "log": {
+        "path": ".artifacts/registration-allocation-overlap/bloat.log",
+        "sha256": "5ade993d8a8758f9e55db5c037344873575116915410a497a3026e8a09ff34e4"
+      }
+    },
+    {
+      "name": "Concurrent regional setup, ordinary NEAR registration, lost completion reply, credential claim retry",
+      "outcome": "four browser scenarios passed before the final callback evaluation-order adjustment",
+      "log": {
+        "path": ".artifacts/r155d-allocation-overlap/browser.log",
+        "sha256": "a5d71bb60a4eaa134f5cb7ccfbb2c949979d4308ea20d7745d8d00379f59a424"
+      }
+    },
+    {
+      "name": "Final exact source: concurrent setup through US, APAC and OC, then signing during Console outage through WEUR, APAC and OC",
+      "outcome": "passed",
+      "log": {
+        "path": ".artifacts/r155d-allocation-overlap/browser-final.log",
+        "sha256": "8c13f6deb4ec53884d1f28f9fe2051da3c0ae17aa57cbd7cd2a96332ae661ae2"
+      },
+      "artifact": {
+        "path": ".artifacts/r155d-allocation-overlap/concurrent-setup.json",
+        "sha256": "c544770a7e908f1a61d591c9a5a55d7c0c83e5ee77240f013cc57ae822235e9c"
+      },
+      "evidence": {
+        "simultaneousIngress": [
+          "US",
+          "APAC",
+          "OC"
+        ],
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "competingOperation": [
+          {
+            "status": 409,
+            "code": "wallet_conflict"
+          },
+          {
+            "status": 409,
+            "code": "wallet_conflict"
+          }
+        ],
+        "credentialOwnership": {
+          "ownerReplayAccepted": true,
+          "competingClaimAccepted": false,
+          "competingDirectoryReservationCancelled": true,
+          "cancelledClaimAccepted": false,
+          "originalClaimPreserved": true
+        },
+        "home": "US",
+        "identicalWalletAndCeremony": true,
+        "establishedDirectoryRows": 1,
+        "verifiedSignatures": 3,
+        "signingConsoleCalls": 0,
+        "scope": "Concurrent copies of one SDK registration operation, then a different operation claims the reserved wallet through two regions. Includes production directory credential claims and cancellation; excludes browser credential reuse and regional cancellation cleanup."
+      }
+    }
+  ],
+  "runtime": "Local functional verification uses current TypeScript with the preserved Worker binaries from the prior Console batching checks. No Rust change and no hosted latency claim.",
+  "reproduction": {
+    "assembled": "node tests/e2e/registration-setup-startup.e2e.mjs",
+    "parentBarrier": "node .artifacts/registration-allocation-overlap/parent-scenario.mjs (expected exit 1)",
+    "serverBuild": "pnpm -C packages/wallet-server build",
+    "bloat": "pnpm report:bloat --check",
+    "finalBrowser": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-monorepo/.artifacts/r155d-allocation-overlap/final-source/packages/wallet-server SEAMS_INTENDED_SKIP_BUILD=1 ROUTER_AB_WORKER_BUILD_PROFILE=dev SEAMS_LOCAL_PORT_OFFSET=12000 node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"concurrent NEAR-only setup\""
+  },
+  "effect": {
+    "d1Calls": "unchanged",
+    "httpCalls": "unchanged",
+    "newInfrastructure": false,
+    "hostedSavingMs": null
+  }
+}

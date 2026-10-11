@@ -1,8 +1,9 @@
+import { emitUnlockEvent } from '../auth/unlockCompletion';
+import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { joinCustodyJsonFromEstablishedCommitPayload } from '@/core/signingEngine/walletCustody/registrationCeremony';
 import { buildFreshEmailOtpRoutePlan } from '@/core/signingEngine/session/emailOtp/routePlan';
 import { unlockEmailOtpWallet } from '@/core/signingEngine/session/emailOtp/walletUnlock';
-import { DEFAULT_THRESHOLD_SESSION_POLICY } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
   verifyPasskeyWalletUnlock,
   type PasskeySessionEcdsaCustodySignerV1,
@@ -60,6 +61,7 @@ function requireParsedWalletSessionMintId(value: string) {
 }
 function buildEcdsaUnlockPolicy(args: {
   readonly keyHandle: string;
+  readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
   readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
 }): PasskeyWalletUnlockInputWithEcdsaActivation['ecdsaSessionPolicy'] {
   return parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1({
@@ -72,8 +74,8 @@ function buildEcdsaUnlockPolicy(args: {
       wallet_session_mint_id: requireParsedWalletSessionMintId(
         generateSessionId('wallet-session-mint'),
       ),
-      ttl_ms: DEFAULT_THRESHOLD_SESSION_POLICY.ttlMs,
-      remaining_uses: DEFAULT_THRESHOLD_SESSION_POLICY.remainingUses,
+      ttl_ms: args.sessionPolicy.ttlMs,
+      remaining_uses: args.sessionPolicy.unlockRemainingUses,
       runtime_policy_scope: args.runtimePolicyScope,
     },
   });
@@ -201,6 +203,8 @@ function zeroizeArrayBuffer(buffer: ArrayBuffer): void {
 }
 async function unlockWithPasskey(args: {
   readonly relayerUrl: string;
+  readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
+  readonly onEvent: PendingEcdsaRegistrationUnlockInput['onEvent'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly WalletRegistrationEcdsaWalletKey[];
@@ -211,12 +215,23 @@ async function unlockWithPasskey(args: {
     throw new Error('ECDSA registration passkey unlock has a different pending factor');
   const primaryKey = args.walletKeys[0];
   if (!primaryKey) throw new Error('ECDSA registration unlock has no primary wallet key');
-  const expectedOrigin = args.exactMethod.expectedOrigin.trim();
+  const expectedOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   if (!expectedOrigin) throw new Error('ECDSA registration passkey unlock requires an origin');
+  emitUnlockEvent(args.onEvent, String(args.pending.walletId), {
+    phase: UnlockEventPhase.STEP_03_PASSKEY_CHALLENGE_STARTED,
+    status: 'running',
+    authMethod: 'passkey',
+  });
   const challenge = await requestPasskeyUnlockChallenge({
     relayerUrl: args.relayerUrl,
     walletId: String(args.pending.walletId),
     rpId: args.pending.auth.rpId,
+  });
+  emitUnlockEvent(args.onEvent, String(args.pending.walletId), {
+    phase: UnlockEventPhase.STEP_03_PASSKEY_PROMPT_STARTED,
+    status: 'waiting_for_user',
+    authMethod: 'passkey',
+    interaction: { kind: 'passkey_assert', overlay: 'show' },
   });
   const credential = await args.signingSurface.getAuthenticationCredentialsSerialized({
     subjectId: String(args.pending.walletId),
@@ -231,6 +246,12 @@ async function unlockWithPasskey(args: {
   ) {
     throw new Error('ECDSA registration unlock returned a different Passkey credential');
   }
+  emitUnlockEvent(args.onEvent, String(args.pending.walletId), {
+    phase: UnlockEventPhase.STEP_03_PASSKEY_PROMPT_SUCCEEDED,
+    status: 'succeeded',
+    authMethod: 'passkey',
+    interaction: { kind: 'passkey_assert', overlay: 'hide' },
+  });
   const prfFirstB64u = requirePasskeyPrfFirstB64u(credential, 'ECDSA registration recovery');
   const verified = await verifyPasskeyWalletUnlock(
     args.relayerUrl,
@@ -243,6 +264,7 @@ async function unlockWithPasskey(args: {
       expected_origin: expectedOrigin,
       ecdsaSessionPolicy: buildEcdsaUnlockPolicy({
         keyHandle: primaryKey.keyHandle,
+        sessionPolicy: args.sessionPolicy,
         runtimePolicyScope: requireEcdsaProjection(args.response).ecdsa.runtimePolicyScope,
       }),
     },
@@ -289,6 +311,9 @@ async function unlockWithPasskey(args: {
       }),
     });
     return {
+      kind: 'passkey',
+      credential,
+      custody: verified.walletCustody,
       session: verified.ecdsaSession,
       readyStateBlobB64u: rejoined.readyStateBlobB64u,
       publicFacts: rejoined.publicFacts,
@@ -299,6 +324,8 @@ async function unlockWithPasskey(args: {
 }
 async function unlockWithEmailOtp(args: {
   readonly relayerUrl: string;
+  readonly sessionPolicy: PendingEcdsaRegistrationUnlockInput['sessionPolicy'];
+  readonly onEvent: PendingEcdsaRegistrationUnlockInput['onEvent'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly WalletRegistrationEcdsaWalletKey[];
@@ -341,6 +368,7 @@ async function unlockWithEmailOtp(args: {
     },
     ecdsaSessionPolicy: buildEcdsaUnlockPolicy({
       keyHandle: primaryKey.keyHandle,
+      sessionPolicy: args.sessionPolicy,
       runtimePolicyScope,
     }),
   });
@@ -360,6 +388,7 @@ async function unlockWithEmailOtp(args: {
     signers: verified.ecdsaCustody.continuity.signers,
   });
   return {
+    kind: 'email_otp',
     session: verified.ecdsaSession,
     readyStateBlobB64u: verified.ecdsaCustody.readyStateBlobB64u,
     publicFacts: verified.ecdsaCustody.publicFacts,
@@ -372,6 +401,8 @@ export async function unlockPendingEcdsaRegistration(
     case 'passkey':
       return await unlockWithPasskey({
         relayerUrl: args.relayerUrl,
+        sessionPolicy: args.sessionPolicy,
+        onEvent: args.onEvent,
         pending: args.pending,
         response: args.response,
         walletKeys: args.walletKeys,
@@ -381,6 +412,8 @@ export async function unlockPendingEcdsaRegistration(
     case 'email_otp':
       return await unlockWithEmailOtp({
         relayerUrl: args.relayerUrl,
+        sessionPolicy: args.sessionPolicy,
+        onEvent: args.onEvent,
         pending: args.pending,
         response: args.response,
         walletKeys: args.walletKeys,

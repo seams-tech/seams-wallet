@@ -1,0 +1,50 @@
+{
+  "scope": "Local composed browser signing through production regional D1 admission and transactional deployment fences. Provider proofs are controlled; no hosted deployment or wallet relocation is performed.",
+  "cases": {
+    "ed25519": {
+      "curve": "ed25519",
+      "verifiedBaselineSignatures": 1,
+      "retiredAfterHomeRouting": true,
+      "rejectedPrepareAttempts": 1,
+      "unchangedQuotaAndOperations": true,
+      "storageBefore": {
+        "quotaRows": 1,
+        "quotaSha256": "6a4ebecfdb6fcf2c1ebaf9bbbc16f42cf9681c9baf174b2b2c3248d71b34b84c",
+        "operationRows": 1,
+        "operationSha256": "8a797484a3d5135209afabfb4e4dcb67934ba9075014277ed0e70e827cc658e4"
+      },
+      "storageAfter": {
+        "quotaRows": 1,
+        "quotaSha256": "6a4ebecfdb6fcf2c1ebaf9bbbc16f42cf9681c9baf174b2b2c3248d71b34b84c",
+        "operationRows": 1,
+        "operationSha256": "8a797484a3d5135209afabfb4e4dcb67934ba9075014277ed0e70e827cc658e4"
+      },
+      "successfulFinalizesAfterRetirement": 0,
+      "attemptedConsoleCalls": 0,
+      "scope": "Regional D1 deployment retirement during live browser signing prepare; excludes custody relocation and retirement after MPC execution begins."
+    },
+    "ecdsa": {
+      "curve": "ecdsa",
+      "verifiedBaselineSignatures": 1,
+      "retiredAfterHomeRouting": true,
+      "rejectedPrepareAttempts": 1,
+      "unchangedQuotaAndOperations": true,
+      "storageBefore": {
+        "quotaRows": 1,
+        "quotaSha256": "f578d5ec9d26e69887475f035ccaee1a63e45575c35e1e7186630138e0bd8f23",
+        "operationRows": 1,
+        "operationSha256": "8cd5b3b11b2ed549f3f49373cb2446a8544c6aa93c22020a8d47fcdb8a5d3f68"
+      },
+      "storageAfter": {
+        "quotaRows": 1,
+        "quotaSha256": "f578d5ec9d26e69887475f035ccaee1a63e45575c35e1e7186630138e0bd8f23",
+        "operationRows": 1,
+        "operationSha256": "8cd5b3b11b2ed549f3f49373cb2446a8544c6aa93c22020a8d47fcdb8a5d3f68"
+      },
+      "successfulFinalizesAfterRetirement": 0,
+      "attemptedConsoleCalls": 0,
+      "scope": "Regional D1 deployment retirement during live browser signing prepare; excludes custody relocation and retirement after MPC execution begins."
+    }
+  },
+  "reproduce": "SEAMS_WALLET_SERVER_CANDIDATE=<wallet-server> SEAMS_INTENDED_WALLET_DIST_ROOT=<frozen-sdk> SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep 'in-flight .* signing'"
+}

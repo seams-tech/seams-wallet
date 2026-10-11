@@ -64,6 +64,7 @@ function assertEmailOtpChallengeAction(args: {
 export function emailOtpRouteSessionAuth(
   routePlan: EmailOtpRoutePlan,
 ): WalletSessionOperationCredentialV1 | undefined {
+  if (routePlan.routeFamily === 'operation_step_up') return routePlan.operationCredential;
   return routePlan.routeFamily === 'signing_session'
     ? routePlan.authLane.operationCredential
     : undefined;

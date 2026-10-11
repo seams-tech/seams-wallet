@@ -6,6 +6,7 @@ import type {
 } from '../../../../core/registrationContracts';
 import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin } from '../../../../authorization/domain';
+import type { RegistrationActivationWrite } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type {
   WalletRegistrationActivateResponseV2,
   WalletRegistrationRouteErrorV2,
@@ -42,15 +43,11 @@ export type RegistrationCommitExecution<T> =
   | { readonly kind: 'unissued'; readonly response: T }
   | { readonly kind: 'replayed'; readonly response: T }
   | {
-      readonly kind: 'near_pending';
-      readonly response: T;
-      readonly expectedOrigin: string;
-    }
-  | {
       readonly kind: 'session_issued';
       readonly response: T;
       readonly issuedAtMs: number;
       readonly expectedOrigin: string;
+      readonly activation: RegistrationActivationWrite | null;
       readonly installationProjection?: never;
     }
   | {
@@ -58,8 +55,23 @@ export type RegistrationCommitExecution<T> =
       readonly response: T;
       readonly issuedAtMs: number;
       readonly expectedOrigin: string;
+      readonly activation: RegistrationActivationWrite | null;
       readonly installationProjection: WalletRegistrationCommittedInstallationProjectionV1;
     };
+
+/** The home activation that a commit left for the record that completes its operation. */
+export function registrationCommitActivation<T>(
+  execution: RegistrationCommitExecution<T>,
+): RegistrationActivationWrite | null {
+  switch (execution.kind) {
+    case 'session_issued':
+    case 'session_issued_with_installation_projection':
+      return execution.activation;
+    case 'unissued':
+    case 'replayed':
+      return null;
+  }
+}
 
 export function unissuedRegistrationCommit<T>(response: T): RegistrationCommitExecution<T> {
   return { kind: 'unissued', response };
@@ -124,7 +136,7 @@ export function projectWalletRegistrationSessionCommitReceiptV2(input: {
     };
   }
   if (input.execution.kind === 'unissued' || input.execution.kind === 'replayed') {
-    throw new Error('Registration commit receipt requires an issued or pending response');
+    throw new Error('Registration commit receipt requires an issued response');
   }
   const expectedOrigin = input.execution.expectedOrigin;
   const metadata = {
@@ -140,19 +152,6 @@ export function projectWalletRegistrationSessionCommitReceiptV2(input: {
       ? { registrationDiagnostics: response.registrationDiagnostics }
       : {}),
   };
-  if (response.kind === 'near_ed25519' && !('registrationEstablishedSession' in response)) {
-    if (input.execution.kind !== 'near_pending') {
-      throw new Error('Pending registration commit receipt has an issued-session marker');
-    }
-    return {
-      ...metadata,
-      walletAuthMethodId: response.authority.bindingId,
-      committed: {
-        kind: 'near_pending',
-        nearProvisioning: { status: 'near_pending' },
-      },
-    };
-  }
   if (response.kind === 'evm_family_ecdsa') {
     if (!('registrationEstablishedSession' in response)) {
       throw new Error('ECDSA registration commit receipt is missing its session');
@@ -409,39 +408,6 @@ export function parseWalletRegistrationSessionCommitReceiptV2(
     expectedOrigin,
     ...(registrationDiagnostics ? { registrationDiagnostics } : {}),
   };
-  if (committedRecord.kind === 'near_pending') {
-    if (
-      operation !== 'registration_activate' ||
-      !hasExactKeys(record, [
-        'kind',
-        'operation',
-        'operationFingerprint',
-        'registrationCeremonyId',
-        'walletId',
-        'walletAuthMethodId',
-        'authority',
-        'authMethod',
-        'expectedOrigin',
-        ...(registrationDiagnostics ? ['registrationDiagnostics'] : []),
-        'committed',
-      ]) ||
-      !hasExactKeys(committedRecord, ['kind', 'nearProvisioning']) ||
-      committedRecord.nearProvisioning === null ||
-      typeof committedRecord.nearProvisioning !== 'object' ||
-      Array.isArray(committedRecord.nearProvisioning) ||
-      !hasExactKeys(committedRecord.nearProvisioning as Readonly<Record<string, unknown>>, [
-        'status',
-      ]) ||
-      (committedRecord.nearProvisioning as Readonly<Record<string, unknown>>).status !==
-        'near_pending'
-    ) {
-      return null;
-    }
-    return {
-      ...common,
-      committed: { kind: 'near_pending', nearProvisioning: { status: 'near_pending' } },
-    };
-  }
   if (committedRecord.kind !== 'ecdsa_ready' && committedRecord.kind !== 'near_ready') return null;
   if (
     (committedRecord.kind === 'ecdsa_ready' && operation !== 'registration_activate') ||

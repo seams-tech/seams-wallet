@@ -1,0 +1,703 @@
+{
+  "version": 1,
+  "date": "2026-10-09",
+  "phase": "6AS",
+  "environment": "local Chromium, production Gateway/Console code, real workerd D1 and matching dev-profile custody Workers",
+  "source": {
+    "controlCommit": "81439f53b31ea3ded83ca3052b9a20b65dbd4a3a",
+    "candidateCommit": "276c8cea35eb0b5cd6d536cc64071eef08efc201",
+    "candidateTree": "e000a4cf8ade9f03c2ba4d14da55e791fc5c6bf0",
+    "privateBaseCommit": "51d13b91081c4a91783f0d6599a8e4c79a3890fc",
+    "productionAndTestFilesSha256": {
+      "packages/wallet-server/src/authorization/domain.ts": "3f40749819f1a85c2d520fe6f310f705591672711efa4af14802746bc8db2a6c",
+      "packages/wallet-server/src/authorization/service.ts": "9ed11b299b19a271a8548ddd2be6ad2867a8750488621816fa9c656743ef3ece",
+      "packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore.ts": "117c00c089d9c913a618ad8063f641ef5667e19bdb0fbca04d285b82198cc3a5",
+      "packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationEstablishedSessionIssuer.ts": "6b8e34ae348f9bbb218f0fa13c882bbc6960d265177486fbfc1417d6d59efa48",
+      "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts": "3b3d9eb6e165c51396eb92ea65b6f04aaa1a7eb2df339e63bb9ce075264243c5",
+      "tests/typecheck/exact-operation-session.typecheck.ts": "10d7e992069d5a3f3c6a2c0ef251b6b39938ebb85f8acb3c850deea2aab55c33",
+      "tests/e2e/session-issuance-transaction.e2e.mjs": "f2dcbd5ab9b3eb1989885db9ffb6bd7a48e9c14b903a9994c4ad88be12ffacb1"
+    }
+  },
+  "scope": {
+    "walletKind": "fresh implicit unfunded NEAR",
+    "order": [
+      "candidate",
+      "restored code control"
+    ],
+    "samplesPerArm": 1,
+    "coldWorkerStateControlled": false,
+    "stagingChanged": false,
+    "newCloudflareResources": false,
+    "latencyClaim": "Local functional evidence only. This does not establish a hosted latency gain.",
+    "countBoundary": "Completed calls visible when the Gateway constructs its response. Each arm still has one pending cleanup call. Counts exclude Console D1, custody role D1, and earlier setup/respond/execute requests."
+  },
+  "arms": {
+    "control": {
+      "completedD1Calls": 24,
+      "completedSqlStatements": 68,
+      "pendingD1CallsAtResponse": 1,
+      "serverTimingMs": {
+        "near_finalize_authority": 0.0,
+        "near_finalize_home_admission": 12.0,
+        "near_finalize_fingerprint": 0.0,
+        "near_finalize_router_consume": 24.0,
+        "near_finalize_custody_commit": 155.0,
+        "near_finalize_capability_install": 170.0,
+        "near_finalize_session_issue": 150.0,
+        "near_finalize_side_effect": 544.0,
+        "near_finalize_total": 564.0,
+        "near_finalize_session_seal": 70.0
+      },
+      "consoleRequests": [
+        "/internal/wallet-console/v1/registration-context",
+        "/internal/wallet-placement/v1/reserve",
+        "/internal/wallet-placement/v1/registration-home",
+        "/internal/wallet-console/v1/tenant-root/active-lineage",
+        "/internal/wallet-placement/v1/claim-passkey",
+        "/internal/wallet-placement/v1/publish-routes",
+        "/internal/wallet-placement/v1/complete"
+      ],
+      "gatewayRequests": [
+        {
+          "stage": "registration",
+          "path": "/wallets/register/setup"
+        },
+        {
+          "stage": "registration",
+          "path": "/wallets/register/respond"
+        },
+        {
+          "stage": "registration",
+          "path": "/router-ab/ed25519/yao/registration/execute"
+        },
+        {
+          "stage": "registration",
+          "path": "/wallets/register/near-provisioning"
+        },
+        {
+          "stage": "registration",
+          "path": "/wallet/session/status"
+        },
+        {
+          "stage": "first_signature",
+          "path": "/router-ab/ed25519/sign/prepare"
+        },
+        {
+          "stage": "first_signature",
+          "path": "/router-ab/ed25519/sign"
+        },
+        {
+          "stage": "explicit_refresh",
+          "path": "/wallet/session/status"
+        }
+      ],
+      "signature": {
+        "message": "Combined registration completion through OC",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "4da3efe27fb137c746d90b012453deba55a0df35fdcee8b73b7ad10d6c9f3dbd",
+        "publicKey": "ed25519:6E5P1bBpsdtDV6DeofgfNJCaqkcm9rgkh43M2jfBQNDS",
+        "signature": "4JyvnWvL/3kGvgPCaQ052diwDppjKujelVYoYF3MUuMqBB/Nt5S3v6lWARTyCKONQOr2bncgipenTtyCgod/BA==",
+        "nonce": "dY2Bh+ORctRpoaazGcYqiOquhD86MRIf4JaeEnnQymk=",
+        "digestHex": "03a6cd348486771ae54840918b32d9e247daa545ae3770f0285279ede4334d14",
+        "verification": {
+          "standardPayload": true,
+          "changedMessageRejected": true,
+          "changedRecipientRejected": true,
+          "changedNonceRejected": true,
+          "changedCallbackUrlRejected": true,
+          "stateExcludedFromPayload": true,
+          "stateReturnedUnchanged": true
+        }
+      },
+      "signingIngress": "OC",
+      "signingConsoleCalls": 0
+    },
+    "candidate": {
+      "completedD1Calls": 21,
+      "completedSqlStatements": 66,
+      "pendingD1CallsAtResponse": 1,
+      "serverTimingMs": {
+        "near_finalize_authority": 0.0,
+        "near_finalize_home_admission": 12.0,
+        "near_finalize_fingerprint": 0.0,
+        "near_finalize_source": 22.0,
+        "near_finalize_router_consume": 23.0,
+        "near_finalize_wallet_commit": 68.0,
+        "near_finalize_custody_commit": 143.0,
+        "near_finalize_capability_install": 158.0,
+        "near_finalize_session_issue": 103.0,
+        "near_finalize_side_effect": 471.0,
+        "near_finalize_total": 493.0,
+        "near_finalize_session_seal": 66.0
+      },
+      "consoleRequests": [
+        "/internal/wallet-console/v1/registration-context",
+        "/internal/wallet-placement/v1/reserve",
+        "/internal/wallet-placement/v1/registration-home",
+        "/internal/wallet-console/v1/tenant-root/active-lineage",
+        "/internal/wallet-placement/v1/claim-passkey",
+        "/internal/wallet-placement/v1/publish-routes",
+        "/internal/wallet-placement/v1/complete"
+      ],
+      "gatewayRequests": [
+        {
+          "stage": "registration",
+          "path": "/wallets/register/setup"
+        },
+        {
+          "stage": "registration",
+          "path": "/wallets/register/respond"
+        },
+        {
+          "stage": "registration",
+          "path": "/router-ab/ed25519/yao/registration/execute"
+        },
+        {
+          "stage": "registration",
+          "path": "/wallets/register/near-provisioning"
+        },
+        {
+          "stage": "registration",
+          "path": "/wallet/session/status"
+        },
+        {
+          "stage": "first_signature",
+          "path": "/router-ab/ed25519/sign/prepare"
+        },
+        {
+          "stage": "first_signature",
+          "path": "/router-ab/ed25519/sign"
+        },
+        {
+          "stage": "explicit_refresh",
+          "path": "/wallet/session/status"
+        }
+      ],
+      "signature": {
+        "message": "Combined registration completion through OC",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "36e8d28794738fe6081f3d9550b1f795551707db803f12a667909e9430e0578c",
+        "publicKey": "ed25519:4hLvecQZm6cvp1tHmg478oF8DoX4SCS33qqzJthXnfcX",
+        "signature": "n6WsnzC+wNiHfLmpKd62I+83el2sMmrnI7L1PB/EYYB1jGCevd1dIUzgSkr2Uf+icaA1oQNODrJi3K9N9htNBQ==",
+        "nonce": "XRJdGHxj5rcsqiEUIagEMR7AUnmNEqKd0ppUcWgfZ2I=",
+        "digestHex": "25d5976b45d2b8e2f4be8cf732ba34bd46b792ee6761913aa3b096d28ff1affe",
+        "verification": {
+          "standardPayload": true,
+          "changedMessageRejected": true,
+          "changedRecipientRejected": true,
+          "changedNonceRejected": true,
+          "changedCallbackUrlRejected": true,
+          "stateExcludedFromPayload": true,
+          "stateReturnedUnchanged": true
+        }
+      },
+      "signingIngress": "OC",
+      "signingConsoleCalls": 0
+    }
+  },
+  "lostCompletionReply": {
+    "registrationConsoleRequests": [
+      "/internal/wallet-console/v1/registration-context",
+      "/internal/wallet-placement/v1/reserve",
+      "/internal/wallet-placement/v1/registration-home",
+      "/internal/wallet-console/v1/tenant-root/active-lineage",
+      "/internal/wallet-placement/v1/claim-passkey",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete",
+      "/internal/wallet-placement/v1/publish-routes",
+      "/internal/wallet-placement/v1/complete"
+    ],
+    "statuses": [
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      400,
+      200
+    ],
+    "identicalCompletionRetries": 2,
+    "signingFencedUntilCompletionAcknowledged": true,
+    "exactMethodUnlockRequired": true,
+    "signature": {
+      "message": "Recovered combined completion",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "aadb99034d9203002929b9e907edd2d7380591245786b25992ea921ec2638609",
+      "publicKey": "ed25519:CVxXGpcgsiESMM7vsC8YTx1NJmw2WMhwKxHw7xhQxiVe",
+      "signature": "38rVcPCdLqSdGNiKvL1oQuJU/wZDjPanqWxBwKSolYNIAVkcLGKnvbQiMaeGJx7xL+DXIokybHU2pKhf3QeZAg==",
+      "nonce": "ViiJvIjXBaKK8gdznhAo5b3XIDBVX7eFEWYhjdxYI4M=",
+      "digestHex": "e76dfe40642c15fce46d4e5d2c0e0d4531c1b17a99a9a65dc02eaaf9760bd659",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    "signingConsoleCalls": 0
+  },
+  "transaction": {
+    "concurrentIssuance": [
+      "already_committed",
+      "issued"
+    ],
+    "ownershipGeneration": 1,
+    "d1CallsPerIssuance": 1,
+    "raceTrace": {
+      "version": 1,
+      "calls": [
+        {
+          "sequence": 1,
+          "method": "batch",
+          "startedMs": 44.904583,
+          "elapsedMs": 50.03258400000004,
+          "outcome": "ok",
+          "statements": [
+            {
+              "query": {
+                "id": "a95c4fff4b4ce8804191dd7e",
+                "kind": "UPDATE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 1,
+              "rowsRead": 2,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "ceea1542c794b567fe170e20",
+                "kind": "DELETE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2",
+                  "wallet_session_hosted_exchange_codes_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 1,
+              "rowsRead": 0,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "e8743d0928427200d8416680",
+                "kind": "UPDATE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2",
+                  "wallet_session_hosted_credentials_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "a12a508ef570a8312edcff23",
+                "kind": "UPDATE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "e7830aa7dfe0329078122633",
+                "kind": "INSERT",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 1,
+              "rowsRead": 4,
+              "rowsWritten": 4,
+              "changes": 1,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "5cb38f8a74721416f6e23ec4",
+                "kind": "INSERT",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 1,
+              "rowsRead": 6,
+              "rowsWritten": 13,
+              "changes": 1,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "86061681a975fdd3f4a39a60",
+                "kind": "SELECT",
+                "tables": [
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "15a6b138a06d7f3139ea5e88",
+                "kind": "SELECT",
+                "tables": [
+                  "wallet_execution_generations"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            }
+          ]
+        },
+        {
+          "sequence": 2,
+          "method": "batch",
+          "startedMs": 87.32304199999999,
+          "elapsedMs": 10.192250000000058,
+          "outcome": "ok",
+          "statements": [
+            {
+              "query": {
+                "id": "a95c4fff4b4ce8804191dd7e",
+                "kind": "UPDATE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 3,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "ceea1542c794b567fe170e20",
+                "kind": "DELETE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2",
+                  "wallet_session_hosted_exchange_codes_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 0,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "e8743d0928427200d8416680",
+                "kind": "UPDATE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2",
+                  "wallet_session_hosted_credentials_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "a12a508ef570a8312edcff23",
+                "kind": "UPDATE",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 6,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "e7830aa7dfe0329078122633",
+                "kind": "INSERT",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 5,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "5cb38f8a74721416f6e23ec4",
+                "kind": "INSERT",
+                "tables": [
+                  "authorization_wallet_session_quotas",
+                  "wallet_auth_methods",
+                  "wallet_authorities",
+                  "wallet_execution_generations",
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 5,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "86061681a975fdd3f4a39a60",
+                "kind": "SELECT",
+                "tables": [
+                  "wallet_session_authorizations_v2"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            },
+            {
+              "query": {
+                "id": "15a6b138a06d7f3139ea5e88",
+                "kind": "SELECT",
+                "tables": [
+                  "wallet_execution_generations"
+                ]
+              },
+              "region": null,
+              "primary": null,
+              "sqlMs": 0,
+              "rowsRead": 1,
+              "rowsWritten": 0,
+              "changes": 0,
+              "attempts": null
+            }
+          ]
+        }
+      ],
+      "pending": 0,
+      "dropped": 0
+    },
+    "activeMintReplayPreservesAllSessionRows": true,
+    "retiredMintReplayPreservesSuccessorAndHostedChildren": true,
+    "revokedMethodCannotMintOrRetireExistingSessions": true,
+    "closedGenerationCannotMintOrRetireExistingSessions": true,
+    "closedGenerationReplayRemainsCredentialFree": true
+  },
+  "independentSignatureVerification": {
+    "verifier": "Node.js crypto Ed25519 with independent NEP-413 Borsh encoding",
+    "results": [
+      {
+        "name": "normal",
+        "publicKey": "ed25519:4hLvecQZm6cvp1tHmg478oF8DoX4SCS33qqzJthXnfcX",
+        "digestHex": "25d5976b45d2b8e2f4be8cf732ba34bd46b792ee6761913aa3b096d28ff1affe",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "control",
+        "publicKey": "ed25519:6E5P1bBpsdtDV6DeofgfNJCaqkcm9rgkh43M2jfBQNDS",
+        "digestHex": "03a6cd348486771ae54840918b32d9e247daa545ae3770f0285279ede4334d14",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "lost-reply",
+        "publicKey": "ed25519:CVxXGpcgsiESMM7vsC8YTx1NJmw2WMhwKxHw7xhQxiVe",
+        "digestHex": "e76dfe40642c15fce46d4e5d2c0e0d4531c1b17a99a9a65dc02eaaf9760bd659",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      }
+    ]
+  },
+  "validation": {
+    "regionalBrowserCasesPassed": 2,
+    "controlBrowserCasesPassed": 1,
+    "additionalWalletContractsPassed": [
+      "NEAR observation, exhausted quota, and authority refresh",
+      "ECDSA respond retries its pinned root after Router reply loss",
+      "mixed registration and finalization timings"
+    ],
+    "walletServerBuildPassed": true,
+    "walletServerTypecheckPassed": true,
+    "walletStateTypeFixturesPassed": true,
+    "exactTreeBloatCheckPassed": true,
+    "matchingWorkerBuilds": [
+      {
+        "role": "router",
+        "exitCode": 0
+      },
+      {
+        "role": "deriver-a",
+        "exitCode": 0
+      },
+      {
+        "role": "deriver-b",
+        "exitCode": 0
+      },
+      {
+        "role": "signing-worker",
+        "exitCode": 0
+      },
+      {
+        "role": "tenant-root-control-plane",
+        "exitCode": 0
+      }
+    ]
+  },
+  "rawProofsSha256": {
+    "normal-proof.json": "4d01426b5620272ccb56a69f6cd0971a03de8ab539984bbf4296388078298d9d",
+    "control-proof.json": "9d9682eeb4d396021e61527da477986ea245977ac77b9950a5f058d8d3737413",
+    "lost-reply-proof.json": "df04367be47e82b82f42bb0c4f07610e33c543d0d21494707d95881c37fc0f69",
+    "proof-verification.json": "d9dfee6907c2454643f362adcc34723a2f6e8434418ebd71aacc2fe64f99abc7",
+    "source/.artifacts/session-issuance-transaction/proof.json": "f4d55d4550f4dd8b18731c5b18bba320ac1df484b4cd4b9ce29a46675e543300"
+  }
+}

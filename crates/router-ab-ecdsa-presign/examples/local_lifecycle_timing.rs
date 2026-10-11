@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use sha2::{Digest, Sha256};
+
 use k256::{elliptic_curve::sec1::ToEncodedPoint, ProjectivePoint, Scalar};
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use router_ab_ecdsa_online::{
@@ -25,6 +27,7 @@ struct PresignOutputs {
     triples_ms: f64,
     presign_ms: f64,
     total_ms: f64,
+    transcript_digest: [u8; 32],
 }
 
 fn scalar_bytes(value: u64) -> ScalarBytes {
@@ -49,11 +52,16 @@ fn exchange(
     worker: &mut SigningWorkerPresignSession,
     client_rng: &mut ChaCha20Rng,
     worker_rng: &mut ChaCha20Rng,
+    transcript: &mut Sha256,
 ) {
     let client_messages = client.poll().outgoing;
     let worker_messages = worker.poll().outgoing;
     assert_eq!(client_messages.len(), 1);
     assert_eq!(worker_messages.len(), 1);
+    for message in [&client_messages[0], &worker_messages[0]] {
+        transcript.update((message.len() as u64).to_be_bytes());
+        transcript.update(message);
+    }
     client
         .message(&worker_messages[0], client_rng)
         .expect("client round");
@@ -74,6 +82,7 @@ fn timed_presign(iteration: usize) -> PresignOutputs {
     let context = derive_presign_pair_context(public_key, &format!("timing-{iteration}"))
         .expect("pair context");
 
+    let mut transcript = Sha256::new();
     let total_started = Instant::now();
     let initialize_started = Instant::now();
     let mut client = ClientPresignSession::new(context, key_share(7), public_key, &mut client_rng)
@@ -85,7 +94,13 @@ fn timed_presign(iteration: usize) -> PresignOutputs {
 
     let triples_started = Instant::now();
     for _ in 0..9 {
-        exchange(&mut client, &mut worker, &mut client_rng, &mut worker_rng);
+        exchange(
+            &mut client,
+            &mut worker,
+            &mut client_rng,
+            &mut worker_rng,
+            &mut transcript,
+        );
     }
     assert_eq!(client.stage(), PresignSessionStage::TriplesDone);
     assert_eq!(worker.stage(), PresignSessionStage::TriplesDone);
@@ -94,8 +109,20 @@ fn timed_presign(iteration: usize) -> PresignOutputs {
     let presign_started = Instant::now();
     client.start_presign().expect("client presign start");
     worker.start_presign().expect("worker presign start");
-    exchange(&mut client, &mut worker, &mut client_rng, &mut worker_rng);
-    exchange(&mut client, &mut worker, &mut client_rng, &mut worker_rng);
+    exchange(
+        &mut client,
+        &mut worker,
+        &mut client_rng,
+        &mut worker_rng,
+        &mut transcript,
+    );
+    exchange(
+        &mut client,
+        &mut worker,
+        &mut client_rng,
+        &mut worker_rng,
+        &mut transcript,
+    );
     let client: [u8; 97] = client
         .take_presignature_97()
         .expect("client output")
@@ -117,6 +144,7 @@ fn timed_presign(iteration: usize) -> PresignOutputs {
         triples_ms,
         presign_ms,
         total_ms,
+        transcript_digest: transcript.finalize().into(),
     }
 }
 
@@ -191,6 +219,8 @@ fn main() {
     let mut online_client = Vec::with_capacity(ITERATIONS);
     let mut online_worker = Vec::with_capacity(ITERATIONS);
     let mut last_signature = [0u8; 65];
+    let mut transcripts = Sha256::new();
+    let mut signatures = Sha256::new();
 
     for iteration in 0..ITERATIONS {
         let outputs = timed_presign(iteration);
@@ -198,14 +228,16 @@ fn main() {
         triples.push(outputs.triples_ms);
         presign.push(outputs.presign_ms);
         total.push(outputs.total_ms);
+        transcripts.update(outputs.transcript_digest);
         let (client_ms, worker_ms, signature) = timed_online(outputs, iteration);
+        signatures.update(signature);
         online_client.push(client_ms);
         online_worker.push(worker_ms);
         last_signature = signature;
     }
 
     println!(
-        "{{\n  \"schema\": \"seams.refactor89.local-ecdsa-lifecycle-timing.v1\",\n  \"profile\": \"release\",\n  \"iterations\": {ITERATIONS},\n  \"medianMs\": {{\n    \"presignSessionInitializeBothRoles\": {:.3},\n    \"presignTripleRounds\": {:.3},\n    \"presignFinalRounds\": {:.3},\n    \"presignTotal\": {:.3},\n    \"onlineClientShare\": {:.3},\n    \"onlineSigningWorkerFinalizeAndVerify\": {:.3}\n  }},\n  \"lastRecoveryId\": {}\n}}",
+        "{{\n  \"schema\": \"seams.refactor89.local-ecdsa-lifecycle-timing.v1\",\n  \"profile\": \"release\",\n  \"iterations\": {ITERATIONS},\n  \"medianMs\": {{\n    \"presignSessionInitializeBothRoles\": {:.3},\n    \"presignTripleRounds\": {:.3},\n    \"presignFinalRounds\": {:.3},\n    \"presignTotal\": {:.3},\n    \"onlineClientShare\": {:.3},\n    \"onlineSigningWorkerFinalizeAndVerify\": {:.3}\n  }},\n  \"lastRecoveryId\": {},\n  \"transcriptDigestSha256\": \"{:x}\",\n  \"signatureDigestSha256\": \"{:x}\"\n}}",
         median(&mut initialize),
         median(&mut triples),
         median(&mut presign),
@@ -213,5 +245,7 @@ fn main() {
         median(&mut online_client),
         median(&mut online_worker),
         last_signature[64],
+        transcripts.finalize(),
+        signatures.finalize(),
     );
 }

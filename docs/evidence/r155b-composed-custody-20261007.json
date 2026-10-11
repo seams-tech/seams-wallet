@@ -1,0 +1,44 @@
+{
+  "scope": "Real Cloudflare Rust Workers with separate regional wallet object namespaces and SigningWorker D1. Shared tenant-root authority. Source NEAR registration completed. No directory-coordinated relocation or destination signing yet.",
+  "objects": [
+    {
+      "binding": "ROUTER_WALLET_DO",
+      "source": "router",
+      "destination": "destination-router",
+      "independentNamespaces": true
+    },
+    {
+      "binding": "DERIVER_A_WALLET_DO",
+      "source": "deriver-a",
+      "destination": "destination-deriver-a",
+      "independentNamespaces": true
+    },
+    {
+      "binding": "DERIVER_B_WALLET_DO",
+      "source": "deriver-b",
+      "destination": "destination-deriver-b",
+      "independentNamespaces": true
+    },
+    {
+      "binding": "SIGNING_WORKER_WALLET_DO",
+      "source": "fixture-signing-worker",
+      "destination": "destination-signing-worker",
+      "independentNamespaces": true
+    },
+    {
+      "binding": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+      "source": "fixture-signing-worker",
+      "destination": "destination-signing-worker",
+      "independentNamespaces": true
+    }
+  ],
+  "registrationReceiptSha256": "80581ab647304e1546de85336e23a530239ff5ce54209a29a09863a6648c1050",
+  "sourceRegistrationCompleted": true,
+  "directoryCoordinatorConnected": false,
+  "destinationSigningVerified": false,
+  "privateCommit": "eac9098",
+  "existingNearTransferScenario": "passed",
+  "bloatCheck": "passed",
+  "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/relocation-custody.e2e.mjs",
+  "sourceQualification": "Current shared custody checkout includes concurrent R153 changes outside committed dev. This is local integration evidence, not a frozen deployment candidate."
+}

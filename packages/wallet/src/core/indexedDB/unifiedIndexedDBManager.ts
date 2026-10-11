@@ -699,7 +699,7 @@ export class UnifiedIndexedDBManager {
   async updateWalletPreferences(args: {
     walletId: string;
     preferences: Partial<UserPreferences>;
-  }): Promise<void> {
+  }): Promise<UserPreferences | null> {
     const updatedPreferences = await this.seamsWalletRepositories.updateWalletPreferences(args);
     if (updatedPreferences) {
       this.emitEvent({
@@ -708,6 +708,7 @@ export class UnifiedIndexedDBManager {
         data: { preferences: updatedPreferences },
       });
     }
+    return updatedPreferences;
   }
 
   async deleteProfileData(

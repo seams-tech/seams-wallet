@@ -64,8 +64,8 @@ pub fn parse_router_yao_registration_lease_ms_v1(
 pub const CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/router/ed25519-yao/registration/consume";
 
-const OWNER_KEY: &str = "owner";
-const REGISTRATION_KEY_PREFIX: &str = "yao-registration/";
+pub(crate) const OWNER_KEY: &str = "owner";
+pub(crate) const REGISTRATION_KEY_PREFIX: &str = "yao-registration/";
 
 /// The wallet one Router wallet object belongs to.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,18 +77,28 @@ pub struct RouterWalletOwnerV1 {
     pub wallet_id: String,
 }
 
+pub(crate) fn validate_wallet_ownership_generation(generation: u64) -> RouterAbProtocolResult<()> {
+    if generation == 0 || generation > 9_007_199_254_740_991 {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "Router wallet ownership generation is invalid",
+        ));
+    }
+    Ok(())
+}
+
 impl RouterWalletOwnerV1 {
-    /// The object's name: the same wallet always names the same object, and
-    /// no other wallet can.
-    pub fn object_name(&self) -> RouterAbProtocolResult<String> {
-        let encoded = serde_json::to_vec(self).map_err(|error| {
+    /// Each ownership generation has a separate physical object, including return moves.
+    pub fn object_name(&self, ownership_generation: u64) -> RouterAbProtocolResult<String> {
+        validate_wallet_ownership_generation(ownership_generation)?;
+        let encoded = serde_json::to_vec(&(self, ownership_generation)).map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,
                 format!("Router wallet owner is not encodable: {error}"),
             )
         })?;
         let mut hash = Sha256::new();
-        hash.update(b"seams/router/wallet-do/v1");
+        hash.update(b"seams/router/wallet-do/v2");
         hash.update(encoded);
         Ok(format!("router-wallet-{}", lower_hex(&hash.finalize())))
     }
@@ -99,6 +109,7 @@ impl RouterWalletOwnerV1 {
 /// request itself, which consumption returns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouterWalletRegistrationV1 {
+    pub ownership_generation: u64,
     pub owner: RouterWalletOwnerV1,
     pub lifecycle_id: String,
     pub request_digest_hex: String,
@@ -112,7 +123,11 @@ impl RouterWalletRegistrationV1 {
     pub fn from_request(
         request: &CloudflareRouterEd25519YaoExecuteRequestV2,
     ) -> RouterAbProtocolResult<Option<Self>> {
-        let RouterEd25519YaoGatewayExecuteTargetV2::Registration { binding, .. } = &request.target
+        let RouterEd25519YaoGatewayExecuteTargetV2::Registration {
+            ownership_generation,
+            binding,
+            ..
+        } = &request.target
         else {
             return Ok(None);
         };
@@ -124,13 +139,11 @@ impl RouterWalletRegistrationV1 {
             wallet_id: lifecycle.account_id.clone(),
         };
         let request_json = serde_json::to_string(request).map_err(encoding_error)?;
-        let mut hash = Sha256::new();
-        hash.update(b"seams/router/yao-registration-request/v1");
-        hash.update(request_json.as_bytes());
         Ok(Some(Self {
+            ownership_generation: *ownership_generation,
             owner,
             lifecycle_id: lifecycle.lifecycle_id.clone(),
-            request_digest_hex: lower_hex(&hash.finalize()),
+            request_digest_hex: registration_request_digest(&request_json),
             request_json,
         }))
     }
@@ -140,6 +153,7 @@ impl RouterWalletRegistrationV1 {
     pub fn claim(&self, now_ms: u64, lease_ms: u64) -> RouterWalletRequestV1 {
         RouterWalletRequestV1 {
             owner: self.owner.clone(),
+            ownership_generation: self.ownership_generation,
             command: RouterWalletCommandV1::ClaimRegistration {
                 lifecycle_id: self.lifecycle_id.clone(),
                 request_digest_hex: self.request_digest_hex.clone(),
@@ -172,6 +186,7 @@ impl RouterWalletRegistrationV1 {
         };
         Ok(Some(RouterWalletRequestV1 {
             owner: self.owner.clone(),
+            ownership_generation: self.ownership_generation,
             command: RouterWalletCommandV1::FinishRegistration {
                 lifecycle_id: self.lifecycle_id.clone(),
                 request_digest_hex: self.request_digest_hex.clone(),
@@ -190,6 +205,7 @@ impl RouterWalletRegistrationV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
+    pub ownership_generation: u64,
     pub tenant_root: crate::CloudflareRouterEd25519YaoTenantRootV1,
     pub wallet_id: String,
     pub lifecycle_id: String,
@@ -208,6 +224,7 @@ impl CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
                 env_id: self.tenant_root.identity.env_id().to_owned(),
                 wallet_id: self.wallet_id,
             },
+            ownership_generation: self.ownership_generation,
             command: RouterWalletCommandV1::ConsumeRegistration {
                 lifecycle_id: self.lifecycle_id,
                 session_id: self.session_id,
@@ -261,13 +278,49 @@ pub enum RouterWalletRegistrationOutcomeV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouterWalletRequestV1 {
+    pub ownership_generation: u64,
     pub owner: RouterWalletOwnerV1,
     pub command: RouterWalletCommandV1,
+}
+
+impl RouterWalletRequestV1 {
+    /// Checks admitted recovery or export against this wallet's local generation and fence.
+    pub fn settlement_admission(
+        request: &CloudflareRouterEd25519YaoExecuteRequestV2,
+    ) -> Option<Self> {
+        let (ownership_generation, binding) = match &request.target {
+            RouterEd25519YaoGatewayExecuteTargetV2::Registration { .. } => return None,
+            RouterEd25519YaoGatewayExecuteTargetV2::Recovery {
+                ownership_generation,
+                binding,
+                ..
+            } => (ownership_generation, binding),
+            RouterEd25519YaoGatewayExecuteTargetV2::Export {
+                ownership_generation,
+                binding,
+                ..
+            } => (ownership_generation, binding.ceremony()),
+        };
+        Some(Self {
+            owner: RouterWalletOwnerV1 {
+                org_id: request.tenant_root.identity.org_id().to_owned(),
+                project_id: request.tenant_root.identity.project_id().to_owned(),
+                env_id: request.tenant_root.identity.env_id().to_owned(),
+                wallet_id: binding.lifecycle.account_id.clone(),
+            },
+            ownership_generation: *ownership_generation,
+            command: RouterWalletCommandV1::AdmitSettlement,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletCommandV1 {
+    /// Reads one expired registration claim while the source is draining.
+    PendingRegistration { now_ms: u64 },
+    /// Allows admitted recovery and export work to settle until the source snapshot is sealed.
+    AdmitSettlement,
     /// Claims a registration's execution before the Router runs it.
     ClaimRegistration {
         lifecycle_id: String,
@@ -297,6 +350,12 @@ pub enum RouterWalletCommandV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RouterWalletResponseV1 {
+    PendingRegistration {
+        request_json: String,
+    },
+    NoPendingRegistration,
+    /// Settlement execution passed the local ownership and source-fence checks.
+    SettlementAdmitted,
     /// Claim `generation` is this run's: run the request, replaying when
     /// the run takes over a lapsed claim.
     Run {
@@ -338,6 +397,11 @@ pub enum RouterWalletRefusalCodeV1 {
 pub trait RouterWalletStoreV1 {
     async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>>;
     async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
+    async fn delete_key(&self, key: &str) -> RouterAbProtocolResult<()>;
+    async fn list_keys(&self, prefix: &str, limit: u32) -> RouterAbProtocolResult<Vec<String>>;
+    async fn list_registrations(
+        &self,
+    ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>>;
 }
 
 /// Runs one command against one wallet object's storage. The first command
@@ -346,6 +410,12 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
     store: &Store,
     request: RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
+    crate::router_wallet_relocation::require_ownership_generation(
+        store,
+        request.ownership_generation,
+    )
+    .await?;
+    crate::router_wallet_relocation::admit_ordinary_command(store).await?;
     match store.get_json::<RouterWalletOwnerV1>(OWNER_KEY).await? {
         Some(owner) if owner != request.owner => {
             return Err(RouterAbProtocolError::new(
@@ -357,6 +427,14 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
         None => store.put_json(OWNER_KEY, &request.owner).await?,
     }
     match request.command {
+        RouterWalletCommandV1::PendingRegistration { now_ms } => {
+            crate::router_wallet_relocation::pending_registration(store, &request.owner, now_ms)
+                .await
+        }
+        RouterWalletCommandV1::AdmitSettlement => {
+            crate::router_wallet_relocation::admit_settlement(store).await?;
+            Ok(RouterWalletResponseV1::SettlementAdmitted)
+        }
         RouterWalletCommandV1::ClaimRegistration {
             lifecycle_id,
             request_digest_hex,
@@ -401,6 +479,51 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
     }
 }
 
+pub(crate) fn decode_stored_registration_request(
+    request_json: &str,
+) -> RouterAbProtocolResult<CloudflareRouterEd25519YaoExecuteRequestV2> {
+    let mut value: serde_json::Value = serde_json::from_str(request_json)
+        .map_err(|error| stored_record_error(format!("its request is unreadable: {error}")))?;
+    if let Some(target) = value
+        .get_mut("target")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        if target.get("operation").and_then(serde_json::Value::as_str) == Some("registration")
+            && !target.contains_key("ownership_generation")
+        {
+            // Fixed-home persisted requests predate explicit ownership generations.
+            target.insert("ownership_generation".to_owned(), serde_json::json!(1));
+        }
+    }
+    serde_json::from_value(value)
+        .map_err(|error| stored_record_error(format!("its request is unreadable: {error}")))
+}
+
+pub(crate) fn registration_request_digest(request_json: &str) -> String {
+    let mut hash = Sha256::new();
+    hash.update(b"seams/router/yao-registration-request/v1");
+    hash.update(request_json.as_bytes());
+    lower_hex(&hash.finalize())
+}
+
+fn matches_stored_registration_request(
+    request_json: &str,
+    stored_digest: &str,
+    requested_digest: &str,
+) -> RouterAbProtocolResult<bool> {
+    if registration_request_digest(request_json) != stored_digest {
+        return Err(stored_record_error(
+            "its request digest differs from its bytes".to_owned(),
+        ));
+    }
+    if stored_digest == requested_digest {
+        return Ok(true);
+    }
+    let normalized = decode_stored_registration_request(request_json)?;
+    let encoded = serde_json::to_string(&normalized).map_err(encoding_error)?;
+    Ok(registration_request_digest(&encoded) == requested_digest)
+}
+
 fn registration_key(lifecycle_id: &str) -> RouterAbProtocolResult<String> {
     if lifecycle_id.is_empty() || lifecycle_id.len() > 256 {
         return Err(RouterAbProtocolError::new(
@@ -432,6 +555,7 @@ async fn claim_registration<Store: RouterWalletStoreV1>(
         .await?
     {
         None => {
+            crate::router_wallet_relocation::admit_new_registration(store).await?;
             store
                 .put_json(
                     &key,
@@ -453,13 +577,19 @@ async fn claim_registration<Store: RouterWalletStoreV1>(
         }
         Some(RouterWalletRegistrationRecordV1::Claimed {
             request_digest_hex: claimed_digest,
+            request_json: stored_request_json,
             generation: held_generation,
             lease_until_ms: held_until_ms,
             ..
         }) => {
             // Another request waits for the run that holds the claim, as the
             // same request does until the lease lapses.
-            if claimed_digest != request_digest_hex || held_until_ms > now_ms {
+            if !matches_stored_registration_request(
+                &stored_request_json,
+                &claimed_digest,
+                &request_digest_hex,
+            )? || held_until_ms > now_ms
+            {
                 return Ok(RouterWalletResponseV1::InProgress {
                     retry_after_ms: held_until_ms.saturating_sub(now_ms).max(1),
                 });
@@ -467,6 +597,7 @@ async fn claim_registration<Store: RouterWalletStoreV1>(
             let generation = held_generation
                 .checked_add(1)
                 .ok_or_else(|| stored_record_error("its claim generation overflowed".to_owned()))?;
+            crate::router_wallet_relocation::admit_settlement(store).await?;
             store
                 .put_json(
                     &key,
@@ -489,19 +620,27 @@ async fn claim_registration<Store: RouterWalletStoreV1>(
         Some(
             RouterWalletRegistrationRecordV1::Completed {
                 request_digest_hex: recorded_digest,
+                request_json: stored_request_json,
                 response_json,
                 ..
             }
             | RouterWalletRegistrationRecordV1::Failed {
                 request_digest_hex: recorded_digest,
+                request_json: stored_request_json,
                 response_json,
                 ..
             },
-        ) => Ok(if recorded_digest == request_digest_hex {
-            RouterWalletResponseV1::Answered { response_json }
-        } else {
-            RouterWalletResponseV1::Mismatch
-        }),
+        ) => Ok(
+            if matches_stored_registration_request(
+                &stored_request_json,
+                &recorded_digest,
+                &request_digest_hex,
+            )? {
+                RouterWalletResponseV1::Answered { response_json }
+            } else {
+                RouterWalletResponseV1::Mismatch
+            },
+        ),
     }
 }
 
@@ -537,6 +676,7 @@ async fn finish_registration<Store: RouterWalletStoreV1>(
             request_json,
             ..
         }) if claimed_digest == request_digest_hex => {
+            crate::router_wallet_relocation::admit_settlement(store).await?;
             let record = match outcome {
                 RouterWalletRegistrationOutcomeV1::Completed => {
                     RouterWalletRegistrationRecordV1::Completed {
@@ -623,8 +763,7 @@ async fn consume_registration<Store: RouterWalletStoreV1>(
             "the registration has no completed Yao activation",
         );
     };
-    let request = serde_json::from_str::<CloudflareRouterEd25519YaoExecuteRequestV2>(&request_json)
-        .map_err(|error| stored_record_error(format!("its request is unreadable: {error}")))?;
+    let request = decode_stored_registration_request(&request_json)?;
     let RouterEd25519YaoGatewayExecuteTargetV2::Registration { binding, .. } = &request.target
     else {
         return Err(stored_record_error(
@@ -647,6 +786,7 @@ async fn consume_registration<Store: RouterWalletStoreV1>(
             response_json,
         }),
         None => {
+            crate::router_wallet_relocation::admit_settlement(store).await?;
             store
                 .put_json(
                     &key,
@@ -676,7 +816,7 @@ pub fn router_wallet_registration_replay_refused_v1() -> RouterAbProtocolError {
     )
 }
 
-fn lower_hex(bytes: &[u8]) -> String {
+pub(crate) fn lower_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 

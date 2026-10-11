@@ -1,0 +1,77 @@
+{
+  "routes": [
+    {
+      "ingress": "WEUR",
+      "point": "console_outage",
+      "status": null
+    }
+  ],
+  "restarts": [
+    {
+      "ingress": "WEUR",
+      "oldPid": 21366,
+      "newPid": 23813,
+      "oldProcessExit": 0,
+      "databaseMode": "reopen",
+      "point": "console_outage",
+      "afterCommitStatus": null,
+      "roleRestart": {
+        "before": {
+          "root": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/seams-regional-real-MBUIZt",
+          "supervisorPid": 20355,
+          "generation": 2,
+          "workers": [
+            {
+              "role": "deriver-a",
+              "pid": 21129
+            },
+            {
+              "role": "deriver-b",
+              "pid": 21135
+            },
+            {
+              "role": "signing-worker",
+              "pid": 21141
+            },
+            {
+              "role": "tenant-root-control-plane",
+              "pid": 21147
+            },
+            {
+              "role": "router",
+              "pid": 21153
+            }
+          ]
+        },
+        "after": {
+          "root": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/seams-regional-real-MBUIZt",
+          "supervisorPid": 20355,
+          "generation": 3,
+          "workers": [
+            {
+              "role": "deriver-a",
+              "pid": 23646
+            },
+            {
+              "role": "deriver-b",
+              "pid": 23652
+            },
+            {
+              "role": "signing-worker",
+              "pid": 23658
+            },
+            {
+              "role": "tenant-root-control-plane",
+              "pid": 23664
+            },
+            {
+              "role": "router",
+              "pid": 23670
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "scope": "Gateway/Console and all five local role Workers restart at each recorded test boundary. Gateway databases and role D1/DO state are reopened in place. Only test observations and fault counters are restored in memory. These are controlled process replacements at the recorded boundaries."
+}

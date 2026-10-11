@@ -78,9 +78,14 @@ export function prepareAuthorizedOperationCommittedRead(
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   },
 ): D1PreparedStatementLike {
-  return database.prepare(
-    `SELECT operation.*, ${PINNED_OWNER_WALLET}
+  return database
+    .prepare(
+      `SELECT operation.*, evidence.org_id AS step_up_org_id, evidence.project_id AS step_up_project_id,
+            evidence.env_id AS step_up_env_id, ${PINNED_OWNER_WALLET}
        FROM authorized_operations AS operation
+       LEFT JOIN verified_wallet_operation_evidence_sets AS evidence
+         ON evidence.namespace = operation.namespace AND evidence.tenant_id = operation.tenant_id
+        AND evidence.evidence_set_digest = operation.evidence_set_digest
       WHERE operation.namespace = ? AND operation.tenant_id = ?
         AND operation.operation_fingerprint_digest = ?
       LIMIT 1`,
@@ -111,9 +116,14 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
   readonly nowMs: number;
   readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
 }): D1PreparedStatementLike {
-  const material = input.materialSnapshot?.condition(input.walletSignerScope) ?? { sql: '1', bindings: [] };
-  return input.database.prepare(
-    `SELECT operation.*, ${PINNED_OWNER_WALLET}, (${material.sql}) AS material_snapshot_active,
+  const material = input.materialSnapshot?.condition(input.walletSignerScope) ?? {
+    sql: '1',
+    bindings: [],
+  };
+  return input.database
+    .prepare(
+      `SELECT operation.*, evidence.org_id AS step_up_org_id, evidence.project_id AS step_up_project_id,
+            evidence.env_id AS step_up_env_id, ${PINNED_OWNER_WALLET}, (${material.sql}) AS material_snapshot_active,
             CASE operation.authorization_source_kind
               WHEN 'authorization_grant' THEN EXISTS (
                 SELECT 1
@@ -169,6 +179,9 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
               ELSE 0
             END AS authorization_source_active
        FROM authorized_operations AS operation
+       LEFT JOIN verified_wallet_operation_evidence_sets AS evidence
+         ON evidence.namespace = operation.namespace AND evidence.tenant_id = operation.tenant_id
+        AND evidence.evidence_set_digest = operation.evidence_set_digest
       WHERE operation.namespace = ? AND operation.tenant_id = ?
         AND operation.operation_fingerprint_digest = ?
       LIMIT 1`,
@@ -242,9 +255,28 @@ export function prepareAuthorizedOperationInsert(input: {
       ? { sql: ECDSA_SIGNER_MATCH, bindings: ecdsaSignerMatchBindings(walletSignerScope, material) }
       : { sql: '1', bindings: [] };
   }
-  const absence = input.existingOperation === 'preserve'
-    ? {
-        sql: `NOT EXISTS (SELECT 1 FROM authorized_operations
+  if (source.kind === 'verified_step_up') {
+    condition = {
+      sql: `(${condition.sql}) AND EXISTS (
+        SELECT 1 FROM verified_wallet_operation_evidence_sets AS evidence
+        WHERE evidence.namespace = ? AND evidence.tenant_id = ? AND evidence.evidence_set_digest = ?
+          AND evidence.org_id = ? AND evidence.project_id = ? AND evidence.env_id = ?
+      )`,
+      bindings: [
+        ...condition.bindings,
+        namespace,
+        operation.tenantId,
+        source.evidenceSetDigest,
+        walletSignerScope.orgId,
+        walletSignerScope.projectId,
+        walletSignerScope.envId,
+      ],
+    };
+  }
+  const absence =
+    input.existingOperation === 'preserve'
+      ? {
+          sql: `NOT EXISTS (SELECT 1 FROM authorized_operations
                WHERE namespace = ? AND tenant_id = ? AND operation_fingerprint_digest = ?)`,
         bindings: [namespace, operation.tenantId, operation.operationFingerprintDigest],
       }
@@ -262,10 +294,30 @@ export function prepareAuthorizedOperationInsert(input: {
           material_activation_owner, material_activation_key_binding,
           material_activation_lifecycle_binding, material_activation_signing_worker,
           owner_scope_org_id, owner_scope_project_id,
-          owner_scope_env_id
+          owner_scope_env_id, ownership_generation
         ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                   'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                  ?, ?, ?, ?, ?, ?, ?, ?
+                  ?, ?, ?, ?, ?, ?, ?, ?,
+                  (SELECT execution.generation FROM wallet_operation_authorizations AS owner
+                   JOIN wallet_execution_generations AS execution
+                     USING(namespace, org_id, project_id, env_id, wallet_id)
+                   WHERE owner.namespace = ? AND owner.tenant_id = ? AND owner.source_kind = ?
+                     AND owner.source_id = ? AND owner.org_id = ? AND owner.project_id = ?
+                     AND owner.env_id = ? AND execution.state = 'active')
            WHERE (${condition.sql}) AND (${absence.sql})`,
-  ).bind(...values, ...condition.bindings, ...absence.bindings);
+    )
+    .bind(
+      ...values,
+      namespace,
+      operation.tenantId,
+      source.kind,
+      source.kind === 'authorization_grant'
+        ? source.authorizationGrantRef.authorizationId
+        : source.evidenceSetDigest,
+      walletSignerScope.orgId,
+      walletSignerScope.projectId,
+      walletSignerScope.envId,
+      ...condition.bindings,
+      ...absence.bindings,
+    );
 }

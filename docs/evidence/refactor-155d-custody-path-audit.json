@@ -1,0 +1,83 @@
+{
+  "kind": "r155d_stored_address_custody_audit",
+  "source": ".artifacts/r155d-stored-ids-hosted",
+  "publicCommit": "28c58d85",
+  "wallets": 3,
+  "scope": "Existing stored-ID candidate; this is not a new hosted run. Provider CPU covers the whole invocation. Application spans use the Worker I/O clock. Background work can extend object wall time past its response.",
+  "roles": {
+    "deriver-a": {
+      "cpuMs": {
+        "median": 262,
+        "min": 251,
+        "max": 272,
+        "samples": 3
+      },
+      "wallMs": {
+        "median": 1179,
+        "min": 1085,
+        "max": 1219,
+        "samples": 3
+      }
+    },
+    "deriver-b": {
+      "cpuMs": {
+        "median": 323,
+        "min": 233,
+        "max": 352,
+        "samples": 3
+      },
+      "wallMs": {
+        "median": 675,
+        "min": 581,
+        "max": 721,
+        "samples": 3
+      }
+    },
+    "signing-worker": {
+      "cpuMs": {
+        "median": 21.0,
+        "min": 19,
+        "max": 26,
+        "samples": 6
+      },
+      "wallMs": {
+        "median": 57.0,
+        "min": 57,
+        "max": 63,
+        "samples": 6
+      }
+    }
+  },
+  "spans": {
+    "deriver_a.prepare_in_execute": {
+      "median": 148,
+      "min": 143,
+      "max": 149,
+      "samples": 3
+    },
+    "deriver_a.websocket_connect": {
+      "median": 261,
+      "min": 260,
+      "max": 269,
+      "samples": 3
+    },
+    "deriver_a.yao_protocol": {
+      "median": 336,
+      "min": 259,
+      "max": 394,
+      "samples": 3
+    },
+    "deriver_b.yao_protocol": {
+      "median": 211,
+      "min": 201,
+      "max": 222,
+      "samples": 3
+    },
+    "deriver_b.role_execution": {
+      "median": 311,
+      "min": 291,
+      "max": 326,
+      "samples": 3
+    }
+  }
+}

@@ -5,12 +5,12 @@ description: How Seams protects Deriver A and B tenant-root backups in R2 using 
 
 # Tenant-root backups
 
-Each tenant has randomly generated server-side derivation-root shares held
-separately by Deriver A and Deriver B. Losing a current share prevents future
-derivations that require that pair. Production keeps an encrypted recovery copy
-of each share in Cloudflare R2, protected by separate Google Cloud KMS keys.
-Wallet custody seeds and client signing roots remain in their existing custody
-paths; these backups cover the server's tenant-root shares.
+Each tenant has randomly generated server-side derivation-root shares held separately by
+Deriver A and Deriver B. Losing a current share prevents future derivations that require
+that pair. Production keeps an encrypted recovery copy of each share in Cloudflare R2,
+protected by separate Google Cloud KMS keys. Wallet custody seeds and client signing
+roots remain in their existing custody paths. These backups cover the server's
+tenant-root shares.
 
 This page covers R120's managed availability backups. R121's tenant-controlled recovery packages and R122's planned wallet migration package
 have different contents and authorization. See
@@ -32,11 +32,10 @@ decryption through its API. The Worker holds a service-account credential that
 can invoke its own key. The backup key itself stays outside Cloudflare.
 [Google KMS encryption documentation](https://docs.cloud.google.com/kms/docs/encrypt-decrypt)
 
-Role credentials are separate, while both keys currently live in one Google
-Cloud project under common administration. This provides separation between
-runtime credentials; an administrator with authority over both keys remains a
-shared trust boundary. A stolen role credential can invoke that role's key
-until access is revoked.
+Role credentials are separate, while both keys currently live in one Google Cloud
+project under common administration. This separates runtime credentials. An
+administrator with authority over both keys remains a shared trust boundary. A stolen
+role credential can invoke that role's key until access is revoked.
 
 ## Backup, refresh, and restore
 
@@ -47,18 +46,18 @@ backup is authenticated to its tenant identity, role, custody lineage, epoch,
 share commitment, and installation evidence. Activation requires both role
 records and their verified backups.
 
-After successful retirement cleanup, each tenant has two current encrypted
-share-backup objects: one for A and one for B. R2 also holds supporting evidence
-objects. During refresh or interrupted cleanup, current and pending or retired
-epoch objects can coexist. Two is the steady-state share-backup count, rather
-than a hard limit on all stored objects.
+After successful retirement cleanup, each tenant has two current encrypted share-backup
+objects: one for A and one for B. R2 also holds supporting evidence objects. During
+refresh or interrupted cleanup, current and pending or retired epoch objects can
+coexist. The count of two applies to current share backups after cleanup. It does not
+limit all stored objects.
 
-An authorized managed restore decrypts the affected role's backup into that
-Deriver, verifies its commitment, and requires both roles to perform a forward
-refresh. The backup depends on retained R2 ciphertext, usable KMS versions, and
-the authoritative identity and activation records required by the restore flow.
-It covers share recovery within that flow; a complete database-loss recovery
-also needs those records restored.
+An authorized managed restore decrypts the affected role's backup into that Deriver,
+verifies its commitment, and requires both roles to perform a forward refresh. The
+backup depends on retained R2 ciphertext, usable KMS versions, and the authoritative
+identity and activation records required by the restore flow. It covers share recovery
+within that flow. Recovery from complete database loss also requires restoring those
+records.
 
 Normal ECDSA and Ed25519 signing uses existing online signing material and does
 not call this KMS backup adapter. KMS availability and operation charges affect
@@ -82,12 +81,12 @@ $0.000012 for that backup pair. Retries, additional verification, and restore
 can add calls. R2 storage, R2 requests, D1, and Worker execution are billed
 separately. Retaining additional KMS versions also increases the fixed charge.
 
-R120 implements one successful tenant-admin refresh per tenant per rolling
-hour, enforced on the server before provider work. A distinct request during
-the cooldown receives HTTP 429 with a server-computed retry time; retrying the
-same operation returns its existing result. Mandatory post-restore refresh
-retains its separately authorized recovery path. Deployment of the throttle
-is pending; it is not yet an enforced production limit.
+R120 implements one successful tenant-admin refresh per tenant per rolling hour,
+enforced on the server before provider work. A distinct request during the cooldown
+receives HTTP 429 with a server-computed retry time. Retrying the same operation returns
+its existing result. Mandatory post-restore refresh retains its separately authorized
+recovery path. Verify the deployed release and admission policy before relying on this
+limit in an environment.
 
 ## Rotation and destruction limits
 
@@ -96,12 +95,11 @@ derivation root. The current backup provider continues using the configured
 shared KMS versions. Creating a new KMS version is a separate wrapping-key
 rotation operation.
 
-Deleting an old R2 object does not prove that every copied ciphertext is
-unrecoverable while its KMS version remains usable. Destroying a shared KMS
-version affects every backup encrypted under it. The current deployment
-therefore claims operational rotation and encrypted backup availability;
-per-tenant cryptographic erasure and proactive compromise healing remain
-unverified.
+Deleting an old R2 object does not prove that every copied ciphertext is unrecoverable
+while its KMS version remains usable. Destroying a shared KMS version affects every
+backup encrypted under it. The current deployment therefore claims operational rotation
+and encrypted backup availability. Per-tenant cryptographic erasure and proactive
+compromise healing remain unverified.
 
 For the distinction between tenant-root refresh, lane refresh, and wallet
 rekeying, see [key rotation](/concepts/delegation/key-rotation).

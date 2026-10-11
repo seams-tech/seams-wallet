@@ -1,3 +1,6 @@
+import { D1WalletOperationStore } from '../registration/d1WalletOperationStore';
+import { createD1EmailOtpRouteService } from './d1EmailOtpRouteService';
+import type { WalletRelocationEmailOtpServices } from '../wallet/d1WalletRelocationEmailOtp';
 import { createSponsoredNamedNearAccountForOptions } from '../near/d1SponsoredNearAccount';
 import {
   parseD1WalletAddSignerFinalizeSideEffectRecord,
@@ -7,6 +10,7 @@ import {
 import { dispatchWalletRegistrationSetup } from '../../../framework/registrationSetupDispatch';
 import {
   readActiveWalletSessionCredential,
+  readEd25519WalletSessionSigningRead,
   readExhaustedWalletSessionCredential,
   readWalletSessionSigningCandidate,
 } from './walletSessionCredentialReaders';
@@ -18,7 +22,11 @@ import {
   parsePrincipalId,
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
-import { parseWalletAuthMethodId, parseWalletAuthorityId } from '@shared/utils/domainIds';
+import {
+  parseWalletAuthMethodId,
+  parseWalletAuthorityId,
+  parseWalletId,
+} from '@shared/utils/domainIds';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
@@ -100,12 +108,12 @@ import {
 import { CloudflareD1WalletAuthMethodService } from '../wallet/d1WalletAuthMethodService';
 import {
   CloudflareD1WalletRegistrationService,
-  type D1WalletRegistrationOperationPreparedV1,
   type D1WalletRegistrationActivateSideEffectRecord,
   type D1WalletRegistrationActivateSideEffectStore,
   type D1WalletRegistrationNearProvisioningSideEffectRecord,
-  type D1WalletRegistrationNearProvisioningSideEffectStore,
 } from '../registration/d1WalletRegistrationService';
+import { D1WalletRegistrationRead } from '../registration/d1WalletRegistrationRead';
+import type { D1WalletRegistrationOperationPreparedV1 } from '../registration/d1WalletRegistrationPreparation';
 import {
   parseD1EcdsaDerivationServerBootstrapResponse,
   parseD1WalletRegistrationCommittedInstallationProjection,
@@ -126,21 +134,17 @@ import {
   type D1WalletAddSignerStartSideEffectStore,
 } from '../wallet/d1WalletAddSignerService';
 import { CloudflareD1RegistrationIntentService } from '../registration/d1RegistrationIntentService';
-import {
-  fundImplicitNearAccountWithRelayer,
-} from '../../../../core/nearRelayerAccountProvisioning';
+import { fundImplicitNearAccountWithRelayer } from '../../../../core/nearRelayerAccountProvisioning';
 import {
   parseRouterAbEd25519YaoRegistrationSideEffectRecordV2,
   type RouterAbEd25519YaoRegistrationSideEffectRecordV2,
 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
-import { createCloudflareD1VersionedJsonRecordStore } from '../versionedJson/d1VersionedJsonRecordStore';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import {
   normalizeD1RouterApiAuthOptions,
   type CloudflareD1RouterApiAuthServiceOptions,
   type NormalizedCloudflareD1RouterApiAuthServiceOptions,
 } from './d1RouterApiAuthConfig';
-import type { RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import { createD1LinkedDeviceRouteServiceV1 } from '../deviceLinking/d1LinkedDeviceRouteService';
 import type { DeviceLinkingRouteServiceV1 } from '../../../transport/fetch/routes/deviceLinking';
 import { D1LinkedDeviceEmailOtpGrantStoreV1 } from '../deviceLinking/d1LinkedDeviceEmailOtpGrantStore';
@@ -182,6 +186,8 @@ export type {
 } from './d1RouterApiAuthConfig';
 
 export type CloudflareD1RouterApiAuthService = Omit<RouterApiServiceBag, 'thresholdRuntime'> & {
+  readonly walletExecution: NormalizedCloudflareD1RouterApiAuthServiceOptions['walletExecution'];
+  readonly relocationEmailOtp: WalletRelocationEmailOtpServices;
   readonly thresholdRuntime: RouterApiServiceBag['thresholdRuntime'];
   readonly executeSignedDelegate: (
     input: ExecuteSignedDelegateRequest,
@@ -225,6 +231,7 @@ function linkedDeviceEd25519AuthorityReaderFromSlot(
 }
 
 type CloudflareD1RouterApiAuthAssembly = {
+  readonly relocationEmailOtp: WalletRelocationEmailOtpServices;
   readonly options: NormalizedCloudflareD1RouterApiAuthServiceOptions;
   readonly emailOtpServerSeal: CloudflareD1EmailOtpServerSealRuntime;
   readonly emailOtpChallengeService: CloudflareD1EmailOtpChallengeService;
@@ -285,15 +292,6 @@ type D1WalletUnlockRouteServiceAssembly = Pick<
   | 'options'
   | 'walletAuthMethods'
   | 'webAuthnAuthService'
->;
-
-type D1EmailOtpRouteServiceAssembly = Pick<
-  CloudflareD1RouterApiAuthAssembly,
-  | 'emailOtpServerSeal'
-  | 'emailOtpChallengeService'
-  | 'emailOtpRecoveryService'
-  | 'googleEmailOtpSessions'
-  | 'oidcVerification'
 >;
 
 type D1WebAuthnRouteServiceAssembly = Pick<
@@ -825,17 +823,19 @@ function parseWalletRegistrationOperationPrepared(
   if (Reflect.get(raw, 'kind') !== 'd1_wallet_registration_operation_prepared_v1') {
     return null;
   }
-  const keys = ['kind', 'walletAuthorityId', 'deviceId', 'walletAuthMethodId'];
+  const keys = ['kind', 'walletId', 'walletAuthorityId', 'deviceId', 'walletAuthMethodId'];
   const recordKeys = Object.keys(raw);
   if (recordKeys.length !== keys.length || !hasOnlyKeys(raw, keys)) {
     return null;
   }
+  const walletId = parseWalletId(Reflect.get(raw, 'walletId'));
   const walletAuthorityId = parseWalletAuthorityId(Reflect.get(raw, 'walletAuthorityId'));
   const deviceId = parseDeviceId(Reflect.get(raw, 'deviceId'));
   const walletAuthMethodId = parseWalletAuthMethodId(Reflect.get(raw, 'walletAuthMethodId'));
-  if (!walletAuthorityId.ok || !deviceId.ok || !walletAuthMethodId.ok) return null;
+  if (!walletId.ok || !walletAuthorityId.ok || !deviceId.ok || !walletAuthMethodId.ok) return null;
   return {
     kind: 'd1_wallet_registration_operation_prepared_v1',
+    walletId: walletId.value,
     walletAuthorityId: walletAuthorityId.value,
     deviceId: deviceId.value,
     walletAuthMethodId: walletAuthMethodId.value,
@@ -1091,41 +1091,38 @@ function registrationReceiptMatchesJournal(
   }
   if (receipt.committed.kind === 'error') return true;
   if (!('walletAuthMethodId' in receipt)) return false;
+  if (receipt.walletId !== record.prepared.walletId) return false;
   if (receipt.walletAuthMethodId !== record.prepared.walletAuthMethodId) return false;
-  if (receipt.committed.kind === 'near_pending') return true;
   return (
     'foundingAuthority' in receipt &&
     receipt.foundingAuthority.authorityId === record.prepared.walletAuthorityId
   );
 }
 
-function resolveEd25519YaoProductRegistration(
-  options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
-): RouterAbEd25519YaoProductRegistrationRuntimeV1 | null {
-  return options.ed25519YaoProductRegistration || null;
-}
-
 function walletRegistrationActivateSideEffectStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
 ): D1WalletRegistrationActivateSideEffectStore {
-  return createCloudflareD1VersionedJsonRecordStore<D1WalletRegistrationActivateSideEffectRecord>({
-    database: options.database,
-    scope: {
-      namespace: options.namespace,
-      orgId: options.orgId,
-      projectId: options.projectId,
-      envId: options.envId,
+  return new D1WalletOperationStore<D1WalletRegistrationActivateSideEffectRecord>(
+    {
+      database: options.database,
+      scope: {
+        namespace: options.namespace,
+        orgId: options.orgId,
+        projectId: options.projectId,
+        envId: options.envId,
+      },
+      keyPrefix: 'wallet-registration-activate:',
+      encode: (value) => value as unknown as VersionedJsonObject,
+      parse: parseWalletRegistrationActivateSideEffectRecord,
     },
-    keyPrefix: 'wallet-registration-activate:',
-    encode: (value) => value as unknown as VersionedJsonObject,
-    parse: parseWalletRegistrationActivateSideEffectRecord,
-  });
+    registrationOperationWallet,
+  );
 }
 
 function walletRegistrationNearProvisioningSideEffectStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
-): D1WalletRegistrationNearProvisioningSideEffectStore {
-  return createCloudflareD1VersionedJsonRecordStore<D1WalletRegistrationNearProvisioningSideEffectRecord>(
+): D1WalletOperationStore<D1WalletRegistrationNearProvisioningSideEffectRecord> {
+  return new D1WalletOperationStore<D1WalletRegistrationNearProvisioningSideEffectRecord>(
     {
       database: options.database,
       scope: {
@@ -1138,41 +1135,48 @@ function walletRegistrationNearProvisioningSideEffectStore(
       encode: (value) => value as unknown as VersionedJsonObject,
       parse: parseWalletRegistrationNearProvisioningSideEffectRecord,
     },
+    registrationOperationWallet,
   );
 }
 
 function walletAddSignerStartSideEffectStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
 ): D1WalletAddSignerStartSideEffectStore {
-  return createCloudflareD1VersionedJsonRecordStore<D1WalletAddSignerStartSideEffectRecord>({
-    database: options.database,
-    scope: {
-      namespace: options.namespace,
-      orgId: options.orgId,
-      projectId: options.projectId,
-      envId: options.envId,
+  return new D1WalletOperationStore<D1WalletAddSignerStartSideEffectRecord>(
+    {
+      database: options.database,
+      scope: {
+        namespace: options.namespace,
+        orgId: options.orgId,
+        projectId: options.projectId,
+        envId: options.envId,
+      },
+      keyPrefix: 'wallet-add-signer-start:',
+      encode: (value) => value as unknown as VersionedJsonObject,
+      parse: parseD1WalletAddSignerStartSideEffectRecord,
     },
-    keyPrefix: 'wallet-add-signer-start:',
-    encode: (value) => value as unknown as VersionedJsonObject,
-    parse: parseD1WalletAddSignerStartSideEffectRecord,
-  });
+    addSignerStartWallet,
+  );
 }
 
 function walletAddSignerFinalizeSideEffectStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
 ): D1WalletAddSignerFinalizeSideEffectStore {
-  return createCloudflareD1VersionedJsonRecordStore<D1WalletAddSignerFinalizeSideEffectRecord>({
-    database: options.database,
-    scope: {
-      namespace: options.namespace,
-      orgId: options.orgId,
-      projectId: options.projectId,
-      envId: options.envId,
+  return new D1WalletOperationStore<D1WalletAddSignerFinalizeSideEffectRecord>(
+    {
+      database: options.database,
+      scope: {
+        namespace: options.namespace,
+        orgId: options.orgId,
+        projectId: options.projectId,
+        envId: options.envId,
+      },
+      keyPrefix: 'wallet-add-signer-finalize:',
+      encode: (value) => value as unknown as VersionedJsonObject,
+      parse: parseD1WalletAddSignerFinalizeSideEffectRecord,
     },
-    keyPrefix: 'wallet-add-signer-finalize:',
-    encode: (value) => value as unknown as VersionedJsonObject,
-    parse: parseD1WalletAddSignerFinalizeSideEffectRecord,
-  });
+    addSignerFinalizeWallet,
+  );
 }
 
 async function readD1Ed25519KeyManifestBySlot(
@@ -1182,7 +1186,6 @@ async function readD1Ed25519KeyManifestBySlot(
   const signer = await walletStore.getEd25519SignerBySlot(input);
   return signer ? { custodyKeyManifestDigestB64u: signer.custodyKeyManifestDigestB64u } : null;
 }
-
 
 function createCloudflareD1RouterApiAuthAssembly(
   input: CloudflareD1RouterApiAuthServiceOptions,
@@ -1361,21 +1364,31 @@ function createCloudflareD1RouterApiAuthAssembly(
     projectId: options.projectId,
     envId: options.envId,
   });
-  const walletCustodyCommitStore = createD1WalletCustodyStore(options);
+  const walletCustodyCommitStore = createD1WalletCustodyStore(options, walletAuthMethodStore);
   const signedDelegateExecutor = new CloudflareD1SignedDelegateExecutor(options);
   const walletRegistrations = new CloudflareD1WalletRegistrationService({
+    executionAuthority: options.walletExecution,
+    home: options.sessionRouting?.home() ?? { kind: 'direct' },
     registrationAuthority: options.registrationAuthority ?? null,
+    startRegistrationWallets: options.startRegistrationWallets ?? null,
     authorizationService,
+    registrationSessionStore: authorizationStore,
     authorizationTenantId: authorizationTenantId.value,
     createSponsoredNamedNearAccount,
     emailOtpRegistrationEnrollmentFinalizer,
     getRegistrationCeremonyIntentStore,
-    getEd25519YaoProductRegistration: () => resolveEd25519YaoProductRegistration(options),
+    getEd25519YaoProductRegistration: () => options.ed25519YaoProductRegistration ?? null,
     ecdsaStrictRegistration: options.ecdsaStrictRegistration,
     tenantRootCustodyLineage: options.tenantRootCustodyLineage,
     getWalletStore,
     activateSideEffects: walletRegistrationActivateSideEffectStore(options),
-    nearProvisioningSideEffects: walletRegistrationNearProvisioningSideEffectStore(options),
+    registrationRead: new D1WalletRegistrationRead(
+      options.database,
+      options.registrationAuthority ?? null,
+      walletRegistrationNearProvisioningSideEffectStore(options),
+      getRegistrationCeremonyIntentStore,
+      yaoLifecycleDecisions,
+    ),
     walletRegistrationCommitStore,
     walletCustodyCommitStore,
     walletAuthMethods,
@@ -1383,8 +1396,9 @@ function createCloudflareD1RouterApiAuthAssembly(
     yaoLifecycleDecisions,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
+    executionAuthority: options.walletExecution,
     getRegistrationCeremonyIntentStore,
-    getEd25519YaoProductRegistration: () => resolveEd25519YaoProductRegistration(options),
+    getEd25519YaoProductRegistration: () => options.ed25519YaoProductRegistration ?? null,
     ecdsaStrictRegistration: options.ecdsaStrictRegistration,
     tenantRootCustodyLineage: options.tenantRootCustodyLineage,
     getWalletStore,
@@ -1487,6 +1501,11 @@ function createCloudflareD1RouterApiAuthAssembly(
     linkedDeviceComposition.linkedDeviceEd25519AuthorityReader ?? null;
 
   return {
+    relocationEmailOtp: {
+      verifier: emailOtpChallengeVerifier,
+      emailOtpChallenges,
+      issuer: emailOtpChallengeIssuer,
+    },
     options,
     emailOtpServerSeal,
     emailOtpChallengeService,
@@ -1970,66 +1989,6 @@ function createD1WalletUnlockRouteService(
   };
 }
 
-function createD1EmailOtpRouteService(
-  assembly: D1EmailOtpRouteServiceAssembly,
-): RouterApiServiceBag['emailOtp'] {
-  return {
-    applyEmailOtpServerSeal: assembly.emailOtpServerSeal.applyEmailOtpServerSeal.bind(
-      assembly.emailOtpServerSeal,
-    ),
-    cleanupGoogleEmailOtpDevRegistrationState:
-      assembly.googleEmailOtpSessions.cleanupDevRegistrationState.bind(
-        assembly.googleEmailOtpSessions,
-      ),
-    consumeEmailOtpGrant: assembly.emailOtpRecoveryService.consumeEmailOtpGrant.bind(
-      assembly.emailOtpRecoveryService,
-    ),
-    createEmailOtpChallenge: assembly.emailOtpChallengeService.createEmailOtpChallenge.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    createEmailOtpEnrollmentChallenge:
-      assembly.emailOtpChallengeService.createEmailOtpEnrollmentChallenge.bind(
-        assembly.emailOtpChallengeService,
-      ),
-    isEmailOtpStrongAuthRequired:
-      assembly.emailOtpRecoveryService.isEmailOtpStrongAuthRequired.bind(
-        assembly.emailOtpRecoveryService,
-      ),
-    markEmailOtpStrongAuthSatisfied:
-      assembly.emailOtpRecoveryService.markEmailOtpStrongAuthSatisfied.bind(
-        assembly.emailOtpRecoveryService,
-      ),
-    readActiveEmailOtpEnrollment:
-      assembly.emailOtpRecoveryService.readActiveEmailOtpEnrollment.bind(
-        assembly.emailOtpRecoveryService,
-      ),
-    readEmailOtpEnrollment: assembly.emailOtpRecoveryService.readEmailOtpEnrollment.bind(
-      assembly.emailOtpRecoveryService,
-    ),
-    readEmailOtpOutboxEntry: assembly.emailOtpChallengeService.readEmailOtpOutboxEntry.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    removeEmailOtpServerSeal: assembly.emailOtpServerSeal.removeEmailOtpServerSeal.bind(
-      assembly.emailOtpServerSeal,
-    ),
-    validateGoogleEmailOtpRegistrationCandidateWallet:
-      assembly.googleEmailOtpSessions.validateRegistrationCandidateWallet.bind(
-        assembly.googleEmailOtpSessions,
-      ),
-    verifyEmailOtpChallenge: assembly.emailOtpChallengeService.verifyEmailOtpChallenge.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    verifyEmailOtpWalletRecoveryChallenge:
-      assembly.emailOtpChallengeService.verifyEmailOtpWalletRecoveryChallenge.bind(
-        assembly.emailOtpChallengeService,
-      ),
-    verifyEmailOtpEnrollment: assembly.emailOtpChallengeService.verifyEmailOtpEnrollment.bind(
-      assembly.emailOtpChallengeService,
-    ),
-    verifyGoogleLogin: assembly.oidcVerification.verifyGoogleLogin.bind(assembly.oidcVerification),
-  };
-}
-
 function createD1WebAuthnRouteService(
   assembly: D1WebAuthnRouteServiceAssembly,
 ): RouterApiServiceBag['webAuthn'] {
@@ -2106,6 +2065,8 @@ function createD1AuthorizationSessionRouteService(
       null,
       assembly.authorizationService,
     ),
+    readEd25519WalletSessionSigningReadByOperationCredential:
+      readEd25519WalletSessionSigningRead.bind(null, assembly.authorizationService),
     readWalletSessionExactOperationContextByCredential:
       assembly.authorizationService.readWalletSessionExactOperationContextByCredential.bind(
         assembly.authorizationService,
@@ -2188,6 +2149,8 @@ export function createCloudflareD1RouterApiAuthService(
 ): CloudflareD1RouterApiAuthService {
   const assembly = createCloudflareD1RouterApiAuthAssembly(input);
   return {
+    walletExecution: assembly.options.walletExecution,
+    relocationEmailOtp: assembly.relocationEmailOtp,
     walletRegistration: createD1WalletRegistrationRouteService(assembly),
     walletAuthMethods: createD1WalletAuthMethodRouteService(assembly),
     walletUnlock: createD1WalletUnlockRouteService(assembly),
@@ -2224,4 +2187,20 @@ export function createCloudflareD1RouterApiAuthService(
       ? {}
       : { linkedDeviceEd25519AuthorityReader: assembly.linkedDeviceEd25519AuthorityReader }),
   };
+}
+
+function registrationOperationWallet(
+  record:
+    | D1WalletRegistrationActivateSideEffectRecord
+    | D1WalletRegistrationNearProvisioningSideEffectRecord,
+) {
+  return record.prepared.walletId;
+}
+
+function addSignerStartWallet(record: D1WalletAddSignerStartSideEffectRecord) {
+  return record.prepared.storedIntent.intent.walletId;
+}
+
+function addSignerFinalizeWallet(record: D1WalletAddSignerFinalizeSideEffectRecord) {
+  return record.prepared.walletId;
 }

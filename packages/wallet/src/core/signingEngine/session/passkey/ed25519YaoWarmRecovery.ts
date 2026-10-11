@@ -498,6 +498,7 @@ async function parseWarmRecoveryDescriptor(args: {
     ),
     session: {
       sessionKind: 'opaque',
+      home: args.authorization.operationCredential.home,
       walletSessionToken,
       thresholdSessionId,
       walletSessionId: walletSessionId.value,

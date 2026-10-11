@@ -26,7 +26,7 @@ import {
   type EmailOtpSigningSessionAuthLane,
 } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
 import type {
-  RequestEmailOtpChallengeArgs,
+  RequestEmailOtpTransactionChallengeArgs,
   RequestEmailOtpExportChallengeArgs,
 } from './exportRecoveryRuntime';
 import type {
@@ -182,7 +182,7 @@ async function requestEmailOtpChallengeWithRoutePlan(
 
 export async function requestTransactionSigningChallenge(
   ports: EmailOtpWorkerPorts,
-  args: RequestEmailOtpChallengeArgs,
+  args: RequestEmailOtpTransactionChallengeArgs,
 ): Promise<EmailOtpTransactionSigningChallenge> {
   const routePlan = buildTransactionSigningChallengeRoutePlan(ports, args);
   const challenge =
@@ -195,32 +195,27 @@ export async function requestTransactionSigningChallenge(
             ? { operationFingerprintDigest: args.operationFingerprintDigest }
             : {}),
         })
-      : args.kind === 'wallet_export_challenge'
-        ? await requestEmailOtpChallengeWithRoutePlan(ports, {
-            kind: 'wallet_session',
-            walletId: args.walletId,
-            routePlan,
-          })
-        : await requestEmailOtpChallengeWithRoutePlan(ports, {
-            kind: 'wallet_session',
-            walletId: args.walletSession.walletId,
-            routePlan,
-            ...(args.operationFingerprintDigest
-              ? { operationFingerprintDigest: args.operationFingerprintDigest }
-              : {}),
-          });
+      : await requestEmailOtpChallengeWithRoutePlan(ports, {
+          kind: 'wallet_session',
+          walletId: args.walletSession.walletId,
+          routePlan,
+          ...(args.operationFingerprintDigest
+            ? { operationFingerprintDigest: args.operationFingerprintDigest }
+            : {}),
+        });
   return challenge;
 }
 
 function buildTransactionSigningChallengeRoutePlan(
   ports: EmailOtpWorkerPorts,
-  args: RequestEmailOtpChallengeArgs,
+  args: RequestEmailOtpTransactionChallengeArgs,
 ): EmailOtpRoutePlan {
   switch (args.kind) {
-    case 'wallet_login_challenge':
+    case 'wallet_operation_challenge':
       return buildEmailOtpRoutePlan({
-        routeFamily: 'login',
+        routeFamily: 'operation_step_up',
         operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
+        operationCredential: args.operationCredential,
       });
     case 'wallet_session_challenge':
     case 'near_account_challenge':
@@ -231,8 +226,6 @@ function buildTransactionSigningChallengeRoutePlan(
         }),
         operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
       });
-    case 'wallet_export_challenge':
-      throw new Error('Email OTP export challenge cannot authorize transaction signing');
   }
 }
 

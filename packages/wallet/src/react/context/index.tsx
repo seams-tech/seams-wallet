@@ -6,7 +6,6 @@ import type * as React from 'react';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNearClient } from '../hooks/useNearClient';
 import { useAccountInput } from '../hooks/useAccountInput';
-import { useEagerPrewarm } from './useEagerPrewarm';
 import { useLoginStateRefresher } from './useLoginStateRefresher';
 import { useNearProvisioningStateRefresh } from './useNearProvisioningStateRefresh';
 import { useSeamsContextValue } from './useSeamsContextValue';
@@ -26,7 +25,6 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
   children,
   config,
   theme,
-  eager,
 }) => {
   const [loginState, setLoginState] = useState<LoginState>({
     isLoggedIn: false,
@@ -42,8 +40,6 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
 
   const nearClient = useNearClient();
   const seams = useMemo(() => getOrCreateSeamsManager(config, nearClient), [config, nearClient]);
-
-  useEagerPrewarm(seams, eager);
 
   useWalletIframeLifecycle({
     seams,
@@ -78,7 +74,7 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     passkeyCredentialExists,
     indexDBAccounts,
     indexDBAccountOptions,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
   } = accountInputHook;
 
@@ -111,22 +107,22 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     ],
   );
 
-  const refreshLoginState = useLoginStateRefresher({
+  const refreshSession = useLoginStateRefresher({
     seams,
     setLoginState,
-    setInputUsername,
+    setAccountName,
   });
 
   useNearProvisioningStateRefresh({
     seams,
     currentWalletId: loginState.walletId,
-    refreshLoginState,
+    refreshSession,
     refreshAccountData,
   });
 
   /* This effect is a sync channel for the provider's own theme input, not an
      override channel. Parent effects run after child effects, so a redundant
-     push here would clobber `seams.setAppearance` calls children make during
+     push here would clobber `seams.config.setAppearance` calls children make during
      mount (e.g. a demo theme switcher) — the manager was already constructed
      with `config.appearance`, so skip until the provider's input diverges from
      what the manager already has. */
@@ -155,7 +151,7 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
       return;
     }
     lastAppearancePushKeyRef.current = key;
-    seams.setAppearance(nextAppearance);
+    seams.config.setAppearance(nextAppearance);
   }, [seams, config.appearance, theme?.appearance, theme?.theme]);
 
   const value = useSeamsContextValue({
@@ -163,9 +159,9 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     loginState,
     setLoginState,
     walletIframeConnected,
-    refreshLoginState,
+    refreshSession,
     accountInputState,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
     hostSetTheme: theme?.setTheme,
   });

@@ -1,0 +1,76 @@
+{
+  "scope": "Acknowledged client preference queue, rollback, flush and signing barrier. Protocol revision ordering remains pending.",
+  "baseRevision": "5c979c59f13337c20a88b782163bb1dedd0035f2",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "d6913e88a6a5b78858b344e4e9959ae08a8883766caeedcfe71797e2339c8b11",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "fdadd269d1bb6419d2b422d38af5c7b03732f5906e2925835c434b999548bfcc",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/evmFamilyCommands.ts": "c319e0027c2cd5c7e3b1e684b24e0c583e1041760b1161dc9f8ed7dc43ad3e13",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "abde36b60aae3ceb784a3f1f3533226df98c0c4403f12cbc01c9559707a955ae",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/preferenceState.ts": "c390bf3545dcab432e06133a385703959991e39298b7d69d74e30b086cb88419",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/preferences.ts": "553a9177a239fa628dfb247c35a919113140880cfe3210bbf4a7ae0d3dbacf92",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "7da1a893327eb90ce373feaa7fad73f25959774ef751ec482b4451ae744deb31",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "fd186b53fca67852568e1148ccc8e9a06e98cfeef40e0415c99055c8d8741993",
+    "tests/wallet-iframe/preferences.queue.test.ts": "b1c08be82bc3dfc9e706ed56c340cee6f5b4ef9f4ef8a7fd120a38e86618264e"
+  },
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypes": "passed before build; production declaration build passed",
+    "walletStateTypes": "passed",
+    "intendedTypes": "passed",
+    "bloatGate": "passed",
+    "existingPreferenceBrowserCases": "5 passed",
+    "preferenceQueueBrowser": "1 passed"
+  },
+  "browserReceipt": {
+    "kind": "preference_queue_browser_v1",
+    "writes": [
+      {
+        "config": {
+          "uiMode": "drawer"
+        },
+        "walletId": "alice.testnet"
+      },
+      {
+        "config": {
+          "behavior": "skipClick"
+        },
+        "walletId": "bob.testnet"
+      }
+    ],
+    "results": {
+      "first": "Preference refused",
+      "concurrent": "Preference refused",
+      "sign": "Preference refused",
+      "dispose": "Wallet preference synchronization is disposed"
+    },
+    "signaturesDispatched": 0
+  },
+  "productionCases": [
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:39 passkey unlock restores immediate export and shared-budget signing",
+      "result": "1 passed (34.3s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "result": "1 passed (36.8s)"
+    }
+  ],
+  "fixtureCorrection": {
+    "classification": "valid_test_needs_update",
+    "failure": "Signing was disabled in the test configuration, so admission rejected before the preference barrier.",
+    "change": "Enable the existing Router A/B normal signing configuration in the test."
+  },
+  "remaining": [
+    "Protocol snapshot/event monotonic revisions",
+    "Full client runtime construction removal",
+    "Remaining worker-loading and consumer acceptance matrix"
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests type-check:intended",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/preferences.queue.test.ts wallet-iframe/preferences.sync.test.ts --project=chromium --output=../.artifacts/r170-preference-queue/browser-results",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'passkey unlock restores|page refresh hydrates'",
+    "pnpm report:bloat --check"
+  ]
+}

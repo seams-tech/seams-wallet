@@ -2,10 +2,7 @@ import {
   ROUTER_API_CREDENTIAL_SCOPES,
   type RouterApiCredentialScope,
 } from '../../framework/apiCredentialPorts';
-import {
-  WALLET_CONSOLE_OP_PATHS_V1,
-  type WalletConsolePrincipalV1,
-} from './walletConsoleOps';
+import { WALLET_CONSOLE_OP_PATHS_V1, type WalletConsolePrincipalV1 } from './walletConsoleOps';
 import { decodeWalletConsoleTenantRootActiveLineageRequestV1 } from './walletConsoleOps';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 import { failure } from '@shared/utils/failure';
@@ -42,27 +39,18 @@ export function parseStaticWalletConsoleBindingConfigV1(
   return {
     credential: {
       apiKeyId: requiredConfigText(credential.apiKeyId, 'credential.apiKeyId'),
-      publishableKey: requiredConfigText(
-        credential.publishableKey,
-        'credential.publishableKey',
-      ),
+      publishableKey: requiredConfigText(credential.publishableKey, 'credential.publishableKey'),
       ...(credential.secretKey === undefined
         ? {}
         : { secretKey: requiredConfigText(credential.secretKey, 'credential.secretKey') }),
-      allowedOrigins: requiredStringList(
-        credential.allowedOrigins,
-        'credential.allowedOrigins',
-      ),
+      allowedOrigins: requiredStringList(credential.allowedOrigins, 'credential.allowedOrigins'),
       scopes: requiredScopeList(credential.scopes),
     },
     deployment: {
       orgId: requiredConfigText(deployment.orgId, 'deployment.orgId'),
       projectId: requiredConfigText(deployment.projectId, 'deployment.projectId'),
       environmentId: requiredConfigText(deployment.environmentId, 'deployment.environmentId'),
-      environmentKey: requiredConfigText(
-        deployment.environmentKey,
-        'deployment.environmentKey',
-      ),
+      environmentKey: requiredConfigText(deployment.environmentKey, 'deployment.environmentKey'),
       signingRootVersion: requiredConfigText(
         deployment.signingRootVersion,
         'deployment.signingRootVersion',
@@ -132,13 +120,14 @@ export async function handleStaticWalletConsoleRequestV1(
   switch (new URL(request.url).pathname) {
     case WALLET_CONSOLE_OP_PATHS_V1.publishableKeyAuth:
       return publishableKeyResponse(config, body);
+    case WALLET_CONSOLE_OP_PATHS_V1.registrationContext:
+      return registrationContextResponse(config, body);
     case WALLET_CONSOLE_OP_PATHS_V1.secretKeyAuth:
       return secretKeyResponse(config, body);
     case WALLET_CONSOLE_OP_PATHS_V1.projectEnvironments:
       return projectEnvironmentsResponse(config, body);
     case WALLET_CONSOLE_OP_PATHS_V1.tenantRootActiveLineage:
       return activeLineageResponse(config, body);
-    case WALLET_CONSOLE_OP_PATHS_V1.walletProjection:
     case WALLET_CONSOLE_OP_PATHS_V1.usageEvents:
       return json({ ok: true });
     default:
@@ -161,10 +150,7 @@ function publishableKeyResponse(
       403,
     );
   }
-  if (
-    typeof body.origin !== 'string' ||
-    !config.credential.allowedOrigins.includes(body.origin)
-  ) {
+  if (typeof body.origin !== 'string' || !config.credential.allowedOrigins.includes(body.origin)) {
     return authFailure(
       'publishable_key_origin_blocked',
       'Publishable key origin is not allowed',
@@ -174,10 +160,26 @@ function publishableKeyResponse(
   return json({ ok: true, principal: principal(config) });
 }
 
-function secretKeyResponse(
+function registrationContextResponse(
   config: StaticWalletConsoleBindingConfigV1,
   value: unknown,
 ): Response {
+  const auth = publishableKeyResponse(config, value);
+  if (!auth.ok) return auth;
+  return json({ ok: true, principal: principal(config), environment: projectEnvironment(config) });
+}
+
+function projectEnvironment(config: StaticWalletConsoleBindingConfigV1) {
+  return {
+    id: config.deployment.environmentId,
+    projectId: config.deployment.projectId,
+    key: config.deployment.environmentKey,
+    signingRootVersion: config.deployment.signingRootVersion,
+    status: 'ACTIVE',
+  };
+}
+
+function secretKeyResponse(config: StaticWalletConsoleBindingConfigV1, value: unknown): Response {
   const body = record(value);
   if (!config.credential.secretKey || !body || body.secret !== config.credential.secretKey) {
     return authFailure('secret_key_invalid', 'Secret key is invalid');
@@ -221,15 +223,7 @@ function projectEnvironmentsResponse(
   }
   return json({
     ok: true,
-    environments: [
-      {
-        id: config.deployment.environmentId,
-        projectId: config.deployment.projectId,
-        key: config.deployment.environmentKey,
-        signingRootVersion: config.deployment.signingRootVersion,
-        status: 'ACTIVE',
-      },
-    ],
+    environments: [projectEnvironment(config)],
   });
 }
 

@@ -51,8 +51,8 @@ async function exportWalletKey(
 ): Promise<void> {
   const result =
     chain === 'near'
-      ? await seams.keys.exportKeypair({ kind: 'ed25519' })
-      : await seams.keys.exportKeypair({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+      ? await seams.keys.exportKey({ kind: 'ed25519' })
+      : await seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
   if (result.kind === 'relink_required') {
     throw new Error('Key export requires re-linking this device to its owner credential.');
   }
@@ -203,7 +203,7 @@ function ConfiguredWalletPlayground({
     if (value === 'square' || value === 'rounded') setShape(value);
   }, []);
   return (
-    <SeamsWebProvider eager config={config} theme={theme}>
+    <SeamsWebProvider config={config} theme={theme}>
       <TransactionReviewHost>
         {children ?? (
           <WalletPlayground workspace={workspace} page={page} shape={shape} onShapeChange={handleShapeChange} />
@@ -250,7 +250,7 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
 }
 
 async function handleAuthOutcome(
-  refreshLoginState: (walletId?: string) => Promise<void>,
+  refreshSession: (walletId?: string) => Promise<void>,
   setAuthMenu: (state: AuthMenuState) => void,
   outcome: HostedAuthMenuOutcome,
 ): Promise<void> {
@@ -259,7 +259,7 @@ async function handleAuthOutcome(
     case 'registered':
     case 'account_synced':
       try {
-        await refreshLoginState(outcome.walletId);
+        await refreshSession(outcome.walletId);
         setAuthMenu({ kind: 'closed' });
       } catch (error) {
         setAuthMenu({
@@ -300,16 +300,16 @@ function WalletPlayground({
   onShapeChange: (event: ChangeEvent<HTMLSelectElement>) => void;
 }) {
   const { seams, walletIframeConnected } = useSeams();
-  const { loginState, refreshLoginState } = useWalletAuth();
+  const { loginState, refreshSession } = useWalletAuth();
   const wallet = useWallet();
   const [signingCheck, setSigningCheck] = useState<SigningCheckState>({ kind: 'idle' });
   const [exportingKey, setExportingKey] = useState<PlaygroundExportChain | null>(null);
   const [authMenu, setAuthMenu] = useState<AuthMenuState>({ kind: 'closed' });
 
-  const refreshSession = useCallback(async () => {
+  const refreshSelectedWallet = useCallback(async () => {
     if (!loginState.isLoggedIn) return;
-    await refreshLoginState(loginState.walletId);
-  }, [loginState, refreshLoginState]);
+    await refreshSession(loginState.walletId);
+  }, [loginState, refreshSession]);
 
   const handleAccountMenuLock = useCallback(() => {
     setSigningCheck({ kind: 'idle' });
@@ -324,7 +324,7 @@ function WalletPlayground({
     if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'message' });
     try {
-      const result = await wallet.near.signNEP413Message({
+      const result = await wallet.near.signMessage({
         params: {
           message: 'Hello, Seams!',
           recipient: 'wallet-console-lite.local',
@@ -354,7 +354,7 @@ function WalletPlayground({
     if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'transaction' });
     try {
-      await seams.near.signTransactionWithActions({
+      await seams.near.signTransaction({
         transaction: {
           receiverId: wallet.near.accountId,
           actions: [transfer('0')],
@@ -434,7 +434,7 @@ function WalletPlayground({
               {authMenu.kind === 'open' ? (
                 <HostedSeamsAuthMenu
                   showProgress
-                  onOutcome={handleAuthOutcome.bind(null, refreshLoginState, setAuthMenu)}
+                  onOutcome={handleAuthOutcome.bind(null, refreshSession, setAuthMenu)}
                 />
               ) : (
                 <button
@@ -457,7 +457,7 @@ function WalletPlayground({
               signingCheck={signingCheck}
               exportingKey={exportingKey}
               canSign={wallet.status === 'ready'}
-              onRefresh={refreshSession}
+              onRefresh={refreshSelectedWallet}
               onAccountMenuLock={handleAccountMenuLock}
               onAccountMenuError={handleAccountMenuError}
               onMessageSigningCheck={runMessageSigningCheck}

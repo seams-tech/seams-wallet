@@ -27,6 +27,7 @@ type AdmissionReceipt = RouterAbEd25519YaoActivationAdmissionReceiptV1<'registra
  * that consumes it) belongs to the Router's wallet object.
  */
 export type RouterAbEd25519YaoRegistrationExecutionAuthorityV1 = {
+  readonly ownershipGeneration: number;
   readonly lifecycleId: string;
   readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
   readonly admissionReceipt: AdmissionReceipt;
@@ -55,6 +56,8 @@ export function buildRouterAbEd25519YaoRegistrationExecutionAuthorityV1(input: {
 }): RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null {
   const { lifecycleId, registration, authority, dispatchRoot } = input;
   if (
+    !Number.isSafeInteger(authority.ownershipGeneration) ||
+    authority.ownershipGeneration < 1 ||
     dispatchRoot === undefined ||
     dispatchRoot.identity.signingRootId !==
       registration.admissionRequest.application_binding.signing_root_id ||
@@ -73,6 +76,7 @@ export function buildRouterAbEd25519YaoRegistrationExecutionAuthorityV1(input: {
     return null;
   }
   return {
+    ownershipGeneration: authority.ownershipGeneration,
     lifecycleId,
     admissionRequest: registration.admissionRequest,
     admissionReceipt: registration.admissionReceipt,

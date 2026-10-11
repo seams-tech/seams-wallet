@@ -82,6 +82,7 @@ function transportConfig(
   );
   return {
     routerOrigin: coerceNonNullishString(input.httpTransport.routerOrigin, 'Yao Router origin'),
+    routing: { kind: 'discovery' },
     authorization: { kind: 'bearer', value: `Bearer ${bearerToken}` },
     fetch: input.httpTransport.fetch,
   };

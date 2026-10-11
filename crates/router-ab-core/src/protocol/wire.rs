@@ -18,10 +18,6 @@ pub enum WireMessageKindV1 {
     RouterToSignerA,
     /// Router forwarding a B-only encrypted envelope.
     RouterToSignerB,
-    /// Signer A sending a transcript-bound protocol message to Signer B.
-    SignerAToSignerB,
-    /// Signer B sending a transcript-bound protocol message to Signer A.
-    SignerBToSignerA,
     /// Encrypted recipient-scoped proof bundle for client or server delivery.
     RecipientProofBundle,
 }
@@ -32,8 +28,6 @@ impl WireMessageKindV1 {
         match self {
             Self::RouterToSignerA => "router_to_signer_a",
             Self::RouterToSignerB => "router_to_signer_b",
-            Self::SignerAToSignerB => "signer_a_to_signer_b",
-            Self::SignerBToSignerA => "signer_b_to_signer_a",
             Self::RecipientProofBundle => "recipient_proof_bundle",
         }
     }

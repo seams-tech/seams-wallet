@@ -118,6 +118,9 @@
   border-top: 1px solid var(--seams-colors-borderPrimary);
   margin-block: 0.75rem;
 }
+:where(.seams-wallet-ui) .seams-review-raw > div {
+  display: flow-root;
+}
 :where(.seams-wallet-ui) .seams-review-disclosure-driven {
   height: var(--seams-review-disclosure-height);
   overflow: hidden;
@@ -134,7 +137,7 @@
   padding: 0.75rem var(--seams-review-inset);
 }
 :where(.seams-wallet-ui) .seams-transaction-review .seams-review-detail-row--block > pre,
-:where(.seams-wallet-ui) .seams-transaction-review .seams-review-raw > pre {
+:where(.seams-wallet-ui) .seams-transaction-review .seams-review-raw > div > pre {
   background: var(--seams-colors-colorBackground);
 }
 :where(.seams-wallet-ui) .seams-review-technical summary {
@@ -156,7 +159,7 @@
   transform-origin: center;
   transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
-:where(.seams-wallet-ui) .seams-review-technical[open]:not([data-closing]) > summary > .seams-review-caret {
+:where(.seams-wallet-ui) :is(.seams-review-technical, .seams-review-raw)[open]:not([data-closing]) > summary > .seams-review-caret {
   transform: rotate(180deg);
 }
 :where(.seams-wallet-ui) .seams-review-detail {
@@ -283,7 +286,7 @@
   justify-self: end;
 }
 :where(.seams-wallet-ui) .seams-review-detail-row--block > pre,
-:where(.seams-wallet-ui) .seams-review-raw > pre {
+:where(.seams-wallet-ui) .seams-review-raw > div > pre {
   padding: 0.625rem;
   border-radius: var(--seams-shape-box, 12px);
   background: var(--seams-colors-surface2);

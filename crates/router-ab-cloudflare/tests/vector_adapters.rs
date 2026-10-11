@@ -1,12 +1,9 @@
-use router_ab_cloudflare::{
-    validate_cloudflare_deriver_peer_request_v1, validate_cloudflare_signer_private_request_v1,
-    CloudflareWorkerRoleV1,
-};
+use router_ab_cloudflare::{validate_cloudflare_signer_private_request_v1, CloudflareWorkerRoleV1};
 use router_ab_core::{
-    decode_ab_peer_message_payload_v1, decode_router_to_signer_payload_v1,
-    parse_payload_vector_fixture_v1, parse_wire_vector_fixture_v1,
-    validate_payload_vector_fixture_v1, validate_wire_vector_fixture_v1, CanonicalWireBytesV1,
-    PayloadVectorCaseV1, PublicDigest32, WireMessageKindV1, WireMessageV1,
+    decode_router_to_signer_payload_v1, parse_payload_vector_fixture_v1,
+    parse_wire_vector_fixture_v1, validate_payload_vector_fixture_v1,
+    validate_wire_vector_fixture_v1, CanonicalWireBytesV1, PayloadVectorCaseV1, PublicDigest32,
+    WireMessageKindV1, WireMessageV1,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -71,7 +68,7 @@ fn cloudflare_adapter_validates_committed_route_payload_vectors() {
         }
     }
 
-    assert_eq!(routed_cases, 4);
+    assert_eq!(routed_cases, 2);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -282,32 +279,6 @@ fn validate_payload_vector_case_through_cloudflare_adapter(case: &PayloadVectorC
                 &message,
             )
             .expect("signer b private vector");
-            true
-        }
-        WireMessageKindV1::SignerAToSignerB => {
-            let peer_payload =
-                decode_ab_peer_message_payload_v1(payload.as_bytes()).expect("peer payload");
-            let message = WireMessageV1::new(
-                case.wire_message_kind,
-                peer_payload.transcript_digest,
-                payload,
-            )
-            .expect("wire message");
-            validate_cloudflare_deriver_peer_request_v1(CloudflareWorkerRoleV1::DeriverB, &message)
-                .expect("signer b peer vector");
-            true
-        }
-        WireMessageKindV1::SignerBToSignerA => {
-            let peer_payload =
-                decode_ab_peer_message_payload_v1(payload.as_bytes()).expect("peer payload");
-            let message = WireMessageV1::new(
-                case.wire_message_kind,
-                peer_payload.transcript_digest,
-                payload,
-            )
-            .expect("wire message");
-            validate_cloudflare_deriver_peer_request_v1(CloudflareWorkerRoleV1::DeriverA, &message)
-                .expect("signer a peer vector");
             true
         }
         WireMessageKindV1::RecipientProofBundle => false,

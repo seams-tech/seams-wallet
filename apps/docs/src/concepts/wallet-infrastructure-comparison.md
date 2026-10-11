@@ -5,11 +5,11 @@ description: Compare wallet infrastructure by control, custody, cost, deployment
 
 # Wallet infrastructure comparison
 
-Wallet infrastructure choices differ on control, cost shape, deployment
-burden, and security boundary. Seams provides self-hostable threshold embedded
-wallets that deploy to Cloudflare. This comparison focuses on infrastructure
-ownership and operational model. Seams targets a hosted-grade wallet SDK and
-user experience while keeping the wallet infrastructure self-hostable.
+Wallet infrastructure choices differ in control, cost structure, deployment work, and
+security boundaries. Seams provides self-hostable threshold embedded wallets that deploy
+to Cloudflare. This comparison focuses on infrastructure ownership and operational
+model. Seams targets a hosted-grade wallet SDK and user experience while keeping the
+wallet infrastructure self-hostable.
 
 ## Comparison
 
@@ -28,9 +28,9 @@ wallet infrastructure operated by a vendor.
 
 That is a real product advantage. It also means:
 
-- production wallet infrastructure stays inside the provider boundary;
-- pricing can become a fixed operating cost before the business is profitable;
-- migration depends on the provider's export, policy, and account model;
+- production wallet infrastructure stays inside the provider boundary.
+- pricing can become a fixed operating cost before the business is profitable.
+- migration depends on the provider's export, policy, and account model.
 - deep operational customization is limited by the hosted service surface.
 
 Choose this model when vendor operation matters more than infrastructure
@@ -38,16 +38,16 @@ control.
 
 ## Self-hosted TEE stacks
 
-TEE-based wallets can provide a strong server-side isolation story. The cost is
-operational complexity.
+Wallets that use a trusted execution environment (TEE) can provide strong server-side
+isolation. Operating that environment adds complexity.
 
 Teams must manage:
 
-- enclave images and reproducible builds;
-- attestation policy;
-- KMS binding;
-- region placement;
-- rollout and rollback procedures;
+- enclave images and reproducible builds.
+- attestation policy.
+- KMS binding.
+- region placement.
+- rollout and rollback procedures.
 - uptime across the confidential-compute provider and every regional instance.
 
 That can be appropriate for teams with mature infrastructure and security
@@ -56,9 +56,8 @@ claim true after deployment.
 
 ## Seams model
 
-Seams uses threshold signing and hidden-share derivation. Normal signing
-produces signature shares; no single runtime needs to assemble the canonical
-private key.
+Seams uses threshold signing and hidden-share derivation. Normal signing produces
+signature shares. No single runtime needs to assemble the canonical private key.
 
 Strong fits include marketplaces, trading platforms, games, payout and
 remittance products, stablecoin accounts, rewards networks, shopping wallet
@@ -68,11 +67,11 @@ wallet.
 
 Seams is self-hostable and serverless-friendly:
 
-- provide hosted-grade wallet UX while retaining infrastructure control;
-- deploy Router, Deriver A, Deriver B, and SigningWorker on Cloudflare Workers;
-- store state in Durable Objects and role-specific storage;
-- start with near-zero initial hosting cost;
-- scale by sharding wallets, sessions, signing roots, and worker roles;
+- provide hosted-grade wallet UX while retaining infrastructure control.
+- deploy role gateways on Cloudflare Workers with wallet-owned Rust compute in Containers.
+- store state in Durable Objects and role-specific regional D1.
+- account for Worker, D1, Durable Object, Container, and backup usage.
+- scale by sharding wallets, sessions, signing roots, and worker roles.
 - preserve the same wallet architecture as deployments harden.
 
 ## Hardening path
@@ -86,20 +85,19 @@ Where strict A/B isolation is claimed, establish the required administration
 boundary before production use:
 
 - place Deriver A and Deriver B under independently administered Cloudflare
-  accounts; separate projects under common administration are insufficient;
-- use scoped deploy credentials per role;
-- protect GitHub and Cloudflare admins with hardware-backed MFA;
-- isolate Durable Object namespaces and role secrets;
-- add approval gates and audit logging to deploy workflows;
+  accounts. Separate projects under common administration are insufficient.
+- use scoped deploy credentials per role.
+- protect GitHub and Cloudflare admins with hardware-backed MFA.
+- isolate Durable Object namespaces and role secrets.
+- add approval gates and audit logging to deploy workflows.
 - place sensitive roles in TEEs where required.
 
 ## Positioning
 
-Seams starts serverless and hardens by separation. Teams can begin on
-Cloudflare Workers and Durable Objects for development. Production claims
-depend on the deployed isolation profile, backup custody, and release evidence.
-Tenant-root recovery and wallet portability are distinct capabilities with
-their own delivery status.
+Seams supports serverless deployments with separate runtime roles. Teams can begin on
+Cloudflare Workers and Durable Objects for development. Production claims depend on the
+deployed isolation profile, backup custody, and release evidence. Tenant-root recovery
+and wallet portability are distinct capabilities with their own delivery status.
 
 The tradeoff is straightforward: Seams spends some latency on threshold signing
 to avoid a single signing runtime and to preserve deployment flexibility.

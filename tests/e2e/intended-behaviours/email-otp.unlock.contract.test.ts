@@ -2,6 +2,8 @@ import { assertIndependentNearRegistration } from './registration-near-gate';
 import { ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1, ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 } from '@shared/utils/routerAbEd25519Yao';
 import { intendedTest as test } from './harness';
 
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 test('Email OTP registration and unlock lifecycle', async ({ harness }) => {
   await harness.registerEmailOtpWallet();
   await harness.signTempoTransaction('post_registration');

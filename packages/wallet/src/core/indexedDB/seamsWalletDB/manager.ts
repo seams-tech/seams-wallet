@@ -1,10 +1,14 @@
-import { openDB, type IDBPDatabase } from 'idb';
+import { openDB, type IDBPDatabase, type IDBPObjectStore } from 'idb';
 import {
   SEAMS_WALLET_DB_CONFIG,
   upgradeSeamsWalletDBSchema,
   type SeamsWalletDBConfig,
 } from './schema';
-import { SEAMS_WALLET_DB_NAME, type SeamsWalletStoreName } from '../schemaNames';
+import {
+  SEAMS_WALLET_DB_NAME,
+  SEAMS_WALLET_STORES,
+  type SeamsWalletStoreName,
+} from '../schemaNames';
 
 type SeamsWalletTransactionMode = 'readonly' | 'readwrite';
 
@@ -59,10 +63,140 @@ async function runIndexedDbTransactionTask<T>(
   return result;
 }
 
+type WalletAuthorityTransactionWrites = { changed: boolean };
+type WalletAuthorityStore = IDBPObjectStore<unknown, string[], string, 'readwrite'>;
+
+const WALLET_AUTHORITY_STORES: ReadonlySet<SeamsWalletStoreName> = new Set([
+  SEAMS_WALLET_STORES.walletAuthorities,
+  SEAMS_WALLET_STORES.walletAuthoritySignerMaterials,
+  SEAMS_WALLET_STORES.walletAuthorityExportRoots,
+  SEAMS_WALLET_STORES.walletAuthMethods,
+  SEAMS_WALLET_STORES.walletSelections,
+  SEAMS_WALLET_STORES.walletSessionAuthorizations,
+]);
+
+function recordWalletAuthorityWrite(
+  writes: WalletAuthorityTransactionWrites,
+  store: WalletAuthorityStore,
+  operation: Function,
+  ...args: unknown[]
+): unknown {
+  const result: unknown = Reflect.apply(operation, store, args);
+  writes.changed = true;
+  return result;
+}
+
+function walletAuthorityStoreMember(
+  writes: WalletAuthorityTransactionWrites,
+  store: WalletAuthorityStore,
+  member: string | symbol,
+): unknown {
+  const value: unknown = Reflect.get(store, member);
+  if (typeof value !== 'function') return value;
+  switch (member) {
+    case 'add':
+    case 'put':
+    case 'delete':
+    case 'clear':
+      return recordWalletAuthorityWrite.bind(null, writes, store, value);
+    default:
+      return value.bind(store);
+  }
+}
+
+function walletTransactionStore(
+  tx: SeamsWalletTransactionContext['tx'],
+  writes: WalletAuthorityTransactionWrites,
+  name: SeamsWalletStoreName,
+): WalletAuthorityStore {
+  const store: WalletAuthorityStore = tx.objectStore(name);
+  if (tx.mode === 'readonly' || !WALLET_AUTHORITY_STORES.has(name)) return store;
+  return new Proxy(store, { get: walletAuthorityStoreMember.bind(null, writes) });
+}
+
+function ignoreAbortedWalletTransaction(): void {}
+
+function openWalletAuthorityChannel(dbName: string): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  try {
+    return new BroadcastChannel(`seams-wallet-authority:${dbName}`);
+  } catch (error) {
+    console.warn('[SeamsWalletDBManager] Authority notifications are unavailable:', error);
+    return null;
+  }
+}
+
 export class SeamsWalletDBManager {
   private config: SeamsWalletDBConfig;
   private dbPromise: Promise<IDBPDatabase> | null = null;
   private disabled = false;
+  private walletAuthorityRevision = 0;
+  private walletAuthorityChannel: BroadcastChannel | null = null;
+  private readonly walletAuthorityListeners = new Set<() => void>();
+
+  onWalletAuthorityChange(listener: () => void): () => void {
+    this.walletAuthorityListeners.add(listener);
+    this.connectWalletAuthorityChannel();
+    return this.removeWalletAuthorityListener.bind(this, listener);
+  }
+
+  private removeWalletAuthorityListener(listener: () => void): void {
+    this.walletAuthorityListeners.delete(listener);
+    if (this.walletAuthorityListeners.size === 0) this.closeWalletAuthorityChannel();
+  }
+
+  getWalletAuthorityRevision(): number {
+    return this.walletAuthorityRevision;
+  }
+
+  private publishWalletAuthorityCommit(
+    writes: WalletAuthorityTransactionWrites,
+    dbName: string,
+  ): void {
+    if (!writes.changed) return;
+    if (dbName === this.config.dbName) this.invalidateWalletAuthority();
+    const channel = dbName === this.config.dbName ? this.walletAuthorityChannel : null;
+    const publisher = channel ?? openWalletAuthorityChannel(dbName);
+    if (!publisher) return;
+    try {
+      publisher.postMessage('authority_committed');
+    } catch (error) {
+      console.warn('[SeamsWalletDBManager] Authority notification failed:', error);
+    } finally {
+      if (publisher !== channel) publisher.close();
+    }
+  }
+
+  private connectWalletAuthorityChannel(): void {
+    if (this.disabled || this.walletAuthorityChannel || this.walletAuthorityListeners.size === 0)
+      return;
+    const channel = openWalletAuthorityChannel(this.config.dbName);
+    if (!channel) return;
+    channel.onmessage = this.receiveWalletAuthorityCommit.bind(this, channel);
+    this.walletAuthorityChannel = channel;
+  }
+
+  private closeWalletAuthorityChannel(): void {
+    this.walletAuthorityChannel?.close();
+    this.walletAuthorityChannel = null;
+  }
+
+  private receiveWalletAuthorityCommit(
+    channel: BroadcastChannel,
+    event: MessageEvent<unknown>,
+  ): void {
+    if (channel !== this.walletAuthorityChannel || event.data !== 'authority_committed') return;
+    this.invalidateWalletAuthority();
+  }
+
+  private invalidateWalletAuthority(): void {
+    this.walletAuthorityRevision += 1;
+    for (const listener of Array.from(this.walletAuthorityListeners)) {
+      try {
+        listener();
+      } catch {}
+    }
+  }
 
   constructor(config: SeamsWalletDBConfig = SEAMS_WALLET_DB_CONFIG) {
     this.config = config;
@@ -75,12 +209,20 @@ export class SeamsWalletDBManager {
   setDbName(dbName: typeof SEAMS_WALLET_DB_NAME | `seams_test_wallet_${string}`): void {
     if (this.config.dbName === dbName) return;
     this.close();
+    this.closeWalletAuthorityChannel();
     this.config = { ...this.config, dbName };
+    this.connectWalletAuthorityChannel();
+    this.invalidateWalletAuthority();
   }
 
   setDisabled(disabled: boolean): void {
     this.disabled = disabled;
-    if (disabled) this.close();
+    if (disabled) {
+      this.close();
+      this.closeWalletAuthorityChannel();
+    } else {
+      this.connectWalletAuthorityChannel();
+    }
   }
 
   isDisabled(): boolean {
@@ -165,13 +307,15 @@ export class SeamsWalletDBManager {
       ),
     );
     const tx = db.transaction([...stores], mode, options);
+    const writes: WalletAuthorityTransactionWrites = { changed: false };
     const context: SeamsWalletTransactionContext = {
       db,
       tx,
-      store(name) {
-        return tx.objectStore(name);
-      },
+      store: walletTransactionStore.bind(null, tx, writes),
     };
+    void tx.done
+      .then(this.publishWalletAuthorityCommit.bind(this, writes, db.name))
+      .catch(ignoreAbortedWalletTransaction);
     try {
       return await withTimeout(
         runIndexedDbTransactionTask(context, task),

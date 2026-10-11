@@ -13,22 +13,23 @@ supported browser path and its origin/RP configuration.
 
 The system consists of three layers:
 
-1. **SeamsWeb** - The regular SDK class. When the wallet iframe is enabled, its `WalletIframeCoordinator` owns the iframe connection and each operation forwards to the router
+1. **SeamsWeb** - The application SDK client. Its `WalletIframeCoordinator` owns the iframe connection and wallet execution calls forward to the router
 2. **WalletIframeRouter** - Handles communication between the main app and the iframe using MessagePort
-3. **Wallet Host** - The actual SeamsWeb running inside the iframe, executing the real operations
+3. **Wallet Host** - `WalletHostRuntime` owns execution inside the iframe. Typed host commands invoke operations through its signing surface.
 
-Calls such as `seams.registration.registerPasskey()` and
+Calls such as `seams.registration.registerWallet()` and
 `seams.evm.signTransaction()` dispatch through these layers. The parent surface
 queue manages visibility for the request and the host reports its measured UI
 size. Public progress events remain available to application callbacks.
 
-The shared `SeamsWeb` implementation currently brings host execution dependencies
-into the application bundle. Host construction also prewarms every registered
-signer-worker kind; several initialize WASM at startup. Separate NEAR/EVM/Tempo
-files therefore do not guarantee selective downloads. The application iframe-mode
-policy disables its own local worker warmup. See the
-[worker inventory and measurements](../../../../../docs/refactor-170-inventory.md)
-for exact loading triggers and the distinction between asset inventory and traffic.
+The application client contains transport, configuration, and public state. Host
+execution, wallet-origin storage, worker managers, and custody code belong to
+`WalletHostRuntime`. Fresh host construction creates no signing workers without
+selected operations or persisted work to resume. Registration preparation follows
+the selected signer set. Generic confirmation preparation does not import EVM or
+Tempo signing modules; those modules load through their selected signing operation.
+See the [worker inventory and measurements](../../../../../docs/refactor-170-inventory.md)
+for loading triggers, shared ceremony dependencies, and measurement limits.
 
 ## Architecture Overview
 
@@ -45,6 +46,8 @@ for exact loading triggers and the distinction between asset inventory and traff
   - Progress event bridging from iframe back to parent callbacks
   - Overlay show/hide logic for user activation
   - Timeout and error handling
+- **`client/inboundMessages.ts`** - Validates incoming host messages before the
+  router handles requests and session transitions.
 - **`client/transport/IframeTransport.ts`** - Low-level iframe management:
   - Creates and mounts the iframe element
   - Handles the CONNECT → READY handshake using MessageChannel
@@ -57,7 +60,7 @@ for exact loading triggers and the distinction between asset inventory and traff
 
 - **`host/index.ts`** - The main service host entry that:
   - Receives messages from the parent via MessagePort
-  - Creates and manages the actual SeamsWeb instance
+  - Creates and manages `WalletHostRuntime` through the host context
   - Executes wallet operations (register, login, sign, etc.)
   - Sends progress events back to the parent
   - Routes each request to its typed runtime handler
@@ -68,7 +71,7 @@ for exact loading triggers and the distinction between asset inventory and traff
   - Parent-to-child message types (PM_REGISTER_WALLET, PM_UNLOCK, etc.)
   - Child-to-parent response types (PROGRESS, PM_RESULT, ERROR)
   - Payload interfaces for all message types
-  - `ProgressPayload` (`WalletFlowEvent`) for real-time public flow updates
+  - Typed progress payloads for public flow updates
 
 #### 5. **Supporting Infrastructure**
 
@@ -79,7 +82,7 @@ for exact loading triggers and the distinction between asset inventory and traff
 
 ```
 Application origin                         Wallet origin
-SeamsWeb → coordinator → router             host handlers → SeamsWeb
+SeamsWeb → coordinator → router             host handlers → WalletHostRuntime
                            │                    │              │
                      IframeTransport ← port → host       signing surface
                            │                                   │
@@ -88,81 +91,31 @@ SeamsWeb → coordinator → router             host handlers → SeamsWeb
 
 ### Key Design Patterns
 
-1. **Public browser API**: application construction requires a wallet origin; direct mode is an internal host construction option. Public RPC/broadcast helpers can remain application-local.
+1. **Public browser API**: application construction requires a wallet origin. The host constructs its execution runtime separately. Public RPC/broadcast helpers can remain application-local.
 2. **Message Passing**: Wallet requests use typed messages over MessagePort; handshake and browser bridge messages also use window messaging.
 3. **Event Bridging**: Progress events flow from iframe back to parent callbacks
 4. **Overlay Management**: The parent surface queue owns request-bound visibility; progress metadata remains available to callbacks.
-5. **Component Registry**: Declarative UI component definitions with automatic wiring
 
 ### Security Model
 
 - **Origin Isolation**: Wallet operations run in a separate origin/domain
 - **Permission Delegation**: WebAuthn permissions are delegated to the iframe
-- **Message Validation**: All messages are validated using type guards
+- **Message Validation**: Boundary parsers validate message envelopes and payloads
 - **Capability Delegation**: The iframe grants WebAuthn and clipboard access via explicit `allow` attributes. Sandboxing is intentionally omitted for cross-origin deployments because Chromium drops transferred `MessagePort`s from sandboxed iframes, which would break the CONNECT → READY handshake.
 - **No Function Transfer**: Functions never cross the iframe boundary
 
-## Callback Chain for Wallet-Iframe Calls
+## Request and progress flow
 
-The callback chain follows this flow:
+1. The application command obtains the connected router from the coordinator.
+2. The router posts the typed request through its MessagePort and retains callbacks locally.
+3. The host dispatches the request to its typed handler and execution runtime.
+4. The host sends request-bound `PROGRESS` events and a final result or error.
+5. The router matches each message to the pending request and settles its promise.
 
-### 1. **SeamsWeb** (Entry Point)
-
-- Asks `WalletIframeCoordinator.requireRouter()` for the connected router and forwards the call
-- Handles hook callbacks (`afterCall`, `onError`); `onEvent` travels with the request options
-- For example, in `registerWalletDomain()` (`SeamsWeb.ts`):
-  ```typescript
-  const router = await this.walletIframe.requireRouter(walletRouterId);
-  const res = await router.registerWallet(args);
-  await args.options?.afterCall?.(true, res);
-  ```
-
-### 2. **WalletIframeRouter** (Communication Layer)
-
-- Manages the iframe and MessagePort communication
-- Posts messages to the iframe host via `this.post()` method
-- Handles progress events by bridging them back to the caller's `onEvent` callback
-- For example, in `registerWallet()`:
-  ```typescript
-  const res = await this.post<any>(
-    {
-      type: 'PM_REGISTER_WALLET',
-      payload: { wallet, rpId, authMethod, signerSelection, options: safeOptions },
-    },
-    { onProgress: payload.options?.onEvent },
-  );
-  ```
-
-### 3. **host/index.ts** (Service Host)
-
-- Receives messages via MessagePort in `onPortMessage()`
-- Creates and manages the actual SeamsWeb instance
-- Executes the requested operations (like `seams!.registration.registerPasskey()`)
-- Sends progress events back via `post({ type: 'PROGRESS', requestId, payload: ev })`
-- Returns results via `post({ type: 'PM_RESULT', requestId, payload: { ok: true, result } })`
-
-## Key Communication Flow:
-
-1. **SeamsWeb** → calls **WalletIframeRouter** method
-2. **WalletIframeRouter** → posts message to iframe via MessagePort
-3. **host/index.ts** → receives message, executes SeamsWeb operation
-4. **host/index.ts** → sends PROGRESS events during operation
-5. **WalletIframeRouter** → bridges PROGRESS events to caller's `onEvent` callback
-6. **host/index.ts** → sends final result
-7. **WalletIframeRouter** → resolves promise with result
-8. **SeamsWeb** → calls `afterCall` hook and returns result
-
-## Progress Event Bridging:
-
-The key point is that public progress events are bridged through the MessagePort:
-
-- Host sends: `{ type: 'PROGRESS', requestId, payload: ev }`
-- Client receives and calls: `pend?.onProgress?.(msg.payload)`
-- This allows the original `onEvent` callback to receive real-time progress updates
-
-`ev` is a v2 `WalletFlowEvent`. Private signer worker progress is not forwarded directly to the app; it is mapped into public flow events only when the flow intentionally exposes that state.
-
-In short: **SeamsWeb → WalletIframeRouter → posts to host/index.ts**, and progress events flow back through the same channel to provide real-time updates to the caller.
+Public progress uses `WalletFlowEvent`. Private worker progress reaches the
+application only when the operation explicitly maps it to a public event.
+Functions do not cross the iframe boundary. Operation adapters retain their
+completion and error callback contracts.
 
 ## Modal Overlay (iframe sizing behavior)
 

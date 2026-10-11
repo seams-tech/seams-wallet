@@ -1,3 +1,9 @@
+mod ed25519_settlement;
+mod ed25519_snapshot;
+mod linked_ed25519;
+pub(crate) mod package_delivery;
+mod transaction;
+
 use router_ab_core::{
     Ed25519YaoOperationV1, NormalSigningRound1PrepareResponseV1, PublicDigest32,
     RouterAbEcdsaDerivationEvmDigestSigningResponseV1, RouterAbProtocolError,
@@ -83,10 +89,10 @@ const ROUND1_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_round1 (
 /// activation here. This object keeps an activation in one record with its
 /// lifecycle and has no revocation of its own, so neither state arises
 /// otherwise; the finalization lookup reports both.
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(debug_assertions)]
 const HARNESS_FAULT_PATH: &str =
     "/router-ab/internal/signing-worker/wallet/harness-activation-fault";
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(debug_assertions)]
 const HARNESS_FAULT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS harness_activation_faults (
     active_key TEXT PRIMARY KEY,
     fault TEXT NOT NULL CHECK (fault IN ('lost', 'fenced')))";
@@ -95,6 +101,11 @@ const HARNESS_FAULT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS harness_activatio
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum SigningWorkerWalletDoRequestV1 {
     DeliverPackages(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
+    FenceEd25519(crate::SigningWorkerEd25519FenceCommandV1),
+    SettleEd25519(crate::SigningWorkerEd25519FenceCommandV1),
+    Ed25519Snapshot {
+        request: crate::SigningWorkerEd25519SnapshotCommandV1,
+    },
     PromoteRecovery(CloudflareScopedEd25519YaoRecoveryPromotionRequestV1),
     LookupRegistration(CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1),
     ReserveLinkedEd25519(CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1),
@@ -104,12 +115,37 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     ActivateLinkedEcdsa(crate::CloudflareEcdsaActivateReservationRequestV1),
     DeactivateLinkedEcdsa(crate::CloudflareEcdsaDeactivateReservationRequestV1),
     ActivateEcdsa {
+        ownership_generation: u64,
         scope: CloudflareSigningWorkerWalletScopeV1,
         activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
         material: CloudflareServerOutputMaterialRecordV1,
         activated_at_ms: u64,
     },
+    LoadEcdsaPresignActivation {
+        ownership_generation: u64,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        lookup: CloudflareActiveSigningWorkerStateLookupV1,
+    },
+    ClaimEcdsaPresignAuthority(crate::CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1),
+    RegisterLinkedPresignSession(
+        crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+    ),
+    AuthorizeLinkedPresignFence {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        presign_session_id: String,
+        server_presignature_id: String,
+        request: crate::SigningWorkerRelocationRequestV1,
+    },
+    AdmitEcdsaPresignStep(crate::CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1),
+    PublishEcdsaPresignature {
+        ownership_generation: u64,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        presign_session_id: String,
+        completed_at_ms: u64,
+        request: crate::CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
+    },
     LoadEcdsaActivation {
+        ownership_generation: u64,
         scope: CloudflareSigningWorkerWalletScopeV1,
         lookup: CloudflareActiveSigningWorkerStateLookupV1,
     },
@@ -118,12 +154,32 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
         now_unix_ms: u64,
     },
+    PrepareEcdsa {
+        request:
+            crate::CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+        now_unix_ms: u64,
+    },
     FinalizeNear {
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
         now_unix_ms: u64,
     },
+    CheckEcdsaPoolAdmission {
+        ownership_generation: u64,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+    },
+    FreezeEcdsaPool(crate::SigningWorkerPoolFreezeCommandV1),
+    ExportEcdsaSnapshot(crate::SigningWorkerEcdsaExportRequestV1),
+    ListLinkedPresignSessions(crate::SigningWorkerLinkedPresignInventoryRequestV1),
+    ListPreparingLinkedPresignSessions(
+        crate::SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+    ),
+    RecordLinkedPresignFreeze {
+        receipt: crate::SigningWorkerLinkedPresignFreezeReceiptV1,
+    },
+    TransferEcdsaSnapshot(crate::SigningWorkerEcdsaTransferRequestV1),
     EcdsaPoolMutate {
+        ownership_generation: u64,
         scope: CloudflareSigningWorkerWalletScopeV1,
         mutation: CloudflareSigningWorkerEcdsaPoolCommandV1,
     },
@@ -221,9 +277,72 @@ fn missing_error(message: &'static str) -> RouterAbProtocolError {
 }
 
 impl SigningWorkerWalletDoRequestV1 {
+    fn ownership_generation(&self) -> Result<u64, RouterAbProtocolError> {
+        let generation = match self {
+            Self::DeliverPackages(request) => request.ownership_generation,
+            Self::PromoteRecovery(request) => request.ownership_generation,
+            Self::LookupRegistration(request) => request.ownership_generation,
+            Self::ReserveLinkedEd25519(request) => request.ownership_generation,
+            Self::ActivateLinkedEd25519(request) => request.ownership_generation,
+            Self::DeactivateLinkedEd25519(request) => request.ownership_generation,
+            Self::ReserveLinkedEcdsa(request) => request.ownership_generation,
+            Self::ActivateLinkedEcdsa(request) => request.ownership_generation,
+            Self::DeactivateLinkedEcdsa(request) => request.ownership_generation,
+            Self::ActivateEcdsa {
+                ownership_generation,
+                ..
+            }
+            | Self::LoadEcdsaActivation {
+                ownership_generation,
+                ..
+            }
+            | Self::LoadEcdsaPresignActivation {
+                ownership_generation,
+                ..
+            }
+            | Self::PublishEcdsaPresignature {
+                ownership_generation,
+                ..
+            }
+            | Self::CheckEcdsaPoolAdmission {
+                ownership_generation,
+                ..
+            }
+            | Self::EcdsaPoolMutate {
+                ownership_generation,
+                ..
+            } => *ownership_generation,
+            Self::PrepareNear { request, .. } => request.ownership_generation,
+            Self::FinalizeNear { request, .. } => request.ownership_generation,
+            Self::PrepareEcdsa { request, .. } => request.ownership_generation,
+            Self::ClaimAndConsumeEcdsaEffect { request, .. }
+            | Self::CommitEcdsaTerminal { request, .. } => request.ownership_generation,
+            Self::ClaimEcdsaPresignAuthority(request) => request.authority.ownership_generation(),
+            Self::AdmitEcdsaPresignStep(request) => request.authority.ownership_generation(),
+            Self::RegisterLinkedPresignSession(request) => request.ownership_generation,
+            Self::AuthorizeLinkedPresignFence { request, .. } => request.source_generation,
+            Self::FenceEd25519(command) | Self::SettleEd25519(command) => {
+                command.request.source_generation
+            }
+            Self::Ed25519Snapshot { request } => request.ownership_generation()?,
+            Self::FreezeEcdsaPool(command) => command.request.source_generation,
+            Self::ExportEcdsaSnapshot(command) => command.receipt.request.source_generation,
+            Self::ListLinkedPresignSessions(command) => command.request.source_generation,
+            Self::ListPreparingLinkedPresignSessions(command) => command.source_generation,
+            Self::RecordLinkedPresignFreeze { receipt } => {
+                receipt.command.request.source_generation
+            }
+            Self::TransferEcdsaSnapshot(command) => command.ownership_generation()?,
+        };
+        crate::router_wallet::validate_wallet_ownership_generation(generation)?;
+        Ok(generation)
+    }
+
     fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
             Self::DeliverPackages(request) => &request.scope,
+            Self::FenceEd25519(command) | Self::SettleEd25519(command) => &command.scope,
+            Self::Ed25519Snapshot { request } => request.scope(),
             Self::PromoteRecovery(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
             Self::ReserveLinkedEd25519(request) => &request.scope,
@@ -232,17 +351,59 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ReserveLinkedEcdsa(request) => &request.scope,
             Self::ActivateLinkedEcdsa(request) => &request.scope,
             Self::DeactivateLinkedEcdsa(request) => &request.scope,
-            Self::ActivateEcdsa { scope, .. } | Self::LoadEcdsaActivation { scope, .. } => scope,
+            Self::ActivateEcdsa { scope, .. }
+            | Self::LoadEcdsaActivation { scope, .. }
+            | Self::LoadEcdsaPresignActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
-            Self::EcdsaPoolMutate { scope, .. } => scope,
+            Self::PrepareEcdsa { request, .. } => &request.wallet_scope,
+            Self::EcdsaPoolMutate { scope, .. } | Self::PublishEcdsaPresignature { scope, .. } => {
+                scope
+            }
+            Self::FreezeEcdsaPool(command) => &command.scope,
+            Self::ExportEcdsaSnapshot(command) => &command.receipt.scope,
+            Self::ListLinkedPresignSessions(command) => &command.scope,
+            Self::ListPreparingLinkedPresignSessions(command) => &command.scope,
+            Self::RecordLinkedPresignFreeze { receipt } => &receipt.command.wallet_scope,
+            Self::TransferEcdsaSnapshot(command) => command.scope(),
+            Self::CheckEcdsaPoolAdmission { scope, .. } => scope,
+            Self::ClaimEcdsaPresignAuthority(request) => request.authority.wallet_scope(),
+            Self::RegisterLinkedPresignSession(request) => &request.wallet_scope,
+            Self::AuthorizeLinkedPresignFence { scope, .. } => scope,
+            Self::AdmitEcdsaPresignStep(request) => request.authority.wallet_scope(),
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
             | Self::CommitEcdsaTerminal { scope, .. } => scope,
         }
     }
 
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
+        self.ownership_generation()?;
         match self {
+            Self::ListLinkedPresignSessions(command) => command.scope.validate(),
+            Self::ListPreparingLinkedPresignSessions(command) => command.scope.validate(),
+            Self::RecordLinkedPresignFreeze { receipt } => receipt.validate(),
+            Self::AuthorizeLinkedPresignFence {
+                scope,
+                presign_session_id,
+                server_presignature_id,
+                request,
+            } => {
+                scope.validate()?;
+                request.validate()?;
+                crate::require_non_empty("Linked presign session", presign_session_id)?;
+                crate::require_non_empty("Linked server presignature", server_presignature_id)
+            }
+            Self::RegisterLinkedPresignSession(request) => {
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
+            Self::ClaimEcdsaPresignAuthority(request) => {
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
+            Self::AdmitEcdsaPresignStep(request) => {
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
             Self::DeliverPackages(request) => request.validate(),
+            Self::FenceEd25519(command) | Self::SettleEd25519(command) => command.validate(),
+            Self::Ed25519Snapshot { request } => request.validate(),
             Self::PromoteRecovery(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
             Self::ReserveLinkedEd25519(request) => request.validate(),
@@ -256,6 +417,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 activation,
                 material,
                 activated_at_ms,
+                ..
             } => {
                 scope.validate()?;
                 activation.validate()?;
@@ -265,7 +427,8 @@ impl SigningWorkerWalletDoRequestV1 {
                 }
                 crate::require_positive_ms("ECDSA activation time", *activated_at_ms)
             }
-            Self::LoadEcdsaActivation { scope, lookup } => {
+            Self::LoadEcdsaActivation { scope, lookup, .. }
+            | Self::LoadEcdsaPresignActivation { scope, lookup, .. } => {
                 scope.validate()?;
                 lookup.validate()?;
                 if lookup.account_id != scope.wallet_id {
@@ -281,10 +444,17 @@ impl SigningWorkerWalletDoRequestV1 {
                 request.validate()?;
                 crate::require_signing_worker_normal_signing_wallet_scope_v1(
                     scope,
-                    request.wallet_scope.as_ref(),
+                    &request.wallet_scope,
                     &request.trusted_admission.metadata,
                     &request.scope.account_id,
                 )?;
+                crate::require_positive_ms("SigningWorker prepare time", *now_unix_ms)
+            }
+            Self::PrepareEcdsa {
+                request,
+                now_unix_ms,
+            } => {
+                request.validate()?;
                 crate::require_positive_ms("SigningWorker prepare time", *now_unix_ms)
             }
             Self::FinalizeNear {
@@ -295,13 +465,39 @@ impl SigningWorkerWalletDoRequestV1 {
                 request.validate()?;
                 crate::require_signing_worker_normal_signing_wallet_scope_v1(
                     scope,
-                    request.wallet_scope.as_ref(),
+                    &request.wallet_scope,
                     &request.trusted_admission.metadata,
                     &request.request.scope.account_id,
                 )?;
                 crate::require_positive_ms("SigningWorker finalize time", *now_unix_ms)
             }
-            Self::EcdsaPoolMutate { scope, mutation } => {
+            Self::FreezeEcdsaPool(command) => command.scope.validate(),
+            Self::ExportEcdsaSnapshot(command) => command.receipt.scope.validate(),
+            Self::TransferEcdsaSnapshot(command) => command.scope().validate(),
+            Self::CheckEcdsaPoolAdmission { scope, .. } => scope.validate(),
+            Self::PublishEcdsaPresignature {
+                scope,
+                presign_session_id,
+                completed_at_ms,
+                request,
+                ..
+            } => {
+                scope.validate()?;
+                crate::require_non_empty("Presign session identity", presign_session_id)?;
+                crate::require_positive_ms("Presign completion time", *completed_at_ms)?;
+                request.validate_at(crate::cloudflare_now_unix_ms_v1()?)
+            }
+            Self::EcdsaPoolMutate {
+                scope, mutation, ..
+            } => {
+                if matches!(
+                    mutation,
+                    CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable { .. }
+                ) {
+                    return Err(wallet_error(
+                        "Presign publication requires its original session identity",
+                    ));
+                }
                 scope.validate()?;
                 mutation.validate()?;
                 if scope.wallet_id != mutation.scope().wallet_id {
@@ -371,7 +567,7 @@ struct PreparedRound1V1 {
     record: CloudflareSigningWorkerRound1RecordV1,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct Round1RowV1 {
     binding_key: String,
     handle: String,
@@ -425,7 +621,7 @@ struct InsertedRowV1 {
 }
 
 /// Harness only: one lost or fenced activation, by its active key.
-#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[cfg(debug_assertions)]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct HarnessActivationFaultV1 {
@@ -446,9 +642,11 @@ impl crate::SigningWorkerWalletSqlV1 for DurableObjectWalletSqlV1<'_> {
         let values = params
             .into_iter()
             .map(|value| match value {
+                crate::SigningWorkerWalletSqlValueV1::Null => SqlStorageValue::Null,
                 crate::SigningWorkerWalletSqlValueV1::Text(value) => SqlStorageValue::String(value),
                 crate::SigningWorkerWalletSqlValueV1::Integer(value) => {
-                    SqlStorageValue::Integer(value)
+                    // SQLite column affinity restores the integer without an f64 conversion.
+                    SqlStorageValue::String(value.to_string())
                 }
             })
             .collect::<Vec<_>>();
@@ -462,17 +660,15 @@ impl crate::SigningWorkerWalletSqlV1 for DurableObjectWalletSqlV1<'_> {
 
 pub(crate) async fn call_signing_worker_wallet_do_v1(
     env: &Env,
+    wallet_objects: crate::WalletObjectRoute,
     command: SigningWorkerWalletDoRequestV1,
 ) -> Result<Response, RouterAbProtocolError> {
     command.validate()?;
-    let scope = command.scope();
-    let name = object_name(scope)?;
     let namespace = env.durable_object(BINDING).map_err(|error| {
         wallet_error(format!("SigningWorker wallet binding is missing: {error}"))
     })?;
-    let stub = namespace.get_by_name(&name).map_err(|error| {
-        wallet_error(format!("SigningWorker wallet identity is invalid: {error}"))
-    })?;
+    let stub = wallet_objects.addresses.signing_worker.stub(&namespace, wallet_objects.home)
+    .map_err(|error| wallet_error(format!("SigningWorker wallet identity is invalid: {error}")))?;
     let body = serde_json::to_string(&command).map_err(|error| {
         wallet_error(format!("SigningWorker wallet command is invalid: {error}"))
     })?;
@@ -489,22 +685,45 @@ pub(crate) async fn call_signing_worker_wallet_do_v1(
 #[worker::durable_object]
 pub struct RouterAbSigningWorkerWalletDurableObject {
     sql: SqlStorage,
-    storage: Storage,
+    storage: Rc<Storage>,
     env: Env,
+    timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
-        let storage = state.storage();
+        let storage = Rc::new(state.storage());
         Self {
+            timing: super::command_timing::WalletCommandTiming::new(state.id().to_string()),
             sql: storage.sql(),
             storage,
             env,
         }
     }
 
-    async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+    async fn fetch(&self, request: Request) -> worker::Result<Response> {
+        if request.path() == super::custody_target::OBSERVE_PATH {
+            return super::custody_target::observe_location().await;
+        }
+        let path = request.path();
+        let observation = self.timing.begin("signing_worker", path);
+        let result = self.fetch_wallet_request(request).await;
+        observation.finish(result)
+    }
+}
+
+impl RouterAbSigningWorkerWalletDurableObject {
+    async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
+        if request.path() == crate::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH {
+            return self.receive_package_delivery(request).await;
+        }
+
+        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH
+        {
+            self.initialize_schema()?;
+            return Response::from_json(&true);
+        }
+        #[cfg(debug_assertions)]
         if request.method() == worker::Method::Post && request.path() == HARNESS_FAULT_PATH {
             return self.record_harness_activation_fault(request.json().await?);
         }
@@ -515,13 +734,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         if let Err(error) = command.validate() {
             return Response::error(error.message(), 400);
         }
-        self.sql.exec(REGISTRATION_SCHEMA, None)?;
-        self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
-        self.sql.exec(LINKED_ED25519_SCHEMA, None)?;
-        self.sql.exec(ROUND1_SCHEMA, None)?;
-        for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
-            self.sql.exec(schema, None)?;
-        }
+        self.initialize_schema()?;
         match self.execute(command).await {
             Ok(response) => Ok(response),
             Err(error) => Response::error(
@@ -530,82 +743,265 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             ),
         }
     }
-}
 
-impl RouterAbSigningWorkerWalletDurableObject {
+    fn initialize_schema(&self) -> worker::Result<()> {
+        self.sql
+            .exec(crate::SIGNING_WORKER_WALLET_OWNER_SCHEMA_V1, None)?;
+        self.sql.exec(REGISTRATION_SCHEMA, None)?;
+        self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
+        self.sql.exec(LINKED_ED25519_SCHEMA, None)?;
+        self.sql.exec(ROUND1_SCHEMA, None)?;
+        self.sql
+            .exec(crate::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1, None)?;
+        self.sql
+            .exec(crate::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1, None)?;
+        self.sql
+            .exec(crate::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1, None)?;
+        self.sql.exec(ed25519_snapshot::STATE_SCHEMA, None)?;
+        self.sql.exec(ed25519_snapshot::SEGMENT_SCHEMA, None)?;
+        self.sql.exec(ed25519_snapshot::IMPORT_SCHEMA, None)?;
+        self.sql
+            .exec(ed25519_snapshot::IMPORT_SEGMENT_SCHEMA, None)?;
+        for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
+            self.sql.exec(schema, None)?;
+        }
+        Ok(())
+    }
+
     async fn execute(
         &self,
         command: SigningWorkerWalletDoRequestV1,
     ) -> Result<Response, RouterAbProtocolError> {
+        // Cleanup and capture treat every row here as one wallet's. The
+        // address that reached this object does not say whose.
+        crate::SigningWorkerWalletOwnerStoreV1::new(&DurableObjectWalletSqlV1(&self.sql))
+            .require(&object_name(command.scope())?)?;
         match command {
+            SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request } => {
+                self.with_wallet_transaction(move |wallet| wallet.ed25519_snapshot(request))
+                    .await
+            }
+            SigningWorkerWalletDoRequestV1::SettleEd25519(command) => {
+                self.with_wallet_transaction(move |wallet| wallet.settle_ed25519(command))
+                    .await
+            }
+            SigningWorkerWalletDoRequestV1::FenceEd25519(command) => {
+                self.with_wallet_transaction(move |wallet| {
+                    let sql = DurableObjectWalletSqlV1(&wallet.sql);
+                    let receipt =
+                        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).fence(command)?;
+                    Response::from_json(&receipt).map_err(sql_error)
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::DeliverPackages(request) => {
                 match request.delivery.deriver_a.binding.operation {
-                    Ed25519YaoOperationV1::Registration => self.deliver_registration(request),
-                    Ed25519YaoOperationV1::Recovery => self.deliver_recovery(request),
+                    Ed25519YaoOperationV1::Registration => self.with_wallet_transaction(move |wallet| wallet.deliver_registration(request)).await,
+                    Ed25519YaoOperationV1::Recovery => self.with_wallet_transaction(move |wallet| wallet.deliver_recovery(request)).await,
                     _ => Err(wallet_error(
                         "SigningWorker wallet object accepts registration and recovery deliveries only",
                     )),
                 }
             }
             SigningWorkerWalletDoRequestV1::PromoteRecovery(request) => {
-                self.promote_recovery(request)
+                self.with_wallet_transaction(move |wallet| wallet.promote_recovery(request))
+                    .await
             }
             SigningWorkerWalletDoRequestV1::LookupRegistration(request) => {
                 self.lookup_registration(request)
             }
             SigningWorkerWalletDoRequestV1::ReserveLinkedEd25519(request) => {
-                self.reserve_linked_ed25519(request)
+                self.with_wallet_transaction(move |wallet| wallet.reserve_linked_ed25519(request))
+                    .await
             }
             SigningWorkerWalletDoRequestV1::ActivateLinkedEd25519(request) => {
-                self.activate_linked_ed25519(request)
+                self.with_wallet_transaction(move |wallet| wallet.activate_linked_ed25519(request))
+                    .await
             }
             SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(request) => {
-                self.deactivate_linked_ed25519(request)
+                self.with_wallet_transaction(move |wallet| {
+                    wallet.deactivate_linked_ed25519(request)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::ReserveLinkedEcdsa(request) => {
-                let sql = DurableObjectWalletSqlV1(&self.sql);
-                let response = self
-                    .open_ecdsa_store(&sql)?
-                    .reserve_linked(&request, &self.server_output_key()?)?;
-                Response::from_json(&response).map_err(sql_error)
+                let server_key = self.server_output_key()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.reserve_linked(&request, &server_key)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::ActivateLinkedEcdsa(request) => {
-                let sql = DurableObjectWalletSqlV1(&self.sql);
-                let response = self.open_ecdsa_store(&sql)?.activate_linked(
-                    &request,
-                    &self.server_output_key()?,
-                    crate::cloudflare_now_unix_ms_v1()?,
-                )?;
-                Response::from_json(&response).map_err(sql_error)
+                let server_key = self.server_output_key()?;
+                let activated_at_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.activate_linked(&request, &server_key, activated_at_ms)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::DeactivateLinkedEcdsa(request) => {
-                let sql = DurableObjectWalletSqlV1(&self.sql);
-                let response = self
-                    .open_ecdsa_store(&sql)?
-                    .deactivate_linked(&request, crate::cloudflare_now_unix_ms_v1()?)?;
-                Response::from_json(&response).map_err(sql_error)
+                let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.deactivate_linked(&request, now_unix_ms)
+                })
+                .await
             }
             SigningWorkerWalletDoRequestV1::ActivateEcdsa {
                 scope,
                 activation,
                 material,
                 activated_at_ms,
-            } => self.activate_ecdsa(scope, activation, material, activated_at_ms),
-            SigningWorkerWalletDoRequestV1::LoadEcdsaActivation { scope, lookup } => {
+                ..
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.activate(scope, activation, material, activated_at_ms)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::LoadEcdsaPresignActivation {
+                scope, lookup, ..
+            } => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                self.open_ecdsa_store(&sql)?
+                    .require_mutation_admission(&scope)?;
+                self.load_ecdsa_activation(scope, lookup)
+            }
+            SigningWorkerWalletDoRequestV1::LoadEcdsaActivation { scope, lookup, .. } => {
                 self.load_ecdsa_activation(scope, lookup)
             }
             SigningWorkerWalletDoRequestV1::PrepareNear {
                 scope,
                 request,
                 now_unix_ms,
-            } => self.prepare_near(scope, request, now_unix_ms),
+            } => {
+                self.with_wallet_transaction(move |wallet| {
+                    wallet.prepare_near(scope, request, now_unix_ms)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::PrepareEcdsa {
+                request,
+                now_unix_ms,
+            } => {
+                let mut contribution = [0u8; 32];
+                contribution.copy_from_slice(&crate::cloudflare_random_bytes_v1(32)?);
+                self.with_ecdsa_transaction(move |store| {
+                    crate::prepare_signing_worker_wallet_ecdsa_from_pool_v1(
+                        store,
+                        request,
+                        now_unix_ms,
+                        contribution,
+                    )
+                })
+                .await
+            }
             SigningWorkerWalletDoRequestV1::FinalizeNear {
                 scope,
                 request,
                 now_unix_ms,
-            } => self.finalize_near(scope, request, now_unix_ms),
-            SigningWorkerWalletDoRequestV1::EcdsaPoolMutate { scope, mutation } => {
-                self.mutate_ecdsa_pool(scope, mutation)
+            } => {
+                self.with_wallet_transaction(move |wallet| {
+                    wallet.finalize_near(scope, request, now_unix_ms)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::CheckEcdsaPoolAdmission { scope, .. } => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                Response::from_json(&self.open_ecdsa_store(&sql)?.pool_admission(&scope)?)
+                    .map_err(sql_error)
+            }
+            SigningWorkerWalletDoRequestV1::ClaimEcdsaPresignAuthority(request) => {
+                let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.claim_presign_authority(&request, now_unix_ms)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::RegisterLinkedPresignSession(request) => {
+                let now_unix_ms = crate::cloudflare_now_unix_ms_v1()?;
+                self.with_ecdsa_transaction(move |store| {
+                    store.register_linked_presign_session(&request, now_unix_ms)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::AuthorizeLinkedPresignFence {
+                scope,
+                presign_session_id,
+                server_presignature_id,
+                request,
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.authorize_linked_presign_fence(
+                        &scope,
+                        &presign_session_id,
+                        &server_presignature_id,
+                        &request,
+                    )
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::PublishEcdsaPresignature {
+                scope,
+                presign_session_id,
+                completed_at_ms,
+                request,
+                ..
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    crate::admit_signing_worker_wallet_ecdsa_presignature_v1(
+                        store,
+                        &scope,
+                        &presign_session_id,
+                        completed_at_ms,
+                        request,
+                        crate::cloudflare_now_unix_ms_v1()?,
+                    )
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::AdmitEcdsaPresignStep(request) => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                self.open_ecdsa_store(&sql)?
+                    .admit_presign_step(&request, crate::cloudflare_now_unix_ms_v1()?)?;
+                Response::from_json(&()).map_err(sql_error)
+            }
+            SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command) => {
+                self.with_ecdsa_transaction(move |store| store.transfer_ecdsa_snapshot(command))
+                    .await
+            }
+            SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command) => {
+                self.with_ecdsa_transaction(move |store| store.export_ecdsa_snapshot(command))
+                    .await
+            }
+            SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze { receipt } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.record_linked_presign_freeze(receipt)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::ListPreparingLinkedPresignSessions(command) => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.list_preparing_linked_presign_sessions(command)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::ListLinkedPresignSessions(command) => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.list_relocating_linked_presign_sessions(command)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command) => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.freeze_pool_for_relocation(command.scope, command.request)
+                })
+                .await
+            }
+            SigningWorkerWalletDoRequestV1::EcdsaPoolMutate {
+                scope, mutation, ..
+            } => {
+                self.with_ecdsa_transaction(move |store| store.mutate_pool(scope, mutation))
+                    .await
             }
             SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
                 scope,
@@ -620,22 +1016,13 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 request,
                 response,
                 now_unix_ms,
-            } => self.commit_ecdsa_terminal(scope, request, response, now_unix_ms),
+            } => {
+                self.with_ecdsa_transaction(move |store| {
+                    store.commit_terminal(&scope, &request, &response, now_unix_ms)
+                })
+                .await
+            }
         }
-    }
-
-    fn activate_ecdsa(
-        &self,
-        scope: CloudflareSigningWorkerWalletScopeV1,
-        activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
-        material: CloudflareServerOutputMaterialRecordV1,
-        activated_at_ms: u64,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        let receipt =
-            self.open_ecdsa_store(&sql)?
-                .activate(scope, activation, material, activated_at_ms)?;
-        Response::from_json(&receipt).map_err(sql_error)
     }
 
     fn load_ecdsa_activation(
@@ -656,66 +1043,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
         request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
         now_unix_ms: u64,
     ) -> Result<Response, RouterAbProtocolError> {
-        let sql = self.sql.clone();
-        let env = self.env.clone();
-        let result = Rc::new(RefCell::new(None));
-        let transaction_result = Rc::clone(&result);
-        let committed = self
-            .storage
-            .transaction(move |_| async move {
-                let sql = DurableObjectWalletSqlV1(&sql);
-                let attempt = crate::SigningWorkerWalletEcdsaStoreV1::open(
-                    &sql,
-                    &crate::CloudflareWorkerEnvReaderV1::new(&env),
-                )
-                .and_then(|store| store.claim_and_consume_effect(scope, request, now_unix_ms));
-                match attempt {
-                    Ok(outcome) => {
-                        *transaction_result.borrow_mut() = Some(Ok(outcome));
-                        Ok(())
-                    }
-                    Err(error) => {
-                        let message = error.to_string();
-                        *transaction_result.borrow_mut() = Some(Err(error));
-                        Err(worker::Error::RustError(message))
-                    }
-                }
-            })
-            .await;
-        let outcome = result.borrow_mut().take();
-        match (committed, outcome) {
-            (Ok(()), Some(Ok(outcome))) => Response::from_json(&outcome).map_err(sql_error),
-            (Err(_), Some(Err(error))) => Err(error),
-            (Err(error), _) => Err(sql_error(error)),
-            (Ok(()), _) => Err(wallet_error("ECDSA claim transaction returned no outcome")),
-        }
-    }
-
-    fn commit_ecdsa_terminal(
-        &self,
-        scope: CloudflareSigningWorkerWalletScopeV1,
-        request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-        response: RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
-        now_unix_ms: u64,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        let outcome = self.open_ecdsa_store(&sql)?.commit_terminal(
-            &scope,
-            &request,
-            &response,
-            now_unix_ms,
-        )?;
-        Response::from_json(&outcome).map_err(sql_error)
-    }
-
-    fn mutate_ecdsa_pool(
-        &self,
-        scope: CloudflareSigningWorkerWalletScopeV1,
-        command: CloudflareSigningWorkerEcdsaPoolCommandV1,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let sql = DurableObjectWalletSqlV1(&self.sql);
-        let outcome = self.open_ecdsa_store(&sql)?.mutate_pool(scope, command)?;
-        Response::from_json(&outcome).map_err(sql_error)
+        self.with_ecdsa_transaction(move |store| {
+            store.claim_and_consume_effect(scope, request, now_unix_ms)
+        })
+        .await
     }
 
     fn server_output_key(
@@ -754,9 +1085,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if let Some(stored) = self.read_registration(&request.scope, &registration_key)? {
             return self.replay_registration(&request, stored);
         }
-        let candidate = combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, None)?;
-        let (material, receipt) = candidate.into_parts();
         let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?;
+        let candidate =
+            combine_signing_worker_yao_packages_v1(&self.env, &runtime, &request.delivery, None)?;
+        let (material, receipt) = candidate.into_parts();
         let activation = build_output_activation_record(&runtime, &material, &receipt)?;
         let lifecycle = SigningWorkerYaoDurableStateV1::Active {
             deriver_a: request.delivery.deriver_a.clone(),
@@ -790,6 +1122,8 @@ impl RouterAbSigningWorkerWalletDurableObject {
             ],
         ).map_err(sql_error)?.to_array::<InsertedRowV1>().map_err(sql_error)?;
         if inserted.len() == 1 && inserted[0].registration_key == registration_key {
+            let sql = DurableObjectWalletSqlV1(&self.sql);
+            crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).register(&request.scope)?;
             return Response::from_json(&http_active_receipt(receipt)).map_err(sql_error);
         }
         let existing = self
@@ -811,16 +1145,23 @@ impl RouterAbSigningWorkerWalletDurableObject {
             .recovery_attempt
             .ok_or_else(|| wallet_error("SigningWorker recovery names no attempt"))?;
         let stored = self.read_registration(&request.scope, &registration_key)?;
+        let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?;
         let settled = settle_signing_worker_yao_recovery_delivery_v1(
             stored.as_ref().map(|stored| stored.lifecycle.clone()),
             &request.delivery,
             attempt,
             |active| {
-                combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, Some(active))
+                combine_signing_worker_yao_packages_v1(
+                    &self.env,
+                    &runtime,
+                    &request.delivery,
+                    Some(active),
+                )
             },
         )?;
         let receipt = settled.receipt().clone();
         if let SigningWorkerYaoRecoveryDeliveryV1::Stage { state: staged, .. } = settled {
+            self.require_ed25519_unfenced(&request.scope)?;
             let stored = stored.ok_or_else(|| {
                 wallet_error("SigningWorker recovery staged without a stored lifecycle")
             })?;
@@ -869,6 +1210,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 Response::from_json(&http_active_receipt(receipt)).map_err(sql_error)
             }
             SigningWorkerYaoRecoveryPromotionV1::Promote { active, retired } => {
+                self.require_ed25519_unfenced(&request.scope)?;
                 let retired_state = stored.activation.active_signing_worker_state();
                 if retired_state.material_activation != *retired.binding().material_activation() {
                     return Err(wallet_error(
@@ -1020,7 +1362,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 fenced: false,
             },
         };
-        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        #[cfg(debug_assertions)]
         let snapshot = self.with_harness_activation_fault(snapshot)?;
         let result = evaluate_initial_registration_finalization_v1(&request, snapshot)?;
         Response::from_json(&result).map_err(sql_error)
@@ -1028,7 +1370,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
 
     /// Harness only: marks one stored registration's activation lost or
     /// fenced. The record itself is left as it is.
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(debug_assertions)]
     fn record_harness_activation_fault(
         &self,
         fault: HarnessActivationFaultV1,
@@ -1058,7 +1400,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
     /// Harness only: the lookup's snapshot with a recorded fault applied. A
     /// lost activation is absent; a fenced one is absent and fenced, as the
     /// role store reports an exact deactivation.
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(debug_assertions)]
     fn with_harness_activation_fault(
         &self,
         mut snapshot: CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<
@@ -1100,6 +1442,10 @@ impl RouterAbSigningWorkerWalletDurableObject {
         request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
         now_unix_ms: u64,
     ) -> Result<Response, RouterAbProtocolError> {
+        let sql = DurableObjectWalletSqlV1(&self.sql);
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_generation(&scope, request.ownership_generation)?;
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql).require_unfenced(&scope)?;
         // A prepare needs an activation that still signs, replay or not.
         let activation = self.load_near_activation(&scope, &request.material_source)?;
         let binding_key = digest_hex(request.round1_binding_digest()?);
@@ -1195,6 +1541,11 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if let Some(row) = self.read_round1("effect_operation_key", &operation_key)? {
             return replay_terminal(&request, &effect_digest_hex, &row);
         }
+        let sql = DurableObjectWalletSqlV1(&self.sql);
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_generation(&scope, request.ownership_generation)?;
+        crate::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+            .require_finalization_admission(&scope)?;
         // Before expiry: a delayed request for a retired activation is refused
         // as retired.
         let activation = self.load_near_activation(&scope, &request.material_source)?;
@@ -1226,6 +1577,11 @@ impl RouterAbSigningWorkerWalletDurableObject {
             now_unix_ms,
         )?;
         stored.record.validate_for_lookup(&lookup)?;
+        if stored.request.ownership_generation != request.ownership_generation {
+            return Err(replay_error(
+                "SigningWorker finalize generation differs from prepared round-1",
+            ));
+        }
         if stored.request.scope != request.request.scope {
             return Err(replay_error(
                 "SigningWorker finalize scope differs from prepared round-1",
@@ -1295,226 +1651,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
             .read_round1("effect_operation_key", &operation_key)?
             .ok_or_else(|| wallet_error("SigningWorker terminal write is uncertain"))?;
         replay_terminal(&request, &effect_digest_hex, &row)
-    }
-
-    /// Reserves a linked device's Ed25519 material from this wallet's source
-    /// activation, which must be the wallet's active registration material
-    /// or an active linked device's. This object is the one the request's
-    /// wallet scope names, so the source activation it finds is that
-    /// wallet's. The same request answers again.
-    fn reserve_linked_ed25519(
-        &self,
-        request: CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let delivery = &request.delivery;
-        let record_key = reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)?;
-        let reservation_id =
-            source_preserving_reservation_id_v1(&request.source_binding, delivery)?;
-        let stored = self.read_linked_ed25519(&request.scope, &record_key)?;
-        if let LinkedEd25519ReservationV1::Answer(answer) = settle_linked_ed25519_reservation_v1(
-            stored.as_ref().map(|stored| &stored.state),
-            &reservation_id,
-            delivery,
-            request.participant_ids,
-            &request.deriver_a_client_package,
-            &request.deriver_b_client_package,
-        )? {
-            return Response::from_json(&answer).map_err(sql_error);
-        }
-        let source =
-            self.linked_ed25519_source_material(&request.scope, &request.source_binding)?;
-        let (candidate, receipt) =
-            combine_signing_worker_yao_packages_v1(&self.env, delivery, Some(&source))?
-                .into_parts();
-        let state = SigningWorkerYaoReservationStateV1::Inactive {
-            delivery: delivery.clone(),
-            participant_ids: request.participant_ids,
-            deriver_a_client_package: request.deriver_a_client_package.clone(),
-            deriver_b_client_package: request.deriver_b_client_package.clone(),
-            candidate,
-            receipt: receipt.clone(),
-            reservation_id: reservation_id.clone(),
-        };
-        state.validate()?;
-        let owner_json = serde_json::to_string(&request.scope).map_err(|error| {
-            wallet_error(format!("SigningWorker wallet owner is invalid: {error}"))
-        })?;
-        let ciphertext = self.seal_linked_ed25519(
-            &request.scope,
-            &record_key,
-            &WalletLinkedEd25519V1 {
-                state,
-                activation: None,
-            },
-        )?;
-        let inserted = self.sql.exec(
-            "INSERT INTO wallet_linked_ed25519 (record_key, active_key, owner_json, ciphertext_json)
-             VALUES (?, NULL, ?, ?) ON CONFLICT DO NOTHING RETURNING record_key AS registration_key",
-            vec![
-                SqlStorageValue::String(record_key.clone()),
-                SqlStorageValue::String(owner_json),
-                SqlStorageValue::String(ciphertext),
-            ],
-        ).map_err(sql_error)?.to_array::<InsertedRowV1>().map_err(sql_error)?;
-        if inserted.len() != 1 {
-            return Err(wallet_error(
-                "SigningWorker linked Ed25519 reservation write is uncertain",
-            ));
-        }
-        Response::from_json(&CloudflareEd25519YaoInactiveReservationResponseV1 {
-            state: "inactive".to_owned(),
-            reservation_id,
-            participant_ids: request.participant_ids,
-            activation_receipt: public_activation_receipt_v1(
-                &delivery.deriver_a.binding,
-                &receipt,
-            )?,
-            deriver_a_client_package: request.deriver_a_client_package,
-            deriver_b_client_package: request.deriver_b_client_package,
-        })
-        .map_err(sql_error)
-    }
-
-    /// Activates a linked device's reserved Ed25519 material. In one write
-    /// its row becomes active and names the activation normal signing finds.
-    /// A retired activation never activates, and an active one answers again.
-    fn activate_linked_ed25519(
-        &self,
-        request: CloudflareEd25519YaoActivateReservationRequestV1,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let record_key = reservation_record_key_from_binding_v1(&request.binding)?;
-        let stored = self
-            .read_linked_ed25519(&request.scope, &record_key)?
-            .ok_or_else(|| lifecycle_error("ordinary Ed25519 material reservation is missing"))?;
-        let receipt = match settle_linked_ed25519_activation_v1(&stored.state, &request)? {
-            LinkedEd25519ActivationV1::Answer(receipt) => receipt,
-            LinkedEd25519ActivationV1::Activate => {
-                let SigningWorkerYaoReservationStateV1::Inactive {
-                    delivery,
-                    participant_ids,
-                    deriver_a_client_package,
-                    deriver_b_client_package,
-                    candidate,
-                    receipt,
-                    reservation_id,
-                } = stored.state
-                else {
-                    return Err(wallet_error(
-                        "SigningWorker linked Ed25519 reservation is in a state this object never writes",
-                    ));
-                };
-                let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?;
-                let activation = build_output_activation_record(&runtime, &candidate, &receipt)?;
-                let next_active_key = active_key(activation.active_signing_worker_state());
-                if self.activation_retired(&next_active_key)? {
-                    return Err(signing_worker_activation_retired_error_v1());
-                }
-                let next = WalletLinkedEd25519V1 {
-                    state: SigningWorkerYaoReservationStateV1::Active {
-                        delivery,
-                        participant_ids,
-                        deriver_a_client_package,
-                        deriver_b_client_package,
-                        candidate,
-                        receipt: receipt.clone(),
-                        reservation_id,
-                    },
-                    activation: Some(activation),
-                };
-                let ciphertext = self.seal_linked_ed25519(&request.scope, &record_key, &next)?;
-                let updated = self.sql.exec(
-                    "UPDATE wallet_linked_ed25519 SET active_key = ?, ciphertext_json = ?
-                     WHERE record_key = ? AND active_key IS NULL RETURNING record_key AS registration_key",
-                    vec![
-                        SqlStorageValue::String(next_active_key),
-                        SqlStorageValue::String(ciphertext),
-                        SqlStorageValue::String(record_key),
-                    ],
-                ).map_err(sql_error)?.to_array::<InsertedRowV1>().map_err(sql_error)?;
-                if updated.len() != 1 {
-                    return Err(wallet_error(
-                        "SigningWorker linked Ed25519 reservation changed while it was activated",
-                    ));
-                }
-                receipt
-            }
-        };
-        Response::from_json(&CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
-            .map_err(sql_error)
-    }
-
-    /// Revokes a linked device's Ed25519 material. In one write its row is
-    /// revoked, its activation dropped and its key retired, so no delayed
-    /// request signs with it again. The same revocation answers again.
-    fn deactivate_linked_ed25519(
-        &self,
-        request: CloudflareEd25519YaoDeactivateReservationRequestV1,
-    ) -> Result<Response, RouterAbProtocolError> {
-        let record_key =
-            reservation_record_key_from_material_activation_v1(&request.material_activation)?;
-        let stored = self
-            .read_linked_ed25519(&request.scope, &record_key)?
-            .ok_or_else(|| lifecycle_error("ordinary Ed25519 material reservation is missing"))?;
-        let (binding, reservation_id, revoked_at_ms, revoke) =
-            match settle_linked_ed25519_deactivation_v1(
-                &stored.state,
-                &request.material_activation,
-            )? {
-                LinkedEd25519DeactivationV1::Revoked {
-                    binding,
-                    reservation_id,
-                    revoked_at_ms,
-                } => (binding, reservation_id, revoked_at_ms, false),
-                LinkedEd25519DeactivationV1::Resume {
-                    binding,
-                    reservation_id,
-                    revoked_at_ms,
-                } => (binding, reservation_id, revoked_at_ms, true),
-                LinkedEd25519DeactivationV1::Revoke {
-                    binding,
-                    reservation_id,
-                } => (
-                    binding,
-                    reservation_id,
-                    crate::cloudflare_now_unix_ms_v1()?,
-                    true,
-                ),
-            };
-        if revoke {
-            let next = WalletLinkedEd25519V1 {
-                state: SigningWorkerYaoReservationStateV1::Revoked {
-                    binding: binding.clone(),
-                    reservation_id: reservation_id.clone(),
-                    revoked_at_ms,
-                },
-                activation: None,
-            };
-            let ciphertext = self.seal_linked_ed25519(&request.scope, &record_key, &next)?;
-            self.sql.exec(
-                "UPDATE wallet_linked_ed25519 SET active_key = NULL, ciphertext_json = ? WHERE record_key = ?",
-                vec![
-                    SqlStorageValue::String(ciphertext),
-                    SqlStorageValue::String(record_key.clone()),
-                ],
-            ).map_err(sql_error)?;
-            self.sql
-                .exec(
-                    "INSERT INTO wallet_retired_activations (active_key, registration_key)
-                 VALUES (?, ?) ON CONFLICT DO NOTHING",
-                    vec![
-                        SqlStorageValue::String(active_output_key_v1(&request.material_activation)),
-                        SqlStorageValue::String(record_key),
-                    ],
-                )
-                .map_err(sql_error)?;
-        }
-        Response::from_json(&CloudflareEd25519YaoReservationDeactivationResponseV1 {
-            state: "revoked",
-            reservation_id,
-            material_activation: binding.material_activation,
-            revoked_at_ms,
-        })
-        .map_err(sql_error)
     }
 
     /// The material a linked device's reservation is made from: the wallet's

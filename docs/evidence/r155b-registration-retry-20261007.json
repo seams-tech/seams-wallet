@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-07",
+  "scope": "Local composed production Gateway and D1 registration with real browser MPC signing. No hosted latency claim.",
+  "result": {
+    "scope": "The harness discards the committed provisioning reply and retries the identical request before delivering the replay to the SDK.",
+    "statuses": [
+      200,
+      200
+    ],
+    "sameWalletAndSigner": true,
+    "unchangedBudgetAndOperations": true,
+    "verifiedSignatures": 3,
+    "attemptedConsoleCalls": 0
+  },
+  "routing": {
+    "status": 200,
+    "code": null,
+    "consolePaths": []
+  },
+  "checks": {
+    "browser": "1 passed (56.0s)",
+    "localSessionRouting": "passed",
+    "walletTypecheck": "passed",
+    "serverTypecheck": "passed",
+    "sdkBuild": "passed",
+    "serverBuild": "passed",
+    "bloat": "passed"
+  },
+  "command": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server SEAMS_INTENDED_WALLET_DIST_ROOT=/Users/pta/Dev/rust/seams-wallet/.artifacts/r155b-registration-retry/final-dist SEAMS_INTENDED_SKIP_BUILD=1 /Users/pta/.nvm/versions/node/v24.18.0/bin/node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"NEAR provisioning reply loss\"",
+  "limitations": [
+    "Harness retries the committed request before delivering its result; SDK automatic network retry is not exercised.",
+    "Mixed wallet with an existing session; excludes initial setup and NEAR-only registration without a session.",
+    "Persisted recovery callers use the same corrected header builder and pass typechecking; browser reload recovery is not exercised here.",
+    "No custody relocation or post-MPC writer retirement proof."
+  ],
+  "initialFailures": [
+    "Missing region hint required unavailable Console discovery (503).",
+    "After adding the hint, already-published registration completion still called find-by-ceremony (400 internal).",
+    "Byte equality assertion was inappropriate for responses with fresh session sealing; final assertions cover immutable wallet/signer fields and unchanged budget/operation records.",
+    "Local session cancellation assertion expected a retired SQL error; current production rejects earlier for closed execution generation."
+  ]
+}

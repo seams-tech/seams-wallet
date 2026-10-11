@@ -20,18 +20,6 @@ test.describe('buildConfigsFromEnv hosted wallet origin semantics', () => {
     ).toThrow(/SEAMS_HOSTED_WALLET_ORIGIN_REQUIRED/);
   });
 
-  test('allows direct wallet mode only through the wallet-host internal boundary', async () => {
-    const cfg = buildConfigsFromEnv(
-      {
-        relayer: { url: 'https://relay.example' },
-        iframeWallet: { walletOrigin: '' },
-      },
-      { allowDirectWalletMode: 'wallet_host' },
-    );
-    expect(cfg.wallet.mode).toBe('direct');
-    expect('origin' in cfg.wallet.iframe).toBe(false);
-  });
-
   test('rejects omitted iframeWallet instead of selecting direct browser mode', async () => {
     expect(() =>
       buildConfigsFromEnv({

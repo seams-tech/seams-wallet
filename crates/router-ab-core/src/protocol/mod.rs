@@ -71,19 +71,16 @@ pub use self::ed25519_yao_outer::{
     ED25519_YAO_OUTER_NONCE_LEN_V2, ED25519_YAO_OUTER_TARGET_PROOF_MAX_BYTES_V2,
 };
 pub use self::ed25519_yao_pair_lifecycle::{
-    admit_ed25519_yao_pair_start_v1, burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1,
-    complete_ed25519_yao_pair_v1, expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1,
-    reserve_ed25519_yao_pair_v1, Ed25519YaoPairClaimIdentityV1, Ed25519YaoPairRecordV1,
-    Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
-    Ed25519YaoPairStartDecisionV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
-    Ed25519YaoPreparedPairStartV1, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1,
+    burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
+    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, release_ed25519_yao_pair_v1,
+    reserve_ed25519_yao_pair_v1, Ed25519YaoPairExecutorV1, Ed25519YaoPairRecordV1,
+    Ed25519YaoPairRejectionV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
 };
 pub use self::ed25519_yao_router::{
     ed25519_yao_encrypted_input_digest_v1, ed25519_yao_input_pair_digest_v1,
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyIdentityV1, Ed25519YaoCircuitIdV1,
     Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoProtocolIdV1,
-    Ed25519YaoRecoveryAttemptV1, Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleSignatureSchemeV1,
-    Ed25519YaoRoleSignatureV1, Ed25519YaoRoleStartAcceptanceV1, RouterAdmittedExecutionAuthorityV1,
+    Ed25519YaoRecoveryAttemptV1, RouterAdmittedExecutionAuthorityV1,
     RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
     RouterEd25519YaoExecuteRequestV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
@@ -91,7 +88,7 @@ pub use self::ed25519_yao_router::{
     ED25519_YAO_LANE_MATERIALIZATION_CIRCUIT_ID_V1, ED25519_YAO_PROTOCOL_ID_V1,
 };
 pub use self::engine::{
-    AuditEventV1, AuditSink, Clock, Csprng, DeriverAEngine, DeriverBEngine, PeerTransport,
+    AuditEventV1, AuditSink, Clock, Csprng, DeriverAEngine, DeriverBEngine,
     RouterAbEcdsaDerivationExplicitExportAuditDecisionV1, SignerKeyStore, SigningRootShareStore,
 };
 pub use self::envelope::{
@@ -125,10 +122,10 @@ pub use self::local::{
     LocalRouterDispatchV1, LocalRouterEndpointV1, LocalRouterRecipientProofBundleResponseV1,
     LocalRouterServiceV1, LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1,
     LocalServiceStartupV1, LocalSignerEnvelopeDecryptorV1, LocalSignerHandlerContextV1,
-    LocalSignerHandlerOutputV1, LocalSignerRecipientProofBundleResponseV1,
-    LocalSigningRootMetadataV1, LocalSigningWorkerActivationReceiptV1,
-    LocalSigningWorkerEndpointV1, LocalSigningWorkerRecipientProofBundleActivationV1,
-    LocalSigningWorkerServiceV1, LocalTransportEnvelopeV1, LocalTransportRouteV1,
+    LocalSignerRecipientProofBundleResponseV1, LocalSigningRootMetadataV1,
+    LocalSigningWorkerActivationReceiptV1, LocalSigningWorkerEndpointV1,
+    LocalSigningWorkerRecipientProofBundleActivationV1, LocalSigningWorkerServiceV1,
+    LocalTransportEnvelopeV1, LocalTransportRouteV1,
 };
 pub use self::normal_signing::{
     derive_router_ab_ed25519_normal_signing_admission_material_v2,
@@ -166,29 +163,22 @@ pub use self::output::{
     RECIPIENT_OUTPUT_CIPHERTEXT_NONCE_LEN_V1,
 };
 pub use self::payload::{
-    ab_peer_message_authentication_input_digest_v1, ab_peer_message_payload_digest_v1,
-    build_mpc_prf_signer_partial_input_v1, decode_ab_peer_message_payload_v1,
-    decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
-    decode_ecdsa_threshold_prf_proof_batch_payload_v1, decode_mpc_prf_stable_proof_bundle_wire_v2,
+    build_mpc_prf_signer_partial_input_v1, decode_ecdsa_threshold_prf_proof_batch_payload_v1,
+    decode_mpc_prf_stable_proof_bundle_wire_v2,
     decode_mpc_prf_stable_recipient_proof_bundle_payload_v2,
     decode_recipient_proof_bundle_payload_v1, decode_router_to_signer_payload_v1,
     ecdsa_threshold_prf_proof_batch_payload_digest_v1,
-    encode_ab_peer_message_authentication_input_v1, encode_ab_peer_message_payload_v1,
     encode_ecdsa_threshold_prf_proof_batch_payload_v1, encode_mpc_prf_stable_proof_bundle_wire_v2,
     encode_mpc_prf_stable_recipient_proof_bundle_payload_v2,
     encode_recipient_proof_bundle_payload_v1, encode_router_to_signer_payload_v1,
     mpc_prf_stable_recipient_proof_bundle_payload_digest_v2,
     recipient_proof_bundle_payload_digest_v1, router_to_signer_payload_digest_v1,
     router_transcript_binding_v1, router_transcript_digest_v1,
-    sign_ab_peer_message_ed25519_authentication_v1,
-    sign_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
-    validate_signer_input_plaintext_binding_v1, verify_ab_peer_message_ed25519_signature_v1,
-    verify_mpc_prf_stable_recipient_proof_bundle_payload_v2, AbPeerMessageAuthenticationV1,
-    AbPeerMessagePayloadV1, AbPeerMessageSignatureSchemeV1, AbPeerMessageVerifyingKeyV1,
-    EcdsaThresholdPrfProofBatchPayloadV1, MpcPrfStableProofBundleWireV2,
-    MpcPrfStableRecipientProofBundlePayloadV2, RecipientProofBundlePayloadV1,
-    RouterEnvelopeDigestSetV1, RouterToSignerPayloadV1, RouterTranscriptMetadataV1,
-    SigningWorkerActivationContextV1,
+    validate_signer_input_plaintext_binding_v1,
+    verify_mpc_prf_stable_recipient_proof_bundle_payload_v2, EcdsaThresholdPrfProofBatchPayloadV1,
+    MpcPrfStableProofBundleWireV2, MpcPrfStableRecipientProofBundlePayloadV2,
+    RecipientProofBundlePayloadV1, RouterEnvelopeDigestSetV1, RouterToSignerPayloadV1,
+    RouterTranscriptMetadataV1, SigningWorkerActivationContextV1,
 };
 pub use self::router_ab_ecdsa_derivation::{
     parse_router_ab_ecdsa_derivation_activation_refresh_request_v1_json,

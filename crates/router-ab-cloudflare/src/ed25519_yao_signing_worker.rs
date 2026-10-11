@@ -1,3 +1,6 @@
+#[cfg(feature = "workers-rs")]
+pub(crate) mod package_delivery;
+
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
     Ed25519YaoEncryptedPackageV1, Ed25519YaoOperationV1, Ed25519YaoPackageKindV1,
@@ -97,12 +100,15 @@ impl CloudflareEd25519YaoRecoveryPromotionRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub promotion: CloudflareEd25519YaoRecoveryPromotionRequestV1,
 }
 
 impl CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.promotion.validate()?;
         if self.scope.wallet_id != self.promotion.binding.lifecycle.account_id {
@@ -124,6 +130,8 @@ pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
     /// The Gateway's attempt a recovery's packages come from, as the Router
@@ -133,6 +141,7 @@ pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
 
 impl CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.delivery.validate()?;
         if self.scope.wallet_id != self.delivery.deriver_a.binding.lifecycle.account_id {
@@ -176,6 +185,8 @@ impl CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+    pub wallet_route: crate::WalletObjectRoute,
+    pub ownership_generation: u64,
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
     pub deriver_a_client_package: Ed25519YaoEncryptedPackageV1,
@@ -184,6 +195,7 @@ pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
 
 impl CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.scope.validate()?;
         self.delivery.validate()?;
         let binding = &self.delivery.deriver_a.binding;
@@ -252,6 +264,7 @@ impl CloudflareEd25519YaoInactiveReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet whose material the reservation is made from. The Router
     /// derives it from the tenant root the execution was admitted under.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -264,6 +277,7 @@ pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 
 impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.source_binding.validate()?;
         if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -299,6 +313,7 @@ impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoActivateReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet the reserved material belongs to, from the Gateway's
     /// authorized installation.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -308,6 +323,7 @@ pub struct CloudflareEd25519YaoActivateReservationRequestV1 {
 
 impl CloudflareEd25519YaoActivateReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.binding.validate()?;
         if self.binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -327,6 +343,7 @@ impl CloudflareEd25519YaoActivateReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoDeactivateReservationRequestV1 {
+    pub ownership_generation: u64,
     /// The wallet the reserved material belongs to, from the Gateway's
     /// authorized revocation.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -335,6 +352,7 @@ pub struct CloudflareEd25519YaoDeactivateReservationRequestV1 {
 
 impl CloudflareEd25519YaoDeactivateReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.material_activation.validate()?;
         self.scope.validate()?;
         if self.scope.wallet_id != self.material_activation.material_owner {
@@ -658,19 +676,20 @@ impl SigningWorkerYaoReservationStateV1 {
 
 #[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
-    mut request: Request,
+    request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+    return crate::durable_object::signing_worker_wallet::package_delivery::forward(request, env)
+        .await;
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
+    let mut request = request;
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let scoped =
         parse_request::<CloudflareScopedEd25519YaoPackagePairDeliveryV1>(&mut request).await?;
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     scoped.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
-    return crate::durable_object::call_signing_worker_wallet_do_v1(
-        env,
-        crate::durable_object::SigningWorkerWalletDoRequestV1::DeliverPackages(scoped),
-    )
-    .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = execute_signing_worker_yao_command(
         env,
         SigningWorkerYaoCommandV1::DeliverPackages {
@@ -679,7 +698,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
         },
     )
     .await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&http_response_from_command(response)?)
 }
 
@@ -694,15 +713,16 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_f
         )
         .await?;
     lookup.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        lookup.wallet_route,
         crate::durable_object::SigningWorkerWalletDoRequestV1::LookupRegistration(lookup),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = read_initial_registration_finalization_v1(env, &lookup).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&response)
 }
 
@@ -803,13 +823,14 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
     let scoped =
         parse_request::<CloudflareScopedEd25519YaoRecoveryPromotionRequestV1>(&mut request).await?;
     scoped.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        scoped.wallet_route,
         crate::durable_object::SigningWorkerWalletDoRequestV1::PromoteRecovery(scoped),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = execute_signing_worker_yao_command(
         env,
         SigningWorkerYaoCommandV1::PromoteRecovery {
@@ -817,7 +838,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
         },
     )
     .await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&http_response_from_command(response)?)
 }
 
@@ -858,13 +879,14 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
     reservation.validate()?;
     // A linked device's material is reserved, activated and revoked with the
     // wallet's own material, in the wallet object.
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEd25519(reservation),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let (
         reservation_id,
         participant_ids,
@@ -872,7 +894,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
         deriver_a_client_package,
         deriver_b_client_package,
     ) = reserve_source_preserving_inactive_ed25519_yao_v1(env, &reservation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&CloudflareEd25519YaoInactiveReservationResponseV1 {
         state: "inactive".to_owned(),
         reservation_id,
@@ -891,15 +913,16 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v
     let activation =
         parse_request::<CloudflareEd25519YaoActivateReservationRequestV1>(&mut request).await?;
     activation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEd25519(activation),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let receipt = activate_ed25519_yao_reservation_v1(env, &activation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
 }
 
@@ -911,17 +934,18 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation
     let deactivation =
         parse_request::<CloudflareEd25519YaoDeactivateReservationRequestV1>(&mut request).await?;
     deactivation.validate()?;
-    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     return crate::durable_object::call_signing_worker_wallet_do_v1(
         env,
+        crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(
             deactivation,
         ),
     )
     .await;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     let response = deactivate_ed25519_yao_reservation_v1(env, &deactivation).await?;
-    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
     json_response(&response)
 }
 
@@ -1247,7 +1271,7 @@ async fn reserve_inactive_ed25519_yao_v1(
     .await
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 #[cfg(feature = "workers-rs")]
 async fn reserve_source_preserving_inactive_ed25519_yao_v1(
     env: &Env,
@@ -1317,9 +1341,19 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
         let candidate = match source_binding {
             Some(source_binding) => {
                 let source = load_source_active_material_v1(env, source_binding).await?;
-                combine_signing_worker_yao_packages_v1(env, delivery, Some(&source))?
+                combine_signing_worker_yao_packages_v1(
+                    env,
+                    &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                    delivery,
+                    Some(&source),
+                )?
             }
-            None => combine_signing_worker_yao_packages_v1(env, delivery, None)?,
+            None => combine_signing_worker_yao_packages_v1(
+                env,
+                &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                delivery,
+                None,
+            )?,
         };
         let (candidate, receipt) = candidate.into_parts();
         let state = SigningWorkerYaoReservationStateV1::Inactive {
@@ -1359,7 +1393,7 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
     ))
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 #[cfg(feature = "workers-rs")]
 async fn activate_ed25519_yao_reservation_v1(
     env: &Env,
@@ -1530,7 +1564,7 @@ async fn activate_ed25519_yao_reservation_v1(
     ))
 }
 
-#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
 #[cfg(feature = "workers-rs")]
 async fn deactivate_ed25519_yao_reservation_v1(
     env: &Env,
@@ -1649,8 +1683,15 @@ pub(crate) async fn require_ed25519_material_active_v1(
     else {
         return Ok(());
     };
-    current.value.validate()?;
-    match current.value {
+    validate_ed25519_material_active_v1(&current.value, material_activation)
+}
+
+pub(crate) fn validate_ed25519_material_active_v1(
+    state: &SigningWorkerYaoReservationStateV1,
+    material_activation: &router_ab_core::MpcMaterialActivationRefV1,
+) -> RouterAbProtocolResult<()> {
+    state.validate()?;
+    match state {
         SigningWorkerYaoReservationStateV1::Active { delivery, .. }
             if delivery.deriver_a.binding.material_activation == *material_activation =>
         {
@@ -2323,7 +2364,8 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
 ) -> RouterAbProtocolResult<SigningWorkerYaoCommandResponseV1> {
     match (delivery.deriver_a.binding.operation, current) {
         (Ed25519YaoOperationV1::Registration, None) => {
-            let candidate = combine_signing_worker_yao_packages_v1(env, delivery, None)?;
+            let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?;
+            let candidate = combine_signing_worker_yao_packages_v1(env, &runtime, delivery, None)?;
             let (candidate, receipt) = candidate.into_parts();
             let staged = SigningWorkerYaoDurableStateV1::RegistrationStaged {
                 deriver_a: delivery.deriver_a.clone(),
@@ -2390,7 +2432,14 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
                 current,
                 delivery,
                 attempt,
-                |active| combine_signing_worker_yao_packages_v1(env, delivery, Some(active)),
+                |active| {
+                    combine_signing_worker_yao_packages_v1(
+                        env,
+                        &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                        delivery,
+                        Some(active),
+                    )
+                },
             )?;
             let receipt = settled.receipt().clone();
             if let SigningWorkerYaoRecoveryDeliveryV1::Stage { state, .. } = settled {
@@ -2447,10 +2496,10 @@ async fn execute_signing_worker_yao_promotion_d1_transition_v1(
 #[cfg(feature = "workers-rs")]
 pub(crate) fn combine_signing_worker_yao_packages_v1(
     env: &Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
     active: Option<&Ed25519YaoActiveSigningMaterialV1>,
 ) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1> {
-    let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?;
     let private_key = load_cloudflare_server_output_hpke_private_key_bytes_v1(
         env,
         runtime.server_output_decrypt_key(),
@@ -2891,6 +2940,7 @@ mod tests {
         );
         let delivery = source_preserving_test_delivery(target_binding.clone());
         let request = CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+            ownership_generation: 1,
             scope: CloudflareSigningWorkerWalletScopeV1::new(
                 "org",
                 "project",

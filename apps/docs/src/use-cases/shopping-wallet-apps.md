@@ -5,9 +5,8 @@ description: Build a user-facing wallet that holds stablecoins and pays independ
 
 # Shopping wallet apps
 
-A shopping wallet is a user-facing application, such as an iOS wallet, that
-holds stablecoins or other supported assets and helps its owner pay across many
-independent merchants.
+A shopping wallet is an application, such as an iOS wallet, that holds stablecoins or
+other supported assets. It helps its owner pay independent merchants.
 
 The wallet can choose the payment rail that the merchant supports:
 
@@ -30,13 +29,13 @@ issuing a card solely so a shopper can use it at that same store.
 - allocate a bounded reserve before enabling card spending
 - expose authorization, capture, reversal, refund, freeze, and close states
 - disclose fees, exchange rates, provider limits, and reserve-release timing
-- keep PAN and CVV inside provider-hosted secure surfaces
+- keep the card number (PAN) and security code (CVV) inside the provider's secure hosted UI
 - reconcile wallet, issuer, and settlement evidence without duplicating value
 
 Virtual-card issuance adds cardholder onboarding, fraud, chargebacks, liquidity,
-support, reconciliation, and regulatory responsibilities. It is an optional
-product for qualified wallet operators with demonstrated external-spending
-demand.
+support, reconciliation, and regulatory responsibilities. It is optional. It suits
+qualified wallet operators whose users need to spend at external merchants.
 
-Read the [stablecoin-linked virtual card plan](https://github.com/web3-authn/sdk/blob/main/docs/stablecoin-linked-virtual-card.md)
-for the deferred testnet and provider design.
+Virtual-card issuance remains product direction. Wallet SDK 0.9.0 exposes no
+card-issuance or card-lifecycle API. Use the [SDK reference](/reference/) to
+identify the available wallet operations.

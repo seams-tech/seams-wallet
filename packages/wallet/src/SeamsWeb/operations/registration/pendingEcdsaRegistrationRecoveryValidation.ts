@@ -1,3 +1,8 @@
+import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
+import type { UnlockSessionPolicy } from '../auth/unlockSessionPolicy';
+import type { WebAuthnAuthenticationCredential } from '@/core/types';
+import type { PasskeySessionCustodyUnlockV1 } from '@/core/rpcClients/near/rpcCalls';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 import { assertPendingWalletRegistrationIdentity } from '@/core/indexedDB';
 import type {
   PendingWalletRegistrationCommitV1,
@@ -61,9 +66,10 @@ export type PendingEcdsaRegistrationCommit =
   | PendingEcdsaOnlyRegistrationCommit
   | PendingMixedEcdsaRegistrationCommit;
 
-export type PendingRegistrationExactMethod =
-  | { readonly kind: 'passkey'; readonly expectedOrigin: string }
-  | { readonly kind: 'email_otp'; readonly otpCode: string; readonly challengeId: string };
+export type PendingRegistrationExactMethod = ExclusiveUnion<
+  | { readonly kind: 'passkey' }
+  | { readonly kind: 'email_otp'; readonly otpCode: string; readonly challengeId: string }
+>;
 
 export type PendingRegistrationRecoverySigningSurface = Pick<
   RegistrationSigningSurface,
@@ -77,7 +83,14 @@ export type PendingEcdsaRegistrationUnlockMaterial = {
   readonly session: RouterAbEcdsaPostRegistrationSessionActivationResponseV1;
   readonly readyStateBlobB64u: string;
   readonly publicFacts: WalletCustodyEvmFamilyPublicFacts;
-};
+} & ExclusiveUnion<
+  | {
+      readonly kind: 'passkey';
+      readonly credential: WebAuthnAuthenticationCredential;
+      readonly custody: PasskeySessionCustodyUnlockV1;
+    }
+  | { readonly kind: 'email_otp' }
+>;
 
 export type PendingEcdsaRegistrationRecoveryPorts = {
   readonly activateWalletRegistration: (
@@ -103,6 +116,8 @@ export type CommittedEcdsaRegistrationResponse = Extract<
 
 export type PendingEcdsaRegistrationUnlockInput = {
   readonly relayerUrl: string;
+  readonly sessionPolicy: Extract<UnlockSessionPolicy, { kind: 'enabled' }>;
+  readonly onEvent: LoginHooksOptions['onEvent'];
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly response: CommittedEcdsaRegistrationResponse;
   readonly walletKeys: readonly [

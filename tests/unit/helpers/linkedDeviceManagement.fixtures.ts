@@ -178,6 +178,7 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
   readonly materialActivation?: MpcMaterialActivationRef;
   readonly sourceAuthorityId?: ActiveWalletAuthorityV1['authorityId'];
   readonly identity?: LinkedDeviceManagementAuthorityIdentityV1;
+  readonly credentialPublicKeyB64u?: string;
   readonly expiresAtMs?: number;
   readonly tenantId?: string;
   readonly principalId?: string;
@@ -323,7 +324,8 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
     status: 'active',
     rpId,
     credentialIdB64u,
-    credentialPublicKeyB64u: base64UrlEncode(new Uint8Array(65).fill(37)),
+    credentialPublicKeyB64u:
+      input.credentialPublicKeyB64u ?? base64UrlEncode(new Uint8Array(65).fill(37)),
     counter: 0,
     createdAtMs: 100,
     updatedAtMs: 200,
@@ -386,6 +388,8 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
     activeWalletSession: projectActiveWalletSession(issuedSession),
     operationCredential: parseWalletSessionOperationCredentialV1({
       kind: 'opaque_wallet_session_operation_credential_v1',
+      ownershipGeneration: 1,
+      home: { kind: 'direct' },
       token: `wst_${base64UrlEncode(new Uint8Array(32).fill((input.label.length % 254) + 1))}`,
       walletSessionId,
     }),

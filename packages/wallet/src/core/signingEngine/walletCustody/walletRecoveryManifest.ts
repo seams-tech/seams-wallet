@@ -167,6 +167,7 @@ export async function recoverWalletCustodyManifestV1(input: {
       switch (entry.kind) {
         case 'near_ed25519': {
           const transport = new RouterAbEd25519YaoHttpActivationTransportV1({
+            routing: { kind: 'discovery' },
             routerOrigin: new URL(input.relayUrl).origin,
             authorization: {
               kind: 'recovery_challenge',

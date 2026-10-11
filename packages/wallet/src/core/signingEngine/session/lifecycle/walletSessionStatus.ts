@@ -5,7 +5,6 @@ import {
   type MpcWalletSigningQuotaId,
   type WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { SelectedEd25519SigningSessionPlanningLane } from '../operationState/types';
 import type { ExactWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
@@ -79,12 +78,6 @@ export function ed25519WalletSessionStatusOwner(
   return { curve: 'ed25519', walletId: toWalletId(walletId) };
 }
 
-export function walletSessionStatusOwnerForLane(
-  lane: SelectedEd25519SigningSessionPlanningLane,
-): WalletSessionStatusOwner {
-  return ed25519WalletSessionStatusOwner(lane.identity.signer.account.wallet.walletId);
-}
-
 function walletSessionStatusOwnerId(owner: WalletSessionStatusOwner): WalletId {
   return owner.walletId;
 }
@@ -150,17 +143,6 @@ export function signingSessionStatusFromWalletSessionStatus(
       status satisfies never;
       throw new Error('[WalletSessionStatus] unsupported canonical status');
   }
-}
-
-export function unknownSigningSessionStatus(args: {
-  walletSessionId: WalletSessionId | string;
-  reason: string;
-}): SigningSessionStatus & { status: 'status_unknown' } {
-  return {
-    sessionId: String(args.walletSessionId),
-    status: 'status_unknown',
-    statusCode: args.reason,
-  };
 }
 
 export async function getWalletSessionStatus(

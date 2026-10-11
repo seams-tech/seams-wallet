@@ -53,7 +53,7 @@ function closeSettingsScanner(
 }
 
 async function finishSettingsAuthentication(
-  refreshLoginState: (walletId?: string) => Promise<void>,
+  refreshSession: (walletId?: string) => Promise<void>,
   setError: (message: string) => void,
   outcome: HostedAuthMenuOutcome,
 ): Promise<void> {
@@ -62,7 +62,7 @@ async function finishSettingsAuthentication(
     case 'registered':
     case 'account_synced':
       try {
-        await refreshLoginState(outcome.walletId);
+        await refreshSession(outcome.walletId);
       } catch (error) {
         setError(
           error instanceof Error ? error.message : 'Unable to refresh your wallet. Try again.',
@@ -105,12 +105,12 @@ function isRecoveryCodeDialogDismissal(error: unknown): boolean {
 async function resolveNearAccountIdForExport(input: {
   readonly walletId: string;
   readonly sessionNearAccountId: string | null | undefined;
-  readonly getNearProvisioningState: (args: {
+  readonly getNearAccountState: (args: {
     walletId: string;
   }) => Promise<NearProvisioningState | null>;
 }): Promise<string> {
   if (input.sessionNearAccountId) return input.sessionNearAccountId;
-  const state = await input.getNearProvisioningState({ walletId: input.walletId });
+  const state = await input.getNearAccountState({ walletId: input.walletId });
   if (state?.status === 'near_ready') return state.nearAccountId;
   if (state?.status === 'near_pending' || state?.status === 'near_provisioning') {
     throw new Error('NEAR signer provisioning is still in progress. Try again shortly.');
@@ -286,7 +286,7 @@ const AccountMenuButtonInner: React.FC<
       behavior: newBehavior,
       autoProceedDelay: newBehavior === 'skipClick' ? 0 : (current?.autoProceedDelay ?? 0),
     }));
-    seams.preferences.setConfirmBehavior(newBehavior);
+    seams.preferences.setConfirmationBehavior(newBehavior);
   };
 
   const handleSetDelay = (delay: number) => {
@@ -312,9 +312,9 @@ const AccountMenuButtonInner: React.FC<
           const exportNearAccountId = await resolveNearAccountIdForExport({
             walletId,
             sessionNearAccountId: nearAccountId,
-            getNearProvisioningState: seams.registration.getNearProvisioningState,
+            getNearAccountState: seams.registration.getNearAccountState,
           });
-          const result = await seams.keys.exportKeypair({
+          const result = await seams.keys.exportKey({
             kind: 'ed25519',
             walletSession: walletId,
             nearAccount: exportNearAccountId,
@@ -330,7 +330,7 @@ const AccountMenuButtonInner: React.FC<
         const chainTarget = thresholdEcdsaChainTargetFromConfig(
           requirePrimaryChainByFamily(seams.configs.network.chains, 'evm'),
         );
-        const result = await seams.keys.exportKeypair({
+        const result = await seams.keys.exportKey({
           kind: 'ecdsa',
           walletSession: walletId,
           chainTarget,
@@ -366,7 +366,7 @@ const AccountMenuButtonInner: React.FC<
     setRecoveryCodesOpen(true);
     setSettingsError(null);
     try {
-      const result = await recovery.acknowledgeWalletRecoveryCodeBackup({ walletId });
+      const result = await recovery.confirmBackup({ walletId });
       switch (result.kind) {
         case 'acknowledged':
           return;
@@ -505,6 +505,15 @@ const AccountMenuButtonInner: React.FC<
       );
     }
 
+    if (presentation === 'page') {
+      items.push({
+        id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
+        icon: <GlobeIcon />,
+        label: 'Wallet region',
+        description: 'Choose where your wallet runs',
+        disabled: accountMenuCapabilities.kind !== 'owner',
+      });
+    }
     items.push({
       id: PROFILE_MENU_ITEM_IDS.TRANSACTION_SETTINGS,
       icon: <SlidersIcon />,
@@ -517,6 +526,7 @@ const AccountMenuButtonInner: React.FC<
     return items;
   }, [
     accountsRows.length,
+    presentation,
     accountMenuCapabilities,
     canShowRecoveryCodes,
     exportLoadingChain,
@@ -563,7 +573,8 @@ const AccountMenuButtonInner: React.FC<
     return (
       <>
         <WalletSettingsLayout
-          walletId={walletId}
+          walletId={toWalletId(walletId)}
+          placement={seams.placement}
           menuItems={MENU_ITEMS}
           onLock={handleLock}
           error={settingsError}
@@ -746,9 +757,9 @@ export const ProfileSettingsButton = AccountMenuButton;
 
 /** Full-page wallet settings, mounted inside SeamsWebProvider. */
 export function WalletSettingsPage(
-  props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker' | 'onDemoEmailOtp'>,
+  props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>,
 ) {
-  const { loginState, refreshLoginState } = useSeams();
+  const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
   if (loginState.isLoggedIn) {
     return <AccountMenuButtonInner presentation="page" nearAccountId={loginState.nearAccountId} />;
@@ -762,8 +773,7 @@ export function WalletSettingsPage(
         {error ? <p role="alert">{error}</p> : null}
         <HostedSeamsAuthMenu
           externalAuthBroker={props.externalAuthBroker}
-          onDemoEmailOtp={props.onDemoEmailOtp}
-          onOutcome={finishSettingsAuthentication.bind(null, refreshLoginState, setError)}
+          onOutcome={finishSettingsAuthentication.bind(null, refreshSession, setError)}
         />
       </main>
     </div>

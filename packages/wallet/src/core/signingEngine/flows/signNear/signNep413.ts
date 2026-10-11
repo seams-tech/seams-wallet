@@ -19,6 +19,7 @@ import {
   SigningOperationCommandKind,
   runSigningOperationCommand,
 } from '../shared/signingStateMachine';
+import { emitEd25519SigningTiming } from '../../session/operationState/trace';
 import type { NearNep413Payload } from '../../interfaces/near';
 import { base64Encode, base64UrlDecode } from '@shared/utils/base64';
 import {
@@ -26,6 +27,7 @@ import {
   confirmNearSignatureOnlyOperation,
   prepareNearSignatureOnlyStepUp,
   resolveNearSignatureOnlySigningMaterial,
+  startNearSignatureOnlyPrepare,
   resolveNearSignatureOnlySigningPlans,
   runNearSignatureOnlySignCommand,
   signNearSignatureOnlyOperation,
@@ -36,7 +38,7 @@ import type { ExclusiveUnion } from '@shared/utils/variant';
 /**
  * Sign a NEP-413 message using the active threshold-controlled NEAR key.
  *
- * @param payload - NEP-413 signing parameters including message, recipient, nonce, and state
+ * @param payload - NEP-413 payload and response transport state
  * @returns Promise resolving to signing result with account ID, public key, and signature
  */
 type InternalSignNep413MessageResult = ExclusiveUnion<
@@ -65,6 +67,7 @@ export async function signNep413Message({
       ? selection.selectedLane.identity.signer.signerSlot
       : selection.candidate.signerSlot;
   const operationId = payload.operationId;
+  const preConfirmationStartedAt = performance.now();
   const relayerUrl = ctx.relayerUrl;
   const nearAccountId = nearAccount.accountId;
   const touchConfirm = ctx.touchConfirm;
@@ -102,7 +105,7 @@ export async function signNep413Message({
         message: payload.message,
         recipient: payload.recipient,
         nonce: payload.nonce,
-        state: payload.state || null,
+        callbackUrl: payload.callbackUrl,
       }),
     ),
     intent: SigningOperationIntent.TransactionSign,
@@ -123,7 +126,7 @@ export async function signNep413Message({
       message: payload.message,
       recipient: payload.recipient,
       nonce: payload.nonce,
-      ...(payload.state ? { state: payload.state } : {}),
+      callbackUrl: payload.callbackUrl,
     },
     computeSigningDigestB64u: async () =>
       (
@@ -131,7 +134,7 @@ export async function signNep413Message({
           message: payload.message,
           recipient: payload.recipient,
           nonce: payload.nonce,
-          ...(payload.state ? { state: payload.state } : {}),
+          callbackUrl: payload.callbackUrl,
           workerCtx: ctx,
         })
       ).signingDigestB64u,
@@ -141,6 +144,15 @@ export async function signNep413Message({
     passkeyEd25519OperationStepUp,
     emailOtpEd25519StepUp,
   });
+  // The server prepare leaves now and is answered while the user reads the
+  // dialog. The signature consumes it after the confirmation.
+  const startedPrepare = await startNearSignatureOnlyPrepare(
+    operation,
+    stepUp,
+    signingSessionCoordinator,
+  );
+  emitEd25519SigningTiming(String(operationId), 'pre_confirmation', preConfirmationStartedAt);
+  const confirmationStartedAt = performance.now();
   const confirmation = await confirmNearSignatureOnlyOperation(operation, {
     touchConfirm,
     signingAuthPlan: stepUp.preparedStepUp.confirmationAuthPayload.signingAuthPlan,
@@ -151,12 +163,15 @@ export async function signNep413Message({
     confirmationConfigOverride: payload.confirmationConfigOverride,
     request: { kind: 'nep413', message: payload.message, recipient: payload.recipient },
   });
+  emitEd25519SigningTiming(String(operationId), 'confirmation', confirmationStartedAt);
+  const confirmedAt = performance.now();
   const authorization = authorizeNearSignatureOnlyOperation(operation, stepUp, confirmation);
   const signingMaterial = await runSigningOperationCommand({
     signingSessionPlan,
     signingOperation,
     commandKind: SigningOperationCommandKind.PreparePayload,
-    execute: async () => await resolveNearSignatureOnlySigningMaterial(operation, authorization),
+    execute: async () =>
+      await resolveNearSignatureOnlySigningMaterial(operation, authorization, startedPrepare),
   });
 
   const okResponse = await runNearSignatureOnlySignCommand(operation, async () => {
@@ -171,17 +186,18 @@ export async function signNep413Message({
         accountId: nearAccountId,
         publicKey: signed.signerPublicKey,
         signature: base64Encode(base64UrlDecode(signed.signatureB64u)),
-        state: payload.state || undefined,
+        state: payload.state ?? undefined,
       },
     } as WorkerSuccessResponse<typeof WorkerRequestType.SignNep413Message>;
   });
+  emitEd25519SigningTiming(String(operationId), 'confirmed_to_signed', confirmedAt);
 
   return {
     success: true,
     accountId: okResponse.payload.accountId,
     publicKey: okResponse.payload.publicKey,
     signature: okResponse.payload.signature,
-    state: okResponse.payload.state || undefined,
+    state: okResponse.payload.state,
   };
 }
 

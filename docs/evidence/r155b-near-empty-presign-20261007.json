@@ -1,0 +1,86 @@
+{
+  "kind": "r155b_composed_near_relocation_v1",
+  "date": "2026-10-07",
+  "scope": "Local production directory, Gateway authorization, Runtime, migrated regional D1, and independently namespaced native custody Workers. Real NEAR registration and WebAuthn owner approval. Excludes hosted geography, full browser SDK relocation, in-flight signing races, and OTP outage acceptance.",
+  "privateCommit": "ac66d14dbbf8c19f56ce04f2ed1a9f723a092f59",
+  "publicDevParent": "d59083bbc7fb7b2c2144d960bf9415a9960dd22f",
+  "fix": "Allow preparation to enumerate an empty ECDSA store without ECDSA execution authority. Reject missing authority when any ECDSA snapshot record or import activation exists. Preserve generation, admission, cursor and page-size validation.",
+  "coordinatorSteps": 34,
+  "completed": true,
+  "checks": {
+    "realDirectoryAndRuntimeHandlers": true,
+    "unapprovedMoveRejected": true,
+    "ownerApprovedMoveCompleted": true,
+    "destinationSignatureVerified": true,
+    "unadmittedSourceCommandStatus": 409,
+    "custodyCallsBeforeAdmission": 0,
+    "directoryPaths": [
+      "/internal/wallet-placement/v1/relocation-authorization-manifest",
+      "/internal/wallet-placement/v1/relocation-command",
+      "/internal/wallet-placement/v1/relocation-deriver-activation",
+      "/internal/wallet-placement/v1/relocation-deriver-receipt",
+      "/internal/wallet-placement/v1/relocation-deriver-source",
+      "/internal/wallet-placement/v1/relocation-deriver-transfer",
+      "/internal/wallet-placement/v1/relocation-ecdsa-activation",
+      "/internal/wallet-placement/v1/relocation-ecdsa-receipt",
+      "/internal/wallet-placement/v1/relocation-ecdsa-transfer",
+      "/internal/wallet-placement/v1/relocation-ed25519-activation",
+      "/internal/wallet-placement/v1/relocation-ed25519-receipt",
+      "/internal/wallet-placement/v1/relocation-ed25519-transfer",
+      "/internal/wallet-placement/v1/relocation-presign-source",
+      "/internal/wallet-placement/v1/relocation-router-activation",
+      "/internal/wallet-placement/v1/relocation-router-cleanup",
+      "/internal/wallet-placement/v1/relocation-router-destination",
+      "/internal/wallet-placement/v1/relocation-router-export",
+      "/internal/wallet-placement/v1/relocation-router-receipt",
+      "/internal/wallet-placement/v1/relocation-runtime-source"
+    ],
+    "scope": "Real journal, WebAuthn owner approval, Runtime admission, independent custody namespaces, completed move, and destination native NEAR signing. This is local composition evidence, not hosted SDK acceptance."
+  },
+  "destinationSigning": {
+    "signatureSha256Hex": "5b4dd0fedbea32e14ca30850b8555fd713938d13d385e666c0915c6761a3eae1",
+    "staleGenerationRejected": true,
+    "prepareReplayAfterEviction": true,
+    "finalizeReplayAfterEviction": true
+  },
+  "ecdsaPoolAcceptance": {
+    "passed": true,
+    "kind": "signing_worker_wallet_do_ecdsa_pool_e2e_v1",
+    "signatureSha256Hex": "def0eca7805c4aca73c13cbf5a0c092ee68110dc8c3f4072e9f9c4a589b452ff"
+  },
+  "reproduce": {
+    "composed": "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/relocation-custody.e2e.mjs (private repository, Node 24)",
+    "ecdsa": "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-wallet-do-pool"
+  },
+  "artifacts": {
+    "coordinator-progress.json": "35b6a01c001e446425422ee375b5ec3f8836381baf800f7c7e819aa4eeca5394",
+    "coordinator-bindings.json": "3570bfdb770304ab0ac336eb1949d50f2ef1044b686359f83fce8d5caa5d8538",
+    "destination-signing.json": "b46ff58fca5bf541d043918efad0efff97f99d3b9a07f4bd2d505e6a07a04512",
+    "custody-topology.json": "6da6eb7eed0fd91d1d1705138ffa6920e5f37189cad2e8a73e5ee79815c7a05a"
+  },
+  "workerWasm": {
+    "router": {
+      "file": "crates/router-ab-cloudflare/build/dev/router/index_bg.wasm",
+      "sha256": "71722579f35d8559f81ddf86640420671e6dcdf9239c2a8e749743a5c3c09080"
+    },
+    "deriver-a": {
+      "file": "crates/router-ab-cloudflare/build/dev/deriver-a/index_bg.wasm",
+      "sha256": "90afe47f23f7b3058144cbd763493aec097f2ddbc93174911a386a2ddf7033d4"
+    },
+    "deriver-b": {
+      "file": "crates/router-ab-cloudflare/build/dev/deriver-b/index_bg.wasm",
+      "sha256": "735302864f2c3c098c6072bb6641f78404b522e1cde48c25db1830454a75a9c1"
+    },
+    "signing-worker": {
+      "file": "crates/router-ab-cloudflare/build/dev/signing-worker/index_bg.wasm",
+      "sha256": "1cb26ad08664fd070c9a5f28809c14140fcdcce2ea2be90929f50fd273bb7d67"
+    },
+    "tenant-root-control-plane": {
+      "file": "crates/router-ab-cloudflare/build/dev/tenant-root-control-plane/index_bg.wasm",
+      "sha256": "7cc02a2ca47f79aa0f57f5adb4b183fdd79b3189eed91e1f687116ad8fbe6014"
+    }
+  },
+  "cloudflareDeployment": false,
+  "cloudflareSpend": 0,
+  "sourceScope": "Current local custody sources include concurrent R153 changes. This does not prove a frozen, fully committed deployment candidate."
+}

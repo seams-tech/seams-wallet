@@ -1,0 +1,386 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "2548b10fd78ccb1bf04bdddf24f94d4387a53c85",
+  "scope": "Remove redundant React idle/eager preparation, unused public prewarm/prefetch facade paths, host generic prewarm, and their obsolete diagnostic records. Preserve selected-operation preparation.",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "dad66e2b30edec302bdd38c8ba8a57018f8aa82b0551fc24499c64264862814a",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/emailOtpCommands.ts": "83b42702d23362372a0b60e50a2ffaca49770dd8fe7f649a6a3d86c6004184ae",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "63b3de22e9f7173f4ef11e3bf6681ea3937c9f7a0aee1b45187d90a4e046982e",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "f90be1325e94fb00f5f1aa78e49024ac429dbbe9f7dc7c16ead7fc4379413f07",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createEmailOtpCommands.ts": "67ad1e8854a205fb4e1e0dee8c859b70a9b7f0e8b29fc560647af5d7d9dd0a7d",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "ae24b1ae0dbe036fb65cb7f5505e233ec4a603bac1212a4803539f57737a8d13",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/requestRouter.ts": "a66c5400fc080b3bfdfc16bc7bc6a573b21e038315e581c507383d7dde7ed5a4",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/emailOtpLifecycle.ts": "d245bd4d470b1ba3359514fb7b2c5844548bb509a649f1fb0916006b26b3ece8",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/facadeBoundary.ts": "8d1c21d6dae30bef98a52f7945824c8da066296e6c820dccab224ce725247c05",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "7d5b3e1965ee00e0b50caa6794749328e379dd6d247eb88e604a603e6893b879",
+    "packages/wallet/src/react/context/SeamsWebProvider.tsx": "75dab96f097e989abac7ca767bd6a6e32b04aa2efda5ef19da3cc72e85b0d5ba",
+    "packages/wallet/src/react/context/index.tsx": "afc8c311073d089837c637c8d70f501f55481c97b979af52090aacf153a90ae6",
+    "packages/wallet/src/react/types.ts": "eef8275a7f52dd29671fe2057eb06817f169dfdcb422749828fc4d791d68507e",
+    "tests/intended-app/src/main.tsx": "9845ddf2dbb9021351285e0158c1126ca42dc14fee67afff116e54a1cbd792d3",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "6a844fac28978ee9a9a7278daf9d28bfe6b2a8943db15fd22f7c8e322d87ac33",
+    "tests/wallet-iframe/preferences.queue.test.ts": "cdaacc8b82ba80fda637209af118e81c99696b75010d17d4c1920355f3261e82",
+    "tests/wallet-iframe/preferences.sync.test.ts": "463c1e30620672efaeec50ab852c70e03dff3d8e58e1c40a0ae97275b7d1d375",
+    "tests/wallet-ui/transaction-review.browser.test.ts": "60a633746c5a890fbde9704adf3c46d1ff09ed68e3c39a815f7a8eaf8ecba9fd"
+  },
+  "deletedFiles": [
+    "packages/wallet/src/react/context/useEagerPrewarm.ts"
+  ],
+  "checksPassed": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm report:bloat --check"
+  ],
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/client.connection.test.ts wallet-iframe/preferences.queue.test.ts wallet-iframe/preferences.sync.test.ts wallet-iframe/static-wallet-assets.browser.test.ts wallet-ui/transaction-review.browser.test.ts --project=chromium --output=../.artifacts/r170-preparation",
+    "passed": 43,
+    "durationSeconds": 51.0
+  },
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+    "receipt": [
+      "[wallet-intended] running 6 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/6 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "  1 passed (46.0s)",
+      "[wallet-intended] 2/6 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:32 an Email OTP export interrupted after its authorization committed is admitted by the exact retry, factor release included",
+      "  1 passed (28.2s)",
+      "[wallet-intended] 3/6 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:40 EVM registration and signatures complete while NEAR admission is held",
+      "  1 passed (28.0s)",
+      "[wallet-intended] 4/6 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:51 EVM registration and signatures complete while NEAR execution is held",
+      "  1 passed (28.0s)",
+      "[wallet-intended] 5/6 e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:53 production wallet records asset traffic across registration, signing, and unlock",
+      "  1 passed (34.0s)",
+      "[wallet-intended] 6/6 e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:111 production signed-out mount and menu record cold and warm cache traffic",
+      "  1 passed (33.0s)"
+    ],
+    "assets": [
+      {
+        "path": ".artifacts/wallet-assets/production-wallet-records-asset-traffic-across-registration-signing-and-unlock.json",
+        "sha256": "0963cf8be5834c33e02a39658bf85dc81b50d4dd3a53420bf001f2875b7dc3df",
+        "accounting": {
+          "scope": "BrowserContext requestfinished events and Page dedicated-worker events",
+          "phaseAttribution": "Request completion phase; concurrent requests may cross phase boundaries",
+          "bytes": "Encoded response body and HTTP response headers counted separately; decoded bodies where available",
+          "cache": "disabled_by_routing",
+          "omissions": "No claim of complete worker-target network coverage; no service-worker or socket accounting",
+          "privacy": "Only static asset URLs without query strings; no request headers, payloads, auth responses, or bodies retained"
+        },
+        "browserTotals": {
+          "encodedBodyBytes": 8147575,
+          "responseHeaderBytes": 69016,
+          "decodedBodyBytes": 14529372,
+          "unknownDecodedBodies": 0
+        },
+        "serverTotals": [
+          {
+            "origin": "http://localhost:4201",
+            "accounting": "Encoded static response body bytes submitted by the isolated preview server after compression. Includes worker scripts absent from CDP completion events. Excludes HTTP/TLS framing. Cache hits that never reach the server transfer zero server bytes. Do not add to overlapping browser totals. Closed responses are incomplete transfers.",
+            "encodedBodyBytesByExtension": {
+              ".css": 13154,
+              ".js": 355450
+            },
+            "wasm": []
+          },
+          {
+            "origin": "http://localhost:4202",
+            "accounting": "Encoded static response body bytes submitted by the isolated preview server after compression. Includes worker scripts absent from CDP completion events. Excludes HTTP/TLS framing. Cache hits that never reach the server transfer zero server bytes. Do not add to overlapping browser totals. Closed responses are incomplete transfers.",
+            "encodedBodyBytesByExtension": {
+              ".js": 1960902,
+              ".css": 42718,
+              ".wasm": 6194505
+            },
+            "wasm": [
+              {
+                "pathname": "/sdk/router_ab_ed25519_yao_client_bg.wasm",
+                "contentEncoding": "identity",
+                "encodedBodyBytes": 1461824
+              },
+              {
+                "pathname": "/sdk/workers/router_ab_ecdsa_client_bg.wasm",
+                "contentEncoding": "identity",
+                "encodedBodyBytes": 1583346
+              },
+              {
+                "pathname": "/sdk/workers/shamir3pass_runtime_bg.wasm",
+                "contentEncoding": "identity",
+                "encodedBodyBytes": 93119
+              },
+              {
+                "pathname": "/sdk/workers/wallet_custody_ceremony_bg.wasm",
+                "contentEncoding": "identity",
+                "encodedBodyBytes": 1085846
+              },
+              {
+                "pathname": "/sdk/workers/wasm_signer_worker_bg.wasm",
+                "contentEncoding": "identity",
+                "encodedBodyBytes": 1647156
+              },
+              {
+                "pathname": "/sdk/workers/evm_crypto.wasm",
+                "contentEncoding": "identity",
+                "encodedBodyBytes": 323214
+              }
+            ]
+          }
+        ],
+        "phases": [
+          {
+            "name": "initialization",
+            "durationMs": 360.37
+          },
+          {
+            "name": "register",
+            "durationMs": 1840.0585420000002
+          },
+          {
+            "name": "first-near-sign",
+            "durationMs": 734.4811669999999
+          },
+          {
+            "name": "first-evm-sign",
+            "durationMs": 768.2947499999996
+          },
+          {
+            "name": "lock",
+            "durationMs": 36.896207999999206
+          },
+          {
+            "name": "unlock",
+            "durationMs": 638.2653330000003
+          },
+          {
+            "name": "repeat-near-sign",
+            "durationMs": 708.5341249999992
+          },
+          {
+            "name": "repeat-evm-sign",
+            "durationMs": 750.282416
+          },
+          {
+            "name": "completed",
+            "durationMs": 1.9496670000007725
+          }
+        ],
+        "workers": [
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "first-near-sign",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "first-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "lock",
+            "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-near-sign",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-near-sign",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          }
+        ],
+        "failures": [
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js"
+        ]
+      },
+      {
+        "path": ".artifacts/wallet-assets/production-signed-out-mount-and-menu-record-cold-and-warm-cache-traffic.json",
+        "sha256": "7721827b64595af1fcffd3a1040d57aff314d3c41664de42f36a04aef22f9afa",
+        "accounting": {
+          "scope": "BrowserContext requestfinished events and Page dedicated-worker events",
+          "phaseAttribution": "Request completion phase; concurrent requests may cross phase boundaries",
+          "bytes": "Encoded response body and HTTP response headers counted separately; decoded bodies where available",
+          "cache": "enabled",
+          "omissions": "No claim of complete worker-target network coverage; no service-worker or socket accounting",
+          "privacy": "Only static asset URLs without query strings; no request headers, payloads, auth responses, or bodies retained"
+        },
+        "browserTotals": {
+          "encodedBodyBytes": 968650,
+          "responseHeaderBytes": 46158,
+          "decodedBodyBytes": 4139823,
+          "unknownDecodedBodies": 88
+        },
+        "serverTotals": [
+          {
+            "origin": "http://localhost:4201",
+            "accounting": "Encoded static response body bytes submitted by the isolated preview server after compression. Includes worker scripts absent from CDP completion events. Excludes HTTP/TLS framing. Cache hits that never reach the server transfer zero server bytes. Do not add to overlapping browser totals. Closed responses are incomplete transfers.",
+            "encodedBodyBytesByExtension": {
+              ".css": 6577,
+              ".js": 177726
+            },
+            "wasm": []
+          },
+          {
+            "origin": "http://localhost:4202",
+            "accounting": "Encoded static response body bytes submitted by the isolated preview server after compression. Includes worker scripts absent from CDP completion events. Excludes HTTP/TLS framing. Cache hits that never reach the server transfer zero server bytes. Do not add to overlapping browser totals. Closed responses are incomplete transfers.",
+            "encodedBodyBytesByExtension": {
+              ".js": 761254,
+              ".css": 21359
+            },
+            "wasm": []
+          }
+        ],
+        "phases": [
+          {
+            "name": "initialization",
+            "durationMs": 20.38749999999999
+          },
+          {
+            "name": "cold-signed-out-mount-idle",
+            "durationMs": 2719.610667
+          },
+          {
+            "name": "cold-generic-menu",
+            "durationMs": 2073.6227499999995
+          },
+          {
+            "name": "warm-signed-out-mount-idle",
+            "durationMs": 2631.725208
+          },
+          {
+            "name": "warm-generic-menu",
+            "durationMs": 2123.895625
+          },
+          {
+            "name": "completed",
+            "durationMs": 34.71349999999984
+          }
+        ],
+        "workers": [],
+        "failures": []
+      }
+    ]
+  },
+  "lines": {
+    "rule": "git diff HEAD --numstat relative to baseCommit. Production packages/wallet/src TS excludes type fixtures. Tests/type fixtures and Markdown are separate. Evidence JSON excluded.",
+    "productionTypescript": {
+      "added": 6,
+      "deleted": 401,
+      "net": -395
+    },
+    "testsAndTypeFixtures": {
+      "added": 9,
+      "deleted": 8,
+      "net": 1
+    },
+    "documentation": {
+      "added": 83,
+      "deleted": 0,
+      "net": 83
+    }
+  },
+  "remaining": [
+    "Complete per-operation/factor worker dependency matrix",
+    "Generic registration menu JS preload refinement",
+    "Cold/warm median latency and 30-day return fast-sign gates",
+    "Private eager wrapper prop removal with exact-release adoption",
+    "Other R170 API, provider lifecycle, release and cleanup acceptance"
+  ]
+}

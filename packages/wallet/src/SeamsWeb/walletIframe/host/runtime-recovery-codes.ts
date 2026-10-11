@@ -28,7 +28,12 @@ function requireWalletId(payload: unknown): string {
 }
 
 function requireRelayerUrl(input: WalletHostRuntimeRequest): string {
-  return requireTrimmedString(input.state.walletConfigs?.relayer?.url, 'Recovery-code relayer URL');
+  return requireTrimmedString(
+    input.state.configuration.kind === 'configured'
+      ? input.state.configuration.config.network.relayer.url
+      : undefined,
+    'Recovery-code relayer URL',
+  );
 }
 
 function postSurfaceMeasurement(
@@ -89,7 +94,10 @@ export async function handleWalletHostRuntimeRequest(
       appearance: {
         palette: 'default',
         theme: resolveAppearanceTheme({
-          value: input.state.walletConfigs?.appearance?.theme,
+          value:
+            input.state.configuration.kind === 'configured'
+              ? input.state.configuration.config.ui.appearance.theme
+              : undefined,
           fallback: { id: 'default', mode: 'dark', colors: {} },
         }),
       },

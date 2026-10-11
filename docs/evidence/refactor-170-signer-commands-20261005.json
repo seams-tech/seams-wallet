@@ -1,0 +1,99 @@
+{
+  "scope": "Separate NEAR, EVM, and Tempo application commands from host execution. Full client dependency cutover remains unfinished.",
+  "baseRevision": "4a4872e8f52bc3a6efab27c21774b4a53b837325",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "ec40c53626a9c578831c88b2a1e366e1819902a733d269eda3cbf0a7bd0bad44",
+    "packages/wallet/src/SeamsWeb/operations/near/delegateAction.ts": "3cc15f478177ba3c697cf59ee9edb52541ed333c11e65c8af81a6f1d58cbef0f",
+    "packages/wallet/src/SeamsWeb/operations/near/registrationInputs.ts": "af988a6f83b059b2de697f365a5a7aee31684f3397170fba6325573889da2adc",
+    "packages/wallet/src/SeamsWeb/operations/near/signDelegateAction.ts": "2490f57df0b4f646d4a16df94d6752209bae8ccd698cc9a7a9360ba211da99d8",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "073ffe71e827d200e03e7f34ba85ecd31fc58d53b03cc612b02d34d7c146c4cd",
+    "packages/wallet/src/SeamsWeb/publicApi/evm.ts": "f935112c41cc2914fedc14d4c893633067a19c49eb88df96b6e1538be9a090aa",
+    "packages/wallet/src/SeamsWeb/publicApi/evmFamilyCommands.ts": "d39d9cee367871fe3d6e2baece32fe80c81b196a81e2656faf073c474a5c6011",
+    "packages/wallet/src/SeamsWeb/publicApi/near.ts": "0596d15007cd59950e73858b70a0c09624aaaa34c4d7de6ce89e6cfecf72ed94",
+    "packages/wallet/src/SeamsWeb/publicApi/nearCommands.ts": "2ac791cdbedee9d15f7e8423a9a1a6ebe5f6ef5528b61ff9ec41cb5046a352d2",
+    "packages/wallet/src/SeamsWeb/publicApi/tempo.ts": "3fb3700c259a672993887ed244ac32bbbeaefb5649ff120fb8ad46768ec8cd9e",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/evmFamilyCommands.ts": "2c16225d05d5b887f91c7883cf2fa4ff8d3192bee17d9ead0f4f0a18d633d1b9",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "0c584ec74ec2726edf818872ae39b95a623e3371104be7e8696d1bf68579b044",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "860747e78a44741f6903c36b3c133eb23e6a12a1c7750be97cebf2f504adf69c",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "73483cbbbdd606a424438197acfc5498bf699216206196fb9df4001755851c5e",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createEvmFamilyCommands.ts": "5968b93d153bb3c73b028be45e50c12a0ec7ae2befe9184d1039800239953088",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createNearCommands.ts": "dd37c31a169a98441d43ba62d7f88b31a32f7b97dcb0aefc0f716a6a81494d56",
+    "tests/tsconfig.wallet-typecheck.json": "1a178b6412820a6a70049d9ad19acaf3bceaa8163543d29fcec2a985dc948aae",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "cef2decf978c2caf9543218bc94f31ffdddc2162274e3c132521b0f3cf0da530"
+  },
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypes": "passed",
+    "walletStateTypes": "passed",
+    "intendedTypes": "passed",
+    "bloatGate": "passed",
+    "transactionReviewChromium": "6 passed"
+  },
+  "browserCases": [
+    {
+      "case": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "result": "1 passed (47.3s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts:32 an Email OTP export interrupted after its authorization committed is admitted by the exact retry, factor release included",
+      "result": "1 passed (29.5s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts:40 EVM registration and signatures complete while NEAR admission is held",
+      "result": "1 passed (29.4s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts:51 EVM registration and signatures complete while NEAR execution is held",
+      "result": "1 passed (31.0s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:14 a cross-tab lock prevents delayed restoration from recreating its credential",
+      "result": "1 passed (29.8s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:15 a fresh unlock survives a delayed restoration response from another tab",
+      "result": "1 passed (29.7s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:39 passkey unlock restores immediate export and shared-budget signing",
+      "result": "1 passed (31.9s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "result": "1 passed (35.4s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:71 synced passkey cold unlock restores mixed-wallet signing from empty browser storage",
+      "result": "1 passed (29.7s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:140 an interrupted unlock shows an error and permits a user retry",
+      "result": "1 passed (29.8s)"
+    }
+  ],
+  "commandGraph": {
+    "entryPoints": [
+      "publicApi/near.ts",
+      "publicApi/evm.ts",
+      "publicApi/tempo.ts",
+      "walletIframe/client/nearCommands.ts",
+      "walletIframe/client/evmFamilyCommands.ts"
+    ],
+    "inputs": 41,
+    "executionInputs": [],
+    "artifact": ".artifacts/r170-signer-commands/commands-metafile.json"
+  },
+  "limits": [
+    "Signer graph excludes execution; the complete public client still imports it through other capabilities and construction.",
+    "Production lifecycle cases verify signing, restoration and export. Complete broadcast/nonce and selective-worker matrices remain pending."
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests type-check:intended",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-ui/transaction-review.browser.test.ts --project=chromium --output=../.artifacts/r170-signer-commands/review-results --grep 'all six methods|context, immutable|cancelling after Back|preference changes during review|same-wallet session replacement|host disposal after signing'",
+    "pnpm report:bloat --check"
+  ]
+}

@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { createTestWalletHostConfig } from '../setup/walletHostConfig';
+import { DEFAULT_TEST_CONFIG } from '../setup/config';
 import { injectImportMap } from '../setup/bootstrap';
 import { SDK_ESM_PATHS } from '../setup/sdkEsmPaths';
 import {
@@ -61,7 +63,35 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
     console.log('[wallet-stub] script booted with config', CONFIG);
     let adoptedPort = null;
     let exactSessionState = CONFIG.exactSessionState;
+    let sessionObservationRevision = 0;
+    let basePreferenceSnapshot = { walletId: exactSessionState.walletId ?? null, revision: 0, confirmationConfig: { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 } };
     const pendingRequests = new Map();
+
+    function publicSessionForState(state) {
+      if (state.kind === 'wallet_locked') {
+        return {
+          appIdentity: { kind: 'anonymous' }, authentication: { kind: 'signed_out' },
+          capabilityProjection: { kind: 'not_requested' }, nonceDiagnostics: null,
+        };
+      }
+      if (state.kind === 'wallet_authenticated_identity_unresolvable') {
+        return {
+          appIdentity: { kind: 'unresolvable', walletId: state.walletId, reason: state.reason },
+          authentication: { kind: 'signed_out' },
+          capabilityProjection: { kind: 'unresolvable', reason: state.reason },
+          nonceDiagnostics: null,
+        };
+      }
+      return {
+        appIdentity: {
+          kind: 'resolved', walletId: state.walletId, nearAccountId: null,
+          nearOperationalPublicKey: null, userData: null, authMethods: [],
+          thresholdEcdsaEthereumAddress: null, thresholdEcdsaPublicKeyB64u: null,
+        },
+        authentication: { kind: 'authenticated', walletId: state.walletId, authMethod: state.authMethod ?? 'passkey' },
+        capabilityProjection: { kind: 'not_requested' }, nonceDiagnostics: null,
+      };
+    }
 
     function postResult(requestId, result) {
       adoptedPort.postMessage({
@@ -104,9 +134,19 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
             return;
           }
 
+          if (type === 'PM_SET_CONFIRMATION_CONFIG' || type === 'PM_SET_CONFIRM_BEHAVIOR') {
+            basePreferenceSnapshot = {
+              walletId: event.data.payload?.walletId ?? basePreferenceSnapshot.walletId,
+              revision: basePreferenceSnapshot.revision + 1,
+              confirmationConfig: { ...basePreferenceSnapshot.confirmationConfig, ...event.data.payload?.config, ...(event.data.payload?.behavior ? { behavior: event.data.payload.behavior } : {}) },
+            };
+            postResult(requestId, basePreferenceSnapshot);
+            return;
+          }
+
           if (type === 'PM_GET_CONFIRMATION_CONFIG') {
             try {
-              postResult(requestId, { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 });
+              postResult(requestId, basePreferenceSnapshot);
             } catch (err) {
               console.error('Failed to respond to PM_GET_CONFIRMATION_CONFIG', err);
             }
@@ -115,7 +155,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
 
           if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
             try {
-              postResult(requestId, exactSessionState);
+              postResult(requestId, { revision: ++sessionObservationRevision, walletId: basePreferenceSnapshot.walletId, state: exactSessionState, session: publicSessionForState(exactSessionState) });
             } catch (err) {
               console.error('Failed to respond to PM_GET_EXACT_WALLET_SESSION_STATE', err);
             }
@@ -176,7 +216,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
 
           if (typeof requestId === 'string') {
             pendingRequests.set(requestId, true);
-            if (type === 'PM_EXECUTE_ACTION') {
+            if (type === 'PM_SIGN_AND_SEND_TX') {
               try {
                 adoptedPort.postMessage({
                   type: 'PROGRESS',
@@ -204,7 +244,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
                   },
                 });
               } catch (err) {
-                console.error('Failed to post PROGRESS for executeAction', err);
+                console.error('Failed to post PROGRESS for signAndSendTransaction', err);
               }
             }
           }
@@ -290,6 +330,7 @@ export const initRouter = async (page: Page, options: RouterHarnessOptions = {})
   await injectImportMap(page);
 
   const opts = {
+    hostConfig: createTestWalletHostConfig(DEFAULT_TEST_CONFIG),
     walletOrigin: 'https://wallet.test',
     servicePath: '/wallet-service',
     testOptions: { ownerTag: 'tests' },

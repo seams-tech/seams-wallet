@@ -1,13 +1,11 @@
 /**
  * NEAR RPC helpers
  *
- * This file centralizes helper calls made to the NEAR RPC (account existence checks,
- * access key polling, tx context fetch, etc).
+ * This file centralizes NEAR RPC access-key polling and transaction context calls.
  *
  * Wallet unlock verification and NEAR RPC helpers share this transport module.
  */
 
-import type { NearClient } from './NearClient';
 import type { WebAuthnAuthenticationCredential } from '../../types/webauthn';
 import type { ThresholdEcdsaChainTarget } from '../../platform';
 
@@ -70,68 +68,6 @@ import {
   requireRouterAbEd25519NormalSigningState,
   type RouterAbEd25519NormalSigningState,
 } from '@shared/utils/signingSessionSeal';
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
-}
-
-// ===========================
-// ACCOUNT HELPERS
-// ===========================
-
-/**
- * Best-effort on-chain account existence check.
- *
- * Used to short-circuit UX flows (e.g. registration) before prompting the user.
- * Returns `false` on unknown/non-deterministic failures so that downstream flows
- * can rely on the Router API/contract for final enforcement.
- */
-export async function checkNearAccountExistsBestEffort(
-  nearClient: NearClient,
-  nearAccountId: string,
-  opts?: { attempts?: number; delayMs?: number },
-): Promise<boolean> {
-  const isNotFound = (m: string) => /does not exist|UNKNOWN_ACCOUNT|unknown\s+account/i.test(m);
-  const isRetryable = (m: string) =>
-    /server error|internal|temporar|timeout|too many requests|429|empty response|rpc request failed|failed to fetch/i.test(
-      m,
-    );
-
-  const attempts = Math.max(1, Math.floor(opts?.attempts ?? 2));
-  const baseDelayMs = Math.max(50, Math.floor(opts?.delayMs ?? 150));
-
-  for (let i = 1; i <= attempts; i++) {
-    try {
-      await nearClient.viewAccount(nearAccountId);
-      return true;
-    } catch (err: unknown) {
-      const msg = errorMessage(err);
-      const details = err && typeof err === 'object' && 'details' in err ? err.details : undefined;
-      let detailsBlob = '';
-      if (details) {
-        try {
-          detailsBlob = typeof details === 'string' ? details : JSON.stringify(details);
-        } catch {
-          detailsBlob = '';
-        }
-      }
-      const combined = `${msg}\n${detailsBlob}`.trim();
-      if (isNotFound(combined)) return false;
-      if (isRetryable(combined) && i < attempts) {
-        const backoffMs = baseDelayMs * Math.pow(2, i - 1);
-        await sleep(backoffMs);
-        continue;
-      }
-      console.warn(
-        `[rpcCalls] Account existence check failed for '${nearAccountId}'; continuing:`,
-        err,
-      );
-      return false;
-    }
-  }
-
-  return false;
-}
 
 type PasskeyWalletUnlockInputCore = {
   type: 'passkey_assertion';

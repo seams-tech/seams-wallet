@@ -3,6 +3,7 @@ import {
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import { isPlainObject, requireNonEmptyString } from '@shared/utils/validation';
+import { ED25519_SIGNER_ACTIVATION_ID_PATH } from '../../../../core/d1WalletStore';
 import { isD1DatabaseLike, parseD1JsonColumn } from '../../../../storage/d1Sql';
 import type {
   D1DatabaseLike,
@@ -64,14 +65,8 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAb
   async evaluatePolicy(
     input: RouterAbNormalSigningAdmissionInput,
   ): Promise<RouterAbNormalSigningPolicyDecision> {
-    if (input.curve === 'ecdsa' && input.policyReadSource.kind === 'credential_snapshot') {
-      const decision = input.policyReadSource.policyRead.resolve(
-        this.database,
-        this.storageNamespace,
-        input,
-      );
-      if (decision) return decision;
-    }
+    const snapshot = credentialPolicyDecision(input, this.database, this.storageNamespace);
+    if (snapshot) return snapshot;
     const scope = input.runtimePolicyScope;
     const row = await this.database
       .prepare(
@@ -360,31 +355,13 @@ export class D1EcdsaAdmissionPolicyRead {
     activationId: string,
     rows: unknown,
   ): D1EcdsaAdmissionPolicyRead {
-    if (!Array.isArray(rows)) throw new Error('ECDSA policy candidates are invalid');
-    const decisions = new Map<string, PolicyReadResult>();
-    for (const row of rows) {
-      if (!isPlainObject(row)) throw new Error('ECDSA policy candidate is invalid');
-      const scope = normalizeRuntimePolicyScope(parseD1JsonColumn(row.scope_json));
-      const key = runtimePolicyScopeKey(scope);
-      if (decisions.has(key)) throw new Error('ECDSA policy scope is ambiguous');
-      try {
-        const decision = parsePolicyRow({
-          project_key: row.project_key,
-          project_decision: row.project_decision,
-          project_retry_after_ms: row.project_retry_after_ms,
-          abuse_key: row.abuse_key,
-          abuse_decision: row.abuse_decision,
-          abuse_retry_after_ms: row.abuse_retry_after_ms,
-        });
-        decisions.set(key, { ok: true, decision });
-      } catch (error: unknown) {
-        decisions.set(key, {
-          ok: false,
-          message: error instanceof Error ? error.message : 'ECDSA policy read failed',
-        });
-      }
-    }
-    return new D1EcdsaAdmissionPolicyRead(database, namespace, walletId, activationId, decisions);
+    return new D1EcdsaAdmissionPolicyRead(
+      database,
+      namespace,
+      walletId,
+      activationId,
+      parsePolicyCandidates(rows, 'ECDSA'),
+    );
   }
 
   resolve(
@@ -403,17 +380,133 @@ export class D1EcdsaAdmissionPolicyRead {
   }
 }
 
+/** Policy rows read with an Ed25519 Wallet Session, for the scopes of its signer. */
+export class D1Ed25519AdmissionPolicyRead {
+  readonly #decisions: ReadonlyMap<string, PolicyReadResult>;
+
+  private constructor(
+    private readonly database: D1DatabaseLike,
+    private readonly namespace: string,
+    private readonly walletId: string,
+    private readonly authorityId: string,
+    decisions: ReadonlyMap<string, PolicyReadResult>,
+  ) {
+    this.#decisions = decisions;
+  }
+
+  static fromRows(
+    database: D1DatabaseLike,
+    namespace: string,
+    walletId: string,
+    authorityId: string,
+    rows: unknown,
+  ): D1Ed25519AdmissionPolicyRead {
+    return new D1Ed25519AdmissionPolicyRead(
+      database,
+      namespace,
+      walletId,
+      authorityId,
+      parsePolicyCandidates(rows, 'Ed25519'),
+    );
+  }
+
+  /**
+   * Null sends the caller to the database: another store, or a scope this read
+   * did not select. Linked-device material has no signer row to select from.
+   */
+  resolve(
+    database: D1DatabaseLike,
+    namespace: string,
+    input: Ed25519WalletAuthorityAdmissionInput,
+  ): RouterAbNormalSigningPolicyDecision | null {
+    if (database !== this.database || namespace !== this.namespace) return null;
+    if (input.walletId !== this.walletId || input.authorityId !== this.authorityId) {
+      throw new Error('Ed25519 policy credential scope does not match');
+    }
+    const result = this.#decisions.get(runtimePolicyScopeKey(input.runtimePolicyScope));
+    if (!result) return null;
+    if (!result.ok) throw new Error(result.message);
+    return result.decision;
+  }
+}
+
+type Ed25519WalletAuthorityAdmissionInput = Extract<
+  RouterAbNormalSigningAdmissionInput,
+  { readonly curve: 'ed25519'; readonly authorityKind: 'wallet_authority_v1' }
+>;
+
+/** The decision a credential read already holds for this store, when the request carries one. */
+function credentialPolicyDecision(
+  input: RouterAbNormalSigningAdmissionInput,
+  database: D1DatabaseLike,
+  namespace: string,
+): RouterAbNormalSigningPolicyDecision | null {
+  if (input.curve === 'ecdsa') {
+    return input.policyReadSource.kind === 'credential_snapshot'
+      ? input.policyReadSource.policyRead.resolve(database, namespace, input)
+      : null;
+  }
+  if (
+    input.authorityKind !== 'wallet_authority_v1' ||
+    input.policyReadSource.kind !== 'credential_snapshot'
+  ) {
+    return null;
+  }
+  return input.policyReadSource.policyRead.resolve(database, namespace, input);
+}
+
 type PolicyReadResult =
   | { readonly ok: true; readonly decision: RouterAbNormalSigningPolicyDecision }
   | { readonly ok: false; readonly message: string };
 
-export const ECDSA_CREDENTIAL_POLICY_PROJECTION = `
+function parsePolicyCandidates(
+  rows: unknown,
+  curve: 'ECDSA' | 'Ed25519',
+): ReadonlyMap<string, PolicyReadResult> {
+  if (!Array.isArray(rows)) throw new Error(`${curve} policy candidates are invalid`);
+  const decisions = new Map<string, PolicyReadResult>();
+  for (const row of rows) {
+    if (!isPlainObject(row)) throw new Error(`${curve} policy candidate is invalid`);
+    const scope = normalizeRuntimePolicyScope(parseD1JsonColumn(row.scope_json));
+    const key = runtimePolicyScopeKey(scope);
+    if (decisions.has(key)) throw new Error(`${curve} policy scope is ambiguous`);
+    try {
+      const decision = parsePolicyRow({
+        project_key: row.project_key,
+        project_decision: row.project_decision,
+        project_retry_after_ms: row.project_retry_after_ms,
+        abuse_key: row.abuse_key,
+        abuse_decision: row.abuse_decision,
+        abuse_retry_after_ms: row.abuse_retry_after_ms,
+      });
+      decisions.set(key, { ok: true, decision });
+    } catch (error: unknown) {
+      decisions.set(key, {
+        ok: false,
+        message: error instanceof Error ? error.message : `${curve} policy read failed`,
+      });
+    }
+  }
+  return decisions;
+}
+
+/**
+ * Policy rows for the runtime scopes of the session wallet's signers, read in
+ * the session's own statement. `signers` selects the signer rows, `scopePath`
+ * is where a row holds its scope, and `principal` names the abuse principal.
+ */
+function credentialPolicyProjection(input: {
+  readonly family: 'ecdsa' | 'ed25519';
+  readonly signers: string;
+  readonly scopePath: string;
+  readonly principal: string;
+}): string {
+  return `
   (WITH candidates AS (
-     SELECT DISTINCT json_extract(signer.record_json, '$.runtimePolicyScope') AS scope_json
+     SELECT DISTINCT json_extract(signer.record_json, '${input.scopePath}') AS scope_json
        FROM wallet_signers AS signer
-      WHERE signer.namespace = session.namespace AND signer.org_id = session.org_id
-        AND signer.project_id = session.project_id AND signer.env_id = session.env_id
-        AND signer.wallet_id = session.wallet_id AND signer.signer_family = 'ecdsa'
+      WHERE ${input.signers}
+        AND signer.wallet_id = session.wallet_id AND signer.signer_family = '${input.family}'
         AND json_valid(signer.record_json)
    ), scopes AS (
      SELECT scope_json,
@@ -445,5 +538,27 @@ export const ECDSA_CREDENTIAL_POLICY_PROJECTION = `
       AND abuse.signing_root_version = scopes.signing_root_version
       AND abuse.record_kind = 'abuse'
       AND abuse.record_key = scopes.project_key || char(31) || session.wallet_id || char(31) ||
-          'material_activation:' || ? || char(31) || 'ecdsa'
-  ) AS ecdsa_policy_records_json,`;
+          ${input.principal} || char(31) || '${input.family}'
+  ) AS ${input.family}_policy_records_json,`;
+}
+
+/** Binds the material activation id. */
+export const ECDSA_CREDENTIAL_POLICY_PROJECTION = credentialPolicyProjection({
+  family: 'ecdsa',
+  signers: `signer.namespace = session.namespace AND signer.org_id = session.org_id
+        AND signer.project_id = session.project_id AND signer.env_id = session.env_id`,
+  scopePath: '$.runtimePolicyScope',
+  principal: `'material_activation:' || ?`,
+});
+
+/** Binds the signer scope (namespace, organization, project, environment) and the activation id. */
+export const ED25519_CREDENTIAL_POLICY_PROJECTION = credentialPolicyProjection({
+  family: 'ed25519',
+  signers: `signer.namespace = ? AND signer.org_id = ?
+        AND signer.project_id = ? AND signer.env_id = ?
+        AND CASE WHEN json_valid(signer.record_json) THEN
+          json_extract(signer.record_json, '${ED25519_SIGNER_ACTIVATION_ID_PATH}') = ?
+          ELSE 0 END`,
+  scopePath: '$.activeYaoCapability.runtimePolicyScope',
+  principal: `'wallet_authority:' || session.authority_id`,
+});

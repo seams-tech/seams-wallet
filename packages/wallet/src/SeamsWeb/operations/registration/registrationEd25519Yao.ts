@@ -95,12 +95,12 @@ type RegistrationEd25519MaterialFacts = {
 };
 
 export function registrationEd25519MaterialFacts(args: {
-  deferredNear: WalletRegistrationRespondEd25519DeferredWork;
+  admissionRequest: WalletRegistrationRespondEd25519DeferredWork['admissionRequest'];
   finalized: WalletRegistrationEd25519YaoPublicResult;
   walletId: WalletId;
   expectedRuntimePolicyScope: ReturnType<typeof normalizeRuntimePolicyScope>;
 }): RegistrationEd25519MaterialFacts {
-  const admission = args.deferredNear.admissionRequest;
+  const admission = args.admissionRequest;
   const thresholdSessionId = parseThresholdEd25519SessionId(admission.scope.threshold_session_id);
   if (!thresholdSessionId.ok) {
     throw new Error('Ed25519 registration threshold-session identity is invalid');
@@ -199,6 +199,7 @@ export async function buildRegistrationEmailOtpEd25519SessionState(args: {
     signingRootVersion,
     routerAbNormalSigning: token.routerAbNormalSigning,
     walletSessionToken: args.registrationEstablishedSession.operationCredential.token,
+    home: args.registrationEstablishedSession.operationCredential.home,
     nowMs: Date.now(),
   });
   if (!signingWalletSession.ok) {

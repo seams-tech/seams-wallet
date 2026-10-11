@@ -47,15 +47,15 @@ import {
   parseEd25519ReusableAuthorizedOperationReceipt,
   parseEd25519VerifiedStepUpAuthorizedOperationReceipt,
   type Ed25519OperationKind,
-  type Ed25519ReusableAuthorizedOperationReceipt,
-  type Ed25519VerifiedStepUpAuthorizedOperationReceipt,
 } from './ed25519AuthorizedOperationReceipt';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import type { Ed25519SignerRead } from '../../../core/d1Ed25519SignerRead';
 import { isPlainObject } from '@shared/utils/validation';
 import {
   evaluateRouterAbNormalSigningAdmission,
   requireAuthorizationValue,
   type RouterAbEcdsaOperationAdmissionKind,
+  type RouterAbEd25519PolicyReadSource,
   routerAbErrorMessage,
   type RouterAbJsonRouteResult,
   type RouterAbNormalSigningAdmissionAdapter,
@@ -639,13 +639,11 @@ type RouterAbEd25519NormalSigningOperationForAdmission =
       readonly phase: 'finalize';
       readonly operationKind: Ed25519OperationKind;
       readonly authorizationKind: 'reusable_wallet_session';
-      readonly receipt: Ed25519ReusableAuthorizedOperationReceipt;
     }
   | {
       readonly phase: 'finalize';
       readonly operationKind: Ed25519OperationKind;
       readonly authorizationKind: 'operation_step_up';
-      readonly receipt: Ed25519VerifiedStepUpAuthorizedOperationReceipt;
     };
 
 function parseRouterAbEd25519NormalSigningOperationForAdmission(input: {
@@ -678,7 +676,6 @@ function parseRouterAbEd25519NormalSigningOperationForAdmission(input: {
             phase: 'finalize',
             operationKind: receipt.operation_kind,
             authorizationKind: 'reusable_wallet_session',
-            receipt,
           },
         };
       }
@@ -692,111 +689,12 @@ function parseRouterAbEd25519NormalSigningOperationForAdmission(input: {
             phase: 'finalize',
             operationKind: receipt.operation_kind,
             authorizationKind: 'operation_step_up',
-            receipt,
           },
         };
       }
     }
   } catch (error: unknown) {
     return { ok: false, message: routerAbErrorMessage(error) };
-  }
-}
-
-async function validateRouterAbEd25519V2FinalizeAuthorizedOperation(input: {
-  readonly receipt: Ed25519ReusableAuthorizedOperationReceipt;
-  readonly authorizedOperations: RouterApiAuthorizedOperationService | null | undefined;
-  readonly phase: RouterAbEd25519NormalSigningRoutePhase;
-}): Promise<
-  | { readonly ok: true; readonly operationKind: Ed25519OperationKind }
-  | { readonly ok: false; readonly result: RouterAbJsonRouteResult }
-> {
-  if (!input.authorizedOperations) {
-    return {
-      ok: false,
-      result: routerAbEd25519OwnerOperationFailureResult({
-        status: 501,
-        code: 'not_configured',
-        message: 'Reusable Wallet Session authorization is not configured',
-        phase: input.phase,
-      }),
-    };
-  }
-
-  let authorizedOperationId: AuthorizedOperationId;
-  try {
-    authorizedOperationId = requireAuthorizationValue(
-      parseAuthorizedOperationId(input.receipt.authorized_operation_id),
-    );
-    requireAuthorizationValue(parseCapabilityOperationId(input.receipt.operation_id));
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      result: routerAbEd25519OwnerOperationFailureResult({
-        status: 400,
-        code: 'invalid_authorized_operation',
-        message: routerAbErrorMessage(error),
-        phase: input.phase,
-      }),
-    };
-  }
-
-  let operation: AuthorizedOperation | null;
-  try {
-    operation = await input.authorizedOperations.readAuthorizedOperationById({
-      tenantId: input.authorizedOperations.tenantId,
-      authorizedOperationId,
-    });
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      result: routerAbEd25519OwnerOperationFailureResult({
-        status: 500,
-        code: 'internal',
-        message: routerAbErrorMessage(error),
-        phase: input.phase,
-      }),
-    };
-  }
-  if (!operation) {
-    return {
-      ok: false,
-      result: routerAbEd25519OwnerOperationFailureResult({
-        status: 409,
-        code: 'authorized_operation_missing',
-        message: 'Authorized operation is unavailable',
-        phase: input.phase,
-      }),
-    };
-  }
-
-  const operationRef = operation.operation.operation;
-  if (
-    operation.tenantId !== input.authorizedOperations.tenantId ||
-    operation.authorizedOperationId !== authorizedOperationId ||
-    operation.operation.operationId !== input.receipt.operation_id ||
-    operation.operationFingerprintDigest !== input.receipt.operation_fingerprint_digest ||
-    operation.operation.digests.laneDigest !== input.receipt.lane_digest_b64u ||
-    operation.operation.digests.intentDigest !== input.receipt.intent_digest_b64u ||
-    operation.operation.digests.displayDigest !== input.receipt.display_digest_b64u ||
-    operationRef.capabilityKind !== 'near_ed25519_mpc_signing' ||
-    operationRef.operationKind !== input.receipt.operation_kind
-  ) {
-    return {
-      ok: false,
-      result: routerAbEd25519OwnerOperationFailureResult({
-        status: 400,
-        code: 'invalid_authorized_operation',
-        message: 'Ed25519 authorized operation does not match its receipt',
-        phase: input.phase,
-      }),
-    };
-  }
-
-  switch (operationRef.operationKind) {
-    case 'near.sign_transaction':
-    case 'near.sign_delegate_action':
-    case 'near.sign_nep413_message':
-      return { ok: true, operationKind: operationRef.operationKind };
   }
 }
 
@@ -819,34 +717,15 @@ async function authorizeRouterAbEd25519WalletSessionRequest(input: {
   readonly phase: RouterAbEd25519NormalSigningRoutePhase;
   readonly body: Record<string, unknown>;
   readonly scope: RouterAbEd25519NormalSigningScopeV2;
-  readonly operation: RouterAbEd25519ReusableWalletSessionOperation;
   readonly session: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session'];
   readonly authorityId: string;
   readonly admission: RouterAbEd25519WalletSessionAdmission;
-  readonly authorizedOperations: RouterApiAuthorizedOperationService | null | undefined;
   readonly admissionAdapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
+  /** Rows the session's own statement read. An exhausted candidate has none. */
+  readonly signerRead: Ed25519SignerRead | null;
+  readonly policyReadSource: RouterAbEd25519PolicyReadSource;
 }): Promise<RouterAbEd25519WalletSessionAuthorization> {
-  if (input.operation.phase === 'finalize') {
-    const exactOperation = await validateRouterAbEd25519V2FinalizeAuthorizedOperation({
-      receipt: input.operation.receipt,
-      authorizedOperations: input.authorizedOperations,
-      phase: input.phase,
-    });
-    if (!exactOperation.ok) return exactOperation;
-    if (exactOperation.operationKind !== input.admission.operationKind) {
-      return {
-        ok: false,
-        result: routerAbEd25519OwnerOperationFailureResult({
-          status: 403,
-          code: 'wallet_session_scope_mismatch',
-          message: 'Exact Wallet Session operation does not match the authorized operation',
-          phase: input.phase,
-        }),
-      };
-    }
-  }
-
   const expectedMaterialActivation = routerAbMpcMaterialActivationRefFromWire(
     input.scope.material_activation,
   );
@@ -901,6 +780,7 @@ async function authorizeRouterAbEd25519WalletSessionRequest(input: {
   const activeMaterial = await input.resolveEd25519MaterialActivation({
     walletId: String(input.session.walletId),
     materialActivation: admittedMaterialActivation,
+    ...(input.signerRead ? { signerRead: input.signerRead } : {}),
   });
   if (
     !activeMaterial.ok ||
@@ -937,6 +817,7 @@ async function authorizeRouterAbEd25519WalletSessionRequest(input: {
   const admissionDecision = await evaluateRouterAbNormalSigningAdmission({
     adapter: input.admissionAdapter,
     curve: 'ed25519',
+    policyReadSource: input.policyReadSource,
     authorizationKind: 'wallet_session_operation_credential_v1',
     phase: input.phase,
     walletId: String(input.session.walletId),
@@ -979,7 +860,6 @@ async function resolveRouterAbEd25519ExhaustedCandidateAuthorization(input: {
   readonly scope: RouterAbEd25519NormalSigningScopeV2;
   readonly phase: RouterAbEd25519NormalSigningRoutePhase;
   readonly operation: RouterAbEd25519ReusableWalletSessionOperation;
-  readonly authorizedOperations: RouterApiAuthorizedOperationService | null | undefined;
   readonly authorizationSessions: RouterApiAuthorizationSessionService;
   readonly admissionAdapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
@@ -1010,13 +890,13 @@ async function resolveRouterAbEd25519ExhaustedCandidateAuthorization(input: {
     phase: input.phase,
     body: input.body,
     scope: input.scope,
-    operation: input.operation,
     session,
     authorityId: String(candidate.authority.authorityId),
     admission,
-    authorizedOperations: input.authorizedOperations,
     admissionAdapter: input.admissionAdapter,
     resolveEd25519MaterialActivation: input.resolveEd25519MaterialActivation,
+    signerRead: null,
+    policyReadSource: { kind: 'database' },
   });
   if (!authorized.ok) return authorized;
   return {
@@ -1089,6 +969,7 @@ export async function authorizeRouterAbEd25519NormalSigningRoute(input: {
     headers: input.headers,
     authorizationSessions: input.authorizationSessions,
     operationKind: operationForAdmission.operation.operationKind,
+    materialActivation: scope.material_activation,
   });
   if (!validated.ok) {
     const operation = operationForAdmission.operation;
@@ -1103,7 +984,6 @@ export async function authorizeRouterAbEd25519NormalSigningRoute(input: {
         scope,
         phase: input.phase,
         operation,
-        authorizedOperations: input.authorizedOperations,
         authorizationSessions: input.authorizationSessions,
         admissionAdapter: input.admissionAdapter,
         resolveEd25519MaterialActivation: input.resolveEd25519MaterialActivation,
@@ -1144,13 +1024,13 @@ export async function authorizeRouterAbEd25519NormalSigningRoute(input: {
     phase: input.phase,
     body: input.body,
     scope,
-    operation,
     session: validated.admission.context.authorization.session,
     authorityId: String(validated.admission.context.authority.authorityId),
     admission: validated.admission.admission,
-    authorizedOperations: input.authorizedOperations,
     admissionAdapter: input.admissionAdapter,
     resolveEd25519MaterialActivation: input.resolveEd25519MaterialActivation,
+    signerRead: validated.signerRead,
+    policyReadSource: { kind: 'credential_snapshot', policyRead: validated.policyRead },
   });
   if (!authorized.ok) return authorized;
   return {

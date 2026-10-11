@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "725571d368159439d38da24a80ec10aa2120f832",
+  "scope": "Unify public lock without durable pool deletion; auth.getSession and auth.hasPasskey; React and intended-app consumers.",
+  "sourceSha256": {
+    "apps/docs/src/concepts/sessions/sealed-refresh.md": "832523754ebf851793a440af46a9dd506d7c3612ddedf56e956a445f5c4d547c",
+    "apps/docs/src/reference/core.md": "b2efaa02183288efada8c521763304498730420a9e48fb031d3a69da9a2fa5b6",
+    "packages/wallet/src/SeamsWeb/operations/auth/login.ts": "61d2745fb98529fef638555907d7797b788e7990a827be6f2dcd81ef5008dd70",
+    "packages/wallet/src/SeamsWeb/publicApi/auth.ts": "4c44955ffb380745334fabb91394c41d855ffc53ee478690dc1a584067fccabf",
+    "packages/wallet/src/SeamsWeb/publicApi/createPublicApi.ts": "266fad64d3bf96f12a1f49ae2d1bd57bdae541445c3b9c42e9a82c54b467baa4",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "20615eddfe7e0ab5b09ae792de9db39cb50b1716d65765c46dc1ccd72766a060",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "1156f299ab6b524fe562bd9aecc51d37c5cda53eb4485b476532467b6ef16d00",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "6db2a8df1bd3e3326cdb4c90fd4416ae2453bfdea9eafccf4e38ae63d5c9c034",
+    "packages/wallet/src/SeamsWeb/signingSurface/ports.ts": "ee5497bab44a7bd5915d8effa9cc5aca436986db426f9975d1e46c8f1eea6610",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "968f1fd5d09ac9001fd9b5bdd60ff2686f600b6b9a4ed6cbb67d159fc9c4f64e",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/sessionCommands.ts": "961927ab288cffd5f1b9bfdf0aebbfcc2070be08b4249d10cfcda232cb904ec9",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "882a13d7b085deea1d26f12f1c28fe552b061a056680eec0cd2548a8d5b32a9a",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createEmailOtpCommands.ts": "626f33a8a33e8ab92eb654881b4861f9eb5ffaf4bd23397dec0fe6a14384af25",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createSessionCommands.ts": "abb3431a7d89aa28d4372f089a6686786e8d4338eecd00a4dabf964d1989f71b",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts": "2fb2744ef5048febc7382a1db233b490ca526fd1b76d46271f904a3f089cd683",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/deviceLink.ts": "c0c65ba875b09858a4f19c511a3a00dec61edc8f4d54982f132a01171358c543",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/index.ts": "22af76bd8270744cf433ce675b94a583b63de09e2795cadbed5e399ed11fce77",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/requestRouter.ts": "ef88f8023ee75826478c90b4fae6e9fd8ba975ef6ac08029863f65042ea76908",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "1bdbff7c5d66c11d6ee59ac457dd2d24e0836004d95b88776f8d6aa8da817987",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore.ts": "c97bbe9942ee9dab7adae6f69699df921ebaf289e8539ec295eb614943875e63",
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaClientPresignatures.ts": "44cfd76d32958da0f553647197e572f50892a08e5adad0f20c68c2e7bdd72f90",
+    "packages/wallet/src/core/signingEngine/workerManager/workerTypes.ts": "8025b5ef8b1773984a0e819b36c2df9ac6ba780f49b476aec25a2d369f36e446",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts": "b1ddea9b0ce27f1bf18ed837d4afd9829a808353dfaba67946fbc9589d936220",
+    "packages/wallet/src/core/types/seams.ts": "fb59ac1836b2b39fabcc7f44d206d9f00316052fa8e6c266d03e858f3a1ccde0",
+    "packages/wallet/src/react/context/useLoginStateRefresher.ts": "f917024653a0c41fd8a54f98f186dee4f505e09f10619bce73c20a51398f2dc5",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "aa9755fa0ca7c8ba34e129099181a84f644297cfde7da6b68bfe9e11fe7a3c5d",
+    "packages/wallet/src/react/context/useSeamsWithSdkFlow.ts": "1c33e01fa608d464025d6e80944d9d05e2ffee9620c8533752b4da9a82462bcb",
+    "packages/wallet/src/react/context/useWalletIframeLifecycle.ts": "23699352538bd017d73e1d094499cf77eff768347687e323168ca794c9bcd2b3",
+    "packages/wallet/src/react/hooks/useAccountInput.ts": "04ef45057c294d7175d0812cec447151191c7b0c99bfb8a4b4c8eb867aee0a74",
+    "packages/wallet/src/react/hooks/useWalletAuth.ts": "70bc218a4149d8c0d41d6ad044b1848da412ed224dedef8d6c0d858eee1165b9",
+    "packages/wallet/src/react/types.ts": "48e74f28b59c187f43e79c61a2fe5dd4eff55677d3a5fb488faf8481c2ca0ecd",
+    "tests/e2e/intended-behaviours/passkey.unlock.contract.test.ts": "ad56c41ebc877022501127774923c5089f9a7af9215243b628a603d3dceecd32",
+    "tests/e2e/intended-behaviours/session-presign-retention.ts": "ccdcac257a3f806bd31406d2a8f198b616ff6f948ffef34fe8c2392166cfffc8",
+    "tests/intended-app/src/page.tsx": "c91104bcd1290e38e19490c751db03fcb60b40475ad420021d1a1794d7014420",
+    "tests/intended-app/src/registrationSession.ts": "8836ab7dd06288a3f5ce293fec8425de897b55dc911cb2ba59a840c1792c1ee5",
+    "tests/typecheck/wallet-command-inputs.typecheck.ts": "dc59e5adc2bf61368be22ea9146ff3f52ace1a7240d272c7d0d1eed2ca73f24e",
+    "tests/unit/durablePresignatureIndexedDb.browser.test.ts": "be7e09d5241dd0cfd7691536bfc341a0198d64035746e146dbbd6cb891883337"
+  },
+  "deletedFiles": [
+    "tests/unit/logoutDurablePresignatures.unit.test.ts"
+  ],
+  "checksPassed": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:wallet-state",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm report:bloat --check"
+  ],
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/durablePresignatureIndexedDb.browser.test.ts wallet-iframe/session.events.test.ts wallet-iframe/session.persistence.test.ts wallet-iframe/session.authority.test.ts wallet-iframe/session.selection.test.ts wallet-iframe/router.sessionOrdering.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/client.connection.test.ts --project=chromium --output=../.artifacts/r170-auth-api-final",
+    "passed": 24,
+    "durationSeconds": 10.7,
+    "storageArtifact": {
+      "capacityAdmissionKinds": [
+        "capacity_full",
+        "stored",
+        "stored",
+        "stored",
+        "stored",
+        "stored"
+      ],
+      "admissionKinds": [
+        "stored",
+        "stored"
+      ],
+      "concurrentTakeKinds": [
+        "claimed_elsewhere",
+        "opened"
+      ],
+      "openedPlaintextMatches": true,
+      "restoredAfterThirtyDays": 1,
+      "tamperedTakeKind": "corrupt",
+      "takeAfterTamperKind": "claimed_elsewhere"
+    }
+  },
+  "testClassification": [
+    {
+      "test": "logoutDurablePresignatures.unit.test.ts",
+      "classification": "obsolete_test_or_fixture",
+      "action": "Deleted with destructive logout operation."
+    },
+    {
+      "test": "durablePresignatureIndexedDb.browser.test.ts",
+      "classification": "valid_test_needs_update",
+      "failure": "Original deep output path no longer exports the internal store constructor.",
+      "action": "Use established in-memory esbuild browser probe; preserve storage invariants and remove retired bulk-delete assertion. Final 24-case browser run passes."
+    }
+  ],
+  "productionPriorBroaderRun": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'lock retains durable presignatures across a fresh unlock|Email OTP registration and unlock lifecycle|page refresh hydrates warm signing|a fresh unlock survives a delayed restoration'",
+    "receipt": [
+      "[wallet-intended] running 4 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/4 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "  1 passed (48.1s)",
+      "[wallet-intended] 2/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:16 lock retains durable presignatures across a fresh unlock",
+      "  1 passed (27.2s)",
+      "[wallet-intended] 3/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:19 a fresh unlock survives a delayed restoration response from another tab",
+      "  1 passed (28.3s)",
+      "[wallet-intended] 4/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:65 page refresh hydrates warm signing, one-use step-up, and key export",
+      "  1 passed (33.9s)"
+    ],
+    "scopeNote": "Before removing the unused deleteCursorRows export and repairing the browser-only probe import. No runtime behavior changed afterward."
+  },
+  "productionFinalRun": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'lock retains durable presignatures across a fresh unlock'",
+    "receipt": [
+      "[wallet-intended] running 1 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/1 e2e/intended-behaviours/passkey.unlock.contract.test.ts:16 lock retains durable presignatures across a fresh unlock",
+      "  1 passed (27.0s)"
+    ],
+    "retentionArtifact": {
+      "beforeLock": 1,
+      "whileLocked": 1,
+      "afterUnlock": 1,
+      "allOriginalRecordsRetained": true,
+      "postUnlockTempoSigning": "passed",
+      "scope": "Immediate lock and fresh unlock; the separate 30-day return gate remains open."
+    }
+  },
+  "lines": {
+    "rule": "git diff HEAD --numstat relative to baseCommit. Production packages/wallet/src TS excludes type fixtures. Tests/type fixtures and Markdown documentation are separate. Evidence JSON excluded. No generated output changed.",
+    "productionTypescript": {
+      "added": 38,
+      "deleted": 145,
+      "net": -107
+    },
+    "testsAndTypeFixtures": {
+      "added": 198,
+      "deleted": 144,
+      "net": 54
+    },
+    "documentation": {
+      "added": 69,
+      "deleted": 2,
+      "net": 67
+    }
+  },
+  "remaining": [
+    "Full 30-day return and first-sign latency acceptance; synthetic 30-day storage plus immediate lifecycle does not prove it.",
+    "auth.onSessionChange and remaining R171 migration",
+    "Private Console/site exact-release caller migration",
+    "Provider lifecycle, worker loading/latency, final cleanup and remaining R170 acceptance"
+  ]
+}

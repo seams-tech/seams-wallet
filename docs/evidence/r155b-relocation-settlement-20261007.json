@@ -1,0 +1,34 @@
+{
+  "environment": "local composed browser acceptance with real custody processes and regional D1 emulation",
+  "passed": 2,
+  "duration": "1.4m",
+  "samples": [
+    {
+      "curve": "ed25519",
+      "pendingRetirementRejections": 1,
+      "verifiedSignaturesBeforeRetirement": 1,
+      "retirementAfterSettlement": "succeeded",
+      "exactRetirementReplay": true,
+      "retiredSessionFinalizeReplayStatus": 401,
+      "noAdditionalQuotaOrOperationMutation": true,
+      "attemptedConsoleCalls": 0,
+      "scope": "Production regional session-retirement participant during live signing. Excludes directory orchestration, custody freeze, transfer and destination activation."
+    },
+    {
+      "curve": "ecdsa",
+      "pendingRetirementRejections": 1,
+      "verifiedSignaturesBeforeRetirement": 1,
+      "retirementAfterSettlement": "succeeded",
+      "exactRetirementReplay": true,
+      "retiredSessionFinalizeReplayStatus": 401,
+      "noAdditionalQuotaOrOperationMutation": true,
+      "attemptedConsoleCalls": 0,
+      "scope": "Production regional session-retirement participant during live signing. Excludes directory orchestration, custody freeze, transfer and destination activation."
+    }
+  ],
+  "localSessionRouting": "passed",
+  "serverTypecheck": "passed",
+  "serverBuild": "passed",
+  "bloatCheck": "passed",
+  "hostedLatencyMeasured": false
+}

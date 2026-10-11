@@ -1,0 +1,1674 @@
+{
+  "date": "2026-10-11",
+  "dateTimezone": "Asia/Tokyo",
+  "environment": "Existing staging testnet; Tokyo browser, APAC home, Hong Kong Gateway, Console and role databases; real CORS preflights",
+  "comparison": "The SDK with the NEP-413 sign prepare sent during the confirmation dialog (public 3670b1cd) against the SDK without it, on identical Worker versions; one discarded warm-up group first",
+  "workerVersions": {
+    "seams-sdk-d1-console-staging": [
+      {
+        "version_id": "b4b5f674-1091-4e44-a179-c841ea3444ff",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-a-staging": [
+      {
+        "version_id": "e1996ba4-e536-4e7b-b696-a2f91e4b0908",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-b-staging": [
+      {
+        "version_id": "4c70417b-3fe7-44d5-9a95-4292306a7d8d",
+        "percentage": 100
+      }
+    ],
+    "router-ab-mpc-router-staging": [
+      {
+        "version_id": "aa1cf297-fa2d-439d-8f68-e3a782164508",
+        "percentage": 100
+      }
+    ],
+    "router-ab-signing-worker-staging": [
+      {
+        "version_id": "c39367f9-1096-4dd8-921b-027ca5803748",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging": [
+      {
+        "version_id": "9d22d5bb-240e-4d54-839e-f0c1bd9eabbb",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging-oc": [
+      {
+        "version_id": "87f96024-ac99-4649-939b-4f99a3540227",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging-us": [
+      {
+        "version_id": "54661abf-bd46-46a8-aef4-eb4774a1ee1d",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging-weur": [
+      {
+        "version_id": "ce3261a7-77fe-4d02-80f1-09229c6dc8e8",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging": [
+      {
+        "version_id": "e2a15f3c-4f00-4fa0-a38d-6f8209f2523f",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging-oc": [
+      {
+        "version_id": "e561988b-1f3e-4625-a3e9-360d87efd463",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging-us": [
+      {
+        "version_id": "301e2a6a-cfbf-44a0-9783-e6ac8bac8b2a",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging-weur": [
+      {
+        "version_id": "0892a934-18da-429d-a53b-e294d01b8faa",
+        "percentage": 100
+      }
+    ]
+  },
+  "frozenInputsSha256": "2317d93da921d71ecf01ecfddf1866f87c050f40e51830130b9f896f960b4997",
+  "privateArtifactDirectory": ".artifacts/r155g-prepare-hosted",
+  "newResources": 0,
+  "groupOrder": [
+    "warmup",
+    "plain",
+    "prepare",
+    "plain-repeat",
+    "prepare-repeat"
+  ],
+  "pooledSummary": {
+    "latePrepare": {
+      "firstSignatureWithoutConfirmationMs": {
+        "median": 719.5,
+        "min": 662.0,
+        "max": 1153.6,
+        "samples": 6
+      },
+      "confirmedToSignedMs": {
+        "median": 694.3,
+        "min": 635.9,
+        "max": 1132.1,
+        "samples": 6
+      },
+      "prepareWaitAfterConfirmationMs": {
+        "median": 298.0,
+        "min": 278.8,
+        "max": 370.0,
+        "samples": 6
+      },
+      "confirmationMs": {
+        "median": 272.4,
+        "min": 262.1,
+        "max": 297.7,
+        "samples": 6
+      },
+      "signRequestMs": {
+        "median": 357.9,
+        "min": 309.1,
+        "max": 809.8,
+        "samples": 6
+      },
+      "registrationWithoutWebAuthnMs": {
+        "median": 3951.6,
+        "min": 3249.8,
+        "max": 4097.5,
+        "samples": 6
+      },
+      "registrationAndSignatureWithoutInteractionMs": {
+        "median": 4703.9,
+        "min": 4014.1,
+        "max": 4933.2,
+        "samples": 6
+      }
+    },
+    "earlyPrepare": {
+      "firstSignatureWithoutConfirmationMs": {
+        "median": 396.2,
+        "min": 366.7,
+        "max": 513.4,
+        "samples": 6
+      },
+      "confirmedToSignedMs": {
+        "median": 357.9,
+        "min": 326.9,
+        "max": 471.2,
+        "samples": 6
+      },
+      "prepareWaitAfterConfirmationMs": {
+        "median": 65.0,
+        "min": 41.6,
+        "max": 90.1,
+        "samples": 6
+      },
+      "confirmationMs": {
+        "median": 266.5,
+        "min": 260.7,
+        "max": 270.9,
+        "samples": 6
+      },
+      "signRequestMs": {
+        "median": 284.6,
+        "min": 277.9,
+        "max": 374.0,
+        "samples": 6
+      },
+      "registrationWithoutWebAuthnMs": {
+        "median": 3741.1,
+        "min": 3620.1,
+        "max": 4661.4,
+        "samples": 6
+      },
+      "registrationAndSignatureWithoutInteractionMs": {
+        "median": 4144.2,
+        "min": 3988.8,
+        "max": 5028.1,
+        "samples": 6
+      }
+    }
+  },
+  "samples": {
+    "warmup": [
+      {
+        "file": "registration-1.json",
+        "sha256": "87aa91f118e37eac754371f6ce8e66bf91f8a7e4b8b165cbd89efe2beebf1e52",
+        "measurement": {
+          "sdkRegistrationMs": 4429.7300000190735,
+          "sdkMessageSigningMs": 1780.4950000047684,
+          "sdkFlowMs": 6210.225000023842,
+          "webAuthnMs": 343.6999999284744,
+          "confirmationMs": 271.5,
+          "sdkFlowWithoutInteractionMs": 5595.025000095367,
+          "harnessMs": 627.3270419761575
+        },
+        "signingStagesMs": {
+          "confirmation": 271.5,
+          "prepare": 1098.3,
+          "client_share": 3.7,
+          "finalize": 378.1,
+          "signature_total": 1481.9,
+          "confirmed_to_signed": 1493
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 692.72,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 248.996,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1701.972,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1195.209,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 1096.682,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 377.435,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "2367ef5a166541697297b83e017ccdc366e2c16a87d42b6ed4c9a2c1d87730d1",
+          "publicKey": "ed25519:3PDC2H2MNjUDEpbKZ6ocLrxKCAErpq5KLYNe4submt1e",
+          "signature": "cOSN6JygImULaIHKwcOoHttDeoRLzL0dSHk+qGVf4k/kpGFniP0EdI+3reU1iJ+dkeZCSLFFio0mt5i8k0hbCQ==",
+          "nonce": "GJvqtuE9B9YWne4YvdUFECYTk7hIR3Jatt5eXTuCKZY=",
+          "digestHex": "b40151ca76fefa3ed927e1b4ff2b2c4e24c90992d89876506c96ed07ef6c6efe",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-2.json",
+        "sha256": "f047bd47ac68dcfc1e6df135806da2b7a62f1090f3fd1ad88357be147944b3cd",
+        "measurement": {
+          "sdkRegistrationMs": 4828.195000052452,
+          "sdkMessageSigningMs": 1117.1849999427795,
+          "sdkFlowMs": 5945.379999995232,
+          "webAuthnMs": 729.8000000715256,
+          "confirmationMs": 271.10000002384186,
+          "sdkFlowWithoutInteractionMs": 4944.479999899864,
+          "harnessMs": 835.3302500047685
+        },
+        "signingStagesMs": {
+          "confirmation": 271.1,
+          "prepare": 488.8,
+          "client_share": 3.8,
+          "finalize": 311.2,
+          "signature_total": 805.6,
+          "confirmed_to_signed": 817.2
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 1041.535,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 288.387,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1380.337,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1158.491,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 487.453,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 310.486,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "809c593db269afeb3fcc9617833923e5d597e7e25d9fd346c459756b4c376db6",
+          "publicKey": "ed25519:9f3Tj9k73r7pEjz9NNZj8BnpQDEj2m2QVCbstsjDYPWu",
+          "signature": "UMQw2gS6GGUwo4Oya3K8+xwHKWacDHvPSGrB47BfAfjM2kNtZUs9DSbXH0bifm0zSxdfiUXHnIp6OIWtm/ZuDw==",
+          "nonce": "65hRDjBi32dTB3Ckf6HK5jeFERrwadOgvAsHG4YVg/A=",
+          "digestHex": "e84cdf71c13b26be9852efb711a670136f0880c56b217465dc9f2bbd38deec11",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-3.json",
+        "sha256": "dafe6de6d5b879c6572006c0b456e899922609218558c8f23ed6100676807213",
+        "measurement": {
+          "sdkRegistrationMs": 3997.5,
+          "sdkMessageSigningMs": 896.0650000572205,
+          "sdkFlowMs": 4893.5650000572205,
+          "webAuthnMs": 471.7999999523163,
+          "confirmationMs": 271.89999997615814,
+          "sdkFlowWithoutInteractionMs": 4149.865000128746,
+          "harnessMs": 1113.4545829427789
+        },
+        "signingStagesMs": {
+          "confirmation": 271.9,
+          "prepare": 288.8,
+          "client_share": 3.6,
+          "finalize": 290.6,
+          "signature_total": 585.2,
+          "confirmed_to_signed": 596.1
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 533.136,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 215.433,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1523.704,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1016.994,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 287.831,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 289.873,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "eec00ae0663e501674dba43f9dfd20d1ce2ca63d33005d4f1769b2dfe0ba6800",
+          "publicKey": "ed25519:H4ysmu8jcEDURsiJBBjyaKTVdrnjTYEhkFVnpr8StdUj",
+          "signature": "P3wakxLW3S4cLIMmTOKNDead8hk98lUmU0n9kPe5RZVkCVgePgqbI5JqRimFw41AOXJpI6qt/jz3HlEHfjsvDQ==",
+          "nonce": "ynM6Hvqyusdf1Cg8M8intOm/crczm2yamuC8cu7ijOo=",
+          "digestHex": "aab30215b756a5704aef9d225bf6e3c1a1edd1c1f386acd83568e13bf37ec270",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      }
+    ],
+    "plain": [
+      {
+        "file": "registration-1.json",
+        "sha256": "96414d3de9e4de4f84e798199e79bc0a3351819081db6bc2e456a23db3b93dd0",
+        "measurement": {
+          "sdkRegistrationMs": 4071.094999909401,
+          "sdkMessageSigningMs": 1053.320000052452,
+          "sdkFlowMs": 5124.414999961853,
+          "webAuthnMs": 175.5,
+          "confirmationMs": 271.2000000476837,
+          "sdkFlowWithoutInteractionMs": 4677.714999914169,
+          "harnessMs": 956.0198750381469
+        },
+        "signingStagesMs": {
+          "confirmation": 271.2,
+          "prepare": 370,
+          "client_share": 3.6,
+          "finalize": 368,
+          "signature_total": 743,
+          "confirmed_to_signed": 753.9
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 861.088,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 267.081,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1504.547,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1027.191,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 368.924,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 367.157,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "58de9e5a16d76f3c1ba22f8a215f24fb419ca98f07bdf6deb786a864ba3e47f6",
+          "publicKey": "ed25519:6yumDg2a6947zZYkEnmJViKNpnVPd8rCyS3EuaDy9C9T",
+          "signature": "GoGwLYqNDl1+YdYEF36k6929WtJP+yEmpshgM41m8HCZwLPIciyBeXUBLiLHM56FOo0MacGQRMGlutUwDCs7CQ==",
+          "nonce": "u1Jch2aM2ZFhT9VHtWp6hYA/kybIyxtP4kmzjN3eTc8=",
+          "digestHex": "266bab91419fc7c18aa5071e1b124c57642c43d10d98a6486ffcebf83268dd94",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-2.json",
+        "sha256": "65e75f3711036a8b02069be569ee3bac6e6d45660b7cf3918a4f4f5d9e260960",
+        "measurement": {
+          "sdkRegistrationMs": 4505.399999976158,
+          "sdkMessageSigningMs": 926.6549999713898,
+          "sdkFlowMs": 5432.054999947548,
+          "webAuthnMs": 407.90000009536743,
+          "confirmationMs": 262.10000002384186,
+          "sdkFlowWithoutInteractionMs": 4762.054999828339,
+          "harnessMs": 1322.7406670524515
+        },
+        "signingStagesMs": {
+          "confirmation": 262.1,
+          "prepare": 309.7,
+          "client_share": 3.4,
+          "finalize": 309.1,
+          "signature_total": 623.9,
+          "confirmed_to_signed": 635.9
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 623.006,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 218.988,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1615.561,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1426.856,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 308.5,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 308.358,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "782885cfcec207b3a0c5833d267883460db19113f949019998b40d7fad4a8761",
+          "publicKey": "ed25519:963mD6Cucu9DY7JwJEV9KEw55hmUpC1FX8LiXWmTEXpU",
+          "signature": "JAm6riTNBvl+jRvtg3Qtq5yCyxouM7KcAlgKJX+mENJc4sT0x2dLv1oTwEDdtqMvmzc948A5TRawkESTUXu3Aw==",
+          "nonce": "xM6xkRzHnUDBZw8w+WDw1gQIz4F9jlV40ya/URDmFgs=",
+          "digestHex": "b23c03722e16aaf9c30c1f1b4061ff08fa9fabf511d6d30fbe14f0f226f1d704",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-3.json",
+        "sha256": "452f70edd8bee31f833d62975b8b819da19235acf3f5756dc9a2c008cdfdaed6",
+        "measurement": {
+          "sdkRegistrationMs": 4301.3949999809265,
+          "sdkMessageSigningMs": 1427.2400000095367,
+          "sdkFlowMs": 5728.634999990463,
+          "webAuthnMs": 521.7999999523163,
+          "confirmationMs": 273.60000002384186,
+          "sdkFlowWithoutInteractionMs": 4933.235000014305,
+          "harnessMs": 1025.0589580095366
+        },
+        "signingStagesMs": {
+          "confirmation": 273.6,
+          "prepare": 305.6,
+          "client_share": 3.6,
+          "finalize": 809.8,
+          "signature_total": 1120.6,
+          "confirmed_to_signed": 1132.1
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 469.956,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 278.169,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1883.976,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 911.786,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 303.842,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 809.139,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "7bb7ae0c0d8233caff20321450906a27636d897f62e4ebb26cc5eee633eaab90",
+          "publicKey": "ed25519:9KwbU1CGuUxGvGX2HcW3dmTwDDf6qj2NGJUGSDmbG8hD",
+          "signature": "w6Sn47+tiXYlx8YLLhWh78BYalb0eqdK2sIVogC47qbzMR9EjYs7ZWev0jcGpamfK+cqApcKFWc9AefDlHkWBQ==",
+          "nonce": "dZVefymCywW+7s1YzauoDFnsBzLdap2Q4U3OnCTMIBg=",
+          "digestHex": "29ff0cfc367e1443982343a638b7996ae420c6fb2507afe6885eca909706eabc",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      }
+    ],
+    "prepare": [
+      {
+        "file": "registration-1.json",
+        "sha256": "ae1202a1f7a5261a77b3a2347ec049411111388449231bbd1119ed765e274c3b",
+        "measurement": {
+          "sdkRegistrationMs": 4724.604999899864,
+          "sdkMessageSigningMs": 718.8799999952316,
+          "sdkFlowMs": 5443.484999895096,
+          "webAuthnMs": 509.1999999284744,
+          "confirmationMs": 260.6999999284744,
+          "sdkFlowWithoutInteractionMs": 4673.585000038147,
+          "harnessMs": 1443.924500104904
+        },
+        "signingStagesMs": {
+          "prepare_sent": 0.5,
+          "confirmation": 260.7,
+          "prepare": 81.4,
+          "client_share": 3.6,
+          "finalize": 328.9,
+          "signature_total": 415.5,
+          "confirmed_to_signed": 417.5
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 1314.621,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 288.499,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1414.723,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 958.432,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 343.437,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 328.258,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "14b0b829370bc47f96830a56d77c9dc19fba3cc23b5ed8e9be8f4ec9d5e13cbe",
+          "publicKey": "ed25519:2PmSqZVvCBnsWbkqUobKKaAfTj1AcZwLtYVVuzvGye7X",
+          "signature": "O+jLo+Lc5+IenwPhnodavqCI2IsoDbe/EaT0+DdxAFvMsSyGCUnl7OkbZaNH8e22vPhkTnaoz1tQPWBAEsmNDQ==",
+          "nonce": "v5cz83vWDa4PZGqD/zcnP9a8xVKltGHNZm8mnK8jVpQ=",
+          "digestHex": "104348c0b8ccd932e15c59d50f7f150d4add63e6b572d1ca1f80aedd96b1224f",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-2.json",
+        "sha256": "5c6467e5643bda1b6bdc3287aa7a4c7224b09bf68fccaeff9cad79f687535964",
+        "measurement": {
+          "sdkRegistrationMs": 4158.759999990463,
+          "sdkMessageSigningMs": 680.0350000858307,
+          "sdkFlowMs": 4838.795000076294,
+          "webAuthnMs": 414.6999999284744,
+          "confirmationMs": 269.1999999284744,
+          "sdkFlowWithoutInteractionMs": 4154.895000219345,
+          "harnessMs": 1153.7237499237071
+        },
+        "signingStagesMs": {
+          "prepare_sent": 0.5,
+          "confirmation": 269.2,
+          "prepare": 85,
+          "client_share": 3.6,
+          "finalize": 279.2,
+          "signature_total": 369.3,
+          "confirmed_to_signed": 371.5
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 566.916,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 312.61,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1424.647,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1206.787,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 355.709,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 278.554,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "a0a11aaa76b95b8dd0bcfdf68de67543e8bdc06da6deec303208d876062b802e",
+          "publicKey": "ed25519:Bp2iMU6v9f41XL9jaVaWAA51qyN4eqDsUSzWT56M9pXf",
+          "signature": "ZBFpQzZUcnsgyQDenUq7xTpDccjTSFJdEkHTGwu3K7B8FBukiltc+2vnuGS8VAgfy0VKzmSiJB/eEh4znndeAg==",
+          "nonce": "ByPb0aStBx6cjCQFZWvIN99UpNwQPIdJiQhNZV5e8d4=",
+          "digestHex": "2b84f430c11d5695cf4145af2111ba486f365c6f5805fa578f58a33a4cc30132",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-3.json",
+        "sha256": "ef718daf5e5bf89041ba7e78990ba8e53cf1549182794ab75bb9dab6859c43a6",
+        "measurement": {
+          "sdkRegistrationMs": 4238.799999952316,
+          "sdkMessageSigningMs": 650.7699999809265,
+          "sdkFlowMs": 4889.569999933243,
+          "webAuthnMs": 500.7000000476837,
+          "confirmationMs": 269.2000000476837,
+          "sdkFlowWithoutInteractionMs": 4119.669999837875,
+          "harnessMs": 1112.4528340667584
+        },
+        "signingStagesMs": {
+          "prepare_sent": 0.4,
+          "confirmation": 269.2,
+          "prepare": 48.6,
+          "client_share": 3.7,
+          "finalize": 288.5,
+          "signature_total": 342.4,
+          "confirmed_to_signed": 344.4
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 495.263,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 242.66,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1724.34,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1038.895,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 318.989,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 287.807,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "79a5472493beefda0b28ff9a3f59d826eb5635b7ceb168df2bfd3a2c9a94ceef",
+          "publicKey": "ed25519:9BrWEbuwJG1TiqZMnh5Km1ZPwGk294UCBBowNqtGktWi",
+          "signature": "met3itBuavOAqVa7CckTkBRjTQEa3GyVXmQzNdx9XbD8Id+bQ/EYLeLkqthRYFAl2yuY7/I1QwLWHm1r5JG2CA==",
+          "nonce": "pVcb+BbV9OCHKVUyx0CsIC4SG6pcUGHGbWpidrvwDC8=",
+          "digestHex": "1a448b9732041b735c017bccf7feb0e578d5a8a98488e3eef0e4e330a7ddee2b",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      }
+    ],
+    "plain-repeat": [
+      {
+        "file": "registration-1.json",
+        "sha256": "c1734c24024f9d159a41912341783d39b5672e551242888cc9e259266c9a10b9",
+        "measurement": {
+          "sdkRegistrationMs": 4310.679999947548,
+          "sdkMessageSigningMs": 959.7199999094009,
+          "sdkFlowMs": 5270.399999856949,
+          "webAuthnMs": 247,
+          "confirmationMs": 297.6999999284744,
+          "sdkFlowWithoutInteractionMs": 4725.699999928474,
+          "harnessMs": 817.7370831430508
+        },
+        "signingStagesMs": {
+          "confirmation": 297.7,
+          "prepare": 288.6,
+          "client_share": 3.6,
+          "finalize": 333.7,
+          "signature_total": 627.4,
+          "confirmed_to_signed": 639.1
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 796.083,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 198.242,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1798.552,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 1028.597,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 287.301,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 333.01,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "1f5f444b0cfa735b515cb6df169cfe223b52972dafa7d709e1fab525b7dc6a5b",
+          "publicKey": "ed25519:37TtoCpD7LYYuJkT5vFJHy2FDdsow1D44StoQNdoLTGv",
+          "signature": "4Ss0n/FMJNUwLVe48SENpCYIinpSNxentQADCrSNJBYwobWEzYL6VA4tnfVT9q9QFq0zjGOeiK/qc0ZBUOYNDw==",
+          "nonce": "J1z/WjSJwzbpVdwOx56AtTZr210ZncdXgKDDk/ONif0=",
+          "digestHex": "9335f14d77c7f2f3730a2eaf28de3c47d5a38e5bd1c9d0a98189290c0c966476",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-2.json",
+        "sha256": "02bfa57ba0f59e2f9567c456a4f42079e496d1b499ef48bd2e0bc4808745180d",
+        "measurement": {
+          "sdkRegistrationMs": 4335.735000014305,
+          "sdkMessageSigningMs": 969.3150000572205,
+          "sdkFlowMs": 5305.050000071526,
+          "webAuthnMs": 328.2000000476837,
+          "confirmationMs": 294.6999999284744,
+          "sdkFlowWithoutInteractionMs": 4682.150000095367,
+          "harnessMs": 709.1970419284744
+        },
+        "signingStagesMs": {
+          "confirmation": 294.7,
+          "prepare": 290.3,
+          "client_share": 3.7,
+          "finalize": 347.8,
+          "signature_total": 643.2,
+          "confirmed_to_signed": 654.5
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 679.729,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 201.01,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1917.064,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 975.184,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 289.083,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 347.243,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "4f71f4f65e2f3c49ece3f2da9aaa6d1fd495e197bc2ba646165b6b9493a3e87b",
+          "publicKey": "ed25519:6M7zYf8itnhhhr2RRk8mrSd25xPk9WmYGcEMP6htm9PG",
+          "signature": "CWlpItSTvePb/fpyu2viqA/n4K7dq/4jYqqUkgXGXCxBnirE98ki1oMvJxu54uQZngPRLcBbm+77QZS493siCQ==",
+          "nonce": "CMqnuYepvzXEuJJOsf+9l1bMdUGZ1fNFinAg3nDxeP0=",
+          "digestHex": "f4f273d6150df689c5c66585308b1e1e75277f5f5c463dc079c36bacded6e018",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-3.json",
+        "sha256": "1a41f31fd9485414b1f448f252d93ed07ed7a19581967b1514179e5660cc95ec",
+        "measurement": {
+          "sdkRegistrationMs": 3753.2300000190735,
+          "sdkMessageSigningMs": 1029.295000076294,
+          "sdkFlowMs": 4782.525000095367,
+          "webAuthnMs": 503.39999997615814,
+          "confirmationMs": 265,
+          "sdkFlowWithoutInteractionMs": 4014.1250001192093,
+          "harnessMs": 1196.7808329046347
+        },
+        "signingStagesMs": {
+          "confirmation": 265,
+          "prepare": 278.8,
+          "client_share": 3.4,
+          "finalize": 438.6,
+          "signature_total": 722.3,
+          "confirmed_to_signed": 734.1
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 482.88,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 221.293,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1409.957,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 897.797,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 277.76,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 437.806,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "49b9ea03bb63496e3f2f43db99a8c958896ec6e9bb5b8b5fa0ad4d5a7efdd43f",
+          "publicKey": "ed25519:5xoBkSP5tvyf6DYm8jvQ3B3TkLf2HteuENqitHHCKcZL",
+          "signature": "jm5omumWn03seEoqrZTh75KNm2nhqnyuFzgadXB74/dvASmXUM6DhZWEj+xQvo+uYrpf+tCsBYurr0DYYM6TDw==",
+          "nonce": "4DY3+DxpChx20aMJ6OEzUKZES0cAlgLjyUot4MmCNyg=",
+          "digestHex": "36e3c8f6da07f74e7c7ff290d88e47498e60fe65efa6704e11914296a1085b1a",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      }
+    ],
+    "prepare-repeat": [
+      {
+        "file": "registration-1.json",
+        "sha256": "1a7f92b3f27b6d66e114122ac1d78f9471a58e5df0b38054ed2bc7ed7eab9d27",
+        "measurement": {
+          "sdkRegistrationMs": 3951.2900000810623,
+          "sdkMessageSigningMs": 776.7549999952316,
+          "sdkFlowMs": 4728.045000076294,
+          "webAuthnMs": 331.2000000476837,
+          "confirmationMs": 263.39999997615814,
+          "sdkFlowWithoutInteractionMs": 4133.445000052452,
+          "harnessMs": 1353.472499923706
+        },
+        "signingStagesMs": {
+          "prepare_sent": 0.6,
+          "confirmation": 263.4,
+          "prepare": 90.1,
+          "client_share": 3.5,
+          "finalize": 374,
+          "signature_total": 469.1,
+          "confirmed_to_signed": 471.2
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 704.685,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 315.488,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1401.446,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 959.204,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 355.244,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 373.146,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "848ea1447e5292032adc944b54dc0387a748f192201c84d9c0ecc0a3bed8d2ce",
+          "publicKey": "ed25519:9vSxcFuR3saczDxSDGBdEhWZejdWaZm5sibVjYoEfBAV",
+          "signature": "AEKH6zGuGm3Al9TzIDJu0sQnm9g0ItIINnjhbeEIVsWay/Qpky1g7Hkb4UXZtGKlYw/yzy5nDQJyKUuHF4uOAg==",
+          "nonce": "rr/7lT09qhoCuui7I2yPkNfdTJyAhYL3iAvl21465Qw=",
+          "digestHex": "953d6be4a5daa063eb47308610999561fec5f3ad37de6dfe911e90401a3cbbe2",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-2.json",
+        "sha256": "084ee735aa04f5af70f88cf5149b98519b20d9770e1e4792e0a9a1c5ad775cd5",
+        "measurement": {
+          "sdkRegistrationMs": 4088.6150000095367,
+          "sdkMessageSigningMs": 631.0099999904633,
+          "sdkFlowMs": 4719.625,
+          "webAuthnMs": 467,
+          "confirmationMs": 263.7999999523163,
+          "sdkFlowWithoutInteractionMs": 3988.8250000476837,
+          "harnessMs": 1271.9095420000003
+        },
+        "signingStagesMs": {
+          "prepare_sent": 0.5,
+          "confirmation": 263.8,
+          "prepare": 41.6,
+          "client_share": 3.5,
+          "finalize": 277.9,
+          "signature_total": 324.7,
+          "confirmed_to_signed": 326.9
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 537.163,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 187.554,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1729.767,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 936.863,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 307.183,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 277.201,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "fd06804364d760ef687544316a16707b4d4db4385558399bb2bb6b65c2aa32fa",
+          "publicKey": "ed25519:J2hu2mJEwJcbz3KPwA9hTvaEwSdAeyUhMHub4wqP8KXo",
+          "signature": "nmGJaZJOZ09npfDS2tQ+Mep001DRyBaMklHtTtmBakSP3GjE6ne4pkDVK5EdBxKdLJKmHiqnZByHD3fH9OI9Cw==",
+          "nonce": "W4MWg4WowDk8JlvN4GtNIp4/HairQxTIjnNQmHiuX9c=",
+          "digestHex": "c780e675f77594b42fc0d73b95d7661cf54a2636a4cb6ae1555fd50ddcb8acbf",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      },
+      {
+        "file": "registration-3.json",
+        "sha256": "fe5c692fbb82dbbcde616eadfb5b322d6c5d53b42bbecfdd8095b4f23bb984b6",
+        "measurement": {
+          "sdkRegistrationMs": 5045.609999895096,
+          "sdkMessageSigningMs": 637.6050000190735,
+          "sdkFlowMs": 5683.214999914169,
+          "webAuthnMs": 384.1999999284744,
+          "confirmationMs": 270.89999997615814,
+          "sdkFlowWithoutInteractionMs": 5028.115000009537,
+          "harnessMs": 1113.470709085832
+        },
+        "signingStagesMs": {
+          "prepare_sent": 0.4,
+          "confirmation": 270.9,
+          "prepare": 43.4,
+          "client_share": 3.5,
+          "finalize": 280.8,
+          "signature_total": 329.3,
+          "confirmed_to_signed": 331.1
+        },
+        "browserRequests": [
+          {
+            "path": "/wallets/register/setup",
+            "browserRequestElapsedMs": 1390.876,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/respond",
+            "browserRequestElapsedMs": 653.205,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/yao/registration/execute",
+            "browserRequestElapsedMs": 1490.206,
+            "status": 200
+          },
+          {
+            "path": "/wallets/register/near-provisioning",
+            "browserRequestElapsedMs": 898.534,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign/prepare",
+            "browserRequestElapsedMs": 315.646,
+            "status": 200
+          },
+          {
+            "path": "/router-ab/ed25519/sign",
+            "browserRequestElapsedMs": 280.159,
+            "status": 200
+          }
+        ],
+        "publicSignatureProof": {
+          "message": "Verify this new implicit NEAR wallet before funding",
+          "recipient": "checkout.example",
+          "state": "quote-170",
+          "success": true,
+          "accountId": "87e4631d36f6b4a460594c57fc16f0a5a345268ecad0151eb15f792b074bb620",
+          "publicKey": "ed25519:A9U2WLrvtheDiDi2ZkgApmYtqTx4rHqkVjmAYzQiVBp3",
+          "signature": "qs4O5OZC77EmSkWnnX54Af+QDmf3ZtN26m28kfUBHaiKkhFzvYnqv56bnGvsS8CiASQ6dVsabeihVNdGVB+3DA==",
+          "nonce": "doEk5v6UEBCuBIOfzbB/hiMeQ6WL85aV06dlG3SIjZk=",
+          "digestHex": "4f93aa4e541ce3b68910d3f0ab47f83cd65ad5740596457a8dc9e415b3f190da",
+          "verification": {
+            "standardPayload": true,
+            "changedMessageRejected": true,
+            "changedRecipientRejected": true,
+            "changedNonceRejected": true,
+            "changedCallbackUrlRejected": true,
+            "stateExcludedFromPayload": true,
+            "stateReturnedUnchanged": true
+          }
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "check": "every group serves identical Worker versions",
+      "passed": true
+    },
+    {
+      "check": "warmup: three verified samples",
+      "passed": true
+    },
+    {
+      "check": "warmup: every invocation ran the expected version",
+      "passed": true
+    },
+    {
+      "check": "warmup: no session status request",
+      "passed": true
+    },
+    {
+      "check": "plain: three verified samples",
+      "passed": true
+    },
+    {
+      "check": "plain: every invocation ran the expected version",
+      "passed": true
+    },
+    {
+      "check": "plain: no session status request",
+      "passed": true
+    },
+    {
+      "check": "prepare: three verified samples",
+      "passed": true
+    },
+    {
+      "check": "prepare: every invocation ran the expected version",
+      "passed": true
+    },
+    {
+      "check": "prepare: no session status request",
+      "passed": true
+    },
+    {
+      "check": "plain-repeat: three verified samples",
+      "passed": true
+    },
+    {
+      "check": "plain-repeat: every invocation ran the expected version",
+      "passed": true
+    },
+    {
+      "check": "plain-repeat: no session status request",
+      "passed": true
+    },
+    {
+      "check": "prepare-repeat: three verified samples",
+      "passed": true
+    },
+    {
+      "check": "prepare-repeat: every invocation ran the expected version",
+      "passed": true
+    },
+    {
+      "check": "prepare-repeat: no session status request",
+      "passed": true
+    },
+    {
+      "check": "plain: no early prepare",
+      "passed": true
+    },
+    {
+      "check": "plain-repeat: no early prepare",
+      "passed": true
+    },
+    {
+      "check": "prepare: one early prepare per signature",
+      "passed": true
+    },
+    {
+      "check": "prepare: one prepare and one sign request per wallet",
+      "passed": true
+    },
+    {
+      "check": "prepare-repeat: one early prepare per signature",
+      "passed": true
+    },
+    {
+      "check": "prepare-repeat: one prepare and one sign request per wallet",
+      "passed": true
+    }
+  ],
+  "independentSignatureVerification": {
+    "verifier": "Node.js crypto Ed25519 with independent NEP-413 Borsh encoding",
+    "arms": [
+      "warmup",
+      "plain",
+      "prepare",
+      "plain-repeat",
+      "prepare-repeat"
+    ],
+    "results": [
+      {
+        "name": "warmup/registration-1.json",
+        "publicKey": "ed25519:3PDC2H2MNjUDEpbKZ6ocLrxKCAErpq5KLYNe4submt1e",
+        "digestHex": "b40151ca76fefa3ed927e1b4ff2b2c4e24c90992d89876506c96ed07ef6c6efe",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "warmup/registration-2.json",
+        "publicKey": "ed25519:9f3Tj9k73r7pEjz9NNZj8BnpQDEj2m2QVCbstsjDYPWu",
+        "digestHex": "e84cdf71c13b26be9852efb711a670136f0880c56b217465dc9f2bbd38deec11",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "warmup/registration-3.json",
+        "publicKey": "ed25519:H4ysmu8jcEDURsiJBBjyaKTVdrnjTYEhkFVnpr8StdUj",
+        "digestHex": "aab30215b756a5704aef9d225bf6e3c1a1edd1c1f386acd83568e13bf37ec270",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "plain/registration-1.json",
+        "publicKey": "ed25519:6yumDg2a6947zZYkEnmJViKNpnVPd8rCyS3EuaDy9C9T",
+        "digestHex": "266bab91419fc7c18aa5071e1b124c57642c43d10d98a6486ffcebf83268dd94",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "plain/registration-2.json",
+        "publicKey": "ed25519:963mD6Cucu9DY7JwJEV9KEw55hmUpC1FX8LiXWmTEXpU",
+        "digestHex": "b23c03722e16aaf9c30c1f1b4061ff08fa9fabf511d6d30fbe14f0f226f1d704",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "plain/registration-3.json",
+        "publicKey": "ed25519:9KwbU1CGuUxGvGX2HcW3dmTwDDf6qj2NGJUGSDmbG8hD",
+        "digestHex": "29ff0cfc367e1443982343a638b7996ae420c6fb2507afe6885eca909706eabc",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "prepare/registration-1.json",
+        "publicKey": "ed25519:2PmSqZVvCBnsWbkqUobKKaAfTj1AcZwLtYVVuzvGye7X",
+        "digestHex": "104348c0b8ccd932e15c59d50f7f150d4add63e6b572d1ca1f80aedd96b1224f",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "prepare/registration-2.json",
+        "publicKey": "ed25519:Bp2iMU6v9f41XL9jaVaWAA51qyN4eqDsUSzWT56M9pXf",
+        "digestHex": "2b84f430c11d5695cf4145af2111ba486f365c6f5805fa578f58a33a4cc30132",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "prepare/registration-3.json",
+        "publicKey": "ed25519:9BrWEbuwJG1TiqZMnh5Km1ZPwGk294UCBBowNqtGktWi",
+        "digestHex": "1a448b9732041b735c017bccf7feb0e578d5a8a98488e3eef0e4e330a7ddee2b",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "plain-repeat/registration-1.json",
+        "publicKey": "ed25519:37TtoCpD7LYYuJkT5vFJHy2FDdsow1D44StoQNdoLTGv",
+        "digestHex": "9335f14d77c7f2f3730a2eaf28de3c47d5a38e5bd1c9d0a98189290c0c966476",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "plain-repeat/registration-2.json",
+        "publicKey": "ed25519:6M7zYf8itnhhhr2RRk8mrSd25xPk9WmYGcEMP6htm9PG",
+        "digestHex": "f4f273d6150df689c5c66585308b1e1e75277f5f5c463dc079c36bacded6e018",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "plain-repeat/registration-3.json",
+        "publicKey": "ed25519:5xoBkSP5tvyf6DYm8jvQ3B3TkLf2HteuENqitHHCKcZL",
+        "digestHex": "36e3c8f6da07f74e7c7ff290d88e47498e60fe65efa6704e11914296a1085b1a",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "prepare-repeat/registration-1.json",
+        "publicKey": "ed25519:9vSxcFuR3saczDxSDGBdEhWZejdWaZm5sibVjYoEfBAV",
+        "digestHex": "953d6be4a5daa063eb47308610999561fec5f3ad37de6dfe911e90401a3cbbe2",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "prepare-repeat/registration-2.json",
+        "publicKey": "ed25519:J2hu2mJEwJcbz3KPwA9hTvaEwSdAeyUhMHub4wqP8KXo",
+        "digestHex": "c780e675f77594b42fc0d73b95d7661cf54a2636a4cb6ae1555fd50ddcb8acbf",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "prepare-repeat/registration-3.json",
+        "publicKey": "ed25519:A9U2WLrvtheDiDi2ZkgApmYtqTx4rHqkVjmAYzQiVBp3",
+        "digestHex": "4f93aa4e541ce3b68910d3f0ab47f83cd65ad5740596457a8dc9e415b3f190da",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      }
+    ]
+  },
+  "cleanup": {
+    "restoredOriginalVersions": true,
+    "restoredRoleSchema": true,
+    "additiveGatewayTablesRetained": true,
+    "liveVerification": {
+      "passed": true,
+      "workers": [
+        {
+          "worker": "seams-sdk-d1-console-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "router-ab-deriver-a-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "router-ab-deriver-b-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "router-ab-mpc-router-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "router-ab-signing-worker-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-gateway-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-gateway-staging-oc",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-gateway-staging-us",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-gateway-staging-weur",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-wallet-runtime-staging",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-wallet-runtime-staging-oc",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-wallet-runtime-staging-us",
+          "originalVersionRestored": true
+        },
+        {
+          "worker": "seams-sdk-d1-wallet-runtime-staging-weur",
+          "originalVersionRestored": true
+        }
+      ],
+      "originalDeriverColumnRestored": {
+        "deriver-a": true,
+        "deriver-b": true
+      },
+      "additiveGatewayTableRetained": {
+        "gateway": true,
+        "gateway-us": true,
+        "gateway-weur": true,
+        "gateway-oc": true
+      }
+    }
+  },
+  "limitations": [
+    "Three wallets per group, six per side after pooling.",
+    "The automated confirmation takes about 266 ms, less than one prepare exchange, so 42-90 ms of the prepare still follows the confirmation. A person takes longer, and the wait then disappears.",
+    "The SDK payloads of the two sides come from different trees: the late-prepare payload is the frozen early-preflight payload of the earlier runs, the early-prepare payload is public 2b0e427d plus the change. Registration uses the same code path in both.",
+    "A second launcher started the same driver three seconds after the first; it stopped at its own active-run check before any staging call and left a traceback at the top of the log."
+  ]
+}

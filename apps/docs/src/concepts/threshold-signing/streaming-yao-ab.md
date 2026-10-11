@@ -5,17 +5,21 @@ description: Understand the approved Streaming Yao lifecycle for split-role Ed25
 
 # Streaming Yao A/B
 
-Streaming Yao is the approved Ed25519 lifecycle protocol for Router A/B.
-Deriver A garbles one fixed circuit and Deriver B evaluates it. The circuit
-computes the export-compatible Ed25519 derivation while neither Deriver learns
-the joined seed, scalar, or signing outputs.
+Streaming Yao is the approved Ed25519 lifecycle protocol for Router A/B. Deriver A
+encodes one fixed circuit as encrypted tables, a process called garbling. Deriver B
+evaluates those tables. The circuit computes Ed25519 derivation compatible with standard
+key export. Neither Deriver learns the complete seed, scalar, or signing outputs.
 
-The deployed P0 profile uses the reviewed free-XOR/half-gates construction in
-separate Deriver Workers connected by a Service Binding WebSocket. Its release
-claim is passive, honest execution with abort: the roles remain isolated while
-the shared Cloudflare account control plane remains honest. Stronger active
-security and independently administered Deriver accounts remain deferred
+The construction uses free-XOR/half-gates with separated Deriver roles. Its released
+security claim assumes honest execution and allows a participant to abort. The roles
+remain isolated while the shared Cloudflare account control plane remains honest.
+Stronger active security and independently administered Deriver accounts remain deferred
 profiles and are not implied by the deployed benchmark.
+
+The 0.9.0 hosted stack runs Rust compute compiled to WebAssembly inside Workers and
+Durable Objects. The July Worker/WebSocket measurements below describe historical
+implementation benchmarks. They do not measure current end-to-end wallet latency or
+costs.
 
 ## When Yao runs
 
@@ -46,7 +50,7 @@ flowchart TD
   Router["Router authenticates, authorizes,<br/>rate-limits, and prevents replay"]
   A["Deriver A<br/>fixed garbler"]
   B["Deriver B<br/>fixed evaluator"]
-  Stream["Active OT and control<br/>stream authenticated circuit chunks"]
+  Stream["OT and control<br/>stream authenticated circuit chunks"]
   Output["A and B create separate<br/>recipient-encrypted output shares"]
   Verify["Recipient verifies private shares,<br/>public relation, and transcript receipt"]
   Activate["SigningWorker activates<br/>server signing material"]
@@ -85,8 +89,8 @@ sequenceDiagram
   end
   A->>B: Reserve paired one-use ticket
   B-->>A: Reservation acknowledgement
-  A->>B: Active OT, commitments, and control
-  B-->>A: Active-protocol response
+  A->>B: OT, commitments, and control
+  B-->>A: Protocol response
   A->>B: Stream authenticated garbled-circuit chunks
   Note over A,B: B authenticates and evaluates incrementally<br/>while A garbles with backpressure
   B-->>A: B digest + opaque A-output labels
@@ -104,7 +108,7 @@ sequenceDiagram
   R-->>C: Client-recipient packages + terminal receipt
 ```
 
-The exact A/B request graph is frozen with the selected active-security suite.
+The exact A/B request graph is fixed by the selected protocol artifacts.
 The design target is one A/B round trip, with two to four sequential A/B round
 trips accepted. Circuit chunks belong to one streaming request and do not each
 create another round trip.
@@ -150,11 +154,10 @@ sequenceDiagram
 
 ## Compute and embedded clients
 
-Streaming Yao is compute-intensive on A and B. Its dominant operations are
-symmetric-key hashes, XORs, OT, transcript authentication, and active-security
-checks over a fixed circuit. Streaming controls peak memory and overlaps
-garbling, transfer, and evaluation. It does not reduce the total cryptographic
-work.
+Streaming Yao is compute-intensive on A and B. Its dominant operations are symmetric-key
+hashes, XORs, oblivious transfer (OT), and transcript checks over a fixed circuit.
+Streaming controls peak memory and overlaps garbling, transfer, and evaluation. It does
+not reduce the total cryptographic work.
 
 The target wall time approaches:
 
@@ -162,9 +165,14 @@ The target wall time approaches:
 max(garbling CPU, transfer time, evaluation CPU) + protocol round trips
 ```
 
-The client has a much smaller workload. It splits compact inputs, creates two
-HPKE envelopes, opens small recipient packages, verifies commitments and the
-public key, and stores the resulting signing material. It does not garble or
+The client has a smaller workload:
+
+1. Split compact inputs.
+2. Create two Hybrid Public Key Encryption (HPKE) envelopes.
+3. Open small recipient packages.
+4. Verify commitments and the public key.
+5. Store the resulting signing material.
+ It does not garble or
 evaluate the circuit, run OT, transfer the multi-megabyte stream, or buffer
 garbled tables.
 
@@ -191,17 +199,15 @@ deployed campaigns on July 17, 2026:
 | Native Workers RPC streams, 40-pair candidate | 231 ms | 249 ms | 264 ms | 227.5 ms | 0/40 |
 | Cross-account public WebSocket, separate checkpoint | 203 ms | 315 ms | 424 ms | 219.4 ms | 0/30 |
 
-A later production-artifact campaign recorded 21 successful ceremonies and no
-failures. Its 20 warm samples measured `202 ms` p50, `216 ms` p95, and `219 ms`
-p99 of Worker protocol time. The first immediate post-deploy cohort in the
-promotion campaign measured `298 ms` p50, `360 ms` p95, and `480 ms` p99; the
-following warm cohort measured `196 ms` p50, `224 ms` p95, and `296 ms` p99.
-Cloudflare does not expose whether an invocation created a fresh isolate, so
-these first-observation measurements describe warm-up behavior without claiming
-a cold-start distribution.
+A later production-artifact campaign recorded 21 successful ceremonies and no failures.
+Its 20 warm samples measured `202 ms` p50, `216 ms` p95, and `219 ms` p99 of Worker
+protocol time. The first immediate post-deploy cohort in the promotion campaign measured
+`298 ms` p50, `360 ms` p95, and `480 ms` p99. The following warm cohort measured `196 ms` p50, `224 ms` p95, and `296 ms` p99. Cloudflare does not expose whether an
+invocation created a fresh isolate, so these first-observation measurements describe
+warm-up behavior without claiming a cold-start distribution.
 
-Local release-mode lifecycle measurements provide implementation baselines,
-rather than deployed latency claims:
+Local release-mode lifecycle measurements provide implementation baselines. They do not
+establish deployed latency:
 
 | Operation | p50 | p95 | p99 |
 | --- | ---: | ---: | ---: |
@@ -213,7 +219,7 @@ rather than deployed latency claims:
 
 The canonical benchmark sources are checked in with the implementation:
 
-- [deployed Cloudflare release evidence](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/ed25519-yao/deployment.md)
+- [current Cloudflare deployment topology](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/deployment.md)
 - [local lifecycle latency report](https://github.com/seams-tech/seams-wallet/blob/main/crates/router-ab-dev/reports/ed25519-yao-local-latency-v1.json)
 - [same-account Worker benchmark report](https://github.com/seams-tech/seams-wallet/blob/main/crates/ed25519-yao/docs/phase9b-same-account-report.md)
 
@@ -240,14 +246,14 @@ unresolved.
 The selected P0 profile provides split-role privacy under passive, honest
 execution while the shared account control plane remains honest:
 
-- Router sees public metadata, timing, ciphertexts, and signed receipts;
-- Deriver A never receives B's plaintext input or joined output;
-- Deriver B never receives A's plaintext input or joined output;
+- Router sees public metadata, timing, ciphertexts, and signed receipts.
+- Deriver A never receives B's plaintext input or joined output.
+- Deriver B never receives A's plaintext input or joined output.
 - output shares are generated inside the approved protocol and encrypted
-  separately to the client and SigningWorker;
+  separately to the client and SigningWorker.
 - one-use tickets prevent preprocessing, labels, masks, and transcript nonces
-  from being reused;
-- the client can reconstruct the seed only during a freshly authorized export;
+  from being reused.
+- the client can reconstruct the seed only during a freshly authorized export.
 - normal signing never reconstructs the private key.
 
 The claim excludes malicious Deriver behavior, A+B collusion, shared-account
@@ -258,10 +264,17 @@ outputs belong to a stronger future profile.
 
 ## Cost model
 
-The July 10, 2026 planning snapshot for Cloudflare Workers Standard assumes a
-`$5` monthly minimum per paid account, included request and CPU allowances,
-CPU overage at `$0.02` per million CPU-ms, and no added Workers data-transfer or
-egress charge. Pricing and Enterprise contracts can change, so deployment
+The following estimate applies to the historical Worker benchmark. Current
+hosted 0.9.0 costs also include Durable Object compute, regional D1, and backup
+storage and requests. Measure those separately for the actual deployment.
+
+The July 10, 2026 planning snapshot for Cloudflare Workers Standard assumes:
+
+- A `$5` monthly minimum per paid account.
+- Included request and CPU allowances.
+- CPU overage at `$0.02` per million CPU-ms.
+- No added Workers data-transfer or egress charge.
+ Pricing and Enterprise contracts can change, so deployment
 estimates must refresh these inputs.
 
 Under that snapshot, the large A-to-B payload affects latency and optional
@@ -278,10 +291,10 @@ ceremonies before included monthly usage. Service Binding calls and Worker
 bandwidth add no separate charge, and the benchmark Workers use no storage
 binding.
 
-The historical approximately `300 ms` repository HSS measurement covered a
-simulator and wrapper path. It does not establish latency, cost, or security for
-a genuine succinct-HSS construction. The closed succinct-HSS analysis predicted
-group-heavy computation and left amplification, active security, and complete
-wire volume unresolved. Streaming Yao is the selected Ed25519 path. The
-measurements above describe the deployed P0 profile; stronger active-security
-profiles require their own latency, resource, and cost evidence.
+The historical approximately `300 ms` repository HSS measurement covered a simulator and
+wrapper path. It does not establish latency, cost, or security for a genuine
+succinct-HSS construction. The closed succinct-HSS analysis predicted group-heavy
+computation and left amplification, active security, and complete wire volume
+unresolved. Streaming Yao is the selected Ed25519 path. The measurements above describe
+the deployed P0 profile. Stronger active-security profiles require their own latency,
+resource, and cost evidence.

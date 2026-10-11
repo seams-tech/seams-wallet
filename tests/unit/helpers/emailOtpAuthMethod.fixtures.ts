@@ -59,3 +59,28 @@ export function buildActiveEmailOtpAuthMethodFixture(args: {
     },
   };
 }
+
+
+export function buildEmailOtpEnrollmentFixture(input: {
+  readonly walletId: string;
+  readonly orgId: string;
+  readonly providerUserId: string;
+  readonly email: string;
+  readonly nowMs: number;
+}): import('../../../packages/wallet-server/src/core/EmailOtpStores').EmailOtpWalletEnrollmentRecord {
+  return {
+    version: 'email_otp_wallet_enrollment_v1',
+    walletId: input.walletId,
+    providerUserId: input.providerUserId,
+    orgId: input.orgId,
+    verifiedEmail: input.email,
+    enrollmentId: `email-enrollment:${input.walletId}`,
+    enrollmentVersion: '1',
+    enrollmentSealKeyVersion: 'test-seal-v1',
+    clientUnlockPublicKeyB64u: 'dGVzdC1wdWJsaWMta2V5',
+    unlockKeyVersion: 'test-unlock-v1',
+    serverSealedFactorCiphertextB64u: 'dGVzdC1zZWFsZWQtZmFjdG9y',
+    createdAtMs: input.nowMs,
+    updatedAtMs: input.nowMs,
+  };
+}

@@ -9,21 +9,21 @@ For app-specific purchase or transaction content before wallet approval, see
 [custom transaction review](/guides/transaction-review). Pass your React component
 through `review.render` on a transaction method returned by `useWallet()`.
 
-Seams exposes one theme vocabulary for app-owned React components and
-wallet-iframe surfaces. Start with a small token override, then add a shape
-preset when your product needs a different control geometry.
+Seams uses the same theme settings for app-owned React components and wallet-iframe UI.
+Start by changing a few theme tokens. Add a shape preset when your product needs
+different control shapes or sizes.
 
 ## Apply one theme
 
-Use `Theme` for React-owned components and `setAppearance` for wallet-iframe
+Use `Theme` for React-owned components and `seams.config.setAppearance` for wallet-iframe
 surfaces. Both receive the same colors and complete shape preset.
 
 <<< ./theming.tsx
 
 Set `appearance` in the provider config for the initial theme. Use
-`setAppearance` when the person switches themes at runtime.
+`seams.config.setAppearance` when the person switches themes at runtime.
 
-Send the full shape record to `setAppearance` as well. Appearance updates
+Send the full shape record to `seams.config.setAppearance` as well. Appearance updates
 merge key by key, so a complete preset avoids stale values when switching from
 rounded controls back to square controls.
 
@@ -37,8 +37,8 @@ both from the same preset keeps a theme switch visually consistent.
 
 - Missing token keys use the SDK defaults. Start from `SHAPE_PRESETS.square` or
   `SHAPE_PRESETS.rounded` when changing geometry.
-- Render `Theme` above every React component that should receive the tokens;
-  components outside that boundary keep their own styles.
+- Render `Theme` above every React component that should receive the tokens.
+  Components outside that boundary keep their own styles.
 
 Read the full [theming guide](/guides/theming) for token names, CSS variables,
 runtime switching, and iframe details.

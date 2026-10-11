@@ -1,0 +1,1151 @@
+{
+  "schema": "near_registration_atomic_console_completion_v1",
+  "date": "2026-10-09",
+  "method": "Three fresh implicit NEAR wallets per sequential baseline/candidate arm on existing APAC staging. Same corrected NEP-413 SDK, custody versions, placement and configuration. Only combined Console completion/projection and removal of the redundant Gateway projection request differ.",
+  "publicSource": {
+    "commit": "655ad03c734a1e6eeef1a9576c344e268b6bf400",
+    "parent": "2853095d0959a658d56ac784ecbe8e7a5db05e68",
+    "tree": "3875e5c52c3d3cb5893388717ace8365119c9dc4"
+  },
+  "privateSource": {
+    "baseCommit": "a690dbfcf6a541f4be43cff8b9ad9dfa6cead175",
+    "changedFiles": [
+      "apps/wallet-console/showcase/motion/delegation/device-linking.js",
+      "apps/wallet-console/showcase/motion/delegation/index.html",
+      "packages/wallet-console-server-ts/src/router/cloudflare/d1ConsoleServices.ts",
+      "packages/wallet-console-server-ts/src/router/cloudflare/d1ConsoleStagingWorker.ts",
+      "packages/wallet-console-server-ts/src/router/routerApiKeyAuth.ts",
+      "packages/wallet-console-server-ts/src/serviceBinding/walletConsoleOpsHandler.ts",
+      "packages/wallet-console-server-ts/src/walletPlacement/d1.ts",
+      "tests/relayer/console-service-auth.e2e.test.ts",
+      "tests/relayer/wallet-home-directory.e2e.test.ts",
+      "tests/unit/walletConsoleServiceBinding.unit.test.ts"
+    ],
+    "codeCommit": "612cdf7ecd350e12104de30f562e658d8d3f86d3"
+  },
+  "comparison": {
+    "registrationBrowserMs": {
+      "baseline": {
+        "samples": 3,
+        "median": 10754.109,
+        "minimum": 9899.134,
+        "maximum": 10914.529
+      },
+      "candidate": {
+        "samples": 3,
+        "median": 10689.104,
+        "minimum": 9895.56,
+        "maximum": 10746.366
+      },
+      "medianReduction": 65.005,
+      "medianReductionPercent": 0.6
+    },
+    "registrationToVerifiedMessageMs": {
+      "baseline": {
+        "samples": 3,
+        "median": 12990.481,
+        "minimum": 12869.879,
+        "maximum": 13151.359
+      },
+      "candidate": {
+        "samples": 3,
+        "median": 12897.179,
+        "minimum": 12112.868,
+        "maximum": 12980.485
+      },
+      "medianReduction": 93.302,
+      "medianReductionPercent": 0.72
+    },
+    "allObservedGatewayRequests": {
+      "baseline": {
+        "samples": 3,
+        "median": 9,
+        "minimum": 9,
+        "maximum": 9
+      },
+      "candidate": {
+        "samples": 3,
+        "median": 10,
+        "minimum": 9,
+        "maximum": 10
+      },
+      "medianReduction": -1,
+      "medianReductionPercent": -11.11
+    },
+    "yaoExecuteHttpMs": {
+      "baseline": {
+        "samples": 3,
+        "median": 4340.626,
+        "minimum": 4012.316,
+        "maximum": 4778.428
+      },
+      "candidate": {
+        "samples": 3,
+        "median": 4386.402,
+        "minimum": 4111.713,
+        "maximum": 4694.248
+      },
+      "medianReduction": -45.776,
+      "medianReductionPercent": -1.05
+    },
+    "finalizationHttpMs": {
+      "baseline": {
+        "samples": 3,
+        "median": 2427.068,
+        "minimum": 2230.324,
+        "maximum": 2595.18
+      },
+      "candidate": {
+        "samples": 3,
+        "median": 2297.239,
+        "minimum": 2048.872,
+        "maximum": 2385.767
+      },
+      "medianReduction": 129.829,
+      "medianReductionPercent": 5.35
+    },
+    "registrationSdkMs": {
+      "baseline": {
+        "samples": 3,
+        "median": 10451.77,
+        "minimum": 9242.62,
+        "maximum": 10531.845
+      },
+      "candidate": {
+        "samples": 3,
+        "median": 9855.94,
+        "minimum": 9263.1,
+        "maximum": 10141.475
+      },
+      "medianReduction": 595.83,
+      "medianReductionPercent": 5.7
+    }
+  },
+  "arms": {
+    "baseline": {
+      "metrics": {
+        "registrationBrowserMs": {
+          "samples": 3,
+          "median": 10754.109,
+          "minimum": 9899.134,
+          "maximum": 10914.529
+        },
+        "registrationToVerifiedMessageMs": {
+          "samples": 3,
+          "median": 12990.481,
+          "minimum": 12869.879,
+          "maximum": 13151.359
+        },
+        "allObservedGatewayRequests": {
+          "samples": 3,
+          "median": 9,
+          "minimum": 9,
+          "maximum": 9
+        },
+        "yaoExecuteHttpMs": {
+          "samples": 3,
+          "median": 4340.626,
+          "minimum": 4012.316,
+          "maximum": 4778.428
+        },
+        "finalizationHttpMs": {
+          "samples": 3,
+          "median": 2427.068,
+          "minimum": 2230.324,
+          "maximum": 2595.18
+        },
+        "registrationSdkMs": {
+          "samples": 3,
+          "median": 10451.77,
+          "minimum": 9242.62,
+          "maximum": 10531.845
+        }
+      },
+      "finalizationSpansMs": {
+        "near_finalize_authority": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_home_admission": {
+          "samples": 3,
+          "median": 14.0,
+          "minimum": 11.0,
+          "maximum": 15.0
+        },
+        "near_finalize_fingerprint": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_router_consume": {
+          "samples": 3,
+          "median": 461.0,
+          "minimum": 115.0,
+          "maximum": 712.0
+        },
+        "near_finalize_capability_install": {
+          "samples": 3,
+          "median": 216.0,
+          "minimum": 171.0,
+          "maximum": 360.0
+        },
+        "near_finalize_custody_commit": {
+          "samples": 3,
+          "median": 263.0,
+          "minimum": 244.0,
+          "maximum": 305.0
+        },
+        "near_finalize_session_issue": {
+          "samples": 3,
+          "median": 289.0,
+          "minimum": 252.0,
+          "maximum": 478.0
+        },
+        "near_finalize_side_effect": {
+          "samples": 3,
+          "median": 1589.0,
+          "minimum": 1362.0,
+          "maximum": 1625.0
+        },
+        "near_finalize_home_completion": {
+          "samples": 3,
+          "median": 278.0,
+          "minimum": 272.0,
+          "maximum": 335.0
+        },
+        "near_finalize_total": {
+          "samples": 3,
+          "median": 1882.0,
+          "minimum": 1711.0,
+          "maximum": 1908.0
+        },
+        "near_finalize_cleanup": {
+          "samples": 3,
+          "median": 75.0,
+          "minimum": 64.0,
+          "maximum": 79.0
+        },
+        "near_finalize_session_seal": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "samples": [
+        {
+          "artifact": "baseline/registration-1.json",
+          "sha256": "22fbda903c0431dd53cb1d2babaf059faf69eb98e4549ff38f632adf97ebb9eb",
+          "metrics": {
+            "registrationBrowserMs": 10914.52925,
+            "registrationToVerifiedMessageMs": 13151.359290999999,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 4778.428,
+            "finalizationHttpMs": 2230.324,
+            "registrationSdkMs": 10451.769999980927
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "0db0ba1c576693759224092fe1ee22602b0e5ed79ee65c4fc9086490a327f9b7",
+            "publicKey": "ed25519:vSbhkdgun6NDCNGwS1c5WjeneAR1Wwy78XXHJb9xp7g",
+            "signature": "a6HJpk9to9X63MmwBRSg67KjDMW5O/0nWeAPbXwXMpv4Bumshtjyuy7Kznk6hXBnDKeXTPnTvn/8Oxg0gDsxAA==",
+            "nonce": "L9ef8enHj0JCIDioQV940uNxyY8WM0IUrO4XVXrzg/c=",
+            "digestHex": "845bc1b830a0274ef25b7a5dcbf1de259c1a02c197d4a8492a3d5651c7953871",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=14.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=115.0, near_finalize_capability_install;dur=216.0, near_finalize_custody_commit;dur=305.0, near_finalize_session_issue;dur=478.0, near_finalize_side_effect;dur=1362.0, near_finalize_home_completion;dur=335.0, near_finalize_total;dur=1711.0, near_finalize_cleanup;dur=75.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 272
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 705
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "baseline/registration-2.json",
+          "sha256": "8ebfe0cb7a1bf18c6ba1d700f653e3dc9ab2004a0d780a26e4338eee9d98de98",
+          "metrics": {
+            "registrationBrowserMs": 10754.109499999999,
+            "registrationToVerifiedMessageMs": 12990.48125,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 4340.626,
+            "finalizationHttpMs": 2427.068,
+            "registrationSdkMs": 10531.84500002861
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "11e2cdd57ed3ff749fe99e94eede72a1297ed08ace945984c9cd9bdeb5451b56",
+            "publicKey": "ed25519:2CpX1tBsT82vKFikVU7yr8fQV867X8BvR1quCQPAJ8mj",
+            "signature": "JRk0l6UO2IVwcsy9MarhRbXi78SNuDZI2hYXbhg7I6TSz4A+PI/KgFrjk+0AoYv3OGTVkH4eIA/IULgOFAJVAQ==",
+            "nonce": "iZxgv3m5WO85IOunIlN3VqQ46FD6lFzTw/0hc3ow/DM=",
+            "digestHex": "e0653d37e78f3839f3d8783a22a8d971a171ec778866492580a0d1f8f7d7db86",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=11.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=712.0, near_finalize_capability_install;dur=171.0, near_finalize_custody_commit;dur=263.0, near_finalize_session_issue;dur=252.0, near_finalize_side_effect;dur=1625.0, near_finalize_home_completion;dur=272.0, near_finalize_total;dur=1908.0, near_finalize_cleanup;dur=64.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 201
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1191
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "baseline/registration-3.json",
+          "sha256": "3aacb4dd787f7adffaa639cf0f8cf9947d06616a3da98632df8e88cf506035bb",
+          "metrics": {
+            "registrationBrowserMs": 9899.134083999998,
+            "registrationToVerifiedMessageMs": 12869.878792000003,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 4012.316,
+            "finalizationHttpMs": 2595.18,
+            "registrationSdkMs": 9242.620000004768
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "e4e6bff91350ef40eddedb644c9620fe5f78345472847979f9c8ca892c4d834f",
+            "publicKey": "ed25519:GQY2prNUinnN7WyS3zWu88LPhBvvWFzga1P9GxjrnE9L",
+            "signature": "14oq0Xcbjt4io7zDUERy2MHhUvPixFOFYKvrpZNmXl6r9HV2L05clBjZPOCWD7UaEW9MS2ZY5Tr08lAGRr1bDw==",
+            "nonce": "FichbmTLc60sBZbJPSyTGMzuOpjjcf9vEb2/O5x5TDs=",
+            "digestHex": "c14ee41ebeb4c17e8efaf1bbd555ece6964784ea37e219ef9508b9625e7e1901",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=15.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=461.0, near_finalize_custody_commit;dur=244.0, near_finalize_capability_install;dur=360.0, near_finalize_session_issue;dur=289.0, near_finalize_side_effect;dur=1589.0, near_finalize_home_completion;dur=278.0, near_finalize_total;dur=1882.0, near_finalize_cleanup;dur=79.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 239
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1084
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        }
+      ],
+      "servingVersionAudit": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "f99ffff6-9805-403f-ae18-17ae35b945f7"
+          ],
+          "actualInvocationCounts": {
+            "f99ffff6-9805-403f-ae18-17ae35b945f7": 36
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "7a6073bc-f730-4483-879e-d75b9f2c2a7c"
+          ],
+          "actualInvocationCounts": {
+            "7a6073bc-f730-4483-879e-d75b9f2c2a7c": 23
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "a9462e64-e19c-4765-9c1c-d5fd52b56761"
+          ],
+          "actualInvocationCounts": {
+            "a9462e64-e19c-4765-9c1c-d5fd52b56761": 23
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "7d18c9f8-0481-499b-bfdb-0e646b93ed52"
+          ],
+          "actualInvocationCounts": {
+            "7d18c9f8-0481-499b-bfdb-0e646b93ed52": 28
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "289fbf5b-c3f5-46c3-ab1b-dcb55869b375"
+          ],
+          "actualInvocationCounts": {
+            "289fbf5b-c3f5-46c3-ab1b-dcb55869b375": 40
+          },
+          "allMatched": true
+        },
+        {
+          "role": "console",
+          "expectedVersionIds": [
+            "ab71b694-b85f-4ac2-9c76-71a0f477a7b1"
+          ],
+          "actualInvocationCounts": {
+            "ab71b694-b85f-4ac2-9c76-71a0f477a7b1": 37
+          },
+          "allMatched": true
+        }
+      ],
+      "capturedConsolePaths": {
+        "/internal/wallet-console/v1/publishable-key-auth": 3,
+        "/internal/wallet-console/v1/project-environments": 3,
+        "/internal/wallet-placement/v1/reserve": 3,
+        "/internal/wallet-placement/v1/find-by-ceremony": 6,
+        "/internal/wallet-placement/v1/registration-execution-authority": 3,
+        "/internal/wallet-console/v1/tenant-root/active-lineage": 3,
+        "": 1,
+        "/internal/wallet-placement/v1/claim-passkey": 3,
+        "/internal/wallet-placement/v1/publish-routes": 3,
+        "/internal/wallet-placement/v1/publish-session": 3,
+        "/internal/wallet-placement/v1/complete": 3,
+        "/internal/wallet-console/v1/wallet-projections": 3
+      }
+    },
+    "candidate": {
+      "metrics": {
+        "registrationBrowserMs": {
+          "samples": 3,
+          "median": 10689.104,
+          "minimum": 9895.56,
+          "maximum": 10746.366
+        },
+        "registrationToVerifiedMessageMs": {
+          "samples": 3,
+          "median": 12897.179,
+          "minimum": 12112.868,
+          "maximum": 12980.485
+        },
+        "allObservedGatewayRequests": {
+          "samples": 3,
+          "median": 10,
+          "minimum": 9,
+          "maximum": 10
+        },
+        "yaoExecuteHttpMs": {
+          "samples": 3,
+          "median": 4386.402,
+          "minimum": 4111.713,
+          "maximum": 4694.248
+        },
+        "finalizationHttpMs": {
+          "samples": 3,
+          "median": 2297.239,
+          "minimum": 2048.872,
+          "maximum": 2385.767
+        },
+        "registrationSdkMs": {
+          "samples": 3,
+          "median": 9855.94,
+          "minimum": 9263.1,
+          "maximum": 10141.475
+        }
+      },
+      "finalizationSpansMs": {
+        "near_finalize_authority": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_home_admission": {
+          "samples": 3,
+          "median": 14.0,
+          "minimum": 10.0,
+          "maximum": 21.0
+        },
+        "near_finalize_fingerprint": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "near_finalize_router_consume": {
+          "samples": 3,
+          "median": 433.0,
+          "minimum": 108.0,
+          "maximum": 645.0
+        },
+        "near_finalize_capability_install": {
+          "samples": 3,
+          "median": 189.0,
+          "minimum": 164.0,
+          "maximum": 210.0
+        },
+        "near_finalize_custody_commit": {
+          "samples": 3,
+          "median": 365.0,
+          "minimum": 361.0,
+          "maximum": 637.0
+        },
+        "near_finalize_session_issue": {
+          "samples": 3,
+          "median": 284.0,
+          "minimum": 247.0,
+          "maximum": 306.0
+        },
+        "near_finalize_side_effect": {
+          "samples": 3,
+          "median": 1642.0,
+          "minimum": 1433.0,
+          "maximum": 1742.0
+        },
+        "near_finalize_home_completion": {
+          "samples": 3,
+          "median": 295.0,
+          "minimum": 257.0,
+          "maximum": 307.0
+        },
+        "near_finalize_total": {
+          "samples": 3,
+          "median": 1959.0,
+          "minimum": 1749.0,
+          "maximum": 2013.0
+        },
+        "near_finalize_session_seal": {
+          "samples": 3,
+          "median": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      },
+      "samples": [
+        {
+          "artifact": "candidate/registration-1.json",
+          "sha256": "cfd530ded04fc3bcf73b1f536ce23a87cb734e7cbc9046757e977fbf4e4337e3",
+          "metrics": {
+            "registrationBrowserMs": 10746.366250000001,
+            "registrationToVerifiedMessageMs": 12980.484917,
+            "allObservedGatewayRequests": 9,
+            "yaoExecuteHttpMs": 4694.248,
+            "finalizationHttpMs": 2048.872,
+            "registrationSdkMs": 10141.475000023842
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 3,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "6ded2ffe1e333607e36f7cc3cc8758099cafc328e6e964ad030d6236d4cd795f",
+            "publicKey": "ed25519:8Q7D7bhQGGyoW8EEDBMpB2pjv7DwjK3PyAPXzSRVJkAa",
+            "signature": "mfhg4whBI8Odi3IIl9yZKmL+tus8yarBulVD/yHDuGnYNP1zLP2+T4BX5H6c5/8NXN9eOkAnctd6BFWyPtorBA==",
+            "nonce": "SHism9IZ9+I+H0JfXND2xqXHAy4+yXbHEX8Uy5cdQ7s=",
+            "digestHex": "3afcaa50c5c15ea242820bfe75854160d9343e1f5bae734866e4657b8620df50",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=21.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=108.0, near_finalize_capability_install;dur=210.0, near_finalize_custody_commit;dur=637.0, near_finalize_session_issue;dur=247.0, near_finalize_side_effect;dur=1433.0, near_finalize_home_completion;dur=295.0, near_finalize_total;dur=1749.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 245
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1001
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "candidate/registration-2.json",
+          "sha256": "cec0795bdeb9559f8707f748db7ffe0566f098e4eb0aa791209238e5e788e3f8",
+          "metrics": {
+            "registrationBrowserMs": 10689.103916999999,
+            "registrationToVerifiedMessageMs": 12897.179291999999,
+            "allObservedGatewayRequests": 10,
+            "yaoExecuteHttpMs": 4111.713,
+            "finalizationHttpMs": 2385.767,
+            "registrationSdkMs": 9855.939999938011
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 4,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "060ff6cc45d7f2dd15aecd1dc372b1a5af47f9b5aa51d0ecfc6547b2a0ef3942",
+            "publicKey": "ed25519:QfZmFLDCYox9YDJcsj2aDpcCGWZXuisNrZpRDt33Qth",
+            "signature": "APU8kM7tSwjtb26y3rU5IF1Ljg9Qk+sFr+6gRTB74dxZMI00IlU/9ZqVgE6FahR/CpjWhN00YJai8XS3bHJrCw==",
+            "nonce": "9JiKUeOaEsEU/fu/oerUKQYRN+IXCyZrUzX06Ktlw94=",
+            "digestHex": "81d9952ad8c7bf1fd9986f3ddc09f3f20afcc40c785fa142fcf3a9c565458c15",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=14.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=645.0, near_finalize_capability_install;dur=189.0, near_finalize_custody_commit;dur=361.0, near_finalize_session_issue;dur=284.0, near_finalize_side_effect;dur=1742.0, near_finalize_home_completion;dur=257.0, near_finalize_total;dur=2013.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 223
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1246
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        },
+        {
+          "artifact": "candidate/registration-3.json",
+          "sha256": "8c378a75475efadea24a35bc8e8aeaab5b8093c332cae2014dc66525e42edf36",
+          "metrics": {
+            "registrationBrowserMs": 9895.560458,
+            "registrationToVerifiedMessageMs": 12112.868000000002,
+            "allObservedGatewayRequests": 10,
+            "yaoExecuteHttpMs": 4386.402,
+            "finalizationHttpMs": 2297.239,
+            "registrationSdkMs": 9263.100000023842
+          },
+          "requestsByPath": {
+            "/wallets/register/setup": 1,
+            "/wallets/register/respond": 1,
+            "/router-ab/ed25519/yao/registration/execute": 1,
+            "/wallets/register/near-provisioning": 1,
+            "/wallet/session/status": 4,
+            "/router-ab/ed25519/sign/prepare": 1,
+            "/router-ab/ed25519/sign": 1
+          },
+          "nearAccessKeyCalls": 1,
+          "messageProof": {
+            "message": "Verify this new implicit NEAR wallet before funding",
+            "recipient": "checkout.example",
+            "state": "quote-170",
+            "success": true,
+            "accountId": "a6304bb7a192fb8ede8f3c91a8f122c1af6709b21e8581f00d1a83508661c492",
+            "publicKey": "ed25519:CBjPfq5akRc359zLJneEQqXjP52XcByoZyrzgvyCUoGD",
+            "signature": "ofD5m2dWj6o2J8rS6alnG2dD5nGayEGXnKC4juK4Fv9CZjO/zEHAx3bhCFemP1sZY8UzDBj6m9ievye1ZpZlAw==",
+            "nonce": "l9/Eam0F+HXKsXmdYOHmNejB05WktUdpZiTUqtKpYtk=",
+            "digestHex": "f51a2f181c0c5366b54c97d47ee13306f03a9083e6aef58cadffd3a464035f0a",
+            "verification": {
+              "standardPayload": true,
+              "changedMessageRejected": true,
+              "changedRecipientRejected": true,
+              "changedNonceRejected": true,
+              "changedCallbackUrlRejected": true,
+              "stateExcludedFromPayload": true,
+              "stateReturnedUnchanged": true
+            }
+          },
+          "finalizationServerTiming": "near_finalize_authority;dur=0.0, near_finalize_home_admission;dur=10.0, near_finalize_fingerprint;dur=0.0, near_finalize_router_consume;dur=433.0, near_finalize_capability_install;dur=164.0, near_finalize_custody_commit;dur=365.0, near_finalize_session_issue;dur=306.0, near_finalize_side_effect;dur=1642.0, near_finalize_home_completion;dur=307.0, near_finalize_total;dur=1959.0, near_finalize_session_seal;dur=0.0, cfExtPri",
+          "commitDiagnostics": {
+            "kind": "wallet_registration_route_diagnostics_v1",
+            "route": "wallets_register_finalize",
+            "entries": [
+              {
+                "name": "registrationEmailOtpEnrollmentPlanMs",
+                "durationMs": 0
+              },
+              {
+                "name": "relayPersistenceMs",
+                "durationMs": 342
+              },
+              {
+                "name": "registerFinalizeTotalMs",
+                "durationMs": 1150
+              }
+            ]
+          },
+          "noFunding": true,
+          "noOtherSignerAssetsLoaded": true
+        }
+      ],
+      "servingVersionAudit": [
+        {
+          "role": "router",
+          "expectedVersionIds": [
+            "f99ffff6-9805-403f-ae18-17ae35b945f7"
+          ],
+          "actualInvocationCounts": {
+            "f99ffff6-9805-403f-ae18-17ae35b945f7": 30
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-a",
+          "expectedVersionIds": [
+            "7a6073bc-f730-4483-879e-d75b9f2c2a7c"
+          ],
+          "actualInvocationCounts": {
+            "7a6073bc-f730-4483-879e-d75b9f2c2a7c": 18
+          },
+          "allMatched": true
+        },
+        {
+          "role": "deriver-b",
+          "expectedVersionIds": [
+            "a9462e64-e19c-4765-9c1c-d5fd52b56761"
+          ],
+          "actualInvocationCounts": {
+            "a9462e64-e19c-4765-9c1c-d5fd52b56761": 18
+          },
+          "allMatched": true
+        },
+        {
+          "role": "signing-worker",
+          "expectedVersionIds": [
+            "7d18c9f8-0481-499b-bfdb-0e646b93ed52"
+          ],
+          "actualInvocationCounts": {
+            "7d18c9f8-0481-499b-bfdb-0e646b93ed52": 24
+          },
+          "allMatched": true
+        },
+        {
+          "role": "gateway",
+          "expectedVersionIds": [
+            "d4078ee6-4ae1-4919-aebe-721ed282c2cf"
+          ],
+          "actualInvocationCounts": {
+            "d4078ee6-4ae1-4919-aebe-721ed282c2cf": 41
+          },
+          "allMatched": true
+        },
+        {
+          "role": "console",
+          "expectedVersionIds": [
+            "42aa4646-3b33-4527-b6de-18494cd2a01e"
+          ],
+          "actualInvocationCounts": {
+            "42aa4646-3b33-4527-b6de-18494cd2a01e": 33
+          },
+          "allMatched": true
+        }
+      ],
+      "capturedConsolePaths": {
+        "/internal/wallet-console/v1/publishable-key-auth": 3,
+        "/internal/wallet-console/v1/project-environments": 3,
+        "/internal/wallet-placement/v1/reserve": 3,
+        "/internal/wallet-placement/v1/find-by-ceremony": 6,
+        "/internal/wallet-placement/v1/registration-execution-authority": 3,
+        "/internal/wallet-console/v1/tenant-root/active-lineage": 3,
+        "/internal/wallet-placement/v1/claim-passkey": 3,
+        "/internal/wallet-placement/v1/publish-routes": 3,
+        "/internal/wallet-placement/v1/publish-session": 3,
+        "/internal/wallet-placement/v1/complete": 3
+      }
+    }
+  },
+  "independentSignatureVerification": {
+    "verifier": "Node.js crypto Ed25519 with independent NEP-413 Borsh encoding",
+    "results": [
+      {
+        "name": "baseline/registration-1.json",
+        "publicKey": "ed25519:vSbhkdgun6NDCNGwS1c5WjeneAR1Wwy78XXHJb9xp7g",
+        "digestHex": "845bc1b830a0274ef25b7a5dcbf1de259c1a02c197d4a8492a3d5651c7953871",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "baseline/registration-2.json",
+        "publicKey": "ed25519:2CpX1tBsT82vKFikVU7yr8fQV867X8BvR1quCQPAJ8mj",
+        "digestHex": "e0653d37e78f3839f3d8783a22a8d971a171ec778866492580a0d1f8f7d7db86",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "baseline/registration-3.json",
+        "publicKey": "ed25519:GQY2prNUinnN7WyS3zWu88LPhBvvWFzga1P9GxjrnE9L",
+        "digestHex": "c14ee41ebeb4c17e8efaf1bbd555ece6964784ea37e219ef9508b9625e7e1901",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "candidate/registration-1.json",
+        "publicKey": "ed25519:8Q7D7bhQGGyoW8EEDBMpB2pjv7DwjK3PyAPXzSRVJkAa",
+        "digestHex": "3afcaa50c5c15ea242820bfe75854160d9343e1f5bae734866e4657b8620df50",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "candidate/registration-2.json",
+        "publicKey": "ed25519:QfZmFLDCYox9YDJcsj2aDpcCGWZXuisNrZpRDt33Qth",
+        "digestHex": "81d9952ad8c7bf1fd9986f3ddc09f3f20afcc40c785fa142fcf3a9c565458c15",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "candidate/registration-3.json",
+        "publicKey": "ed25519:CBjPfq5akRc359zLJneEQqXjP52XcByoZyrzgvyCUoGD",
+        "digestHex": "f51a2f181c0c5366b54c97d47ee13306f03a9083e6aef58cadffd3a464035f0a",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      }
+    ]
+  },
+  "localVerification": {
+    "phase": "6AC",
+    "homeDirectory": {
+      "result": "passed",
+      "artifact": ".artifacts/r155b-phase6ac-local-home/relayer-wallet-home-direct-3489c-trations-travel-and-restart/wallet-home-evidence.json",
+      "sha256": "f308f36b056c1d4f31102e79bc332828a3e9d4ab8051d4d7c00ec2c304b0540c",
+      "verified": [
+        "projection committed before lost reply",
+        "exact completion retry preserves display metadata",
+        "failed projection rolls back home completion",
+        "retry commits both records",
+        "cancelled registration has no display row",
+        "tenant scope, conflicting home and ceremony, regional routing and restart"
+      ]
+    },
+    "relocationDirectory": "passed",
+    "publicServerBuild": "passed",
+    "publicServerTypecheck": "passed",
+    "publicIntendedTypecheck": "passed",
+    "privateTypecheck": {
+      "baselineErrors": 6,
+      "candidateErrors": 6,
+      "identicalDiagnostics": true
+    },
+    "localPublicBrowserContracts": {
+      "result": "3 passed",
+      "scenarios": [
+        "mixed registration timing path",
+        "concurrent NEAR admission while ECDSA activation is pending",
+        "immediately usable owner session for NEAR and ECDSA"
+      ],
+      "artifactDirectory": ".artifacts/r155b-phase6ac/intended-e2e",
+      "logSha256": "49eb4763bc4ff6ba9ddfded5dd4049fb6390cccc5eaa73630104a0f3690df507",
+      "reproduce": "SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_LOCAL_PORT_OFFSET=11000 SEAMS_INTENDED_APP_URL=http://localhost:15201 SEAMS_INTENDED_WALLET_ORIGIN=http://localhost:15202 SEAMS_INTENDED_ROUTER_URL=http://127.0.0.1:15100 pnpm -C tests exec playwright test -c playwright.wallet-intended.ci.config.ts e2e/intended-behaviours/passkey.registration.contract.test.ts --grep \"mixed registration exposes gateway|passkey registration establishes an immediately usable owner session|mixed registration starts one NEAR admission\"",
+      "excludedSetupAttempt": "Default local Worker ports were already occupied. Bootstrap rejected service auth before the tests started; rerun on separate ports passed."
+    },
+    "hostedBenchmark": "six fresh NEAR-only registrations and independently verified NEP-413 signatures passed",
+    "consoleCredentialServiceE2E": "passed",
+    "privateProductionLint": "passed",
+    "exactPublicTreeBloat": "passed",
+    "relocationDirectoryArtifact": {
+      "artifact": ".artifacts/r155b-phase6ac-local/relayer-wallet-relocation--210c4-es-lost-replies-and-restart/wallet-relocation-directory-evidence.json",
+      "sha256": "b39b94311e1ccff4483f7c05b06e5d48ec326a43d0d3a2d725c90e4285bdaebd"
+    },
+    "consoleCredentialArtifact": {
+      "artifact": ".artifacts/r155b-phase6ac-console-auth/relayer-console-service-au-6df24-es-and-resolve-environments/console-service-auth-evidence.json",
+      "sha256": "ead5063fff90cb728da098cba663ee3ea26987f5bb8721d9d867455a48547678"
+    }
+  },
+  "hostedProjectionAudit": {
+    "candidateWindow": {
+      "startMs": 1791473388257,
+      "endMs": 1791473429013
+    },
+    "counts": {
+      "established_homes": 3,
+      "matching_display_rows": 3,
+      "matching_commit_timestamps": 3,
+      "initial_display_state": 3
+    },
+    "query": "SELECT COUNT(*) AS established_homes, COUNT(w.id) AS matching_display_rows,\n SUM(CASE WHEN w.created_at_ms = h.completed_at_ms AND w.updated_at_ms = h.completed_at_ms THEN 1 ELSE 0 END) AS matching_commit_timestamps,\n SUM(CASE WHEN w.status = 'ACTIVE' AND w.balance_minor = 0 THEN 1 ELSE 0 END) AS initial_display_state\n FROM wallet_homes h LEFT JOIN wallet_index w\n ON w.namespace = h.namespace AND w.org_id = h.organization_id AND w.project_id = h.project_id\n AND w.environment_id = h.environment_id AND w.id = h.wallet_id\n WHERE h.environment_id = ?1 AND h.state = 'established' AND h.completed_at_ms BETWEEN ?2 AND ?3"
+  },
+  "boundedCallGraph": {
+    "scope": "Fresh Console home completion plus registration display projection only. Does not count all Gateway requests, all Console work, or all D1 work.",
+    "baseline": {
+      "gatewayToConsoleRequests": 2,
+      "d1Requests": 4,
+      "sqlStatements": 4
+    },
+    "candidate": {
+      "gatewayToConsoleRequests": 1,
+      "d1Requests": 1,
+      "sqlStatements": 2
+    },
+    "basis": "Exercised production implementation: complete UPDATE; environment SELECT; display INSERT; display SELECT. Candidate combines UPDATE and guarded INSERT in one batch."
+  },
+  "bundleSha256": {
+    "gateway": "2f4732e351b1a4e08cf158c490a0d0183c9125b879541be47f0450a9ed6f1dfb",
+    "console": "e020bf9b39eec426c034dfb8b53f8ad4829052de19e1f4ce30abae48e1e87a31"
+  },
+  "limitations": [
+    "Three samples per arm do not establish percentiles or guarantees.",
+    "Sequential arms can vary with provider scheduling and network conditions.",
+    "Fresh wallets do not prove cold Workers; cold and warm invocation status was not controlled.",
+    "Nested finalization spans overlap; do not sum them.",
+    "No Gateway-wide D1 count was measured. Bounded D1 counts come from the verified implementation.",
+    "Console path counts are captured invocations during each arm, not a proof that every backend invocation was captured.",
+    "No new physical execution-region measurement was added.",
+    "Full SDK registration and browser-to-verified-message timings include different client-side work."
+  ],
+  "restoration": {
+    "at": "2026-10-08T15:41:27.908051+00:00",
+    "versions": {
+      "seams-sdk-d1-console-staging": [
+        {
+          "version_id": "29d08e63-3d81-4fa0-adf2-123ecbbe5641",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-a-staging": [
+        {
+          "version_id": "eaa0b80f-47bf-44a9-b9b5-4f73a70abcd0",
+          "percentage": 100
+        }
+      ],
+      "router-ab-deriver-b-staging": [
+        {
+          "version_id": "c700bbc1-b87f-4182-9f64-ff2bf33eead8",
+          "percentage": 100
+        }
+      ],
+      "router-ab-mpc-router-staging": [
+        {
+          "version_id": "cff2b41d-1fa2-4311-a8ce-56364c7ddf1a",
+          "percentage": 100
+        }
+      ],
+      "router-ab-signing-worker-staging": [
+        {
+          "version_id": "c18b2202-8063-4c96-9772-fb1a268494fc",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging": [
+        {
+          "version_id": "12f48c20-df36-4d15-8355-33c2ac72338f",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-oc": [
+        {
+          "version_id": "d997446e-77de-4b55-90fb-20e7549c5a39",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-us": [
+        {
+          "version_id": "991403ec-65e5-4885-a1a0-847e662e3871",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-gateway-staging-weur": [
+        {
+          "version_id": "b4614e86-1ae0-4f1e-bf78-bdf620b63731",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging": [
+        {
+          "version_id": "b068efef-5043-4072-b1fe-0c6dbce1c902",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-oc": [
+        {
+          "version_id": "3f48c537-0d1e-4b3e-9595-f1c586fc3ab6",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-us": [
+        {
+          "version_id": "273942f8-a9d8-45d0-a616-cf467043073d",
+          "percentage": 100
+        }
+      ],
+      "seams-sdk-d1-wallet-runtime-staging-weur": [
+        {
+          "version_id": "3431e054-ca39-4032-a830-96b2a615b406",
+          "percentage": 100
+        }
+      ]
+    }
+  },
+  "completionAudit": {
+    "benchmarkPassed": true,
+    "allVersionsRestored": true,
+    "placementRestored": true
+  },
+  "restorationActivation": {
+    "runId": 37802617976,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37802617976"
+  },
+  "rawArtifacts": {
+    "public": ".artifacts/r155b-phase6ac",
+    "private": ".artifacts/r155b-phase6ac-hosted"
+  }
+}

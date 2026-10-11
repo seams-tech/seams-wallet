@@ -1,7 +1,22 @@
 # R153: backend relocation validation
 
-Status: initial platform, source, and local-runtime validation, October 2, 2026.
-Hosted placement and complete wallet relocation remain unverified.
+Status: **Complete — initial investigation, retained as historical evidence.**
+Investigation date: October 2, 2026. Implementation closed: October 7, 2026.
+
+The subsequent [R153 completion record](refactor-153-wallet-region-selection.md#completion-record)
+and [R153B final acceptance](refactor-153B.md#final-acceptance) supersede the open
+implementation and hosted-verification observations below. The final hosted round
+trip passed both signing curves and cleanup, with pauses of 43.845 seconds to US
+and 43.326 seconds back to APAC. Publication and broader load suitability remain
+separate work.
+
+October 5 lifecycle decision: R153 retires all signing sessions and invalidates
+all usable presignatures before transfer. Devices authenticate again after
+activation. Credential-continuity probes below remain historical binding evidence;
+they do not specify the selected product behavior. Preserve required session,
+quota, and operation rows as inactive history. The current
+[R153 contract](refactor-153-wallet-region-selection.md#session-retirement-presignature-invalidation-and-relocation-frequency)
+defines the implementation and acceptance requirements.
 
 The material and authorization bindings examined permit a role-preserving
 server-side transfer with stable logical identities and keys. The storage
@@ -44,6 +59,146 @@ It uses disposable local storage and synthetic records. It does not run the
 wallet signing protocol, prove actual geography, or measure regional latency.
 Its fixture exposes raw SQL only inside this local test; it must never be
 deployed as a hosted transfer service.
+
+## October 5 resource-authority audit
+
+The current implementation cannot yet authorize a complete regional move. The
+private `tenantDeployment/resourceVerification.ts` verifies Gateway and
+WalletRuntime deployment versions and their D1 resource. It contains no proof
+for Rust role namespaces or physical wallet objects. The private
+`walletPlacement/relocationCommands.ts` authorizes only these two D1 participants.
+Do not use their resource proof as authority for a Rust participant.
+
+The public Router resolves its wallet through `owner.object_name()` in
+`durable_object/router_wallet.rs`. Deriver A and B also resolve wallet objects
+from stable owner names. Those calls do not select a fresh physical destination
+for each ownership generation. Regional preparation must record the actual
+namespace and object locator before admission pauses the source. Ordinary calls
+and relocation commands must resolve the same admitted locator.
+
+SigningWorker requires an additional boundary: `wallet_row_identity` in
+`signing_worker/wallet_ecdsa_store.rs` includes the value returned by
+`signing_worker_wallet_object_name_v1`. That value binds encrypted records to
+stable wallet identity. Preserve it when selecting a fresh physical object.
+Adding a generation to this shared function would also change encrypted-row
+identity. Separate physical routing from the existing storage identity instead.
+
+The linked-session fence now checks the wallet's exact recorded move for every
+new fence, including sessions with initialized authority. The transaction compares
+that authority with the initialization digest registered in wallet SQL. Existing
+fence receipts still replay locally. This closes an initialized-session bypass of
+the wallet move check. The D1 variant rejects new linked fences until it can
+supply equivalent wallet move authority. Physical resource verification and
+coordinator authority remain separate, unfinished requirements.
+The real Worker E2E rejects a fence before the wallet move and a changed move
+after wallet freeze. Valid completion, retirement, transfer, and verification
+still pass. Evidence is in `.artifacts/r153/linked-fence-authority-20261005/`.
+The same Worker E2E now sends terminal replay and local fencing concurrently.
+The observed replay returned its exact stored response, and fencing completed.
+After sealing, both source and destination reject a delayed consume request built
+from the actual completion bindings. The source export remains unchanged.
+Evidence is in `.artifacts/r153/linked-fence-race-20261005/`. This schedule does
+not establish concurrent first completion or consumption before the local fence.
+
+The next resource integration must bind the wallet, role, physical locator,
+verified runtime, and ownership generation at preparation and admission. Each
+participant must compare that authority with its local durable state before a
+mutation. Keep the coordinator disconnected from activation until these checks
+and real participant verification are present.
+
+The native SigningWorker now serves frozen linked-inventory reads through the
+same store operation as the Worker backend. Its existing HTTP E2E verifies an
+empty page, dedicated credentials, exact receipt binding, and replay after a
+process restart. Evidence is in
+`.artifacts/r153/native-linked-inventory-20261005/`. Native linked-device signing
+currently fails closed in `local_router_ab_ecdsa.rs`; its owner presignature
+initialization uses the separate owner-authority inventory. This result does
+not establish native linked-session initialization or a complete regional move.
+
+## October 5 owner-approval boundary audit
+
+The existing `d1WalletAuthMethodBoundary.ts` revocation verifier is unsuitable as
+a relocation verifier. It rejects the target method as a source factor, while
+relocation permits the initiating owner's own method. Its passkey branch checks
+an operation-fingerprint challenge. It does not read a server-recorded relocation
+challenge or enforce that challenge's five-minute lifetime. Its Email OTP branch
+binds a revocation fingerprint and the transaction-sign operation. Keep these
+purpose-specific checks separate from relocation.
+
+Reuse `D1WalletAuthMethodStore.prepareActiveV2SourceGuardStatements` for the
+source commit. It checks the exact active method and authority, authority digest,
+and revocation epoch, then aborts the batch if no row matches. The fresh-proof
+consumption and relocation approval must share this batch. Read-only permission
+checks before the batch cannot replace this commit-time check.
+
+The next source implementation needs a relocation challenge bound to the wallet,
+move digest, authority, origin, generation, and server-recorded expiry. The approval
+must retain the exact initiating credential digest and its original expiry for
+move-only reads. Add no signing capability to this record. Publish approval to
+Console only after the source batch commits. Existing owner-management
+request authentication returns an active signing-session context; it cannot
+represent progress access after relocation retires that session.
+
+### Source challenges, approvals, and owner authentication
+
+The source now persists a relocation-specific nonce and its immutable binding.
+Concurrent issuance returns the same challenge. Its lifetime cannot exceed five
+minutes, the factor expiry, or the initiating credential expiry. Challenge
+consumption joins the caller's transaction and rolls back if that transaction fails.
+
+The passkey verifier checks the stored nonce, origin, relying party, active method,
+and full-owner authority. It requires WebAuthn user verification and reads the
+current authenticator counter. It returns transaction statements that guard the
+method and authority, update the exact prior counter, and consume the challenge.
+Verification alone grants no move authority and changes no stored state.
+
+The existing authorization-storage E2E uses signed Ed25519 WebAuthn assertions
+against the production verifier and D1 stores. It rejects missing user verification,
+wrong challenge/origin, expiry, and a consumed challenge. It proves rollback and
+rejects commits after concurrent counter advancement or production method revocation.
+Evidence is retained under `.artifacts/r153/relocation-passkey-20261005/`.
+
+The passkey approval store now commits those prerequisites with a durable approval.
+It records the exact binding, authority digest and revocation epoch, approval time,
+and original expiry. The transaction checks expiry against the database clock.
+Concurrent requests return the same outcome. A recorded outcome remains available
+after expiry without extending its authority for new Console admission.
+The existing E2E now injects an approval-insert failure and verifies counter and
+challenge rollback. It covers concurrent requests, exact replay through a new store
+instance after expiry, changed bindings, tenant isolation, and expiry at commit.
+Evidence is retained under `.artifacts/r153/relocation-approval-20261005/`.
+
+Email OTP now uses a distinct relocation action and operation. Its digest binds
+the scope, exact move binding, and stored relocation nonce. Verification checks
+an active full-owner method and its enrolled email. The approval transaction guards
+the method, authority, and enrollment, then consumes both challenges and records
+the approval together. Both factors use the same approval transaction.
+The existing E2E checks rejection of a signing challenge, wrong-code accounting,
+enrollment removal before commit, rollback of both challenges, and exact replay.
+It also verifies that the schema migration preserves an existing OTP challenge.
+The wrong-code case exposed an existing parameter-order defect in the attempt
+update. Numbered parameters now bind the scope and record fields correctly.
+Type fixtures reject mixed challenge purposes. The client rejects relocation
+proofs as signing-session inputs. Evidence is retained under
+`.artifacts/r153/relocation-email-otp-20261006/`.
+
+The initiating-owner boundary now resolves the primary Wallet Session through the
+existing exact credential identity reader. It requires a configured origin, matching
+wallet/deployment scope, full-owner permissions, and matching capability subjects.
+An exhausted signing quota preserves owner access. Expired and retired credentials
+fail. The immutable result derives the move's authority, method, credential digest,
+original expiry, and origin without accepting those fields from the request body.
+The existing E2E verifies these checks and rejects delegated permissions. Type
+fixtures reject forged construction and broad spreads of authenticated metadata.
+Evidence is retained under `.artifacts/r153/relocation-owner-request-20261006/`.
+
+This boundary authenticates a live initiating session only. Move-only access after
+retirement remains separate. Approval still needs initiating-session revalidation
+at commit and HTTP integration. Email delivery, move-only reads, Console admission,
+and challenge/approval transfer remain unfinished. The authenticated
+owner boundary must validate the initiating credential before calling this store.
+Console must verify the source approval and its expiry before new admission.
+These component scenarios do not prove that integration or an assembled move.
 
 ## Cloudflare capabilities
 
@@ -308,7 +463,8 @@ This verifies the authorization/storage boundary with fixture device authorities
 It does not execute MPC signing, browser unlock, WebAuthn, a real linked-device
 enrollment, or a geographically distributed/fenced handover. Crypto portability
 in this section is established from the actual binding contracts; assembled
-signing and offline-browser continuity remain release gates.
+signing after fresh authentication and offline-device reconciliation remain
+release gates under the selected lifecycle.
 
 ## Presignature invalidation and compute limits
 
@@ -347,9 +503,9 @@ Five minutes is a proposed rate limit, without measured compute-cost evidence.
 It permits up to twelve new relocation admissions per hour per wallet, so normal
 bounded pool depth, per-move deduplication, and demand-driven device refill still
 matter. Measure compute per refill, number of active device pools, retry work,
-and the first signing delay before settling that interval. R154's sustained-move
-policy needs its own observation and benefit thresholds; the shared minimum
-does not establish a useful automatic relocation cadence.
+and the first signing delay before settling that interval. R154 suggests a move
+after observing a different region. The owner decides whether to relocate;
+the shared minimum also applies to moves opened through a notification.
 
 Both existing storage and authorization transfer probes passed again during
 this follow-up and refreshed their repeatable artifacts. They continue to
@@ -365,10 +521,10 @@ presignature invalidation, regeneration after a move, or geographic placement.
 | Serialization | Preserve BLOBs, nulls, Unicode, integer precision, and exact signed/ciphertext bytes. The probe preserves an integer above JavaScript's safe range by transporting it as decimal text. Its JSON KV example covers JSON-compatible values only. |
 | Alarms and expiry | Alarms can run at least once and retry; deleting an alarm does not stop an already-running handler. Source handlers need the same authority fence. Preserve deadlines without extending grants, and explicitly decide which work should resume at the destination. [Alarms](https://developers.cloudflare.com/durable-objects/api/alarms/), [storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/). |
 | Cleanup and restore | `deleteAll()` erases the retirement marker too; with the tested compatibility date it also removes the alarm. Retain an authoritative fence that survives cleanup, restart, and restoring an old snapshot. Backup retention makes immediate erasure a separate claim. [Storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/), [D1 retention](https://developers.cloudflare.com/d1/platform/limits/). |
-| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, session semantics, and operation IDs. A stale device must rediscover the current home before an effect and discard invalidated presignatures. Refill paired material when that device participates again. Verify token/key configuration, credential lookup before wallet resolution, and any endpoint identity bindings. |
+| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, historical accounting, and operation IDs. Retire all signing sessions. A stale device must rediscover the current home, discard old credentials/sealed sessions/presignatures, and authenticate again. Refill paired material when that device participates. Verify rejection of every old grant and fresh-session issuance without re-enrollment. |
 | Shared load and limits | Bound transfer pages and transactions. D1 has statement/parameter/row limits and a 30-second query limit; each database serializes queries. DOs also impose object-size and CPU limits. Measure pause duration and interference with unrelated wallets. [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [DO limits](https://developers.cloudflare.com/durable-objects/platform/limits/). |
 | Transport and permissions | Restrict export/import to the authenticated move, wallet, role, destination, and expected generation. Reject another tenant's data and stale/repeated commands. Avoid ciphertext or secret dumps in evidence logs. Cross-account bindings and custody configurations require separate eligibility checks. |
-| Repeated moves | Serialize competing device requests and enforce the proposed wallet-wide five-minute admission interval across manual and automatic mode. Bound failed attempts and deduplicate the same move's retries/refills. Moving back to a previous region must not reactivate its old state. Preserve monotonic ownership through cleanup, cancellation, and later moves. |
+| Repeated moves | Serialize competing device requests and enforce the wallet-wide five-minute admission interval across settings and notification entrypoints. Bound failed attempts and deduplicate retries. Moving back requires a completed move followed by a new relocation. Preserve monotonic ownership through cleanup and later moves. There is no cancellation or rollback after admission. |
 | Actual benefit | Verify destination D1 placement evidence and role-object routing separately from ingress Worker location. Measure the full signing path, including retained shared authorities, from representative regions. Successful copying alone says nothing about latency improvement. |
 
 ## Executed checks
@@ -399,10 +555,10 @@ storage scenario, except the explicitly identified schema census.
    from representative client regions. Do not infer DO location from the ingress
    request's colo. Verify actual account/binding access and data round trips.
 3. **Demonstrate an actual wallet move with a brief pause.** Preserve role and
-   wallet identities; cover ECDSA and Ed25519, invalidated ready pools and
-   preserved consumed-material history, completed retries, session quota,
-   revoked factors, and an offline owner device. Verify signatures and unchanged
-   addresses after transfer. Include
+   wallet identities. Cover ECDSA and Ed25519, retired signing sessions, invalidated
+   pools, consumed-material history, completed retries, historical quota accounting,
+   revoked factors, and an offline owner device. Verify fresh authentication,
+   signatures, and unchanged addresses after transfer. Include
    interrupted presigning, stale cache restoration after a browser restart,
    delayed refill completion, and fresh paired regeneration on reconnect.
    Reconcile all claim/import-trigger cases.
@@ -429,5 +585,5 @@ No hosted resources or wallet data were changed in this investigation.
 R153 is therefore a cross-cutting backend change before it is a region selector.
 The smallest candidate is a paused, role-preserving copy with explicit fencing
 and exact replay preservation. Live delta replication can wait for measurements
-showing that a paused copy is insufficient. R154 can remain a small policy layer
-over the same relocation operation once these gates pass.
+showing that a paused copy is insufficient. R154 adds region-change notifications
+that open the same owner-confirmed relocation flow once these gates pass.

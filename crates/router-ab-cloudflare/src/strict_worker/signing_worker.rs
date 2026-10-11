@@ -4,16 +4,29 @@ use super::*;
 pub(super) async fn handle_strict_signing_worker_fetch_v1(
     request: Request,
     env: Env,
+    ctx: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
     let auth = if path
         == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH
         || path
             == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH
-        || local_intended_gateway_path(&path)
     {
         require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(&request, &env)
-    } else if path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH
+    } else if path == crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1
+        || path == crate::SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1
+        || path == crate::SIGNING_WORKER_ED25519_SETTLE_PATH_V1
+        || path == crate::SIGNING_WORKER_ED25519_FENCE_PATH_V1
+        || path == crate::SIGNING_WORKER_POOL_FREEZE_PATH_V1
+        || path == crate::durable_object::presign_session_relocation::FENCE_PATH
+        || path == crate::durable_object::presign_session_relocation::FREEZE_PATH
+        || path == crate::durable_object::presign_session_relocation::EXPORT_PATH
+        || path == crate::durable_object::presign_session_relocation::import::PATH
+        || path == crate::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1
+        || path == crate::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1
+        || path == crate::SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1
+        || path == crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1
+        || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH
         || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH
         || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH
     {
@@ -23,6 +36,12 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
     };
     if let Err(err) = auth {
         return cloudflare_private_service_auth_error_response_v1(err);
+    }
+    if path == crate::durable_object::wallet_startup::ALLOCATE_PATH {
+        return crate::durable_object::wallet_startup::allocate_role_address(&request, &env, crate::CloudflareWorkerRoleV1::SigningWorker);
+    }
+    if path == crate::durable_object::wallet_startup::PATH {
+        return crate::durable_object::wallet_startup::handle_role_request(request, &env, crate::CloudflareWorkerRoleV1::SigningWorker).await;
     }
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         if request.method() != Method::Post {
@@ -38,12 +57,181 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
     match path.as_str() {
-        #[cfg(feature = "local-intended-signing-hold")]
-        crate::CLOUDFLARE_SIGNING_WORKER_LOCAL_INTENDED_HOLD_PATH => {
-            match crate::handle_cloudflare_signing_worker_local_intended_hold_v1(request, &env).await
-            {
+        crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("SigningWorker relocation context requires POST", 405);
+            }
+            let mut request = request;
+            if let Err(error) = crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::SigningWorkerRelocationContextRequestV1>(&mut request, 8192).await {
+                return cloudflare_protocol_error_response_v1(error);
+            }
+            match crate::signing_worker_relocation_context_v1(&crate::CloudflareWorkerEnvReaderV1::new(&env)) {
+                Ok(context) => Response::from_json(&context),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("Linked presign preparation inventory requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let command = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::SigningWorkerLinkedPresignPreparationInventoryRequestV1>(
+                &mut request, 8192,
+            ).await {
+                Ok(command) => command,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::ListPreparingLinkedPresignSessions(command)).await {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("Linked presign inventory requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let command = match request.json::<crate::SigningWorkerLinkedPresignInventoryRequestV1>().await {
+                Ok(command) => command,
+                Err(_) => return Response::error("Linked presign inventory request is malformed", 400),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::ListLinkedPresignSessions(command)).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        crate::durable_object::presign_session_relocation::import::PATH => {
+            crate::durable_object::presign_session_relocation::import::forward(request, &env, &runtime).await
+        }
+        crate::durable_object::presign_session_relocation::EXPORT_PATH => {
+            crate::durable_object::presign_session_relocation::forward_export(request, &env, &runtime).await
+        }
+        crate::durable_object::presign_session_relocation::FREEZE_PATH => {
+            crate::durable_object::presign_session_relocation::forward_freeze(request, &env, &runtime).await
+        }
+        crate::durable_object::presign_session_relocation::FENCE_PATH => {
+            crate::durable_object::presign_session_relocation::forward_fence(request, &env, &runtime).await
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("ECDSA transfer requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let command = match request.json::<crate::SigningWorkerEcdsaTransferRequestV1>().await {
+                Ok(command) => command,
+                Err(_) => return Response::error("ECDSA transfer request is malformed", 400),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(
+                &env,
+                wallet_objects,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command),
+            ).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("ECDSA export requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let command = match request.json::<crate::SigningWorkerEcdsaExportRequestV1>().await {
+                Ok(command) => command,
+                Err(_) => return Response::error("ECDSA export request is malformed", 400),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(
+                &env,
+                wallet_objects,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command),
+            ).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("Ed25519 snapshot requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let request = match request.json::<crate::SigningWorkerEd25519SnapshotCommandV1>().await {
+                Ok(request) => request,
+                Err(_) => return Response::error("Ed25519 snapshot request is malformed", 400),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request }).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_ED25519_FENCE_PATH_V1 | crate::SIGNING_WORKER_ED25519_SETTLE_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("Ed25519 fence requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let command = match request.json::<crate::SigningWorkerEd25519FenceCommandV1>().await {
+                Ok(command) => command,
+                Err(_) => return Response::error("Ed25519 fence request is malformed", 400),
+            };
+            let request = if path == crate::SIGNING_WORKER_ED25519_SETTLE_PATH_V1 {
+                crate::durable_object::SigningWorkerWalletDoRequestV1::SettleEd25519(command)
+            } else {
+                crate::durable_object::SigningWorkerWalletDoRequestV1::FenceEd25519(command)
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects, request).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
+        }
+        #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+        crate::SIGNING_WORKER_POOL_FREEZE_PATH_V1 => {
+            if request.method() != Method::Post {
+                return Response::error("Pool freeze requires POST", 405);
+            }
+            let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
+                Ok(route) => route,
+                Err(error) => return cloudflare_protocol_error_response_v1(error),
+            };
+            let mut request = request;
+            let command = match request.json::<crate::SigningWorkerPoolFreezeCommandV1>().await {
+                Ok(command) => command,
+                Err(_) => return Response::error("Pool freeze request is malformed", 400),
+            };
+            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
+                crate::durable_object::SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command)).await {
+                Ok(response) => Ok(response),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH => {
@@ -186,7 +374,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         }
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH => {
             handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_fetch_v1(
-                request, &env, &runtime,
+                request, &env, &runtime, &ctx,
             )
             .await
         }
@@ -395,15 +583,4 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             404,
         ),
     }
-}
-
-/// A local-only route the local Gateway calls with its own credential.
-#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
-fn local_intended_gateway_path(path: &str) -> bool {
-    #[cfg(feature = "local-intended-signing-hold")]
-    if path == crate::CLOUDFLARE_SIGNING_WORKER_LOCAL_INTENDED_HOLD_PATH {
-        return true;
-    }
-    let _ = path;
-    false
 }

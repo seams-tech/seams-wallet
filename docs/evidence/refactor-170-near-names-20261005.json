@@ -1,0 +1,125 @@
+{
+  "baseCommit": "2b67dce3137650b0f6412e153a8db8873cd1d4f2",
+  "scope": "Rename NEAR signing, message signing, and delegate relay submission across SDK, React, intended app, and public examples. Remove a redundant React wrapper and two unused signing-dispatch exports.",
+  "publicMethods": [
+    "near.signTransaction",
+    "near.signMessage",
+    "near.sendDelegateAction",
+    "React signMessage"
+  ],
+  "preserved": [
+    "wire discriminators and protocol 4.0.0",
+    "transaction and message codecs",
+    "authorization and confirmation flows",
+    "message success/failure result",
+    "delegate relay request and result"
+  ],
+  "sourceSha256": {
+    "apps/docs/src/examples/nep413-signing.ts": "2ab271774ab2ef2e176be5243b1fd37047511e15c87e8ef89cdcaf3cc42e5790",
+    "examples/wallet-console-lite/src/WalletConsoleLite.tsx": "dcd1c5d4138891fce384c84b2b6484958f0d83166c4877ee05e6ea6eca27e90f",
+    "packages/wallet/src/SeamsWeb/operations/near/actions.ts": "ae0de0bf12407d91a123d090b4de4fa56f602047a74ec91c97861198cf1de585",
+    "packages/wallet/src/SeamsWeb/operations/near/delegateAction.ts": "519882550d6b00a87fbaeb4aa36cb79be2452b87bd5b49538a1cdf52adc47424",
+    "packages/wallet/src/SeamsWeb/operations/near/signNEP413.ts": "9c4cb8cedefe89c7654b54f553eee309c56dc49fa6b709c257870798a673cf36",
+    "packages/wallet/src/SeamsWeb/publicApi/near.ts": "b1eec774bc4d076fb1bec95b3e8259fdaefd0e0d645783549804b324e9ecfb2b",
+    "packages/wallet/src/SeamsWeb/publicApi/nearCommands.ts": "27094a4d07893a0dfaa3f2e4cdd14654d7bb540141e66243c8c24d54c7bfb1b2",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "daafe29ef3170d3ce52e5594e825ab80cb6e23cf4a5c8b060ff66ce1000b8fc6",
+    "packages/wallet/src/SeamsWeb/publicInputs.typecheck.ts": "826dbf290d5b69625bc5baf971f2e5d05dd1708917b585e84557e22def3b3a66",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "24c79c5091a8bc17aab5199f37a873104811bfcdcdf968086fa16e6e134939e3",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "059c1907047fd889da5872058b66e9ad508998c20f842c40e675a90d0e149547",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "d3a3a240a5ebad53351a7741142ec34d228506ad1c5e06ac3b5a580bd66df872",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createNearCommands.ts": "dbe9fdd804bf51c21050b9045cc5234aa817a41dc86336d5e45c615db0dc6a3b",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "c7bb538bb68977617d1487ce5e5eaffebcb0c18afc6a95a4ca79e5ffaeab2154",
+    "packages/wallet/src/core/signingEngine/flows/signNear/signNear.ts": "8cd41405c92c833ed95c50d2c7af251edfcec25f7575bbb9318b5b32926c66a8",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "becfbd128a681b9c0b89eafa4af62e6a87368ff03b0fe659320352ffcfc3bb73",
+    "packages/wallet/src/react/hooks/useWallet.ts": "8060fcd66013901f24852f92683f4fe273f388c9c6a98c2f778bf29df5e06523",
+    "packages/wallet/src/react/types.ts": "dcab7a62122230d382bcbffbfc09d332d25b0ac77ccfe054d7909612f5a482cb",
+    "tests/e2e/intended-behaviours/harness.ts": "ffba23223b2297b669ba62e8d24f54ff4a12df3dc02eca0e1323cb3f60329a19",
+    "tests/e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts": "0b372c127e0a54d97533fbcc3970bb3662f4c3003f846310f69e84d307b0ed8d",
+    "tests/intended-app/src/page.tsx": "3b339f95814dbcf086e9cca0698ff7fe277b1fbbd23f3a24b2d51fd798242bfe"
+  },
+  "productionLines": {
+    "added": 62,
+    "removed": 67,
+    "net": -5,
+    "scope": "SDK package source, excluding type fixtures",
+    "otherChanges": "The console-lite example removes its obsolete eager prop; tests and documentation are counted separately."
+  },
+  "verification": {
+    "production": {
+      "cases": [
+        "[wallet-intended] 1/3 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+        "[wallet-intended] 2/3 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:11 public Ed25519 Yao registration signs immediately and after refresh",
+        "[wallet-intended] 3/3 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:82 public NEAR message signatures verify against the registered key across refresh"
+      ],
+      "passes": [
+        "1 passed (47.2s)",
+        "1 passed (29.9s)",
+        "1 passed (28.1s)"
+      ],
+      "exit": 0
+    },
+    "artifactRerun": {
+      "cases": [
+        "[wallet-intended] 1/1 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:85 public NEAR message signatures verify against the registered key across refresh"
+      ],
+      "passes": [
+        "1 passed (29.9s)"
+      ],
+      "exit": 0
+    },
+    "browserExit": 0,
+    "browserReceipt": "40 passed (45.2s)",
+    "productionCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep 'public NEAR message signatures|public Ed25519 Yao registration signs immediately|Email OTP registration and unlock lifecycle'",
+    "artifactCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts --grep 'public NEAR message signatures'",
+    "browserCommand": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.behavior.test.ts wallet-ui/transaction-review.browser.test.ts --project=chromium --output=../.artifacts/r170-near-names",
+    "checks": [
+      "wallet type-check",
+      "intended type-check",
+      "wallet-state type-check",
+      "wallet-browser type-check",
+      "console-lite example type-check",
+      "docs type-check",
+      "build:prod",
+      "check:declarations-external",
+      "check:runtime-entry-bundles",
+      "build:check:fresh",
+      "report:bloat --check",
+      "git diff --check"
+    ]
+  },
+  "messageArtifact": {
+    "path": "tests/test-results/e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium/near-message-signatures.json",
+    "sha256": "37628dad74492a68e886cb3fb15a18ab2c0c6c59903b5297ea256dab29bf942b",
+    "receipts": {
+      "first": {
+        "message": "Approve checkout before refresh",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "cbfe441c267ea8c829af1b6b3aa15029beb472fce976ca6f189e04169e8589ed",
+        "publicKey": "ed25519:EjJdwJngiGS9NrHHsZUgVPpnNpta4Q7Ff2mPUwJ4qvKN",
+        "signature": "gMJWCQ8CJBJZ29voUvRD8o0Lgeh1NCrLVT5gVSkOySOWkN24ylk8b+4qcy021HCtf1eTeX/LSthQ03R2MZidBw==",
+        "nonce": "Q+XmsMpk1m4z+ZYBN0V/jf6h2PCstq+faF1Nw1AjrYM=",
+        "digestHex": "13d610fab019800c098e0437ecdcb1f12b9a018ee67666c2b35f148c7cd86a3d"
+      },
+      "second": {
+        "message": "Approve checkout after refresh",
+        "recipient": "checkout.example",
+        "state": "quote-170",
+        "success": true,
+        "accountId": "cbfe441c267ea8c829af1b6b3aa15029beb472fce976ca6f189e04169e8589ed",
+        "publicKey": "ed25519:EjJdwJngiGS9NrHHsZUgVPpnNpta4Q7Ff2mPUwJ4qvKN",
+        "signature": "GVa8ZovTzs4buJsTPOfrROrlT1e/DS7CMMUXaVvgDNMsqriQlGNd+VRIRR4MkD2xmbs3sVKEU8mcIDc2KipeBQ==",
+        "nonce": "ySiFyFOHtzPSS19Y1fg1gMeVQw67gxcbMQM+DkI/bBc=",
+        "digestHex": "8487a69081cd40e3a867fe10eef096884c457ec1f5ccdab6da063e0d0fea78a9"
+      }
+    },
+    "verification": "Both signatures verify over an independently encoded payload against the registered key; altered messages fail verification. Receipts contain public data only."
+  },
+  "packageIntegrity": "sha512-Lw4tPhezwE2ufEBCTG3OoKASg0ngBdSmbwmDQpx69yyfUk5oonOYePMl4Bm1jyicPbiLq9YkgrEtgjWQMmDUFQ==",
+  "limitations": [
+    "No live delegate relay submission verification.",
+    "Private Console/site delegate call migration awaits matching exact-release adoption.",
+    "Funding-tool exports and other R170 worker/performance/browser/release gates remain open."
+  ]
+}

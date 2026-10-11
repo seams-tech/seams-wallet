@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { PasskeyRegistrationOptions, SeamsWeb } from '@/SeamsWeb';
+import type { ConfigCapability, SeamsWeb } from '@/SeamsWeb';
 import type { AuthCapability, RecoveryCapability, RegistrationCapability } from '@/SeamsWeb';
 import {
   type LoginHooksOptions,
@@ -12,6 +12,17 @@ import {
   type AccountSyncFlowEvent,
   type SyncAccountHooksOptions,
 } from '@/core/types/sdkSentEvents';
+
+function setThemeWithHost(
+  seams: SeamsWeb,
+  hostSetTheme: ((theme: 'light' | 'dark') => void) | undefined,
+  next: 'light' | 'dark',
+): void {
+  try {
+    hostSetTheme?.(next);
+  } catch {}
+  seams.config.setTheme(next);
+}
 
 export function useSeamsWithSdkFlow(args: {
   seams: SeamsWeb;
@@ -37,10 +48,8 @@ export function useSeamsWithSdkFlow(args: {
      */
     type LoginFn = AuthCapability['unlock'];
     type RegisterWalletFn = RegistrationCapability['registerWallet'];
-    type AddWalletSignerFn = RegistrationCapability['addWalletSigner'];
-    type RegisterPasskeyFn = RegistrationCapability['registerPasskey'];
+    type AddSignerFn = RegistrationCapability['addSigner'];
     type SyncAccountFn = RecoveryCapability['syncAccount'];
-    type SetThemeFn = SeamsWeb['setTheme'];
 
     const loginWithSdkFlow: LoginFn = async (walletId: string, options?: LoginHooksOptions) => {
       const seq = beginSdkFlow('login', walletId);
@@ -69,40 +78,6 @@ export function useSeamsWithSdkFlow(args: {
       };
 
       return await seams.auth.unlock(walletId, wrappedOptions);
-    };
-
-    const registerPasskeyWithSdkFlow: RegisterPasskeyFn = async (
-      options?: PasskeyRegistrationOptions,
-    ) => {
-      const seq = beginSdkFlow('register');
-      const wrappedOptions: PasskeyRegistrationOptions = {
-        ...options,
-        onEvent: (event: RegistrationFlowEvent) => {
-          appendSdkEventMessage(seq, event.message);
-          if (
-            event.phase === RegistrationEventPhase.STEP_11_COMPLETED &&
-            event.status === 'succeeded'
-          ) {
-            endSdkFlow('register', seq, 'success');
-          } else if (
-            event.phase === RegistrationEventPhase.FAILED ||
-            event.phase === RegistrationEventPhase.CANCELLED ||
-            event.status === 'failed' ||
-            event.status === 'cancelled'
-          ) {
-            const error = event.error?.message || event.message;
-            endSdkFlow('register', seq, 'error', error || event.message);
-          }
-          options?.onEvent?.(event);
-        },
-        onError: (error: Error) => {
-          appendSdkEventMessage(seq, error.message);
-          endSdkFlow('register', seq, 'error', error.message);
-          options?.onError?.(error);
-        },
-      };
-
-      return await seams.registration.registerPasskey(wrappedOptions);
     };
 
     const registerWalletWithSdkFlow: RegisterWalletFn = async (registerWalletArgs) => {
@@ -145,7 +120,7 @@ export function useSeamsWithSdkFlow(args: {
       });
     };
 
-    const addWalletSignerWithSdkFlow: AddWalletSignerFn = async (addSignerArgs) => {
+    const addSignerWithSdkFlow: AddSignerFn = async (addSignerArgs) => {
       const walletId = String(addSignerArgs.walletId || '').trim();
       const seq = beginSdkFlow('register', walletId || undefined);
       const options = addSignerArgs.options;
@@ -176,7 +151,7 @@ export function useSeamsWithSdkFlow(args: {
         },
       };
 
-      return await seams.registration.addWalletSigner({
+      return await seams.registration.addSigner({
         ...addSignerArgs,
         options: wrappedOptions,
       });
@@ -218,11 +193,9 @@ export function useSeamsWithSdkFlow(args: {
       });
     };
 
-    const setThemeWithHost: SetThemeFn = (next) => {
-      try {
-        hostSetTheme?.(next);
-      } catch {}
-      seams.setTheme(next);
+    const config: ConfigCapability = {
+      ...seams.config,
+      setTheme: setThemeWithHost.bind(null, seams, hostSetTheme),
     };
 
     return new Proxy(seams, {
@@ -232,13 +205,6 @@ export function useSeamsWithSdkFlow(args: {
           return {
             ...auth,
             unlock: loginWithSdkFlow,
-            lock: () => auth.lock(),
-            getWalletSession: (...args: Parameters<AuthCapability['getWalletSession']>) =>
-              auth.getWalletSession(...args),
-            hasPasskeyCredential: (...args: Parameters<AuthCapability['hasPasskeyCredential']>) =>
-              auth.hasPasskeyCredential(...args),
-            getRecentUnlocks: (...args: Parameters<AuthCapability['getRecentUnlocks']>) =>
-              auth.getRecentUnlocks(...args),
           };
         }
 
@@ -246,35 +212,19 @@ export function useSeamsWithSdkFlow(args: {
           const registration = Reflect.get(target, prop, receiver);
           return {
             ...registration,
-            addWalletSigner: addWalletSignerWithSdkFlow,
+            addSigner: addSignerWithSdkFlow,
             registerWallet: registerWalletWithSdkFlow,
-            registerWithEmailOtp: registerWalletWithSdkFlow,
-            registerPasskey: registerPasskeyWithSdkFlow,
           } satisfies RegistrationCapability;
         }
 
         if (prop === 'recovery') {
-          const recovery = Reflect.get(target, prop, receiver);
           return {
+            ...target.recovery,
             syncAccount: syncAccountWithSdkFlow,
-            getWalletRecoveryCodeStatus: (
-              ...args: Parameters<RecoveryCapability['getWalletRecoveryCodeStatus']>
-            ) => recovery.getWalletRecoveryCodeStatus(...args),
-            acknowledgeWalletRecoveryCodeBackup: (
-              ...args: Parameters<RecoveryCapability['acknowledgeWalletRecoveryCodeBackup']>
-            ) => recovery.acknowledgeWalletRecoveryCodeBackup(...args),
-            requestWalletCustodyEmailOtpChallenge: (
-              ...args: Parameters<RecoveryCapability['requestWalletCustodyEmailOtpChallenge']>
-            ) => recovery.requestWalletCustodyEmailOtpChallenge(...args),
-            rotateWalletRecoveryCodes: (
-              ...args: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>
-            ) => recovery.rotateWalletRecoveryCodes(...args),
           } satisfies RecoveryCapability;
         }
 
-        if (prop === 'setTheme') {
-          return setThemeWithHost;
-        }
+        if (prop === 'config') return config;
 
         const value: unknown = Reflect.get(target, prop, receiver);
         // For non-wrapped methods, bind to preserve `this` on the class instance.

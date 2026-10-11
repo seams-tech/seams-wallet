@@ -38,7 +38,6 @@ for (const script of [
   'start-local-wallet-system.mjs',
   'bootstrap-local-tenant-root.mjs',
   'prepare-local-runtime-config.mjs',
-  'local-key-material.mjs',
 ]) {
   fs.mkdirSync(path.join(outputRoot, 'scripts'), { recursive: true });
   fs.copyFileSync(path.join(sourceRoot, 'scripts', script), path.join(outputRoot, 'scripts', script));

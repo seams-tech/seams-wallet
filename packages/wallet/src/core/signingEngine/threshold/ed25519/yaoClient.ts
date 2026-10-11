@@ -1,3 +1,5 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import { buildWalletHomeRoutingHeaders } from '@/core/rpcClients/relayer/relayerHttp';
 import {
   WasmActivatedClientV1,
   WasmEd25519YaoClientRootExportSessionV1,
@@ -40,6 +42,7 @@ import {
   ROUTER_AB_TRACE_ID_HEADER_V1,
   type RouterAbTraceContextV1,
 } from '@shared/utils/routerAbTraceContext';
+import { asRecord } from '@shared/utils/validation';
 
 type RecoveryExecuteRequestV1 = RouterAbEd25519YaoActivationExecuteRequestV1<'recovery'>;
 
@@ -49,6 +52,8 @@ export const ROUTER_AB_ED25519_YAO_ACTIVE_CLIENT_KIND_V1 =
 type RouterAbEd25519YaoRegistrationTransportFailureV1 = {
   ok: false;
   message: string;
+  /** The failure code of the answer, when the answering service gave one. */
+  code?: string;
 };
 
 type RouterAbEd25519YaoRegistrationTransportResultV1 =
@@ -302,6 +307,7 @@ type RouterAbEd25519YaoHttpAuthorizationV1 =
 
 export type RouterAbEd25519YaoHttpTransportConfigV1 = {
   readonly routerOrigin: string;
+  readonly routing: WalletSessionHome | { readonly kind: 'discovery' };
   readonly authorization: RouterAbEd25519YaoHttpAuthorizationV1;
   readonly fetch: typeof fetch;
   readonly traceContext?: RouterAbTraceContextV1;
@@ -309,6 +315,7 @@ export type RouterAbEd25519YaoHttpTransportConfigV1 = {
 
 type ParsedHttpTransportConfigV1 = {
   readonly routerOrigin: string;
+  readonly routing: WalletSessionHome | { readonly kind: 'discovery' };
   readonly authorization: RouterAbEd25519YaoHttpAuthorizationV1;
   readonly fetch: typeof fetch;
   readonly traceContext: RouterAbTraceContextV1;
@@ -667,6 +674,7 @@ function parseHttpTransportConfig(
   }
   return {
     routerOrigin: origin.origin,
+    routing: config.routing,
     authorization: config.authorization,
     fetch: config.fetch,
     traceContext: resolveHttpTraceContext(config.traceContext),
@@ -702,9 +710,11 @@ async function parseHttpResponse(
     const serverTiming = rawServerTiming || resourceServerTiming(response.url);
     return { ok: true, value, ...(serverTiming ? { serverTiming } : {}) };
   }
+  const code = asRecord(value)?.code;
   return {
     ok: false,
     message: JSON.stringify(value),
+    ...(typeof code === 'string' ? { code } : {}),
   };
 }
 
@@ -778,6 +788,7 @@ export class RouterAbEd25519YaoHttpActivationTransportV1
         {
           method: 'POST',
           headers: {
+            ...yaoRoutingHeaders(this.config.routing),
             ...(bearerAuthorization ? { authorization: bearerAuthorization } : {}),
             ...(recoveryChallengeId
               ? {
@@ -801,7 +812,7 @@ export class RouterAbEd25519YaoHttpActivationTransportV1
   }
 }
 
-export class WasmRouterAbEd25519YaoActiveClientV1 implements RouterAbEd25519YaoSealableActiveClientV1 {
+class WasmRouterAbEd25519YaoActiveClientV1 implements RouterAbEd25519YaoSealableActiveClientV1 {
   private readonly activeMetadata: RouterAbEd25519YaoActiveClientMetadataV1;
   private lifecycle: RouterAbEd25519YaoActiveClientLifecycleV1;
 
@@ -1206,5 +1217,17 @@ export class RouterAbEd25519YaoClientV1 {
     } finally {
       session.free();
     }
+  }
+}
+
+function yaoRoutingHeaders(routing: ParsedHttpTransportConfigV1['routing']): Record<string, string> {
+  switch (routing.kind) {
+    case 'discovery':
+      return {};
+    case 'direct':
+    case 'regional':
+      return buildWalletHomeRoutingHeaders(routing);
+    default:
+      return assertNever(routing);
   }
 }

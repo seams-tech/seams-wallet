@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import {
   parseMpcWalletSigningQuotaId,
   parseWalletSessionId,
@@ -12,8 +13,9 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
+import type { RegistrationEstablishedSessionV2 } from '@shared/utils/registrationEstablishedSession';
 import {
-  buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -81,6 +83,19 @@ export type ExactWalletSessionStatus =
       readonly authorization?: never;
     });
 
+export type PreparedWalletSessionStatus = Variant<ExactWalletSessionStatus, 'status', 'active'>;
+
+/** What a registration response states about the session it issued. */
+type RegistrationIssuedSession = Pick<
+  RegistrationEstablishedSessionV2,
+  | 'walletSessionId'
+  | 'quotaId'
+  | 'remainingUses'
+  | 'expiresAtMs'
+  | 'walletSession'
+  | 'operationCredential'
+>;
+
 interface ExactWalletSessionStatusPort {
   read(input: ExactWalletSessionStatusIdentity): Promise<ExactWalletSessionStatus>;
 }
@@ -93,6 +108,71 @@ type RelayerExactWalletSessionStatusPortOptions = {
 
 const defaultStatusFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
 
+type LocalWalletSessionObservation = {
+  readonly kind: 'local_wallet_session_observation';
+  readonly sequence: number;
+  readonly status: ExactWalletSessionStatus;
+};
+
+// These observations plan confirmation only. Signing uses fresh prepare admission.
+// Bound the retained credentials and keep fetch mocks isolated.
+const observationsByFetch = new WeakMap<typeof fetch, Map<string, LocalWalletSessionObservation>>();
+let observationSequence = 0;
+
+// Sessions a registration response issued that no host observation has read yet.
+const registrationSessions = new Map<string, PreparedWalletSessionStatus>();
+
+/** Every key of one credential starts with this, so a credential's entries can be found. */
+function statusCredentialKey(token: string): string {
+  return JSON.stringify([token]);
+}
+
+function statusIdentityKey(
+  options: RelayerExactWalletSessionStatusPortOptions,
+  identity: ExactWalletSessionStatusIdentity,
+): string {
+  return (
+    statusCredentialKey(options.operationCredential.token) +
+    JSON.stringify([
+      normalizeRelayerBaseUrl(options.relayerUrl),
+      identity.walletSessionId,
+      identity.quotaId,
+    ])
+  );
+}
+
+function recordStatusObservation(
+  fetchImpl: typeof fetch,
+  key: string,
+  sequence: number,
+  status: ExactWalletSessionStatus,
+): ExactWalletSessionStatus {
+  let observations = observationsByFetch.get(fetchImpl);
+  if (!observations) {
+    observations = new Map();
+    observationsByFetch.set(fetchImpl, observations);
+  }
+  const previous = observations.get(key);
+  if (previous && previous.sequence > sequence) return status;
+  // Any recorded status is at least as new as the registration response.
+  registrationSessions.delete(key);
+  observations.delete(key);
+  observations.set(key, { kind: 'local_wallet_session_observation', sequence, status });
+  if (observations.size > 32) {
+    const oldest = observations.keys().next();
+    if (!oldest.done) observations.delete(oldest.value);
+  }
+  return status;
+}
+
+/** Prepare reports the quota it admitted against, then claims one use of it.
+ * The next operation plans against what that claim left. */
+function statusAfterPrepareClaim(status: PreparedWalletSessionStatus): ExactWalletSessionStatus {
+  const remainingUses = status.remainingUses - 1;
+  if (remainingUses > 0) return { ...status, remainingUses };
+  return { ...status, status: 'exhausted', remainingUses: 0, quotaLifecycle: 'exhausted' };
+}
+
 /** One operation owns this snapshot; subsequent operations create a new scope. */
 export class WalletSessionStatusReadScope {
   private readonly readsByFetch = new Map<
@@ -100,28 +180,149 @@ export class WalletSessionStatusReadScope {
     Map<string, Promise<ExactWalletSessionStatus>>
   >();
 
+  private suppliedStatus:
+    | { readonly kind: 'remote' }
+    | { readonly kind: 'host_observation' }
+    | {
+        readonly kind: 'server_response';
+        readonly key: string;
+        readonly status: PreparedWalletSessionStatus;
+        readonly observation: ExactWalletSessionStatus;
+      } = { kind: 'remote' };
+
+  static fromPrepare(
+    options: RelayerExactWalletSessionStatusPortOptions,
+    status: PreparedWalletSessionStatus,
+  ): WalletSessionStatusReadScope {
+    const scope = new WalletSessionStatusReadScope();
+    scope.suppliedStatus = {
+      kind: 'server_response',
+      key: statusIdentityKey(options, status),
+      status,
+      observation: statusAfterPrepareClaim(status),
+    };
+    return scope;
+  }
+
+  /** Initial prefill uses the issued response. Each refill request still verifies
+   * current server authorization before it generates or admits material. */
+  static fromRegistration(
+    relayerUrl: string,
+    session: RegistrationIssuedSession,
+  ): WalletSessionStatusReadScope {
+    const status = registrationSessionStatus(session);
+    const scope = new WalletSessionStatusReadScope();
+    scope.suppliedStatus = {
+      kind: 'server_response',
+      key: statusIdentityKey({ relayerUrl, operationCredential: session.operationCredential }, status),
+      status,
+      observation: status,
+    };
+    return scope;
+  }
+
+  /**
+   * A NEAR-only registration's finalize response states the session the server
+   * issued as its last step. The wallet host's next observation of this exact
+   * session reads it from the response; asking the server would repeat it.
+   * An ECDSA registration keeps changing its session after it is issued, so
+   * that path observes the server.
+   */
+  static acceptRegistrationSession(relayerUrl: string, session: RegistrationIssuedSession): void {
+    const status = registrationSessionStatus(session);
+    registrationSessions.set(
+      statusIdentityKey({ relayerUrl, operationCredential: session.operationCredential }, status),
+      status,
+    );
+    if (registrationSessions.size > 8) {
+      const oldest = registrationSessions.keys().next();
+      if (!oldest.done) registrationSessions.delete(oldest.value);
+    }
+  }
+
+  /** One wallet-host observation. It reads a session that a registration response
+   * issued once; every other read, and every explicit session query, asks the server. */
+  static forHostObservation(): WalletSessionStatusReadScope {
+    const scope = new WalletSessionStatusReadScope();
+    scope.suppliedStatus = { kind: 'host_observation' };
+    return scope;
+  }
+
+  /**
+   * The server refused an operation under this credential's session and asked
+   * for step-up. What the wallet holds about that session no longer plans a
+   * confirmation, so the next plan reads the server. Signing requests use the
+   * default fetch, and so do the observations they contradict.
+   */
+  static forgetCredential(token: string): void {
+    const credentialKey = statusCredentialKey(token);
+    for (const sessions of [observationsByFetch.get(defaultStatusFetch), registrationSessions]) {
+      if (!sessions) continue;
+      for (const key of [...sessions.keys()]) {
+        if (key.startsWith(credentialKey)) sessions.delete(key);
+      }
+    }
+  }
+
+  static observationForConfirmation(
+    options: RelayerExactWalletSessionStatusPortOptions,
+    identity: ExactWalletSessionStatusIdentity,
+  ): LocalWalletSessionObservation | null {
+    return (
+      observationsByFetch
+        .get(options.fetchImpl ?? defaultStatusFetch)
+        ?.get(statusIdentityKey(options, identity)) ?? null
+    );
+  }
+
   read(
     options: RelayerExactWalletSessionStatusPortOptions,
     identity: ExactWalletSessionStatusIdentity,
   ): Promise<ExactWalletSessionStatus> {
+    if (this.suppliedStatus.kind === 'server_response') {
+      if (this.suppliedStatus.key !== statusIdentityKey(options, identity)) {
+        throw new Error('Wallet Session response identity changed before reconciliation');
+      }
+      recordStatusObservation(
+        options.fetchImpl ?? defaultStatusFetch,
+        this.suppliedStatus.key,
+        ++observationSequence,
+        this.suppliedStatus.observation,
+      );
+      return Promise.resolve(this.suppliedStatus.status);
+    }
     const fetchImpl = options.fetchImpl ?? defaultStatusFetch;
     let reads = this.readsByFetch.get(fetchImpl);
     if (!reads) {
       reads = new Map();
       this.readsByFetch.set(fetchImpl, reads);
     }
-    const key = JSON.stringify([
-      normalizeRelayerBaseUrl(options.relayerUrl),
-      options.operationCredential.token,
-      identity.walletSessionId,
-      identity.quotaId,
-    ]);
+    const key = statusIdentityKey(options, identity);
     const existing = reads.get(key);
     if (existing) return existing;
-    const pending = createRelayerExactWalletSessionStatusPort(options).read(identity);
+    const sequence = ++observationSequence;
+    const issued =
+      this.suppliedStatus.kind === 'host_observation' ? registrationSessions.get(key) : undefined;
+    const pending = issued
+      ? Promise.resolve(recordStatusObservation(fetchImpl, key, sequence, issued))
+      : createRelayerExactWalletSessionStatusPort(options)
+          .read(identity)
+          .then(recordStatusObservation.bind(null, fetchImpl, key, sequence));
     reads.set(key, pending);
     return pending;
   }
+}
+
+function registrationSessionStatus(session: RegistrationIssuedSession): PreparedWalletSessionStatus {
+  return {
+    status: 'active',
+    walletSessionId: session.walletSessionId,
+    quotaId: session.quotaId,
+    remainingUses: session.remainingUses,
+    expiresAtMs: session.expiresAtMs,
+    quotaLifecycle: 'active',
+    authorization: session.walletSession,
+  };
 }
 
 const OBSERVED_FIELDS = [
@@ -345,10 +546,7 @@ class RelayerExactWalletSessionStatusPort implements ExactWalletSessionStatusPor
           walletSessionId: input.walletSessionId,
           quotaId: input.quotaId,
         },
-        headers: buildBearerAuthorizationHeader({
-          token: this.operationCredential.token,
-          missingMessage: 'Wallet Session token is required for Wallet Session status',
-        }),
+        headers: buildWalletSessionAuthorizationHeaders(this.operationCredential),
       }),
       credentials: 'omit',
     });

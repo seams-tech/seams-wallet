@@ -309,8 +309,7 @@
   color: oklch(0.74 0.15 25);
 }
 
-.seams-linked-devices-modal-item--row .seams-linked-devices-modal-confirm,
-.seams-linked-devices-modal-item--row .seams-linked-devices-modal-otp-form {
+.seams-linked-devices-modal-item--row .seams-linked-devices-modal-confirm {
   margin-top: 0.6rem;
 }
 

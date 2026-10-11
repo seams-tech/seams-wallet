@@ -349,8 +349,7 @@ fn receive_sender_hello(
     let negative_y = -public_y;
 
     for index in 0..BASE_OT_COUNT {
-        let secret_x = random_safe_receiver_scalar(public_y, negative_y, rng)?;
-        let base_x = ProjectivePoint::GENERATOR * secret_x;
+        let (secret_x, base_x) = random_safe_receiver_scalar(public_y, negative_y, rng)?;
         let choice = choice_at(&choice_bytes, index);
         let selected_x = ProjectivePoint::conditional_select(&base_x, &(base_x + public_y), choice);
         public_x[index] = selected_x.to_affine();
@@ -394,6 +393,8 @@ fn finish_sender(
         choices.triple_index,
     )?;
     let public_y = ProjectivePoint::from(state.public_y);
+    // y(X - Y) = yX - yY; the second term is identical for every OT.
+    let shared_y = zeroize::Zeroizing::new(public_y * state.secret_y);
     let mut keys = [[[0u8; BASE_OT_KEY_SIZE]; 2]; BASE_OT_COUNT];
 
     for (index, public_x_affine) in choices.public_x.into_iter().enumerate() {
@@ -403,7 +404,7 @@ fn finish_sender(
             return Err(BaseRotError::DegenerateChoicePoint);
         }
         let shared0 = public_x * state.secret_y;
-        let shared1 = public_x_minus_y * state.secret_y;
+        let shared1 = shared0 - *shared_y;
         keys[index][0] = derive_key(
             state.context,
             state.triple_index,
@@ -437,12 +438,12 @@ fn random_safe_receiver_scalar(
     public_y: ProjectivePoint,
     negative_y: ProjectivePoint,
     rng: &mut impl CryptoRngCore,
-) -> Result<Scalar, BaseRotError> {
+) -> Result<(Scalar, ProjectivePoint), BaseRotError> {
     for _ in 0..MAX_RANDOM_ATTEMPTS {
         let candidate = random_nonzero_scalar(rng)?;
         let public_x = ProjectivePoint::GENERATOR * candidate;
         if !bool::from(public_x.ct_eq(&public_y)) && !bool::from(public_x.ct_eq(&negative_y)) {
-            return Ok(candidate);
+            return Ok((candidate, public_x));
         }
     }
     Err(BaseRotError::RandomnessExhausted)

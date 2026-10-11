@@ -39,6 +39,10 @@ import { WALLET_AUTH_METHODS, type WalletAuthMethod } from '@shared/utils/signer
 import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { ProfileAuthenticatorRecord } from '@/core/indexedDB';
 
+type RemovalSource =
+  | { readonly kind: 'surviving_method' }
+  | { readonly kind: 'selected_method'; readonly walletAuthMethodId: WalletAuthMethodId };
+
 export type RevokeAuthMethodResult = {
   readonly ok: true;
   readonly walletId: WalletId;
@@ -108,7 +112,7 @@ async function passkeySourceCredentials(args: {
 }
 
 async function passkeySourceProof(args: {
-  readonly context: RegistrationWebContext;
+  readonly context: Pick<RegistrationWebContext, 'configs' | 'signingEngine'>;
   readonly walletId: WalletId;
   readonly rpId: WebAuthnRpId;
   readonly operationFingerprintDigest: string;
@@ -125,7 +129,7 @@ async function passkeySourceProof(args: {
     !credentialIdB64u ||
     !args.allowCredentials.some((allowed) => allowed.id === credentialIdB64u)
   ) {
-    throw new Error('registration.revokeAuthMethod used a credential outside the wallet');
+    throw new Error('registration.removeAuthMethod used a credential outside the wallet');
   }
   return {
     kind: 'webauthn_assertion',
@@ -136,10 +140,11 @@ async function passkeySourceProof(args: {
 }
 
 async function emailOtpSourceProof(args: {
-  readonly context: RegistrationWebContext;
+  readonly context: Pick<RegistrationWebContext, 'configs' | 'signingEngine'>;
   readonly relayerUrl: string;
   readonly walletId: WalletId;
   readonly targetWalletAuthMethodId: WalletAuthMethodId;
+  readonly source: RemovalSource;
   readonly operationFingerprintDigest: string;
 }): Promise<WalletAuthMethodRevocationProof> {
   const local = await IndexedDBManager.listWalletAuthMethodsForWallet(String(args.walletId));
@@ -148,12 +153,14 @@ async function emailOtpSourceProof(args: {
       method.kind === 'email_otp' &&
       method.status === 'active' &&
       String(method.walletId) === String(args.walletId) &&
-      String(method.authority.bindingId) !== String(args.targetWalletAuthMethodId),
+      String(method.authority.bindingId) !== String(args.targetWalletAuthMethodId) &&
+      (args.source.kind === 'surviving_method' ||
+        String(method.authority.bindingId) === String(args.source.walletAuthMethodId)),
   );
   const [source, ...remaining] = sources;
   if (!source || remaining.length > 0 || source.kind !== 'email_otp') {
     throw new Error(
-      'registration.revokeAuthMethod needs exactly one other active method to authorize with',
+      'registration.removeAuthMethod needs exactly one other active method to authorize with',
     );
   }
   const walletAuthMethodId = String(source.authority.bindingId);
@@ -186,16 +193,23 @@ async function emailOtpSourceProof(args: {
   };
 }
 
-async function revokeAuthMethodInternal(args: {
-  readonly context: RegistrationWebContext;
-  readonly walletId: WalletId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-}): Promise<RevokeAuthMethodResult> {
-  const relayerUrl = String(args.context.configs.network.relayer.url || '').trim();
-  if (!relayerUrl) throw new Error('registration.revokeAuthMethod requires relayer.url');
-  const parsedRpId = parseWebAuthnRpId(String(args.context.signingEngine.getRpId() || '').trim());
+export async function authorizeWalletAuthMethodRemoval(
+  context: Pick<RegistrationWebContext, 'configs' | 'signingEngine'>,
+  source: RemovalSource,
+  args: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<{
+  readonly relayerUrl: string;
+  readonly requestedAtMs: number;
+  readonly sourceProof: WalletAuthMethodRevocationProof;
+}> {
+  const relayerUrl = String(context.configs.network.relayer.url || '').trim();
+  if (!relayerUrl) throw new Error('registration.removeAuthMethod requires relayer.url');
+  const parsedRpId = parseWebAuthnRpId(String(context.signingEngine.getRpId() || '').trim());
   if (!parsedRpId.ok) {
-    throw new Error(`registration.revokeAuthMethod ${parsedRpId.error.message}`);
+    throw new Error(`registration.removeAuthMethod ${parsedRpId.error.message}`);
   }
   /* The proof is taken over the operation fingerprint, so the assertion
      authorizes this wallet, this target, and this moment - not revocation in
@@ -209,10 +223,28 @@ async function revokeAuthMethodInternal(args: {
   const target = await IndexedDBManager.getWalletAuthMethodV2(args.walletAuthMethodId);
   const excludeCredentialIdB64u =
     target && target.kind === 'passkey' ? String(target.credentialIdB64u) : null;
-  const allowCredentials = await passkeySourceCredentials({
+  let allowCredentials = await passkeySourceCredentials({
     walletId: args.walletId,
     excludeCredentialIdB64u,
   });
+  if (source.kind === 'selected_method') {
+    const selected = await IndexedDBManager.getWalletAuthMethodV2(source.walletAuthMethodId);
+    if (
+      !selected ||
+      selected.status !== 'active' ||
+      selected.walletId !== args.walletId ||
+      selected.walletAuthMethodId === args.walletAuthMethodId
+    ) {
+      throw new Error('Removal requires a different active method on this wallet');
+    }
+    allowCredentials =
+      selected.kind === 'passkey'
+        ? allowCredentials.filter((credential) => credential.id === selected.credentialIdB64u)
+        : [];
+    if (selected.kind === 'passkey' && allowCredentials.length === 0) {
+      throw new Error('Selected passkey is unavailable for removal authorization');
+    }
+  }
   /* Whichever family the surviving sibling belongs to proves this. A passkey
      answers with an assertion over the fingerprint; an Email OTP method answers
      with a code against a challenge the server bound to the same fingerprint,
@@ -228,7 +260,7 @@ async function revokeAuthMethodInternal(args: {
   switch (sourceAuthMethod) {
     case WALLET_AUTH_METHODS.passkey:
       sourceProof = await passkeySourceProof({
-        context: args.context,
+        context: context,
         walletId: args.walletId,
         rpId: parsedRpId.value,
         operationFingerprintDigest: String(operationFingerprintDigest),
@@ -237,17 +269,31 @@ async function revokeAuthMethodInternal(args: {
       break;
     case WALLET_AUTH_METHODS.emailOtp:
       sourceProof = await emailOtpSourceProof({
-        context: args.context,
+        context: context,
         relayerUrl,
         walletId: args.walletId,
         targetWalletAuthMethodId: args.walletAuthMethodId,
+        source,
         operationFingerprintDigest: String(operationFingerprintDigest),
       });
       break;
     default:
       sourceAuthMethod satisfies never;
-      throw new Error('registration.revokeAuthMethod encountered an unsupported source method');
+      throw new Error('registration.removeAuthMethod encountered an unsupported source method');
   }
+  return { relayerUrl, requestedAtMs, sourceProof };
+}
+
+async function revokeAuthMethodInternal(args: {
+  readonly context: Pick<RegistrationWebContext, 'configs' | 'signingEngine'>;
+  readonly walletId: WalletId;
+  readonly walletAuthMethodId: WalletAuthMethodId;
+}): Promise<RevokeAuthMethodResult> {
+  const { relayerUrl, requestedAtMs, sourceProof } = await authorizeWalletAuthMethodRemoval(
+    args.context,
+    { kind: 'surviving_method' },
+    { walletId: args.walletId, walletAuthMethodId: args.walletAuthMethodId },
+  );
   const response = await revokeWalletAuthMethodRoute({
     relayerUrl,
     walletId: args.walletId,
@@ -256,7 +302,7 @@ async function revokeAuthMethodInternal(args: {
     sourceProof,
   });
   if (!response.ok || response.authMethod.status !== 'revoked') {
-    throw new Error('registration.revokeAuthMethod did not revoke the method');
+    throw new Error('registration.removeAuthMethod did not revoke the method');
   }
   /* Carry the server's decision into the local record. The wallet builds its
      own view of which methods exist from these rows, so leaving one active
@@ -285,14 +331,14 @@ async function revokeAuthMethodInternal(args: {
 }
 
 export async function revokeWalletAuthMethodOperation(args: {
-  readonly context: RegistrationWebContext;
+  readonly context: Pick<RegistrationWebContext, 'configs' | 'signingEngine'>;
   readonly walletId: WalletId | string;
   readonly walletAuthMethodId: string;
 }): Promise<RevokeAuthMethodResult> {
   const walletId = walletIdFromString(String(args.walletId || '').trim());
   const parsedMethodId = parseWalletAuthMethodId(String(args.walletAuthMethodId || '').trim());
   if (!parsedMethodId.ok) {
-    throw new Error('registration.revokeAuthMethod requires a wallet auth method id');
+    throw new Error('registration.removeAuthMethod requires a wallet auth method id');
   }
   try {
     return await revokeAuthMethodInternal({

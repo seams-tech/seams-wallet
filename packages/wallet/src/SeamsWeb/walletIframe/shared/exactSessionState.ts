@@ -167,6 +167,17 @@ export async function readSelectedWalletIframeExactSessionState(
   },
   dependencies: WalletIframeExactSessionReadDependencies,
 ): Promise<WalletIframeExactSessionState> {
+  // Bound repeated reads when another context keeps replacing authority.
+  return readWalletIframeSessionObservation(input, dependencies, 3);
+}
+
+async function readWalletIframeSessionObservation(
+  input: { readonly walletId: WalletId },
+  dependencies: WalletIframeExactSessionReadDependencies,
+  remainingAttempts: number,
+): Promise<WalletIframeExactSessionState> {
+  const { walletId } = input;
+  if (remainingAttempts === 0) return unavailableSession(walletId, 'superseded');
   let selected: ResolveSelectedWalletAuthorityResultV1;
   try {
     selected = await dependencies.resolveSelectedWalletAuthority(String(input.walletId));
@@ -245,6 +256,46 @@ export async function readSelectedWalletIframeExactSessionState(
   } catch {
     return unavailableSession(input.walletId, 'unavailable');
   }
+  let currentSelection: ResolveSelectedWalletAuthorityResultV1;
+  try {
+    currentSelection = await dependencies.resolveSelectedWalletAuthority(input.walletId);
+  } catch {
+    return unavailableSession(input.walletId, 'unavailable');
+  }
+  if (
+    currentSelection.kind !== 'resolved' ||
+    currentSelection.selection.lockState !== 'unlocked' ||
+    currentSelection.selection.lockGeneration !== selection.lockGeneration ||
+    currentSelection.selection.walletAuthMethodId !== selection.walletAuthMethodId ||
+    currentSelection.authMethod.status !== 'active' ||
+    currentSelection.authMethod.kind !== authMethod.kind ||
+    currentSelection.authority.state !== 'active' ||
+    !selectedExactSessionIdentityMatches({
+      walletId,
+      authorization,
+      operationCredential,
+      selected: currentSelection,
+    })
+  ) {
+    return readWalletIframeSessionObservation(input, dependencies, remainingAttempts - 1);
+  }
+  const currentAuthorization = await readExactActiveForWalletOrUnavailable(dependencies, {
+    walletId,
+    authorityId: authority.authorityId,
+    authMethodId: authMethod.walletAuthMethodId,
+  });
+  if (
+    currentAuthorization.kind !== 'found' ||
+    !activeWalletSessionV1RecordsEqual(currentAuthorization.record, authorization) ||
+    currentAuthorization.operationCredential.walletSessionId !==
+      operationCredential.walletSessionId ||
+    currentAuthorization.operationCredential.token !== operationCredential.token
+  ) {
+    return readWalletIframeSessionObservation(input, dependencies, remainingAttempts - 1);
+  }
+  if (authorization.expiresAtMs <= dependencies.nowMs()) {
+    return expiredExactSessionState(walletId, authMethod.kind, authorization, operationCredential);
+  }
   if (!walletIframeStatusMatchesAuthorization(status, authorization, operationCredential)) {
     return unavailableSession(input.walletId, 'invalid');
   }
@@ -255,6 +306,43 @@ export async function readSelectedWalletIframeExactSessionState(
     operationCredential,
     status,
   });
+}
+
+export type WalletIframeExactSessionSnapshot = {
+  readonly walletId: WalletId | null;
+  readonly revision: number;
+  readonly state: WalletIframeExactSessionState;
+  readonly session: WalletSession;
+};
+
+export type WalletIframeSessionPublication =
+  | { readonly kind: 'observed'; readonly session: WalletSession }
+  | { readonly kind: 'refresh'; readonly session?: never };
+
+export function parseWalletIframeSessionRevision(value: unknown): number {
+  return requireNonNegativeSafeInteger(value, 'Wallet session revision');
+}
+
+export function parseWalletIframeExactSessionSnapshot(
+  value: unknown,
+): WalletIframeExactSessionSnapshot {
+  const record = requireRecordCopy(value, 'Wallet iframe exact session snapshot');
+  const walletId = record.walletId === null ? null : requireWalletId(record.walletId);
+  const state = parseWalletIframeExactSessionState(record.state);
+  if (state.kind !== 'wallet_locked' && state.walletId !== walletId) {
+    throw new Error('Wallet session snapshot identity differs from its projection');
+  }
+  const session = parseWalletSessionFromBoundary(
+    record.session,
+    state.kind === 'wallet_locked' ? undefined : state.walletId,
+  );
+  if (
+    state.kind === 'wallet_locked' &&
+    (session.authentication.kind !== 'signed_out' || session.appIdentity.kind !== 'anonymous')
+  ) {
+    throw new Error('Locked wallet snapshot must publish an anonymous session');
+  }
+  return { revision: parseWalletIframeSessionRevision(record.revision), walletId, state, session };
 }
 
 export function parseWalletIframeExactSessionState(value: unknown): WalletIframeExactSessionState {
@@ -762,10 +850,10 @@ function parseUserPreferences(
   value: unknown,
 ): NonNullable<Extract<WalletSessionAppIdentity, { kind: 'resolved' }>['userData']>['preferences'] {
   const record = requireRecordCopy(value, 'Wallet Session user preferences');
-  if (typeof record.useRelayer !== 'boolean') {
+  if (record.useRelayer !== undefined && typeof record.useRelayer !== 'boolean') {
     throw new Error('Wallet Session user preferences useRelayer is invalid');
   }
-  if (record.useNetwork !== 'testnet' && record.useNetwork !== 'mainnet') {
+  if (record.useNetwork !== undefined && record.useNetwork !== 'testnet' && record.useNetwork !== 'mainnet') {
     throw new Error('Wallet Session user preferences useNetwork is invalid');
   }
   const confirmation = requireRecordCopy(
@@ -790,8 +878,8 @@ function parseUserPreferences(
           'confirmationConfig.autoProceedDelay',
         );
   return {
-    useRelayer: record.useRelayer,
-    useNetwork: record.useNetwork,
+    ...(record.useRelayer === undefined ? {} : { useRelayer: record.useRelayer }),
+    ...(record.useNetwork === undefined ? {} : { useNetwork: record.useNetwork }),
     confirmationConfig: {
       uiMode: confirmation.uiMode,
       behavior: confirmation.behavior,

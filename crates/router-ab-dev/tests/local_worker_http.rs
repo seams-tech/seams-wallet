@@ -1,21 +1,18 @@
+#[path = "fixtures/ed25519_signing.rs"]
+mod ed25519_signing;
+use ed25519_signing::{
+    gateway_signing_body, product_near_finalize_request,
+    product_near_gateway_authorized_operation, product_near_prepare_request,
+};
 use base64::Engine;
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairLookupRequestV1,
-    CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
-    CloudflareRouterEd25519AcceptedCapabilityBindingV1, CloudflareRouterEd25519AuthorizedOperationV1,
-    CloudflareRouterEd25519CapabilityKindV1, CloudflareRouterEd25519OperationKindV1,
     CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareRouterEd25519YaoTenantRootV1,
 };
 use router_ab_core::{
-    LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1,
-    NormalSigningAuthorizationV1,
-    NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
-    NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, PublicDigest32, RootShareEpoch,
-    RouterAbEd25519NormalSigningFinalizeProtocolV2, RouterAbEd25519NormalSigningFinalizeRequestV2,
-    RouterAbEd25519NormalSigningIntentV2, RouterAbEd25519NormalSigningPrepareBindingV2,
-    RouterAbEd25519NormalSigningPrepareRequestV2, RouterAbEd25519SigningPayloadV2,
-    RouterAbEd25519TwoPartyFrostFinalizeProtocolV2, RouterAbEd25519YaoActivationResultV1,
-    RouterAbNearNetworkIdV2, RouterAbNearTransactionIntentV1, RouterEd25519YaoExecuteResultV1,
+    LocalServiceRoleV1, MpcMaterialActivationRefV1, NormalSigningResponseV1,
+    NormalSigningRound1PrepareResponseV1, PublicDigest32, RootShareEpoch,
+    RouterAbEd25519YaoActivationResultV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
     TenantRootCreationGrantNonceV1, TenantRootCreationGrantV1, TenantRootCustodyLineageId,
     TenantRootIdentityV1, TENANT_ROOT_MAX_LIFETIME_MS_V1,
@@ -23,13 +20,12 @@ use router_ab_core::{
 use router_ab_dev::{
     admit_local_ed25519_yao_registration_v1, generate_local_ed25519_yao_recipient_key_pair_v1,
     local_env_materialization_plan_v1, parse_local_env_file_contents_v1,
-    parse_local_worker_role_config_for_role_v1, run_example_local_router_ab_dev_http_ceremony_v1,
+    parse_local_worker_role_config_for_role_v1,
     seal_local_ed25519_yao_activation_deriver_a_input_v1,
     seal_local_ed25519_yao_activation_deriver_b_input_v1, LocalDeriverAPairRecordV1,
-    LocalDeriverPeerMessageReceiptV1, LocalEd25519YaoActivationDeriverARequestV1,
-    LocalEd25519YaoActivationDeriverBRequestV1, LocalEd25519YaoActivationRecipientsV1,
-    LocalEd25519YaoClientContributionV1, LocalEd25519YaoRecipientPrivateKeyV1,
-    LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
+    LocalEd25519YaoActivationDeriverARequestV1, LocalEd25519YaoActivationDeriverBRequestV1,
+    LocalEd25519YaoActivationRecipientsV1, LocalEd25519YaoClientContributionV1,
+    LocalEd25519YaoRecipientPrivateKeyV1, LocalWorkerRoleConfigV1,
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
@@ -50,10 +46,6 @@ use signer_core::ed25519_yao_derivation::{
     Ed25519YaoApplicationBindingWalletIdV1, Ed25519YaoClientRootV1,
     Ed25519YaoStableKeyDerivationContextV1,
 };
-use signer_core::near_threshold_ed25519::{
-    build_signing_package, client_round1_commit, client_round2_signature_share,
-    key_package_from_signing_share_bytes, signature_share_to_b64u,
-};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -68,63 +60,6 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-
-#[test]
-fn local_workers_accept_direct_deriver_peer_messages_over_http(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let _process_guard = local_worker_process_test_guard();
-    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
-    let temp = temp_dir("peer-http")?;
-    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
-    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
-    write_deriver_envs(&temp, &deriver_a_url, &deriver_b_url)?;
-
-    let mut deriver_a = ChildGuard::spawn(
-        binary,
-        "deriver-a",
-        temp.join(".env.router-ab.deriver-a.local"),
-    )?;
-    let mut deriver_b = ChildGuard::spawn(
-        binary,
-        "deriver-b",
-        temp.join(".env.router-ab.deriver-b.local"),
-    )?;
-    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
-    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
-
-    let ceremony = run_example_local_router_ab_dev_http_ceremony_v1()?;
-    let client = LocalHttpServiceBindingClientV1::default();
-
-    let b_receipt: LocalDeriverPeerMessageReceiptV1 = client.post_json_v1(
-        &deriver_b_url,
-        LocalHttpPathV1::SignerAToSignerB,
-        &ceremony
-            .core_http_ceremony
-            .deriver_a_peer_request
-            .envelope
-            .message,
-    )?;
-    let a_receipt: LocalDeriverPeerMessageReceiptV1 = client.post_json_v1(
-        &deriver_a_url,
-        LocalHttpPathV1::SignerBToSignerA,
-        &ceremony
-            .core_http_ceremony
-            .deriver_b_peer_request
-            .envelope
-            .message,
-    )?;
-
-    assert_eq!(b_receipt.receiver_role, LocalServiceRoleV1::DeriverB);
-    assert_eq!(b_receipt.status, "accepted");
-    assert_eq!(b_receipt.proof_bundle_count, 2);
-    assert_eq!(a_receipt.receiver_role, LocalServiceRoleV1::DeriverA);
-    assert_eq!(a_receipt.status, "accepted");
-    assert_eq!(a_receipt.proof_bundle_count, 2);
-    drop(deriver_a);
-    drop(deriver_b);
-    let _ = fs::remove_dir_all(temp);
-    Ok(())
-}
 
 #[test]
 fn local_router_worker_exposes_health_and_rejects_malformed_pair_routes(
@@ -570,7 +505,6 @@ fn product_topology_completes_local_ed25519_yao_registration(
     let completed: LocalDeriverAPairRecordV1 = serde_json::from_str(&completed_json)?;
     let LocalDeriverAPairRecordV1::Completed {
         pair_binding,
-        claim_identity,
         payload,
         outcome,
         ..
@@ -606,8 +540,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         tenant_root: payload.tenant_root,
         work: payload.work,
         input: payload.input,
-        local_receipt: claim_identity.local_receipt,
-        peer_receipt: claim_identity.peer_receipt,
+        deadline_ms: u64::MAX,
     };
     let (status, body) = post_json_to_path_with_headers(
         &deriver_a_url,
@@ -2056,7 +1989,7 @@ fn vm_tenant_root_restore_over_a_pending_retirement_carries_it_until_erased(
     let registration = stack.registration(&identity, &lineage_b64u)?;
     stack
         .proxy_a
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
     let registering = {
         let router_url = stack.router_url.clone();
         thread::spawn(move || {
@@ -2228,316 +2161,12 @@ fn vm_tenant_root_restore_over_a_pending_retirement_carries_it_until_erased(
     Ok(())
 }
 
-/// The Router owns each registration's execution: it claims it in its wallet
-/// object before running it, and records the terminal answer before replying.
-/// Finalization consumes that record.
-/// 1. While a registration runs, held at Deriver A's preparation, an exact
-///    retry is told the execution is in progress.
-/// 2. Released, the run succeeds. An exact retry gets the same bytes and runs
-///    nothing; another request for the same lifecycle is refused.
-/// 3. Consumption: the first consumer binding wins and replays; another is
-///    refused, as are a mismatched session and an unknown lifecycle.
-/// 4. After a Router restart, an exact retry still gets the recorded answer.
-#[test]
-fn vm_router_owns_each_registration_execution_and_its_consumption(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let _process_guard = local_worker_process_test_guard();
-    let mut stack = RecoveryStackV1::start("vm-router-wallet-object")?;
-    let signing_worker = stack.start_signing_worker()?;
-    let (identity, lineage, lineage_b64u) = recovery_ceremony("router-wallet-object")?;
-    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
-    let (status, body) = stack.create(&grant)?;
-    assert_eq!(status, 200, "{body}");
-    let (registration, _) =
-        stack.wallet_registration(&identity, &lineage_b64u, "account-router-wallet-object")?;
-    let a_pairs = |db: &Connection| -> rusqlite::Result<i64> {
-        db.query_row("SELECT COUNT(*) FROM local_deriver_a_yao_pairs", [], |row| row.get(0))
-    };
-
-    // 1. A retry while the first run holds the claim.
-    stack
-        .proxy_a
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
-    let running = {
-        let router_url = stack.router_url.clone();
-        let registration = registration.clone();
-        thread::spawn(move || {
-            post_json_to_path_with_headers(
-                &router_url,
-                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
-                &registration,
-                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
-            )
-            .map_err(|error| error.to_string())
-        })
-    };
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while stack.proxy_a.held_request().is_none() {
-        if Instant::now() > deadline {
-            return Err("the first run never reached Deriver A".into());
-        }
-        thread::sleep(Duration::from_millis(10));
-    }
-    let (in_progress_status, in_progress_body) = stack.register(&registration)?;
-    assert_eq!(in_progress_status, 200, "{in_progress_body}");
-    let in_progress: serde_json::Value = serde_json::from_str(&in_progress_body)?;
-    assert_eq!(in_progress["status"], "recoverable_failure", "{in_progress}");
-    assert_eq!(in_progress["code"], "execution_in_progress", "{in_progress}");
-    let retry_after_ms = in_progress["retry_after_ms"].as_u64().ok_or("a retry hint")?;
-    assert!(
-        (1..=router_ab_cloudflare::ROUTER_WALLET_REGISTRATION_LEASE_MS_V1).contains(&retry_after_ms),
-        "{in_progress}"
-    );
-    stack.proxy_a.release_request();
-    let (first_status, first) = running.join().map_err(|_| "the first run panicked")??;
-    assert_eq!(first_status, 200, "{first}");
-    assert_eq!(serde_json::from_str::<serde_json::Value>(&first)?["status"], "succeeded");
-
-    // 2. The recorded answer, and another request for the same lifecycle.
-    let pairs_before = a_pairs(&stack.a_store)?;
-    let (retry_status, retry) = stack.register(&registration)?;
-    assert_eq!(retry_status, 200, "{retry}");
-    assert_eq!(retry, first, "an exact retry gets the recorded answer, byte for byte");
-    assert_eq!(a_pairs(&stack.a_store)?, pairs_before, "an exact retry runs nothing");
-    // The same registration naming another custody lineage.
-    let mut other = serde_json::to_value(&registration)?;
-    let mut lineage_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(other["tenant_root"]["custody_lineage_b64u"].as_str().ok_or("a lineage")?)?;
-    lineage_bytes[0] ^= 1;
-    other["tenant_root"]["custody_lineage_b64u"] =
-        json!(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&lineage_bytes));
-    let (mismatch_status, mismatch) = post_json_to_path_with_headers(
-        &stack.router_url,
-        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
-        &other,
-        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
-    )?;
-    assert_eq!(mismatch_status, 200, "{mismatch}");
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&mismatch)?,
-        json!({ "status": "rejected", "code": "execution_mismatch" })
-    );
-
-    // 3. Consumption at the Router.
-    let request = serde_json::to_value(&registration)?;
-    let binding = &request["target"]["binding"];
-    let consume = |lifecycle_id: &serde_json::Value,
-                   session_id: &serde_json::Value,
-                   consumer_binding: &str|
-     -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-        let (status, body) = post_json_to_path_with_headers(
-            &stack.router_url,
-            router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH,
-            &json!({
-                "tenant_root": request["tenant_root"],
-                "wallet_id": binding["lifecycle"]["account_id"],
-                "lifecycle_id": lifecycle_id,
-                "session_id": session_id,
-                "consumer_binding": consumer_binding,
-            }),
-            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
-        )?;
-        if status != 200 {
-            return Err(format!("the consume call answered {status}: {body}").into());
-        }
-        Ok(serde_json::from_str(&body)?)
-    };
-    let lifecycle_id = &binding["lifecycle"]["lifecycle_id"];
-    let session_id = &binding["session_id"];
-    let consumed = consume(lifecycle_id, session_id, "finalize-1")?;
-    assert_eq!(consumed["kind"], "consumed", "{consumed}");
-    assert_eq!(consumed["response_json"], json!(first), "consumption returns the recorded answer");
-    assert_eq!(consume(lifecycle_id, session_id, "finalize-1")?, consumed);
-    let taken = consume(lifecycle_id, session_id, "finalize-2")?;
-    assert_eq!(taken["kind"], "refused", "{taken}");
-    assert_eq!(taken["code"], "activation_consumed", "{taken}");
-    let mut other_session = session_id.clone();
-    other_session[0] = json!((other_session[0].as_u64().ok_or("session byte")? + 1) % 256);
-    let mismatched = consume(lifecycle_id, &other_session, "finalize-1")?;
-    assert_eq!(mismatched["code"], "activation_reference_mismatch", "{mismatched}");
-    let unknown = consume(&json!("no-such-lifecycle"), session_id, "finalize-1")?;
-    assert_eq!(unknown["code"], "unknown_registration", "{unknown}");
-
-    // 4. The record survives a Router restart.
-    stack.restart_router()?;
-    let (restarted_status, restarted) = stack.register(&registration)?;
-    assert_eq!(restarted_status, 200, "{restarted}");
-    assert_eq!(restarted, first, "after a restart, the recorded answer, byte for byte");
-    drop(signing_worker);
-    println!(
-        "R150_VM_ROUTER_WALLET_OBJECT_E2E {}",
-        json!({
-            "retry_while_claimed": [in_progress["code"], retry_after_ms],
-            "first_run": "succeeded",
-            "exact_retry": "recorded answer, byte for byte, no new pair",
-            "same_lifecycle_other_lineage": "execution_mismatch",
-            "consume": {
-                "first_binding": consumed["kind"],
-                "same_binding_replays": true,
-                "other_binding": taken["code"],
-                "other_session": mismatched["code"],
-                "unknown_lifecycle": unknown["code"],
-            },
-            "after_router_restart": "recorded answer, byte for byte",
-        })
-    );
-    Ok(())
-}
-
-/// A run that resumes after another run took its lapsed claim over cannot
-/// record its answer: the Router's wallet object records only the answer of
-/// the run holding the current claim generation.
-/// 1. The first run is paused after both Derivers completed its pair: Deriver
-///    A's answer to the Router is held.
-/// 2. Its one-second lease lapses, and an exact retry takes the claim over as
-///    generation 2. It replays: it reads both Derivers' pair status, and is
-///    paused reading Deriver B's.
-/// 3. The first run resumes and completes, but the claim is no longer its: it
-///    is told the execution is in progress, and the claim stays generation
-///    2's.
-/// 4. The takeover run resumes, reconciles the completed pair and records its
-///    answer. An exact retry gets that answer, byte for byte, and prepares no
-///    pair.
-#[test]
-fn vm_router_run_that_lost_its_claim_cannot_record_its_answer(
-) -> Result<(), Box<dyn std::error::Error>> {
-    const LEASE_MS: u64 = 1_000;
-    let _process_guard = local_worker_process_test_guard();
-    let stack = RecoveryStackV1::start_with_router_env(
-        "vm-router-wallet-claim-takeover",
-        &[("ROUTER_YAO_REGISTRATION_LEASE_MS", "1000")],
-    )?;
-    let signing_worker = stack.start_signing_worker()?;
-    let (identity, lineage, lineage_b64u) = recovery_ceremony("router-wallet-claim-takeover")?;
-    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
-    let (status, body) = stack.create(&grant)?;
-    assert_eq!(status, 200, "{body}");
-    let (registration, _) =
-        stack.wallet_registration(&identity, &lineage_b64u, "account-claim-takeover")?;
-    let lifecycle_id = serde_json::to_value(&registration)?["target"]["binding"]["lifecycle"]
-        ["lifecycle_id"]
-        .as_str()
-        .ok_or("a lifecycle id")?
-        .to_owned();
-    let run = || {
-        let router_url = stack.router_url.clone();
-        let registration = registration.clone();
-        thread::spawn(move || {
-            post_json_to_path_with_headers(
-                &router_url,
-                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
-                &registration,
-                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
-            )
-            .map_err(|error| error.to_string())
-        })
-    };
-    let wait_for = |what: &str, ready: &dyn Fn() -> bool| -> Result<(), Box<dyn std::error::Error>> {
-        let deadline = Instant::now() + Duration::from_secs(15);
-        while !ready() {
-            if Instant::now() > deadline {
-                return Err(format!("timed out waiting for {what}").into());
-            }
-            thread::sleep(Duration::from_millis(10));
-        }
-        Ok(())
-    };
-    let pair_states = |db: &Connection, table: &str| -> rusqlite::Result<Vec<String>> {
-        db.prepare(&format!("SELECT json_extract(record_json, '$.status') FROM {table}"))?
-            .query_map([], |row| row.get(0))?
-            .collect()
-    };
-    let router_record = || -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-        let json: String = stack.router_db.query_row(
-            "SELECT value_json FROM local_router_wallet_objects WHERE storage_key = ?1",
-            [format!("yao-registration/{lifecycle_id}")],
-            |row| row.get(0),
-        )?;
-        Ok(serde_json::from_str(&json)?)
-    };
-
-    // 1. The first run, paused once both Derivers completed its pair.
-    stack
-        .proxy_a
-        .hold_next_response_on(LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
-    let first_claimed_at = Instant::now();
-    let first = run();
-    wait_for("Deriver A's answer to the first run", &|| stack.proxy_a.holding())?;
-    assert_eq!(pair_states(&stack.a_store, "local_deriver_a_yao_pairs")?, vec!["completed"]);
-    assert_eq!(pair_states(&stack.b_store, "local_deriver_b_yao_pairs")?, vec!["completed"]);
-    let first_claim = router_record()?;
-    assert_eq!(
-        (&first_claim["kind"], &first_claim["generation"]),
-        (&json!("claimed"), &json!(1)),
-        "{first_claim}"
-    );
-
-    // 2. The lease lapses. An exact retry takes the claim over and is paused
-    //    reading Deriver B's pair status.
-    thread::sleep(
-        Duration::from_millis(LEASE_MS + 250).saturating_sub(first_claimed_at.elapsed()),
-    );
-    stack
-        .proxy_b
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH);
-    let takeover = run();
-    wait_for("the takeover run's status read at Deriver B", &|| {
-        stack.proxy_b.held_request().is_some()
-    })?;
-    let taken_over = router_record()?;
-    assert_eq!(
-        (&taken_over["kind"], &taken_over["generation"]),
-        (&json!("claimed"), &json!(2)),
-        "{taken_over}"
-    );
-
-    // 3. The first run resumes and completes, but cannot record its answer.
-    stack.proxy_a.release_held();
-    let (first_status, first_body) = first.join().map_err(|_| "the first run panicked")??;
-    assert_eq!(first_status, 200, "{first_body}");
-    let fenced: serde_json::Value = serde_json::from_str(&first_body)?;
-    assert_eq!(fenced["status"], "recoverable_failure", "{fenced}");
-    assert_eq!(fenced["code"], "execution_in_progress", "{fenced}");
-    let retry_after_ms = fenced["retry_after_ms"].as_u64().ok_or("a retry hint")?;
-    assert!((1..=LEASE_MS).contains(&retry_after_ms), "{fenced}");
-    let still_claimed = router_record()?;
-    assert_eq!(
-        (&still_claimed["kind"], &still_claimed["generation"]),
-        (&json!("claimed"), &json!(2)),
-        "the first run recorded nothing: {still_claimed}"
-    );
-
-    // 4. The takeover run resumes, reconciles and records its answer.
-    stack.proxy_b.release_request();
-    let (takeover_status, takeover_body) =
-        takeover.join().map_err(|_| "the takeover run panicked")??;
-    assert_eq!(takeover_status, 200, "{takeover_body}");
-    assert!(registration_succeeded(&takeover_body)?, "{takeover_body}");
-    let recorded = router_record()?;
-    assert_eq!(recorded["kind"], "completed", "{recorded}");
-    assert_eq!(recorded["response_json"], json!(takeover_body), "the takeover run's answer");
-    let (retry_status, retry) = stack.register(&registration)?;
-    assert_eq!(retry_status, 200, "{retry}");
-    assert_eq!(retry, takeover_body, "an exact retry gets the recorded answer, byte for byte");
-    assert_eq!(pair_states(&stack.a_store, "local_deriver_a_yao_pairs")?, vec!["completed"]);
-    assert_eq!(pair_states(&stack.b_store, "local_deriver_b_yao_pairs")?, vec!["completed"]);
-    drop(signing_worker);
-    println!(
-        "R150_VM_ROUTER_CLAIM_TAKEOVER_E2E {}",
-        json!({
-            "lease_ms": LEASE_MS,
-            "first_run_paused_after": "both Derivers completed its pair",
-            "first_claim_generation": first_claim["generation"],
-            "takeover_generation": taken_over["generation"],
-            "takeover_paused_at": "Deriver B pair status read",
-            "first_run_resumed": [fenced["status"], fenced["code"], retry_after_ms],
-            "claim_after_first_run_resumed": [still_claimed["kind"], still_claimed["generation"]],
-            "takeover_run": "succeeded and recorded its answer",
-            "exact_retry": "the takeover run's answer, byte for byte, no new pair",
-        })
-    );
-    Ok(())
-}
+#[path = "local_worker_http/router_wallet.rs"]
+mod router_wallet;
+#[path = "local_worker_http/pair_start.rs"]
+mod pair_start;
+#[path = "local_worker_http/ed25519_fence.rs"]
+mod ed25519_fence;
 
 /// A restore reservation that is never authorized expires rather than holding
 /// the tenant root. The operator reserves a challenge with a five-second
@@ -3590,7 +3219,7 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
     let registration = stack.registration(&identity, &lineage_b64u)?;
     stack
         .proxy_a
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
     stack
         .proxy_b
         .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH);
@@ -3652,7 +3281,7 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
     // still told its epoch closed here before it was admitted.
     let (a_late_status, a_late_body) = post_json_to_path_with_headers(
         &stack.deriver_a_url,
-        router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
+        router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
         &a_preparation,
         &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
     )?;
@@ -3748,38 +3377,28 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
 
 /// Cancellation stops a Yao execution that is paused after its root reads.
 ///
-/// - A registration of one wallet is admitted on epoch 1. Its execute is held
-///   while a refresh moves the root to epoch 2.
-/// - Released, both Derivers read their epoch-1 shares. The execution is then
-///   paused before Deriver A claims its pair: Deriver B's answer to A's peer
-///   stream is held.
-/// - Both Derivers are busy, so replicas on their stores run the operator's
-///   retirement of epoch 1. Recovery cancels both unclaimed admissions, and
-///   both shares are erased.
+/// - A registration of one wallet runs on epoch 1. Both Derivers admit it and
+///   read their shares. The execution is then paused before Deriver A claims
+///   its pair: Deriver B's answer to A's peer stream is held.
+/// - Both admissions are cancelled in the role stores, as recovery cancels an
+///   attempt it has given up on. Deriver A admits and executes in one
+///   request, so nothing else reaches it while the execution is paused.
 /// - Released, A's claim is refused. Neither role completes, and the Router
 ///   reports a failure. An exact retry of the old registration completes
 ///   nothing.
-/// - A fresh registration of the same wallet completes on epoch 2 and signs.
-///   The SigningWorker accepts it, so the old execution registered nothing.
+/// - A fresh registration of the same wallet completes and signs. The
+///   SigningWorker accepts it, so the old execution registered nothing.
 #[test]
 fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried(
 ) -> Result<(), Box<dyn std::error::Error>> {
     const WALLET: &str = "account-paused-then-retried";
     let _process_guard = local_worker_process_test_guard();
-    let stack = RecoveryStackV1::start_with_envs(
-        "vm-tenant-root-paused-cancel",
-        &[],
-        &[],
-        &[(router_ab_dev::LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1, "1000")],
-    )?;
+    let stack = RecoveryStackV1::start("vm-tenant-root-paused-cancel")?;
     let signing_worker = stack.start_signing_worker()?;
     let (identity, lineage, lineage_b64u) = recovery_ceremony("paused-cancel")?;
     let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
     let (status, body) = stack.create(&grant)?;
     assert_eq!(status, 200, "{body}");
-    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
-    let identity_digest_b64u =
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes());
     let admission_statuses = |db: &Connection| -> rusqlite::Result<Vec<(i64, String)>> {
         db.prepare(
             "SELECT tenant_root_share_epoch, status FROM tenant_root_root_use_admissions
@@ -3795,46 +3414,11 @@ fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried
         .query_map([], |row| row.get(0))?
         .collect()
     };
-    let row_revision = |db: &Connection, epoch: i64| -> rusqlite::Result<i64> {
-        db.query_row(
-            "SELECT revision FROM tenant_root_role_shares
-             WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2",
-            rusqlite::params![lineage_b64u, epoch],
-            |row| row.get(0),
-        )
-    };
-    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
     let at = |number: i64, status: &str| (number, status.to_owned());
 
-    // The Derivers will be busy with the paused execution, so replicas on
-    // their stores serve the operator's retirement.
-    let (_replica_a, replica_a_url) = stack.start_deriver_replica("deriver-a")?;
-    let (_replica_b, replica_b_url) = stack.start_deriver_replica("deriver-b")?;
-    let retire = |role: &str, deriver_url: &str| -> Result<(u16, String), Box<dyn std::error::Error>> {
-        let db = if role == "deriver_a" { &stack.a_store } else { &stack.b_store };
-        let (command_status, command_body) = stack.control_plane(
-            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
-            &json!({
-                "kind": "retired_after_refresh",
-                "identity_digest_b64u": identity_digest_b64u,
-                "custody_lineage_b64u": lineage_b64u,
-                "role": role,
-                "retired_epoch": 1,
-                "expected_retired_revision": row_revision(db, 1)?,
-                "expected_active_revision": row_revision(db, 2)?,
-            }),
-        )?;
-        assert_eq!(command_status, 200, "{command_body}");
-        let command: serde_json::Value = serde_json::from_str(&command_body)?;
-        post_json_to_path_with_headers(
-            deriver_url,
-            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
-            &json!({ "cleanup_command_b64u": command["cleanup_command_b64u"] }),
-            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
-        )
-    };
-
-    // The wallet's registration is admitted on epoch 1; its execute is held.
+    // The wallet's registration runs on epoch 1. Its execute is held only to
+    // keep Deriver A's answer to it; B's answer to A's peer stream is held,
+    // before A claims its pair.
     let (old_registration, _) = stack.wallet_registration(&identity, &lineage_b64u, WALLET)?;
     stack
         .proxy_a
@@ -3863,48 +3447,25 @@ fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried
         Ok(())
     };
     wait_for("Deriver A's execute", &|| stack.proxy_a.held_request().is_some())?;
-    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "admitted")]);
-    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "admitted")]);
-
-    // A refresh moves the root to epoch 2 meanwhile.
-    let (refresh_status, refresh_body) =
-        stack.refresh(&identity, &lineage_b64u, "vm-refresh-paused-cancel", created_revision)?;
-    assert_eq!(refresh_status, 200, "{refresh_body}");
-
-    // Released, both Derivers read their epoch-1 shares. B's answer to A's
-    // peer stream is held, before A claims its pair.
     stack.proxy_a_to_b.hold_next_stream_head();
     stack.proxy_a.release_request();
     wait_for("Deriver B's answer to the peer stream", &|| {
         stack.proxy_a_to_b.stream_head_held()
     })?;
     assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "admitted")], "A has not claimed");
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "admitted")]);
     assert_eq!(pair_states(&stack.a_store, "local_deriver_a_yao_pairs")?, vec!["starting"]);
     assert_eq!(pair_states(&stack.b_store, "local_deriver_b_yao_pairs")?, vec!["running"]);
 
-    // The operator retires epoch 1 at both roles. W has passed since the
-    // admissions, so recovery cancels them, and both shares are erased.
-    let admitted_at_ms: i64 = stack.a_store.query_row(
-        "SELECT max(admitted_at_ms) FROM tenant_root_root_use_admissions",
-        [],
-        |row| row.get(0),
-    )?;
-    while u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?
-        < u64::try_from(admitted_at_ms)? + 1_100
-    {
-        thread::sleep(Duration::from_millis(20));
+    // Both admissions are cancelled while the execution is paused.
+    for store in [&stack.a_store, &stack.b_store] {
+        let cancelled = store.execute(
+            "UPDATE tenant_root_root_use_admissions SET status = 'cancelled'
+             WHERE custody_lineage_b64u = ?1 AND status = 'admitted'",
+            [&lineage_b64u],
+        )?;
+        assert_eq!(cancelled, 1, "each role holds one admitted attempt");
     }
-    let (a_status, a_body) = retire("deriver_a", &replica_a_url)?;
-    assert_eq!(a_status, 200, "{a_body}");
-    let (b_status, b_body) = retire("deriver_b", &replica_b_url)?;
-    assert_eq!(b_status, 200, "{b_body}");
-    let a_retired: serde_json::Value = serde_json::from_str(&a_body)?;
-    let b_retired: serde_json::Value = serde_json::from_str(&b_body)?;
-    assert_eq!(a_retired["cancelled_admissions"], 1, "{a_body}");
-    assert_eq!(b_retired["cancelled_admissions"], 1, "{b_body}");
-    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled")]);
-    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled")]);
-    assert_eq!(stack.epochs(&lineage_b64u)?, (vec![epoch(2, "active")], vec![epoch(2, "active")]));
 
     // Released, the old execution cannot claim its pair: nothing completes.
     stack.proxy_a_to_b.release_stream_head();
@@ -3937,12 +3498,12 @@ fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried
     assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled")]);
     assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled")]);
 
-    // A fresh registration of the same wallet completes on epoch 2 and signs.
-    // The SigningWorker accepts only a wallet's first registration.
+    // A fresh registration of the same wallet completes and signs. The
+    // SigningWorker accepts only a wallet's first registration.
     let signing_worker = stack.register_and_sign(signing_worker, &identity, &lineage_b64u, WALLET)?;
     drop(signing_worker);
-    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled"), at(2, "settled")]);
-    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled"), at(2, "settled")]);
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled"), at(1, "settled")]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled"), at(1, "settled")]);
 
     println!(
         "R150_VM_TENANT_ROOT_PAUSED_EXECUTION_CANCELLED_E2E {}",
@@ -3950,14 +3511,13 @@ fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried
             "paused_after": ["deriver_a_root_read", "deriver_b_root_read"],
             "paused_before": "deriver_a_claim",
             "pairs_while_paused": { "deriver_a": "starting", "deriver_b": "running" },
-            "refresh_status": refresh_status,
-            "retired_by_replicas": { "deriver_a": [a_status, a_retired["cancelled_admissions"]], "deriver_b": [b_status, b_retired["cancelled_admissions"]] },
+            "cancelled_while_paused": ["deriver_a", "deriver_b"],
             "old_registration": old_result["status"],
             "deriver_a_answer": "claim refused: admission was cancelled here",
             "pairs_after": { "deriver_a": a_pairs, "deriver_b": b_pairs },
             "exact_retry_of_old_registration": replayed["status"],
-            "fresh_registration_of_same_wallet": "succeeded and signed on epoch 2",
-            "admissions_after": { "deriver_a": [[1, "cancelled"], [2, "settled"]], "deriver_b": [[1, "cancelled"], [2, "settled"]] },
+            "fresh_registration_of_same_wallet": "succeeded and signed",
+            "admissions_after": { "deriver_a": [[1, "cancelled"], [1, "settled"]], "deriver_b": [[1, "cancelled"], [1, "settled"]] },
         })
     );
     Ok(())
@@ -3965,12 +3525,12 @@ fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried
 
 /// A claimed Yao execution that fails is recovered, and retirement completes.
 ///
-/// 1. A registration of one wallet is admitted on epoch 1. Its execute is
-///    held while a refresh moves the root to epoch 2.
-/// 2. Released, Deriver A claims its pair. Deriver B's messages after its
-///    answer are held. The stream is then cut, and A's claimed pair burns.
-///    A burned, claimed pair can never complete, and recovery used to leave
-///    it pending for good.
+/// 1. A registration of one wallet runs on epoch 1, and Deriver A claims its
+///    pair. Deriver B's messages after its answer are held. The stream is
+///    then cut, and A's claimed pair burns. A burned, claimed pair can never
+///    complete, and recovery used to leave it pending for good.
+/// 2. A refresh moves the root to epoch 2. Deriver A admits and executes in
+///    one request, so the refresh follows the failed execution.
 /// 3. Deriver A restarts.
 /// 4. The operator retires epoch 1. A's recovery first has Deriver B fence
 ///    the session: B had only admitted it, so B cancels its admission. A's
@@ -4030,8 +3590,8 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
         Ok(())
     };
 
-    // 1. The wallet's registration is admitted on epoch 1; its execute is held
-    // while a refresh moves the root to epoch 2.
+    // 1. The wallet's registration runs on epoch 1. Its execute is held only
+    // to keep the request as the Router sent it.
     let (old_registration, _) = stack.wallet_registration(&identity, &lineage_b64u, WALLET)?;
     stack
         .proxy_a
@@ -4053,12 +3613,8 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
     let held_execute: serde_json::Value = serde_json::from_slice(
         &stack.proxy_a.held_request().ok_or("A's execute must be held")?,
     )?;
-    let (first_refresh_status, first_refresh_body) =
-        stack.refresh(&identity, &lineage_b64u, "vm-refresh-claimed-recovery", created_revision)?;
-    assert_eq!(first_refresh_status, 200, "{first_refresh_body}");
-    let first_refreshed_at = Instant::now();
 
-    // 2. Released, A claims its pair; then the stream is cut.
+    // Released, A claims its pair; then the stream is cut.
     stack.proxy_a_to_b.hold_next_stream_body();
     stack.proxy_a.release_request();
     wait_for("Deriver B's answer to reach A", &|| stack.proxy_a_to_b.stream_body_held())?;
@@ -4081,6 +3637,12 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
     assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "claimed")]);
     assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "admitted")]);
 
+    // 2. A refresh moves the root to epoch 2.
+    let (first_refresh_status, first_refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-claimed-recovery", created_revision)?;
+    assert_eq!(first_refresh_status, 200, "{first_refresh_body}");
+    let first_refreshed_at = Instant::now();
+
     // 3. Deriver A restarts.
     stack.restart_deriver_a()?;
 
@@ -4095,6 +3657,8 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
     {
         thread::sleep(Duration::from_millis(20));
     }
+    // The retirement grace has passed since the refresh too.
+    thread::sleep(Duration::from_millis(1_100).saturating_sub(first_refreshed_at.elapsed()));
     let row_revision = |db: &Connection, epoch: i64| -> rusqlite::Result<i64> {
         db.query_row(
             "SELECT revision FROM tenant_root_role_shares
@@ -4455,7 +4019,7 @@ fn vm_tenant_root_refresh_retires_its_old_epoch_once_its_work_settles(
     let registration = stack.registration(&identity, &lineage_b64u)?;
     stack
         .proxy_a
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
     let registering = {
         let router_url = stack.router_url.clone();
         thread::spawn(move || {
@@ -4570,150 +4134,6 @@ fn vm_tenant_root_refresh_retires_its_old_epoch_once_its_work_settles(
     Ok(())
 }
 
-/// Work admitted before a refresh finishes on the epoch it started with. A
-/// registration is admitted and prepared while epoch 1 is active, then held
-/// before Deriver A reads it. A manual refresh then commits epoch 2 and both
-/// Derivers swap, retiring epoch 1. Released, the registration completes: its
-/// custody binding names epoch 1, so each Deriver reads its retired epoch-1
-/// share. Nothing is erased.
-#[test]
-fn vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let _process_guard = local_worker_process_test_guard();
-    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
-    let stack = RecoveryStackV1::start("vm-tenant-root-inflight")?;
-    let mut signing_worker = ChildGuard::spawn_in_root(
-        binary,
-        "signing-worker",
-        stack.temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
-        &stack.temp,
-    )?;
-    wait_for_health(&stack.signing_worker_url, signing_worker.child_mut())?;
-    let (identity, lineage, lineage_b64u) = recovery_ceremony("work-across-refresh")?;
-    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
-    let (status, body) = stack.create(&grant)?;
-    assert_eq!(status, 200, "{body}");
-    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
-    let epoch_one_receipt = stack
-        .committed_receipt(&lineage_b64u)?
-        .ok_or("the Router must have committed epoch 1")?;
-
-    // A registration is admitted on epoch 1 and held before A reads it.
-    let router_env = fs::read_to_string(stack.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
-    let fixture = ProductTenantRoot {
-        tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
-            identity: identity.clone(),
-            custody_lineage_b64u: lineage_b64u.clone(),
-        },
-        application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
-            "account-product-benchmark",
-            "ed25519ks_product_benchmark",
-            "project:local",
-            1,
-        )?,
-        participant_ids: [1, 2],
-    };
-    let (registration, _) = product_registration_request(&router_env, &fixture)?;
-    stack
-        .proxy_a
-        .hold_next_request_on(LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
-    let registering = {
-        let router_url = stack.router_url.clone();
-        thread::spawn(move || {
-            post_json_to_path_with_headers(
-                &router_url,
-                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
-                &registration,
-                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
-            )
-            .map_err(|error| error.to_string())
-        })
-    };
-    let deadline = Instant::now() + Duration::from_secs(15);
-    let held = loop {
-        if let Some(held) = stack.proxy_a.held_request() {
-            break held;
-        }
-        if Instant::now() > deadline {
-            return Err("the registration never reached Deriver A's execute".into());
-        }
-        thread::sleep(Duration::from_millis(10));
-    };
-    let held: serde_json::Value = serde_json::from_slice(&held)?;
-    let bound_receipt = held["tenant_root"]["custody_binding"]["activation_receipt_b64u"]
-        .as_str()
-        .ok_or("the held execute must carry its custody binding")?
-        .to_owned();
-    assert_eq!(bound_receipt, epoch_one_receipt, "the work is bound to epoch 1");
-
-    // Meanwhile a refresh commits epoch 2 and both Derivers swap.
-    let (refresh_status, refresh_body) =
-        stack.refresh(&identity, &lineage_b64u, "vm-refresh-inflight", created_revision)?;
-    assert_eq!(refresh_status, 200, "{refresh_body}");
-    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
-    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
-    assert_eq!(
-        stack.epochs(&lineage_b64u)?,
-        (retired_then_active.clone(), retired_then_active.clone())
-    );
-    let epoch_two_receipt = stack
-        .committed_receipt(&lineage_b64u)?
-        .ok_or("the Router must have committed epoch 2")?;
-    assert_ne!(epoch_two_receipt, epoch_one_receipt);
-
-    // Released, the registration finishes on its retired epoch.
-    stack.proxy_a.release_request();
-    let (registration_status, registration_body) = registering
-        .join()
-        .map_err(|_| "the registration thread panicked")??;
-    let deriver_a_answer = String::from_utf8_lossy(
-        &stack
-            .proxy_a
-            .held_response()
-            .ok_or("Deriver A must have answered the held execute")?,
-    )
-    .into_owned();
-    let deriver_a_status = deriver_a_answer
-        .split_whitespace()
-        .nth(1)
-        .ok_or("Deriver A's answer has no status")?
-        .to_owned();
-    assert_eq!(registration_status, 200, "{registration_body}");
-    let result = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&registration_body)?;
-    let RouterEd25519YaoExecuteResultV1::Succeeded { result } = result else {
-        return Err(format!(
-            "the held registration did not succeed: {registration_body}; Deriver A answered: {}",
-            deriver_a_answer.split("\r\n\r\n").nth(1).unwrap_or_default()
-        )
-        .into());
-    };
-    let RouterEd25519YaoExecuteSuccessV1::Registration { .. } = *result else {
-        return Err("the held work was not a registration".into());
-    };
-    assert_eq!(
-        stack.epochs(&lineage_b64u)?,
-        (retired_then_active.clone(), retired_then_active),
-        "finishing on epoch 1 changes no role share"
-    );
-
-    println!(
-        "R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E {}",
-        json!({
-            "work": "ed25519_yao_registration",
-            "admitted_on_epoch": 1,
-            "held_before": "deriver_a_execute_pair",
-            "deriver_a_execute_status": deriver_a_status,
-            "refresh_status": refresh_status,
-            "epochs_while_held": [[1, "retired"], [2, "active"]],
-            "work_bound_to_epoch_1_receipt": true,
-            "registration_status": registration_status,
-            "registration_outcome": "succeeded",
-            "retirement": "pending",
-        })
-    );
-    Ok(())
-}
-
 /// Whether a Router response is a successful Yao registration.
 fn registration_succeeded(body: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let Ok(result) = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(body) else {
@@ -4750,7 +4170,7 @@ fn vm_tenant_root_binding_unused_before_its_epoch_closes_starts_nothing(
     let registration = stack.registration(&identity, &lineage_b64u)?;
     stack
         .proxy_a
-        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
     let registering = {
         let router_url = stack.router_url.clone();
         thread::spawn(move || {
@@ -5006,6 +4426,16 @@ fn direct_deriver_b_preparation_for_v1(
         router_ab_cloudflare::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&env)?
             .deriver_identities()?;
     let tenant_root = router_ab_cloudflare::cloudflare_ed25519_yao_tenant_root_context_v2(
+        serde_json::from_value(serde_json::json!({
+            "home": "US",
+            "addresses": {
+                "router": "11".repeat(32),
+                "deriver_a": "22".repeat(32),
+                "deriver_b": "33".repeat(32),
+                "signing_worker": "44".repeat(32),
+            },
+        })).expect("native harness route"),
+        registration.target.ownership_generation(),
         identity.clone(),
         &receipt,
         derivers,
@@ -6177,34 +5607,6 @@ impl RecoveryStackV1 {
         product_registration_request(&router_env, &fixture)
     }
 
-    /// A second process for one Deriver on the same role store, listening on
-    /// its own URL. It serves requests while the primary is busy.
-    fn start_deriver_replica(
-        &self,
-        role: &str,
-    ) -> Result<(ChildGuard, String), Box<dyn std::error::Error>> {
-        let (env_file, primary_url) = match role {
-            "deriver-a" => (router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1, &self.deriver_a_url),
-            _ => (router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1, &self.deriver_b_url),
-        };
-        let replica_url = format!("http://127.0.0.1:{}", free_port()?);
-        let primary_env = fs::read_to_string(self.temp.join(env_file))?;
-        let replica_env = primary_env.replace(primary_url.as_str(), &replica_url);
-        if replica_env == primary_env {
-            return Err(format!("the {role} replica URL is missing from its environment").into());
-        }
-        let replica_env_path = self.temp.join(format!(".env.router-ab.{role}-replica.local"));
-        fs::write(&replica_env_path, replica_env)?;
-        let mut replica = ChildGuard::spawn_in_root(
-            env!("CARGO_BIN_EXE_router_ab_local_worker"),
-            role,
-            replica_env_path,
-            &self.temp,
-        )?;
-        wait_for_health(&replica_url, replica.child_mut())?;
-        Ok((replica, replica_url))
-    }
-
     fn registration(
         &self,
         identity: &TenantRootIdentityV1,
@@ -7187,7 +6589,6 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
                 let completed: LocalDeriverAPairRecordV1 = serde_json::from_str(&a_record_json)?;
                 let LocalDeriverAPairRecordV1::Completed {
                     pair_binding,
-                    claim_identity,
                     payload,
                     outcome,
                     ..
@@ -7208,8 +6609,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
                     tenant_root: payload.tenant_root,
                     work: payload.work,
                     input: payload.input,
-                    local_receipt: claim_identity.local_receipt,
-                    peer_receipt: claim_identity.peer_receipt,
+                    deadline_ms: u64::MAX,
                 };
                 let (replay_status, replay_body) = post_json_to_path_with_headers(
                     &deriver_a_url,
@@ -7625,14 +7025,55 @@ fn product_near_signing_process_flow(
 ) -> Result<ChildGuard, Box<dyn std::error::Error>> {
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
     let expires_at_ms = now_ms + 120_000;
-    let (prepare_request, unsigned) = product_near_prepare_request(activation, expires_at_ms)?;
+    let (prepare_request, unsigned) = product_near_prepare_request(activation, expires_at_ms, 1)?;
     let authorized_operation =
-        product_near_gateway_authorized_operation(activation, root_identity, &prepare_request, expires_at_ms)?;
+        product_near_gateway_authorized_operation(activation, root_identity, &prepare_request, expires_at_ms, 1)?;
     let prepare_body = gateway_signing_body(&prepare_request, &authorized_operation)?;
     let gateway_headers = [(
         LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
         TEST_GATEWAY_TO_ROUTER_AUTH,
     )];
+
+    let mut invalid_generation_statuses = Vec::new();
+    for generation in [None, Some(0_u64), Some(9_007_199_254_740_992)] {
+        let mut invalid = prepare_body.clone();
+        let binding = invalid["authorized_operation"]["binding"]
+            .as_object_mut()
+            .ok_or("Gateway binding must be an object")?;
+        match generation {
+            Some(value) => {
+                binding.insert("ownership_generation".to_owned(), json!(value));
+            }
+            None => {
+                binding.remove("ownership_generation");
+            }
+        }
+        let (status, body) = post_json_to_path_with_headers(
+            router_url,
+            LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+            &invalid,
+            &gateway_headers,
+        )?;
+        assert_ne!(
+            status, 200,
+            "invalid ownership generation reached signing: {body}"
+        );
+        invalid_generation_statuses.push(status);
+    }
+
+    let mut wrong_home = prepare_body.clone();
+    wrong_home["authorized_operation"]["binding"]["ownership_generation"] = json!(2);
+    let (wrong_home_status, wrong_home_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &wrong_home,
+        &gateway_headers,
+    )?;
+    assert_ne!(wrong_home_status, 200, "{wrong_home_body}");
+    assert!(
+        wrong_home_body.contains("execution ownership generation differs"),
+        "{wrong_home_body}"
+    );
 
     // Boundary checks the Router enforces before any SigningWorker work.
     let (role_shared_status, _) = post_json_to_path_with_headers(
@@ -7663,6 +7104,7 @@ fn product_near_signing_process_flow(
         )?,
         &prepare_request,
         expires_at_ms,
+        1,
     )?;
     let (foreign_status, foreign_body) = post_json_to_path_with_headers(
         router_url,
@@ -7706,10 +7148,93 @@ fn product_near_signing_process_flow(
         expires_at_ms,
     )?;
     let finalize_body = gateway_signing_body(&finalize_request, &authorized_operation)?;
+    let mut changed_generation = finalize_body.clone();
+    changed_generation["authorized_operation"]["binding"]["ownership_generation"] = json!(2);
+    let (changed_generation_status, changed_generation_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PATH,
+        &changed_generation,
+        &gateway_headers,
+    )?;
+    assert_ne!(changed_generation_status, 200, "{changed_generation_body}");
+    assert!(
+        changed_generation_body.contains("execution ownership generation differs"),
+        "{changed_generation_body}"
+    );
+
+    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
+    let config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::SigningWorker,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::SigningWorker(config) = config else {
+        return Err("SigningWorker env parsed as another role".into());
+    };
+    let fence = router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1 {
+        scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+            root_identity,
+            &activation.binding().lifecycle.account_id,
+        )?,
+        request: router_ab_cloudflare::SigningWorkerRelocationRequestV1 {
+            move_id: format!("wmove_{}", "e".repeat(43)),
+            source_generation: 1,
+            invalidated_at_ms: expires_at_ms,
+        },
+    };
+    let fence_headers = [(
+        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        config.router_to_signing_worker_ecdsa_auth.as_str(),
+    )];
+    let (unauthorized_fence, _) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &fence,
+        &gateway_headers,
+    )?;
+    assert_eq!(unauthorized_fence, 401);
+    let (fence_status, fence_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &fence,
+        &fence_headers,
+    )?;
+    assert_eq!(fence_status, 200, "{fence_body}");
+    ed25519_fence::verify_settlement(
+        signing_worker_url,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &fence,
+        router_ab_cloudflare::SigningWorkerEd25519SettlementV1::Draining { pending_rounds: 1 },
+    )?;
+    let mut changed_fence = fence.clone();
+    changed_fence.request.move_id = format!("wmove_{}", "f".repeat(43));
+    let (changed_fence_status, _) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &changed_fence,
+        &fence_headers,
+    )?;
+    assert_ne!(changed_fence_status, 200);
+    let (fenced_prepare_status, fenced_prepare_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &gateway_headers,
+    )?;
+    assert_ne!(fenced_prepare_status, 200, "{fenced_prepare_body}");
+    assert!(
+        fenced_prepare_body.contains("closed new Ed25519 work"),
+        "{fenced_prepare_body}"
+    );
+
+    ed25519_fence::verify_rejected_wallet_delivery(
+        temp,
+        &config,
+        signing_worker_url,
+        &activation.binding().lifecycle.account_id,
+    )?;
 
     // A second SigningWorker process on the same role store, fronted by a
     // second Router process: the same finalize races through both paths.
-    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
     let replica_url = format!("http://127.0.0.1:{}", free_port()?);
     let primary_env = fs::read_to_string(&signing_worker_env_path)?;
     let replica_env = primary_env.replace(signing_worker_url, &replica_url);
@@ -7795,6 +7320,12 @@ fn product_near_signing_process_flow(
     )?;
     use ed25519_dalek::Verifier;
     verifying_key.verify(&Sha256::digest(&unsigned), &signature)?;
+    ed25519_fence::verify_settlement(
+        signing_worker_url,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &fence,
+        router_ab_cloudflare::SigningWorkerEd25519SettlementV1::Settled { command: fence.clone() },
+    )?;
 
     drop(signing_worker);
     let mut signing_worker = ChildGuard::spawn_in_root(
@@ -7811,14 +7342,36 @@ fn product_near_signing_process_flow(
         &gateway_headers,
     )?;
     assert_eq!(retry_status, 200, "VM Router terminal replay: {retry_body}");
-    assert_eq!(body, retry_body, "restart must preserve the signed terminal result");
-    let config = parse_local_worker_role_config_for_role_v1(
-        LocalServiceRoleV1::SigningWorker,
-        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    assert_eq!(
+        body, retry_body,
+        "restart must preserve the signed terminal result"
+    );
+    let (restarted_fence_status, restarted_fence_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1,
+        &fence,
+        &fence_headers,
     )?;
-    let LocalWorkerRoleConfigV1::SigningWorker(config) = config else {
-        return Err("SigningWorker env parsed as another role".into());
-    };
+    assert_eq!(restarted_fence_status, 200, "{restarted_fence_body}");
+    assert_eq!(restarted_fence_body, fence_body);
+    ed25519_fence::verify_settlement(
+        signing_worker_url,
+        &config.router_to_signing_worker_ecdsa_auth,
+        &fence,
+        router_ab_cloudflare::SigningWorkerEd25519SettlementV1::Settled { command: fence.clone() },
+    )?;
+    let (restarted_prepare_status, restarted_prepare_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &gateway_headers,
+    )?;
+    assert_ne!(restarted_prepare_status, 200, "{restarted_prepare_body}");
+    assert!(
+        restarted_prepare_body.contains("closed new Ed25519 work"),
+        "{restarted_prepare_body}"
+    );
+
     let connection = Connection::open(temp.join(config.role_private_storage_path))?;
     // This wallet's signing operation, among any others the worker holds.
     let completed_count: i64 = connection.query_row(
@@ -7835,6 +7388,16 @@ fn product_near_signing_process_flow(
             "signature_digest_hex": hex::encode(Sha256::digest(signature_bytes)),
             "completed_round1_rows": completed_count,
             "router_admitted": true,
+            "gateway_ownership_generation": 1,
+            "changed_finalize_generation_status": changed_generation_status,
+            "wrong_home_prepare_status": wrong_home_status,
+            "fenced_prepare_status": fenced_prepare_status,
+            "source_fence_replays_after_restart": true,
+            "admitted_finalize_settles_while_fenced": true,
+            "settlement_waits_for_admitted_round_and_replays_after_restart": true,
+            "changed_move_rejected": true,
+            "delayed_delivery_preserves_durable_role_state": true,
+            "invalid_ownership_generation_statuses": invalid_generation_statuses,
             "worker_restarts": 2,
             "independent_router_signing_worker_paths": 2,
             "concurrent_claims": true,
@@ -7844,198 +7407,6 @@ fn product_near_signing_process_flow(
         })
     );
     Ok(signing_worker)
-}
-
-/// A Gateway-forwarded body: the signing request with the Gateway's
-/// authorized operation attached, as the TS Gateway proxy sends it.
-fn gateway_signing_body<T: Serialize>(
-    request: &T,
-    authorized_operation: &CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
-) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let mut body = serde_json::to_value(request)?;
-    let object = body.as_object_mut().ok_or("signing request must be a JSON object")?;
-    object.insert("authorized_operation".to_owned(), serde_json::to_value(authorized_operation)?);
-    Ok(body)
-}
-
-fn product_near_prepare_request(
-    activation: &RouterAbEd25519YaoActivationResultV1,
-    expires_at_ms: u64,
-) -> Result<(RouterAbEd25519NormalSigningPrepareRequestV2, Vec<u8>), Box<dyn std::error::Error>> {
-    let binding = activation.binding();
-    let account_id = &binding.lifecycle.account_id;
-    // One signing operation per wallet.
-    let scope = NormalSigningScopeV1::new(
-        format!("product-near-sign-{account_id}"),
-        account_id,
-        NormalSigningAuthorizationV1::reusable_wallet_session("wallet-session-product-benchmark")?,
-        binding.material_activation.clone(),
-        "local-signing-worker",
-    )?;
-    let unsigned = product_near_unsigned_transaction(
-        account_id,
-        &activation.public_receipt().registered_public_key(),
-    );
-    let unsigned_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&unsigned);
-    let action_fingerprint = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
-        Sha256::digest(
-            r#"[{"action_type":"FunctionCall","args":"{\"amount\":\"1\"}","deposit":"0","gas":"30000000000000","method_name":"transfer"}]"#
-                .as_bytes(),
-        ),
-    );
-    let intent = RouterAbEd25519NormalSigningIntentV2::NearTransactionV1 {
-        operation_id: "product-near-operation-1".to_owned(),
-        operation_fingerprint: "product-near-fingerprint-1".to_owned(),
-        near_account_id: account_id.clone(),
-        near_network_id: RouterAbNearNetworkIdV2::Testnet,
-        transactions: vec![RouterAbNearTransactionIntentV1::new(
-            "receiver.near",
-            action_fingerprint,
-        )?],
-        unsigned_transaction_borsh_b64u: unsigned_b64u.clone(),
-    };
-    let signing_payload = RouterAbEd25519SigningPayloadV2::NearUnsignedTransactionBorshV1 {
-        unsigned_transaction_borsh_b64u: unsigned_b64u,
-        expected_signing_digest_b64u: base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(Sha256::digest(&unsigned)),
-    };
-    let request = RouterAbEd25519NormalSigningPrepareRequestV2::new(
-        scope,
-        expires_at_ms,
-        PublicDigest32::new([0x91; 32]),
-        intent,
-        signing_payload,
-    )?;
-    Ok((request, unsigned))
-}
-
-/// The authorized operation the Gateway attaches after consuming the owner's
-/// grant and quota. In the full VM product path the Node Gateway produces it;
-/// here the test acts as that Gateway with its dedicated credential.
-fn product_near_gateway_authorized_operation(
-    activation: &RouterAbEd25519YaoActivationResultV1,
-    root_identity: &TenantRootIdentityV1,
-    request: &RouterAbEd25519NormalSigningPrepareRequestV2,
-    expires_at_ms: u64,
-) -> Result<CloudflareRouterEd25519AcceptedAuthorizedOperationV1, Box<dyn std::error::Error>> {
-    let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
-    let material = request.admission_material()?;
-    Ok(CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
-        binding: CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
-            subject_id: "product-user-1".to_owned(),
-            account_id: activation.binding().lifecycle.account_id.clone(),
-            authorization_id: format!("authorization-{}", activation.binding().lifecycle.account_id),
-            wallet_session_id: "wallet-session-product-benchmark".to_owned(),
-            quota_id: format!("quota-{}", activation.binding().lifecycle.account_id),
-            threshold_session_id: format!(
-                "threshold-session-{}",
-                activation.binding().lifecycle.account_id
-            ),
-            org_id: root_identity.org_id().to_owned(),
-            project_id: root_identity.project_id().to_owned(),
-            environment: "dev".to_owned(),
-            project_environment_id: root_identity.env_id().to_owned(),
-            signing_worker_id: "local-signing-worker".to_owned(),
-            expires_at_ms,
-        },
-        authorized_operation:
-            CloudflareRouterEd25519AuthorizedOperationV1::ReusableWalletSessionAuthorizedOperationV1 {
-                authorized_operation_id: "authorized-operation-product-1".to_owned(),
-                operation_id: "product-near-operation-1".to_owned(),
-                capability_kind: CloudflareRouterEd25519CapabilityKindV1::NearEd25519MpcSigning,
-                operation_kind: CloudflareRouterEd25519OperationKindV1::SignTransaction,
-                lane_digest_b64u: b64u(&Sha256::digest(b"product-near-owner-lane")),
-                intent_digest_b64u: b64u(material.intent_digest.as_bytes()),
-                display_digest_b64u: b64u(request.display_digest.as_bytes()),
-                operation_fingerprint_digest: b64u(&Sha256::digest(b"product-near-fingerprint-1")),
-            },
-    })
-}
-
-fn product_near_unsigned_transaction(account_id: &str, public_key: &[u8; 32]) -> Vec<u8> {
-    let mut out = Vec::new();
-    push_borsh_string(&mut out, account_id);
-    out.push(0);
-    out.extend_from_slice(public_key);
-    out.extend_from_slice(&7_u64.to_le_bytes());
-    push_borsh_string(&mut out, "receiver.near");
-    out.extend_from_slice(&[0x44; 32]);
-    out.extend_from_slice(&1_u32.to_le_bytes());
-    out.push(2);
-    push_borsh_string(&mut out, "transfer");
-    push_borsh_bytes(&mut out, br#"{"amount":"1"}"#);
-    out.extend_from_slice(&30_000_000_000_000_u64.to_le_bytes());
-    out.extend_from_slice(&0_u128.to_le_bytes());
-    out
-}
-
-fn push_borsh_string(out: &mut Vec<u8>, value: &str) {
-    push_borsh_bytes(out, value.as_bytes());
-}
-
-fn push_borsh_bytes(out: &mut Vec<u8>, value: &[u8]) {
-    out.extend_from_slice(&(value.len() as u32).to_le_bytes());
-    out.extend_from_slice(value);
-}
-
-fn product_near_finalize_request(
-    activation: &RouterAbEd25519YaoActivationResultV1,
-    client_share: &[u8; 32],
-    prepare: &RouterAbEd25519NormalSigningPrepareRequestV2,
-    response: &NormalSigningRound1PrepareResponseV1,
-    expires_at_ms: u64,
-) -> Result<RouterAbEd25519NormalSigningFinalizeRequestV2, Box<dyn std::error::Error>> {
-    let material = prepare.admission_material()?;
-    let client_id = frost_ed25519::Identifier::try_from(1_u16)?;
-    let server_id = frost_ed25519::Identifier::try_from(2_u16)?;
-    let public_key = activation.public_receipt().registered_public_key();
-    let key_package = key_package_from_signing_share_bytes(client_share, &public_key, client_id)?;
-    let client_round1 = client_round1_commit(&key_package)?;
-    let server_hiding = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(&response.server_commitments.hiding)?;
-    let server_binding = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(&response.server_commitments.binding)?;
-    let server_commitments = frost_ed25519::round1::SigningCommitments::new(
-        frost_ed25519::round1::NonceCommitment::deserialize(&server_hiding)?,
-        frost_ed25519::round1::NonceCommitment::deserialize(&server_binding)?,
-    );
-    let signing_package = build_signing_package(
-        material.admitted_signing_digest.as_bytes(),
-        BTreeMap::from([
-            (client_id, client_round1.commitments),
-            (server_id, server_commitments),
-        ]),
-    );
-    let client_signature_share =
-        client_round2_signature_share(&signing_package, &client_round1.nonces, &key_package)?;
-    let client_verifying_share =
-        signer_core::near_threshold_ed25519::verifying_share_bytes_from_signing_share_bytes(
-            client_share,
-        );
-    let protocol = RouterAbEd25519NormalSigningFinalizeProtocolV2::Ed25519TwoPartyFrostFinalizeV1(
-        RouterAbEd25519TwoPartyFrostFinalizeProtocolV2::new(
-            NormalSigningEd25519TwoPartyFrostCommitmentsV1::new(
-                client_round1.commitments_wire.hiding,
-                client_round1.commitments_wire.binding,
-            )?,
-            response.server_commitments.clone(),
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_verifying_share),
-            response.server_verifying_share_b64u.clone(),
-            signature_share_to_b64u(&client_signature_share)?,
-        )?,
-    );
-    let binding = RouterAbEd25519NormalSigningPrepareBindingV2::new(
-        response.server_round1_handle.clone(),
-        response.round1_binding_digest,
-        material.intent_digest,
-        material.signing_payload_digest,
-    )?;
-    Ok(RouterAbEd25519NormalSigningFinalizeRequestV2::new(
-        prepare.scope.clone(),
-        expires_at_ms,
-        binding,
-        protocol,
-    )?)
 }
 
 fn product_registration_request(
@@ -8139,6 +7510,7 @@ fn product_registration_request(
             application: tenant_root_fixture.application.clone(),
             participant_ids: tenant_root_fixture.participant_ids,
             target: RouterEd25519YaoGatewayExecuteTargetV2::registration(
+                1,
                 admission.binding,
                 input_a,
                 input_b,

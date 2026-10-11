@@ -1,3 +1,4 @@
+import type { WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import { expect, test } from '@playwright/test';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
@@ -59,6 +60,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
 
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -70,16 +72,18 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         router.onSdkLifecycleEvent((event) => {
           if (event.event === 'signing_session.expired') lifecycleEvents.push(event);
         });
-        router.onLoginStatusChanged((status) => loginStatuses.push(status));
+        router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
         await router.init();
 
         let requestSettled = false;
         const pendingRequest = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId,
             nearAccountId: 'refactor-92.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .then(
@@ -118,8 +122,8 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           detectedAtMs: Date.now(),
           source: 'server_rejection' as const,
         };
-        emitSdkLifecycleEvent.call(router, staleExpiry);
-        emitSdkLifecycleEvent.call(router, staleExpiry);
+        emitSdkLifecycleEvent.call(router, staleExpiry, 100);
+        emitSdkLifecycleEvent.call(router, staleExpiry, 100);
         await new Promise((resolve) => window.setTimeout(resolve, 50));
         const staleEventResult = {
           requestSettled,
@@ -133,8 +137,8 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           walletSessionId: activeSessionId,
           detectedAtMs: Date.now(),
         };
-        emitSdkLifecycleEvent.call(router, activeExpiry);
-        emitSdkLifecycleEvent.call(router, activeExpiry);
+        emitSdkLifecycleEvent.call(router, activeExpiry, 101);
+        emitSdkLifecycleEvent.call(router, activeExpiry, 101);
         const requestResult = await pendingRequest;
 
         return {
@@ -193,6 +197,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -203,11 +208,13 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
 
         const execute = () =>
           router
-            .executeAction({
+            .signAndSendTransaction({
               walletId,
               nearAccountId: 'refactor-92.testnet',
-              receiverId: 'seams-v1.testnet',
-              actionArgs: { type: 'Transfer', amount: '1' } as any,
+              transaction: {
+                receiverId: 'seams-v1.testnet',
+                actions: [{ type: 'Transfer', amount: '1' } as any],
+              },
               options: {},
             })
             .then(
@@ -242,7 +249,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           expiresAtMs,
           detectedAtMs: Date.now(),
           source: 'server_rejection',
-        });
+        }, 100);
 
         const [firstResult, queuedResult] = await Promise.all([firstRequest, queuedRequest]);
 
@@ -298,6 +305,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -313,11 +321,13 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           inventory: false,
         };
         const signingRequest = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId,
             nearAccountId: 'refactor-92.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .finally(() => {
@@ -368,7 +378,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           expiresAtMs,
           detectedAtMs: Date.now(),
           source: 'server_rejection',
-        });
+        }, 100);
         await signingRequest.catch(() => undefined);
         await new Promise((resolve) => window.setTimeout(resolve, 50));
         const afterExpiry = { ...settlement };
@@ -408,6 +418,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -462,6 +473,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3_000,
@@ -469,14 +481,16 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           sdkBasePath: '/sdk',
         });
         const loginStatuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-        router.onLoginStatusChanged((status) => loginStatuses.push(status));
+        router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
         await router.init();
 
-        const request = router.executeAction({
+        const request = router.signAndSendTransaction({
           walletId,
           nearAccountId: 'refactor-92.testnet',
-          receiverId: 'seams-v1.testnet',
-          actionArgs: { type: 'Transfer', amount: '1' } as any,
+          transaction: {
+            receiverId: 'seams-v1.testnet',
+            actions: [{ type: 'Transfer', amount: '1' } as any],
+          },
           options: {},
         });
         await new Promise((resolve) => window.setTimeout(resolve, 30));

@@ -3,6 +3,7 @@ import type {
   VersionedJsonRecordReadResult,
 } from '../../../framework/versionedJsonRecordStore';
 import { hasExactKeys } from '@shared/utils/exactKeys';
+import type { RouterAbEd25519YaoPreparedWriteV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 
 export type RouterAbEd25519YaoRegistrationSideEffectOperationV1 =
   | 'finalize'
@@ -131,6 +132,13 @@ export interface RouterAbEd25519YaoRegistrationSideEffectStoreV2<C, P> {
     key: string,
     value: RouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>,
     expectedVersion: string | null,
+  ): Promise<VersionedJsonRecordPutResult>;
+  /** As `put`, with another store's write that commits in the same batch or not at all. */
+  putWithCompanion(
+    key: string,
+    value: RouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>,
+    expectedVersion: string | null,
+    companionWrite: RouterAbEd25519YaoPreparedWriteV1,
   ): Promise<VersionedJsonRecordPutResult>;
 }
 
@@ -302,6 +310,14 @@ export async function runRouterAbEd25519YaoRegistrationSideEffectV1<T, P>(
   store: RouterAbEd25519YaoRegistrationSideEffectStoreV1<T, P>,
   input: RouterAbEd25519YaoRegistrationSideEffectRunInputV1<T, P>,
 ): Promise<RouterAbEd25519YaoRegistrationSideEffectRunResultV1<T, P>> {
+  return runRegistrationSideEffect(store, input, store.read.bind(store));
+}
+
+async function runRegistrationSideEffect<T, P>(
+  store: RouterAbEd25519YaoRegistrationSideEffectStoreV1<T, P>,
+  input: RouterAbEd25519YaoRegistrationSideEffectRunInputV1<T, P>,
+  readInitial: RouterAbEd25519YaoRegistrationSideEffectStoreV1<T, P>['read'],
+): Promise<RouterAbEd25519YaoRegistrationSideEffectRunResultV1<T, P>> {
   const key = requireOpaqueKey(input.key);
   const requestFingerprint = requireRequestFingerprint(input.requestFingerprint);
   const resumeAfterMs = requirePositiveDuration(input.resumeAfterMs, 'resumeAfterMs');
@@ -311,7 +327,7 @@ export async function runRouterAbEd25519YaoRegistrationSideEffectV1<T, P>(
   >;
   let disposition: ExistingDisposition<T, P>;
   try {
-    existing = await store.read(key);
+    existing = await readInitial(key);
     disposition = await existingDisposition(
       existing,
       requestFingerprint,
@@ -470,6 +486,10 @@ type RouterAbEd25519YaoRegistrationSideEffectRunInputV2<T, C, P> = {
   readonly kind: 'prepared_resumable';
   readonly operation: RouterAbEd25519YaoRegistrationSideEffectOperationV1;
   readonly key: string;
+  /** Read for this request. CAS reconciliation always reads the store again. */
+  readonly initialRecord: VersionedJsonRecordReadResult<
+    RouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>
+  >;
   readonly requestFingerprint: string;
   readonly resumeAfterMs: number;
   readonly nowMs: () => number;
@@ -480,6 +500,12 @@ type RouterAbEd25519YaoRegistrationSideEffectRunInputV2<T, C, P> = {
     attempt: RouterAbEd25519YaoRegistrationSideEffectAttemptV1,
   ) => Promise<T>;
   readonly projectReceipt: (response: T) => Promise<C> | C;
+  /**
+   * Another store's write that the execution left for its completion, or
+   * none. It commits with the completion record: a completed operation
+   * implies that write, and a lost completion leaves it undone.
+   */
+  readonly completionWrite: (response: T) => RouterAbEd25519YaoPreparedWriteV1 | null;
   readonly replay: (receipt: C) => Promise<T>;
 };
 
@@ -500,7 +526,12 @@ export async function runRouterAbEd25519YaoRegistrationSideEffectV2<T, C, P>(
   store: RouterAbEd25519YaoRegistrationSideEffectStoreV2<C, P>,
   input: RouterAbEd25519YaoRegistrationSideEffectRunInputV2<T, C, P>,
 ): Promise<RouterAbEd25519YaoRegistrationSideEffectRunResultV2<T, P>> {
-  const adaptedStore = new RegistrationV2StoreAdapter(store, input.projectReceipt);
+  const adaptedStore = new RegistrationV2StoreAdapter(
+    store,
+    input.initialRecord,
+    input.projectReceipt,
+    input.completionWrite,
+  );
   const adaptedInput: RouterAbEd25519YaoRegistrationSideEffectRunInputV1<
     RegistrationV2AdapterResponse<T, C>,
     P
@@ -518,7 +549,11 @@ export async function runRouterAbEd25519YaoRegistrationSideEffectV2<T, C, P>(
       response: await input.execute(prepared, attempt),
     }),
   };
-  const result = await runRouterAbEd25519YaoRegistrationSideEffectV1(adaptedStore, adaptedInput);
+  const result = await runRegistrationSideEffect(
+    adaptedStore,
+    adaptedInput,
+    adaptedStore.readInitial.bind(adaptedStore),
+  );
   switch (result.kind) {
     case 'executed':
       if (result.value.kind !== 'executed_response') {
@@ -571,8 +606,16 @@ class RegistrationV2StoreAdapter<
 > {
   public constructor(
     private readonly store: RouterAbEd25519YaoRegistrationSideEffectStoreV2<C, P>,
+    private readonly initialRecord: VersionedJsonRecordReadResult<
+      RouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>
+    >,
     private readonly projectReceipt: (response: T) => Promise<C> | C,
+    private readonly completionWrite: (response: T) => RouterAbEd25519YaoPreparedWriteV1 | null,
   ) {}
+
+  public async readInitial() {
+    return this.adaptRead(this.initialRecord);
+  }
 
   public async read(
     key: string,
@@ -581,7 +624,14 @@ class RegistrationV2StoreAdapter<
       RouterAbEd25519YaoRegistrationSideEffectRecordV1<RegistrationV2AdapterResponse<T, C>, P>
     >
   > {
-    const result = await this.store.read(key);
+    return this.adaptRead(await this.store.read(key));
+  }
+
+  private adaptRead(
+    result: VersionedJsonRecordReadResult<RouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>>,
+  ): VersionedJsonRecordReadResult<
+    RouterAbEd25519YaoRegistrationSideEffectRecordV1<RegistrationV2AdapterResponse<T, C>, P>
+  > {
     if (result.kind === 'missing') return { kind: 'missing' };
     switch (result.value.kind) {
       case 'router_ab_ed25519_yao_registration_side_effect_claim_v1':
@@ -624,20 +674,20 @@ class RegistrationV2StoreAdapter<
           throw new Error('registration side-effect cannot persist a replay response');
         }
         const receipt = requireReceipt(await this.projectReceipt(value.response.response));
-        return await this.store.put(
-          key,
-          {
-            kind: 'router_ab_ed25519_yao_registration_side_effect_completion_v2',
-            operation: value.operation,
-            requestFingerprint: value.requestFingerprint,
-            preparedArtifactFingerprint: value.preparedArtifactFingerprint,
-            claimedAtMs: value.claimedAtMs,
-            completedAtMs: value.completedAtMs,
-            prepared: value.prepared,
-            receipt,
-          },
-          expectedVersion,
-        );
+        const completion: RouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P> = {
+          kind: 'router_ab_ed25519_yao_registration_side_effect_completion_v2',
+          operation: value.operation,
+          requestFingerprint: value.requestFingerprint,
+          preparedArtifactFingerprint: value.preparedArtifactFingerprint,
+          claimedAtMs: value.claimedAtMs,
+          completedAtMs: value.completedAtMs,
+          prepared: value.prepared,
+          receipt,
+        };
+        const companionWrite = this.completionWrite(value.response.response);
+        return companionWrite
+          ? await this.store.putWithCompanion(key, completion, expectedVersion, companionWrite)
+          : await this.store.put(key, completion, expectedVersion);
       }
       default:
         return assertNever(value);

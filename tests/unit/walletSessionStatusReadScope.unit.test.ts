@@ -3,8 +3,11 @@ import {
   parseMpcWalletSigningQuotaId,
   type AuthorizationParseResult,
 } from '@shared/authorization/capabilityKinds';
+import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
+import { prepareRouterAbNormalSigningV2 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
 
 function requireParsed<T>(result: AuthorizationParseResult<T>): T {
   if (!result.ok) throw new Error(result.error.message);
@@ -31,6 +34,8 @@ class StatusServer {
 function operationCredential(tokenCharacter: string) {
   return parseWalletSessionOperationCredentialV1({
     kind: 'opaque_wallet_session_operation_credential_v1',
+    ownershipGeneration: 1,
+    home: { kind: 'direct' },
     token: `wst_${tokenCharacter.repeat(43)}`,
     walletSessionId: 'session-scope-test',
   });
@@ -86,4 +91,191 @@ test('a failed status read is shared without retrying within the operation', asy
   expect(server.calls).toBe(1);
   expect((await new WalletSessionStatusReadScope().read(options, identity)).status).toBe('missing');
   expect(server.calls).toBe(2);
+});
+
+/** The session a registration response issued, from the shared session factory. */
+async function registrationIssuedSession(label: string, server: StatusServer) {
+  const fixture = await buildLinkedDeviceManagementAuthorityFixture({
+    label,
+    permissions: buildFullOwnerPermissionsV1(),
+    provenance: 'wallet_registration',
+  });
+  const quota = fixture.issuedSession.quota;
+  const session = {
+    walletSessionId: fixture.operationCredential.walletSessionId,
+    quotaId: quota.quotaId,
+    remainingUses: quota.remainingUses,
+    expiresAtMs: quota.expiresAtMs,
+    walletSession: fixture.activeWalletSession,
+    operationCredential: fixture.operationCredential,
+  };
+  return {
+    session,
+    options: {
+      relayerUrl: 'https://relay.example',
+      operationCredential: fixture.operationCredential,
+      fetchImpl: server.fetch.bind(server),
+    },
+    identity: { walletSessionId: session.walletSessionId, quotaId: session.quotaId },
+  };
+}
+
+test('a wallet-host observation reads a registration-issued session once without asking the server', async () => {
+  const server = new StatusServer();
+  const { session, options, identity } = await registrationIssuedSession('seed-once', server);
+  WalletSessionStatusReadScope.acceptRegistrationSession(options.relayerUrl, session);
+
+  const observed = await WalletSessionStatusReadScope.forHostObservation().read(options, identity);
+  expect(observed).toEqual({
+    status: 'active',
+    walletSessionId: session.walletSessionId,
+    quotaId: session.quotaId,
+    remainingUses: session.remainingUses,
+    expiresAtMs: session.expiresAtMs,
+    quotaLifecycle: 'active',
+    authorization: session.walletSession,
+  });
+  expect(server.calls).toBe(0);
+
+  // The response is read once. The next observation asks the server.
+  expect(
+    (await WalletSessionStatusReadScope.forHostObservation().read(options, identity)).status,
+  ).toBe('missing');
+  expect(server.calls).toBe(1);
+});
+
+test('reads outside a wallet-host observation ask the server, and its answer replaces the issued session', async () => {
+  const server = new StatusServer();
+  const { session, options, identity } = await registrationIssuedSession('seed-replaced', server);
+  WalletSessionStatusReadScope.acceptRegistrationSession(options.relayerUrl, session);
+
+  expect((await new WalletSessionStatusReadScope().read(options, identity)).status).toBe('missing');
+  expect(server.calls).toBe(1);
+  expect(
+    (await WalletSessionStatusReadScope.forHostObservation().read(options, identity)).status,
+  ).toBe('missing');
+  expect(server.calls).toBe(2);
+});
+
+test('a wallet-host observation of another session asks the server', async () => {
+  const server = new StatusServer();
+  const { session, options, identity } = await registrationIssuedSession('seed-other', server);
+  WalletSessionStatusReadScope.acceptRegistrationSession(options.relayerUrl, session);
+
+  await WalletSessionStatusReadScope.forHostObservation().read(
+    { ...options, operationCredential: operationCredential('c') },
+    identity,
+  );
+  await WalletSessionStatusReadScope.forHostObservation().read(
+    { ...options, relayerUrl: 'https://other-relay.example' },
+    identity,
+  );
+  expect(server.calls).toBe(2);
+  expect(
+    (await WalletSessionStatusReadScope.forHostObservation().read(options, identity)).status,
+  ).toBe('active');
+  expect(server.calls).toBe(2);
+});
+
+test('a prepare answers with the status it admitted and leaves the balance after its claim for planning', async () => {
+  const server = new StatusServer();
+  const { session, options, identity } = await registrationIssuedSession('prepare-claim', server);
+  const admitted = {
+    status: 'active' as const,
+    ...identity,
+    remainingUses: 2,
+    expiresAtMs: session.expiresAtMs,
+    quotaLifecycle: 'active' as const,
+    authorization: session.walletSession,
+  };
+  const scope = WalletSessionStatusReadScope.fromPrepare(options, admitted);
+  expect(await scope.read(options, identity)).toBe(admitted);
+  expect(
+    WalletSessionStatusReadScope.observationForConfirmation(options, identity)?.status,
+  ).toEqual({ ...admitted, remainingUses: 1 });
+
+  const lastUse = { ...admitted, remainingUses: 1 };
+  await WalletSessionStatusReadScope.fromPrepare(options, lastUse).read(options, identity);
+  expect(
+    WalletSessionStatusReadScope.observationForConfirmation(options, identity)?.status,
+  ).toEqual({ ...lastUse, status: 'exhausted', remainingUses: 0, quotaLifecycle: 'exhausted' });
+  expect(server.calls).toBe(0);
+});
+
+test('a signing request that the server refuses for step-up drops what the wallet observed', async () => {
+  const server = new StatusServer();
+  const { session, options, identity } = await registrationIssuedSession('refused-prepare', server);
+  // Signing requests and the observations they contradict use the default fetch.
+  const observed = {
+    relayerUrl: options.relayerUrl,
+    operationCredential: options.operationCredential,
+  };
+  const other = { ...observed, operationCredential: operationCredential('d') };
+  const admitted = {
+    status: 'active' as const,
+    ...identity,
+    remainingUses: 3,
+    expiresAtMs: session.expiresAtMs,
+    quotaLifecycle: 'active' as const,
+    authorization: session.walletSession,
+  };
+  await WalletSessionStatusReadScope.fromPrepare(observed, admitted).read(observed, identity);
+  await WalletSessionStatusReadScope.fromPrepare(other, admitted).read(other, identity);
+  WalletSessionStatusReadScope.acceptRegistrationSession(options.relayerUrl, session);
+
+  const refusal = {
+    ok: false,
+    code: 'wallet_session_quota_exhausted',
+    message: 'Ed25519 authorized operation rejected',
+    authorization_decision: {
+      kind: 'step_up_required',
+      reason: 'wallet_session_exhausted',
+      step_up: {
+        wallet_id: session.walletSession.walletId,
+        operation_kind: 'near.sign_transaction',
+        operation_id: 'operation-refused',
+        request_id: 'request-refused',
+        account_id: session.walletSession.walletId,
+        material_activation: {
+          kind: 'mpc_material_activation_ref',
+          activation_id: `mact_${'A'.repeat(32)}`,
+          capability: `cap_${'A'.repeat(32)}`,
+          material_owner: session.walletSession.walletId,
+          key_binding: `key_${'A'.repeat(32)}`,
+          lifecycle_binding: `life_${'A'.repeat(32)}`,
+          signing_worker: 'local-signing-worker',
+        },
+        signing_worker_id: 'local-signing-worker',
+        near_account_id: 'refused.testnet',
+        signer_slot: 1,
+        participant_ids: [1, 2],
+        expires_at_ms: session.expiresAtMs,
+      },
+    },
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(refusal, { status: 409 });
+  try {
+    await expect(
+      prepareRouterAbNormalSigningV2({
+        relayServerUrl: options.relayerUrl,
+        credential: {
+          kind: 'wallet_session_opaque',
+          home: options.operationCredential.home,
+          walletSessionToken: options.operationCredential.token,
+        },
+        request: {} as Parameters<typeof prepareRouterAbNormalSigningV2>[0]['request'],
+      }),
+    ).rejects.toMatchObject({ name: 'WalletSessionQuotaAdmissionError' });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  expect(WalletSessionStatusReadScope.observationForConfirmation(observed, identity)).toBeNull();
+  expect(WalletSessionStatusReadScope.observationForConfirmation(other, identity)).not.toBeNull();
+  // The issued session is gone too: the next wallet-host observation asks the server.
+  expect(
+    (await WalletSessionStatusReadScope.forHostObservation().read(options, identity)).status,
+  ).toBe('missing');
+  expect(server.calls).toBe(1);
 });

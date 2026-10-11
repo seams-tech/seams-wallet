@@ -22,9 +22,9 @@ auth menu, transaction confirmer, and export viewer receive the same values.
 
 ## Set the initial appearance
 
-Set the initial value with `SeamsConfigsInput.appearance`. Use
-`setAppearance` when a theme picker or system-mode change happens at runtime;
-updates merge into the current appearance.
+Set the initial value with `SeamsConfigsInput.appearance`. Use `seams.config.setAppearance` when the
+user changes the theme or the system changes its appearance mode. Updates merge into the
+current appearance.
 
 ## Change shape safely
 

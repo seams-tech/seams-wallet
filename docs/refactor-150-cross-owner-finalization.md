@@ -107,8 +107,11 @@ side runs.
 - Workers private harness, stamped dev builds: role-store
   `replay-after-erasure`, `admission-races` and
   `refresh-after-managed-restore`; wallet-object
-  `do-historical-starting-replay`, `do-pair-lost-reply`,
+  `do-pair-lost-reply`,
   `do-pair-b-burn-before-complete` and `do-historical-replay`.
+- The direct-reservation fixture was retired when reservation became internal.
+  `yao-peer-disconnect-evidence.mjs` exercises interrupted execution through the
+  real WebSocket exchange and checks that a failed pair cannot restart.
 - Real Gateway: the five `passkey.ed25519-yao-local` contracts pass on
   Workers and on the VM.
 - Harness corrections found on the way. The wallet-object modes read Deriver

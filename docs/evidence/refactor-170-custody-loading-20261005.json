@@ -1,0 +1,626 @@
+{
+  "baseCommit": "c23f5487800de16430b4b4e158dab72c41f46585",
+  "scope": "Initialize custody ceremony WASM only for new key-set runs, NEAR ceremony restoration, and recovery-code rotation. Existing handles own continuation. Envelope and lane-source handlers retain their independent module initialization.",
+  "sourceSha256": {
+    "packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts": "e326d9bbae418dc3cf28728a794e045af55b26e4409cca782461cc7d66410c11",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "eb58065383fd572604254d2820f60b783df9c21666deac1fce1a5bb99d2ca98a",
+    "tests/e2e/intended-behaviours/wallet-asset-evidence.ts": "c4fc52a7e999d8d18c9a4715476bef54d50f724e816fde474612296d4010f788",
+    "tests/e2e/intended-behaviours/wallet-asset-network-evidence.ts": "149c75d758bef3a77b15895db13b19919a576bcdda6295894704fa298cf09854"
+  },
+  "productionSourceLines": {
+    "added": 3,
+    "removed": 1,
+    "net": 2
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "nearAssets": "passed (34.8s)",
+    "ecdsaAssets": "passed (33.2s)",
+    "passkeyRecoveryThenEmailOtpSigningExportStepUp": "passed (39.6s)",
+    "nearRegistrationResume": "passed (28.6s)",
+    "thirdDeviceLinkingSigningExport": "passed (41.6s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "scenarios": [
+    {
+      "signer": "near",
+      "artifact": ".artifacts/wallet-assets/production-near-only-wallet-records-unlock-and-restored-signing-assets.json",
+      "artifactSha256": "8282e5a01c92f46f5aafe11cb2e7349e64b8b6921182544e13642f82113b6c34",
+      "wasmRequests": [
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass_runtime_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 93119,
+          "encodedDataBytes": 93119,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 93393
+          }
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet_custody_ceremony_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 542923,
+          "encodedDataBytes": 542923,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 543199
+          }
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/router_ab_ed25519_yao_client_bg.wasm",
+          "target": {
+            "kind": "page",
+            "url": null
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": "383340BBB7017D808C4C8D4CE1F5A80F",
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 730912,
+          "encodedDataBytes": 730912,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 731188
+          }
+        },
+        {
+          "phase": "near-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 411789,
+          "encodedDataBytes": 411789,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/router_ab_ed25519_yao_client_bg.wasm",
+          "target": {
+            "kind": "page",
+            "url": null
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": "24DD9EF045465941725B9022FEB9BBD1",
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 730912,
+          "encodedDataBytes": 730912,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 731188
+          }
+        },
+        {
+          "phase": "near-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 411789,
+          "encodedDataBytes": 411789,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "near-only-sign",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 411789,
+          "encodedDataBytes": 411789,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/shamir3pass_runtime_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 93119,
+          "encodedDataBytes": 93119,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 93393
+          }
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/router_ab_ed25519_yao_client_bg.wasm",
+          "target": {
+            "kind": "page",
+            "url": null
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": "8592EFF02AA2F86493F06AC41B8AAB69",
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 730912,
+          "encodedDataBytes": 730912,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 731188
+          }
+        },
+        {
+          "phase": "near-only-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 411789,
+          "encodedDataBytes": 411789,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        }
+      ],
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791170262620,
+          "durationMs": 376.8012500000001
+        },
+        {
+          "name": "near-only-registration",
+          "startedAtMs": 1791170262997,
+          "durationMs": 1590.0212499999998
+        },
+        {
+          "name": "locked-reload",
+          "startedAtMs": 1791170264587,
+          "durationMs": 716.757541
+        },
+        {
+          "name": "near-only-unlock",
+          "startedAtMs": 1791170265304,
+          "durationMs": 632.0163750000002
+        },
+        {
+          "name": "near-only-sign",
+          "startedAtMs": 1791170265936,
+          "durationMs": 737.7915419999995
+        },
+        {
+          "name": "near-only-restored-sign",
+          "startedAtMs": 1791170266674,
+          "durationMs": 1105.0777499999995
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791170267779,
+          "durationMs": 2.643207999999504
+        }
+      ],
+      "bodyCaptureFailureCount": 10,
+      "networkCollectorFailures": [],
+      "serverEncodedBodyBytes": 8517366
+    },
+    {
+      "signer": "ecdsa",
+      "artifact": ".artifacts/wallet-assets/production-ecdsa-only-wallet-records-unlock-and-restored-signing-assets.json",
+      "artifactSha256": "a7c3deb09b6ee07a3b9159e80f48b3a60db7e2fb14e54de1f16159e08e6541fc",
+      "wasmRequests": [
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/router_ab_ecdsa_client_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 791673,
+          "encodedDataBytes": 791673,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 791949
+          }
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wallet_custody_ceremony_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 542923,
+          "encodedDataBytes": 542923,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 543199
+          }
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/wasm_signer_worker_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 411789,
+          "encodedDataBytes": 411789,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 412065
+          }
+        },
+        {
+          "phase": "ecdsa-only-registration",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 161607,
+          "encodedDataBytes": 161607,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/router_ab_ecdsa_client_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 791673,
+          "encodedDataBytes": 791673,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 791949
+          }
+        },
+        {
+          "phase": "ecdsa-only-unlock",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 161607,
+          "encodedDataBytes": 161607,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        },
+        {
+          "phase": "tempo-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo_signer.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 101976,
+          "encodedDataBytes": 101976,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 102252
+          }
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/router_ab_ecdsa_client_bg.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 791673,
+          "encodedDataBytes": 791673,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 791949
+          }
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/tempo_signer.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 101976,
+          "encodedDataBytes": 101976,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 102252
+          }
+        },
+        {
+          "phase": "ecdsa-restored-sign",
+          "url": "http://localhost:4202/sdk/workers/evm_crypto.wasm",
+          "target": {
+            "kind": "worker",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js"
+          },
+          "documentOrigin": "http://localhost:4202",
+          "frameId": null,
+          "initiatorType": "script",
+          "resourceType": "Fetch",
+          "decodedDataBytes": 161607,
+          "encodedDataBytes": 161607,
+          "response": {
+            "status": 200,
+            "contentEncoding": "identity",
+            "fromDiskCache": false,
+            "fromServiceWorker": false
+          },
+          "completion": {
+            "kind": "finished",
+            "encodedTransferBytes": 161883
+          }
+        }
+      ],
+      "phases": [
+        {
+          "name": "initialization",
+          "startedAtMs": 1791170296600,
+          "durationMs": 358.401875
+        },
+        {
+          "name": "ecdsa-only-registration",
+          "startedAtMs": 1791170296958,
+          "durationMs": 786.649375
+        },
+        {
+          "name": "locked-reload",
+          "startedAtMs": 1791170297745,
+          "durationMs": 714.816125
+        },
+        {
+          "name": "ecdsa-only-unlock",
+          "startedAtMs": 1791170298460,
+          "durationMs": 642.4944999999998
+        },
+        {
+          "name": "tempo-sign",
+          "startedAtMs": 1791170299102,
+          "durationMs": 738.2359579999998
+        },
+        {
+          "name": "evm-sign",
+          "startedAtMs": 1791170299840,
+          "durationMs": 754.8760419999999
+        },
+        {
+          "name": "ecdsa-restored-sign",
+          "startedAtMs": 1791170300595,
+          "durationMs": 1122.0491670000001
+        },
+        {
+          "name": "ecdsa-evm-step-up-sign",
+          "startedAtMs": 1791170301717,
+          "durationMs": 759.5356249999995
+        },
+        {
+          "name": "completed",
+          "startedAtMs": 1791170302477,
+          "durationMs": 2.0832909999999174
+        }
+      ],
+      "bodyCaptureFailureCount": 19,
+      "networkCollectorFailures": [],
+      "serverEncodedBodyBytes": 8268999
+    }
+  ],
+  "limits": [
+    "One routed run per signer; cache disabled. No cold/warm latency or deployed compression claim.",
+    "Direct public recovery-code rotation acceptance remains open. Its dispatch explicitly awaits initialization, as required by its direct ceremony join export.",
+    "The test asserts request-start phases through the existing CDP observer, including requests whose bodies cannot be captured across reloads. Positive registration assertions verify observation of the ceremony binary."
+  ],
+  "productionCommands": [
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'production (NEAR|ECDSA)-only wallet records'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.recovery.contract.test.ts --grep 'a Passkey-founded wallet recovers with Passkey, adds Email OTP, then signs, exports, and steps up through it'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.resume.contract.test.ts --grep 'Passkey unlock resumes the exact encrypted NEAR execution after reload'",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.device-linking.contract.test.ts --grep 'a linked device links a third device, which signs NEAR and Tempo and exports both keys'"
+  ]
+}

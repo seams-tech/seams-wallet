@@ -1,0 +1,43 @@
+{
+  "task": "R170/R171 Google sign-in entry rename",
+  "baseCommit": "ead2e9ff",
+  "publicEntry": "auth.startGoogleSignIn",
+  "productionLifecycle": {
+    "result": "passed",
+    "durationSeconds": 47.9,
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"Email OTP registration and unlock lifecycle\"",
+    "coverage": [
+      "Email OTP registration through Google flow",
+      "Tempo, Arc EVM, and NEAR signing",
+      "ECDSA and Ed25519 export",
+      "Email OTP unlock",
+      "storage-preserving reload",
+      "restored signing and step-up"
+    ]
+  },
+  "routerBrowser": {
+    "result": "passed",
+    "durationSeconds": 1.7,
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.behavior.test.ts --grep \"Email OTP registration refreshes its exact session state\" --project=chromium --output=../.artifacts/r170-google-name"
+  },
+  "checks": [
+    "wallet type-check",
+    "intended type-check",
+    "browser type-check",
+    "docs tsc --noEmit",
+    "build:prod",
+    "check:declarations-external with removed-name rejection",
+    "check:runtime-entry-bundles",
+    "build:check:fresh"
+  ],
+  "limits": [
+    "Entry rename preserves existing returned-flow contracts.",
+    "Cancellation during outstanding work, repeated completion, expiry and resend replacement remain open.",
+    "General Email OTP consolidation and demo callback internalization remain open."
+  ],
+  "sdkProductionLines": {
+    "added": 18,
+    "removed": 18,
+    "net": 0
+  }
+}

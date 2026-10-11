@@ -172,6 +172,25 @@ export class CloudflareD1EmailOtpChallengeStore {
     return deletedRecords;
   }
 
+  async putIfAbsent(record: EmailOtpChallengeRecord): Promise<EmailOtpChallengeRecord> {
+    await emailOtpChallengeRows.insertIfAbsent(this.prepare, record).run();
+    const stored = await this.read(record.challengeId);
+    if (
+      !stored ||
+      stored.walletId !== record.walletId ||
+      stored.orgId !== record.orgId ||
+      stored.challengeSubjectId !== record.challengeSubjectId ||
+      stored.email !== record.email ||
+      stored.action !== record.action ||
+      stored.operation !== record.operation ||
+      stored.ownerProofBindingDigest !== record.ownerProofBindingDigest ||
+      stored.expiresAtMs !== record.expiresAtMs ||
+      stored.createdAtMs > record.createdAtMs
+    )
+      throw new Error('Email OTP challenge identity conflict');
+    return stored;
+  }
+
   async put(record: EmailOtpChallengeRecord): Promise<void> {
     await emailOtpChallengeRows.insert(this.prepare, record).run();
   }
@@ -180,14 +199,14 @@ export class CloudflareD1EmailOtpChallengeStore {
     const next = emailOtpChallengeWithAttemptCount(record, attemptCount);
     await this.prepare(
       `UPDATE email_otp_challenges
-          SET record_json = ?,
-              otp_code = ?,
-              expires_at_ms = ?
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?`,
+          SET record_json = ?5,
+              otp_code = ?6,
+              expires_at_ms = ?7
+        WHERE namespace = ?1
+          AND org_id = ?2
+          AND project_id = ?3
+          AND env_id = ?4
+          AND challenge_id = ?8`,
       [JSON.stringify(next), next.otpCode, next.expiresAtMs, next.challengeId],
     ).run();
   }

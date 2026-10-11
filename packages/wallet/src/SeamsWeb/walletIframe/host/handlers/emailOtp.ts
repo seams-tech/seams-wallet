@@ -17,6 +17,29 @@ import type {
 } from '../../shared/messages';
 import { redeemHostedWalletSeamsSession } from '../hostedWalletSeamsSession';
 
+function parseEmailCodeRequest(value: unknown): Parameters<import('@/SeamsWeb/publicApi/types').AuthCapability['requestEmailCode']>[0] {
+  const input = recordFromPayload(value);
+  if (input.method === 'email') {
+    return {
+      method: 'email',
+      walletId: readRequiredString(input, 'walletId'),
+      email: readRequiredString(input, 'email'),
+    };
+  }
+  if (input.method !== 'google') throw new Error('Email code method is invalid');
+  const target = recordFromPayload(input.target);
+  if (target.kind !== 'wallet' && target.kind !== 'discoverable') {
+    throw new Error('Email code wallet target is invalid');
+  }
+  return {
+    method: 'google',
+    idToken: readRequiredString(input, 'idToken'),
+    target: target.kind === 'wallet'
+      ? { kind: 'wallet', walletId: readRequiredString(target, 'walletId') }
+      : { kind: 'discoverable' },
+  };
+}
+
 function recordFromPayload(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -286,53 +309,25 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
     },
 
     PM_REQUEST_EMAIL_OTP_CHALLENGE: async (req: Req<'PM_REQUEST_EMAIL_OTP_CHALLENGE'>) => {
+      const pm = deps.getWalletRuntime();
       assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const { walletId, walletAuthMethodId, relayUrl, operation, operationFingerprintDigest } =
-        req.payload!;
-      const result = await pm.auth.requestEmailOtpChallenge({
-        walletId,
-        ...(walletAuthMethodId ? { walletAuthMethodId } : {}),
-        ...(relayUrl ? { relayUrl } : {}),
-        ...(operation ? { operation } : {}),
-        ...(operationFingerprintDigest ? { operationFingerprintDigest } : {}),
-      });
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE: async (
-      req: Req<'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE'>,
-    ) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const { walletId, relayUrl } = req.payload!;
-      const result = await pm.registration.requestEmailOtpEnrollmentChallenge({
-        walletId,
-        ...(relayUrl ? { relayUrl } : {}),
-      });
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE: async (
-      req: Req<'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE'>,
-    ) => {
-      const pm = deps.getSeamsWeb();
-      const result = await pm.auth.requestEmailOtpSigningSessionChallenge(req.payload!);
-      respondOkResult(deps, req.requestId, result);
+      const input = parseEmailCodeRequest(req.payload);
+      const result = await pm.auth.requestEmailCode(withProgress(deps, req.requestId, input));
+      respondOkResult(deps, req.requestId, resultFlowToWire(result));
     },
 
     PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH: async (
       req: Req<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'>,
     ) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const payloadRecord = recordFromPayload(req.payload);
       enableEmailOtpDiagnosticsFromPayload(payloadRecord);
       if (payloadRecord.mode === 'register') {
         assertNoGoogleRegistrationOtpFields(payloadRecord);
       }
       const payload = withProgress(deps, req.requestId, payloadRecord);
-      const result = await pm.auth.beginGoogleEmailOtpWalletAuth(
-        payload as Parameters<typeof pm.auth.beginGoogleEmailOtpWalletAuth>[0],
+      const result = await pm.auth.startGoogleSignIn(
+        payload as Parameters<typeof pm.auth.startGoogleSignIn>[0],
       );
       respondOkResult(deps, req.requestId, resultFlowToWire(result));
     },
@@ -400,62 +395,17 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
     PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL: async (
       req: Req<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL'>,
     ) => {
-      const flow = burnFlow(req.payload);
+      const flow = takeFlow(req.payload);
       await flow.cancel();
+      burnFlow(req.payload);
       respondOkResult(deps, req.requestId, undefined);
     },
 
-    PM_ENROLL_EMAIL_OTP: async (req: Req<'PM_ENROLL_EMAIL_OTP'>) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const rawPayload = recordFromPayload(req.payload);
-      const walletId = String(rawPayload.walletId || '').trim();
-      if (!walletId) {
-        throw new Error('PM_ENROLL_EMAIL_OTP requires walletId');
-      }
-      const payload = withProgress(deps, req.requestId, {
-        ...rawPayload,
-      });
-      const result = await pm.registration.enrollEmailOtp(
-        payload as Parameters<typeof pm.registration.enrollEmailOtp>[0],
-      );
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY: async (
-      req: Req<'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY'>,
-    ) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const walletId = String(req.payload?.walletSession.walletId || '').trim();
-      if (!walletId) {
-        throw new Error('PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY requires walletId');
-      }
-      const payload = withProgress(deps, req.requestId, {
-        ...(req.payload || {}),
-      });
-      const result = await pm.auth.loginWithEmailOtpEcdsaCapability(
-        payload as Parameters<typeof pm.auth.loginWithEmailOtpEcdsaCapability>[0],
-      );
-      respondOkResult(deps, req.requestId, result);
-    },
-
-    PM_REFRESH_EMAIL_OTP_SIGNING_SESSION: async (
-      req: Req<'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION'>,
-    ) => {
-      assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const payload = withProgress(deps, req.requestId, req.payload || {});
-      const result = await pm.auth.refreshEmailOtpSigningSession(
-        payload as Parameters<typeof pm.auth.refreshEmailOtpSigningSession>[0],
-      );
-      respondOkResult(deps, req.requestId, result);
-    },
 
     PM_GET_WALLET_RECOVERY_CODE_STATUS: async (req: Req<'PM_GET_WALLET_RECOVERY_CODE_STATUS'>) => {
       assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const result = await pm.recovery.getWalletRecoveryCodeStatus(
+      const pm = deps.getWalletRuntime();
+      const result = await pm.recovery.getCodeStatus(
         parseWalletRecoverySessionPayload(req.payload),
       );
       respondOkResult(deps, req.requestId, result);
@@ -465,7 +415,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       req: Req<'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE'>,
     ) => {
       assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const result = await pm.recovery.requestWalletCustodyEmailOtpChallenge(
         parseWalletCustodyEmailOtpChallengePayload(req.payload),
       );
@@ -476,8 +426,8 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       req: Req<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP'>,
     ) => {
       assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const result = await pm.recovery.acknowledgeWalletRecoveryCodeBackup(
+      const pm = deps.getWalletRuntime();
+      const result = await pm.recovery.confirmBackup(
         parseWalletRecoverySessionPayload(req.payload),
       );
       respondOkResult(deps, req.requestId, result);
@@ -485,8 +435,8 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
 
     PM_ROTATE_WALLET_RECOVERY_CODES: async (req: Req<'PM_ROTATE_WALLET_RECOVERY_CODES'>) => {
       assertNoParentPostedWalletSessionToken(req.payload);
-      const pm = deps.getSeamsWeb();
-      const result = await pm.recovery.rotateWalletRecoveryCodes(
+      const pm = deps.getWalletRuntime();
+      const result = await pm.recovery.rotateCodes(
         parseWalletRecoveryRotationPayload(req.payload),
       );
       respondOkResult(deps, req.requestId, result);

@@ -1,0 +1,156 @@
+{
+  "scope": "Independent host composition. Public-client execution dependencies remain.",
+  "productionSourceBase": "909c28c41094ac2d8d9adfa74c9181a6c47d11a8",
+  "testRevision": "7f4197221a995f48de02c93239b5d5d1154b2961",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/SeamsWeb.ts": "66b62c544f593e01dca89b1cecf231b6371c6fce3af5b67b5ea57b0ffd9092ed",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "54128d92ae098df99e18831cef42ae63a2d781118569c7ebebe77ab2acce39d3",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/controller.ts": "29aafbdcc2c5e6db1a6cbaeb6528be3c8912eeda4077f242bbcd51828da741c1",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/context.ts": "90289b943b11562fa5423d94e2dc446054f5ccf52f5a564e481d8d5bab170e57",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts": "b4da237161253ce6d9f78aa177e49d508dc17a7f514f58acf53e71e2424d9d11",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/authMenu.ts": "37dfba0640c515615018a7cab83aafbb3e56d3ef6c4498e8e885ca7e2c2e609a",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/deviceLink.ts": "f33d0cbe53c00486e1cb9dd945714b2e84e267b6019c89e5e83a4f41f5f38c48",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/ecdsaTempo.ts": "6923f3725baff134b09367456666e4f43fa4a22336b42a9dfa5d7a7f3bf0ec56",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/emailOtp.ts": "dac12bef4ebe454029a539b87cc78f922882891f1851f0fcc46016a1f344f498",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/export.ts": "6c3a6310d37b0c12d370965704f68828a1485ac353e40f99ff24dacdb63d7270",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "00ba5ba75132b158749a08d73a39fba285855745fa43fb952b7897752cd14598",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/preferences.ts": "62288a65931de56751121ad6f7f862c5b23b0bd4e6e8fd887c8f89777ba4c99a",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/recovery.ts": "a1753437ba5563c05ce7a8fdbe0c92662d14a5d3ffa88e7992a2471108b924a4",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/walletIframeHandler.types.ts": "5249f42df9668fafff8c7856d5db94b3fb43021e8f8347b109c77702ed1f0c20",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "6e6122150a7301f8e4cd18082cd5d80ce139bd6fb741541630f08d010210a2ce",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/emailOtpLifecycle.ts": "82ab8ef3056dc77d0d1bd7edcb9706d2ab2159665e405d1d750e442d930f4330",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/facadeBoundary.ts": "a82143766d55ba88120cdfb9930a7163a3de61de39e2893f31925af57a4f8780"
+  },
+  "checks": {
+    "productionBuild": "passed",
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "walletStateTypes": "passed",
+    "bloatGate": "passed"
+  },
+  "browserCases": [
+    {
+      "case": "[wallet-intended] 1/8 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "result": "1 passed (48.6s)"
+    },
+    {
+      "case": "[wallet-intended] 2/8 e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts:51 a fresh browser recovers a Passkey-founded wallet with Google and Email OTP, signs, and refuses reuse",
+      "result": "1 passed (32.0s)"
+    },
+    {
+      "case": "[wallet-intended] 1/1 e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts:66 a committed Google recovery survives a lost finalization response and runtime reset",
+      "result": "1 passed (32.6s)"
+    },
+    {
+      "case": "[wallet-intended] 1/5 e2e/intended-behaviours/passkey.device-linking.contract.test.ts:115 a second device links with a passkey, signs NEAR and Tempo, and is revoked",
+      "result": "1 passed (35.1s)"
+    },
+    {
+      "case": "[wallet-intended] 2/5 e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:53 production wallet records asset traffic across registration, signing, and unlock",
+      "result": "1 passed (35.4s)"
+    },
+    {
+      "case": "[wallet-intended] 3/5 e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:111 production signed-out mount and menu record cold and warm cache traffic",
+      "result": "1 passed (34.4s)"
+    },
+    {
+      "case": "[wallet-intended] 4/5 e2e/intended-behaviours/passkey.unlock.contract.test.ts:39 passkey unlock restores immediate export and shared-budget signing",
+      "result": "1 passed (33.2s)"
+    },
+    {
+      "case": "[wallet-intended] 5/5 e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "result": "1 passed (36.6s)"
+    }
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet build:prod",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.device-linking.contract.test.ts e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts --grep 'production wallet records|production signed-out|passkey unlock restores|page refresh hydrates|Email OTP registration and unlock lifecycle|a second device links with a passkey|fresh browser recovers a Passkey|a committed Google recovery'"
+  ],
+  "consumerReport": {
+    "accounting": "Production minified ESM with splitting; named exports retained. Static and all-reachable closures overlap. React peers excluded; dependencies otherwise bundled. CSS/assets separate. Per-file gzip level 9 and Brotli quality 11. No observed network or WASM traffic.",
+    "outputDirectory": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/seams-wallet-consumers-goDig8",
+    "revision": "909c28c41094ac2d8d9adfa74c9181a6c47d11a8",
+    "workingTree": "M ../../crates/router-ab-dev/tests/local_worker_http.rs\nM  src/SeamsWeb/SeamsWeb.ts\nA  src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts\nM  src/SeamsWeb/walletIframe/host/auth-menu/controller.ts\nM  src/SeamsWeb/walletIframe/host/context.ts\nM  src/SeamsWeb/walletIframe/host/handlers/auth.ts\nM  src/SeamsWeb/walletIframe/host/handlers/authMenu.ts\nM  src/SeamsWeb/walletIframe/host/handlers/deviceLink.ts\nM  src/SeamsWeb/walletIframe/host/handlers/ecdsaTempo.ts\nM  src/SeamsWeb/walletIframe/host/handlers/emailOtp.ts\nM  src/SeamsWeb/walletIframe/host/handlers/export.ts\nM  src/SeamsWeb/walletIframe/host/handlers/near.ts\nM  src/SeamsWeb/walletIframe/host/handlers/preferences.ts\nM  src/SeamsWeb/walletIframe/host/handlers/recovery.ts\nM  src/SeamsWeb/walletIframe/host/handlers/walletIframeHandler.types.ts\nM  src/SeamsWeb/walletIframe/host/runtimeContext.ts\nM  src/SeamsWeb/walletIframe/shared/emailOtpLifecycle.ts\nA  src/SeamsWeb/walletIframe/shared/facadeBoundary.ts\n?? ../../crates/router-ab-dev/tests/support/",
+    "packageVersion": "0.8.0",
+    "nodeVersion": "v26.4.0",
+    "bunVersion": "1.2.18",
+    "lockfileSha256": "cca6b7aa753c9af21e0bac8af0ce3e7b21377d0c3701cbb5bba1916594e469c9",
+    "inputBuildMode": "Not recorded by the existing build manifest; consumer bundles are minified in production mode.",
+    "buildInputsHash": "5a0a48afdedcb3253992805b0ec62746c59b09df55717b06a605b7f6ae45e510",
+    "emittedEsmSha256": "967d9c3ca208d6868cbfdb297f4839b5440b553adda4a1d890691c03f0abd349",
+    "freshness": {
+      "status": "fresh",
+      "detail": "\u2705 Build is fresh"
+    },
+    "consumers": [
+      {
+        "name": "root-client",
+        "closures": {
+          "staticJavaScript": {
+            "raw": 2713345,
+            "gzip": 627059,
+            "brotli": 509082
+          },
+          "allReachableJavaScript": {
+            "raw": 2897481,
+            "gzip": 680712,
+            "brotli": 555604
+          }
+        }
+      },
+      {
+        "name": "react-provider",
+        "closures": {
+          "staticJavaScript": {
+            "raw": 2736041,
+            "gzip": 634037,
+            "brotli": 514473
+          },
+          "allReachableJavaScript": {
+            "raw": 2932081,
+            "gzip": 690493,
+            "brotli": 563226
+          }
+        }
+      },
+      {
+        "name": "hosted-auth-menu",
+        "closures": {
+          "staticJavaScript": {
+            "raw": 38746,
+            "gzip": 12945,
+            "brotli": 11404
+          },
+          "allReachableJavaScript": {
+            "raw": 38746,
+            "gzip": 12945,
+            "brotli": 11404
+          }
+        }
+      },
+      {
+        "name": "react-hosted-auth",
+        "closures": {
+          "staticJavaScript": {
+            "raw": 2760604,
+            "gzip": 640195,
+            "brotli": 519987
+          },
+          "allReachableJavaScript": {
+            "raw": 2943733,
+            "gzip": 693460,
+            "brotli": 566115
+          }
+        }
+      }
+    ]
+  },
+  "testInfrastructureCorrection": {
+    "classification": "environment_or_infrastructure_failure",
+    "initialFailure": "Recovery journal observation requested a development /@fs URL from the production server.",
+    "resolution": "Chromium IndexedDB inspection of the exact wallet-origin journal key. Only wallet, operation, and stage metadata leave the browser.",
+    "discardedApproach": "Playwright storage snapshots can encode complex records. A plain-value reader could not reliably observe journal presence.",
+    "debuggingSession": "The same-site wallet iframe uses its parent page CDP session."
+  },
+  "artifacts": ".artifacts/r170-host-composition/"
+}

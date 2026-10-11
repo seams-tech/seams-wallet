@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
-import type { AccountInputState, LoginState, RegistrationResult, SeamsContextType } from '../types';
+import type { AccountInputState, LoginState, SeamsContextType } from '../types';
 import type { ThemeMode } from '@/core/types/seams';
-import type { DevicesCapability } from '@/SeamsWeb';
 import { useSDKFlowRuntime } from './useSDKFlowRuntime';
 import { useSeamsWithSdkFlow } from './useSeamsWithSdkFlow';
 import { buildReactLoggedOutLoginState } from './reactLoginStateBuilders';
@@ -13,9 +12,9 @@ export function useSeamsContextValue(args: {
   loginState: LoginState;
   setLoginState: Dispatch<SetStateAction<LoginState>>;
   walletIframeConnected: boolean;
-  refreshLoginState: SeamsContextType['refreshLoginState'];
+  refreshSession: SeamsContextType['refreshSession'];
   accountInputState: AccountInputState;
-  setInputUsername: SeamsContextType['setInputUsername'];
+  setAccountName: SeamsContextType['setAccountName'];
   refreshAccountData: SeamsContextType['refreshAccountData'];
   hostSetTheme?: (theme: ThemeMode) => void;
 }): SeamsContextType {
@@ -24,9 +23,9 @@ export function useSeamsContextValue(args: {
     loginState,
     setLoginState,
     walletIframeConnected,
-    refreshLoginState,
+    refreshSession,
     accountInputState,
-    setInputUsername,
+    setAccountName,
     refreshAccountData,
     hostSetTheme,
   } = args;
@@ -55,18 +54,8 @@ export function useSeamsContextValue(args: {
     }
   }, [setLoginState, seams]);
 
-  const startDevice2LinkingFlow: SeamsContextType['startDevice2LinkingFlow'] = useCallback(
-    async (args) => {
-      const request: Parameters<DevicesCapability['startDevice2LinkingFlow']>[0] = args ?? {};
-      return await seamsWithSdkFlow.devices.startDevice2LinkingFlow(request);
-    },
-    [seamsWithSdkFlow],
-  );
-
-  const cancelDeviceLinking: SeamsContextType['cancelDeviceLinking'] =
-    useCallback(async () => {
-      await seams.devices.cancelDeviceLinking();
-    }, [seams]);
+  const startLinking = seamsWithSdkFlow.devices.startLinking;
+  const cancelLinking = seams.devices.cancelLinking;
 
   const unlock: SeamsContextType['unlock'] = useCallback(
     async (walletId, options) => {
@@ -74,7 +63,7 @@ export function useSeamsContextValue(args: {
         ...options,
         onEvent: async (event) => {
           if (event.phase === UnlockEventPhase.STEP_07_COMPLETED && event.status === 'succeeded') {
-            await refreshLoginState(walletId);
+            await refreshSession(walletId);
             await refreshAccountData();
           }
           return options?.onEvent?.(event);
@@ -85,31 +74,12 @@ export function useSeamsContextValue(args: {
         },
       });
     },
-    [lock, refreshAccountData, refreshLoginState, seamsWithSdkFlow],
-  );
-
-  const registerPasskey: SeamsContextType['registerPasskey'] = useCallback(
-    async (options) => {
-      const result: RegistrationResult = await seamsWithSdkFlow.registration.registerPasskey({
-        ...options,
-        onError: (error) => {
-          lock();
-          return options?.onError?.(error);
-        },
-      });
-
-      const walletId = result?.success ? String(result.walletId || '').trim() : '';
-      if (result?.success && walletId) {
-        await refreshLoginState(walletId);
-      }
-      return result;
-    },
-    [lock, refreshLoginState, seamsWithSdkFlow],
+    [lock, refreshAccountData, refreshSession, seamsWithSdkFlow],
   );
 
   const registerWallet: SeamsContextType['registerWallet'] = useCallback(
     async (args) => {
-      const result = await seamsWithSdkFlow.registration.registerWallet({
+      return await seamsWithSdkFlow.registration.registerWallet({
         ...args,
         options: {
           ...args.options,
@@ -119,35 +89,15 @@ export function useSeamsContextValue(args: {
           },
         },
       });
-      const walletId = result?.success ? String(result.walletId || '') : '';
-      if (result?.success && walletId) {
-        await refreshLoginState(walletId);
-      }
-      return result;
     },
-    [lock, refreshLoginState, seamsWithSdkFlow],
+    [lock, seamsWithSdkFlow],
   );
 
-  const addWalletSigner: SeamsContextType['addWalletSigner'] = useCallback(
-    async (args) => {
-      return await seamsWithSdkFlow.registration.addWalletSigner(args);
-    },
-    [seamsWithSdkFlow],
-  );
+  const addSigner = seamsWithSdkFlow.registration.addSigner;
 
-  const executeAction: SeamsContextType['executeAction'] = useCallback(
-    (args) => {
-      return seams.near.executeAction({ ...args, options: { ...(args.options || {}) } });
-    },
-    [seams],
-  );
+  const signAndSendTransaction = seams.near.signAndSendTransaction;
 
-  const signNEP413Message: SeamsContextType['signNEP413Message'] = useCallback(
-    (args) => {
-      return seams.near.signNEP413Message({ ...args, options: { ...(args.options || {}) } });
-    },
-    [seams],
-  );
+  const signMessage = seams.near.signMessage;
 
   const signDelegateAction: SeamsContextType['signDelegateAction'] = useCallback(
     (args) => {
@@ -156,54 +106,39 @@ export function useSeamsContextValue(args: {
     [seams],
   );
 
-  const getWalletSession: SeamsContextType['getWalletSession'] = useCallback(
+  const getSession: SeamsContextType['getSession'] = useCallback(
     (walletId?: string) => {
-      return seams.auth.getWalletSession(walletId);
+      return seams.auth.getSession(walletId);
     },
     [seams],
   );
 
-  const setConfirmBehavior: SeamsContextType['setConfirmBehavior'] = useCallback(
-    (behavior) => {
-      seams.preferences.setConfirmBehavior(behavior);
-    },
-    [seams],
-  );
-
-  const setConfirmationConfig: SeamsContextType['setConfirmationConfig'] = useCallback(
-    (config) => {
-      seams.preferences.setConfirmationConfig(config);
-    },
-    [seams],
-  );
-
-  const getConfirmationConfig: SeamsContextType['getConfirmationConfig'] = useCallback(() => {
-    return seams.preferences.getConfirmationConfig();
-  }, [seams]);
+  const setConfirmationBehavior = seams.preferences.setConfirmationBehavior;
+  const setConfirmationConfig = seams.preferences.setConfirmationConfig;
+  const getConfirmationConfig = seams.preferences.getConfirmationConfig;
 
   return useMemo(
     () => ({
       seams: seamsWithSdkFlow,
       sdkFlow,
       walletLockState,
-      addWalletSigner,
+      addSigner,
       registerWallet,
-      registerPasskey,
       unlock,
       lock,
-      startDevice2LinkingFlow,
-      cancelDeviceLinking,
-      executeAction,
-      signNEP413Message,
+      startLinking,
+      cancelLinking,
+      signAndSendTransaction,
+      signMessage,
       signDelegateAction,
-      getWalletSession,
-      refreshLoginState,
+      getSession,
+      refreshSession,
       loginState,
       walletIframeConnected,
       accountInputState,
-      setInputUsername,
+      setAccountName,
       refreshAccountData,
-      setConfirmBehavior,
+      setConfirmationBehavior,
       setConfirmationConfig,
       getConfirmationConfig,
       themeCapabilities: {
@@ -214,24 +149,23 @@ export function useSeamsContextValue(args: {
       seamsWithSdkFlow,
       sdkFlow,
       walletLockState,
-      addWalletSigner,
+      addSigner,
       registerWallet,
-      registerPasskey,
       unlock,
       lock,
-      startDevice2LinkingFlow,
-      cancelDeviceLinking,
-      executeAction,
-      signNEP413Message,
+      startLinking,
+      cancelLinking,
+      signAndSendTransaction,
+      signMessage,
       signDelegateAction,
-      getWalletSession,
-      refreshLoginState,
+      getSession,
+      refreshSession,
       loginState,
       walletIframeConnected,
       accountInputState,
-      setInputUsername,
+      setAccountName,
       refreshAccountData,
-      setConfirmBehavior,
+      setConfirmationBehavior,
       setConfirmationConfig,
       getConfirmationConfig,
       hostSetTheme,

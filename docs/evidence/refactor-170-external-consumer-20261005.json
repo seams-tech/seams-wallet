@@ -1,0 +1,73 @@
+{
+  "baseCommit": "250635bdaabc3d52522efe50e9872dd98101e2bc",
+  "scope": "Hide the WASM implementation constructor from emitted public declarations and require strict compilation against the npm tarball.",
+  "classification": {
+    "declarationLeak": "production_regression: the exposed internal class pulled Symbol.dispose requirements into ES2022 consumer declarations.",
+    "checker": "valid_test_needs_update: diagnostic substring matching ignored unrelated TypeScript failures."
+  },
+  "sourceSha256": {
+    "packages/wallet/scripts/checks/check-declarations-resolve-externally.mjs": "839677c7b8172d62539c8b6517fbec5156b75176a5c2d9651905b1741bcba253",
+    "packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts": "569f7b5da986886f2964fb75463b462c587cd7f1e0ae0f9e9229ca7017fb7f78",
+    "packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.typecheck.ts": "b2b5d9feb80d2d4efc58f05d2d3d84a1c7b31b4f193b68f2a27f77cfc4fbcbae"
+  },
+  "before": {
+    "strengthenedCheckerExit": 1,
+    "diagnostic": "TS2550: Property dispose does not exist on type SymbolConstructor.",
+    "generatedDeclaration": "router_ab_ed25519_yao_client.d.ts"
+  },
+  "after": {
+    "checkerExit": 0,
+    "packageIntegrity": "sha512-m8EoHigmHMd7tM5bpHJLQ1gT112Fuj96pIkqpfuxKRe34QtBwUjujbnzE2Eiub8f2ISqkyWhL8v83zrDPF79bQ==",
+    "compilerOptions": {
+      "module": "esnext",
+      "moduleResolution": "bundler",
+      "target": "es2022",
+      "strict": true,
+      "noEmit": true,
+      "skipLibCheck": false,
+      "types": []
+    },
+    "entryPoints": [
+      "@seams/wallet",
+      "@seams/wallet/react",
+      "@seams/wallet/runtime"
+    ],
+    "bridgeDeclarationSha256": "e76f326c76759f3fd749cc744e2ab187c7075f39610a37d1b32ab827fd17a37c",
+    "implementationConstructorAbsent": true,
+    "generatedWasmImportAbsent": true
+  },
+  "verification": {
+    "declarationCommand": "pnpm -C packages/wallet check:declarations-external",
+    "productionCommand": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"public Ed25519 Yao registration signs immediately|Email OTP registration and unlock lifecycle\"",
+    "productionCases": [
+      "[wallet-intended] 1/2 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "[wallet-intended] 2/2 e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts:11 public Ed25519 Yao registration signs immediately and after refresh"
+    ],
+    "productionPassReceipts": [
+      "1 passed (46.9s)",
+      "1 passed (28.1s)"
+    ],
+    "productionExit": 0,
+    "otherChecks": [
+      "wallet type-check",
+      "wallet-state type-check",
+      "build:prod",
+      "build:check:fresh",
+      "check:runtime-entry-bundles",
+      "report:bloat --check",
+      "node tests/scripts/check-packed-wallet-boundaries.mjs"
+    ],
+    "packedBoundaryExit": 0
+  },
+  "preserved": [
+    "WASM activation and construction guard",
+    "Existing active-client interfaces",
+    "Disposal and material ownership",
+    "Generated source artifacts are regenerated, never edited"
+  ],
+  "limits": [
+    "Runtime dependencies and peers use installed workspace versions; this is not a fresh dependency installation.",
+    "React peer absence is not tested by this consumer.",
+    "The compilation probes do not replace all runtime, browser, release, or remaining R170 acceptance gates."
+  ]
+}

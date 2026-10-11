@@ -5,9 +5,9 @@ description: Provision secure, recoverable wallets for users of marketplaces, tr
 
 # Platform wallets
 
-A platform wallet is a persistent wallet attached to an application account.
-The platform provisions it during onboarding, and the user returns to it for
-balances, assets, payments, trades, transfers, rewards, or payouts.
+A platform wallet is a persistent wallet attached to an application account. The
+platform creates it during onboarding. The user returns to it for balances, assets,
+payments, trades, transfers, rewards, or payouts.
 
 ```text
 Platform account
@@ -45,10 +45,10 @@ single session.
 
 ## Qualification
 
-Platform wallets are a strong fit when users hold value or assets between
-sessions, perform repeated financial or onchain actions, or need constrained
-automation. A conventional store collecting a one-time payment can use the
-shopper's existing wallet and does not need to provision another one.
+Use platform wallets when users hold value or assets between sessions. They also suit
+repeated financial or onchain actions and automation with defined limits. A conventional
+store collecting a one-time payment can use the shopper's existing wallet and does not
+need to provision another one.
 
 Start with [embedded wallets](/guides/embedded-wallets) and [create a
 wallet](/getting-started/create-wallet).

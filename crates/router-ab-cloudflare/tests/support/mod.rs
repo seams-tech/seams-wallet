@@ -89,7 +89,7 @@ pub fn assert_ecdsa_pool_mutation_reaches_owner_storage(lib_rs: &str) {
         "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
     );
     for required in [
-        "wallet_scope.ok_or_else",
+        "wallet_route.ok_or_else",
         "SigningWorkerWalletDoRequestV1::EcdsaPoolMutate",
         "outcome.validate()",
         "execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(env, runtime, command)",
@@ -114,7 +114,7 @@ pub fn assert_ecdsa_pool_mutation_reaches_owner_storage(lib_rs: &str) {
         );
     }
     // The wallet store: the wallet DO on Cloudflare, role-private SQLite on a VM.
-    let wallet_do = extract_function_body(lib_rs, "mutate_pool");
+    let wallet_do = extract_function_body(lib_rs, "mutate_pool_record");
     for required in [
         "apply_cloudflare_signing_worker_ecdsa_pool_command_v1",
         "ECDSA pool owner conflict",

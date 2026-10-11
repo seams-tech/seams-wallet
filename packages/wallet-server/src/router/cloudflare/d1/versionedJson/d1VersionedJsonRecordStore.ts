@@ -156,25 +156,7 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
     keys: readonly string[],
   ): Promise<readonly CloudflareD1VersionedJsonRecordReadManyEntryV1<T>[]> {
     const preparedKeys = prepareReadKeys(keys, this.keyPrefix);
-    const statements = preparedKeys.map(({ storageKey }) =>
-      this.database
-        .prepare(
-          `SELECT version, record_json
-           FROM ${TABLE_NAME}
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_key = ?5`,
-        )
-        .bind(
-          this.scope.namespace,
-          this.scope.orgId,
-          this.scope.projectId,
-          this.scope.envId,
-          storageKey,
-        ),
-    );
+    const statements = preparedKeys.map(({ key }) => this.prepareRead(key));
     let results: readonly D1ResultLike<StoredRecord>[];
     try {
       results = await this.database.batch<D1ResultLike<StoredRecord>>(statements);
@@ -196,7 +178,27 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
     }));
   }
 
-  private parseReadResult(
+  prepareRead(key: string): D1PreparedStatementLike {
+    return this.database
+      .prepare(
+        `SELECT version, record_json
+           FROM ${TABLE_NAME}
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND record_key = ?5`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        this.storageKey(key),
+      );
+  }
+
+  parseReadResult(
     result: D1ResultLike<StoredRecord> | undefined,
   ): VersionedJsonRecordReadResult<T> {
     const row = firstResult(result);
@@ -250,6 +252,9 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
   async putManyWithAdditionalStatements(
     mutations: readonly CloudflareD1VersionedJsonRecordMutationV1<T>[],
     additionalStatements: readonly D1PreparedStatementLike[],
+    executeBatch?: (
+      statements: readonly D1PreparedStatementLike[],
+    ) => Promise<readonly D1ResultLike[]>,
   ): Promise<CloudflareD1VersionedJsonRecordBatchPutResultV1> {
     const prepared = this.prepareBatchMutations(mutations);
     const statements: D1PreparedStatementLike[] = [];
@@ -259,7 +264,9 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
     }
     statements.push(...additionalStatements);
     try {
-      const results = await this.database.batch<D1ResultLike>(statements);
+      const results = executeBatch
+        ? await executeBatch(statements)
+        : await this.database.batch<D1ResultLike>(statements);
       assertBatchSucceeded(results, statements.length);
       return {
         kind: 'stored',
@@ -443,7 +450,7 @@ export class CloudflareD1VersionedJsonRecordStore<T> {
       : { kind: 'version_mismatch' };
   }
 
-  private storageKey(key: string): string {
+  storageKey(key: string): string {
     return `${this.keyPrefix}${normalizeRecordKey(key)}`;
   }
 }

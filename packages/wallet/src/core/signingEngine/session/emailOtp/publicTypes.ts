@@ -151,8 +151,7 @@ export type EmailOtpTransactionSigningChallenge = {
   delivery: EmailOtpChallengeDelivery;
 };
 
-export type EmailOtpEnrollmentResult = {
-  challengeId: string;
+export type EmailOtpEnrollmentMaterial = {
   otpChannel: WalletEmailOtpChannel;
   enrollmentId: string;
   enrollmentSealKeyVersion: string;

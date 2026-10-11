@@ -123,7 +123,7 @@
       "builder_args_json": {
         "callbackUrl": "https://wallet.example/callback",
         "displayDigestB64u": "0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tI",
-        "expectedSigningDigestB64u": "JZuedIKlTa9uFN6iEy_oaKKD-QYl7Yh3EeinIINM8FA",
+        "expectedSigningDigestB64u": "zcwfMYmqL20gHWDfbqwEtohZYxG6sK880DPAZCM_6G4",
         "expiresAtMs": 1900000000000,
         "message": "Sign in to Seams",
         "nearAccountId": "alice.testnet",
@@ -219,15 +219,15 @@
           "signing_worker_id": "signing-worker-v2"
         },
         "signing_payload": {
-          "canonical_message_b64u": "nQEAgBAAAABTaWduIGluIHRvIFNlYW1zEwAAAHdhbGxldC5leGFtcGxlLm5lYXJBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQEfAAAAaHR0cHM6Ly93YWxsZXQuZXhhbXBsZS9jYWxsYmFjaw",
-          "expected_signing_digest_b64u": "JZuedIKlTa9uFN6iEy_oaKKD-QYl7Yh3EeinIINM8FA",
+          "canonical_message_b64u": "nQEAgBAAAABTaWduIGluIHRvIFNlYW1zQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUETAAAAd2FsbGV0LmV4YW1wbGUubmVhcgEfAAAAaHR0cHM6Ly93YWxsZXQuZXhhbXBsZS9jYWxsYmFjaw",
+          "expected_signing_digest_b64u": "zcwfMYmqL20gHWDfbqwEtohZYxG6sK880DPAZCM_6G4",
           "kind": "nep413_message_v1"
         }
       },
       "intent_digest_b64u": "DpsbOLTw8ZAe0gHAjA8tBcXIztFiNU20NAgLmuxEUig",
-      "signing_payload_digest_b64u": "StWUSR49LhWUFyQGTXMsQy9U2Q2qeuw4F5aMgsdUKzE",
-      "admitted_signing_digest_b64u": "JZuedIKlTa9uFN6iEy_oaKKD-QYl7Yh3EeinIINM8FA",
-      "round1_binding_digest_b64u": "-l21eKjeBmDBDQkShmUy0Cs-fpnPe5RCWdJdRxX1_M0"
+      "signing_payload_digest_b64u": "ETxqU0E47tPtG00u1yHDRXzrlldJTKRK-0Cr7vrC7Ys",
+      "admitted_signing_digest_b64u": "zcwfMYmqL20gHWDfbqwEtohZYxG6sK880DPAZCM_6G4",
+      "round1_binding_digest_b64u": "a5n9fOinPPOOdyDgKMm-8oTMTK0BwFBZBFQ5f8xvz9g"
     },
     {
       "case_id": "near_delegate_action_v1",

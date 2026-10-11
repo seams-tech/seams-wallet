@@ -1,0 +1,161 @@
+{
+  "date": "2026-10-07",
+  "environment": "Local Chromium, virtual WebAuthn, local role Workers, no blockchain broadcast",
+  "fullScenarioCounts": {
+    "baseline": {
+      "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium": {
+        "/wallet/session/status": 27,
+        "/router-ab/ed25519/sign/prepare": 4,
+        "/router-ab/ed25519/sign": 2
+      },
+      "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium": {
+        "/wallet/session/status": 25,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "e2e-intended-behaviours-pa-a03c6-mediately-and-after-refresh-chromium": {
+        "/wallet/session/status": 29,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      }
+    },
+    "candidate": {
+      "e2e-intended-behaviours-pa-3870c-ts-the-next-valid-operation-chromium": {
+        "/wallet/session/status": 18,
+        "/router-ab/ed25519/sign/prepare": 4,
+        "/router-ab/ed25519/sign": 2
+      },
+      "e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium": {
+        "/wallet/session/status": 17,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      },
+      "e2e-intended-behaviours-pa-a03c6-mediately-and-after-refresh-chromium": {
+        "/wallet/session/status": 19,
+        "/router-ab/ed25519/sign/prepare": 3,
+        "/router-ab/ed25519/sign": 3
+      }
+    }
+  },
+  "sdkSigningIntervals": {
+    "baseline": [
+      {
+        "statusCalls": 5,
+        "postPaths": [
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/",
+          "/",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "statusCalls": 5,
+        "postPaths": [
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/",
+          "/",
+          "/",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "statusCalls": 9,
+        "postPaths": [
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet-session/seal/remove-server-seal",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      }
+    ],
+    "candidate": [
+      {
+        "statusCalls": 2,
+        "postPaths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/",
+          "/",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "statusCalls": 2,
+        "postPaths": [
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/",
+          "/",
+          "/",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      },
+      {
+        "statusCalls": 5,
+        "postPaths": [
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/wallet/session/status",
+          "/wallet/session/status",
+          "/wallet-session/seal/remove-server-seal",
+          "/wallet/session/status",
+          "/wallet/execution-lane/owner",
+          "/router-ab/ed25519/sign/prepare",
+          "/router-ab/ed25519/sign"
+        ]
+      }
+    ]
+  },
+  "verification": {
+    "nearBaselinePassed": 3,
+    "nearCandidatePassed": 3,
+    "linkedRevocationDuringConsoleOutage": "passed",
+    "sharedBudgetAndBothCurvePasskeyStepUpDuringConsoleOutage": "passed",
+    "emailOtpRegistrationUnlockExportAndBothCurveStepUp": "passed"
+  },
+  "limits": [
+    "Request-count comparison only; no hosted latency claim.",
+    "Whole-scenario counts include lifecycle and harness reads.",
+    "SDK interval counts use near_sdk_signing_started and near_sdk_signing_timing trace timestamps.",
+    "Fresh export, funding and restoration readers remain; status calls have not reached zero."
+  ],
+  "baselineDistSha256": "c9b7af03fd08bb1792897bf0969964952f679eecaad249ee0ba657a2ceee6899",
+  "candidateDistSha256": "7cb24857a033c411cb933ad5de8fec14d01be4bdcb3a0de6bec7d226a5a5439e"
+}

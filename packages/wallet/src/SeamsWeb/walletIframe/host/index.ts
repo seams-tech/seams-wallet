@@ -1,4 +1,9 @@
 import {
+  applyWalletConfigurationUpdate,
+  parseWalletConfigurationUpdate,
+  walletHostExecutionFingerprint,
+} from '../shared/configuration';
+import {
   TransactionReviewAdmission,
   transactionReviewAdmission,
   cancelTransactionReviews,
@@ -15,7 +20,6 @@ import { bootstrapTransparentHost } from './bootstrap';
 import type {
   ChildToParentEnvelope,
   ParentToChildEnvelope,
-  PMSetConfigPayload,
   WalletIframeProtocolVersionMismatchDetails,
 } from '../shared/messages';
 import {
@@ -121,6 +125,24 @@ function routeIsSupported(
   return !supported || supported.has(route.kind);
 }
 
+function postExecutionMessage(
+  state: WalletHostRuntimeState,
+  generation: number,
+  post: (message: ChildToParentEnvelope) => void,
+  message: ChildToParentEnvelope,
+): void {
+  if (state.executionGeneration === generation) post(message);
+}
+
+function executionRequestIsCancelled(
+  state: WalletHostRuntimeState,
+  generation: number,
+  isCancelled: (requestId: string | undefined) => boolean,
+  requestId: string | undefined,
+): boolean {
+  return state.executionGeneration !== generation || isCancelled(requestId);
+}
+
 export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   if (initialized) return;
   initialized = true;
@@ -131,10 +153,13 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   }
 
   const cancelledRequests = new Set<string>();
+  const activeRuntimeRequests = new Set<string>();
   const state: WalletHostRuntimeState = {
     parentOrigin: null,
     port: null,
-    walletConfigs: null,
+    configuration: { kind: 'unconfigured' },
+    executionGeneration: 0,
+    onConfigurationChanged: null,
   };
 
   const post = (msg: ChildToParentEnvelope): void => {
@@ -191,13 +216,14 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     const req = e.data;
     if (!req || !isObject(req)) return;
     const requestId = req.requestId;
+    const requestExecutionGeneration = state.executionGeneration;
+    const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
       if ('transactionReview' in req) {
         if (
           req.type !== 'PM_SIGN_AND_SEND_TX' &&
-          req.type !== 'PM_EXECUTE_ACTION' &&
           req.type !== 'PM_SIGN_TEMPO'
         ) {
           throw new TransactionReviewError(
@@ -224,9 +250,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
             ? 'credential'
             : 'mpc',
-          (payload) => post({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
+          (payload) => postForRequest({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
           (error) =>
-            post({
+            postForRequest({
               type: 'ERROR',
               requestId,
               payload: {
@@ -238,7 +264,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       }
       if (
         req.type === 'PM_LOCK' ||
-        req.type === 'PM_LOGOUT' ||
         req.type === 'PM_LOCK_EXACT_WALLET_SESSION'
       ) {
         cancelTransactionReviews(
@@ -252,17 +277,44 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
           case 'PING':
             post({ type: 'PONG', requestId });
             return;
-          case 'PM_SET_CONFIG':
-            state.walletConfigs = {
-              ...(state.walletConfigs || {}),
-              ...(route.request.payload as PMSetConfigPayload),
-            };
-            if (CONFIRM_UI_SURFACES.some(({ selector }) => document.querySelector(selector))) {
-              const runtimeContext = await import('./runtimeContext');
-              runtimeContext.syncActiveWalletHostRuntimeConfig(state);
+          case 'PM_SET_CONFIG': {
+            const configuration = applyWalletConfigurationUpdate(
+              state.configuration,
+              parseWalletConfigurationUpdate(route.request.payload),
+            );
+            const previous =
+              state.configuration.kind === 'configured' ? state.configuration.config : null;
+            const executionChanged =
+              walletHostExecutionFingerprint(previous) !==
+              walletHostExecutionFingerprint(configuration.config);
+            state.configuration = configuration;
+            if (executionChanged) {
+              state.executionGeneration += 1;
+              for (const activeRequestId of activeRuntimeRequests) {
+                post({
+                  type: 'ERROR',
+                  requestId: activeRequestId,
+                  payload: {
+                    code: 'wallet_configuration_changed',
+                    message: 'Wallet configuration changed during request',
+                  },
+                });
+              }
+              activeRuntimeRequests.clear();
+            }
+            state.onConfigurationChanged?.();
+            if (executionChanged) {
+              cancelTransactionReviews(
+                new TransactionReviewError(
+                  'review_identity_changed',
+                  'Wallet execution configuration changed',
+                ),
+              );
+              cancelOpenConfirmers();
             }
             post({ type: 'PONG', requestId });
             return;
+          }
           case 'PM_ACTIVATE_TRANSACTION_REVIEW': {
             const identity = parseTransactionReviewState(route.request.payload);
             if (identity) transactionReviewAdmission(identity.requestId)?.activate(identity);
@@ -354,18 +406,35 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         return;
       }
 
+      if (requestId) activeRuntimeRequests.add(requestId);
       const runtime = await loadWalletHostRuntime(route);
+      if (requestExecutionGeneration !== state.executionGeneration) return;
       await runtime.handleWalletHostRuntimeRequest({
         transactionReview: reviewAdmission,
         state,
+        executionGeneration: requestExecutionGeneration,
         req: route.request,
-        post,
-        isCancelled,
-        respondIfCancelled,
+        post: postExecutionMessage.bind(null, state, requestExecutionGeneration, post),
+        isCancelled: executionRequestIsCancelled.bind(
+          null,
+          state,
+          requestExecutionGeneration,
+          isCancelled,
+        ),
+        respondIfCancelled: executionRequestIsCancelled.bind(
+          null,
+          state,
+          requestExecutionGeneration,
+          respondIfCancelled,
+        ),
       });
     } catch (err: unknown) {
+      if (requestExecutionGeneration !== state.executionGeneration && req.type !== 'PM_SET_CONFIG')
+        return;
       if (reviewAdmission?.cancelled) return;
       const canonicalSignerErrors = await import('./canonicalSignerErrorCode');
+      if (requestExecutionGeneration !== state.executionGeneration && req.type !== 'PM_SET_CONFIG')
+        return;
       const codeRaw = err && typeof err === 'object' && 'code' in err ? err.code : undefined;
       const message = errorMessage(err);
       const code = canonicalSignerErrors.resolveWalletBoundaryErrorCode({
@@ -395,6 +464,10 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         },
       });
     } finally {
+      if (requestId) {
+        activeRuntimeRequests.delete(requestId);
+        clearCancelled(requestId);
+      }
       reviewAdmission?.finish();
     }
   };

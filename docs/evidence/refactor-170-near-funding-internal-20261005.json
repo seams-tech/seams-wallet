@@ -1,0 +1,53 @@
+{
+  "baseCommit": "f63177a382684cfe96a42fef73ee7f26f92f5f1e",
+  "scope": "Remove unused public NEAR test-funding API, adapters, duplicate session lookup, result type, and iframe request. Preserve confirmed-signing funding.",
+  "sourceSha256": {
+    "packages/wallet/scripts/checks/check-declarations-resolve-externally.mjs": "97d0d10ea581200b6528c38f50a3fea50fd535126f7ea9db769f031f308787c5",
+    "packages/wallet/src/SeamsWeb/publicApi/near.ts": "c1a9f0addd1291348ba705488a9ecb4a06da16db03bb0753f3e10efe1c949370",
+    "packages/wallet/src/SeamsWeb/publicApi/nearCommands.ts": "b98a1f2d80ab2f5b5ca5d79e134e58c3a45a62e328747cfd628f932f7e3b298d",
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "06c0d77f6e4ef8c995d18d2d8aa47d35a0255558a5b0a1928b4978d7bf18c7cc",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/nearCommands.ts": "52ac911cea41b435a1adaa75fa85870696b885fa4508a8f6958479764a5e3280",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "5c7135851f4baaa8fa7f1315bedaa967536dd6877df1fcf57e1b5543bb3234b4",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createNearCommands.ts": "cd8e96e362c150167c179482bade6dbb356de43c6909ae0867a030c6bf0e8baa",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "9ac86c0c4015882d1b11e7f79de57ec7c45e10cc160ad17fc6915c720855a48b",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/requestRouter.ts": "a27a056e430e2cdc6a63057b07bd8854266a491c503fe333347f52e563309d62",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "266488615e189ba8ad54705418fa19122f0bcf474273a12cacb99edd1d2cb41e",
+    "tests/wallet-iframe/handshake.test.ts": "b737ff01913f29a920b74bb67cee2e38b19c48d97f889097624d27d902921a7a"
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "browserTypes": "passed",
+    "docsTypes": "passed",
+    "productionBuild": "passed",
+    "packedDeclarations": "passed; public funding method is rejected",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "handshake": "5 passed (2.6s)",
+    "productionNearOnly": "1 passed (31.5s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "protocolVersion": "10.0.0",
+  "productionSourceNetLines": -165,
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts --project=chromium --output=../.artifacts/r170-funding-handshake",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts --grep 'production Email OTP NEAR-only registration loads selected signer assets'",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "limits": [
+    "NEAR-only E2E verifies registration, signing, reload, restored signing, and absence of ECDSA workers. It does not force the internal faucet branch.",
+    "Core relayer funding function and authenticated confirmed-signing caller are unchanged.",
+    "No public helper callers required migration; no replacement test wrapper was added.",
+    "Client and host must use matching protocol versions. Publication and deployment remain pending."
+  ]
+}

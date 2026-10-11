@@ -1,5 +1,42 @@
 # Regional D1 empirical results
 
+## Full MPC signing baseline (October 6, 2026)
+
+| Full MPC signing workload | Median | Observed range |
+| --- | ---: | ---: |
+| Material ready — 12 signatures | **1.745s** | **1.557–1.838s** |
+| Consecutive signing — 18 signatures | **3.411s** | **1.962–7.164s** |
+
+Both workloads used the same frozen browser candidate with a native NRT browser
+and an APAC wallet on staging. All thirty measured signatures verified. The full
+SDK timer includes automated approval, signing, and transaction assembly. It
+excludes blockchain broadcast and confirmation.
+
+The ready-material workload used a verified warm-up signature and waited for
+pool depth three before measuring two signatures per unlock. The consecutive
+workload measured three signatures per unlock without deliberate warm-up or
+prefill waits. UI automation still takes time between calls. Neither workload
+establishes saturated throughput, a latency ceiling, or p95.
+
+The frozen test app configures one entry for login prefill. Post-sign maintenance
+uses the SDK's five-entry target. This configuration is part of this baseline;
+the production SDK default is five. Public `dev` commit `4ccc5650` preserves this
+comparison before the later refill scheduling changes.
+
+Sixteen of eighteen consecutive calls waited for refill. Their median refill
+wait was **1.959s**, with a maximum of **5.532s**. These results form the baseline
+for optimizing the typical burst of two or three signatures. They do not predict
+the gains from changes that follow.
+
+Details and repeatable evidence:
+
+- [Ready-material measurements](#combined-gateway-to-console-lookup-october-6-2026)
+  and [tracked evidence](evidence/r152-gateway-console-20261006.json).
+- [Consecutive measurements](#consecutive-signing-remeasurement-october-6-2026)
+  and [tracked evidence](evidence/r152-consecutive-signing-20261006.json).
+
+## Initial regional experiment status (October 1, 2026)
+
 Date: October 1, 2026. Status: repeated London ready-material comparison and
 first-sign/burst diagnostic complete; temporary DO-scheduled probe unblocks verified Tokyo startup
 and signing. Tokyo now also reaches the ready-material sample target: 180 verified
@@ -6039,3 +6076,1195 @@ zero probe applications and zero probe DO namespaces.
 The APAC backend travel mirror is complete. Native full-browser travel timing,
 individual D1 attribution, the refill failure investigation and release gates
 remain open. No package was published by this measurement.
+
+### October 5: OC staging deployment and hosted travel
+
+OC staging is active in account `ba924da36f2ffc3839e8d323000b66b4`. Database
+`053da1ac-afa9-4f88-8e2b-b78b49c2310e` reports primary region **OC**, colo **SYD**.
+Gateway and Wallet Runtime target `aws:ap-southeast-2`. Protected activation
+[37290571181](https://github.com/seams-tech/seams-monorepo/actions/runs/37290571181)
+verified all four databases and both writer versions for each, preserving the
+browser key. Production OC allocation and the account switch remain pending.
+
+The hosted OC test passed in **6.9 minutes**. Four registrations overlapped for
+**19.337 seconds** and received independent OC, APAC, WEUR and US homes under one
+namespace. The OC wallet verified **15 Tempo travel signatures** through
+Sydney → Tokyo → Madrid → Atlanta → Sydney. NEAR signing and concurrent Tempo/Arc
+signing also passed. All **44 existing directory home records** were unchanged;
+the new OC wallet retained its OC database, active placement and generation 1.
+
+| Client location, same OC wallet | Samples | Median prepare + execute | Observed range |
+| --- | ---: | ---: | ---: |
+| Sydney (`syd08`) | 6 | 3.661s | 3.488–3.885s |
+| Tokyo (`nrt14`) | 3 | 3.412s | 3.343–3.446s |
+| Madrid (`mad01`) | 3 | 3.657s | 3.656–3.725s |
+| Atlanta (`atl15`) | 3 | 3.824s | 3.551–4.175s |
+
+These durations sum sequential signing prepare and execute requests measured
+inside each physical client Container. They include Gateway/custody processing
+and exclude the local-browser-to-probe hop. Custody roles retain their deployed
+0.8.0 builds and existing placement. This is an OC travel baseline, with no paired
+OC speedup claim or proof that every custody Container runs in Australia.
+Repeated samples within a wallet are correlated. Proxy-browser signing medians
+were 13.657s, 17.632s, 16.098s and 16.881s respectively. Proxy-browser unlocks took
+14.209s, 20.401s, 16.003s, 17.273s and 13.042s in travel order. These include the
+extra proxy hop and must not be compared with native browser latency.
+
+The passing run recorded five background refill HTTP 401 responses with code
+`wallet_session_invalid`. Every timed signing request returned 200 and verified.
+The first attempt verified 12 travel signatures before the Sydney identity
+endpoint returned HTTP 500 / Cloudflare 1101. Follow-up diagnostics found a probe
+restart error, `The container has not been started`. The temporary Worker now
+restores the idle timeout when a running DO restarts and sets it after starting a
+stopped Container. The bounded rerun had no probe exceptions. Failed-attempt
+records remain separate from the passing timing distribution.
+
+The default OC/APAC Container application selected Tokyo. The temporary Sydney
+probe used the [Durable Object scheduling policy](https://developers.cloudflare.com/containers/configuration/scheduling-policy/)
+and an OC DO location hint; its runtime identity confirmed `syd08`, region OC.
+The Worker used one fixed DO name per region and one-hour access expiry. Containers
+had ten-minute idle shutdown. This placement experiment changed no custody image.
+
+Source identities: private OC provisioning/migration commit `4afab65e`, activation
+and hosted-test commit `77fe76a4`, frozen Wallet harness/assets `0c536cd4`, Container
+server source `7349c6f`, image digest
+`sha256:4aca9529149f0cc138c02470cf27acf57e8438ebf9fbdc83226360fc52e60ec7`, and final
+probe Worker version `72be4561-c390-45ee-b541-a4dda51f6d23`. Deployed bundle hashes
+remain in `source.json`; these identify the tested binaries independently of
+concurrent later development commits.
+
+Private evidence is `.artifacts/oc/live-20261005/`: `summary.json`,
+`travel/regional-travel-oc.json`, `travel-run.log`, `source.json`,
+`oc-d1-primary.json`, before/after home records, `attempt-1/`, `budget.json`,
+`probe-usage-latest.json`, `cleanup.json`, and `SHA256SUMS`. Regenerate the analysis
+with `python3 .artifacts/oc/live-20261005/analyze.py` in the private repository.
+The hosted test uses the same frozen assets as the October 4 cohorts:
+
+```sh
+OC_EVIDENCE="$PWD/.artifacts/oc/live-20261005"
+SEAMS_WALLET_SERVER_CANDIDATE="$OC_EVIDENCE/sdk-source/packages/wallet-server" \
+SEAMS_HOSTED_PROJECTION="$OC_EVIDENCE/active-public-projection.json" \
+SEAMS_HOSTED_CANDIDATE_SITE="$PWD/.artifacts/r152/hosted-product-20261004/rebuild-site" \
+SEAMS_HOSTED_PROBE="$OC_EVIDENCE/probe-client.json" \
+SEAMS_TEST_ARTIFACT_DIR="$OC_EVIDENCE/travel" \
+SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR="$OC_EVIDENCE/traces" \
+node /Users/pta/Dev/rust/seams-wallet/node_modules/playwright/cli.js test \
+  -c tests/playwright.hosted-product.config.mjs regional-travel.test.ts \
+  --grep 'oc home' --reporter=line
+```
+
+Reproduction requires newly authorized temporary probes: the original Worker,
+all five applications and all five DO namespaces were deleted after the test.
+Follow-up inventories verified zero remaining probe resources. Persistent OC
+staging Gateway, Runtime and D1 remain active.
+
+The Cloudflare cap was **$25 total**, with a **$1 test allowance**. Conservative
+account usage, full-month storage, the Workers Paid fee and test reserves totalled
+**$9.77** before testing. Four probe instances at full allocation for 70 minutes
+have a compute upper bound of **$0.3454**. Reported probe usage was **$0.0242** at
+cleanup, covering four default-policy applications; Sydney's direct-policy usage
+was absent from current analytics. Use the conservative reserve for budget
+checking. Analytics can lag billing and these estimates are not an invoice.
+
+## Native MPC signing investigation (October 5, 2026)
+
+**The two-second full-signing target remains open.** These measurements use a
+native browser entering through NRT and an APAC wallet home. They exclude
+broadcast and blockchain confirmation. They do not use the temporary regional
+Container proxy from the OC travel experiment.
+
+The primary timer covers the complete public SDK call, including automated
+confirmation, through the assembled signed transaction. Independent signature
+verification follows the timer. `commit_total` starts after confirmation. Report
+both boundaries. Do not compare the earlier OC proxy prepare-plus-execute timer
+with the full SDK timer.
+
+Each consecutive-signing cohort contains nine verified Tempo signatures across
+three unlocks. Each ready-material cohort contains six measured signatures across
+three unlocks. Before each ready pair, the test makes one verified warm-up
+signature and waits for three presignatures. These waits remain in the artifact
+and are outside the measured signing calls. Samples that wait for refill are
+rejected from the ready-material cohort. Every cohort also verifies a NEAR
+signature, concurrent Tempo/Arc signing, shared budget exhaustion and lifecycle
+invariants. These small sequential samples establish observations, not an SLA.
+
+### Console and Gateway placement
+
+Regional Gateway bindings now call the default Worker fetch handler. The named
+`WalletHomeGateway` entrypoint was removed. This aligns routing with the
+[documented Worker placement boundary](https://developers.cloudflare.com/workers/configuration/placement/#review-limitations).
+A restrictive forwarding marker retains the one-hop limit. It provides no
+authority, and the receiving Gateway still resolves the wallet home and validates
+authentication. Local acceptance covers wrong homes, forwarding loops, directory
+failures and a caller-supplied marker.
+
+Staging Console now targets `aws:ap-northeast-1`, beside its observed NRT D1
+primary. Its binding query fell from about 60ms to 10–25ms. The complete
+Gateway-to-Console binding request remained around 70–80ms: the network hop
+remained. Full SDK ready-signing median changed **3.047s → 3.036s**, which does
+not establish an overall latency gain. Its post-confirmation median changed
+2.482s → 2.279s. Consecutive-signing median changed 5.934s → 6.161s, with roughly
+2.76s of refill wait in both cohorts.
+
+The default fetch change was deployed to all four staging Gateways. Protected
+activation [37308984966](https://github.com/seams-tech/seams-monorepo/actions/runs/37308984966)
+passed. The first activation attempt encountered a still-live registration and
+was retried after its expiry. No readiness guard was weakened.
+
+Native APAC responses reported `cf-placement: remote-HKG` with NRT ingress.
+Aggregate Worker analytics alone do not prove the physical execution location
+of each internal service-binding call. This investigation establishes no new
+OC or WEUR per-invocation placement claim.
+
+### Observed primary D1 locations
+
+Read-only `SELECT 1` queries reported `served_by_primary: true`:
+
+| Database | Serving colo |
+| --- | --- |
+| Shared Console | NRT, Tokyo |
+| APAC wallet state | HKG, Hong Kong |
+| OC wallet state | SYD, Sydney |
+| SigningWorker private state | ICN, Seoul |
+| Deriver A private state | KIX, Osaka |
+| Deriver B private state | SIN, Singapore |
+
+These locations show that an OC wallet still uses custody dependencies outside
+Australia. They do not identify the physical location of every DO or Container.
+No custody database, Container image or role binary was changed in this pass.
+
+### Refill scheduling comparison
+
+The client now starts a replacement refill after it reserves the last available
+presignature. One background refill can overlap the current signing requests
+when the pool is empty. Existing limits, session checks, expiry, generation
+checks and one-use reservations remain in place. No cryptographic protocol or
+server authorization rule changed.
+
+| Workload / boundary | Rebuilt control | Corrected refill candidate |
+| --- | --- | --- |
+| Consecutive signing, full SDK median, 9 samples each | 5.788s | 5.500s |
+| Consecutive signing, post-confirmation median | 5.173s | 4.941s |
+| Consecutive signing, maximum | 6.606s | 6.701s |
+| Refill-wait median among affected samples, 8 each | 2.706s | 2.756s |
+| Ready material, full SDK median, 6 samples each | 2.942s | 3.051s |
+| Ready material, post-confirmation median | 2.333s | 2.460s |
+| Ready material, maximum | 3.445s | 3.446s |
+
+The measured full-call median reduction for consecutive signing is about **5%**.
+This is a small sample with substantial variation. A later unchanged control
+measured 7.231s. The candidate therefore establishes that refill can overlap
+signing, with verified results; it does not establish a stable percentage gain.
+Refill waits and the longest calls remain too high. Ready signing shows no gain.
+
+The passing candidate evidence is `refill-final/` for consecutive signing and
+`verified-refill/` for ready signing. The final consecutive run verified all nine
+Tempo signatures, concurrent Tempo/Arc signing and the shared budget boundary.
+`refill-retry/retired-refill.json` records HTTP 401 / `wallet_session_invalid` for
+a retired refill request. Its replacement session produced a verified signature.
+Wallet type-checking and the bloat check passed.
+
+Retain the failed attempts: the first corrected consecutive run stopped after
+one signature on HTTP 503 / `wallet_session_unavailable`, followed by request
+timeouts. The cause of that availability failure is unconfirmed. A later attempt
+stopped before its first measured signature when unlock made four status reads
+against the harness limit of three. Neither assertion nor timeout was relaxed.
+The final consecutive run passed. Staging Gateway, Console and custody versions
+remained unchanged during these retries.
+
+
+### Remaining work toward two seconds
+
+Ready signing spends roughly 0.8–0.9s in prepare and 1.1–1.3s in finalize. Two
+session-status requests add about 0.6s. Browser cryptographic steps take only a
+few milliseconds. These stages overlap with some other timers; their medians
+must not be added as an exact total.
+
+1. Measure individual custody calls and D1 calls inside prepare/finalize, including
+   actual serving locations. The Gateway's current proxy timer identifies the
+   largest remaining interval but does not resolve its internal costs.
+2. Reduce demonstrated repeated reads or sequential remote calls on that path.
+   Preserve wallet ownership, revocation, budget admission and replay guarantees.
+3. Reconcile the two session-status checks with prepare's authority validation.
+   The second check follows confirmation and can detect intervening revocation.
+   Removing it or adding a time-based cache requires equivalent enforcement and
+   an end-to-end revocation test.
+4. Repeat the same full-call, ready-material and consecutive-signing measurements.
+   Keep cold/refill cases separate. The older London and Tokyo results remain
+   valid for their recorded source and topology, not as current-path guarantees.
+
+### Reproduction and provenance
+
+Private evidence is `.artifacts/mpc-signing-20261005/`. `summary.json` and
+`analyze.py` retain medians, sample counts and ranges. Nearest-rank p95 equals the
+maximum in these small cohorts. JSON samples retain SDK stages, request timings,
+allowlisted placement headers and independently verified outcomes. Lifecycle
+traces are retained beside each cohort.
+
+The SDK source base is `0c536cd482228b7700d23c005cc2ee46e061a868`. Both SDK variants
+use the same compiler and dependencies. Only the iframe host bundles were rebuilt;
+all thirteen baseline WASM assets and the existing worker assets were preserved.
+The private deployed source base is `77fe76a4f3237ed7647d2ea1b09c6c9d212729c0`,
+plus the Gateway and Console placement patches. This excludes concurrent R153
+and R170 work. Console's placed version is
+`6060765d-90cc-46a2-a704-798519c74c97`. `source.json` records source patches and
+asset hashes. Production and npm were unchanged.
+
+`discarded-builds.json` excludes early refill candidates that accidentally retained
+the original scheduler. Git skipped the patch inside the nested ignored archive.
+Those timing differences are variation between unchanged builds. The corrected
+candidate was checked against its source and generated entrypoint before testing.
+Failed setup attempts remain separate from passing measurements.
+
+From the private repository, set `SEAMS_WALLET_SERVER_CANDIDATE` to the frozen
+public harness, `SEAMS_HOSTED_PROJECTION` to the active staging projection, and
+`SEAMS_HOSTED_CANDIDATE_SITE` to the selected candidate site. Then run:
+
+```sh
+SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1 \
+SEAMS_TEST_ARTIFACT_DIR=/absolute/path/to/new-evidence \
+SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=/absolute/path/to/new-evidence/traces \
+node /Users/pta/Dev/rust/seams-wallet/node_modules/playwright/cli.js test \
+  -c tests/playwright.hosted-product.config.mjs \
+  mpc-signing-latency.test.ts refill-session.test.ts --reporter=line
+```
+
+This pass provisioned no new Cloudflare resources. It reused staging Workers and
+D1 within the existing **$25 total budget**. Request and query usage still count
+toward that budget. No additional Container probe cost was introduced.
+
+## Session-validation consolidation and signing call graph (October 5, 2026)
+
+The SDK now shares one authenticated status snapshot across the NEAR, EVM and
+Tempo projections of a single combined session view. The existing
+`WalletSessionStatusReadScope` owns this snapshot. Its key includes the relayer,
+credential, session and quota, so different credentials remain separate. Each
+new view creates a new scope. This removes up to two duplicate requests when all
+three projections use the same credential. This is a code-path count, not a
+measured reduction for every unlock or signing operation.
+
+The NEAR material-rebind path also reuses the authorization it just resolved.
+It previously resolved that authorization again before rebinding. Each independent
+operation still starts a fresh scope. There is no global or time-based cache.
+
+Ordinary ECDSA signing retains its pre-confirmation and post-confirmation reads.
+The first selects the confirmation plan and budget. The second reconciles changes
+while approval is pending, including deferred NEAR authority extension. The
+Gateway also validates live authority during prepare and finalize. Sharing one
+snapshot across these boundaries would weaken their freshness guarantee. The
+six ready-signing samples each still made two status requests.
+
+### Online call graph
+
+This graph describes the measured owner ECDSA path with a ready presignature.
+Pool refill is separate. The deployed SigningWorker version is
+`8e6c14c4-8dba-4b22-847c-0652b7e5836a`. Its bindings include private D1 and the
+presign-session DO. They do not include the newer wallet-state DO. Do not
+attribute the development wallet-DO execution path to these measurements.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser SDK
+  participant G as Home Gateway
+  participant C as Console
+  participant D as Wallet D1
+  participant R as MPC Router
+  participant S as SigningWorker
+  participant P as Custody D1
+  B->>G: Session status for confirmation planning
+  G->>C: Resolve deployment and routing
+  G->>D: Read session, authority and quota
+  G-->>B: Exact session status
+  Note over B: User approves
+  B->>G: Fresh session status
+  G->>C: Resolve deployment and routing
+  G->>D: Read current session, authority and quota
+  G-->>B: Reconcile current authorization
+  B->>G: Prepare exact operation and presignature
+  G->>C: Resolve deployment and routing
+  G->>D: Joined session, material and policy read
+  G->>D: Admit operation and consume quota atomically
+  G->>R: Validated operation admission
+  R->>S: Admitted prepare
+  S->>P: Load and validate signer material
+  S->>P: Reserve exact presignature
+  S-->>B: Prepare response through Router and Gateway
+  Note over B: Compute client contribution
+  B->>G: Finalize same operation
+  G->>C: Resolve deployment and routing
+  G->>D: Fresh session, material and policy read
+  G->>D: Resolve existing operation claim
+  G->>R: Validated finalize admission
+  R->>S: Admitted finalize
+  S->>P: Check terminal replay and load material
+  S->>P: Claim effect and consume reservation
+  Note over S: Compute signature
+  S->>P: Persist terminal response
+  S-->>G: Signature through Router
+  G->>D: Complete operation and persist replay response
+  G-->>B: Signature
+  Note over B: Assemble signed transaction
+```
+
+The diagram groups storage work by purpose. Each storage arrow can contain more
+than one SQL statement or database call. It is not a D1-call-count measurement.
+The two writes that record completion belong to separate owners and replay
+boundaries. They must not be removed as duplicate writes without replacing their
+failure guarantees.
+
+The ready online path calls **SigningWorker only**. It makes no Deriver A,
+Deriver B or tenant-root-control-plane call. Their placements can affect other
+flows, but do not explain this ready-signing result. The Gateway strips the
+Wallet Session bearer before forwarding its validated admission to the Router.
+The Router checks that admission against the exact request and forwards it using
+internal service authentication.
+
+Source entry points:
+
+- `browserSigningSurfaceAssembly.ts`: exact session resolution and reconciliation.
+- `capabilityReaderCore.ts`: one scope for a combined session view.
+- `signingFlowRuntime.ts`: a new scope inside the material queue after approval.
+- `wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts`:
+  authorize, admit, proxy and complete timers for prepare/finalize.
+- `routerAbEcdsaDerivationNormalSigningRoute.ts`: joined admission evidence and
+  atomic prepare admission, then exact operation resolution for finalize.
+- `normalSigningRouterProxy.ts`: Gateway-to-Router transport.
+- `router-ab-cloudflare/src/ecdsa_normal_signing_transport.rs`: Router dispatch.
+- `router-ab-cloudflare/src/lib.rs`: deployed private-D1 material, reservation,
+  effect and terminal-response operations.
+
+### Measurements
+
+The first consolidated candidate passed both hosted cohorts: nine consecutive
+signatures and six ready signatures. Each cohort also passed NEAR signing,
+concurrent Tempo/Arc signing and shared-budget exhaustion. Signatures were
+independently verified. Automated approval remains inside the full SDK timer.
+
+| Boundary | Ready material, median | Consecutive signing, median |
+| --- | ---: | ---: |
+| Full SDK call | 3.164s | 5.212s |
+| After approval | 2.368s | 4.204s |
+| Prepare | 0.912s | 0.890s |
+| Finalize | 1.142s | 1.201s |
+| Refill wait | None | 1.813s across eight affected calls |
+
+These small sequential cohorts show **no established signing-latency gain** from
+session-view consolidation. The previous ready candidate measured 3.051s.
+Consecutive timings remain sensitive to refill overlap. The two-second target
+remains open.
+
+After the final reader cleanup, a second six-signature ready cohort also passed,
+including concurrent signing and the shared budget check. Its full SDK median was
+**3.072s** (2.814–3.447s), with a post-approval median of **2.453s**. Prepare was
+0.829s and finalize was 1.284s. This confirms the same roughly three-second result.
+Its frozen patch and asset hashes are recorded separately in
+`session-validation-final-source.json`, and results are in
+`session-validation-final/`. Across both candidate runs, 21 measured Tempo
+signatures passed, in addition to warm-up, NEAR and concurrent signatures.
+
+The six ready calls expose these Gateway stage medians:
+
+| Gateway stage | Prepare | Finalize |
+| --- | ---: | ---: |
+| Authorize | 15.0ms | 15.5ms |
+| Admit / resolve existing claim | 58.5ms | 15.5ms |
+| Router and custody round trip | 558.5ms | 790.0ms |
+| Persist Gateway completion | Not run on successful prepare | 48.5ms |
+| Console binding request | 80.0ms | 76.5ms |
+
+A bounded read-only SigningWorker tail captured 14 prepare timing records during
+the test window, including warm-up and concurrent work. Median material loading
+was **327.5ms** (290–380ms). Median reservation was **138.5ms** (128–241ms).
+Median total inside SigningWorker prepare was **475.5ms** (422–531ms).
+These metrics include storage and material handling. They do not isolate D1 SQL
+execution or network latency. The tail stores only route, outcome, timestamp and
+allowlisted duration fields. It stores no request headers or protocol material.
+The observer stopped after three minutes.
+
+The finalize route exposes no equivalent inner timing breakdown in the deployed
+build. Its 790ms custody round trip remains an aggregate. The next useful change
+is to measure material loading, effect claim, presignature consumption and terminal
+commit separately, then combine demonstrated serial reads where ownership permits.
+Prepare's material loading and reservation are already concrete targets. Retain
+fresh authorization, atomic quota consumption, single-use material and exact replay.
+Do not claim a two-second result before the full SDK measurement reaches it.
+
+### Retirement error found during verification
+
+The expanded hosted retirement scenario reached a pre-existing error: an old
+prepare request returned HTTP 503 after unlock retired its session. The D1 reader
+passed the retired row to the live-session parser, which threw. The Gateway then
+reported `wallet_session_unavailable`. This is a production error in failure
+classification. It is independent of browser snapshot sharing.
+
+The development fix rejects the retired row at the credential boundary and
+returns the existing invalid-credential result. It adds no database read and
+changes no budget or replay rule. The existing D1 storage-transfer scenario now
+uses an ECDSA owner and verifies that its credential resolves before retirement,
+then returns invalid after retirement at the destination database. The second
+device remains authorized. That integration test passes. Wallet and Wallet Server
+type-checking and the bloat check pass.
+
+The hosted retirement test remains an acceptance gate for the next Gateway
+candidate. **This server fix is not deployed in staging.** The failed hosted
+attempt is retained; do not report it as a pass. No server, custody role, database,
+Container application or Cloudflare resource was deployed for this investigation.
+
+Evidence remains under private `.artifacts/mpc-signing-20261005/`:
+`session-validation/`, `session-validation-retirement/`,
+`session-validation-source.json`, `session-validation-measured.patch`,
+`prepare-finalize-timing.json`, `signing-worker-timing.json`, and
+`signing-worker-source.json`. The D1 integration proof is public-repository local
+`.artifacts/r153/authorization-storage-transfer/evidence.json`; its scope explicitly
+excludes browser or physical-region proof. Reproduce it with:
+
+```sh
+node tests/e2e/authorization-storage-transfer.e2e.mjs
+```
+
+
+## Custody D1 consolidation (October 5, 2026)
+
+**Full ready-signing latency fell from 3.198s to 2.489s median (22.2%).** A second
+candidate cohort measured 2.521s (21.2% below control). The two-second full-call
+target remains open. All cohorts used the same frozen browser SDK, native NRT
+client, APAC wallet home, automated approval and ready presignature material.
+The timer ends with the assembled signed transaction. It excludes broadcast and
+blockchain confirmation. This experiment does not establish consecutive-signing
+or linked-device latency gains.
+
+| Median, six measured signatures per cohort | Fresh control | Candidate | Candidate repeat |
+| --- | ---: | ---: | ---: |
+| Full public SDK call | 3.198s | 2.489s | 2.521s |
+| After approval (`commit_total`) | 2.522s | 1.769s | 1.896s |
+| Browser prepare request | 0.920s | 0.612s | 0.645s |
+| Browser finalize request | 1.202s | 0.800s | 0.809s |
+| Prepare custody round trip | 529ms | 220ms | 224ms |
+| Finalize custody round trip | 800.5ms | 376.5ms | 396.5ms |
+
+Full-call ranges were 2.902–3.757s, 2.250–3.123s and 2.200–3.568s respectively.
+These are small cohorts, not a latency guarantee. The three runs verified all
+18 measured signatures, plus warmups, NEAR signing, concurrent Tempo/Arc signing
+and shared-budget exhaustion. No measured ready call waited for refill.
+
+### Changes and call accounting
+
+The SigningWorker now reads activation material, both reservation lifecycle
+checks and the activation retirement fence in one primary D1 snapshot. It retains
+exact wallet, activation, worker, key and material checks. Linked material uses
+the reservation from that snapshot instead of reading it twice. There is no
+cross-request material or authorization cache.
+
+Finalize reads its terminal, effect claim and reservation together. It computes
+the existing pool transition, then writes the claim and consumption in one D1
+batch transaction. A conditional claim checks the pool version. Consumption runs
+only when that transaction inserted the claim. A failed consumption rolls back
+the claim. Concurrent losers cannot obtain the one-use material. The old separate
+ECDSA claim function was removed. Terminal persistence still completes before a
+successful signature response, and exact committed replies remain replayable.
+
+The following counts come from the source path, not provider query telemetry.
+They describe uncontended ready signing with registration material. They exclude
+Gateway, Console, refill and retries. A batch counts as one D1 round trip and
+contains two SQL statements.
+
+| Custody operation | Before D1 round trips | After D1 round trips |
+| --- | ---: | ---: |
+| Material load, each prepare/finalize | 6 | 1 |
+| Linked-material load, each prepare/finalize | 2 | 1 |
+| Finalize claim and consume | 4 | 2 |
+| Complete registration-material prepare | 8 | 3 |
+| Complete registration-material finalize | 12 | 5 |
+| Prepare plus finalize | 20 | 8 |
+
+Prepare reservation still needs a read and a conditional write. The encrypted
+record must pass through the existing Rust transition before persistence. This
+change does not add another storage owner to remove that dependency.
+
+### Inner timings and verification
+
+A bounded live tail retained 32 prepare/finalize timing records, including warmup
+and concurrency traffic. It stored numeric durations and outcomes only, then
+stopped. Candidate medians were:
+
+- Prepare material: **51.5ms**. The preceding deployed cohort measured **327.5ms**.
+- Prepare reservation: **139.5ms**, versus the preceding **138.5ms**.
+- Total prepare inside SigningWorker: **193.5ms**, versus the preceding **475.5ms**.
+- Finalize replay lookup: **48ms**; material: **48ms**; claim/consume: **143ms**.
+- Finalize signature computation: **0ms** at millisecond timer resolution.
+- Finalize terminal persistence: **89.5ms**; total inside SigningWorker: **333.5ms**.
+
+The earlier build had no inner finalize spans. Its baseline is the custody round
+trip in the table, which includes transport. Stage medians must not be added to
+reconstruct a full-call median. These storage spans include processing and queuing;
+they do not isolate pure network delay.
+
+The production Worker E2E forces consumption to fail inside the transaction and
+verifies unchanged claim, pool and terminal records. Three concurrent finalizes
+then produce one consumption and one terminal. Exact replay performs no writes.
+An activation retirement rejects fresh signing before consumption and preserves
+an already committed replay. The existing flow verifies the signatures, rejected
+scope/tenant substitutions, gated bundled presigning, and a lost custody reply.
+The six source-boundary checks plus the updated finalize check pass. Both the
+production and wallet-DO Worker configurations compile. The bloat check passes.
+Obsolete source-text assertions requiring the separate claim/consume path were
+removed; the behavior is covered by the Worker E2E.
+
+Production code is on public `dev` at `2c272eed`; verification is at `87d74583`.
+Staging SigningWorker changed from `8e6c14c4-8dba-4b22-847c-0652b7e5836a` to
+`13b9b85e-f766-4fd9-82f8-689f30736ae0`. The candidate uses the prior frozen measured
+source plus the custody patch. Unrelated active relocation edits were excluded.
+The before/after API comparison confirms every binding is unchanged, including
+the D1 database and DO namespace. No Cloudflare resources were created. The
+**$25 total budget** remains the constraint. Production and npm were not changed.
+
+Tracked aggregates, source hashes, versions and local fault evidence:
+[`r152-mpc-custody-20261005.json`](evidence/r152-mpc-custody-20261005.json).
+Private raw browser artifacts, sanitized timing capture, source patch and analysis:
+`.artifacts/mpc-custody-20261005/` in `seams-monorepo`.
+Public local Worker evidence and build logs: `.artifacts/mpc-custody-20261005/`.
+Reproduce the local Worker scenario after building the five dev roles:
+
+```sh
+ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff
+```
+
+Remaining latency includes the two browser status requests, Gateway/Console
+routing and authorization, and the preserved durable writes. Priorities 1–3 are
+implemented and measured. Browser status-call reduction and refill throughput are
+separate follow-ups. The retired-credential Gateway error-classification rollout
+also remains separate and was not included in this custody deployment.
+
+
+## Approval planning and finalize snapshot (October 6, 2026)
+
+The ready-signing candidate reached a **1.983s aggregate median across twelve
+verified signatures**. The two six-signature cohorts measured **2.032s** and
+**1.954s**. A fresh six-signature control measured **2.242s**. This is a **9–13%**
+median reduction per candidate cohort. The range across candidate calls was
+**1.859–2.241s**. These results support an approximately two-second median for
+this workload. They do not establish a maximum latency.
+
+### Scope and measured boundaries
+
+The client was a native NRT browser and the wallet home was APAC. All timed
+samples had ready presignatures. The timer starts at the public SDK call,
+includes automated approval, and ends with the assembled signed transaction.
+No transaction broadcast or blockchain confirmation is included. The control
+already contained the preceding custody optimization. These are small,
+sequential cohorts, so transport variation affects the comparison.
+
+| Median boundary | Fresh control, n=6 | Client change only, n=6 | Both changes, n=6 | Both changes repeat, n=6 |
+| --- | ---: | ---: | ---: | ---: |
+| Full SDK | 2.242s | 2.040s | 2.032s | 1.954s |
+| After approval | 1.594s | 1.610s | 1.670s | 1.561s |
+| Fresh status after approval | 0.289s | 0.308s | 0.322s | 0.317s |
+| Browser prepare | 0.543s | 0.545s | 0.612s | 0.565s |
+| Browser finalize | 0.738s | 0.706s | 0.656s | 0.644s |
+| Prepare custody round trip | 0.219s | 0.211s | 0.241s | 0.192s |
+| Finalize custody round trip | 0.389s | 0.336s | 0.288s | 0.259s |
+| Browser status requests per signature | 2 | 1 | 1 | 1 |
+
+All 24 measured signatures in these four cohorts verified. Each cohort also
+passed NEAR signing, concurrent Tempo/Arc signing and the shared budget limit.
+None of the timed ready samples waited for refill. There is no new claim about
+consecutive refill throughput, linked-device latency, or other client regions.
+Stage medians must not be added to reconstruct a full-call median.
+
+### Approval planning
+
+Completed authenticated status reads leave a bounded local observation, keyed
+by relayer, operation credential, session and quota. At most 32 observations
+are retained per fetch implementation. A later-started read supersedes an older
+observation. The observation never becomes a fresh status response.
+
+Confirmation planning uses an observation only when its session and selected
+wallet authority match the current local records. It checks capability,
+material identity, expiry and observed quota through the existing builders.
+The observation is used only to plan approval. Signing still starts a new status
+read after approval, inside the serialized material-use queue. Current authority
+and material must match that preparation before signing proceeds. Existing
+supersession handling discards the preparation and requires approval again.
+A capability-preserving NEAR extension retains its existing exception.
+
+A first plan after reload or credential replacement can still require a server
+read when no matching observation exists. No persistent cache, configuration
+flag, new environment variable or server authorization bypass was added.
+
+The hosted approval scenario observes **zero** status requests before approval.
+It then forces the post-approval status request to return HTTP 503. The SDK
+reports the failure and sends **zero** signing prepares. A subsequent approval
+performs one successful fresh status request, sends one prepare, and produces
+an independently verified Arc signature. The test writes repeatable evidence.
+
+### Finalize snapshot and safety
+
+Finalize reads terminal replay, effect claim, presignature reservation, activation
+and lifecycle fences together from the primary database. A completed exact
+terminal response is returned before fresh-request retirement or expiry checks.
+Fresh signing validates current material before claiming or consuming anything.
+A failed conditional claim retries the snapshot. The existing atomic D1 batch
+still owns the claim and one-use consumption. The durable terminal is written
+before a signature is returned. Rotatable lane material retains its own loader.
+
+| Uncontended registration-material custody operation | Before | After |
+| --- | ---: | ---: |
+| Prepare D1 round trips | 3 | 3 |
+| Finalize D1 round trips | 5 | 3 |
+| Prepare plus finalize D1 round trips | 8 | 6 |
+
+These counts exclude Gateway, Console, refill, contention and replay retries.
+The claim/consume batch is one round trip containing two SQL statements.
+The final three trips are the snapshot, atomic batch and terminal write.
+
+A bounded live observer captured **37** timing records, including warmup and
+concurrency traffic, and then stopped. Seventeen finalize records had medians
+of **146ms** for snapshot plus claim/consume, **90ms** for terminal persistence,
+and **234ms** total inside SigningWorker. The preceding measured candidate's
+internal finalize median was **333.5ms**. Prepare's median was **182.5ms** across
+20 records. These spans include storage handling and queuing, not pure network
+latency alone.
+
+The production Worker E2E again passed retirement before consumption, atomic
+rollback after an injected write failure, three concurrent identical finalizes,
+one consumption and terminal, lost-reply replay, and exact replay after
+retirement. Seven boundary checks pass. Production and wallet-DO Worker builds,
+wallet TypeScript checks, the isolated candidate type-check, private test lint,
+and the bloat check pass. No unit test was added.
+
+### Deployment and evidence
+
+Staging SigningWorker is **137dfce9-8ac7-4dbf-be2b-de0b1171f01d**. The control
+was **13b9b85e-f766-4fd9-82f8-689f30736ae0**. Before/after Cloudflare API checks
+confirm every binding is unchanged, including the database and DO namespace.
+The candidate uses the previous frozen measured source plus these focused
+changes. Unrelated active refactor work was excluded. No resources were created.
+The **$25 total Cloudflare budget** remains the constraint. Production and npm
+were unchanged. The Gateway retirement-error fix remains a separate rollout.
+
+Public `dev` commits: **f5d35c42** (finalize), **236120e1** (verification), and
+**04f7323d** (client approval planning). The private hosted approval test is
+on `dev` at **90cd677**.
+
+Tracked aggregates, source and asset hashes, versions, and verification evidence:
+[`r152-mpc-finalize-20261006.json`](evidence/r152-mpc-finalize-20261006.json).
+Private browser traces, source patches, frozen candidate and analysis:
+`seams-monorepo/.artifacts/mpc-finalize-20261005/`.
+Public build logs and custody E2E evidence:
+`seams-wallet/.artifacts/mpc-finalize-20261005/`.
+The artifact directory retains its October 5 start date; the measurements
+finished on October 6 in Tokyo. An initial sealed-session-only client attempt
+retained both status requests and was replaced. Its discarded evidence remains
+in the private artifact directory.
+
+The hosted reproduction uses `tests/playwright.hosted-product.config.mjs`, the
+`prefilled` case in `mpc-signing-latency.test.ts`, and `signing-approval.test.ts`.
+Supply the saved projection, frozen candidate site and artifact destination
+through the same `SEAMS_HOSTED_*` and `SEAMS_TEST_ARTIFACT_DIR` inputs used by
+the preceding custody experiment. The local custody command remains:
+
+```sh
+ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign-handoff
+```
+
+
+## Combined Gateway-to-Console lookup (October 6, 2026)
+
+**Ready-signing median fell from 1.870s to 1.745s across twelve candidate signatures.**
+The fresh control contained six signatures. The two candidate cohorts measured
+**1.787s** and **1.710s**. The aggregate reduction was **6.7%**. Candidate calls
+ranged from **1.557s to 1.838s**. All eighteen measured signatures verified.
+
+The native browser entered through NRT and used an APAC wallet. These timers
+include automated approval, the complete SDK signing call, and transaction
+assembly. They exclude broadcast and blockchain confirmation. Material was ready
+before each measured signature. No measured signature waited for refill. Each
+cohort also passed NEAR signing, concurrent Tempo/Arc signing, and shared budget
+exhaustion. Small sequential cohorts do not establish a two-second maximum, p95,
+or a result for cold material, consecutive refill, or linked-device latency.
+
+### Change and equivalent timing boundaries
+
+The Gateway now requests its active deployment binding and session home together.
+Console checks the writer version once, then reads the session locator in that
+binding's tenant scope. Gateway validates the returned binding, locator, tenant,
+and admitted home. Each request performs fresh reads. No cache, configuration
+variable, database schema, or authorization shortcut was added. The signing route
+still checks current session authorization and budget after routing.
+
+| Work per session-bearing request | Before | After |
+| --- | ---: | ---: |
+| Console requests for deployment and session routing | 2 | 1 |
+| Console D1 round trips for those lookups | 3 | 2 |
+| Browser status requests per ready signature | 1 | 1 |
+
+Status, prepare, and finalize each use the combined lookup. Thus, the critical
+path removes three Console requests and three Console D1 round trips per ready
+signature. Background refill also uses the new lookup. These counts exclude
+signing admission, custody D1, usage reporting, and retry work.
+
+| Median timing | Control (6) | Candidate (6) | Repeat (6) |
+| --- | ---: | ---: | ---: |
+| Full SDK signing | 1870ms | 1787ms | 1710ms |
+| Fresh browser status check | 291ms | 223ms | 214ms |
+| Browser prepare | 569ms | 518ms | 525ms |
+| Browser finalize | 631ms | 563ms | 554ms |
+| Gateway deployment/routing overhead: prepare | 165.5ms | 110ms | 93ms |
+| Gateway deployment/routing overhead: finalize | 165ms | 98ms | 93.5ms |
+
+The last two rows subtract `ecdsa_sign_total` from `wallet_gateway_total` for each
+request before computing medians. They compare the same boundaries. The existing
+`wallet_gateway_binding` metric now covers the combined binding and session-home
+lookup. Comparing that metric alone with the old binding-only timer would be
+misleading. Component medians do not add up to the full-call median.
+
+### Verification and rollout
+
+The Console E2E uses the production Console Worker, service transport, and local
+D1. It proves one lookup, one deployment read, WEUR resolution from a US writer,
+and fresh rejection after locator removal. Unadmitted writer versions and an
+unavailable Console fail closed. The broader regional scenario verifies routing,
+concurrent exchange redemption, wrong-home publication, scope disagreement,
+retired credentials, and publication failures. Type-check and lint pass. The
+public repository's bloat check passes. No unit tests were added.
+
+Live probes confirm unknown and malformed session credentials return **401**
+with the expected CORS origin. This also closes the missing-locator error path
+for the deployed APAC Gateway. Other regional Gateway versions were unchanged.
+
+Existing staging resources only:
+
+- APAC Gateway: **0fef3e7c-3f9b-45ae-8f19-b9fa02a22130** →
+  **cebc5a92-875f-4b52-8c42-2fa4b499b398**.
+- Console: **6060765d-90cc-46a2-a704-798519c74c97** →
+  **55ec63ea-d332-4ada-a181-8f968aed3b59**.
+- SigningWorker remained **137dfce9-8ac7-4dbf-be2b-de0b1171f01d**.
+- Protected activation and readiness passed in
+  [run 37335218292](https://github.com/seams-tech/seams-monorepo/actions/runs/37335218292).
+
+Cloudflare API comparisons confirm every binding and both placement settings
+were preserved. The browser assets and custody code match the preceding measured
+candidate. The deployment used the previous frozen private source plus this
+focused patch. Concurrent relocation and API work was excluded. No resources
+were created. The **$25 total Cloudflare budget** remains the constraint.
+Production and npm were unchanged.
+
+Private implementation and verification commit on `dev`: **3417dc5**.
+Tracked aggregates, bundle hashes, deployment versions, and verification:
+[`r152-gateway-console-20261006.json`](evidence/r152-gateway-console-20261006.json).
+Raw browser traces, frozen source, compiled bundles, before/after settings,
+reproduction inputs, and analysis remain in
+`seams-monorepo/.artifacts/mpc-console-20261006/`.
+
+
+## Consecutive signing remeasurement (October 6, 2026)
+
+**Consecutive signing measured 3.411s median across eighteen verified signatures.**
+The two nine-signature cohorts measured **3.706s** and **3.198s**. The combined
+range was **1.962–7.164s**. The median is **34.6% lower** than the previous
+nine-signature result of **5.212s**. This historical comparison includes all
+subsequent signing optimizations. It does not isolate the Console lookup change.
+The two-second consecutive-signing target remains open.
+
+The native NRT browser used an APAC wallet. Each cohort performed three unlocks
+and three consecutive Tempo signatures after each unlock. There was no deliberate
+warm-up signature or wait for a full pool. UI automation still takes time between
+calls, so this is not a saturated throughput benchmark. The full SDK timer
+includes automated approval and transaction assembly. Blockchain broadcast and
+confirmation are excluded. Both cohorts also passed NEAR signing, concurrent
+Tempo/Arc signing, shared budget exhaustion, and lifecycle checks.
+
+| Metric | Previous cohort (9) | Current run 1 (9) | Current run 2 (9) | Combined current (18) |
+| --- | ---: | ---: | ---: | ---: |
+| Full SDK median | 5.212s | 3.706s | 3.198s | **3.411s** |
+| Full SDK maximum | 6.005s | 7.164s | 4.328s | **7.164s** |
+| After approval, median | 4.204s | 3.389s | 2.882s | 3.069s |
+| Browser prepare, median | 0.890s | 0.489s | 0.488s | 0.489s |
+| Browser finalize, median | 1.201s | 0.524s | 0.519s | 0.523s |
+| Calls that waited for refill | 8/9 | 8/9 | 8/9 | **16/18** |
+| Refill wait, affected-call median | 1.813s | 2.071s | 1.729s | **1.959s** |
+
+Prepare and finalize improved substantially. Refill remains the limiting part
+of consecutive signing. The **7.164s** outlier spent **5.532s** waiting for
+material. Its later prepare and finalize took **0.464s** and **0.522s**.
+One refill step reported **3.502s** in the SigningWorker session span. These
+headers locate a slow refill step but do not separate its CPU, network, and
+Container time. All 150 captured HTTP responses within the eighteen signing
+windows were 200. All sixteen captured refill outcomes reported available
+material. This was latency variation without an observed request failure.
+
+The preceding ready-material result remains **1.745s median** across twelve
+signatures. It measures a different workload and must remain separate. These
+small cohorts establish no latency ceiling or p95. Stage timers overlap and
+their medians are not additive.
+
+Gateway, Console, SigningWorker, Router, Deriver A, and Deriver B deployment
+versions matched before and after both runs. Browser assets match the preceding
+frozen candidate. No implementation, deployment, infrastructure, or npm changes
+were made for this measurement. Existing staging resources and the **$25 total
+Cloudflare budget** remain the constraints.
+
+The historical input is
+`mpc-signing-20261005/session-validation/mpc-signing-back_to_back.json`.
+New traces, exact inputs, source and asset hashes, analysis, and version snapshots
+are in `seams-monorepo/.artifacts/mpc-consecutive-20261006/`. The same existing
+hosted test ran twice with `--grep back_to_back`.
+Tracked evidence:
+[`r152-consecutive-signing-20261006.json`](evidence/r152-consecutive-signing-20261006.json).
+
+## Refill scheduling checkpoint (October 6, 2026)
+
+**The first candidate cohort measured 2.268s median for consecutive signing.**
+The fresh unchanged control measured **2.955s**, and a rebuilt unchanged control
+measured **3.401s**. Each cohort contains nine verified signatures. The candidate
+median is 23.3% below the fresh control. These small sequential cohorts show
+substantial variation and do not establish a guaranteed reduction or maximum.
+The preceding 1.745s / 3.411s baseline remains preserved above.
+
+| Workload | Signatures | Median | Observed range | Calls waiting for refill |
+| --- | ---: | ---: | ---: | ---: |
+| Unchanged consecutive control | 9 | 2.955s | 2.238–4.350s | 9/9 |
+| Rebuilt unchanged consecutive control | 9 | 3.401s | 2.181–3.803s | 8/9 |
+| Candidate consecutive signing | 9 | **2.268s** | **1.788–4.052s** | 8/9 |
+| Candidate ready-material signing | 6 | **1.538s** | **1.382–1.684s** | 0/6 |
+
+Affected-call refill wait fell from **1.425s** median in the fresh control to
+**0.812s** in the candidate. The candidate still had a **2.173s** refill wait.
+Stage medians overlap and must not be added. The ready-material cohort has no
+fresh ready-material control in this experiment, so its result cannot isolate
+the scheduling change from ordinary variation.
+
+### Change and verification
+
+Reusable signing starts maintenance before prepare. Every reservation triggers
+replenishment, and maintenance continues during prepare and finalize. One
+background refill per pool and the existing global refill limit remain in force.
+The foreground guard now covers recovery generation only. Maintenance cannot
+start competing generation while foreground recovery is producing material.
+Expiry, revocation, invalidation, quota checks, and atomic one-use reservations
+remain in place. The five-entry SDK target and all infrastructure are unchanged.
+
+A hosted E2E holds the first prepare request until refill supplies two available
+entries. It then independently verifies three signatures. The old scheduler
+failed this overlap assertion; the patched scheduler passed. Both latency
+workloads also passed NEAR signing, concurrent Tempo/Arc signing, shared budget
+exhaustion, and lifecycle checks. The authorization E2E confirmed a failed fresh
+status read after approval still blocks prepare, then verified a successful retry.
+Wallet type-check, the bloat check, and the hosted test's lint check passed.
+
+Implementation on public `dev`: `f6753543`. Hosted overlap E2E on private `dev`:
+`92de900`. Existing staged and unstaged work from other refactors was excluded.
+
+### Slow-step diagnosis
+
+Read-only Cloudflare tail events separated CPU time from request wall time:
+
+| Observed route | Events | CPU median / maximum | Wall median / maximum |
+| --- | ---: | ---: | ---: |
+| Presign DO init | 81 | 80 / 114ms | 176 / 880ms |
+| Presign DO step | 198 | 9 / 73ms | 10 / 74ms |
+| SigningWorker presign init | 75 | 4 / 65ms | 908 / 1515ms |
+| SigningWorker presign step | 252 | 2 / 79ms | 146.5 / 659ms |
+
+These are separate event populations, not paired subrequest timings. They support
+investigating dispatch, placement, startup and waiting before changing the MPC
+computation. They do not identify which of those causes dominates. The earlier
+3.502s step did not recur in this capture. No server-side reduction of that
+outlier is claimed.
+
+The existing in-DO zero-duration timer does not prove zero computation cost.
+[Cloudflare timers advance only after I/O](https://developers.cloudflare.com/workers/runtime-apis/performance/).
+The CPU figures above come from Cloudflare tail events. This experiment added no
+diagnostic code or permanent logging service.
+
+### Session validation and prepare evaluation
+
+The remaining browser status request cost approximately **216ms** in the prior
+consecutive cohort. Prepare already checks session authority, active material,
+policy and operation admission. Thus, a combined admission response is feasible
+in principle, but removing the browser read alone is incomplete.
+
+`resolveBrowserEcdsaPreprocessingCapability` uses the status response to reconcile
+the complete authorization record, including deferred NEAR authority publication,
+before material hydration. The current prepare response contains signing protocol
+facts and no authorization projection or quota state. Combining these requests
+requires a prepare response that carries the current authorization projection,
+client reconciliation before signing, and equivalent failure behavior for
+retirement, exhausted quota, superseded authority and directory failures.
+
+This checkpoint retains the fresh status request. The expected saving remains
+unmeasured. No cached authorization or weaker admission path was introduced.
+
+### Evidence and reproduction
+
+The native NRT browser used the same APAC wallet topology and frozen application
+configuration as the baseline. The full SDK timer includes automated approval
+and transaction assembly. Blockchain broadcast and confirmation are excluded.
+Only the two client scheduling files changed in the frozen candidate. All six
+backend Worker versions matched before and after. There was no backend deployment,
+new Cloudflare resource, production change, or npm release. The **$25 total
+Cloudflare budget** remains the constraint.
+
+One initial attempt failed before registration because the test bundle lacked
+wallet-service HTML. Another packaged attempt retained the old scheduler because
+Git skipped a patch in an ignored nested directory. Its nine successful samples
+are explicitly reported as the rebuilt unchanged control. The frozen patch was
+then applied from outside the repository and verified in source and emitted code.
+All failed attempt logs and traces remain available.
+
+Repeat with `tests/playwright.hosted-product.config.mjs` and
+`mpc-signing-latency.test.ts`, `mpc-refill-overlap.test.ts`, and
+`signing-approval.test.ts`. Use the frozen site and projection recorded under
+`seams-monorepo/.artifacts/mpc-refill-20261006/`. That directory contains the source
+patch, asset hashes, raw traces, tail events, build logs, analysis script, and
+version snapshots. Tracked summary and observations:
+[`r152-refill-scheduling-20261006.json`](evidence/r152-refill-scheduling-20261006.json).
+
+## Paired Worker-to-DO refill investigation (October 6, 2026)
+
+**No latency fix was retained from this investigation.** Explicit placement near
+Hong Kong made the measured full-signing cohort slower. The original SigningWorker
+version was restored after the trial. Earlier successful SDK optimizations remain.
+
+Temporary diagnostic wrappers gave each private DO request a random correlation
+ID. This pairs a Worker-side round-trip timer with Cloudflare's wall and CPU
+measurements for the exact DO invocation. It avoids subtracting unrelated event
+populations or comparing absolute clocks across machines.
+
+| Paired control measurement | Samples | Median | Maximum |
+| --- | ---: | ---: | ---: |
+| Initialization round trip | 16 | 769.5ms | 950ms |
+| Initialization DO wall time | 16 | 185ms | 245ms |
+| Initialization time outside DO wall measurement | 16 | 565ms | 793ms |
+| Later-step round trip | 38 | 72.5ms | 571ms |
+| Later-step DO wall time | 38 | 12ms | 73ms |
+| Later-step time outside DO wall measurement | 38 | 47.5ms | 513ms |
+
+The last quantity is a paired residual, calculated before aggregation. It includes
+platform routing, object startup, queueing and transport. It does not establish
+which component caused the delay. The Worker timer ends when response headers
+arrive. Missing pairs in the tail stream are excluded. DO CPU medians were 98ms
+for initialization and 11ms for later steps.
+
+The control SigningWorker had no placement setting. The trial added
+`placement.region = "aws:ap-east-1"`, matching the APAC Gateway's placement target.
+It retained the same Worker code, diagnostic wrapper, database, DO namespace,
+credentials and browser assets.
+
+| Full SDK consecutive signing | Samples | Median | Range | Affected refill-wait median |
+| --- | ---: | ---: | ---: | ---: |
+| Fresh diagnostic control | 9 | 2.390s | 1.593–2.920s | 0.864s |
+| Explicit Hong Kong Worker placement | 9 | 3.035s | 1.904–4.007s | 1.524s |
+
+Eight signatures waited for refill in each cohort. All eighteen signatures and
+the shared-budget concurrency checks passed. Placement reduced the paired
+later-step residual median to 11ms, but initialization round-trip median rose to
+905ms and the largest later-step round trip reached 1.484s. These small cohorts
+justify rejecting this trial; they do not prove placement always hurts.
+
+A separate hosted overlap test probed Cloudflare trace egress locations and
+response sizes. All six sampled DO probes reported HKG. Worker probes reported
+HKG three times and BOM once. These are outbound trace observations, not a
+physical colocation guarantee or complete location history. Slow calls appeared
+with responses as small as 2.4KB and 5.9KB. Sampled 66KB responses had 16–23ms
+round trips. Payload size alone does not explain the observed outliers. This
+probe's extra background requests affect platform wall time, so it is excluded
+from the timing comparison above.
+
+The concrete remaining problem is time outside DO execution, especially the
+first call to each new presign session object. The precise split between object
+creation, dispatch, queueing and transport remains unresolved. Changing crypto,
+adding authority caches, or retaining this placement setting has no supporting
+latency evidence. Reusing an object for multiple refill sessions would require
+careful changes to per-session identity claims, replay records, alarms and
+ownership. That change was not made during this investigation.
+
+The trial used existing staging resources under the **$25 total Cloudflare
+budget**. It created no Worker, namespace or Container application. It changed no
+production deployment or npm package. The restored SigningWorker version is
+`137dfce9-8ac7-4dbf-be2b-de0b1171f01d`. Its bindings and empty placement setting
+match the original. Temporary wrappers and tail processes were removed from live
+execution. All six backend versions returned to their original values. The
+restored deployment passed refill overlap and fresh-status failure enforcement.
+The first authorization-check attempt hit a 15-second Tempo nonce RPC timeout
+(`environment_or_infrastructure_failure`). Its unchanged targeted retry passed.
+The public bloat check passed. No runtime source change was committed.
+
+Evidence: [paired requests, full-signing samples, probe observations and source
+hashes](evidence/r152-worker-do-hop-20261006.json). Reproduction scripts, frozen
+configuration, logs and test traces are under
+`seams-monorepo/.artifacts/mpc-do-hop-20261006/`. Use the same hosted latency and
+refill-overlap tests described in the preceding checkpoint. Restore the original
+Worker after diagnostic runs. Cloudflare documents the relevant
+[Worker placement behavior](https://developers.cloudflare.com/workers/configuration/placement/)
+and [DO placement limits](https://developers.cloudflare.com/durable-objects/reference/data-location/).
+
+## Fresh session validation in prepare (October 6, 2026)
+
+ECDSA prepare now returns the exact session projection used for its fresh admission.
+The SDK reconciles this projection before committing its presignature or computing
+its signature share. This removes the separate post-approval status request.
+The returned quota balance describes admission **before** the atomic claim.
+It is not a post-signature remaining-balance query. Prepare and finalize retain
+live revocation, expiry, material, policy, quota and replay checks.
+
+| Full MPC workload | Cohort | Samples | Median | Maximum | Refill waits | Affected wait median / maximum |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Ready material | Control | 6 | 1.594s | 1.988s | 0/6 | 0 / 0 |
+| Ready material | Combined prepare | 6 | 1.441s | 1.709s | 0/6 | 0 / 0 |
+| Three-signature sequences | Control | 9 | 2.635s | 3.412s | 8/9 | 1.087s / 1.937s |
+| Three-signature sequences | Combined prepare | 9 | 2.393s | 3.029s | 8/9 | 1.136s / 1.669s |
+
+The ready-signing median fell by **153ms** in this paired run.
+This measures the combined change; it is not a fixed per-request latency guarantee.
+The historical **1.745s ready / 3.411s consecutive** checkpoint remains unchanged.
+All samples use a native NRT browser and an APAC wallet. The timer covers the
+public SDK call through the assembled signature, including automated confirmation.
+Blockchain broadcast and confirmation are excluded. Each workload uses three
+unlocks. Ready samples wait for three available entries after a warm-up signature.
+Consecutive samples request three signatures per unlock without that deliberate wait.
+The frozen configuration remains login prefill one and SDK maintenance target five.
+
+The critical browser signing requests fall from **three to two**: prepare and
+finalize. Each measured candidate signature made exactly one of each and no
+session-status request. Across the ready cohort, status/prepare/finalize totals
+were **6/6/6 → 0/6/6**. Across the consecutive cohort they were
+**9/9/9 → 0/9/9**. Background refill requests remain separate. The evidence
+counts requests initiated inside each measurement window; unfinished requests
+are included. It does not equate HTTP requests with D1 calls.
+
+The pool can supply three signatures when material has accumulated. The overlap
+scenario held prepare until two spare entries became available, then verified
+three signatures. Immediate two-to-three-signature sessions still encountered
+refill waits. Increasing the pool target is not supported by these measurements.
+The existing five-entry target exceeds the session workload; generation and
+arrival timing remain the constraint. Refill-wait frequency stayed at eight of
+nine signatures. The affected-wait median changed from 1.087s to 1.136s, while
+its maximum fell from 1.937s to 1.669s. These samples do not establish a refill
+latency improvement. A two-second consecutive-signing guarantee remains unmet.
+
+Hosted verification passed: unavailable prepare and a wrong-session response
+produced no finalization; a valid response produced a verified signature with
+zero separate status requests. Retired credentials received HTTP 401 for refill,
+prepare and finalize, while the replacement session signed successfully.
+After quota exhaustion, an explicit fresh passkey approval completed one signature
+without renewing the reusable quota. If local state still appears usable,
+prepare can discover exhaustion after the first warm approval. The user then
+approves a second, passkey confirmation in the transaction receipt. The SDK does
+not silently authorize that operation or renew its reusable session.
+Typed authorization failures now reach the existing retry policy instead of
+becoming generic signing errors.
+Concurrent Tempo/Arc signatures exhausted their shared budget. The harness now
+captures the session identity from prepare and performs an independent status
+query after the concurrency check. This verification query is outside the timed
+signing samples.
+
+The first candidate run exposed an obsolete harness assumption that signing
+must emit a status request. It also exposed a frozen-source assembly error:
+the test package omitted existing retired-session guards. The measured final
+cohort retained the admission guard omission, so its retirement test failed.
+The complete committed reader was restored for the separate final authorization
+acceptance. This changed the retired-session error path; timings were not rerun.
+The added step-up check also required an explicit click in the receipt frame.
+The general test driver only clicked the original wallet overlay.
+The harness assumptions were classified as `valid_test_needs_update`. The
+missing frozen guards were `environment_or_infrastructure_failure`. The committed
+server implementation already contained them. Earlier cohorts remain in the
+evidence as diagnostics. Their failures are not counted as successful acceptance.
+Wallet, server and intended-harness type checks, type fixtures, focused lint and
+the public bloat check passed.
+
+The implementation requires a coordinated SDK and Gateway rollout because the
+prepare response format changed. The experiment used existing staging resources
+under the $25 Cloudflare budget. It added no infrastructure and published no npm
+package. The prior Gateway version was restored and reactivated after testing.
+
+Evidence: [controlled samples, request counts, failures and source hashes](evidence/r152-prepare-session-20261006.json).
+Frozen sources, logs and traces remain in
+`seams-monorepo/.artifacts/mpc-prepare-session-20261006/`. Repeat with the existing
+hosted `mpc-signing-latency`, `mpc-refill-overlap`, `signing-approval` and
+`refill-session` tests and matching SDK/Gateway builds.
+
+## Worker-to-DO first-contact diagnosis (October 6, 2026)
+
+**The dominant delay is the first contact with an object or stub.** The transport
+creates a distinct Durable Object for each presigning session. It also constructs
+a fresh stub, the client handle used to call that object, for every protocol
+request. Both choices repeatedly incur platform setup costs.
+
+Three controlled staging runs inserted no-op requests around real refill calls.
+The no-op handler performs no cryptography, storage access or external request.
+One arm sends initialization directly. The other first sends two no-ops through
+the same stub, then performs the unchanged initialization. UUID parity selects
+the arm. The final run also creates a fresh stub to the same object inside the
+same Worker request, then sends another no-op through it.
+
+| Final diagnostic cohort | Calls | Median | Maximum |
+| --- | ---: | ---: | ---: |
+| First no-op to a new object | 12 | **643ms** | 731ms |
+| Next no-op through the same stub | 12 | **3ms** | 5ms |
+| No-op through a fresh stub to that warm object | 12 | **43ms** | 54ms |
+| Real initialization after the probes | 12 | **179ms** | 229ms |
+| Direct initialization, without probes | 6 | **778.5ms** | 948ms |
+| First no-op before a later protocol step | 29 | **48ms** | 548ms |
+| Next no-op through that same stub | 29 | **3ms** | 5ms |
+| No-op through a fresh stub to that same object | 29 | **44ms** | 54ms |
+
+These are all retained Worker spans. Matching DO telemetry recorded only **2ms**
+median wall time and **0ms** median CPU for the twelve first no-op calls to new
+objects. The earlier two runs reproduced the new-object penalty at **673ms** and
+**614.5ms** median. Their repeated same-stub no-ops took **4ms** and **3.5ms**.
+
+The large later-step outlier also moved to the first no-op. One completely paired
+sequence took **502ms** for the first no-op, with **0ms** DO wall time. The next
+no-op took **5ms**. The real protocol step then took **12ms**, including **8ms**
+of DO wall time. Recreating a stub within the same Worker request reintroduced
+about 40ms despite the object already being warm. This isolates additional
+first-stub-call overhead from new-object startup.
+
+The no-op results place the large residual before application work. Cloudflare
+object allocation, route discovery and RPC connection setup remain possible
+internal components. These measurements do not distinguish their exact shares.
+They do identify the application pattern that repeatedly incurs the cost.
+The relevant code is `execute_cloudflare_durable_object_custom_json_call_with_timing_v1`
+and `deterministic_presign_session_object_name` in
+`crates/router-ab-cloudflare/src/durable_object/worker_storage.rs`.
+
+Every real diagnostic call awaited `storage.sync()` before returning. This
+preserved durability and made pending storage completion part of DO execution.
+The new-object penalty still appeared on no-op requests that never touched storage.
+Thus, bypassing durable identity claims does not address the demonstrated delay.
+Cloudflare's [storage API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/)
+describes this write barrier. Its [timer documentation](https://developers.cloudflare.com/workers/runtime-apis/performance/)
+explains why JavaScript clocks cannot independently measure CPU time. The evidence
+retains platform CPU/wall values and labels the explicit-sync clock accordingly.
+
+The first optimization candidate is to amortize object setup across multiple
+presigning sessions within an exact wallet/material scope. Each presignature
+still requires its own identity, replay claim, expiry and cleanup. Repeated stub
+setup is a second target where calls can safely share a request context. Global
+stub caching across requests has not been validated. Cloudflare documents
+[stub ordering and failure semantics](https://developers.cloudflare.com/durable-objects/api/stub/),
+which any reuse must preserve.
+
+**No runtime optimization was retained from this diagnosis.** Probes move the
+setup delay onto an earlier request and add calls. They do not remove the cost.
+All three hosted runs verified nine timed signatures each, plus their concurrent
+signing and shared-budget checks. Their instrumented full-SDK timings remain
+diagnostic data and do not replace the **1.441s ready / 2.393s consecutive**
+combined-prepare checkpoint or the historical **1.745s / 3.411s** baseline.
+
+The trial used the existing SigningWorker and DO namespace under the $25 budget
+constraint. It created no Worker, namespace or Container application. All six
+backend Worker versions returned to their original values. SigningWorker bindings
+and placement match the original deployment, and the temporary probes are removed.
+
+Evidence: [first-contact spans, paired DO timings and source hashes](evidence/r152-worker-do-first-contact-20261006.json).
+The table uses all retained Worker spans. Paired Worker/DO records form a smaller
+subset because some DO tail events were absent. Their sample counts remain
+separate. Frozen diagnostic wrappers, capture/analysis scripts, logs and traces
+are in `seams-monorepo/.artifacts/mpc-do-cause-20261006/`. Repeat with the existing
+hosted `mpc-signing-latency.test.ts` back-to-back scenario and the recorded frozen
+SDK assets. Restore the original SigningWorker after diagnostic runs.

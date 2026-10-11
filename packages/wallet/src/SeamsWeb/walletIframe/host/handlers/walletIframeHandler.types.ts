@@ -3,8 +3,11 @@ import type {
   ParentToChildEnvelope,
   ParentToChildType,
   ProgressPayload,
+  PMGetExactWalletSessionStatePayload,
+  PreferencesChangedPayload,
 } from '../../shared/messages';
-import type { SeamsWeb } from '@/SeamsWeb';
+import type { WalletIframeExactSessionSnapshot } from '../../shared/exactSessionState';
+import type { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 
 export type Req<T extends ParentToChildType> = Extract<ParentToChildEnvelope, { type: T }>;
 
@@ -13,7 +16,13 @@ export type HandlerMap = Partial<{
 }>;
 
 export interface HandlerDeps {
-  getSeamsWeb(): SeamsWeb;
+  getWalletRuntime(): WalletHostRuntime;
+  readPreferences(): PreferencesChangedPayload;
+  publishCurrentSession(): Promise<void>;
+  observeSession(
+    payload: PMGetExactWalletSessionStatePayload,
+    publish: (snapshot: WalletIframeExactSessionSnapshot) => void,
+  ): Promise<void>;
   post(msg: ChildToParentEnvelope): void;
   postProgress(requestId: string | undefined, payload: ProgressPayload): void;
   isCancelled(requestId: string | undefined): boolean;

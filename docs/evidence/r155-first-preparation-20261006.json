@@ -1,0 +1,205 @@
+{
+  "kind": "registration_prefill_response_reuse_comparison_v1",
+  "date": "2026-10-06",
+  "scope": "NRT native browser, APAC hosted staging, same reusable DO Worker and frozen SDK except initial registration status scope. Full MPC signing includes automated approval and excludes blockchain broadcast and confirmation.",
+  "signingWorkerVersion": "99980e4e-51ca-4d57-8819-19ecd629ee5e",
+  "arms": {
+    "control": {
+      "wallets": 3,
+      "verifiedSignatures": 9,
+      "registration": {
+        "samples": [
+          7297.762958,
+          6464.196833,
+          5683.673957999999
+        ],
+        "medianMs": 6464.196833,
+        "maximumMs": 7297.762958
+      },
+      "firstSigning": {
+        "samples": [
+          5428.649999976158,
+          3621.8349999785423,
+          4248.104999959469
+        ],
+        "medianMs": 4248.104999959469,
+        "maximumMs": 5428.649999976158
+      },
+      "firstSigningRefillWait": {
+        "samples": [
+          3726.100000023842,
+          2000.699999988079,
+          2224
+        ],
+        "medianMs": 2224,
+        "maximumMs": 3726.100000023842
+      },
+      "initialPrefillScheduling": {
+        "samples": [
+          239.60000002384186,
+          238.69999998807907,
+          230.4000000357628
+        ],
+        "medianMs": 238.69999998807907,
+        "maximumMs": 239.60000002384186
+      },
+      "statusRequestsBeforeFirstInit": [
+        6,
+        4,
+        6
+      ],
+      "followingSignatures": {
+        "samples": [
+          4824.525000035763,
+          2182.9849999547005,
+          3495.3849999904633,
+          2141.3849999904633,
+          1641.5249999761581,
+          1756.8450000286102
+        ],
+        "medianMs": 2162.184999972582,
+        "maximumMs": 4824.525000035763
+      }
+    },
+    "candidate": {
+      "wallets": 3,
+      "verifiedSignatures": 9,
+      "registration": {
+        "samples": [
+          21268.08025,
+          8038.305333,
+          5811.108499999999
+        ],
+        "medianMs": 8038.305333,
+        "maximumMs": 21268.08025
+      },
+      "firstSigning": {
+        "samples": [
+          3867.2300000190735,
+          3503.6200000047684,
+          4277.120000004768
+        ],
+        "medianMs": 3867.2300000190735,
+        "maximumMs": 4277.120000004768
+      },
+      "firstSigningRefillWait": {
+        "samples": [
+          1679.800000011921,
+          1722.5,
+          2190
+        ],
+        "medianMs": 1722.5,
+        "maximumMs": 2190
+      },
+      "initialPrefillScheduling": {
+        "samples": [
+          18.80000001192093,
+          22.30000001192093,
+          19.600000023841858
+        ],
+        "medianMs": 19.600000023841858,
+        "maximumMs": 22.30000001192093
+      },
+      "statusRequestsBeforeFirstInit": [
+        2,
+        2,
+        2
+      ],
+      "followingSignatures": {
+        "samples": [
+          1712.3299999833107,
+          2043.7699999809265,
+          1706.8050000071526,
+          2450.3299999833107,
+          2549.8799999952316,
+          1960.8400000333786
+        ],
+        "medianMs": 2002.3050000071526,
+        "maximumMs": 2549.8799999952316
+      }
+    }
+  },
+  "caveats": [
+    "Three fresh wallets per arm; network and cold-start variance remain.",
+    "Scheduling duration includes local reads as well as the removed network read.",
+    "Following signatures overlap deferred registration and are not a ready-material benchmark.",
+    "Candidate registration median rose to 8.038s, with a 21.268s maximum before prefill; end-to-end registration plus first-signing improvement is not established."
+  ],
+  "slowestRegistrationSpansMs": {
+    "registrationIntent": 6276,
+    "ecdsaRegistrationGatewayRespond": 9994,
+    "ecdsaDeriverB": 7719
+  },
+  "sourceSha256": {
+    "packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus.ts": {
+      "repository": "94755c4624c906a15af1caf236bfa25491b9573222dd29a2bed8f05367a9ff45",
+      "frozenCandidate": "a941551253a4f4ac9cf9dd7439ff6d84878f1598c5cfe4a7ea0fcfdc556efb6f"
+    },
+    "packages/wallet/src/SeamsWeb/operations/registration/registration.ts": {
+      "repository": "81a93fbc81f707decd1ba01f4df09c4b936fdead3e52f68a973c74767eaa4d8b",
+      "frozenCandidate": "2effc6ed87842d8e79806ec305741d1c05cd57f588431b15e170c4d7319b3b76"
+    }
+  },
+  "verification": {
+    "typecheck": "passed",
+    "sdkBuild": "passed",
+    "hostedControl": "3 tests passed, 9 signatures",
+    "hostedCandidate": "3 tests passed, 9 signatures",
+    "stagingVersionsRestored": [
+      {
+        "script": "seams-sdk-d1-gateway-staging",
+        "versions": [
+          {
+            "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "seams-sdk-d1-console-staging",
+        "versions": [
+          {
+            "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-signing-worker-staging",
+        "versions": [
+          {
+            "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-mpc-router-staging",
+        "versions": [
+          {
+            "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-deriver-a-staging",
+        "versions": [
+          {
+            "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+            "percentage": 100
+          }
+        ]
+      },
+      {
+        "script": "router-ab-deriver-b-staging",
+        "versions": [
+          {
+            "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+            "percentage": 100
+          }
+        ]
+      }
+    ]
+  }
+}

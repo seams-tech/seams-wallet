@@ -10,7 +10,7 @@ import {
   type LinkedEcdsaHolderRuntimeV1,
 } from '@/core/signingEngine/session/material/linkedEcdsaHolderRuntime';
 import { emitSigningSessionFlowTrace } from '@/core/signingEngine/session/operationState/trace';
-import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/config/presignatures';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 
 export async function scheduleLinkedDevicePresignaturePrefill(args: {
@@ -44,6 +44,8 @@ export async function scheduleLinkedDevicePresignaturePrefill(args: {
       credential: {
         kind: 'wallet_session_opaque',
         walletSessionToken: args.operationCredential.token,
+        home: args.operationCredential.home,
+        ownershipGeneration: args.operationCredential.ownershipGeneration,
       },
       authorization: {
         kind: 'reusable_wallet_session',

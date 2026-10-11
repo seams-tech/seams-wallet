@@ -1,5 +1,3 @@
-// The device-linking entry point: Device 2 QR linking and Device 1 scanning, run here or
-// through the wallet iframe's router.
 import type { DeviceLinkingWebContext } from '@/SeamsWeb/signingSurface/types';
 import type {
   LinkDeviceResult,
@@ -9,7 +7,6 @@ import type {
 } from '@/core/types/linkDevice';
 import { assertNeverLinkSessionStateV1 } from '@shared/device-linking';
 import type { QrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking';
-import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import {
   scanAndLinkDevice as scanAndLinkDeviceDevice1,
   type Device1OwnerLinkCancellationV1,
@@ -17,24 +14,10 @@ import {
 import type { DeviceLinkingFlowPortsV1 } from './deviceLinkingPorts';
 import { LinkDeviceFlow } from './linkDeviceFlow';
 
-type DeviceLinkingDomainDeps =
-  | {
-      readonly kind: 'iframe';
-      readonly getContext: () => DeviceLinkingWebContext;
-      readonly walletIframe: Pick<
-        WalletIframeCoordinator,
-        'shouldUseWalletIframe' | 'requireRouter'
-      >;
-    }
-  | {
-      readonly kind: 'direct';
-      readonly getContext: () => DeviceLinkingWebContext;
-      readonly walletIframe: Pick<
-        WalletIframeCoordinator,
-        'shouldUseWalletIframe' | 'requireRouter'
-      >;
-      readonly ports: DeviceLinkingFlowPortsV1;
-    };
+type DeviceLinkingDomainDeps = {
+  readonly getContext: () => DeviceLinkingWebContext;
+  readonly ports: DeviceLinkingFlowPortsV1;
+};
 
 function isFinishedDeviceLinkFlow(flow: LinkDeviceFlow): boolean {
   const state = flow.getState();
@@ -69,64 +52,52 @@ export class DeviceLinkingDomain {
   async startDevice2LinkingFlow(
     args: StartDevice2LinkingFlowArgs,
   ): Promise<StartDevice2LinkingFlowResults> {
-    if (this.deps.kind === 'direct' && !this.deps.walletIframe.shouldUseWalletIframe()) {
-      if (this.activeDeviceLinkFlow && isFinishedDeviceLinkFlow(this.activeDeviceLinkFlow)) {
-        this.activeDeviceLinkFlow = null;
-      }
-      if (this.activeDeviceLinkFlow) {
-        throw new Error('Device-link QR flow is already running');
-      }
-      const flow = new LinkDeviceFlow(args, this.deps.ports, this.deps.getContext);
-      this.activeDeviceLinkFlow = flow;
-      try {
-        return await flow.generateQR();
-      } catch (error: unknown) {
-        if (this.activeDeviceLinkFlow === flow) this.activeDeviceLinkFlow = null;
-        throw error;
-      }
+    if (this.activeDeviceLinkFlow && isFinishedDeviceLinkFlow(this.activeDeviceLinkFlow)) {
+      this.activeDeviceLinkFlow = null;
     }
-    const router = await this.deps.walletIframe.requireRouter();
-    return await router.startDevice2LinkingFlow(args);
+    if (this.activeDeviceLinkFlow) {
+      throw new Error('Device-link QR flow is already running');
+    }
+    const flow = new LinkDeviceFlow(args, this.deps.ports, this.deps.getContext);
+    this.activeDeviceLinkFlow = flow;
+    try {
+      return await flow.generateQR();
+    } catch (error: unknown) {
+      if (this.activeDeviceLinkFlow === flow) this.activeDeviceLinkFlow = null;
+      throw error;
+    }
   }
 
   async cancelDeviceLinking(): Promise<void> {
-    if (this.deps.kind === 'direct' && !this.deps.walletIframe.shouldUseWalletIframe()) {
-      if (this.activeDeviceLinkFlow && isFinishedDeviceLinkFlow(this.activeDeviceLinkFlow)) {
-        this.activeDeviceLinkFlow = null;
-      }
-      if (this.activeDeviceLinkFlow) {
-        await this.activeDeviceLinkFlow.cancel();
-        this.activeDeviceLinkFlow = null;
-        return;
-      }
-      const ownerCancellation = this.activeOwnerLinkCancellation;
-      if (ownerCancellation) {
-        await this.deps.ports.transport.cancelClaimedSessionV1(ownerCancellation);
-        if (this.activeOwnerLinkCancellation === ownerCancellation) {
-          this.activeOwnerLinkCancellation = null;
-        }
-      }
+    if (this.activeDeviceLinkFlow && isFinishedDeviceLinkFlow(this.activeDeviceLinkFlow)) {
+      this.activeDeviceLinkFlow = null;
+    }
+    if (this.activeDeviceLinkFlow) {
+      await this.activeDeviceLinkFlow.cancel();
+      this.activeDeviceLinkFlow = null;
       return;
     }
-    const router = await this.deps.walletIframe.requireRouter();
-    await router.cancelDeviceLinking();
+    const ownerCancellation = this.activeOwnerLinkCancellation;
+    if (ownerCancellation) {
+      await this.deps.ports.transport.cancelClaimedSessionV1(ownerCancellation);
+      if (this.activeOwnerLinkCancellation === ownerCancellation) {
+        this.activeOwnerLinkCancellation = null;
+      }
+    }
+    return;
   }
 
   async scanAndLinkDevice(
     qrData: QrLinkedDeviceSessionPayloadV5,
     options: ScanAndLinkDeviceOptionsDevice1,
   ): Promise<LinkDeviceResult> {
-    if (this.deps.kind === 'direct' && !this.deps.walletIframe.shouldUseWalletIframe()) {
-      return await scanAndLinkDeviceDevice1(
-        this.deps.getContext(),
-        qrData,
-        options,
-        this.deps.ports,
-        this.registerOwnerLinkCancellationV1.bind(this),
-      );
-    }
-    const router = await this.deps.walletIframe.requireRouter();
-    return await router.scanAndLinkDevice({ qrData, options });
+    return await scanAndLinkDeviceDevice1(
+      this.deps.getContext(),
+      qrData,
+      options,
+      this.deps.ports,
+      this.registerOwnerLinkCancellationV1.bind(this),
+    );
   }
 
   private registerOwnerLinkCancellationV1(

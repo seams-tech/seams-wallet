@@ -10,8 +10,8 @@ import { AuthMenuController } from '../auth-menu/controller';
 export function createHostedAuthMenuHandlers(
   deps: HandlerDeps,
   controller = new AuthMenuController({
-    getSeamsWeb: deps.getSeamsWeb,
-    getAppearance: () => deps.getSeamsWeb().configs.ui.appearance,
+    getWalletRuntime: deps.getWalletRuntime,
+    getAppearance: () => deps.getWalletRuntime().configs.ui.appearance,
     send: deps.post,
   }),
 ): HandlerMap {
@@ -20,6 +20,14 @@ export function createHostedAuthMenuHandlers(
       const payload = parseHostedAuthMenuOpenRequest(req.payload);
       if (!payload) throw new Error('Hosted auth-menu open request is invalid');
       const outcome = await controller.open({ request: payload, requestId: req.requestId });
+      if (
+        outcome.kind === 'authenticated' ||
+        outcome.kind === 'registered' ||
+        outcome.kind === 'account_synced'
+      ) {
+        await deps.publishCurrentSession();
+      }
+      if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, outcome);
     },
     PM_CANCEL_AUTH_MENU: async (req: Req<'PM_CANCEL_AUTH_MENU'>) => {

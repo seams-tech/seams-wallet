@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-05",
+  "task": 4,
+  "change": "Load exportKeypairOperation at the first exact export-lane resolution or key export. Preserve public API and worker authorization.",
+  "startup": {
+    "production-signed-out-mount-and-menu-record-cold-and-warm-cache-traffic": {
+      "before": {
+        "encodedBodyBytes": 989172,
+        "phases": {
+          "cold-signed-out-mount-idle": {
+            "encodedBodyBytes": 989172,
+            "responses": 93
+          },
+          "warm-signed-out-mount-idle": {
+            "encodedBodyBytes": 0,
+            "responses": 93
+          }
+        },
+        "workers": 0,
+        "measurementFailures": 0
+      },
+      "after": {
+        "encodedBodyBytes": 983432,
+        "phases": {
+          "cold-signed-out-mount-idle": {
+            "encodedBodyBytes": 983432,
+            "responses": 106
+          },
+          "warm-signed-out-mount-idle": {
+            "encodedBodyBytes": 0,
+            "responses": 106
+          }
+        },
+        "workers": 0,
+        "measurementFailures": 0
+      }
+    },
+    "production-registration-menu-awaits-input-with-cold-and-warm-caches": {
+      "before": {
+        "encodedBodyBytes": 989170,
+        "phases": {
+          "cold-registration-mount": {
+            "encodedBodyBytes": 989170,
+            "responses": 93
+          },
+          "warm-registration-mount": {
+            "encodedBodyBytes": 0,
+            "responses": 93
+          }
+        },
+        "workers": 0,
+        "measurementFailures": 0
+      },
+      "after": {
+        "encodedBodyBytes": 983432,
+        "phases": {
+          "cold-registration-mount": {
+            "encodedBodyBytes": 983432,
+            "responses": 106
+          },
+          "warm-registration-mount": {
+            "encodedBodyBytes": 0,
+            "responses": 106
+          }
+        },
+        "workers": 0,
+        "measurementFailures": 0
+      }
+    }
+  },
+  "rejectedExperiment": {
+    "change": "Defer addPasskey and addEmailOtp modules",
+    "startupEncodedBodyBytes": 989784,
+    "reason": "Increased startup transfer by 612 bytes; reverted."
+  },
+  "verification": [
+    "Production build passed",
+    "Mixed Email OTP registration/unlock lifecycle passed, including NEAR/Tempo/Arc signing, refresh, step-up, and both exports",
+    "Cold/warm signed-out mount and menu passed",
+    "Cold/warm unselected registration menu passed",
+    "Bloat ratchet passed"
+  ],
+  "tradeoffs": [
+    "13 additional cold responses in the signed-out scenario.",
+    "The local scenario measures encoded asset bodies; it does not establish deployed latency or compression.",
+    "No first-operation latency improvement claimed."
+  ],
+  "sourceSha256": "59f187ccb08a7ad3ecb802405bc7d41171d3615992845c3b91179ef82f75692c",
+  "repeat": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts e2e/intended-behaviours/email-otp.unlock.contract.test.ts --grep \"production signed-out mount and menu record cold and warm cache traffic|production registration menu awaits input with cold and warm caches|Email OTP registration and unlock lifecycle\""
+}

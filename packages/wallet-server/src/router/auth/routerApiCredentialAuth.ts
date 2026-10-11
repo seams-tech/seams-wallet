@@ -1,30 +1,35 @@
 import {
   type RoutePolicyResolutionResult,
+  type RoutePolicyResolutionFailure,
 } from '../framework/enforceRoutePolicy';
-import {
-  extractBearerCredential,
-  extractRouterApiEnvironmentId,
-} from './routerApiKeyAuth';
+import { extractBearerCredential, extractRouterApiEnvironmentId } from './routerApiKeyAuth';
 import type {
   RouterApiKeyAuthAdapter,
   RouterApiPublishableKeyAuthAdapter,
 } from '../framework/routerApi';
+import type {
+  RouterApiKeyPrincipal,
+  RouterApiPublishableKeyAuthRequest,
+  WalletRegistrationContextResolver,
+  WalletRegistrationContextResult,
+} from '../framework/apiCredentialPorts';
 import type { HeaderRecord } from '../framework/routeExecutionContext';
 import type { RouteDefinition } from '../framework/routeDefinitions';
 
-
-interface ResolvePublishableKeyApiCredentialAuthInput {
+interface PublishableKeyRequestInput {
   environmentId?: string | null;
   headers: HeaderRecord;
   missingEnvironmentMessage: string;
   missingOriginMessage: string;
   missingPublishableKeyMessage: string;
   origin?: string;
-  publishableKeyAuth: RouterApiPublishableKeyAuthAdapter;
   route: RouteDefinition;
   routeAuthNotConfiguredMessage: string;
 }
 
+interface ResolvePublishableKeyApiCredentialAuthInput extends PublishableKeyRequestInput {
+  publishableKeyAuth: RouterApiPublishableKeyAuthAdapter;
+}
 
 interface ResolveSecretKeyApiCredentialAuthInput {
   apiKeyAuth?: RouterApiKeyAuthAdapter | null;
@@ -34,9 +39,7 @@ interface ResolveSecretKeyApiCredentialAuthInput {
   routeAuthNotConfiguredMessage: string;
 }
 
-function routeAuthNotConfigured(
-  message: string,
-): RoutePolicyResolutionResult {
+function routeAuthNotConfigured(message: string): RoutePolicyResolutionFailure {
   return {
     ok: false,
     status: 500,
@@ -45,9 +48,9 @@ function routeAuthNotConfigured(
   };
 }
 
-export async function resolvePublishableKeyApiCredentialAuth(
-  input: ResolvePublishableKeyApiCredentialAuthInput,
-): Promise<RoutePolicyResolutionResult> {
+function parsePublishableKeyRequest(
+  input: PublishableKeyRequestInput,
+): { ok: true; request: RouterApiPublishableKeyAuthRequest } | RoutePolicyResolutionFailure {
   if (input.route.auth.plane !== 'api_credentials') {
     return routeAuthNotConfigured(input.routeAuthNotConfiguredMessage);
   }
@@ -82,11 +85,26 @@ export async function resolvePublishableKeyApiCredentialAuth(
     };
   }
 
-  const authResult = await input.publishableKeyAuth.authenticate({
-    secret: publishableKey,
-    origin,
-    environmentId,
-  });
+  return { ok: true, request: { secret: publishableKey, origin, environmentId } };
+}
+
+export async function resolveWalletRegistrationContext(
+  input: PublishableKeyRequestInput & {
+    registrationContext: WalletRegistrationContextResolver;
+    registration: Parameters<WalletRegistrationContextResolver['resolve']>[0]['registration'];
+  },
+): Promise<WalletRegistrationContextResult | RoutePolicyResolutionFailure> {
+  const parsed = parsePublishableKeyRequest(input);
+  if (!parsed.ok) return parsed;
+  return input.registrationContext.resolve({ ...parsed.request, registration: input.registration });
+}
+
+export async function resolvePublishableKeyApiCredentialAuth(
+  input: ResolvePublishableKeyApiCredentialAuthInput,
+): Promise<RoutePolicyResolutionResult> {
+  const parsed = parsePublishableKeyRequest(input);
+  if (!parsed.ok) return parsed;
+  const authResult = await input.publishableKeyAuth.authenticate(parsed.request);
   if (!authResult.ok) {
     return {
       ok: false,
@@ -96,16 +114,17 @@ export async function resolvePublishableKeyApiCredentialAuth(
     };
   }
 
-  return {
-    ok: true,
-    principal: {
-      kind: 'api_credentials',
-      credentialType: 'publishable_key',
-      principal: authResult.principal,
-    },
-  };
+  return publishableKeyRoutePrincipal(authResult.principal);
 }
 
+export async function publishableKeyRoutePrincipal(
+  principal: RouterApiKeyPrincipal,
+): Promise<RoutePolicyResolutionResult> {
+  return {
+    ok: true,
+    principal: { kind: 'api_credentials', credentialType: 'publishable_key', principal },
+  };
+}
 
 export async function resolveSecretKeyApiCredentialAuth(
   input: ResolveSecretKeyApiCredentialAuthInput,
@@ -128,7 +147,6 @@ export async function resolveSecretKeyApiCredentialAuth(
       message: 'secret_key_missing: Missing secret key',
     };
   }
-
 
   const environmentId = extractRouterApiEnvironmentId(input.headers);
   const authResult = await apiKeyAuth.authenticate({

@@ -1,0 +1,38 @@
+{
+  "privateCommit": "a2c187c",
+  "removed": [
+    "resolveSessionHome",
+    "ConsoleRegistrationHomeAdmission.findSession",
+    "WalletHomeServiceClient.findSession",
+    "/internal/wallet-placement/v1/find-session"
+  ],
+  "retained": "Production resolveGatewayDeployment uses local session rows, with explicit discovery through gateway-session when no routing hint is available.",
+  "checks": {
+    "regionalSessionRouting": "passed",
+    "localSessionRouting": "passed",
+    "walletHomeDirectory": "1 passed, 5.4s",
+    "diff": "passed"
+  },
+  "scope": "Local Worker transports, production routing/authorization services, four regional D1 databases and shared Console D1; tenant writer admission is controlled. No browser, signing execution, hosted provider, or geographic latency measurement.",
+  "routingEvidence": {
+    "opaqueCredentialsRoutedAcrossRegions": true,
+    "concurrentExchangeHasOneWinner": true,
+    "wrongHomePublicationRejected": true,
+    "walletTokenDisagreementRejected": true,
+    "directRegistrationSessionDisagreementRejected": true,
+    "failedPublicationPreventsExchangeCommit": true,
+    "failedChildPublicationPreservesExchange": true,
+    "retiredPrimaryAndChildRejected": true,
+    "linkedDeviceCredentialUsesSameHomeAndSurvivesOtherDeviceRetirement": true,
+    "unknownCredentialRejected": true,
+    "directoryOutageReturns503": true,
+    "plaintextAbsentFromDirectory": true
+  },
+  "rawArtifactSha256": "c9fd60cfe8d7908725be5df38c64852536f72e803f0b4597c88115706d23b10d",
+  "fixtureUpdates": [
+    "Seed execution generations through the shared production-backed helper.",
+    "Use the registration authority as session-routing publisher, including home().",
+    "Use tenant identities matching the deployment scope."
+  ],
+  "hostedLatencyMeasured": false
+}

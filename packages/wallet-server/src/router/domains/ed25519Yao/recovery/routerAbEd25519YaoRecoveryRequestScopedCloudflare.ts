@@ -142,7 +142,7 @@ class RecoveryAdmissionRequestRun {
     const service = this.service(state);
     const prepared = service.prepareAdmitRecovery(
       this.request,
-      recoveryAuthorizationBinding(authorized.authorization),
+      recoveryAuthorizationBinding(authorized),
       await this.context.input.backend.resolveRecoveryDispatchRoot(this.request),
       Date.now(),
     );
@@ -223,16 +223,19 @@ class RecoveryExecutionRequestRun {
       AuthorizationFailure | RouterAbEd25519YaoRecoveryFailure
     >
   > {
+    const service = this.service(state);
+    const ownership = service.recoveryOwnershipGeneration(this.request.binding);
+    if (!ownership.ok) return { kind: 'rejected', value: ownership };
     const authorized = await this.context.input.authorization.authorize({
       kind: 'execute',
+      ownershipGeneration: ownership.value,
       request: this.context.input.request,
       body: this.request,
     });
     if (!authorized.ok) return { kind: 'rejected', value: authorized };
-    const service = this.service(state);
     const prepared = service.prepareExecuteRecovery(
       this.request,
-      recoveryAuthorizationBinding(authorized.authorization),
+      recoveryAuthorizationBinding(authorized),
       Date.now(),
     );
     switch (prepared.kind) {
@@ -258,10 +261,7 @@ class RecoveryExecutionRequestRun {
         kind: 'response',
         value: await this.context.input.backend.executeRecovery(
           this.request,
-          claim.admissionRequest,
-          claim.dispatchRoot,
-          claim.attempt,
-          claim.replay,
+          claim,
           this.context.trace,
         ),
       };
@@ -311,15 +311,19 @@ class RecoveryActivationRequestRun {
       AuthorizationFailure | RouterAbEd25519YaoRecoveryFailure
     >
   > {
+    const service = this.service(state);
+    const ownership = service.recoveryOwnershipGeneration(this.request.binding);
+    if (!ownership.ok) return { kind: 'rejected', value: ownership };
     const authorized = await this.context.input.authorization.authorize({
       kind: 'activate',
+      ownershipGeneration: ownership.value,
       request: this.context.input.request,
       body: this.request,
     });
     if (!authorized.ok) return { kind: 'rejected', value: authorized };
-    const prepared = this.service(state).prepareActivateRecovery(
+    const prepared = service.prepareActivateRecovery(
       this.request,
-      recoveryAuthorizationBinding(authorized.authorization),
+      recoveryAuthorizationBinding(authorized),
     );
     switch (prepared.kind) {
       case 'claimed':
@@ -345,6 +349,7 @@ class RecoveryActivationRequestRun {
         value: await this.context.input.backend.activateRecovery(
           this.request,
           claim.dispatchRoot,
+          claim.ownershipGeneration,
           this.context.trace,
         ),
       };

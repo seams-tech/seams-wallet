@@ -1,15 +1,15 @@
+import { resolveRouterAbEcdsaDerivationPresignaturePoolPolicy } from '../../routerAb/ecdsaDerivation/presignaturePoolPolicy';
 import type {
   RouterAbEcdsaDerivationPresignaturePoolPolicy,
   RouterAbEcdsaDerivationPresignaturePoolPolicyInput,
 } from '@/core/types/seams';
 import {
-  resolveRouterAbEcdsaDerivationPresignaturePoolPolicy,
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   waitForRouterAbEcdsaDerivationClientPresignaturePoolReady,
   type RouterAbEcdsaDerivationClientSigningMaterialSource,
   type RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult,
 } from '../../routerAb/ecdsaDerivation/presignaturePool';
-import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../workerManager/ecdsaPresignLifecycle';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '@/core/config/presignatures';
 import type { SignerWorkerManagerContext } from '../../workerManager/SignerWorkerManager';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import type { AuthorizedEcdsaPreprocessingCapability } from '../material/ecdsaSigningCapability';
@@ -113,6 +113,8 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
       credential: {
         kind: 'wallet_session_opaque',
         walletSessionToken: operationCredential.token,
+        home: operationCredential.home,
+        ownershipGeneration: operationCredential.ownershipGeneration,
       },
       authorization: {
         kind: 'reusable_wallet_session',
@@ -127,6 +129,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     if (!schedule.scheduled) {
       if (args.waitForPoolReady && schedule.reason === 'in_flight_for_pool_key') {
         await waitForRouterAbEcdsaDerivationClientPresignaturePoolReady({
+          ownershipGeneration: operationCredential.ownershipGeneration,
           relayerUrl,
           scope: runtime.normalSigning.scope,
           materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),
@@ -143,6 +146,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
 
     if (args.waitForPoolReady) {
       await waitForRouterAbEcdsaDerivationClientPresignaturePoolReady({
+        ownershipGeneration: operationCredential.ownershipGeneration,
         relayerUrl,
         scope: runtime.normalSigning.scope,
         materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),

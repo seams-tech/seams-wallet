@@ -31,7 +31,7 @@ choose a fallback auth method.
 
 ## Sign-ready lane
 
-A lane is sign-ready only after auth and material are both ready for the same
+A lane can sign only after authorization and signing material are ready for the same
 identity:
 
 ```text
@@ -72,8 +72,8 @@ switch (state.kind) {
 }
 ```
 
-Final signing consumes `runtime_validated` state. Restore, remint, repair, and
-step-up happen in explicit planning phases before final signing.
+Final signing requires `runtime_validated` state. Restoration, reminting, repair, and
+fresh authentication happen in separate planning phases before final signing.
 
 ## Examples
 

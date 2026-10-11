@@ -1,0 +1,205 @@
+{
+  "date": "2026-10-10",
+  "parentCommit": "e7f12f232861a9c8f6337686fa4dc663351a1972",
+  "scope": "Persist the authenticated home generation in the registration setup transaction. Remove lazy home creation from continuations.",
+  "productionFiles": [
+    {
+      "path": "packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore.ts",
+      "sha256": "9639dd883e8f920000401eb7241e4530036a49b6a6dee11e5931afd61e5480ac"
+    },
+    {
+      "path": "packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyStore.ts",
+      "sha256": "343cba637abd2aee4468dd37fbd90312ae867e43a0ded5a93406246cd2cc9d96"
+    },
+    {
+      "path": "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts",
+      "sha256": "6d5ae67b956bbb2d666126394863e284b20ecfc2898f8bdc9c70376e9af3f793"
+    },
+    {
+      "path": "packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationSetupExecution.ts",
+      "sha256": "e87da15ab3df88e406b7b704a1c1eb19ee92debde825c6cec83002ef36740696"
+    }
+  ],
+  "checks": [
+    {
+      "command": "node tests/e2e/registration-setup-startup.e2e.mjs",
+      "repository": "public",
+      "exitCode": 0,
+      "artifact": {
+        "path": ".artifacts/registration-setup-startup/result.json",
+        "sha256": "03d83dc0b0c48aeae73bf4388f1ff22df8e18a62f7bd03dbb2a65a7ccbea5047"
+      }
+    },
+    {
+      "command": "node tests/e2e/session-issuance-transaction.e2e.mjs",
+      "repository": "public",
+      "exitCode": 0,
+      "artifact": {
+        "path": ".artifacts/session-issuance-transaction/proof.json",
+        "sha256": "a6a9d570dccd8bf736b8f37fd76dd7c943a21f4262bf950887d7d95fd47c14fc"
+      }
+    },
+    {
+      "command": "node tests/e2e/authorization-storage-transfer.e2e.mjs",
+      "repository": "public",
+      "exitCode": 0,
+      "artifact": {
+        "path": ".artifacts/r153/authorization-storage-transfer/evidence.json",
+        "sha256": "076b3e362d41d95fb93fddf9bf5c4ea196d7f9bad36a75ea93295b9c16b3836e"
+      }
+    },
+    {
+      "command": "node tests/relayer/local-session-routing.e2e.mjs",
+      "repository": "private",
+      "exitCode": 0,
+      "artifact": {
+        "path": ".artifacts/r155b/local-session-routing/evidence.json",
+        "sha256": "676cbc8c46fed3a21908d686d95469789ff42a47cab93bbac8ac9717a3172e58"
+      }
+    }
+  ],
+  "setupResults": {
+    "replayUsesStoredAddresses": true,
+    "independentWallets": true,
+    "lostAllocationReplyRecovered": true,
+    "concurrentAllocations": 8,
+    "persistedWinners": 1,
+    "distinctDestinationGeneration": true,
+    "forwardedStoredAddresses": true,
+    "exactSnapshotAvoidsRead": true,
+    "changedGenerationReadsDestination": true,
+    "forgedAddressesReplaced": true,
+    "missingGenerationRefused": true,
+    "wrongTenantRefused": true,
+    "immutableAddresses": true,
+    "hostWithoutStarterCompletes": true,
+    "ceremonyWritesPerSetup": 1,
+    "allocationBesideCeremonyWrite": true,
+    "setupCommitsRegistrationHome": true,
+    "continuationDirectoryReads": 0,
+    "unknownCeremonyRefusedLocally": true,
+    "homeFailureRollsBackCeremony": true,
+    "cancelledSetupCannotReopen": true,
+    "cancellationSurvivesUnavailableDirectory": true
+  },
+  "browserScenarios": [
+    {
+      "file": "e2e/intended-behaviours/passkey.near-registration-commit.contract.test.ts",
+      "line": 7,
+      "title": "NEAR registration publishes its session without a status request, keeps queries fresh, and respects lock",
+      "log": {
+        "path": ".artifacts/r155d-setup-home/logs/intended/passkey-near-registration-commit-contract-test-7-near-registration-publishes-its-session-without.log",
+        "sha256": "45986b6d99dd83f3b03b283326eb8a98238dcc22cbbe5a9935b69638e11b7fba"
+      },
+      "exitCode": 0,
+      "seconds": 43
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 97,
+      "title": "mixed registration exposes gateway and finalization timings",
+      "log": {
+        "path": ".artifacts/r155d-setup-home/logs/intended/passkey-registration-contract-test-97-mixed-registration-exposes-gateway-and-finalizat.log",
+        "sha256": "665fdb149781d7b2e8994661b6ca111e9ad30aeae9860186e798659f7fc115b0"
+      },
+      "exitCode": 0,
+      "seconds": 44
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "line": 137,
+      "title": "mixed registration starts one NEAR admission while ECDSA activate is in flight",
+      "log": {
+        "path": ".artifacts/r155d-setup-home/logs/intended/passkey-registration-contract-test-137-mixed-registration-starts-one-near-admission-whi.log",
+        "sha256": "6578569c95c6f231f0d6f9c4be25d93f79666a25e0ff233a4e2d7e6769b9c7f5"
+      },
+      "exitCode": 0,
+      "seconds": 43
+    }
+  ],
+  "build": {
+    "command": "pnpm --dir packages/wallet-server build",
+    "exitCode": 0,
+    "logSha256": "52b1e388fd9cc2fbee2d656703ff881371a12412e88697992d5dd6c6c052c607"
+  },
+  "fixtureChanges": {
+    "classification": "obsolete_test_or_fixture",
+    "reason": "Execution and activation storage fixtures previously created the home through admitHome. They now seed the registering home that setup commits. Production continuation does not recreate missing state."
+  },
+  "registrationOnlyBenchmark": {
+    "source": "docs/evidence/refactor-155d-completion-console-hosted.json",
+    "candidateCommit": "63acba09f5c3620a51077bf58704805c10615353",
+    "excludingWebAuthn": {
+      "samples": 3,
+      "medianMs": 4846.795,
+      "minimumMs": 4033.94,
+      "maximumMs": 6427.825
+    },
+    "includingWebAuthn": {
+      "samples": 3,
+      "medianMs": 5586.595,
+      "minimumMs": 4592.74,
+      "maximumMs": 6685.025
+    },
+    "calculation": "Subtract webAuthnMs from sdkRegistrationMs per sample, then calculate the median and range.",
+    "excludes": [
+      "first signature",
+      "funding",
+      "blockchain confirmation"
+    ],
+    "limitation": "Earlier hosted candidate. These timings do not measure setup home persistence or the preceding ceremony identity reuse."
+  },
+  "nextPriorities": [
+    {
+      "priority": 1,
+      "change": "Persist authenticated home during setup",
+      "state": "implemented and locally verified",
+      "observedRemovedConsoleCallMs": {
+        "minimum": 92,
+        "maximum": 286
+      },
+      "structuralReduction": {
+        "consoleRequests": 1,
+        "gatewayD1RoundTrips": 1
+      },
+      "hostedSaving": "unmeasured"
+    },
+    {
+      "priority": 2,
+      "change": "Include recovery-route publication in registration completion",
+      "observedConsoleCallMs": {
+        "minimum": 163,
+        "maximum": 168
+      },
+      "limitation": "Some work overlaps other finalization steps."
+    },
+    {
+      "priority": 3,
+      "change": "Diagnose Gateway-to-Router address allocation variability",
+      "observedCallMs": {
+        "minimum": 19,
+        "maximum": 538
+      },
+      "limitation": "Stored unique IDs are already enabled. Compare dispatch and execution before choosing a change."
+    },
+    {
+      "priority": 4,
+      "change": "Revisit custody database placement",
+      "previousRoleDatabaseRoundTripMs": {
+        "minimum": 70,
+        "maximum": 109
+      },
+      "previousGatewayDatabaseRoundTripMs": {
+        "minimum": 11,
+        "maximum": 22
+      },
+      "state": "Separate deployment decision; no database created or moved."
+    }
+  ],
+  "hostedMeasurement": "Not measured. Staging is unchanged. Costs overlap and are not additive savings.",
+  "reproduction": {
+    "browserRunner": ".artifacts/r155d-setup-home/run-intended.py",
+    "source": ".artifacts/r155d-setup-home/source",
+    "portOffset": 17000
+  }
+}

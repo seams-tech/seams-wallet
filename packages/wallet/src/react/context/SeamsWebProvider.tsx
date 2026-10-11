@@ -33,11 +33,6 @@ export interface SeamsWebProviderProps {
    *   no fullscreen overlay z-index.
    */
   walletOverlayZIndex?: number;
-  /**
-   * When true, pre-warm iframe + workers on idle after mount.
-   * Defaults to false (lazy by default).
-   */
-  eager?: boolean;
   children: React.ReactNode;
 }
 
@@ -98,7 +93,6 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
   config,
   theme,
   walletOverlayZIndex,
-  eager,
   children,
 }) => {
   // Internal: opportunistically add preconnect/prefetch hints for wallet + relayer
@@ -180,7 +174,6 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
   return (
     <SeamsContextProvider
       config={providerConfig}
-      eager={eager}
       theme={
         rootTheme === 'light' || rootTheme === 'dark'
           ? { theme: rootTheme, setTheme, appearance: providerAppearance }

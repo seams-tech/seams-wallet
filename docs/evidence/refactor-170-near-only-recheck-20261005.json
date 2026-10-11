@@ -1,0 +1,104 @@
+{
+  "baseCommit": "2e5f432264690cb0fd2b6555686715fdda2f2c8c",
+  "productionFixCommit": "391d4be925b0e6e735f31e6d529f4427181f0bf0",
+  "classification": "production_regression already repaired; current E2E retains fresh and restored signing and now checks that no ECDSA worker is created",
+  "checks": {
+    "productionNearOnly": "passed (34.4s)",
+    "intendedTypes": "passed"
+  },
+  "sourceSha256": {
+    "tests/e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts": "46817fd9f7c466188034530974da9c08040a04b5799d7f01fa14455921480876",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "ebd94abbb13690a9b6a7ceec50980ac699dd896fac611ddb7856b94410dc95c7",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/recovery.ts": "5b6f7d521c4be7363bb51d12f3942b1b5bf246760ea8c1bcf0c7387248bff211",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/requestEnvelope.ts": "487f808cb36893bd3ab6f481391495284208bcab0d03819b4db7f99efe508ec6"
+  },
+  "artifact": ".artifacts/wallet-assets/production-email-otp-near-only-registration-loads-selected-signer-assets.json",
+  "artifactSha256": "1778949e5321a729d8a0a8340dae2ecf5ad8d5dc105ecbdde838d433b3293b4b",
+  "workerCreations": [
+    {
+      "phase": "email-otp-near-registration",
+      "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-registration",
+      "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-registration",
+      "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-registration",
+      "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-registration",
+      "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-registration",
+      "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-sign",
+      "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "email-otp-near-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    }
+  ],
+  "phases": [
+    {
+      "name": "initialization",
+      "startedAtMs": 1791176413393,
+      "durationMs": 374.17266600000005
+    },
+    {
+      "name": "email-otp-near-registration",
+      "startedAtMs": 1791176413767,
+      "durationMs": 1189.447625
+    },
+    {
+      "name": "email-otp-near-sign",
+      "startedAtMs": 1791176414957,
+      "durationMs": 732.191167
+    },
+    {
+      "name": "email-otp-near-restored-sign",
+      "startedAtMs": 1791176415689,
+      "durationMs": 1102.87275
+    },
+    {
+      "name": "completed",
+      "startedAtMs": 1791176416792,
+      "durationMs": 2.4392079999997804
+    }
+  ],
+  "networkCollectorFailures": [],
+  "bodyCaptureFailureCount": 8,
+  "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.registration.assets.contract.test.ts --grep 'production Email OTP NEAR-only registration loads selected signer assets'",
+  "limits": [
+    "Run includes the in-progress removal of standalone Email OTP enrollment, recorded by source hashes.",
+    "Routed asset recording disables cache. This result does not establish warm-cache performance.",
+    "Worker body capture failures are separate from the independent network request observer."
+  ]
+}

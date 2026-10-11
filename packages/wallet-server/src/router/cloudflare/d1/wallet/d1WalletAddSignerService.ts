@@ -1,3 +1,4 @@
+import type { WalletExecutionAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import {
   buildD1WalletAddSignerFinalizePrepared,
   fingerprintD1WalletAddSignerFinalizePrepared,
@@ -815,6 +816,7 @@ function sameEcdsaSignerActivation(
 }
 
 export class CloudflareD1WalletAddSignerService {
+  private readonly executionAuthority: WalletExecutionAuthority;
   private readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
   private readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
   private readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -827,6 +829,7 @@ export class CloudflareD1WalletAddSignerService {
   private readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
 
   constructor(input: {
+    readonly executionAuthority: WalletExecutionAuthority;
     readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
     readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -838,6 +841,7 @@ export class CloudflareD1WalletAddSignerService {
     readonly finalizeSideEffects: D1WalletAddSignerFinalizeSideEffectStore;
     readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
   }) {
+    this.executionAuthority = input.executionAuthority;
     this.getRegistrationCeremonyIntentStore = input.getRegistrationCeremonyIntentStore;
     this.getEd25519YaoProductRegistration = input.getEd25519YaoProductRegistration;
     this.ecdsaStrictRegistration = input.ecdsaStrictRegistration;
@@ -1282,8 +1286,11 @@ export class CloudflareD1WalletAddSignerService {
           signingWorkerId: yaoRuntime.signingWorkerId,
         }),
       });
+      const homeAdmission = await this.executionAuthority.admitEstablishedHome({ walletId: input.walletId });
+      if (!homeAdmission.ok) return rejectedWalletAddSignerStartTerminal(homeAdmission.code, homeAdmission.message);
       const bound = await yaoRuntime.bindVerifiedIntent({
         kind: 'verified_add_signer_intent',
+        ownershipGeneration: homeAdmission.ownershipGeneration,
         addSignerIntentGrant: storedIntent.grant,
         intent: ed25519Intent,
         admissionRequest,
@@ -1441,9 +1448,11 @@ export class CloudflareD1WalletAddSignerService {
           message: 'ECDSA add-signer tenant root is not active',
         };
       }
+      const home = await this.executionAuthority.admitEstablishedHome({ walletId: ceremony.intent.walletId });
+      if (!home.ok) return home;
       const registered = await this.ecdsaStrictRegistration.registerWithTenantRoot({
         request: request.ecdsa.strictRegistration,
-        tenantRoot,
+        tenantRoot: { ...tenantRoot, ownershipGeneration: home.ownershipGeneration },
         requestPolicy: {
           policyVersion: WALLET_ADD_SIGNER_ROUTER_POLICY_VERSION,
           requestDigestB64u: request.ecdsa.requestDigestB64u,

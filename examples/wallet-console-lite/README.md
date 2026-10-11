@@ -61,4 +61,6 @@ in the backend process.
 The recovery page generates `seams-wallet` CLI commands for export, operational-share
 rotation, and restoring a deployment. Private wrapper keys and credentials remain in
 the terminal; the browser does not receive or execute them. Install the CLI with
-`npm install --global @seams/wallet-cli` before running those commands.
+`npm install --global @seams/wallet-cli@0.6.0` before running those commands.
+Fresh CLI execution also requires its matching signed native release assets;
+see [current availability](../../apps/docs/src/deploy-and-operate/recovery-cli.md).

@@ -145,3 +145,24 @@ type RegistrationIntentSignerBranches = {
   readonly nearEd25519: RegistrationNearEd25519SignerPlan | null;
   readonly evmFamilyEcdsa: RegistrationEvmFamilyEcdsaSignerPlan | null;
 };
+
+export function recordRegistrationServerTiming(
+  sink: Array<readonly [string, number]>,
+  name: string,
+  startedAtMs: number,
+): void {
+  sink.push([name, Math.max(0, Date.now() - startedAtMs)]);
+}
+
+export async function recordRegistrationPromiseTiming<T>(args: {
+  readonly sink: Array<readonly [string, number]>;
+  readonly name: string;
+  readonly startedAtMs: number;
+  readonly promise: T | Promise<T>;
+}): Promise<T> {
+  try {
+    return await args.promise;
+  } finally {
+    recordRegistrationServerTiming(args.sink, args.name, args.startedAtMs);
+  }
+}

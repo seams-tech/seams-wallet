@@ -1,0 +1,150 @@
+{
+  "date": "2026-10-10",
+  "scope": "Batch Console registration completion and recovery-route publication. No hosted latency measurement.",
+  "privateParent": "5fc3edea236dbedcd856234c3a72f3d1d61c37cf",
+  "privateImplementation": "535af1b679b92e562286ec6bb0955969d75ee7c0",
+  "privateFixtureCorrection": "4fc9977b80f7f858db4f928d61149a0b4b496c8e",
+  "publicCandidate": "defc0c268e4cc324588c18f548bdc3b9b4148ce9",
+  "d1Comparison": {
+    "parent": {
+      "routePublication": {
+        "roundTrips": 2,
+        "statements": 2
+      },
+      "freshCompletion": {
+        "roundTrips": 2,
+        "statements": 3
+      },
+      "exactCompletionRetry": {
+        "roundTrips": 5,
+        "statements": 6
+      }
+    },
+    "candidate": {
+      "routePublication": {
+        "roundTrips": 1,
+        "statements": 2
+      },
+      "freshCompletion": {
+        "roundTrips": 1,
+        "statements": 3
+      },
+      "exactCompletionRetry": {
+        "roundTrips": 1,
+        "statements": 3
+      }
+    }
+  },
+  "atomicCompletion": {
+    "stage": "atomic_session_home_completion",
+    "foreignSessionCannotCompleteHome": true,
+    "projectionFailureRollsBackSession": true,
+    "retryPublishesOriginalSession": true,
+    "changedExpiryRejected": true
+  },
+  "checks": [
+    {
+      "name": "Console typecheck and wallet-home type fixtures",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/typecheck.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "wallet home directory through competing registration, travel, restart and completion failure",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/directory-final.log",
+        "sha256": "a88a7bdccd9f724c3134e405045dafe0a4a22949ed7af0709832aeeb9e95f63a"
+      },
+      "evidence": {
+        "path": ".artifacts/r155d-console-batches/directory-final/relayer-wallet-home-direct-3489c-trations-travel-and-restart/wallet-home-evidence.json",
+        "sha256": "29bfd2f809f3d61cf557d3be327d2c74d8da227cc3ac200e33cb241a10abc496"
+      }
+    },
+    {
+      "name": "four-region session and lifecycle routing",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/regional.log",
+        "sha256": "7b631e7bc6fc0f9b8128ab8f0d1b7fe518e9c2a5db45c5be9759f21fa2fbc78e"
+      },
+      "evidence": {
+        "path": ".artifacts/r155d-console-batches/regional/regional-session-routing-evidence.json",
+        "sha256": "6bb135fd7ff4efb0c288a1e9f802c54605ba2a026442d8fc075894c6612cdaa7"
+      }
+    },
+    {
+      "name": "NEAR registration, session publication and foreign-region signing during Console outage",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/browser-normal.log",
+        "sha256": "29cbd1a1e7ea8a35d55380a6bdbb6b91497e77e72e87b6d3eca63a455aee7c5a"
+      }
+    },
+    {
+      "name": "lost combined completion reply retains the original session; credential claim failure retries after Router consumption",
+      "result": "two scenarios passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/browser-frozen.log",
+        "sha256": "fad182e316773d4ca48ae4cf93de37aa40b75131136a8c6c0efb3a2366e5e331"
+      },
+      "note": "The normal registration scenario initially failed an obsolete lookup-count assertion. Its corrected rerun is recorded separately."
+    },
+    {
+      "name": "parent versus candidate D1 operation counts",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/round-trips.log",
+        "sha256": "8e61401bad9235540ba1264e288bffed070bbf2b19982abe855f9a0caae34bff"
+      },
+      "evidence": {
+        "path": ".artifacts/r155d-console-batches/round-trips.json",
+        "sha256": "cd90936a19a85d851a88cc03b4a4451e2c4fe793128b78c7ed9507c996d87039"
+      }
+    },
+    {
+      "name": "public Wallet server build",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/server-build.log",
+        "sha256": "ad1533259e3b176584d517a078a3f58ac9e1bfabf975b20b73395dddd1e5f5eb"
+      }
+    },
+    {
+      "name": "public bloat check",
+      "result": "passed",
+      "log": {
+        "path": ".artifacts/r155d-console-batches/bloat.log",
+        "sha256": "b5add2ec176eec661180708cc04911d7c0f937bfb5fbd90d5250c89e9d4c15c6"
+      }
+    }
+  ],
+  "workerRuntime": {
+    "publicRevision": "defc0c268e4cc324588c18f548bdc3b9b4148ce9",
+    "typescript": "current tracked sources and rebuilt server dist",
+    "workerBinaries": "preserved .artifacts/r155d-setup-home/source build/dev",
+    "purpose": "functional verification; no latency claim"
+  },
+  "limitations": [
+    "Functional checks use local D1 and frozen Worker binaries. No claim about hosted milliseconds follows from these counts.",
+    "The broader custody relocation scenario stopped at its build-freshness check before execution. No custody relocation acceptance is claimed."
+  ],
+  "classifications": {
+    "installedPackageExport": "environment_or_infrastructure_failure: installed 0.8.0 did not expose a current export; matching candidate aliases resolved it.",
+    "workerReadiness": "environment_or_infrastructure_failure: local role keyset did not become ready; functional scenarios passed with the preserved Worker build.",
+    "homeLookupCount": "obsolete_test_or_fixture: setup persists the home, so registration makes zero continuation directory lookups.",
+    "relocationWorkerFreshness": "environment_or_infrastructure_failure: frozen build stamp predates source modification time; scenario did not execute."
+  },
+  "reproduction": {
+    "operationCountRunner": {
+      "path": ".artifacts/r155d-console-batches/measure-round-trips.mjs",
+      "sha256": "4c071fd5997a3025a17229e60ff3123a55f120c9f336546c821177a50d2a6695"
+    },
+    "operationCountCommand": "node .artifacts/r155d-console-batches/measure-round-trips.mjs",
+    "directory": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server pnpm exec playwright test -c tests/playwright.relayer.config.ts --tsconfig=.artifacts/r155d-console-batches/playwright.tsconfig.json tests/relayer/wallet-home-directory.e2e.test.ts --reporter=line",
+    "regional": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/regional-session-routing.e2e.mjs",
+    "browser": "SEAMS_WALLET_SERVER_CANDIDATE=.artifacts/r155d-console-batches/source/packages/wallet-server SEAMS_INTENDED_SKIP_BUILD=1 ROUTER_AB_WORKER_BUILD_PROFILE=dev SEAMS_LOCAL_PORT_OFFSET=12000 node tests/scripts/run-regional-real.mjs passkey.registration.contract.test.ts --grep \"NEAR registration (combines session|recovers a lost combined|retries a credential)\""
+  }
+}

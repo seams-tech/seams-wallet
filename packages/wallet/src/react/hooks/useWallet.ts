@@ -12,7 +12,7 @@ import {
 } from '../../boundary/walletRefs';
 import type { SeamsWeb } from '../../SeamsWeb';
 import type {
-  ExportKeypairInput,
+  ExportKeyInput,
   KeyExportOutcome,
   NearSignerCapability,
   EvmSignerCapability,
@@ -31,14 +31,9 @@ export interface BoundNearSigner {
       WithoutNearSubject<Parameters<NearSignerCapability['signAndSendTransaction']>[0]>
     >,
   ): ReturnType<NearSignerCapability['signAndSendTransaction']>;
-  executeAction(
-    args: ReviewedTransactionInput<
-      WithoutNearSubject<Parameters<NearSignerCapability['executeAction']>[0]>
-    >,
-  ): ReturnType<NearSignerCapability['executeAction']>;
-  signNEP413Message(
-    args: WithoutNearSubject<Parameters<NearSignerCapability['signNEP413Message']>[0]>,
-  ): ReturnType<NearSignerCapability['signNEP413Message']>;
+  signMessage(
+    args: WithoutNearSubject<Parameters<NearSignerCapability['signMessage']>[0]>,
+  ): ReturnType<NearSignerCapability['signMessage']>;
 }
 
 /** EIP-1559 signing bound to one wallet. */
@@ -48,11 +43,11 @@ export interface BoundEvmSigner {
       WithoutWalletSession<Parameters<EvmSignerCapability['signTransaction']>[0]>
     >,
   ): ReturnType<EvmSignerCapability['signTransaction']>;
-  executeTransaction(
+  signAndSendTransaction(
     args: ReviewedTransactionInput<
-      WithoutWalletSession<Parameters<EvmSignerCapability['executeTransaction']>[0]>
+      WithoutWalletSession<Parameters<EvmSignerCapability['signAndSendTransaction']>[0]>
     >,
-  ): ReturnType<EvmSignerCapability['executeTransaction']>;
+  ): ReturnType<EvmSignerCapability['signAndSendTransaction']>;
 }
 
 /** EIP-2718 Tempo signing bound to one wallet. */
@@ -62,11 +57,11 @@ export interface BoundTempoSigner {
       WithoutWalletSession<Parameters<TempoSignerCapability['signTransaction']>[0]>
     >,
   ): ReturnType<TempoSignerCapability['signTransaction']>;
-  executeTransaction(
+  signAndSendTransaction(
     args: ReviewedTransactionInput<
-      WithoutWalletSession<Parameters<TempoSignerCapability['executeTransaction']>[0]>
+      WithoutWalletSession<Parameters<TempoSignerCapability['signAndSendTransaction']>[0]>
     >,
-  ): ReturnType<TempoSignerCapability['executeTransaction']>;
+  ): ReturnType<TempoSignerCapability['signAndSendTransaction']>;
 }
 
 export interface BoundWallet {
@@ -77,7 +72,7 @@ export interface BoundWallet {
   readonly near: BoundNearSigner | null;
   readonly evm: BoundEvmSigner;
   readonly tempo: BoundTempoSigner;
-  exportKey(input: WithoutNearSubject<ExportKeypairInput>): Promise<KeyExportOutcome>;
+  exportKey(input: WithoutNearSubject<ExportKeyInput>): Promise<KeyExportOutcome>;
 }
 
 /**
@@ -143,9 +138,8 @@ function createBoundWallet(
       ? {
           accountId: nearAccountId,
           signAndSendTransaction: reviewed.nearSign,
-          executeAction: reviewed.nearExecute,
-          signNEP413Message: (args) =>
-            seams.near.signNEP413Message({ ...args, walletSession, nearAccount }),
+          signMessage: (args) =>
+            seams.near.signMessage({ ...args, walletSession, nearAccount }),
         }
       : null;
 
@@ -155,21 +149,21 @@ function createBoundWallet(
     near,
     evm: {
       signTransaction: reviewed.evmSign,
-      executeTransaction: reviewed.evmExecute,
+      signAndSendTransaction: reviewed.evmExecute,
     },
     tempo: {
       signTransaction: reviewed.tempoSign,
-      executeTransaction: reviewed.tempoExecute,
+      signAndSendTransaction: reviewed.tempoExecute,
     },
     exportKey: async (input) => {
       if (input.kind === 'ed25519') {
-        return await seams.keys.exportKeypair({
+        return await seams.keys.exportKey({
           ...input,
           walletSession,
           ...(nearAccount ? { nearAccount } : {}),
         });
       }
-      return await seams.keys.exportKeypair({ ...input, walletSession });
+      return await seams.keys.exportKey({ ...input, walletSession });
     },
   };
 }

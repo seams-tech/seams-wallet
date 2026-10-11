@@ -12,7 +12,10 @@ import {
 } from '@shared/utils/normalize';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import type { EmailOtpWorkerOperationRequestEnvelope } from '@/core/signingEngine/workerManager/workerTypes';
+import type {
+  EmailOtpWorkerOperationMap,
+  EmailOtpWorkerOperationRequestEnvelope,
+} from '@/core/signingEngine/workerManager/workerTypes';
 import { parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
   optionalWorkerPositiveInteger,
@@ -208,51 +211,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           walletId: readString(payload.walletId, 'walletId'),
           routePlan: readRegistrationRoutePlan(payload.routePlan, type),
           ...(otpChannel === undefined ? {} : { otpChannel }),
-        },
-      };
-    }
-    case 'enrollEmailOtpWallet': {
-      rejectUnknownEmailOtpYaoFields(
-        payload,
-        [
-          'relayUrl',
-          'walletId',
-          'userId',
-          'challengeId',
-          'otpCode',
-          'groupId',
-          'routePlan',
-          'googleEmailOtpRegistrationAttemptId',
-          'otpChannel',
-          'clientSecret32',
-        ],
-        type,
-      );
-      const otpChannel = parseOptionalEmailOtpChannel(payload.otpChannel, `${type}.otpChannel`);
-      return {
-        id,
-        type,
-        payload: {
-          relayUrl: readString(payload.relayUrl, 'relayUrl'),
-          walletId: readString(payload.walletId, 'walletId'),
-          userId: readString(payload.userId, 'userId'),
-          ...(toOptionalTrimmedNonEmptyString(payload.challengeId)
-            ? { challengeId: toOptionalTrimmedNonEmptyString(payload.challengeId)! }
-            : {}),
-          otpCode: readString(payload.otpCode, 'otpCode'),
-          groupId: readString(payload.groupId, 'groupId'),
-          routePlan: readRegistrationRoutePlan(payload.routePlan, type),
-          ...(toOptionalTrimmedNonEmptyString(payload.googleEmailOtpRegistrationAttemptId)
-            ? {
-                googleEmailOtpRegistrationAttemptId: toOptionalTrimmedNonEmptyString(
-                  payload.googleEmailOtpRegistrationAttemptId,
-                )!,
-              }
-            : {}),
-          ...(otpChannel === undefined ? {} : { otpChannel }),
-          ...(payload.clientSecret32 instanceof ArrayBuffer
-            ? { clientSecret32: payload.clientSecret32 }
-            : {}),
         },
       };
     }
@@ -597,21 +555,7 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         ],
         type,
       );
-      const ecdsa = asRecord(payload.ecdsa);
-      if (!ecdsa) {
-        throw new Error('Active Email OTP restore requires exact ECDSA session input');
-      }
-      rejectUnknownEmailOtpYaoFields(
-        ecdsa,
-        ['sessionHandleBinding', 'runtimePolicyScope', 'sessionPolicy'],
-        `${type}.ecdsa`,
-      );
-      const ecdsaBinding = parseOptionalWorkerEcdsaSessionBootstrapHandleBinding(
-        ecdsa.sessionHandleBinding,
-      );
-      if (!ecdsaBinding || ecdsaBinding.operation !== 'wallet_unlock') {
-        throw new Error('Active Email OTP restore requires wallet-unlock ECDSA binding');
-      }
+      const ecdsa = parseNearRestoreEcdsa(payload.ecdsa);
       const material = parseWalletCustodyEd25519MaterialRequest(
         payload.walletCustodyEd25519Material,
       );
@@ -639,16 +583,7 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
             'expectedThresholdSessionId',
           ),
           operationCredential: parseWalletSessionOperationCredentialV1(payload.operationCredential),
-          ecdsa: {
-            sessionHandleBinding: { ...ecdsaBinding, operation: 'wallet_unlock' },
-            runtimePolicyScope: parseWorkerRuntimePolicyScope(
-              ecdsa.runtimePolicyScope,
-              'Active Email OTP restore',
-            ),
-            sessionPolicy: parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1(
-              ecdsa.sessionPolicy,
-            ),
-          },
+          ecdsa,
           walletCustodyEd25519Material: material,
         },
       };
@@ -741,5 +676,43 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
     }
     default:
       return null;
+  }
+}
+
+function parseNearRestoreEcdsa(
+  value: unknown,
+): EmailOtpWorkerOperationMap['rehydrateActiveEmailOtpEd25519YaoSessionMaterial']['payload']['ecdsa'] {
+  const ecdsa = asRecord(value);
+  if (!ecdsa) throw new Error('Active Email OTP restore requires an ECDSA selection');
+  switch (ecdsa.kind) {
+    case 'absent':
+      rejectUnknownEmailOtpYaoFields(ecdsa, ['kind'], 'NEAR-only Email OTP restore');
+      return { kind: 'absent' };
+    case 'required': {
+      rejectUnknownEmailOtpYaoFields(
+        ecdsa,
+        ['kind', 'sessionHandleBinding', 'runtimePolicyScope', 'sessionPolicy'],
+        'Combined Email OTP restore',
+      );
+      const binding = parseOptionalWorkerEcdsaSessionBootstrapHandleBinding(
+        ecdsa.sessionHandleBinding,
+      );
+      if (!binding || binding.operation !== 'wallet_unlock') {
+        throw new Error('Active Email OTP restore requires wallet-unlock ECDSA binding');
+      }
+      return {
+        kind: 'required',
+        sessionHandleBinding: binding,
+        runtimePolicyScope: parseWorkerRuntimePolicyScope(
+          ecdsa.runtimePolicyScope,
+          'Active Email OTP restore',
+        ),
+        sessionPolicy: parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1(
+          ecdsa.sessionPolicy,
+        ),
+      };
+    }
+    default:
+      throw new Error('Active Email OTP restore has an invalid ECDSA selection');
   }
 }

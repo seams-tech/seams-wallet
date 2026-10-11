@@ -1009,7 +1009,7 @@ function requireResealedEnvelopeResult(value: unknown): {
   };
 }
 
-/** Lock, logout, session retirement, expiry, failed activation, teardown. */
+/** Lock, session retirement, expiry, failed activation, teardown. */
 function destroyUnlockedWalletEd25519ExportRootCapabilities(
   request: DestroyUnlockedCustodyCapabilitiesRequest,
 ): unknown {
@@ -1196,7 +1196,6 @@ async function rotateWalletRecoverySet(request: RotateRecoverySetRequest): Promi
 }
 
 async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promise<void> {
-  await initializeWasm();
   switch (request.type) {
     case 'openEd25519YaoLaneSource':
       postSucceeded(request.id, await openEd25519YaoLaneSource(request));
@@ -1211,9 +1210,11 @@ async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promi
       postSucceeded(request.id, checkpointNearRegistration(request));
       return;
     case 'restoreNearRegistration':
+      await initializeWasm();
       postSucceeded(request.id, restoreNearRegistration(request));
       return;
     case 'beginWalletCustodyKeySetRun':
+      await initializeWasm();
       postSucceeded(request.id, beginKeySetRun(request));
       return;
     case 'completeWalletCustodyKeySetRun':
@@ -1250,6 +1251,7 @@ async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promi
       postSucceeded(request.id, discardLinkedDeviceEd25519ExportRootRecipient(request));
       return;
     case 'rotateWalletRecoverySet':
+      await initializeWasm();
       postSucceeded(request.id, await rotateWalletRecoverySet(request));
       return;
     default:

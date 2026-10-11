@@ -12,16 +12,17 @@ test.describe('HostedSeamsAuthMenu StrictMode lifecycle', () => {
         contentType: 'application/javascript',
         body: `
           const seams = {
-            onHostedAuthMenuExternalAuthRequest() { return () => {}; },
-            onHostedAuthMenuDemoEmailOtpDelivery() { return () => {}; },
-            async cancelHostedAuthMenu() {},
-            async openHostedAuthMenu(request) {
-              return {
-                kind: 'failed',
-                authMenuSessionId: request.authMenuSessionId,
-                code: 'connection_closed',
-                message: 'Test wallet unavailable',
-              };
+            authMenu: {
+              onExternalAuthRequest() { return () => {}; },
+              async cancel() {},
+              async open(request) {
+                return {
+                  kind: 'failed',
+                  authMenuSessionId: request.authMenuSessionId,
+                  code: 'connection_closed',
+                  message: 'Test wallet unavailable',
+                };
+              },
             },
           };
           export function useSeams() {

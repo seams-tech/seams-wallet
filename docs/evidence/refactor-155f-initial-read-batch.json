@@ -1,0 +1,1302 @@
+{
+  "consoleRequests": [
+    "/internal/wallet-placement/v1/registration-setup",
+    "/internal/wallet-console/v1/tenant-root/active-lineage",
+    "/internal/wallet-placement/v1/publish-routes",
+    "/internal/wallet-placement/v1/claim-passkey",
+    "/internal/wallet-placement/v1/complete"
+  ],
+  "finalizationD1": {
+    "version": 1,
+    "calls": [
+      {
+        "sequence": 1,
+        "method": "batch",
+        "startedMs": 16.89816700000665,
+        "elapsedMs": 7.355707999988226,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "8ccc1b6339c10c5825fa6821",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_execution_generations",
+                "wallet_relocation_write_blocks"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "47b9a30087030081dc3c0809",
+              "kind": "SELECT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "00b62ec6db63ee692326ca5d",
+              "kind": "SELECT",
+              "tables": [
+                "registration_ceremony_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 2,
+        "method": "batch",
+        "startedMs": 41.893542000005255,
+        "elapsedMs": 6.912457999991602,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "1328c6a1f35baf71a35fe7ec",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "cfcdf4db277743c51ae850c0",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard",
+                "wallet_execution_generations",
+                "wallet_relocation_authorization_fences"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "ffe463239032aa83d2a55e3c",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "wallet_ceremony_activity"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 3,
+        "method": "batch",
+        "startedMs": 56.87683300000208,
+        "elapsedMs": 36.88741700000537,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "47b9a30087030081dc3c0809",
+              "kind": "SELECT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 4,
+        "method": "first",
+        "startedMs": 66.50595799999428,
+        "elapsedMs": 28.531375000005937,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "a8d09c50d7ef55288e4137d2",
+              "kind": "SELECT",
+              "tables": [
+                "yao_lifecycle_decisions"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 5,
+        "method": "batch",
+        "startedMs": 161.77745799999684,
+        "elapsedMs": 15.777709000001778,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "3f8767d36ecd12f4def23057",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_authorities"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "04bfd452aa4254b5d1d91abb",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_auth_methods"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 6,
+        "method": "batch",
+        "startedMs": 170.76916700000584,
+        "elapsedMs": 36.849499999996624,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "47b9a30087030081dc3c0809",
+              "kind": "SELECT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 7,
+        "method": "batch",
+        "startedMs": 219.80637500000012,
+        "elapsedMs": 13.370458000004874,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "1328c6a1f35baf71a35fe7ec",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "cfcdf4db277743c51ae850c0",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard",
+                "wallet_execution_generations",
+                "wallet_relocation_authorization_fences"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "b8692fbe9cc9f30ca1a089d6",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "wallets"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 2,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "7ac197ba5659c7d627e48e48",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "wallet_signers"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "cc70ff7c56dfa3a06e892f23",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "webauthn_authenticators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "9e35e99cd7c96020cf7bcdf0",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "webauthn_credential_bindings"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "05839cd7944cf04bb95d9a25",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_authorities"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 2,
+            "rowsWritten": 5,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "4e3d370db4db46bef94e1793",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "wallet_auth_methods"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 5,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "bd3c958a84cc40b39fd4657c",
+              "kind": "INSERT",
+              "tables": [
+                "yao_lifecycle_decisions"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 2,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "a95c4fff4b4ce8804191dd7e",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 2,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "ceea1542c794b567fe170e20",
+              "kind": "DELETE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2",
+                "wallet_session_hosted_exchange_codes_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "e8743d0928427200d8416680",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2",
+                "wallet_session_hosted_credentials_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "a12a508ef570a8312edcff23",
+              "kind": "UPDATE",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "e7830aa7dfe0329078122633",
+              "kind": "INSERT",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 4,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "5cb38f8a74721416f6e23ec4",
+              "kind": "INSERT",
+              "tables": [
+                "authorization_wallet_session_quotas",
+                "wallet_auth_methods",
+                "wallet_authorities",
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 6,
+            "rowsWritten": 13,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "86061681a975fdd3f4a39a60",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "302648d9e5c47b47dff2c7d7",
+              "kind": "SELECT",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "7347995dc9117852c25636e3",
+              "kind": "UPDATE",
+              "tables": [
+                "wallet_execution_generations",
+                "wallet_session_authorizations_v2"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 4,
+            "rowsWritten": 1,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 8,
+        "method": "batch",
+        "startedMs": 295.9857500000071,
+        "elapsedMs": 72.29149999999208,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "1328c6a1f35baf71a35fe7ec",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "1328c6a1f35baf71a35fe7ec",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "1328c6a1f35baf71a35fe7ec",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 1,
+            "rowsRead": 0,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "09ed0b3c1350f25a8a20351f",
+              "kind": "INSERT",
+              "tables": [
+                "wallet_recovery_code_locators"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 4,
+            "changes": 1,
+            "attempts": null
+          }
+        ]
+      },
+      {
+        "sequence": 9,
+        "method": "batch",
+        "startedMs": 391.6079170000012,
+        "elapsedMs": 6.444957999992766,
+        "outcome": "ok",
+        "statements": [
+          {
+            "query": {
+              "id": "df164660f6b7dbc290a1d6c2",
+              "kind": "UPDATE",
+              "tables": [
+                "router_ab_yao_versioned_json_records"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 2,
+            "rowsWritten": 3,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "cfcdf4db277743c51ae850c0",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard",
+                "wallet_execution_generations",
+                "wallet_relocation_authorization_fences"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 1,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "ffe463239032aa83d2a55e3c",
+              "kind": "INSERT",
+              "tables": [
+                "set",
+                "wallet_ceremony_activity"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 2,
+            "rowsWritten": 2,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "40488211533cfd76970b78db",
+              "kind": "UPDATE",
+              "tables": [
+                "wallet_execution_generations"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 3,
+            "rowsWritten": 1,
+            "changes": 1,
+            "attempts": null
+          },
+          {
+            "query": {
+              "id": "14376843a3856a9ad918f741",
+              "kind": "INSERT",
+              "tables": [
+                "router_ab_yao_versioned_json_cas_guard"
+              ]
+            },
+            "region": null,
+            "primary": null,
+            "sqlMs": 0,
+            "rowsRead": 0,
+            "rowsWritten": 0,
+            "changes": 0,
+            "attempts": null
+          }
+        ]
+      }
+    ],
+    "pending": 1,
+    "dropped": 0
+  },
+  "finalizationTiming": "near_finalize_authority;dur=0.0, near_finalize_initial_read;dur=22.0, near_finalize_fingerprint;dur=0.0, near_finalize_source;dur=0.0, near_finalize_custody_reserve;dur=45.0, near_finalize_router_consume;dur=49.0, near_finalize_wallet_commit;dur=125.0, near_finalize_custody_commit;dur=134.0, near_finalize_session_issue;dur=76.0, near_finalize_side_effect;dur=374.0, near_finalize_total;dur=405.0, near_finalize_session_seal;dur=0.0",
+  "initialReads": {
+    "batchedReads": 1,
+    "completedReplay": {
+      "ceremonyRecords": 0,
+      "replayStatus": 200,
+      "sameSession": true
+    },
+    "fencedReplay": {
+      "relocationBlockStatus": 400,
+      "retiredHomeStatus": 400
+    }
+  },
+  "signature": {
+    "message": "Combined registration completion through OC",
+    "recipient": "checkout.example",
+    "state": "quote-170",
+    "success": true,
+    "accountId": "a2a8fef3b412820322e2efb4327f3bffae7809f1059408e1668d4852ce5008aa",
+    "publicKey": "ed25519:BwxWTVCHCV8ZG9njCjttYQJmED6i2gsuhq9jmrrDy7VT",
+    "signature": "GjHLnndWR55exxE0X30oM4+WM1yOClea4fEY/Q9phk9dIuCONgbhR06eXT/gmi9nxr95M1ksj5Kl1mggvp44Bw==",
+    "nonce": "RhiPgKqBToWoXEtONP2c6Cf7el5vrMqEiyWHTaGXhaI=",
+    "digestHex": "e311824981b4dc2d452792a7744683f3991daaae2fd7adbbc4ccea589d588029",
+    "verification": {
+      "standardPayload": true,
+      "changedMessageRejected": true,
+      "changedRecipientRejected": true,
+      "changedNonceRejected": true,
+      "changedCallbackUrlRejected": true,
+      "stateExcludedFromPayload": true,
+      "stateReturnedUnchanged": true
+    }
+  },
+  "signingIngress": "OC",
+  "signingConsoleCalls": 0,
+  "walletStartup": {
+    "routerRequests": 1,
+    "sentBeforeRespondMs": 858
+  },
+  "gatewayDatabaseWork": [
+    {
+      "stage": "registration",
+      "path": "/wallets/register/setup",
+      "roundTrips": 4,
+      "statements": 11,
+      "calls": [
+        [
+          "SELECT wallet_object_addresses"
+        ],
+        [
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "INSERT registration_ceremony_records",
+          "INSERT registration_ceremony_records",
+          "SELECT registration_ceremony_records",
+          "SELECT registration_ceremony_records",
+          "INSERT wallet_execution_generations",
+          "UPDATE wallet_execution_generations",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ],
+        [
+          "INSERT wallet_object_addresses",
+          "SELECT wallet_object_addresses"
+        ]
+      ]
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/respond",
+      "roundTrips": 5,
+      "statements": 10,
+      "calls": [
+        [
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "SELECT wallet_execution_generations+wallet_relocation_write_blocks"
+        ],
+        [
+          "SELECT wallet_auth_methods"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity",
+          "UPDATE registration_ceremony_records",
+          "INSERT registration_ceremony_cas_guard"
+        ]
+      ]
+    },
+    {
+      "stage": "registration",
+      "path": "/router-ab/ed25519/yao/registration/execute",
+      "roundTrips": 1,
+      "statements": 1,
+      "calls": [
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ]
+      ]
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/near-provisioning",
+      "roundTrips": 9,
+      "statements": 55,
+      "calls": [
+        [
+          "SELECT wallet_execution_generations+wallet_relocation_write_blocks",
+          "SELECT router_ab_yao_versioned_json_records",
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "SELECT yao_lifecycle_decisions"
+        ],
+        [
+          "SELECT wallet_authorities",
+          "SELECT wallet_auth_methods"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallets",
+          "INSERT set+wallet_signers",
+          "INSERT set+webauthn_authenticators",
+          "INSERT set+webauthn_credential_bindings",
+          "INSERT wallet_authorities",
+          "INSERT set+wallet_auth_methods",
+          "INSERT yao_lifecycle_decisions",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "DELETE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_exchange_codes_v2",
+          "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2",
+          "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "SELECT wallet_session_authorizations_v2",
+          "SELECT wallet_execution_generations",
+          "UPDATE wallet_execution_generations+wallet_session_authorizations_v2",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators"
+        ],
+        [
+          "UPDATE router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity",
+          "UPDATE wallet_execution_generations",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ]
+      ]
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign/prepare",
+      "roundTrips": 2,
+      "statements": 3,
+      "calls": [
+        [
+          "SELECT authorization_wallet_session_quotas+candidates+router_ab_normal_signing_admission_records+router_ab_yao_versioned_json_records+scopes+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_signers"
+        ],
+        [
+          "INSERT authorized_operations+wallet_execution_generations+wallet_operation_authorizations",
+          "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+        ]
+      ]
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign",
+      "roundTrips": 3,
+      "statements": 3,
+      "calls": [
+        [
+          "SELECT authorization_wallet_session_quotas+candidates+router_ab_normal_signing_admission_records+router_ab_yao_versioned_json_records+scopes+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_signers"
+        ],
+        [
+          "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+        ],
+        [
+          "UPDATE authorized_operations"
+        ]
+      ]
+    },
+    {
+      "stage": "explicit_refresh",
+      "path": "/wallet/session/status",
+      "roundTrips": 2,
+      "statements": 2,
+      "calls": [
+        [
+          "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_signers"
+        ],
+        [
+          "SELECT wallet_signers"
+        ]
+      ]
+    }
+  ],
+  "sessionObservation": {
+    "registrationStatusRequests": 0,
+    "firstSignatureStatusRequests": 0,
+    "explicitRefreshStatusRequests": 1,
+    "reactLoginPublished": true,
+    "nearIdentityPublished": true,
+    "lockClearsAuthentication": true
+  },
+  "sessionSealing": {
+    "computationsDuringRegistration": 1,
+    "completionRequestedBeforeSeal": true,
+    "completedBeforeDirectoryReply": true
+  },
+  "gatewayRequests": [
+    {
+      "stage": "registration",
+      "path": "/wallets/register/setup",
+      "atMs": 1791706784800
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/respond",
+      "atMs": 1791706785793
+    },
+    {
+      "stage": "registration",
+      "path": "/router-ab/ed25519/yao/registration/execute",
+      "atMs": 1791706785906
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/near-provisioning",
+      "atMs": 1791706786137
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign/prepare",
+      "atMs": 1791706787318
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign",
+      "atMs": 1791706787397
+    },
+    {
+      "stage": "explicit_refresh",
+      "path": "/wallet/session/status",
+      "atMs": 1791706787723
+    }
+  ]
+}

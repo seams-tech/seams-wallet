@@ -244,6 +244,32 @@ impl RolePairCipherV1 {
         })
     }
 
+    pub(crate) fn relocation_context_digest(&self) -> worker::Result<String> {
+        use sha2::{Digest, Sha256};
+
+        let context = serde_json::to_vec(&(
+            "seams/deriver/wallet-relocation/cipher-context/v1",
+            &self.environment,
+            self.role,
+            &self.key_version,
+            CloudflareHpkeKemV1::pk_to_bytes(&self.public_key),
+            self.schema,
+        ))
+        .map_err(|error| role_d1_error(error.to_string()))?;
+        let digest = encode_hex_slice(&Sha256::digest(context));
+        let scope = RolePairRecordScopeV1 {
+            signer_set_id: "wallet-relocation-preparation".to_owned(),
+            root_share_epoch: "cipher-key-check".to_owned(),
+            root_metadata_digest_hex: digest.clone(),
+        };
+        let identity = "seams/deriver/wallet-relocation/key-check/v1";
+        let ciphertext = self.seal(identity, &scope, &digest)?;
+        if self.open(identity, &ciphertext)?.record_json != digest {
+            return Err(role_d1_error("Deriver relocation cipher key check failed"));
+        }
+        Ok(digest)
+    }
+
     pub(crate) fn seal(
         &self,
         identity: &str,
@@ -346,6 +372,27 @@ impl RolePairCipherV1 {
         })
         .map_err(|error| role_d1_error(format!("role-private D1 AAD encoding failed: {error}")))
     }
+}
+
+// Generation-one records predate physical routing metadata. Normalize only after
+// authenticated decryption; wire requests must supply their admitted generation.
+pub(crate) fn migrate_wallet_generation(encoded: &str) -> worker::Result<String> {
+    let mut record: serde_json::Value = serde_json::from_str(encoded)
+        .map_err(|error| role_d1_error(format!("role-private record is malformed: {error}")))?;
+    let mut changed = false;
+    for path in ["/tenant_root", "/payload/tenant_root"] {
+        if let Some(context) = record.pointer_mut(path).and_then(serde_json::Value::as_object_mut) {
+            if !context.contains_key("ownership_generation") {
+                context.insert("ownership_generation".to_owned(), serde_json::json!(1));
+                changed = true;
+            }
+        }
+    }
+    if !changed {
+        return Ok(encoded.to_owned());
+    }
+    serde_json::to_string(&record)
+        .map_err(|error| role_d1_error(format!("role-private record migration failed: {error}")))
 }
 
 fn required_env_var(env: &Env, name: &'static str) -> worker::Result<String> {
@@ -527,14 +574,14 @@ impl RolePairD1StorageV1 {
         .transpose()
     }
 
-    pub(super) async fn transaction<F, Fut>(&self, closure: F) -> worker::Result<()>
+    pub(super) async fn transaction<F, Fut, T>(&self, closure: F) -> worker::Result<T>
     where
         F: FnOnce(RolePairD1TransactionV1) -> Fut,
-        Fut: Future<Output = worker::Result<()>>,
+        Fut: Future<Output = worker::Result<T>>,
     {
         let initial = self.load().await?;
         let pending = Rc::new(RefCell::new(None));
-        closure(RolePairD1TransactionV1 {
+        let result = closure(RolePairD1TransactionV1 {
             initial: initial.clone(),
             pending: Rc::clone(&pending),
         })
@@ -543,7 +590,7 @@ impl RolePairD1StorageV1 {
         if let Some(pending) = pending {
             self.persist_from(initial, pending).await?;
         }
-        Ok(())
+        Ok(result)
     }
 
     async fn load(&self) -> worker::Result<Option<CachedPairV1>> {
@@ -591,11 +638,11 @@ impl RolePairD1StorageV1 {
             .map(|row| {
                 self.cipher
                     .open(&self.record_identity, &row.ciphertext_json)
-                    .map(|opened| CachedPairV1 {
-                        record_json: opened.record_json,
+                    .and_then(|opened| Ok(CachedPairV1 {
+                        record_json: migrate_wallet_generation(&opened.record_json)?,
                         revision: row.revision,
                         scope: opened.scope,
-                    })
+                    }))
             })
             .transpose()?;
         self.cached.replace(Some(row.clone()));
@@ -826,14 +873,18 @@ impl RolePairD1TransactionV1 {
     }
 }
 
-fn pending_pair(value: PairYaoSessionRecordV1) -> worker::Result<PendingPairV1> {
-    let lifecycle = match &value {
+fn pair_lifecycle(value: &PairYaoSessionRecordV1) -> &'static str {
+    match value {
         PairYaoSessionRecordV1::Prepared { .. } => "prepared",
         PairYaoSessionRecordV1::Running { .. } => "running",
         PairYaoSessionRecordV1::Completed { .. } => "completed",
         PairYaoSessionRecordV1::Burned { .. } => "burned",
         PairYaoSessionRecordV1::Expired { .. } => "expired",
-    };
+    }
+}
+
+fn pending_pair(value: PairYaoSessionRecordV1) -> worker::Result<PendingPairV1> {
+    let lifecycle = pair_lifecycle(&value);
     let expires_at_ms = match &value {
         PairYaoSessionRecordV1::Prepared { expires_at_ms, .. } => *expires_at_ms,
         PairYaoSessionRecordV1::Running { started_at_ms, .. } => {
@@ -863,6 +914,10 @@ fn validate_pending_scope(record_json: &str, scope: &RolePairRecordScopeV1) -> w
             "role-private D1 Yao record scope validation failed: {error}"
         ))
     })?;
+    validate_record_scope(&record, scope)
+}
+
+fn validate_record_scope(record: &PairYaoSessionRecordV1, scope: &RolePairRecordScopeV1) -> worker::Result<()> {
     let record_root_metadata_digest = match record {
         PairYaoSessionRecordV1::Prepared {
             root_metadata_digest,
@@ -875,7 +930,7 @@ fn validate_pending_scope(record_json: &str, scope: &RolePairRecordScopeV1) -> w
         | PairYaoSessionRecordV1::Completed {
             root_metadata_digest,
             ..
-        } => Some(root_metadata_digest),
+        } => Some(*root_metadata_digest),
         PairYaoSessionRecordV1::Burned { .. } | PairYaoSessionRecordV1::Expired { .. } => None,
     };
     if record_root_metadata_digest
@@ -960,4 +1015,15 @@ mod tests {
         let tampered = serde_json::to_string(&envelope).expect("tampered envelope encodes");
         assert!(cipher.open("session-1", &tampered).is_err());
     }
+}
+
+
+pub(crate) fn validate_terminal_wallet_record(opened: &OpenedRolePairRecordV1, pair_digest_hex: &str, lifecycle: &str) -> worker::Result<()> {
+    let record: PairYaoSessionRecordV1 = serde_json::from_str(&opened.record_json)
+        .map_err(|error| role_d1_error(format!("Deriver B imported record is malformed: {error}")))?;
+    validate_record_scope(&record, &opened.scope)?;
+    if !matches!(record, PairYaoSessionRecordV1::Completed { .. } | PairYaoSessionRecordV1::Burned { .. } | PairYaoSessionRecordV1::Expired { .. })
+        || pair_lifecycle(&record) != lifecycle || encode_hex(record.pair_digest()) != pair_digest_hex
+    { return Err(role_d1_error("Deriver B imported lifecycle or pair digest differs")); }
+    Ok(())
 }

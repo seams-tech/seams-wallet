@@ -1,4 +1,5 @@
 import { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
+import { WalletHomeCustodyBinding } from './router/cloudflare/runtime/routerAbServiceBindings';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { localPresignCancellationProbe } from './localIntendedPresignCancellation';
 import { localMaterialAdmissionFault } from './localIntendedMaterialAdmissionFault';
@@ -72,7 +73,6 @@ import {
   LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1,
   LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1,
   LocalIntendedYaoSigningFaultControllerV1,
-  commandLocalIntendedSigningWorkerHoldV1,
   parseLocalIntendedYaoSigningFaultModeV1,
   parseLocalIntendedYaoSigningFaultTokenV1,
   releaseLocalIntendedYaoSigningFinalizeV1,
@@ -252,18 +252,21 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   const config = parseStaticWalletConsoleBindingConfigV1(
     JSON.parse(env.WALLET_LOCAL_DEPLOYMENT_JSON),
   );
+  const tenantScope = {
+    namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
+    orgId: config.deployment.orgId,
+    projectId: config.deployment.projectId,
+    envId: config.deployment.environmentKey,
+  };
   dependencies = {
     emailOtpDeliveryProvider: dependencies?.emailOtpDeliveryProvider,
     signerWasm: dependencies?.signerWasm,
-    registrationAuthority: new LocalRegistrationSetupAuthority(env.SIGNER_DB, {
-      namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
-      orgId: config.deployment.orgId,
-      projectId: config.deployment.projectId,
-      envId: config.deployment.environmentKey,
-    }),
+    registrationAuthority: new LocalRegistrationSetupAuthority(env.SIGNER_DB, tenantScope),
   };
   const gatewayEnv: CloudflareD1GatewayEnv = {
     ...env,
+    MPC_ROUTER: new WalletHomeCustodyBinding(env.MPC_ROUTER, 'US', env.SIGNER_DB, tenantScope.namespace, null),
+    SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US', env.SIGNER_DB, tenantScope.namespace, null),
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
   const canceledPresign = await localPresignCancellationProbe(
@@ -412,7 +415,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
 
   // Each registration owns its fault state, including every internal Router retry.
   const controller = new LocalIntendedYaoFaultControllerV1(
-    env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+    gatewayEnv.MPC_ROUTER.fetch.bind(gatewayEnv.MPC_ROUTER),
   );
   controller.arm(mode);
   const response = await handleSplitGatewayRequest(
@@ -648,14 +651,6 @@ async function handleYaoSigningFault(
   }
   if (mode === 'release_signing_finalize') {
     return await releaseLocalIntendedYaoSigningFinalizeV1(env.MPC_ROUTER, token);
-  }
-  if (mode === 'arm_signing_worker_hold' || mode === 'read_signing_worker_hold') {
-    return await commandLocalIntendedSigningWorkerHoldV1(
-      env.SIGNING_WORKER,
-      env.ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET,
-      mode,
-      await request.json().catch(() => null),
-    );
   }
   const controller = new LocalIntendedYaoSigningFaultControllerV1(
     env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),

@@ -7,7 +7,6 @@ use crate::derivation::{
     PublicDigest32, RequestKind, Role, RootShareEpoch, RouterAbDerivationError,
     SignerInputPlaintextV1, SignerSetBinding, TenantRootProtocolDigestV1, TranscriptBinding,
 };
-use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use threshold_prf::PrfPurpose;
@@ -24,13 +23,9 @@ use crate::protocol::identity::{
     SignerSetPolicyV1, SignerSetV1,
 };
 use crate::protocol::lifecycle::LifecycleScopeV1;
-use crate::protocol::wire::CanonicalWireBytesV1;
 
 const ROUTER_TO_SIGNER_PAYLOAD_VERSION_V1: &[u8] =
     b"router-ab-protocol/router-to-signer-payload/v1";
-const AB_PEER_MESSAGE_PAYLOAD_VERSION_V1: &[u8] = b"router-ab-protocol/ab-peer-message-payload/v1";
-const AB_PEER_MESSAGE_AUTHENTICATION_INPUT_VERSION_V1: &[u8] =
-    b"router-ab-protocol/ab-peer-message-authentication-input/v1";
 const ECDSA_THRESHOLD_PRF_PROOF_BATCH_PAYLOAD_VERSION_V1: &[u8] =
     b"router-ab-protocol/ecdsa-threshold-prf-proof-batch-payload/v1";
 const RECIPIENT_PROOF_BUNDLE_PAYLOAD_VERSION_V1: &[u8] =
@@ -484,82 +479,6 @@ impl SigningWorkerActivationContextV1 {
     }
 }
 
-/// Direct A/B peer payload before canonical transport encoding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AbPeerMessagePayloadV1 {
-    /// Sender signer identity.
-    pub from: SignerIdentityV1,
-    /// Recipient signer identity.
-    pub to: SignerIdentityV1,
-    /// Transcript digest.
-    pub transcript_digest: PublicDigest32,
-    /// Canonical peer protocol payload bytes.
-    pub payload: CanonicalWireBytesV1,
-    /// Authentication over sender, recipient, transcript, and payload bytes.
-    pub authentication: AbPeerMessageAuthenticationV1,
-}
-
-impl AbPeerMessagePayloadV1 {
-    /// Creates a validated A/B peer payload.
-    pub fn new(
-        from: SignerIdentityV1,
-        to: SignerIdentityV1,
-        transcript_digest: PublicDigest32,
-        payload: CanonicalWireBytesV1,
-        authentication: AbPeerMessageAuthenticationV1,
-    ) -> RouterAbProtocolResult<Self> {
-        let message = Self {
-            from,
-            to,
-            transcript_digest,
-            payload,
-            authentication,
-        };
-        message.validate()?;
-        Ok(message)
-    }
-
-    /// Validates that the peer message crosses signer roles.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.from.validate()?;
-        self.to.validate()?;
-        match (self.from.role, self.to.role) {
-            (Role::SignerA, Role::SignerB) | (Role::SignerB, Role::SignerA) => Ok(()),
-            _ => Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidRole,
-                "A/B peer message must cross Signer A and Signer B",
-            )),
-        }?;
-        let expected_digest = ab_peer_message_authentication_input_digest_v1(
-            &self.from,
-            &self.to,
-            self.transcript_digest,
-            &self.payload,
-        );
-        self.authentication.validate(expected_digest)
-    }
-
-    /// Returns canonical bytes covered by the A/B peer authentication.
-    pub fn authentication_input_bytes(&self) -> Vec<u8> {
-        encode_ab_peer_message_authentication_input_v1(
-            &self.from,
-            &self.to,
-            self.transcript_digest,
-            &self.payload,
-        )
-    }
-
-    /// Returns canonical bytes for this payload.
-    pub fn canonical_bytes(&self) -> Vec<u8> {
-        encode_ab_peer_message_payload_v1(self)
-    }
-
-    /// Returns the SHA-256 digest of canonical bytes.
-    pub fn digest(&self) -> PublicDigest32 {
-        ab_peer_message_payload_digest_v1(self)
-    }
-}
-
 /// Inner A/B ECDSA threshold-PRF payload carrying Deriver proof bundles.
 #[derive(Clone, PartialEq, Eq)]
 pub struct EcdsaThresholdPrfProofBatchPayloadV1 {
@@ -605,6 +524,27 @@ impl EcdsaThresholdPrfProofBatchPayloadV1 {
         };
         payload.validate()?;
         Ok(payload)
+    }
+
+    /// Builds the proof batch one signer produced for its own batch output.
+    pub fn from_signer_batch_output(
+        from: SignerIdentityV1,
+        to: SignerIdentityV1,
+        batch_output: MpcPrfThresholdSignerBatchOutputV1,
+    ) -> RouterAbProtocolResult<Self> {
+        if batch_output.signer_role != from.role || batch_output.signer_identity != from.signer_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidSignerIdentity,
+                "A/B ECDSA threshold-PRF proof batch output does not match sender identity",
+            ));
+        }
+        Self::new(
+            from,
+            to,
+            batch_output.transcript_digest,
+            batch_output.root_share_epoch,
+            batch_output.proof_bundles,
+        )
     }
 
     /// Validates peer direction, transcript binding, and proof-bundle metadata.
@@ -1140,104 +1080,6 @@ pub fn verify_mpc_prf_stable_recipient_proof_bundle_payload_v2(
         .map_err(map_derivation_to_protocol_error)
 }
 
-/// Signature scheme for direct A/B peer messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AbPeerMessageSignatureSchemeV1 {
-    /// Ed25519 signature over the canonical A/B peer authentication input.
-    Ed25519V1,
-}
-
-impl AbPeerMessageSignatureSchemeV1 {
-    /// Returns the canonical signature-scheme label.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Ed25519V1 => "ed25519_v1",
-        }
-    }
-}
-
-/// Required authentication material for direct A/B peer messages.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AbPeerMessageAuthenticationV1 {
-    /// Signature scheme.
-    pub signature_scheme: AbPeerMessageSignatureSchemeV1,
-    /// Digest of the canonical bytes signed by the sender.
-    pub signed_message_digest: PublicDigest32,
-    /// Signature bytes.
-    pub signature: CanonicalWireBytesV1,
-}
-
-impl AbPeerMessageAuthenticationV1 {
-    /// Creates validated A/B peer authentication material.
-    pub fn new(
-        signature_scheme: AbPeerMessageSignatureSchemeV1,
-        signed_message_digest: PublicDigest32,
-        signature: CanonicalWireBytesV1,
-    ) -> RouterAbProtocolResult<Self> {
-        let authentication = Self {
-            signature_scheme,
-            signed_message_digest,
-            signature,
-        };
-        authentication.validate(signed_message_digest)?;
-        Ok(authentication)
-    }
-
-    /// Validates the authentication digest binding.
-    pub fn validate(&self, expected_signed_digest: PublicDigest32) -> RouterAbProtocolResult<()> {
-        if self.signed_message_digest != expected_signed_digest {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "A/B peer authentication digest does not match payload",
-            ));
-        }
-        if self.signature.as_bytes().is_empty() {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "A/B peer authentication signature must be non-empty",
-            ));
-        }
-        Ok(())
-    }
-}
-
-/// Sender-bound Ed25519 verifying key for A/B peer authentication.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AbPeerMessageVerifyingKeyV1 {
-    /// Signer identity that owns this verifying key.
-    pub signer: SignerIdentityV1,
-    /// Raw Ed25519 verifying key bytes.
-    pub verifying_key_bytes: [u8; 32],
-}
-
-impl AbPeerMessageVerifyingKeyV1 {
-    /// Creates a validated peer verifying key.
-    pub fn new(
-        signer: SignerIdentityV1,
-        verifying_key_bytes: [u8; 32],
-    ) -> RouterAbProtocolResult<Self> {
-        let key = Self {
-            signer,
-            verifying_key_bytes,
-        };
-        key.validate()?;
-        Ok(key)
-    }
-
-    /// Validates signer identity and Ed25519 key bytes.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.signer.validate()?;
-        VerifyingKey::from_bytes(&self.verifying_key_bytes).map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                "A/B peer verifying key bytes are invalid",
-            )
-        })?;
-        Ok(())
-    }
-}
-
 /// Encodes Router-to-signer payload bytes with fixed field order.
 pub fn encode_router_to_signer_payload_v1(payload: &RouterToSignerPayloadV1) -> Vec<u8> {
     let mut out = Vec::new();
@@ -1325,33 +1167,6 @@ pub fn router_to_signer_payload_digest_v1(payload: &RouterToSignerPayloadV1) -> 
     digest_bytes(&encode_router_to_signer_payload_v1(payload))
 }
 
-/// Decodes A/B peer canonical bytes into a validated typed payload.
-pub fn decode_ab_peer_message_payload_v1(
-    bytes: &[u8],
-) -> RouterAbProtocolResult<AbPeerMessagePayloadV1> {
-    let mut decoder = PayloadDecoder::new(bytes);
-    decoder.expect_bytes(
-        AB_PEER_MESSAGE_PAYLOAD_VERSION_V1,
-        "A/B peer message payload version",
-    )?;
-    let from = decoder.read_signer_identity()?;
-    let to = decoder.read_signer_identity()?;
-    let transcript_digest = decoder.read_public_digest("transcript_digest")?;
-    let payload = CanonicalWireBytesV1::new(decoder.read_bytes("peer_payload")?.to_vec())?;
-    let signature_scheme =
-        parse_ab_peer_signature_scheme(&decoder.read_string("signature_scheme")?)?;
-    let signed_message_digest = decoder.read_public_digest("signed_message_digest")?;
-    let signature = CanonicalWireBytesV1::new(decoder.read_bytes("signature")?.to_vec())?;
-    decoder.finish()?;
-    AbPeerMessagePayloadV1::new(
-        from,
-        to,
-        transcript_digest,
-        payload,
-        AbPeerMessageAuthenticationV1::new(signature_scheme, signed_message_digest, signature)?,
-    )
-}
-
 /// Encodes an A/B ECDSA threshold-PRF proof-batch payload with fixed field order.
 pub fn encode_ecdsa_threshold_prf_proof_batch_payload_v1(
     payload: &EcdsaThresholdPrfProofBatchPayloadV1,
@@ -1395,62 +1210,6 @@ pub fn decode_ecdsa_threshold_prf_proof_batch_payload_v1(
         transcript_digest,
         root_share_epoch,
         proof_bundles,
-    )
-}
-
-/// Decodes and validates a proof batch inside an authenticated A/B peer payload.
-pub fn decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1(
-    peer_payload: &AbPeerMessagePayloadV1,
-) -> RouterAbProtocolResult<EcdsaThresholdPrfProofBatchPayloadV1> {
-    peer_payload.validate()?;
-    let proof_batch =
-        decode_ecdsa_threshold_prf_proof_batch_payload_v1(peer_payload.payload.as_bytes())?;
-    if proof_batch.from != peer_payload.from
-        || proof_batch.to != peer_payload.to
-        || proof_batch.transcript_digest != peer_payload.transcript_digest
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "A/B ECDSA threshold-PRF proof batch does not match authenticated peer envelope",
-        ));
-    }
-    Ok(proof_batch)
-}
-
-/// Builds and signs an A/B ECDSA threshold-PRF proof batch for peer delivery.
-pub fn sign_ecdsa_threshold_prf_proof_batch_peer_payload_v1(
-    signing_key_bytes: &[u8; 32],
-    from: SignerIdentityV1,
-    to: SignerIdentityV1,
-    batch_output: MpcPrfThresholdSignerBatchOutputV1,
-) -> RouterAbProtocolResult<AbPeerMessagePayloadV1> {
-    if batch_output.signer_role != from.role || batch_output.signer_identity != from.signer_id {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidSignerIdentity,
-            "A/B ECDSA threshold-PRF proof batch output does not match sender identity",
-        ));
-    }
-    let proof_batch = EcdsaThresholdPrfProofBatchPayloadV1::new(
-        from.clone(),
-        to.clone(),
-        batch_output.transcript_digest,
-        batch_output.root_share_epoch,
-        batch_output.proof_bundles,
-    )?;
-    let payload = CanonicalWireBytesV1::new(proof_batch.canonical_bytes())?;
-    let authentication = sign_ab_peer_message_ed25519_authentication_v1(
-        signing_key_bytes,
-        &from,
-        &to,
-        proof_batch.transcript_digest,
-        &payload,
-    )?;
-    AbPeerMessagePayloadV1::new(
-        from,
-        to,
-        proof_batch.transcript_digest,
-        payload,
-        authentication,
     )
 }
 
@@ -1634,122 +1393,6 @@ pub fn build_mpc_prf_signer_partial_input_v1(
         plaintext.output_requests.clone(),
     )
     .map_err(map_derivation_to_protocol_error)
-}
-
-/// Encodes A/B peer message payload bytes with fixed field order.
-pub fn encode_ab_peer_message_payload_v1(payload: &AbPeerMessagePayloadV1) -> Vec<u8> {
-    let mut out = Vec::new();
-    push_len32(&mut out, AB_PEER_MESSAGE_PAYLOAD_VERSION_V1);
-    push_signer_identity(&mut out, &payload.from);
-    push_signer_identity(&mut out, &payload.to);
-    push_public_digest(&mut out, payload.transcript_digest);
-    push_len32(&mut out, payload.payload.as_bytes());
-    push_len32(
-        &mut out,
-        payload.authentication.signature_scheme.as_str().as_bytes(),
-    );
-    push_public_digest(&mut out, payload.authentication.signed_message_digest);
-    push_len32(&mut out, payload.authentication.signature.as_bytes());
-    out
-}
-
-/// Encodes canonical bytes that the peer sender signs.
-pub fn encode_ab_peer_message_authentication_input_v1(
-    from: &SignerIdentityV1,
-    to: &SignerIdentityV1,
-    transcript_digest: PublicDigest32,
-    payload: &CanonicalWireBytesV1,
-) -> Vec<u8> {
-    let mut out = Vec::new();
-    push_len32(&mut out, AB_PEER_MESSAGE_AUTHENTICATION_INPUT_VERSION_V1);
-    push_signer_identity(&mut out, from);
-    push_signer_identity(&mut out, to);
-    push_public_digest(&mut out, transcript_digest);
-    push_len32(&mut out, payload.as_bytes());
-    out
-}
-
-/// Computes the digest of canonical bytes that the peer sender signs.
-pub fn ab_peer_message_authentication_input_digest_v1(
-    from: &SignerIdentityV1,
-    to: &SignerIdentityV1,
-    transcript_digest: PublicDigest32,
-    payload: &CanonicalWireBytesV1,
-) -> PublicDigest32 {
-    digest_bytes(&encode_ab_peer_message_authentication_input_v1(
-        from,
-        to,
-        transcript_digest,
-        payload,
-    ))
-}
-
-/// Signs canonical A/B peer-message authentication input with an Ed25519 key.
-pub fn sign_ab_peer_message_ed25519_authentication_v1(
-    signing_key_bytes: &[u8; 32],
-    from: &SignerIdentityV1,
-    to: &SignerIdentityV1,
-    transcript_digest: PublicDigest32,
-    payload: &CanonicalWireBytesV1,
-) -> RouterAbProtocolResult<AbPeerMessageAuthenticationV1> {
-    from.validate()?;
-    to.validate()?;
-    let signed_bytes =
-        encode_ab_peer_message_authentication_input_v1(from, to, transcript_digest, payload);
-    let signature = SigningKey::from_bytes(signing_key_bytes).sign(&signed_bytes);
-    AbPeerMessageAuthenticationV1::new(
-        AbPeerMessageSignatureSchemeV1::Ed25519V1,
-        digest_bytes(&signed_bytes),
-        CanonicalWireBytesV1::new(signature.to_bytes().to_vec())?,
-    )
-}
-
-/// Verifies the Ed25519 signature on an authenticated A/B peer message.
-pub fn verify_ab_peer_message_ed25519_signature_v1(
-    payload: &AbPeerMessagePayloadV1,
-    verifying_key: &AbPeerMessageVerifyingKeyV1,
-) -> RouterAbProtocolResult<()> {
-    payload.validate()?;
-    verifying_key.validate()?;
-    if payload.authentication.signature_scheme != AbPeerMessageSignatureSchemeV1::Ed25519V1 {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "A/B peer authentication signature scheme is not Ed25519 v1",
-        ));
-    }
-    if payload.from != verifying_key.signer {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidSignerIdentity,
-            "A/B peer verifying key signer does not match payload sender",
-        ));
-    }
-    let signature =
-        Signature::from_slice(payload.authentication.signature.as_bytes()).map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "A/B peer Ed25519 signature must be 64 bytes",
-            )
-        })?;
-    let public_key =
-        VerifyingKey::from_bytes(&verifying_key.verifying_key_bytes).map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                "A/B peer verifying key bytes are invalid",
-            )
-        })?;
-    public_key
-        .verify_strict(&payload.authentication_input_bytes(), &signature)
-        .map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidSignerIdentity,
-                "A/B peer Ed25519 signature verification failed",
-            )
-        })
-}
-
-/// Computes the public digest of A/B peer message canonical bytes.
-pub fn ab_peer_message_payload_digest_v1(payload: &AbPeerMessagePayloadV1) -> PublicDigest32 {
-    digest_bytes(&encode_ab_peer_message_payload_v1(payload))
 }
 
 fn validate_router_to_signer(
@@ -2413,18 +2056,6 @@ fn parse_role(value: &str) -> RouterAbProtocolResult<Role> {
         _ => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidRole,
             "unknown role label",
-        )),
-    }
-}
-
-fn parse_ab_peer_signature_scheme(
-    value: &str,
-) -> RouterAbProtocolResult<AbPeerMessageSignatureSchemeV1> {
-    match value {
-        "ed25519_v1" => Ok(AbPeerMessageSignatureSchemeV1::Ed25519V1),
-        _ => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "unknown A/B peer signature scheme",
         )),
     }
 }

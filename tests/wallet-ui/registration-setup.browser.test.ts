@@ -10,7 +10,7 @@ class SetupServer {
   mode: 'lost' | 'accepted' | 'changed' | 'changed_ceremony' = 'lost';
 
   async handle(route: Route): Promise<void> {
-    expect(route.request().headers()['x-seams-wallet-protocol']).toBe('2');
+    expect(route.request().headers()['x-seams-wallet-protocol']).toBe('3');
     const body = route.request().postDataJSON();
     const environment = route.request().headers()['x-seams-environment-id'];
     this.requests.push({ operationId: body.registrationOperationId, environment });

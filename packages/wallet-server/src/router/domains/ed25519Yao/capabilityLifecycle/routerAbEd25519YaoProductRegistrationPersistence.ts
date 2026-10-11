@@ -69,7 +69,11 @@ export function createRouterAbEd25519YaoCeremonyStateStoreV1(
 
 type EncodedStateValue = VersionedJsonValue;
 
-const CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v1';
+const CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v4';
+const RECOVERY_GENERATION_CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v3';
+const REGISTRATION_GENERATION_CODEC_KIND =
+  'router_ab_ed25519_yao_product_registration_state_json_v2';
+const FIXED_HOME_CODEC_KIND = 'router_ab_ed25519_yao_product_registration_state_json_v1';
 const MAP_KIND = 'map_v1';
 const SET_KIND = 'set_v1';
 const BYTES_KIND = 'bytes_v1';
@@ -115,13 +119,86 @@ export function parseRouterAbEd25519YaoProductRegistrationStateJsonV1(
   input: unknown,
 ): RouterAbEd25519YaoProductRegistrationStateV1 | null {
   const record = exactRouterAbEd25519YaoProductRegistrationStateEnvelopeV1(input);
-  if (record === null || record.kind !== CODEC_KIND) return null;
+  if (
+    record === null ||
+    (record.kind !== CODEC_KIND &&
+      record.kind !== FIXED_HOME_CODEC_KIND &&
+      record.kind !== REGISTRATION_GENERATION_CODEC_KIND &&
+      record.kind !== RECOVERY_GENERATION_CODEC_KIND)
+  ) {
+    return null;
+  }
   const decoded = decodeRouterAbEd25519YaoProductRegistrationStateValueV1(record.state);
   if (!decoded.ok || !isRouterAbEd25519YaoProductRegistrationJsonObjectV1(decoded.value)) {
     return null;
   }
-  const parsed = parseRouterAbEd25519YaoProductRegistrationStateV1(decoded.value);
+  const state =
+    record.kind === FIXED_HOME_CODEC_KIND
+      ? normalizeFixedHomeAuthorities(decoded.value)
+      : decoded.value;
+  const recoveryNormalized =
+    record.kind === CODEC_KIND || record.kind === RECOVERY_GENERATION_CODEC_KIND
+      ? state
+      : normalizeFixedHomeRecoveries(state);
+  const normalized =
+    record.kind === CODEC_KIND ? recoveryNormalized : normalizeFixedHomeExports(recoveryNormalized);
+  const parsed = parseRouterAbEd25519YaoProductRegistrationStateV1(normalized);
   return parsed.ok ? parsed.value : null;
+}
+
+function normalizeFixedHomeAuthority(input: unknown): unknown {
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(input)) return input;
+  if (Object.prototype.hasOwnProperty.call(input, 'ownershipGeneration')) return input;
+  return { ...input, ownershipGeneration: 1 };
+}
+
+function normalizeFixedHomeAuthorities(
+  state: RouterAbEd25519YaoProductRegistrationJsonObjectV1,
+): unknown {
+  const authorization = state.authorization;
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(authorization)) return state;
+  if (!Array.isArray(authorization.authorities)) return state;
+  return {
+    ...state,
+    authorization: {
+      ...authorization,
+      authorities: authorization.authorities.map(normalizeFixedHomeAuthority),
+    },
+  };
+}
+
+function normalizeFixedHomeRecovery(input: unknown): unknown {
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(input)) return input;
+  const context = input.context;
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(context)) return input;
+  return {
+    ...input,
+    context: { ...context, authorization: normalizeFixedHomeAuthority(context.authorization) },
+  };
+}
+
+function normalizeFixedHomeRecoveries(input: unknown): unknown {
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(input)) return input;
+  const recovery = input.recovery;
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(recovery)) return input;
+  if (!(recovery.recoveries instanceof Map)) return input;
+  const recoveries = new Map<unknown, unknown>();
+  for (const [key, value] of recovery.recoveries) {
+    recoveries.set(key, normalizeFixedHomeRecovery(value));
+  }
+  return { ...input, recovery: { ...recovery, recoveries } };
+}
+
+function normalizeFixedHomeExports(input: unknown): unknown {
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(input)) return input;
+  const exportState = input.export;
+  if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(exportState)) return input;
+  if (!(exportState.exports instanceof Map)) return input;
+  const exports = new Map<unknown, unknown>();
+  for (const [key, value] of exportState.exports) {
+    exports.set(key, normalizeFixedHomeAuthority(value));
+  }
+  return { ...input, export: { ...exportState, exports } };
 }
 
 export function parseRouterAbEd25519YaoCeremonyKeyV1(

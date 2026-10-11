@@ -1,0 +1,1186 @@
+{
+  "task": "R170/R171 approved essential completion",
+  "status": "complete",
+  "sourceRevision": "8ecbea72",
+  "completedTasks": [
+    "Unified host-owned email unlock API",
+    "Replaced API and transport deletion; public callers and migration inventory updated",
+    "Affected production flows and durable presignature retention verified",
+    "Final consumer bundles, static transfers, and completion evidence recorded"
+  ],
+  "protocolVersion": "14.0.0",
+  "releaseStatus": "Unpublished development changes; package manifests still say 0.8.0. A new exact release and matching host/client deployment are required. Private adoption remains deferred.",
+  "build": {
+    "revision": "8ecbea72ba21c2dae98e3e0acc4d971219a14346",
+    "workingTree": "",
+    "buildInputsHash": "07247668044e49c94ebc0ffe441aa2cfb8d3dda200b126af3a6b1ce37b3e4349",
+    "emittedEsmSha256": "d2702f057b1114d5cd15912cea71b27cdb9ff64e959ff591aa78f14f98fc34c4",
+    "lockfileSha256": "cca6b7aa753c9af21e0bac8af0ce3e7b21377d0c3701cbb5bba1916594e469c9",
+    "nodeVersion": "v26.4.0",
+    "bunVersion": "1.2.18",
+    "freshness": {
+      "status": "fresh",
+      "detail": "\u2705 Build is fresh"
+    }
+  },
+  "bundleAccounting": "Production minified ESM with splitting; named exports retained. Static and all-reachable closures overlap. React peers excluded; dependencies otherwise bundled. CSS/assets separate. Per-file gzip level 9 and Brotli quality 11. No observed network or WASM traffic.",
+  "consumerComparison": [
+    {
+      "consumer": "root-client",
+      "staticJavaScript": {
+        "baselineGzipBytes": 739640,
+        "finalGzipBytes": 61223,
+        "reductionPercent": 91.72
+      },
+      "allReachableJavaScript": {
+        "baselineGzipBytes": 793388,
+        "finalGzipBytes": 87975,
+        "reductionPercent": 88.91
+      }
+    },
+    {
+      "consumer": "react-provider",
+      "staticJavaScript": {
+        "baselineGzipBytes": 747087,
+        "finalGzipBytes": 67605,
+        "reductionPercent": 90.95
+      },
+      "allReachableJavaScript": {
+        "baselineGzipBytes": 803630,
+        "finalGzipBytes": 96987,
+        "reductionPercent": 87.93
+      }
+    },
+    {
+      "consumer": "hosted-auth-menu",
+      "staticJavaScript": {
+        "baselineGzipBytes": 13907,
+        "finalGzipBytes": 9127,
+        "reductionPercent": 34.37
+      },
+      "allReachableJavaScript": {
+        "baselineGzipBytes": 13907,
+        "finalGzipBytes": 9127,
+        "reductionPercent": 34.37
+      }
+    },
+    {
+      "consumer": "react-hosted-auth",
+      "staticJavaScript": {
+        "baselineGzipBytes": 753175,
+        "finalGzipBytes": 73321,
+        "reductionPercent": 90.27
+      },
+      "allReachableJavaScript": {
+        "baselineGzipBytes": 806515,
+        "finalGzipBytes": 99648,
+        "reductionPercent": 87.64
+      }
+    }
+  ],
+  "staticTransferAccounting": "Encoded static response bodies from local application and wallet preview servers, counted once per response. Excludes API traffic, headers, framing, and sockets. Attribution uses server response pathname and request start phase. Warm 304 bodies count zero. WASM uses identity encoding here.",
+  "scenarios": {
+    "registration": {
+      "baseline": {
+        "totalEncodedBodyBytes": 11031734,
+        "bytesByOriginAndAssetKind": {
+          "application": {
+            "javascript": 1655848,
+            "css": 13154
+          },
+          "wallet": {
+            "javascript": 1594137,
+            "css": 42718,
+            "workerScript": 442628,
+            "wasm": 7283249
+          }
+        },
+        "encodedBytesByPhase": {
+          "register": 5086156,
+          "unlock": 5940755,
+          "first-evm-sign": 1550,
+          "repeat-evm-sign": 3273
+        },
+        "timingObservations": [
+          {
+            "name": "initialization",
+            "startedAtMs": 1791126157969,
+            "durationMs": 377.43566699999997
+          },
+          {
+            "name": "register",
+            "startedAtMs": 1791126158346,
+            "durationMs": 1949.7577910000002
+          },
+          {
+            "name": "first-near-sign",
+            "startedAtMs": 1791126160296,
+            "durationMs": 720.9955839999998
+          },
+          {
+            "name": "first-evm-sign",
+            "startedAtMs": 1791126161017,
+            "durationMs": 788.1374579999997
+          },
+          {
+            "name": "lock",
+            "startedAtMs": 1791126161805,
+            "durationMs": 14.434708000000683
+          },
+          {
+            "name": "unlock",
+            "startedAtMs": 1791126161819,
+            "durationMs": 703.6825830000007
+          },
+          {
+            "name": "repeat-near-sign",
+            "startedAtMs": 1791126162523,
+            "durationMs": 697.7047089999996
+          },
+          {
+            "name": "repeat-evm-sign",
+            "startedAtMs": 1791126163221,
+            "durationMs": 752.1554999999998
+          },
+          {
+            "name": "completed",
+            "startedAtMs": 1791126163973,
+            "durationMs": 2.163292000000183
+          }
+        ],
+        "transfers": 349,
+        "browserRequestFailureCount": 23,
+        "browserRequestFailureUrls": [
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+        ],
+        "targetNetworkObserverFailureCount": 4,
+        "workers": [
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          }
+        ],
+        "cachePolicy": "disabled_by_routing"
+      },
+      "final": {
+        "totalEncodedBodyBytes": 7867916,
+        "bytesByOriginAndAssetKind": {
+          "application": {
+            "javascript": 396030,
+            "css": 16976
+          },
+          "wallet": {
+            "javascript": 1535306,
+            "css": 42750,
+            "workerScript": 225272,
+            "wasm": 5651582
+          }
+        },
+        "encodedBytesByPhase": {
+          "register": 3830688,
+          "unlock": 3016423,
+          "first-near-sign": 417558,
+          "first-evm-sign": 6972,
+          "repeat-near-sign": 422007,
+          "repeat-evm-sign": 174268
+        },
+        "timingObservations": [
+          {
+            "name": "initialization",
+            "startedAtMs": 1791188659513,
+            "durationMs": 387.29708300000004
+          },
+          {
+            "name": "register",
+            "startedAtMs": 1791188659900,
+            "durationMs": 1850.971791
+          },
+          {
+            "name": "first-near-sign",
+            "startedAtMs": 1791188661751,
+            "durationMs": 705.7124170000002
+          },
+          {
+            "name": "first-evm-sign",
+            "startedAtMs": 1791188662457,
+            "durationMs": 785.4366669999999
+          },
+          {
+            "name": "lock",
+            "startedAtMs": 1791188663242,
+            "durationMs": 22.384665999999925
+          },
+          {
+            "name": "unlock",
+            "startedAtMs": 1791188663265,
+            "durationMs": 635.3606249999993
+          },
+          {
+            "name": "repeat-near-sign",
+            "startedAtMs": 1791188663900,
+            "durationMs": 693.3392920000006
+          },
+          {
+            "name": "repeat-evm-sign",
+            "startedAtMs": 1791188664594,
+            "durationMs": 735.1345840000004
+          },
+          {
+            "name": "completed",
+            "startedAtMs": 1791188665329,
+            "durationMs": 1.9902499999998327
+          }
+        ],
+        "transfers": 228,
+        "browserRequestFailureCount": 16,
+        "browserRequestFailureUrls": [
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+        ],
+        "targetNetworkObserverFailureCount": 0,
+        "workers": [
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "register",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "first-near-sign",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "first-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "unlock",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-near-sign",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-near-sign",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "repeat-evm-sign",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          }
+        ],
+        "cachePolicy": "disabled_by_routing"
+      },
+      "reductionPercent": 28.68
+    },
+    "signed-out": {
+      "baseline": {
+        "totalEncodedBodyBytes": 3398239,
+        "bytesByOriginAndAssetKind": {
+          "application": {
+            "javascript": 827928,
+            "css": 6577
+          },
+          "wallet": {
+            "javascript": 794370,
+            "css": 21359,
+            "workerScript": 187841,
+            "wasm": 1560164
+          }
+        },
+        "encodedBytesByPhase": {
+          "cold-signed-out-mount-idle": 3398239,
+          "warm-signed-out-mount-idle": 0
+        },
+        "timingObservations": [
+          {
+            "name": "initialization",
+            "startedAtMs": 1791126192696,
+            "durationMs": 23.541416000000027
+          },
+          {
+            "name": "cold-signed-out-mount-idle",
+            "startedAtMs": 1791126192720,
+            "durationMs": 2827.706791
+          },
+          {
+            "name": "cold-generic-menu",
+            "startedAtMs": 1791126195547,
+            "durationMs": 2077.79825
+          },
+          {
+            "name": "warm-signed-out-mount-idle",
+            "startedAtMs": 1791126197625,
+            "durationMs": 2680.9431670000004
+          },
+          {
+            "name": "warm-generic-menu",
+            "startedAtMs": 1791126200306,
+            "durationMs": 2122.7081660000003
+          },
+          {
+            "name": "completed",
+            "startedAtMs": 1791126202429,
+            "durationMs": 90.94475000000057
+          }
+        ],
+        "transfers": 336,
+        "browserRequestFailureCount": 20,
+        "browserRequestFailureUrls": [
+          "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+          "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+          "http://localhost:4202/sdk/workers/email-otp.worker.js",
+          "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+          "http://localhost:4202/sdk/workers/near-signer.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+          "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+          "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+          "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js"
+        ],
+        "targetNetworkObserverFailureCount": 0,
+        "workers": [
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "cold-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-derivation-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-presign-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/ecdsa-online-client.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/evm-crypto.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/tempo-signer.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/email-otp.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          },
+          {
+            "phase": "warm-signed-out-mount-idle",
+            "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+            "pageOrigin": "http://localhost:4201"
+          }
+        ],
+        "cachePolicy": "enabled"
+      },
+      "final": {
+        "totalEncodedBodyBytes": 987550,
+        "bytesByOriginAndAssetKind": {
+          "application": {
+            "javascript": 198012,
+            "css": 8488
+          },
+          "wallet": {
+            "javascript": 759675,
+            "css": 21375
+          }
+        },
+        "encodedBytesByPhase": {
+          "cold-signed-out-mount-idle": 987550,
+          "warm-signed-out-mount-idle": 0
+        },
+        "timingObservations": [
+          {
+            "name": "initialization",
+            "startedAtMs": 1791188695306,
+            "durationMs": 21.836250000000007
+          },
+          {
+            "name": "cold-signed-out-mount-idle",
+            "startedAtMs": 1791188695328,
+            "durationMs": 2728.071791
+          },
+          {
+            "name": "cold-generic-menu",
+            "startedAtMs": 1791188698056,
+            "durationMs": 2069.978542
+          },
+          {
+            "name": "warm-signed-out-mount-idle",
+            "startedAtMs": 1791188700126,
+            "durationMs": 2621.493625
+          },
+          {
+            "name": "warm-generic-menu",
+            "startedAtMs": 1791188702748,
+            "durationMs": 2122.596707999999
+          },
+          {
+            "name": "completed",
+            "startedAtMs": 1791188704870,
+            "durationMs": 32.97566699999879
+          }
+        ],
+        "transfers": 186,
+        "browserRequestFailureCount": 0,
+        "browserRequestFailureUrls": [],
+        "targetNetworkObserverFailureCount": 0,
+        "workers": [],
+        "cachePolicy": "enabled"
+      },
+      "reductionPercent": 70.94
+    }
+  },
+  "walletTransferValidation": "All 220 authenticated wallet-origin response sizes match the served dist/public bytes under identity or gzip level 6.",
+  "applicationGraphs": [
+    {
+      "entry": "root",
+      "emittedSourceCount": 236,
+      "forbiddenHostOrWorkerManagerInputs": []
+    },
+    {
+      "entry": "react-provider",
+      "emittedSourceCount": 265,
+      "forbiddenHostOrWorkerManagerInputs": []
+    }
+  ],
+  "verificationEvidence": [
+    "refactor-170-unified-email-unlock-20261005.json",
+    "refactor-170-final-flows-20261005.json"
+  ],
+  "sourceLines": {
+    "base": "0d45cb34^",
+    "sourceRevision": "8ecbea72",
+    "method": "Sum per-parent numstat for the listed task-owned commits. Count packages/*/src and Rust crates/wasm production source. Exclude type fixtures, tests, generated paths, declarations, docs, scripts, and listed concurrent commits. Gross additions/removals include task iteration and moved lines; net is attributed source growth since base.",
+    "totals": {
+      "added": 10477,
+      "removed": 12934,
+      "net": -2457
+    },
+    "excludedConcurrentCommits": [
+      "04a7d789",
+      "08eeb905",
+      "0ca5da9c",
+      "2b67dce3",
+      "3adf2bc2",
+      "3b1da793",
+      "4a4872e8",
+      "53906ac9",
+      "5c979c59",
+      "7d8dbce8",
+      "b961a736",
+      "c741b3fb",
+      "cb0ec0c1",
+      "eea6144f",
+      "f61b0144"
+    ],
+    "commits": [
+      {
+        "commit": "cedae5e4",
+        "added": 100,
+        "removed": 64
+      },
+      {
+        "commit": "693f7f2d",
+        "added": 128,
+        "removed": 126
+      },
+      {
+        "commit": "3d8dd570",
+        "added": 0,
+        "removed": 13
+      },
+      {
+        "commit": "caa390c8",
+        "added": 8,
+        "removed": 219
+      },
+      {
+        "commit": "59c8254f",
+        "added": 15,
+        "removed": 0
+      },
+      {
+        "commit": "5c2ffcef",
+        "added": 296,
+        "removed": 198
+      },
+      {
+        "commit": "c7cb6be7",
+        "added": 61,
+        "removed": 27
+      },
+      {
+        "commit": "7dc2a5cd",
+        "added": 50,
+        "removed": 3
+      },
+      {
+        "commit": "f8be57de",
+        "added": 36,
+        "removed": 58
+      },
+      {
+        "commit": "dd71be85",
+        "added": 2,
+        "removed": 169
+      },
+      {
+        "commit": "a0795104",
+        "added": 9,
+        "removed": 9
+      },
+      {
+        "commit": "4c55b8ec",
+        "added": 49,
+        "removed": 762
+      },
+      {
+        "commit": "2e5f4322",
+        "added": 6,
+        "removed": 980
+      },
+      {
+        "commit": "3327b99a",
+        "added": 3,
+        "removed": 94
+      },
+      {
+        "commit": "1fea33ef",
+        "added": 23,
+        "removed": 225
+      },
+      {
+        "commit": "4b92a172",
+        "added": 18,
+        "removed": 18
+      },
+      {
+        "commit": "ead2e9ff",
+        "added": 6,
+        "removed": 20
+      },
+      {
+        "commit": "391d4be9",
+        "added": 212,
+        "removed": 110
+      },
+      {
+        "commit": "1e8c11e2",
+        "added": 43,
+        "removed": 31
+      },
+      {
+        "commit": "f92eba0b",
+        "added": 3,
+        "removed": 1
+      },
+      {
+        "commit": "20974d3c",
+        "added": 22,
+        "removed": 5
+      },
+      {
+        "commit": "b59c6579",
+        "added": 8,
+        "removed": 9
+      },
+      {
+        "commit": "3c37ff7a",
+        "added": 59,
+        "removed": 65
+      },
+      {
+        "commit": "2c91961f",
+        "added": 3,
+        "removed": 177
+      },
+      {
+        "commit": "fe9a09e7",
+        "added": 84,
+        "removed": 112
+      },
+      {
+        "commit": "789cce94",
+        "added": 16,
+        "removed": 30
+      },
+      {
+        "commit": "550473bd",
+        "added": 39,
+        "removed": 57
+      },
+      {
+        "commit": "9153c56b",
+        "added": 65,
+        "removed": 76
+      },
+      {
+        "commit": "372a8149",
+        "added": 62,
+        "removed": 67
+      },
+      {
+        "commit": "f8b0d719",
+        "added": 13,
+        "removed": 348
+      },
+      {
+        "commit": "5d010fbc",
+        "added": 81,
+        "removed": 106
+      },
+      {
+        "commit": "7d6f2bb3",
+        "added": 73,
+        "removed": 78
+      },
+      {
+        "commit": "8717514d",
+        "added": 1,
+        "removed": 1
+      },
+      {
+        "commit": "250635bd",
+        "added": 34,
+        "removed": 41
+      },
+      {
+        "commit": "6370224f",
+        "added": 21,
+        "removed": 406
+      },
+      {
+        "commit": "0adc7d65",
+        "added": 0,
+        "removed": 36
+      },
+      {
+        "commit": "a936d006",
+        "added": 6,
+        "removed": 401
+      },
+      {
+        "commit": "2548b10f",
+        "added": 132,
+        "removed": 215
+      },
+      {
+        "commit": "26315b6f",
+        "added": 19,
+        "removed": 5
+      },
+      {
+        "commit": "c238d41e",
+        "added": 38,
+        "removed": 145
+      },
+      {
+        "commit": "725571d3",
+        "added": 290,
+        "removed": 280
+      },
+      {
+        "commit": "2fc4ca0a",
+        "added": 48,
+        "removed": 42
+      },
+      {
+        "commit": "a4c840aa",
+        "added": 56,
+        "removed": 47
+      },
+      {
+        "commit": "38d19146",
+        "added": 63,
+        "removed": 3
+      },
+      {
+        "commit": "af9d3637",
+        "added": 550,
+        "removed": 190
+      },
+      {
+        "commit": "423281f1",
+        "added": 154,
+        "removed": 27
+      },
+      {
+        "commit": "b6496e4c",
+        "added": 156,
+        "removed": 185
+      },
+      {
+        "commit": "7cf2160c",
+        "added": 2,
+        "removed": 22
+      },
+      {
+        "commit": "bd3d9f15",
+        "added": 51,
+        "removed": 0
+      },
+      {
+        "commit": "33236f4c",
+        "added": 162,
+        "removed": 60
+      },
+      {
+        "commit": "21f5c983",
+        "added": 57,
+        "removed": 20
+      },
+      {
+        "commit": "86ee8f0d",
+        "added": 26,
+        "removed": 12
+      },
+      {
+        "commit": "28ae6c5c",
+        "added": 138,
+        "removed": 123
+      },
+      {
+        "commit": "94719127",
+        "added": 60,
+        "removed": 39
+      },
+      {
+        "commit": "1cb5e60b",
+        "added": 40,
+        "removed": 102
+      },
+      {
+        "commit": "c7ac72cd",
+        "added": 421,
+        "removed": 291
+      },
+      {
+        "commit": "52eeaabb",
+        "added": 15,
+        "removed": 102
+      },
+      {
+        "commit": "106a2445",
+        "added": 43,
+        "removed": 68
+      },
+      {
+        "commit": "bc4b8b50",
+        "added": 19,
+        "removed": 72
+      },
+      {
+        "commit": "fd9a4b45",
+        "added": 9,
+        "removed": 1
+      },
+      {
+        "commit": "914eaacb",
+        "added": 54,
+        "removed": 156
+      },
+      {
+        "commit": "79a48225",
+        "added": 220,
+        "removed": 83
+      },
+      {
+        "commit": "fcada702",
+        "added": 204,
+        "removed": 116
+      },
+      {
+        "commit": "0acf1a12",
+        "added": 193,
+        "removed": 312
+      },
+      {
+        "commit": "067154c5",
+        "added": 1372,
+        "removed": 1240
+      },
+      {
+        "commit": "d6156d41",
+        "added": 1060,
+        "removed": 839
+      },
+      {
+        "commit": "909c28c4",
+        "added": 1935,
+        "removed": 1458
+      },
+      {
+        "commit": "56810ec7",
+        "added": 338,
+        "removed": 367
+      },
+      {
+        "commit": "235eb987",
+        "added": 310,
+        "removed": 227
+      },
+      {
+        "commit": "21f33f9b",
+        "added": 242,
+        "removed": 278
+      },
+      {
+        "commit": "7aadf53a",
+        "added": 24,
+        "removed": 12
+      },
+      {
+        "commit": "96043d62",
+        "added": 4,
+        "removed": 139
+      },
+      {
+        "commit": "0d45cb34",
+        "added": 48,
+        "removed": 79
+      },
+      {
+        "commit": "8ecbea72",
+        "added": 269,
+        "removed": 435
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": ".artifacts/r170-final-20261005/application-graphs.json",
+      "sha256": "94fe27d38f8aea061757b00909fb402aad7a06f3e05a4b35f4b5f49cf5e19b26"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/bundle-report.json",
+      "sha256": "26c82bcd00aefb43ddcb0e1448c88dc7a395da199caf2cc3b9947bb5d29c8243"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/lock-presignature-retention.json",
+      "sha256": "2b95ea9282beceae5fa66c0888c43c8b541ed9c5c1c75bcf241a45babd0da62f"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/measure-application-graphs.mjs",
+      "sha256": "8830d4b92d54bc08e5dc96513b5201d77bc149be54b3c5af8b0ad0e705014f52"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/registration-static-transfers.json",
+      "sha256": "a409940b6cf26532e47d8f896a0bbe44061dccf3d2dedd84d7f941d6834ffba2"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/signed-out-static-transfers.json",
+      "sha256": "51aac3dd941b64e7711b55e42783181d38aa774ffdc113d006e116ad92f44b7b"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/signed-out-trace.zip",
+      "sha256": "ead659930927da4bbfcd6180eb6a97fbd8809cbd0980f7bdf30cb9124ca19b70"
+    },
+    {
+      "path": ".artifacts/r170-final-20261005/source-line-accounting.json",
+      "sha256": "f2bdf9bf39a8bbb2c89e7d5f45b3a11524fd566b1858d70fac0c5d93aaa496fc"
+    }
+  ],
+  "commands": {
+    "build": "pnpm -C packages/wallet build:prod",
+    "bundle": "pnpm -C packages/wallet size:lite --consumers --json",
+    "flows": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'lock retains durable presignatures across a fresh unlock|production wallet records asset traffic across registration, signing, and unlock|production signed-out mount and menu record cold and warm cache traffic'",
+    "email": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+    "graph": "node .artifacts/r170-final-20261005/measure-application-graphs.mjs",
+    "checks": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests type-check:intended",
+      "pnpm -C tests type-check:wallet-state",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C apps/docs exec tsc --noEmit",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "pnpm report:bloat --check"
+    ]
+  },
+  "limits": [
+    "Final scenarios are single observations against the retained single baseline. Earlier repeated current measurements remain in refactor-170-repeated-assets-20261005.json. No paired latency improvement is claimed.",
+    "Authenticated browser HTTP cache is disabled by routing. Warm-cache evidence covers signed-out mount and menu only.",
+    "The authenticated browser collector records 16 failed worker-URL requests without failure reasons. Worker teardown/recreation occurs during this scenario. Target network observer failures are zero. The production flow completes and independent server counters retain transferred body bytes.",
+    "Static server measurements include the intended test app, whose test controls changed. They are scenario totals, not SDK-only or real-shop estimates.",
+    "No deployed compression measurement, additional 30-day clock simulation, exhaustive matrix, publication, deployment, or private exact-release adoption. See the approved deferred list."
+  ],
+  "checkoutAfterVerification": {
+    "buildFreshness": "stale due to concurrent uncommitted edit",
+    "path": "packages/wallet-server/src/storage/tenantRoute.ts",
+    "handling": "Preserved without staging, reverting, or incorporating into the measured build. Build and measurement evidence applies to the recorded source revision and hashes."
+  }
+}

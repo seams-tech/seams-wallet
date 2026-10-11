@@ -4,7 +4,7 @@ import {
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   type WalletEmailOtpChannel,
 } from '@shared/utils/emailOtpDomain';
-import { requireTrimmedString, toOptionalTrimmedNonEmptyString } from '@shared/utils/validation';
+import { requireTrimmedString } from '@shared/utils/validation';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import type {
   EmailOtpWalletRegistrationEcdsaPrepareHandleRequest,
@@ -19,7 +19,6 @@ import {
   buildEmailOtpRoutePlan,
   type EmailOtpRouteFamily,
 } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
-import type { EmailOtpEnrollmentResult } from './publicTypes';
 import { zeroizeBytes } from './zeroize';
 
 type JsonObject = Record<string, unknown>;
@@ -33,10 +32,6 @@ function requireObjectJson(value: unknown, label: string): JsonObject {
 
 function readString(value: unknown, label: string): string {
   return requireTrimmedString(value, label);
-}
-
-function readOptionalString(value: unknown): string | undefined {
-  return toOptionalTrimmedNonEmptyString(value);
 }
 
 function toArrayBufferCopy(bytes: Uint8Array): ArrayBuffer {
@@ -75,28 +70,6 @@ function buildWorkerEmailOtpRoutePlan(args: {
     routeFamily: 'login',
     operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   });
-}
-
-function parseEmailOtpEnrollmentResult(value: unknown): EmailOtpEnrollmentResult {
-  const response = requireObjectJson(value, 'Email OTP enrollment result');
-  return {
-    challengeId: readString(response.challengeId, 'challengeId'),
-    otpChannel: EMAIL_OTP_CHANNEL,
-    enrollmentId: readString(response.enrollmentId, 'enrollmentId'),
-    enrollmentSealKeyVersion: readString(
-      response.enrollmentSealKeyVersion,
-      'enrollmentSealKeyVersion',
-    ),
-    serverSealedFactorCiphertextB64u: readString(
-      response.serverSealedFactorCiphertextB64u,
-      'serverSealedFactorCiphertextB64u',
-    ),
-    clientUnlockPublicKeyB64u: readString(
-      response.clientUnlockPublicKeyB64u,
-      'clientUnlockPublicKeyB64u',
-    ),
-    unlockKeyVersion: readString(response.unlockKeyVersion, 'unlockKeyVersion'),
-  };
 }
 
 function parseEmailOtpWalletRegistrationEcdsaPrepareHandle(
@@ -176,53 +149,6 @@ function parseEmailOtpWalletRegistrationEcdsaPrepareHandleResult(
       return { kind: 'not_requested' };
     default:
       throw new Error(`Unsupported Email OTP registration ECDSA handle result kind: ${kind}`);
-  }
-}
-
-export async function enrollEmailOtpWallet(args: {
-  relayUrl: string;
-  walletId: string;
-  userId: string;
-  challengeId?: string;
-  otpCode: string;
-  groupId: string;
-  workerCtx: WorkerOperationContext;
-  otpChannel?: WalletEmailOtpChannel;
-  clientSecret32?: Uint8Array;
-}): Promise<EmailOtpEnrollmentResult> {
-  const workerCtx = requireWorkerCtx(args.workerCtx);
-  let workerClientSecret32: Uint8Array | null = null;
-  try {
-    workerClientSecret32 = args.clientSecret32
-      ? cloneFixed32Bytes(args.clientSecret32, 'clientSecret32')
-      : null;
-    return parseEmailOtpEnrollmentResult(
-      await workerCtx.requestWorkerOperation({
-        kind: 'emailOtp',
-        request: {
-          type: 'enrollEmailOtpWallet',
-          payload: {
-            relayUrl: readString(args.relayUrl, 'relayUrl'),
-            walletId: readString(args.walletId, 'walletId'),
-            userId: readString(args.userId, 'userId'),
-            ...(readOptionalString(args.challengeId)
-              ? { challengeId: readOptionalString(args.challengeId) }
-              : {}),
-            otpCode: readString(args.otpCode, 'otpCode'),
-            groupId: readString(args.groupId, 'groupId'),
-            routePlan: buildWorkerEmailOtpRoutePlan({
-              routeFamily: 'registration',
-            }),
-            otpChannel: args.otpChannel || EMAIL_OTP_CHANNEL,
-            ...(workerClientSecret32
-              ? { clientSecret32: toArrayBufferCopy(workerClientSecret32) }
-              : {}),
-          },
-        },
-      }),
-    );
-  } finally {
-    zeroizeBytes(workerClientSecret32);
   }
 }
 

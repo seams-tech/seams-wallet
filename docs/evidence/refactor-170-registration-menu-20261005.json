@@ -1,0 +1,252 @@
+{
+  "baseCommit": "a936d00614c1e34036de5e836519c6c6ddfdb252",
+  "scope": "Remove speculative registration-menu JS imports before valid account input. Preserve selected-operation preparation.",
+  "sourceHashes": {
+    "packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/controller.ts": "d41af9688f2dc995e8460b4dcee8bffdfd33dd571a432d3e2f103c49c93c863a",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeLoader.ts": "2ed9836479535e7d609f3dccafae95e53f29e61706469263733d5aefd6168365",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "f65223aa9b54392953f489670102c16d73e9aba6e9b707981e21ca5913b9657c",
+    "tests/e2e/intended-behaviours/wallet-asset-evidence.ts": "804404dcc36c91acd57a38989356e27f9aa1297429a9c5d1121ec1444941970a",
+    "tests/intended-app/src/AssetMenu.tsx": "eeea34ae10b82427922ae6fb0054e527b708b658723457e218ace78a15373375"
+  },
+  "deletedPaths": [
+    "packages/wallet/src/SeamsWeb/walletIframe/host/registrationPreparationPreload.ts"
+  ],
+  "before": {
+    "artifactSha256": "4da98dfd6377e7d117bee7ead721a835497102d8bd68d18cd09f84ca3ac7ac16",
+    "accounting": {
+      "scope": "BrowserContext requestfinished events and Page dedicated-worker events",
+      "phaseAttribution": "Request completion phase; concurrent requests may cross phase boundaries",
+      "bytes": "Encoded response body and HTTP response headers counted separately; decoded bodies where available",
+      "cache": "enabled",
+      "omissions": "No claim of complete worker-target network coverage; no service-worker or socket accounting",
+      "privacy": "Only static asset URLs without query strings; no request headers, payloads, auth responses, or bodies retained"
+    },
+    "menuAssets": [
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/registrationPreparationPreload-BHVWqg3p.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 312,
+        "responseHeaderBytes": 321,
+        "decodedBodyBytes": 312
+      },
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/runtime-near-CRxm4TrO.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "gzip",
+        "encodedBodyBytes": 1881,
+        "responseHeaderBytes": 353,
+        "decodedBodyBytes": 6757
+      },
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/signEvmWithUiConfirm-DPHVdr8Y.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 615,
+        "responseHeaderBytes": 321,
+        "decodedBodyBytes": 615
+      },
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/webauthnP256-DF9HKvRD.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "gzip",
+        "encodedBodyBytes": 1049,
+        "responseHeaderBytes": 353,
+        "decodedBodyBytes": 2943
+      },
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/signEvmFamilyWithUiConfirmForTempo-IOgiYMU4.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "gzip",
+        "encodedBodyBytes": 1876,
+        "responseHeaderBytes": 353,
+        "decodedBodyBytes": 4794
+      },
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/runtime-ecdsa-tempo-CjKSm2bI.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "gzip",
+        "encodedBodyBytes": 1519,
+        "responseHeaderBytes": 353,
+        "decodedBodyBytes": 4857
+      },
+      {
+        "phase": "cold-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/signatureUses-6CmpbZnq.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 200,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 750,
+        "responseHeaderBytes": 321,
+        "decodedBodyBytes": 750
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/runtime-near-CRxm4TrO.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/registrationPreparationPreload-BHVWqg3p.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/runtime-ecdsa-tempo-CjKSm2bI.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/signEvmFamilyWithUiConfirmForTempo-IOgiYMU4.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/signEvmWithUiConfirm-DPHVdr8Y.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/webauthnP256-DF9HKvRD.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      },
+      {
+        "phase": "warm-unselected-registration-menu",
+        "url": "http://localhost:4202/sdk/signatureUses-6CmpbZnq.js",
+        "realm": "http://localhost:4202",
+        "resourceType": "script",
+        "status": 304,
+        "contentEncoding": "identity",
+        "encodedBodyBytes": 0,
+        "responseHeaderBytes": 179,
+        "decodedBodyBytes": null
+      }
+    ],
+    "workers": [],
+    "serverEncodedBodyBytesByOrigin": {
+      "http://localhost:4201": 184365,
+      "http://localhost:4202": 790547
+    },
+    "captureFailures": []
+  },
+  "after": {
+    "artifactSha256": "f25caa0ea3ee5bcfeb70c555573715459396beffdd8fe861346a303dab4608e6",
+    "accounting": {
+      "scope": "BrowserContext requestfinished events and Page dedicated-worker events",
+      "phaseAttribution": "Request completion phase; concurrent requests may cross phase boundaries",
+      "bytes": "Encoded response body and HTTP response headers counted separately; decoded bodies where available",
+      "cache": "enabled",
+      "omissions": "No claim of complete worker-target network coverage; no service-worker or socket accounting",
+      "privacy": "Only static asset URLs without query strings; no request headers, payloads, auth responses, or bodies retained"
+    },
+    "menuAssets": [],
+    "workers": [],
+    "serverEncodedBodyBytesByOrigin": {
+      "http://localhost:4201": 184366,
+      "http://localhost:4202": 781880
+    },
+    "captureFailures": []
+  },
+  "receipts": {
+    "before": [
+      "1 passed (33.0s)"
+    ],
+    "after": [
+      "1 passed (33.9s)",
+      "1 passed (33.1s)",
+      "1 passed (33.1s)"
+    ],
+    "finalNetworkAssertion": [
+      "1 passed (33.0s)"
+    ],
+    "browser": [
+      "11 passed (6.4s)"
+    ]
+  },
+  "productionLineDelta": {
+    "added": 0,
+    "removed": 36,
+    "net": -36
+  },
+  "verification": {
+    "production": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+    "finalAssertion": "Same command with --grep \"production registration menu awaits input\"",
+    "browserFiles": [
+      "wallet-iframe/auth-menu.host.integration.test.ts",
+      "wallet-ui/auth-menu.lifecycle.test.ts",
+      "wallet-ui/registration-setup.browser.test.ts"
+    ],
+    "checks": [
+      "wallet type-check",
+      "tests type-check:intended",
+      "tests type-check:wallet-state",
+      "browser typecheck",
+      "wallet build:prod",
+      "check:declarations-external",
+      "check:runtime-entry-bundles"
+    ]
+  },
+  "limits": [
+    "One paired cold/warm observation, not a three-run median.",
+    "Browser encoded body bytes and server compressed response totals overlap; do not add them.",
+    "Requests are attributed at completion; observation window is two seconds after menu visibility.",
+    "This is deferred menu work, not a whole-operation transfer saving or latency claim.",
+    "Does not complete the worker/factor/operation dependency matrix."
+  ],
+  "fixtureCorrection": "valid_test_needs_update: implicit-wallet mode supplies a generated account name. Use the existing sponsored-account form for empty input, corrected before SDK edits."
+}

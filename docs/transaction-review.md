@@ -15,8 +15,8 @@ import { TransactionReviewHost, useWallet } from '@seams/wallet/react';
 </SeamsWebProvider>
 ```
 
-Pass `review` to `near.signAndSendTransaction`, `near.executeAction`, or the EVM and
-Tempo `signTransaction` and `executeTransaction` methods returned by `useWallet()`.
+Pass `review` to `near.signAndSendTransaction` or the EVM and
+Tempo `signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 The existing result and lifecycle callbacks retain their meanings.
 
 ```tsx
@@ -57,8 +57,7 @@ signatures; it cannot undo a signature already started. Use contract deadlines
 and slippage limits for transaction-level economic guarantees.
 
 Before dispatch, adapter errors reject with `TransactionReviewError.code` and
-invoke no signing callbacks. This includes `executeAction`, whose dispatched core
-operation may otherwise return `success: false`. Codes include `cancelled`,
+invoke no signing callbacks. Codes include `cancelled`,
 `review_expired`, `review_invalid_input`, `review_host_unavailable`,
 `review_owner_disposed`, `review_unsupported_mode`, `review_identity_changed`,
 `review_render_failed`, and `review_prepare_timeout`. Existing router busy and

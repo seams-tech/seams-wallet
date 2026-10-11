@@ -48,6 +48,14 @@ type D1RegistrationCeremonyRecordMutation = {
   readonly expiresAtMs: number;
 };
 
+type D1RegistrationCeremonyVersionedUpdate = {
+  readonly scope: string;
+  readonly id: string;
+  readonly expectedVersion: number;
+  readonly next: Record<string, unknown>;
+  readonly expiresAtMs: number;
+};
+
 type D1RegistrationCeremonyAtomicBranchClaim = {
   readonly value: Record<string, unknown>;
   readonly version: number;
@@ -81,24 +89,23 @@ export class D1RegistrationCeremonyRecordStore {
   }
 
   async get(scope: string, id: string): Promise<D1RegistrationCeremonyStoredRecord | null> {
-    const key = this.normalizeKey(scope, id);
-    const row = await this.database
-      .prepare(
-        `SELECT version, record_json, expires_at_ms
-           FROM ${TABLE_NAME}
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_scope = ?5
-            AND record_id = ?6`,
-      )
-      .bind(...this.bindKey(key))
-      .first<StoredRow>();
+    const row = await this.prepareGet(scope, id).first<StoredRow>();
+    return this.parseGet(scope, id, row);
+  }
+
+  prepareGet(scope: string, id: string): D1PreparedStatementLike {
+    return this.prepareRead(this.normalizeKey(scope, id));
+  }
+
+  async parseGet(
+    scope: string,
+    id: string,
+    row: StoredRow | null,
+  ): Promise<D1RegistrationCeremonyStoredRecord | null> {
     if (!row) return null;
     const parsed = parseStoredRow(row);
     if (parsed.expiresAtMs > Date.now()) return parsed;
-    await this.deleteVersion(key, parsed.version);
+    await this.deleteVersion(this.normalizeKey(scope, id), parsed.version);
     return null;
   }
 
@@ -122,9 +129,66 @@ export class D1RegistrationCeremonyRecordStore {
   ): Promise<D1RegistrationCeremonyStoredRecord> {
     const key = this.normalizeKey(mutation.scope, mutation.id);
     const prepared = prepareValue(mutation.value, mutation.expiresAtMs);
-    await this.insert(key, prepared);
+    if (await this.insert(key, prepared) && prepared.expiresAtMs > Date.now()) {
+      // The acknowledged insert fixes this exact value at version one. A
+      // competing insert still reads the stored winner below.
+      return parseStoredRow({
+        version: 1,
+        record_json: prepared.recordJson,
+        expires_at_ms: prepared.expiresAtMs,
+      });
+    }
     const stored = await this.get(mutation.scope, mutation.id);
     if (!stored) throw conflict('Registration setup expired during persistence');
+    return stored;
+  }
+
+  /**
+   * Stores `mutation` and opens `copyScope` with the value that `mutation`'s
+   * key then holds, in one batch. A competing insert leaves its winner in both
+   * records, as two `insertOrRead` calls in series would.
+   */
+  async insertOrReadWithCopy(
+    mutation: D1RegistrationCeremonyRecordMutation,
+    copyScope: string,
+    companion: readonly D1PreparedStatementLike[],
+  ): Promise<{
+    readonly record: D1RegistrationCeremonyStoredRecord;
+    readonly copy: D1RegistrationCeremonyStoredRecord;
+  }> {
+    const key = this.normalizeKey(mutation.scope, mutation.id);
+    const copyKey = this.normalizeKey(copyScope, mutation.id);
+    const nowMs = Date.now();
+    const results = await this.database.batch<D1ResultLike<StoredRow>>([
+      this.prepareInsert(key, prepareValue(mutation.value, mutation.expiresAtMs)),
+      this.database
+        .prepare(
+          `INSERT OR IGNORE INTO ${TABLE_NAME}
+            (namespace, org_id, project_id, env_id, record_scope, record_id,
+             version, record_json, expires_at_ms, updated_at_ms)
+           SELECT namespace, org_id, project_id, env_id, ?7, record_id,
+                  1, record_json, expires_at_ms, ?8
+             FROM ${TABLE_NAME}
+            WHERE namespace = ?1
+              AND org_id = ?2
+              AND project_id = ?3
+              AND env_id = ?4
+              AND record_scope = ?5
+              AND record_id = ?6
+              AND expires_at_ms > ?8`,
+        )
+        .bind(...this.bindKey(key), copyKey.scope, nowMs),
+      this.prepareRead(key),
+      this.prepareRead(copyKey),
+      ...companion,
+    ]);
+    const record = results[2]?.results?.[0];
+    const copy = results[3]?.results?.[0];
+    if (!record || !copy) throw conflict('Registration setup expired during persistence');
+    const stored = { record: parseStoredRow(record), copy: parseStoredRow(copy) };
+    if (stored.record.expiresAtMs <= nowMs || stored.copy.expiresAtMs <= nowMs) {
+      throw conflict('Registration setup expired during persistence');
+    }
     return stored;
   }
 
@@ -233,19 +297,34 @@ export class D1RegistrationCeremonyRecordStore {
     };
   }
 
-  async updateExpectedVersion(input: {
-    readonly scope: string;
-    readonly id: string;
-    readonly expectedVersion: number;
-    readonly next: Record<string, unknown>;
-    readonly expiresAtMs: number;
-  }): Promise<number> {
+  async updateExpectedVersion(input: D1RegistrationCeremonyVersionedUpdate): Promise<number> {
+    const result = await this.prepareVersionedUpdate(input).run();
+    if (changes(result) !== 1) {
+      throw conflict('Registration ceremony record changed during versioned update');
+    }
+    return input.expectedVersion + 1;
+  }
+
+  /**
+   * The update of `updateExpectedVersion` with its guard, for a batch that
+   * another store owns on this database. The guard fails that batch when the
+   * record is no longer at the expected version.
+   */
+  prepareExpectedVersionUpdate(
+    input: D1RegistrationCeremonyVersionedUpdate,
+  ): readonly D1PreparedStatementLike[] {
+    return [this.prepareVersionedUpdate(input), this.database.prepare(CAS_GUARD_SQL)];
+  }
+
+  private prepareVersionedUpdate(
+    input: D1RegistrationCeremonyVersionedUpdate,
+  ): D1PreparedStatementLike {
     const key = this.normalizeKey(input.scope, input.id);
     if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1) {
       throw new Error('Registration ceremony expected version is invalid');
     }
     const next = prepareValue(input.next, input.expiresAtMs);
-    const result = await this.database
+    return this.database
       .prepare(UPDATE_EXPECTED_VERSION_SQL)
       .bind(
         ...this.bindKey(key),
@@ -253,12 +332,7 @@ export class D1RegistrationCeremonyRecordStore {
         next.expiresAtMs,
         Date.now(),
         input.expectedVersion,
-      )
-      .run();
-    if (changes(result) !== 1) {
-      throw conflict('Registration ceremony record changed during versioned update');
-    }
-    return input.expectedVersion + 1;
+      );
   }
 
   async take(scope: string, id: string): Promise<Record<string, unknown> | null> {
@@ -340,6 +414,21 @@ export class D1RegistrationCeremonyRecordStore {
       }
     }
     return true;
+  }
+
+  private prepareRead(key: StorageKey): D1PreparedStatementLike {
+    return this.database
+      .prepare(
+        `SELECT version, record_json, expires_at_ms
+           FROM ${TABLE_NAME}
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND record_scope = ?5
+            AND record_id = ?6`,
+      )
+      .bind(...this.bindKey(key));
   }
 
   private async insert(key: StorageKey, value: PreparedValue): Promise<boolean> {

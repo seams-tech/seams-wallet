@@ -23,15 +23,12 @@ use crate::protocol::output::{
     RecipientProofBundleEncryptorV1,
 };
 use crate::protocol::payload::{
-    decode_ab_peer_message_payload_v1,
-    decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
     decode_recipient_proof_bundle_payload_v1, decode_router_to_signer_payload_v1,
-    sign_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
     validate_signer_input_plaintext_binding_v1, EcdsaThresholdPrfProofBatchPayloadV1,
     RouterToSignerPayloadV1, SigningWorkerActivationContextV1,
 };
 use crate::protocol::signer_input::build_mpc_prf_threshold_signer_batch_input_v1;
-use crate::protocol::wire::{CanonicalWireBytesV1, WireMessageKindV1, WireMessageV1};
+use crate::protocol::wire::{WireMessageKindV1, WireMessageV1};
 
 const LOCAL_DEV_OUTPUT_LABEL_V1: &[u8] = b"router-ab-protocol/local-dev-output/v1";
 const LOCAL_DEV_MPC_PROOF_RNG_LABEL_V1: &[u8] = b"mpc-proof-rng";
@@ -890,7 +887,7 @@ pub struct LocalSignerHandlerContextV1 {
     pub router_request_digest: PublicDigest32,
     /// Root-share epoch the local signer host has loaded.
     pub root_share_epoch: RootShareEpoch,
-    /// Peer signer identity for the A/B coordination message.
+    /// Other signer of the A/B pair, named in this signer's proof batch.
     pub peer_signer: SignerIdentityV1,
     /// Selected server identity.
     pub selected_server: ServerIdentityV1,
@@ -1019,7 +1016,7 @@ impl LocalDeriverAServiceV1 {
         &self,
         context: LocalSignerHandlerContextV1,
         request: LocalTransportEnvelopeV1,
-    ) -> RouterAbProtocolResult<LocalSignerHandlerOutputV1> {
+    ) -> RouterAbProtocolResult<LocalSignerRecipientProofBundleResponseV1> {
         require_route(&request, LocalTransportRouteV1::RouterToSignerA)?;
         require_signer_role(&context.peer_signer, Role::SignerB)?;
         let payload =
@@ -1032,14 +1029,12 @@ impl LocalDeriverAServiceV1 {
             context.router_request_digest,
             &context.root_share_epoch,
         )?;
-        let peer_message = local_peer_message(
-            LocalTransportRouteV1::SignerAToSignerB,
+        local_signer_recipient_proof_bundle_response(
             self.signer.clone(),
             context.peer_signer,
             &payload,
             &plaintext,
-        )?;
-        Ok(LocalSignerHandlerOutputV1::SignerA { peer_message })
+        )
     }
 }
 
@@ -1193,7 +1188,7 @@ impl LocalDeriverBServiceV1 {
         &self,
         context: LocalSignerHandlerContextV1,
         request: LocalTransportEnvelopeV1,
-    ) -> RouterAbProtocolResult<LocalSignerHandlerOutputV1> {
+    ) -> RouterAbProtocolResult<LocalSignerRecipientProofBundleResponseV1> {
         require_route(&request, LocalTransportRouteV1::RouterToSignerB)?;
         require_signer_role(&context.peer_signer, Role::SignerA)?;
         let payload =
@@ -1206,39 +1201,12 @@ impl LocalDeriverBServiceV1 {
             context.router_request_digest,
             &context.root_share_epoch,
         )?;
-        let peer_message = local_peer_message(
-            LocalTransportRouteV1::SignerBToSignerA,
+        local_signer_recipient_proof_bundle_response(
             self.signer.clone(),
             context.peer_signer,
             &payload,
             &plaintext,
-        )?;
-        Ok(LocalSignerHandlerOutputV1::SignerB { peer_message })
-    }
-}
-
-/// Branch-specific local signer handler output.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "signer", rename_all = "snake_case")]
-pub enum LocalSignerHandlerOutputV1 {
-    /// Signer A proof-batch coordination message.
-    SignerA {
-        /// A-to-B coordination message.
-        peer_message: LocalTransportEnvelopeV1,
-    },
-    /// Signer B proof-batch coordination message.
-    SignerB {
-        /// B-to-A coordination message.
-        peer_message: LocalTransportEnvelopeV1,
-    },
-}
-
-impl LocalSignerHandlerOutputV1 {
-    /// Returns the peer coordination message.
-    pub fn peer_message(&self) -> &LocalTransportEnvelopeV1 {
-        match self {
-            Self::SignerA { peer_message, .. } | Self::SignerB { peer_message, .. } => peer_message,
-        }
+        )
     }
 }
 
@@ -1430,20 +1398,20 @@ impl LocalServiceStackV1 {
             self.deriver_a.signer.clone(),
             self.signing_worker.server.clone(),
         )?;
-        let deriver_a_output = self
+        let deriver_a_response = self
             .deriver_a
             .handle_router_request(deriver_a_context, dispatch.to_deriver_a.clone())?;
-        let deriver_b_output = self
+        let deriver_b_response = self
             .deriver_b
             .handle_router_request(deriver_b_context, dispatch.to_deriver_b.clone())?;
-        let deriver_a_peer_message = require_deriver_a_output(deriver_a_output)?;
-        let deriver_b_peer_message = require_deriver_b_output(deriver_b_output)?;
-        let (deriver_a_response, deriver_b_response) =
-            local_recipient_proof_bundle_responses_from_peer_messages(
-                &dispatch.to_deriver_a.message,
-                &deriver_a_peer_message,
-                &deriver_b_peer_message,
-            )?;
+        if deriver_a_response.signer_role != Role::SignerA
+            || deriver_b_response.signer_role != Role::SignerB
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "local stack received a proof-bundle response from the wrong signer role",
+            ));
+        }
         let router_response = LocalRouterRecipientProofBundleResponseV1::new(
             deriver_a_response.client_bundle.clone(),
             deriver_b_response.client_bundle.clone(),
@@ -1469,8 +1437,6 @@ impl LocalServiceStackV1 {
             )?;
         Ok(LocalInProcessCeremonyResultV1 {
             router_response,
-            deriver_a_peer_message,
-            deriver_b_peer_message,
             signing_worker_activation,
             signing_worker_activation_receipt,
         })
@@ -1494,16 +1460,6 @@ impl LocalServiceStackV1 {
         )?;
         Ok(LocalHttpCeremonyResultV1 {
             router_response: result.router_response,
-            deriver_a_peer_request: LocalHttpRequestV1::new(
-                LocalHttpMethodV1::Post,
-                LocalHttpPathV1::SignerAToSignerB,
-                result.deriver_a_peer_message,
-            )?,
-            deriver_b_peer_request: LocalHttpRequestV1::new(
-                LocalHttpMethodV1::Post,
-                LocalHttpPathV1::SignerBToSignerA,
-                result.deriver_b_peer_message,
-            )?,
             signing_worker_activation: result.signing_worker_activation,
             signing_worker_activation_receipt: result.signing_worker_activation_receipt,
         })
@@ -1515,10 +1471,6 @@ impl LocalServiceStackV1 {
 pub struct LocalInProcessCeremonyResultV1 {
     /// Router response carrying opaque client proof bundles.
     pub router_response: LocalRouterRecipientProofBundleResponseV1,
-    /// A-to-B coordination message.
-    pub deriver_a_peer_message: LocalTransportEnvelopeV1,
-    /// B-to-A coordination message.
-    pub deriver_b_peer_message: LocalTransportEnvelopeV1,
     /// SigningWorker activation carrying opaque x_server_base proof bundles.
     pub signing_worker_activation: LocalSigningWorkerRecipientProofBundleActivationV1,
     /// Receipt from the local SigningWorker role.
@@ -1553,10 +1505,6 @@ pub enum LocalHttpPathV1 {
     RouterToSignerA,
     /// Router forwards Signer B's request.
     RouterToSignerB,
-    /// Signer A sends a peer message to Signer B.
-    SignerAToSignerB,
-    /// Signer B sends a peer message to Signer A.
-    SignerBToSignerA,
 }
 
 impl LocalHttpPathV1 {
@@ -1565,8 +1513,6 @@ impl LocalHttpPathV1 {
         match self {
             Self::RouterToSignerA => "/local/router/signer-a",
             Self::RouterToSignerB => "/local/router/signer-b",
-            Self::SignerAToSignerB => "/local/signer-a/signer-b",
-            Self::SignerBToSignerA => "/local/signer-b/signer-a",
         }
     }
 
@@ -1575,8 +1521,6 @@ impl LocalHttpPathV1 {
         match self {
             Self::RouterToSignerA => LocalTransportRouteV1::RouterToSignerA,
             Self::RouterToSignerB => LocalTransportRouteV1::RouterToSignerB,
-            Self::SignerAToSignerB => LocalTransportRouteV1::SignerAToSignerB,
-            Self::SignerBToSignerA => LocalTransportRouteV1::SignerBToSignerA,
         }
     }
 }
@@ -1639,10 +1583,6 @@ impl LocalHttpRequestV1 {
 pub struct LocalHttpCeremonyResultV1 {
     /// Router response carrying opaque client proof bundles.
     pub router_response: LocalRouterRecipientProofBundleResponseV1,
-    /// A-to-B local HTTP peer request.
-    pub deriver_a_peer_request: LocalHttpRequestV1,
-    /// B-to-A local HTTP peer request.
-    pub deriver_b_peer_request: LocalHttpRequestV1,
     /// SigningWorker activation carrying opaque x_server_base proof bundles.
     pub signing_worker_activation: LocalSigningWorkerRecipientProofBundleActivationV1,
     /// Receipt from the local SigningWorker role.
@@ -1657,10 +1597,6 @@ pub enum LocalTransportRouteV1 {
     RouterToSignerA,
     /// Router forwards Signer B's role-specific request.
     RouterToSignerB,
-    /// Signer A sends an A/B protocol message to Signer B.
-    SignerAToSignerB,
-    /// Signer B sends an A/B protocol message to Signer A.
-    SignerBToSignerA,
 }
 
 impl LocalTransportRouteV1 {
@@ -1668,16 +1604,14 @@ impl LocalTransportRouteV1 {
     pub fn source(self) -> LocalServiceRoleV1 {
         match self {
             Self::RouterToSignerA | Self::RouterToSignerB => LocalServiceRoleV1::Router,
-            Self::SignerAToSignerB => LocalServiceRoleV1::DeriverA,
-            Self::SignerBToSignerA => LocalServiceRoleV1::DeriverB,
         }
     }
 
     /// Returns the destination local service role.
     pub fn destination(self) -> LocalServiceRoleV1 {
         match self {
-            Self::RouterToSignerA | Self::SignerBToSignerA => LocalServiceRoleV1::DeriverA,
-            Self::RouterToSignerB | Self::SignerAToSignerB => LocalServiceRoleV1::DeriverB,
+            Self::RouterToSignerA => LocalServiceRoleV1::DeriverA,
+            Self::RouterToSignerB => LocalServiceRoleV1::DeriverB,
         }
     }
 
@@ -1686,8 +1620,6 @@ impl LocalTransportRouteV1 {
         match self {
             Self::RouterToSignerA => WireMessageKindV1::RouterToSignerA,
             Self::RouterToSignerB => WireMessageKindV1::RouterToSignerB,
-            Self::SignerAToSignerB => WireMessageKindV1::SignerAToSignerB,
-            Self::SignerBToSignerA => WireMessageKindV1::SignerBToSignerA,
         }
     }
 }
@@ -1903,77 +1835,20 @@ fn require_local_router_to_signer_payload(
     Ok(payload)
 }
 
-fn local_peer_message(
-    route: LocalTransportRouteV1,
+fn local_signer_recipient_proof_bundle_response(
     from: SignerIdentityV1,
     to: SignerIdentityV1,
     payload: &RouterToSignerPayloadV1,
     plaintext: &SignerInputPlaintextV1,
-) -> RouterAbProtocolResult<LocalTransportEnvelopeV1> {
+) -> RouterAbProtocolResult<LocalSignerRecipientProofBundleResponseV1> {
     let batch_output = local_mpc_prf_batch_output(&from, payload, plaintext)?;
-    let peer_payload = sign_ecdsa_threshold_prf_proof_batch_peer_payload_v1(
-        &local_dev_peer_signing_key_bytes(&from),
-        from,
-        to,
-        batch_output,
-    )?;
-    let message = WireMessageV1::new(
-        route.expected_wire_kind(),
-        peer_payload.transcript_digest,
-        CanonicalWireBytesV1::new(peer_payload.canonical_bytes())?,
-    )?;
-    LocalTransportEnvelopeV1::new(route, message)
-}
-
-fn local_recipient_proof_bundle_responses_from_peer_messages(
-    deriver_a_request: &WireMessageV1,
-    deriver_a_peer_message: &LocalTransportEnvelopeV1,
-    deriver_b_peer_message: &LocalTransportEnvelopeV1,
-) -> RouterAbProtocolResult<(
-    LocalSignerRecipientProofBundleResponseV1,
-    LocalSignerRecipientProofBundleResponseV1,
-)> {
-    let router_payload = decode_router_to_signer_payload_v1(deriver_a_request.payload.as_bytes())?;
-    if router_payload.transcript_digest() != deriver_a_request.transcript_digest {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "local proof-bundle response payload transcript does not match wire message",
-        ));
-    }
-    let proof_batch_a = local_decode_peer_proof_batch(
-        deriver_a_peer_message,
-        LocalTransportRouteV1::SignerAToSignerB,
-    )?;
-    let proof_batch_b = local_decode_peer_proof_batch(
-        deriver_b_peer_message,
-        LocalTransportRouteV1::SignerBToSignerA,
-    )?;
-    if proof_batch_a.transcript_digest != deriver_a_request.transcript_digest
-        || proof_batch_b.transcript_digest != deriver_a_request.transcript_digest
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "local proof-bundle response proof transcript mismatch",
-        ));
-    }
-    if proof_batch_a.root_share_epoch != proof_batch_b.root_share_epoch {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "local proof-bundle response root-share epoch mismatch",
-        ));
-    }
-    let mut encryptor = LocalDeterministicRecipientProofBundleEncryptorV1;
-    let deriver_a_response = local_recipient_proof_bundle_response_from_ab_proof_batch_v1(
-        &router_payload,
-        proof_batch_a,
-        &mut encryptor,
-    )?;
-    let deriver_b_response = local_recipient_proof_bundle_response_from_ab_proof_batch_v1(
-        &router_payload,
-        proof_batch_b,
-        &mut encryptor,
-    )?;
-    Ok((deriver_a_response, deriver_b_response))
+    let proof_batch =
+        EcdsaThresholdPrfProofBatchPayloadV1::from_signer_batch_output(from, to, batch_output)?;
+    local_recipient_proof_bundle_response_from_ab_proof_batch_v1(
+        payload,
+        proof_batch,
+        &mut LocalDeterministicRecipientProofBundleEncryptorV1,
+    )
 }
 
 fn local_recipient_proof_bundle_response_from_ab_proof_batch_v1(
@@ -2012,21 +1887,6 @@ fn local_recipient_proof_bundle_response_from_ab_proof_batch_v1(
         LocalSignerRecipientProofBundleResponseV1::new(signer_role, client_bundle, server_bundle)?;
     response.validate_for_router_payload(router_payload)?;
     Ok(response)
-}
-
-fn local_decode_peer_proof_batch(
-    envelope: &LocalTransportEnvelopeV1,
-    expected_route: LocalTransportRouteV1,
-) -> RouterAbProtocolResult<EcdsaThresholdPrfProofBatchPayloadV1> {
-    require_route(envelope, expected_route)?;
-    let peer_payload = decode_ab_peer_message_payload_v1(envelope.message.payload.as_bytes())?;
-    if peer_payload.transcript_digest != envelope.message.transcript_digest {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "local A/B proof-batch peer payload transcript does not match wire message",
-        ));
-    }
-    decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1(&peer_payload)
 }
 
 fn decode_local_recipient_proof_bundle_wire_v1(
@@ -2637,30 +2497,6 @@ fn require_signing_worker_startup(
     }
 }
 
-fn require_deriver_a_output(
-    output: LocalSignerHandlerOutputV1,
-) -> RouterAbProtocolResult<LocalTransportEnvelopeV1> {
-    match output {
-        LocalSignerHandlerOutputV1::SignerA { peer_message } => Ok(peer_message),
-        other => Err(invalid_signer_output_branch(
-            LocalServiceRoleV1::DeriverA,
-            other,
-        )),
-    }
-}
-
-fn require_deriver_b_output(
-    output: LocalSignerHandlerOutputV1,
-) -> RouterAbProtocolResult<LocalTransportEnvelopeV1> {
-    match output {
-        LocalSignerHandlerOutputV1::SignerB { peer_message } => Ok(peer_message),
-        other => Err(invalid_signer_output_branch(
-            LocalServiceRoleV1::DeriverB,
-            other,
-        )),
-    }
-}
-
 fn invalid_startup_branch(
     expected: LocalServiceRoleV1,
     actual: LocalServiceRoleV1,
@@ -2671,20 +2507,6 @@ fn invalid_startup_branch(
             "local stack expected {} startup config, received {}",
             expected.as_str(),
             actual.as_str()
-        ),
-    )
-}
-
-fn invalid_signer_output_branch(
-    expected: LocalServiceRoleV1,
-    actual: LocalSignerHandlerOutputV1,
-) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-        format!(
-            "local stack expected {} signer output, received {:?}",
-            expected.as_str(),
-            actual
         ),
     )
 }
@@ -2705,14 +2527,6 @@ fn require_env_role(
         ));
     }
     Ok(())
-}
-
-fn local_dev_peer_signing_key_bytes(signer: &SignerIdentityV1) -> [u8; 32] {
-    match signer.role {
-        Role::SignerA => [0xa1; 32],
-        Role::SignerB => [0xb1; 32],
-        _ => unreachable!("local dev peer signer role"),
-    }
 }
 
 fn push_hash_field(hasher: &mut Sha256, bytes: &[u8]) {

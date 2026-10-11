@@ -1,3 +1,10 @@
+import { requireRecord } from '@shared/utils/validation';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
+import {
+  buildWalletSessionAuthorizationHeaders,
+  buildRelayerJsonPostRequestInit,
+  fetchWithWalletHomeDiscovery,
+} from '@/core/rpcClients/relayer/relayerHttp';
 import {
   ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH,
   computeRouterAbEcdsaOperationStepUpChallengeB64u,
@@ -22,15 +29,8 @@ export type PreparedEcdsaOperationStepUp = {
 };
 
 export type EcdsaOperationStepUpTransport =
-  | { readonly kind: 'legacy_cookie' }
-  | { readonly kind: 'wallet_session_bearer'; readonly token: string };
-
-function requireResponseRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('ECDSA operation step-up response must be an object');
-  }
-  return value as Record<string, unknown>;
-}
+  | { readonly kind: 'factor_proof'; readonly credential?: never }
+  | { readonly kind: 'wallet_session'; readonly credential: WalletSessionOperationCredentialV1 };
 
 function parseEcdsaOperationStepUpAuthorizationResponse(
   value: unknown,
@@ -142,35 +142,30 @@ function ecdsaOperationStepUpSessionMessage(code: unknown, serverMessage: string
 export async function issueEcdsaOperationStepUpAuthorization(args: {
   readonly relayerUrl: string;
   readonly request: RouterAbEcdsaOperationStepUpAuthorizationRequestV1Wire;
-  readonly fetchImpl?: typeof fetch;
-  readonly transport?: EcdsaOperationStepUpTransport;
+  readonly transport: EcdsaOperationStepUpTransport;
 }): Promise<RouterAbEcdsaOperationStepUpAuthorizationResponseV1Wire> {
   const request = parseRouterAbEcdsaOperationStepUpAuthorizationRequestV1(args.request);
-  const fetchImpl = args.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== 'function') {
-    throw new Error('fetch is unavailable for ECDSA operation step-up');
-  }
+  const headers =
+    args.transport.kind === 'wallet_session'
+      ? buildWalletSessionAuthorizationHeaders(args.transport.credential)
+      : {};
   if (
-    args.transport?.kind === 'wallet_session_bearer' &&
-    args.transport.token.trim().length === 0
+    args.transport.kind === 'factor_proof' &&
+    request.operation.operation_kind !== 'evm.export_key'
   ) {
-    throw new Error('Wallet Session operation credential is required for ECDSA operation step-up');
+    throw new Error('ECDSA signing step-up requires its Wallet Session credential');
   }
-  const authenticatedFetch =
-    args.transport?.kind === 'wallet_session_bearer'
-      ? fetchWithWalletSessionBearer(fetchImpl, args.transport.token)
-      : fetchImpl;
-  const response = await authenticatedFetch(operationStepUpEndpoint(args.relayerUrl), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'omit',
-    body: JSON.stringify(request),
-  });
+  const httpRequest = new Request(
+    operationStepUpEndpoint(args.relayerUrl),
+    buildRelayerJsonPostRequestInit({ headers, body: request }),
+  );
+  const response =
+    args.transport.kind === 'wallet_session'
+      ? await fetchWithWalletHomeDiscovery(httpRequest)
+      : await fetch(httpRequest);
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    const error = requireResponseRecord(body);
+    const error = requireRecord(body, 'ECDSA operation step-up response');
     const message = String(error.message || `HTTP ${response.status}`);
     // A wallet session that has lapsed is a lifecycle outcome the user can act
     // on — sign in again — not an opaque signing failure. Rethrow it as the
@@ -185,12 +180,4 @@ export async function issueEcdsaOperationStepUpAuthorization(args: {
     throw new Error(`ECDSA operation step-up failed: ${message}`);
   }
   return parseEcdsaOperationStepUpAuthorizationResponse(body);
-}
-
-function fetchWithWalletSessionBearer(fetchImpl: typeof fetch, token: string): typeof fetch {
-  return async (input, init) => {
-    const headers = new Headers(init?.headers);
-    headers.set('Authorization', `Bearer ${token}`);
-    return await fetchImpl(input, { ...init, headers });
-  };
 }

@@ -39,6 +39,7 @@
 // - type SeamsWeb: TypeScript type only, no runtime code
 // - encoders: Utility functions used in Node.js context, not browser
 import { Page } from '@playwright/test';
+import { createTestWalletHostConfig, installTestWalletHostConfig } from './walletHostConfig';
 import { executeSequentialSetup } from './bootstrap';
 import { DEFAULT_TEST_CONFIG } from './config';
 import { routePreactModules } from './preact';
@@ -73,6 +74,7 @@ export async function setupBasicPasskeyTest(
   options: PasskeyTestSetupOptions = {},
 ): Promise<void> {
   const config: PasskeyTestConfig = { ...DEFAULT_TEST_CONFIG, ...options };
+  await page.addInitScript(installTestWalletHostConfig, createTestWalletHostConfig(config));
 
   // Generic browser tests still run through the local app origin and need their SDK assets mirrored.
   // Intended-behaviour contracts use their own harness and never import this shimmed setup path.

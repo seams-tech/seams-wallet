@@ -38,7 +38,10 @@ import {
 } from './crypto';
 import { releaseEmailOtpFactorSecret } from './otpVerification';
 import { removeEmailOtpEd25519YaoActiveClient } from './sessionState';
-import type { EmailOtpEd25519OperationRecoveryMaterialRequest } from './custodyRestore';
+import type {
+  EmailOtpEd25519OperationRecoveryMaterialRequest,
+  EmailOtpUnlockSecretMaterialRequest,
+} from './custodyRestore';
 import {
   completeEmailOtpUnlockFromSecret32,
   type EmailOtpWalletCustodySeedUnlock,
@@ -232,6 +235,7 @@ export async function rehydrateEmailOtpEd25519YaoOperationMaterial(
   const credential: Ed25519OperationStepUpCredential = {
     kind: 'wallet_session_opaque',
     walletSessionToken: operationCredential.token,
+    home: operationCredential.home,
   };
   const material: EmailOtpEd25519OperationRecoveryMaterialRequest = {
     kind: 'ed25519_yao_operation_recovery',
@@ -351,39 +355,35 @@ export async function rehydrateActiveEmailOtpEd25519YaoSessionMaterial(
       enrollmentId: released.enrollmentId,
       enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
       clientSecret32: factorSecret32,
-      material: {
-        kind: 'wallet_unlock_capabilities',
-        ecdsa: args.ecdsa,
-        ed25519Yao: {
-          providerSubject: providerSubjectId,
-          nearAccountId: args.nearAccountId,
-          expectedOperationalPublicKey: args.expectedOperationalPublicKey,
-          expectedThresholdSessionId: args.expectedThresholdSessionId,
-          walletCustodyEd25519Material: args.walletCustodyEd25519Material,
-          recovery: {
-            kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
-            signerSlot: args.signerSlot,
-            remainingUses: args.remainingUses,
-            orgId: args.orgId,
-          },
-        },
-      },
+      material: activeEmailOtpNearRestoreMaterial(args),
       sessionAuth,
     });
     factorSecret32 = null;
-    if (
-      unlocked.kind !== 'wallet_unlock_capabilities' ||
-      unlocked.ed25519Yao.kind !== 'capability'
-    ) {
-      throw new Error('Active Email OTP Wallet Session did not restore wallet capabilities');
+    switch (unlocked.kind) {
+      case 'ed25519_yao_capability':
+        if (args.ecdsa.kind !== 'absent')
+          throw new Error('Combined restore omitted ECDSA activation');
+        return {
+          activeClientHandle: unlocked.activeClientHandle,
+          metadata: unlocked.metadata,
+          bootstrap: unlocked.ed25519YaoCapability,
+          ecdsa: { kind: 'absent' },
+          walletSessionAuthorization: unlocked.walletSessionAuthorization,
+        };
+      case 'wallet_unlock_capabilities':
+        if (args.ecdsa.kind !== 'required' || unlocked.ed25519Yao.kind !== 'capability') {
+          throw new Error('Active Email OTP Wallet Session did not restore selected capabilities');
+        }
+        return {
+          activeClientHandle: unlocked.ed25519Yao.activeClientHandle,
+          metadata: unlocked.ed25519Yao.metadata,
+          bootstrap: unlocked.ed25519Yao.bootstrap,
+          ecdsa: { kind: 'activated', session: unlocked.ecdsa.session },
+          walletSessionAuthorization: unlocked.walletSessionAuthorization,
+        };
+      default:
+        throw new Error('Active Email OTP Wallet Session did not restore selected capabilities');
     }
-    return {
-      activeClientHandle: unlocked.ed25519Yao.activeClientHandle,
-      metadata: unlocked.ed25519Yao.metadata,
-      bootstrap: unlocked.ed25519Yao.bootstrap,
-      ecdsaSession: unlocked.ecdsa.session,
-      walletSessionAuthorization: unlocked.walletSessionAuthorization,
-    };
   } finally {
     zeroizeBytes(factorSecret32);
   }
@@ -408,5 +408,48 @@ export async function rotateEmailOtpWalletRecoverySet(
   } finally {
     handle?.free();
     zeroizeBytes(recovered.clientSecret32);
+  }
+}
+
+function activeEmailOtpNearRestoreMaterial(
+  args: EmailOtpWorkerOperationMap['rehydrateActiveEmailOtpEd25519YaoSessionMaterial']['payload'],
+): EmailOtpUnlockSecretMaterialRequest {
+  const recovery = {
+    kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
+    signerSlot: args.signerSlot,
+    remainingUses: args.remainingUses,
+    orgId: args.orgId,
+  };
+  switch (args.ecdsa.kind) {
+    case 'absent':
+      return {
+        kind: 'ed25519_yao_recovery',
+        ed25519YaoRecovery: recovery,
+        providerSubject: args.providerSubjectId,
+        nearAccountId: args.nearAccountId,
+        expectedOperationalPublicKey: args.expectedOperationalPublicKey,
+        expectedThresholdSessionId: args.expectedThresholdSessionId,
+        walletCustodyEd25519Material: args.walletCustodyEd25519Material,
+      };
+    case 'required':
+      return {
+        kind: 'wallet_unlock_capabilities',
+        ecdsa: {
+          sessionHandleBinding: args.ecdsa.sessionHandleBinding,
+          runtimePolicyScope: args.ecdsa.runtimePolicyScope,
+          sessionPolicy: args.ecdsa.sessionPolicy,
+        },
+        ed25519Yao: {
+          recovery,
+          providerSubject: args.providerSubjectId,
+          nearAccountId: args.nearAccountId,
+          expectedOperationalPublicKey: args.expectedOperationalPublicKey,
+          expectedThresholdSessionId: args.expectedThresholdSessionId,
+          walletCustodyEd25519Material: args.walletCustodyEd25519Material,
+        },
+      };
+    default:
+      args.ecdsa satisfies never;
+      throw new Error('Unsupported Email OTP restore selection');
   }
 }

@@ -1,3 +1,5 @@
+import type { Variant } from '@shared/utils/variant';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { AccountId } from '@/core/types/accountIds';
 import type {
   ThresholdEcdsaChainTarget,
@@ -32,7 +34,14 @@ export type { EmailOtpEcdsaExportArtifact } from './exportRecovery';
 type EmailOtpEcdsaRouteChain = ThresholdEcdsaChainTarget['kind'];
 export type EmailOtpRouteChain = 'near' | EmailOtpEcdsaRouteChain;
 
-export type RequestEmailOtpChallengeArgs =
+type RequestEmailOtpChallengeArgs =
+  | {
+      kind: 'wallet_operation_challenge';
+      walletSession: WalletSessionRef;
+      chain: EmailOtpRouteChain;
+      operationCredential: WalletSessionOperationCredentialV1;
+      operationFingerprintDigest: DigestB64u;
+    }
   | {
       kind: 'wallet_login_challenge';
       walletSession: WalletSessionRef;
@@ -68,7 +77,15 @@ export type RequestEmailOtpChallengeArgs =
       routeAuth?: never;
     };
 
-export type RequestEmailOtpExportChallengeArgs = RequestEmailOtpChallengeArgs;
+export type RequestEmailOtpTransactionChallengeArgs = Variant<
+  RequestEmailOtpChallengeArgs,
+  'kind',
+  'wallet_operation_challenge' | 'wallet_session_challenge' | 'near_account_challenge'
+>;
+export type RequestEmailOtpExportChallengeArgs = Exclude<
+  RequestEmailOtpChallengeArgs,
+  { kind: 'wallet_operation_challenge' }
+>;
 
 export type ExportEcdsaKeyWithDurableAuthorizationArgs = {
   walletSession: WalletSessionRef;
@@ -104,7 +121,7 @@ export class EmailOtpExportRecoveryRuntime {
   ) {}
 
   async requestTransactionSigningChallenge(
-    args: RequestEmailOtpChallengeArgs,
+    args: RequestEmailOtpTransactionChallengeArgs,
   ): Promise<EmailOtpTransactionSigningChallenge> {
     return await requestTransactionSigningChallenge(this.workerPorts(), args);
   }

@@ -4,7 +4,6 @@ import { base64UrlDecode } from '@shared/utils/encoders';
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
-  WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   isWalletEmailOtpLoginOperation,
@@ -12,6 +11,7 @@ import {
 import { failure } from '@shared/utils/failure';
 import {
   parseCurrentEmailOtpChallengeRow,
+  parseEmailOtpChallengePurpose,
   parseCurrentEmailOtpGrantRow,
   parseCurrentEmailOtpUnlockChallengeRow,
 } from '../../../../core/EmailOtpRecords';
@@ -165,32 +165,46 @@ export function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0;
 }
 
-export function emailOtpRateLimitKeys(input: {
+export type EmailOtpCounterKey =
+  | { readonly kind: 'wallet'; readonly walletId: string; readonly key: string }
+  | { readonly kind: 'regional'; readonly walletId?: never; readonly key: string };
+
+export type EmailOtpRateLimitConsumeInput = {
   readonly scope: EmailOtpRateLimitScope;
   readonly action?: string;
-  readonly policy: {
-    readonly limit: number;
-    readonly windowMs: number;
-  };
   readonly userId?: string;
-  readonly walletId?: string;
   readonly providerSubject?: string;
   readonly orgId?: string;
   readonly clientIp?: string;
-}): readonly string[] {
+} & (
+  | { readonly kind: 'wallet'; readonly walletId: string }
+  | { readonly kind: 'regional'; readonly walletId?: never }
+);
+
+export function emailOtpRateLimitKeys(
+  input: EmailOtpRateLimitConsumeInput,
+  policy: { readonly limit: number; readonly windowMs: number },
+): readonly EmailOtpCounterKey[] {
   const keySuffix = [
     `scope=${input.scope}`,
     `action=${input.action || 'default'}`,
-    `limit=${input.policy.limit}`,
-    `windowMs=${input.policy.windowMs}`,
+    `limit=${policy.limit}`,
+    `windowMs=${policy.windowMs}`,
   ].join(':');
-  return [
+  const counters: EmailOtpCounterKey[] = [];
+  if (input.kind === 'wallet') {
+    counters.push({ kind: 'wallet', walletId: input.walletId, key: keySuffix });
+  }
+  const regionalKeys = [
     input.clientIp ? `${keySuffix}:ip:${input.clientIp}` : '',
     input.userId ? `${keySuffix}:user:${input.userId}` : '',
-    input.walletId ? `${keySuffix}:wallet:${input.walletId}` : '',
     input.providerSubject ? `${keySuffix}:provider:${input.providerSubject}` : '',
     input.orgId ? `${keySuffix}:org:${input.orgId}` : '',
-  ].filter(Boolean);
+  ];
+  for (const key of regionalKeys) {
+    if (key) counters.push({ kind: 'regional', key });
+  }
+  return counters;
 }
 
 export function emailOtpRateLimitExceeded(row: D1EmailOtpRateLimitRow | null): {
@@ -346,11 +360,7 @@ export function parseEmailOtpChallengeRow(
     recordJson: row?.record_json,
     expiresAtMs: row?.expires_at_ms,
   });
-  if (
-    !record ||
-    record.expiresAtMs <= record.createdAtMs ||
-    !emailOtpChallengePurposeIsValid(record)
-  ) {
+  if (!record || record.expiresAtMs <= record.createdAtMs) {
     return null;
   }
   return { ...record, email: record.email.toLowerCase() };
@@ -470,6 +480,8 @@ export function emailOtpChallengeRecord(input: {
   readonly expiresAtMs: number;
   readonly maxAttempts: number;
 }): EmailOtpChallengeRecord {
+  const purpose = parseEmailOtpChallengePurpose(input.action, input.operation);
+  if (!purpose) throw new Error('Invalid Email OTP challenge purpose');
   return {
     version: 'email_otp_challenge_v1',
     challengeId: input.challengeId,
@@ -480,8 +492,7 @@ export function emailOtpChallengeRecord(input: {
     email: input.email,
     otpCode: input.otpCode,
     ownerProofBindingDigest: input.ownerProofBindingDigest,
-    action: input.action,
-    operation: input.operation,
+    ...purpose,
     createdAtMs: input.createdAtMs,
     expiresAtMs: input.expiresAtMs,
     attemptCount: 0,
@@ -493,6 +504,8 @@ export function emailOtpChallengeWithAttemptCount(
   record: EmailOtpChallengeRecord,
   attemptCount: number,
 ): EmailOtpChallengeRecord {
+  const purpose = parseEmailOtpChallengePurpose(record.action, record.operation);
+  if (!purpose) throw new Error('Invalid Email OTP challenge purpose');
   return {
     version: 'email_otp_challenge_v1',
     challengeId: record.challengeId,
@@ -503,8 +516,7 @@ export function emailOtpChallengeWithAttemptCount(
     email: record.email,
     otpCode: record.otpCode,
     ownerProofBindingDigest: record.ownerProofBindingDigest,
-    action: record.action,
-    operation: record.operation,
+    ...purpose,
     createdAtMs: record.createdAtMs,
     expiresAtMs: record.expiresAtMs,
     attemptCount,
@@ -722,16 +734,7 @@ export function emailOtpChallengePurposeIsValid(input: {
   readonly action: EmailOtpChallengeIssueAction;
   readonly operation: EmailOtpChallengeOperation;
 }): boolean {
-  switch (input.action) {
-    case WALLET_EMAIL_OTP_ACTIONS.login:
-      return isWalletEmailOtpLoginOperation(input.operation);
-    case WALLET_EMAIL_OTP_ACTIONS.registration:
-      return input.operation === WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
-    case WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap:
-      return input.operation === WALLET_EMAIL_OTP_UNLOCK_OPERATION;
-    case WALLET_EMAIL_OTP_ACTIONS.deviceLink:
-      return input.operation === WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION;
-  }
+  return parseEmailOtpChallengePurpose(input.action, input.operation) !== null;
 }
 
 function optionalPositiveSafeIntegerField(

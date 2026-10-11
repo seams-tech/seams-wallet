@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { EvmFamilySigningDeps } from '../../interfaces/operationDeps';
 import { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
 import type { WarmSessionStatusResult } from '../../uiConfirm/uiConfirm.types';
@@ -31,11 +32,14 @@ async function resolveDurableEmailOtpEcdsaAuthority(args: {
     ) {
       return null;
     }
-    const authorization = await args.createArgs.resolveActiveEcdsaWalletSessionAuthorization({
-      walletId: args.lane.signer.walletId,
-      chainTarget: args.lane.signer.chainTarget,
-      materialActivation: args.lane.signer.materialActivation,
-    });
+    const authorization = await args.createArgs.resolveActiveEcdsaWalletSessionAuthorization(
+      {
+        walletId: args.lane.signer.walletId,
+        chainTarget: args.lane.signer.chainTarget,
+        materialActivation: args.lane.signer.materialActivation,
+      },
+      new WalletSessionStatusReadScope(),
+    );
     if (!authorization) return null;
     const authorized = authorizeEvmFamilyEcdsaSigningCapability({
       capability,

@@ -1,3 +1,4 @@
+import { assertWalletOwnershipGeneration } from './walletOwnershipGeneration';
 import { base64UrlEncode } from '@shared/utils/base64';
 import {
   parseCorrelationId,
@@ -52,7 +53,7 @@ import {
 } from '@/core/signingEngine/session/material/ecdsaCapabilityManifest';
 import type { VerifiedEcdsaPublicFacts } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import { requireRecord } from '@shared/utils/validation';
-import { SEAMS_WALLET_INDEXES } from '../schemaNames';
+import { SEAMS_WALLET_INDEXES, SEAMS_WALLET_STORES } from '../schemaNames';
 import { seamsWalletDB } from '../singletons';
 import type { SeamsWalletDBManager, SeamsWalletTransactionContext } from './manager';
 import {
@@ -64,8 +65,7 @@ import {
 import {
   ECDSA_CLIENT_PRESIGNATURE_CAPACITY,
   MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-  type EcdsaClientPresignCleanupTarget,
-} from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+} from '@/core/config/presignatures';
 import {
   MANIFEST_RECORD_VERSION,
   MANIFEST_STORE,
@@ -131,7 +131,6 @@ import {
   parsePresignatureTimestamp,
   rawRecordId,
   supportsStrictIndexedDbDurability,
-  deleteCursorRows,
   readAvailableClientPresignatureRows,
   parseSealedAvailableClientPresignatureRow,
   metadataFromPresignatureRow,
@@ -679,9 +678,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
   ): Promise<DurableClientPresignatureAdmissionResult> {
     if (!supportsStrictIndexedDbDurability()) return { kind: 'persistence_unavailable' };
     const poolIdentity = parseEcdsaClientPresignPoolIdentity(input.poolIdentity);
-    const durableMaterialRef = parseEcdsaRoleLocalPersistedMaterialRef(
-      input.durableMaterialRef,
-    );
+    const durableMaterialRef = parseEcdsaRoleLocalPersistedMaterialRef(input.durableMaterialRef);
     if (!materialRefMatchesPoolIdentity(durableMaterialRef, poolIdentity)) {
       return { kind: 'persistence_unavailable' };
     }
@@ -774,9 +771,14 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     };
     try {
       const result = await this.manager.runTransaction(
-        [PRESIGNATURE_STORE, MATERIAL_STORE],
+        [PRESIGNATURE_STORE, MATERIAL_STORE, SEAMS_WALLET_STORES.appState],
         'readwrite',
         async (context) => {
+          await assertWalletOwnershipGeneration(
+            context,
+            poolIdentity.walletId,
+            poolIdentity.ownershipGeneration,
+          );
           const nowMs = Date.now();
           const available = await readAvailableClientPresignatureRows(context, poolIdentity, nowMs);
           if (available.length >= ECDSA_CLIENT_PRESIGNATURE_CAPACITY) {
@@ -822,9 +824,14 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     const nowMs = Date.now();
     try {
       return await this.manager.runTransaction(
-        [PRESIGNATURE_STORE],
+        [PRESIGNATURE_STORE, SEAMS_WALLET_STORES.appState],
         'readwrite',
         async (context) => {
+          await assertWalletOwnershipGeneration(
+            context,
+            poolIdentity.walletId,
+            poolIdentity.ownershipGeneration,
+          );
           const rows = await readAvailableClientPresignatureRows(context, poolIdentity, nowMs);
           return rows
             .map(metadataFromPresignatureRow)
@@ -846,10 +853,15 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     let row: SealedAvailableClientPresignatureRow | undefined;
     try {
       const claimed = await this.manager.runTransaction(
-        [PRESIGNATURE_STORE],
+        [PRESIGNATURE_STORE, SEAMS_WALLET_STORES.appState],
         'readwrite',
         async (context) => {
           const store = context.store(PRESIGNATURE_STORE);
+          await assertWalletOwnershipGeneration(
+            context,
+            poolIdentity.walletId,
+            poolIdentity.ownershipGeneration,
+          );
           const raw = await store.get(recordId);
           if (raw === undefined) return { kind: 'claimed_elsewhere' as const };
           let parsed: SealedAvailableClientPresignatureRow;
@@ -929,27 +941,6 @@ export class IndexedDbEcdsaCapabilityManifestStore {
       if (equalEcdsaClientPresignPoolIdentity(row.pool_identity, poolIdentity)) {
         await store.delete(recordId);
       }
-    });
-  }
-
-  async deleteClientPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number> {
-    return await this.manager.runTransaction([PRESIGNATURE_STORE], 'readwrite', async (context) => {
-      const store = context.store(PRESIGNATURE_STORE);
-      let deletedCount = 0;
-      switch (target.kind) {
-        case 'wallet': {
-          const walletId = String(target.walletId).trim();
-          if (!walletId) throw new Error('ECDSA durable presignature wallet id is required');
-          deletedCount = await deleteCursorRows(
-            await store.index(SEAMS_WALLET_INDEXES.walletId).openCursor(walletId),
-          );
-          break;
-        }
-        case 'all':
-          deletedCount = await deleteCursorRows(await store.openCursor());
-          break;
-      }
-      return deletedCount;
     });
   }
 

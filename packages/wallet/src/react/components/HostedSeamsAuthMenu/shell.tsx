@@ -8,7 +8,6 @@ import {
   type HostedAuthMenuExternalAuthEvidence,
   type HostedAuthMenuExternalProvider,
   type HostedAuthMenuExternalAuthRequest,
-  type HostedAuthMenuDemoEmailOtpDelivery,
   type HostedAuthMenuExternalAuthRequestId,
   type HostedAuthMenuMode,
   type HostedAuthMenuOutcome,
@@ -17,17 +16,9 @@ import {
 import type { SeamsWeb } from '@/SeamsWeb';
 import type { HostedAuthMenuExternalAuthBroker, HostedSeamsAuthMenuProps } from './types';
 
-type HostedAuthMenuBridge = Pick<
-  SeamsWeb,
-  | 'openHostedAuthMenu'
-  | 'cancelHostedAuthMenu'
-  | 'onHostedAuthMenuExternalAuthRequest'
-  | 'onHostedAuthMenuDemoEmailOtpDelivery'
-  | 'resolveHostedAuthMenuExternalAuth'
->;
+type HostedAuthMenuBridge = Pick<SeamsWeb, 'authMenu'>;
 
 type OutcomeRef = React.MutableRefObject<HostedSeamsAuthMenuProps['onOutcome']>;
-type DemoEmailOtpRef = React.MutableRefObject<HostedSeamsAuthMenuProps['onDemoEmailOtp']>;
 type BrokerRef = React.MutableRefObject<HostedAuthMenuExternalAuthBroker | null>;
 type HostedAuthMenuFailureCode = Extract<HostedAuthMenuOutcome, { kind: 'failed' }>['code'];
 
@@ -42,7 +33,6 @@ type HostedAuthMenuSessionArgs = {
   copy: HostedSeamsAuthMenuProps['copy'];
   externalAuthBroker: BrokerRef;
   onOutcome: OutcomeRef;
-  onDemoEmailOtp: DemoEmailOtpRef;
 };
 
 type ExternalAuthEvidenceRecord = {
@@ -202,13 +192,11 @@ class HostedAuthMenuSessionController {
   private readonly copy: HostedSeamsAuthMenuProps['copy'];
   private readonly externalAuthBroker: BrokerRef;
   private readonly onOutcome: OutcomeRef;
-  private readonly onDemoEmailOtp: DemoEmailOtpRef;
   private readonly externalAuthRequestIds = new Set<HostedAuthMenuExternalAuthRequestId>();
   private readonly handleExternalAuthRequestBound: (
     request: HostedAuthMenuExternalAuthRequest,
   ) => void;
   private unsubscribeExternalAuthRequest: (() => void) | null = null;
-  private unsubscribeDemoEmailOtp: (() => void) | null = null;
   private isActive = false;
   private hasOpenRequest = false;
   private hasTerminalOutcome = false;
@@ -225,7 +213,6 @@ class HostedAuthMenuSessionController {
     this.copy = args.copy;
     this.externalAuthBroker = args.externalAuthBroker;
     this.onOutcome = args.onOutcome;
-    this.onDemoEmailOtp = args.onDemoEmailOtp;
     this.handleExternalAuthRequestBound = this.handleExternalAuthRequest.bind(this);
   }
 
@@ -233,11 +220,8 @@ class HostedAuthMenuSessionController {
     if (this.isActive) return;
     this.isActive = true;
     this.anchorElement.style.setProperty('--seams-auth-menu-placeholder-opacity', '1');
-    this.unsubscribeExternalAuthRequest = this.seams.onHostedAuthMenuExternalAuthRequest(
+    this.unsubscribeExternalAuthRequest = this.seams.authMenu.onExternalAuthRequest(
       this.handleExternalAuthRequestBound,
-    );
-    this.unsubscribeDemoEmailOtp = this.seams.onHostedAuthMenuDemoEmailOtpDelivery(
-      this.handleDemoEmailOtpDelivery.bind(this),
     );
     void this.open();
   }
@@ -248,12 +232,10 @@ class HostedAuthMenuSessionController {
     this.isActive = false;
     this.unsubscribeExternalAuthRequest?.();
     this.unsubscribeExternalAuthRequest = null;
-    this.unsubscribeDemoEmailOtp?.();
-    this.unsubscribeDemoEmailOtp = null;
     this.externalAuthRequestIds.clear();
     if (this.hasOpenRequest) {
-      void this.seams
-        .cancelHostedAuthMenu({ authMenuSessionId: this.authMenuSessionId })
+      void this.seams.authMenu
+        .cancel({ authMenuSessionId: this.authMenuSessionId })
         .catch(() => {});
     }
   }
@@ -281,7 +263,7 @@ class HostedAuthMenuSessionController {
 
     try {
       this.hasOpenRequest = true;
-      const outcome = await this.seams.openHostedAuthMenu(request, this.anchorElement);
+      const outcome = await this.seams.authMenu.open(request, this.anchorElement);
       if (outcome.authMenuSessionId !== this.authMenuSessionId) {
         if (!this.isActive) return;
         this.emitFailure(
@@ -304,11 +286,6 @@ class HostedAuthMenuSessionController {
     if (!requestId || this.externalAuthRequestIds.has(requestId)) return;
     this.externalAuthRequestIds.add(requestId);
     void this.resolveExternalAuthRequest(request, requestId);
-  }
-
-  private handleDemoEmailOtpDelivery(delivery: HostedAuthMenuDemoEmailOtpDelivery): void {
-    if (!this.isActive || delivery.authMenuSessionId !== this.authMenuSessionId) return;
-    this.onDemoEmailOtp.current?.(delivery.delivery);
   }
 
   private async resolveExternalAuthRequest(
@@ -336,7 +313,7 @@ class HostedAuthMenuSessionController {
     }
 
     try {
-      await this.seams.resolveHostedAuthMenuExternalAuth({
+      await this.seams.authMenu.resolveExternalAuth({
         kind: 'hosted_auth_menu_external_auth_resolution_v1',
         authMenuSessionId: this.authMenuSessionId,
         externalAuthRequestId: requestId,
@@ -437,7 +414,6 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   showProgress = false,
   copy,
   externalAuthBroker = null,
-  onDemoEmailOtp,
   onOutcome,
 }) => {
   const { seams, isLoggedIn } = useOptionalSeams();
@@ -455,8 +431,6 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     externalAuthBroker,
   );
   const onOutcomeRef = React.useRef<HostedSeamsAuthMenuProps['onOutcome']>(onOutcome);
-  const onDemoEmailOtpRef =
-    React.useRef<HostedSeamsAuthMenuProps['onDemoEmailOtp']>(onDemoEmailOtp);
   const terminalGateRef = React.useRef<HostedAuthMenuTerminalGate | null>(terminalGate);
   const forwardedOutcomeRef = React.useRef<HostedSeamsAuthMenuProps['onOutcome']>(() => {});
   const anchorRef = React.useRef<HTMLSpanElement | null>(null);
@@ -470,7 +444,6 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   };
   externalAuthBrokerRef.current = externalAuthBroker;
   onOutcomeRef.current = onOutcome;
-  onDemoEmailOtpRef.current = onDemoEmailOtp;
   terminalGateRef.current = terminalGate;
   forwardedOutcomeRef.current = forwardHostedAuthMenuOutcome.bind(
     null,
@@ -495,7 +468,6 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
       showProgress: config.showProgress,
       copy: config.copy,
       externalAuthBroker: externalAuthBrokerRef,
-      onDemoEmailOtp: onDemoEmailOtpRef,
       onOutcome: forwardedOutcomeRef,
     });
     session.start();

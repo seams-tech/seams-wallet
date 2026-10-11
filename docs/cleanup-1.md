@@ -22,6 +22,82 @@ thing written more than once: wire fields declared three times, helpers copied
 between files, contracts defined on both sides of a package boundary, and large
 files that repeat themselves.
 
+## Wallet cleanup batch — 2026-10-05
+
+Scope: remove obsolete forwarding code, consolidate duplicated behavior, and
+split large modules by responsibility. Preserve public APIs, authorization,
+storage formats, transaction ordering, and durable presignatures.
+
+- [x] Remove the registration forwarding module. Its two consumers now call
+  the existing account-lifecycle and credential-session implementations directly.
+  Production source: 91 lines added, 377 removed; net reduction of 286 lines.
+  Verification: wallet type-check, production build, and production registration,
+  signing, and unlock asset contract passed (1 test). The bloat ratchet passed.
+- [x] Consolidate the shared authorized-operation wire serialization used by
+  the ECDSA and Ed25519 routes. Curve-specific checks remain in their routes.
+  Server type-check and build passed. The production Email OTP lifecycle
+  contract passed (1 test): registration, unlock, NEAR/Tempo/Arc signing,
+  reload recovery, step-up signing, and both key exports. The bloat ratchet
+  passed; measured duplicated TypeScript lines fell from 10,751 to 10,529 (measured again from the complete committed tree).
+- [x] Separate iframe inbound-message parsing and persistence row codecs from
+  their transport and transaction owners. `inboundMessages.ts` owns wire parsing;
+  `accountSignerRows.ts`, `nonceLeaseRows.ts`, and `signerOutboxRows.ts` own stored-row
+  conversion. Shared scalar parsers and index keys use the existing normalization
+  module. Router request handling and repository transactions remain unchanged.
+  The router shrank from 5,027 to 4,743 lines; the repository from 8,954 to 8,183.
+  All new modules are below 450 lines. A syntax-tree comparison verified 314
+  declarations unchanged except import and export visibility.
+  Verification: wallet build/type-check, state type fixtures, external declaration
+  consumers, runtime-entry checks, and the bloat ratchet passed. All 11 browser
+  contracts passed. Two isolated production contracts passed: mixed-chain reload
+  and step-up signing, and durable presignature retention across lock/unlock.
+
+Batch source changes: 1,420 lines added, 1,756 removed; net reduction of 336.
+Structural moves account for most additions. The large owners still exceed 2,000
+lines; additional splits remain separate cleanup candidates.
+Repeatable commands and source hashes: [verification receipt](evidence/cleanup-first-three-20261005.json).
+
+Chunk splitting and month-later presignature reuse proof are outside this batch.
+
+## Wallet loading cleanup — tasks 4–6
+
+- [x] **4. Startup imports:** defer the key-export operation module until exact
+  export-lane resolution or export. Signed-out encoded asset bodies fell from
+  989,172 to 983,432 bytes. Warm visits transferred zero asset bodies. Cold
+  response count increased from 93 to 106. This is a modest byte saving with a
+  request-count tradeoff. Enrollment deferral increased startup bytes and was
+  reverted. Build, mixed-wallet exports, cold/warm menu scenarios, and the bloat
+  ratchet passed. See [startup evidence](evidence/cleanup-startup-20261005.json).
+- [x] **5. Signer assets:** audit NEAR-only and ECDSA-only registration,
+  lock/unlock, restored signing, and export. Remove three duplicate WASM aliases
+  from development and production output: 675,372 package bytes. Canonical URLs
+  retain generated filenames. Shared custody dependencies remain.
+  Separate curve-export JavaScript chunks passed behavior checks but increased
+  startup to 989,148 bytes and 118 cold responses. That split was removed. The
+  complete export operation remains deferred as one shared module. Build,
+  type-check, mixed-wallet exports, both signer scenarios, three worker
+  delivery/retry tests, freshness, and the bloat ratchet passed. See
+  [signer asset evidence](evidence/cleanup-signer-assets-20261005.json) for the
+  intermediate experiment and the final completion receipt below.
+- [x] **6. Tests and documentation:** use the existing lock/reload harness in
+  both signer scenarios. Share signed-out asset checks across generic and
+  registration menus. Verify that those menus fetch no signing/export operation
+  modules or crypto workers. Correct the stale same-class host/client description
+  and document the row-codec owners and canonical WASM names. All four affected
+  production scenarios passed on the final build. Type checks, external package
+  consumers, runtime-entry checks, freshness, and the bloat ratchet passed.
+
+Final signed-out transfer: **989,172 → 983,411 bytes** (5,761 fewer, about 0.6%).
+Cold responses: **93 → 106**. Warm asset bodies: **0 bytes**. These measurements
+support a modest transfer saving with more requests. They do not establish a
+latency improvement. The package drops **675,372 raw bytes** of unrequested WASM
+aliases. [Final verification receipt](evidence/cleanup-loading-completion-20261005.json)
+records phase bytes, response counts, source hashes, and repeatable commands.
+Server totals include worker downloads that browser metadata omits.
+
+Release work, deployed compression checks, R153 implementation, and month-later
+presignature proof remain outside this batch.
+
 ## Current completion checklist
 
 ### Done

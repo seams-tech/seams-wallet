@@ -1,0 +1,17 @@
+{
+  "command": "SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server pnpm -C tests test:relayer wallet-relocation-directory.e2e.test.ts",
+  "passed": 1,
+  "duration": "11.0s",
+  "privateRevision": "a2c187cf57e6edaf6d14f745a71e5e168e1b6926",
+  "scope": "Directory control plane only; participant receipts are synthetic. No backend transfer or writer-fence claim.",
+  "authoritySha256": "2e301233adf03709f62124ebf8430de5354941a95de50362899f0cfdfa34b991",
+  "rawArtifactSha256": "5b9ec5e1b6b28f43966ec9f69140138fbe9063d9eebc352949ed773f394b0523",
+  "independentStackBrowserMoveVerified": false,
+  "integrationGap": {
+    "browserHarness": "Regional Gateways currently share local native custody processes.",
+    "nativeWorkerHarness": "Real Rust transfer calls use SourceDirectory fixture replies.",
+    "directoryHarness": "Real coordinator receives synthetic participant receipts.",
+    "requiredClosure": "Run the real coordinator against independent regional custody stacks, register and move a wallet, and verify signing plus delayed-source rejection without synthetic custody receipts."
+  },
+  "cloudflareDeploymentPerformed": false
+}

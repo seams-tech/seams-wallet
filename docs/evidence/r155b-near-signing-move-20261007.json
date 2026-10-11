@@ -1,0 +1,41 @@
+{
+  "kind": "r155b_near_signing_during_composed_relocation_v1",
+  "date": "2026-10-07",
+  "privateCommit": "0e862524507238ddee91c9de058352eb4ea2ba27",
+  "publicDevParent": "04ac1bc7cf8c39cc7e20ca334914bf7110b488ab",
+  "race": {
+    "sourceWaitedForPendingRound": true,
+    "pendingRounds": 1,
+    "signatureSha256Hex": "d8f1ab819c8a07e638ea933605713ad068bdde56b257f5c51eed2999348d080a",
+    "lostFinalizeReplyRecoveredBeforeCutover": true,
+    "retiredSourceReasonVerified": true,
+    "changedFinalizationReasonVerified": true,
+    "retiredSourceStatus": 500,
+    "destinationTerminalReplayVerified": true,
+    "changedFinalizationStatus": 500,
+    "scope": "Native signing prepared before move admission. Finalize reply lost after commit and recovered while source was still freezing. Exact terminal result replayed at destination after completed move; changed finalization rejected. Does not cover SDK session reconciliation after cutover."
+  },
+  "destinationSigning": {
+    "signatureSha256Hex": "a7e6d2bae0bfcba3737cb3a7d512fa9df5781a0437d7bbb9a3df00b028d1214b",
+    "staleGenerationRejected": true,
+    "prepareReplayAfterEviction": true,
+    "finalizeReplayAfterEviction": true
+  },
+  "coordinatorSteps": 36,
+  "completed": true,
+  "artifactsSha256": {
+    "signing-race.json": "01d366257ef9a1afe6ba9ac8a384de7bcff6544b1eb63e3adadb9114f6fdd8f8",
+    "coordinator-progress.json": "ecd14152c6b059e601bead7db26848a82a4400795b9b55b59f33ca320fdf18ca",
+    "destination-signing.json": "2c78a8b00cbe77c8e9730acfbe5b32c538288c5f43a03101c3926cfbc2545597",
+    "coordinator-bindings.json": "e6dbcd7fd4cc6f8246464dbef6782eeaf8e20e8bb3c47f66512c5c1d99a2c059"
+  },
+  "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server node tests/e2e/relocation-custody.e2e.mjs (private repository, Node 24)",
+  "sourceScope": "Current local custody sources include concurrent R153 work; binary hashes are recorded in r155b-near-empty-presign-20261007.json. No custody source changed in this slice. This is local native composition, not a frozen hosted candidate or browser SDK session-reconciliation proof.",
+  "validation": {
+    "composedAcceptance": "passed",
+    "bloat": "passed",
+    "privateFormatting": "passed"
+  },
+  "cloudflareDeployment": false,
+  "cloudflareSpend": 0
+}

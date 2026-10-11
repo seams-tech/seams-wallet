@@ -655,29 +655,6 @@ export interface EmailOtpWorkerOperationMap {
       expiresAtMs?: number;
     };
   };
-  enrollEmailOtpWallet: {
-    payload: {
-      relayUrl: string;
-      walletId: string;
-      userId: string;
-      challengeId?: string;
-      otpCode: string;
-      groupId: string;
-      routePlan: EmailOtpRoutePlan;
-      googleEmailOtpRegistrationAttemptId?: string;
-      otpChannel?: WalletEmailOtpChannel;
-      clientSecret32?: ArrayBuffer;
-    };
-    result: {
-      challengeId: string;
-      otpChannel: WalletEmailOtpChannel;
-      enrollmentId: string;
-      enrollmentSealKeyVersion: string;
-      serverSealedFactorCiphertextB64u: string;
-      clientUnlockPublicKeyB64u: string;
-      unlockKeyVersion: string;
-    };
-  };
   prepareEmailOtpRegistrationEnrollmentMaterial: {
     payload: {
       relayUrl: string;
@@ -979,21 +956,34 @@ export interface EmailOtpWorkerOperationMap {
       readonly expectedOperationalPublicKey: string;
       readonly expectedThresholdSessionId: ThresholdEd25519SessionId;
       readonly operationCredential: WalletSessionOperationCredentialV1;
-      readonly ecdsa: {
-        readonly sessionHandleBinding: Extract<
-          EmailOtpEcdsaSessionBootstrapHandleBinding,
-          { readonly operation: 'wallet_unlock' }
-        >;
-        readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
-        readonly sessionPolicy: RouterAbEcdsaPostRegistrationSessionActivationPolicyV1;
-      };
+      readonly ecdsa:
+        | {
+            readonly kind: 'required';
+            readonly sessionHandleBinding: Extract<
+              EmailOtpEcdsaSessionBootstrapHandleBinding,
+              { readonly operation: 'wallet_unlock' }
+            >;
+            readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
+            readonly sessionPolicy: RouterAbEcdsaPostRegistrationSessionActivationPolicyV1;
+          }
+        | {
+            readonly kind: 'absent';
+            readonly sessionHandleBinding?: never;
+            readonly runtimePolicyScope?: never;
+            readonly sessionPolicy?: never;
+          };
       readonly walletCustodyEd25519Material: Extract<
         EmailOtpWalletCustodyEd25519MaterialRequest,
         { readonly kind: 'found' }
       >;
     };
     result: EmailOtpEd25519YaoWorkerActivationResult & {
-      readonly ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
+      readonly ecdsa:
+        | { readonly kind: 'absent'; readonly session?: never }
+        | {
+            readonly kind: 'activated';
+            readonly session: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
+          };
       readonly walletSessionAuthorization: ExactWalletSessionAuthorization;
     };
   };
@@ -1777,7 +1767,7 @@ export type UnlockedEd25519ExportRootLinkingCapabilityV1 =
   UnlockedWalletEd25519ExportRootCapabilityV1 | UnlockedLinkedDeviceEd25519ClientRootCapabilityV1;
 
 /**
- * What a destroy call invalidates. Lock and logout destroy by wallet, session
+ * What a destroy call invalidates. Lock destroys by wallet, session
  * retirement or replacement by Wallet Session, failed activation by capability
  * handle, and worker reset or page teardown destroys all.
  */
@@ -2004,7 +1994,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
     result: UnlockedEd25519ExportRootLinkingCapabilityV1;
   };
   /**
-   * Destroys unlocked Ed25519 export-root capabilities. Wired into lock, logout,
+   * Destroys unlocked Ed25519 export-root capabilities. Wired into lock,
    * wallet switch, Wallet Session retirement or replacement, expiry, failed
    * activation, and page teardown; `all` is the worker-reset scope.
    */
@@ -2180,7 +2170,6 @@ export type EmailOtpYaoPrewarmOutcome =
 
 export interface SignerWorkerTransportProtocol {
   setWorkerBaseOrigin(origin: string | undefined): void;
-  prewarmWorkers(): Promise<void>;
   prewarmEmailOtpYao(request?: EmailOtpYaoPrewarmRequest): Promise<EmailOtpYaoPrewarmOutcome>;
   requestOperation<K extends SignerWorkerKind, T extends SignerWorkerOperationType<K>>(args: {
     kind: K;

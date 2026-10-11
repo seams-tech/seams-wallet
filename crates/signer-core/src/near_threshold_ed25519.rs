@@ -167,7 +167,7 @@ pub fn compute_nep413_signing_digest_from_nonce_base64(
     message: &str,
     recipient: &str,
     nonce_base64: &str,
-    state: Option<&str>,
+    callback_url: Option<&str>,
 ) -> CoreResult<[u8; 32]> {
     let nonce_bytes = Base64::decode_vec(nonce_base64.trim())
         .map_err(|e| SignerCoreError::decode_error(format!("Invalid nonce (base64): {e}")))?;
@@ -181,28 +181,28 @@ pub fn compute_nep413_signing_digest_from_nonce_base64(
         .as_slice()
         .try_into()
         .expect("checked length above");
-    compute_nep413_signing_digest_from_nonce_bytes(message, recipient, nonce_array, state)
+    compute_nep413_signing_digest_from_nonce_bytes(message, recipient, nonce_array, callback_url)
 }
 
 pub fn compute_nep413_signing_digest_from_nonce_bytes(
     message: &str,
     recipient: &str,
     nonce: [u8; 32],
-    state: Option<&str>,
+    callback_url: Option<&str>,
 ) -> CoreResult<[u8; 32]> {
     #[derive(borsh::BorshSerialize)]
     struct Nep413PayloadBorsh {
         message: String,
-        recipient: String,
         nonce: [u8; 32],
-        state: Option<String>,
+        recipient: String,
+        callback_url: Option<String>,
     }
 
     let payload_borsh = Nep413PayloadBorsh {
         message: message.to_string(),
-        recipient: recipient.to_string(),
         nonce,
-        state: state.map(|s| s.to_string()),
+        recipient: recipient.to_string(),
+        callback_url: callback_url.map(str::to_string),
     };
 
     let serialized = borsh::to_vec(&payload_borsh)

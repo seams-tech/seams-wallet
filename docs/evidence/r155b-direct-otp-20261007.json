@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-07",
+  "change": "R155B isolated shared Email OTP counter binding",
+  "regionalAcceptance": {
+    "totalRequests": 32,
+    "accepted": 12,
+    "limited": 20,
+    "policyScopes": [
+      "challenge",
+      "verify",
+      "grant",
+      "googleRegistrationAttempt"
+    ],
+    "projectScopesIndependent": true,
+    "consoleOutageAccepted": true,
+    "counterStorageFailureFailsClosed": true,
+    "outagesHaveNoRegionalFallback": true,
+    "scope": "Production Email OTP policy/key generation and isolated shared D1 counter across regional callers. Console is unavailable for the outage check. Hosted HTTP retry headers are outside this scenario."
+  },
+  "artifact": ".artifacts/r155b/direct-otp-counters/regional-session-routing-evidence.json",
+  "artifactSha256": "8426e8f569d27c4c1d95d139379ac64de33efc68950aa7ea87941b248bf27958",
+  "verification": {
+    "consoleServerTypecheck": "passed",
+    "stagingReadinessBindingCheck": "passed",
+    "browserStepUp": "passed",
+    "initialBrowserAttempt": "Expired Google test token; refreshed using existing script.",
+    "priorBrowserFailure": "Development OTP outbox lookup requires Console wallet-home resolution and returns 503 during Console outage. OTP challenge/delivery succeeded."
+  },
+  "deployment": "Local only; dedicated database provisioning remains pending.",
+  "scope": "Local production counter implementation and regional policy composition. No hosted timing claim.",
+  "browserAcceptance": {
+    "artifact": ".artifacts/r155b/console-outage/email-otp-budget-step-up/step-up-outage.json",
+    "artifactSha256": "602c29c79fb902eb038231c00f687052287669e305ec228fee0c432acd118c01",
+    "consoleRequests": 0,
+    "home": "US",
+    "ownership": {
+      "US": {
+        "authorization_grant": 3,
+        "verified_step_up": 2
+      },
+      "WEUR": {},
+      "APAC": {},
+      "OC": {}
+    },
+    "completedSignatures": {
+      "near": 2,
+      "ecdsa": 3
+    },
+    "verifiedStepUps": 2,
+    "delivery": "Local provider mailbox; external email delivery is simulated. OTP generation, verification, regional routing, D1 counters and MPC signing execute production code.",
+    "scope": "Local Chromium composition; shared local custody backend. No hosted regional latency claim."
+  },
+  "implementationCommit": "seams-monorepo@04f5071",
+  "acceptanceCommit": "seams-monorepo@7e73599",
+  "bloatCheck": "passed",
+  "deploymentPreparation": {
+    "manifestCommit": "seams-monorepo@3b94c24",
+    "isolationCommit": "seams-monorepo@3dea157",
+    "canonicalAllocation": "pending; no live resource created",
+    "allFourGatewaysShareCounterDatabase": true,
+    "consoleAndRuntimeExcludeCounterBinding": true,
+    "missingAllocationBlocksGatewayRendering": true,
+    "databaseReuseRejected": [
+      "Console",
+      "regional signer",
+      "other environment"
+    ],
+    "migration": "Existing wallet-system migration command applies shared counter schema once through ingress Gateway config. Remote execution remains unverified.",
+    "verification": "regional-deployment-config.e2e.test.ts passed (1.1s), including invalid allocations and nine rendered Worker manifests"
+  }
+}

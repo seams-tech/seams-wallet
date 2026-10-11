@@ -14,6 +14,95 @@ plans explain how the design arose; they do not override this contract.
 E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 [Spec 9: Behaviour and test authority](spec-9-behaviour-and-test-authority.md).
 
+## Application confirmation preferences
+
+Preference setters update the application's display immediately. Each write captures
+its wallet target at the call. Later wallet selection cannot redirect that write.
+The client sends writes in order and keeps pending changes separate from confirmed
+host state. Host updates do not replace a newer pending local change.
+
+`preferences.flush()` waits for writes queued before the call. Later writes do not
+extend that wait. It reports failures, including earlier failures that no caller
+has observed. Concurrent flushes covering the same writes see the same failures.
+A failed write removes its local change and leaves later writes able to proceed.
+Background write failures do not cause unhandled promise rejections.
+
+Signing waits for earlier writes for its wallet and default-scoped writes. A failed
+write rejects that signing attempt before transport dispatch. Explicit flush or
+signing observation consumes the reported failure. A subsequent attempt can use
+the confirmed preferences. Host admission continues to enforce confirmation policy.
+
+Disposal rejects pending synchronization and stops local preference events. It
+cannot undo a write the host already accepted. Display-wallet selection is never
+an authentication source. Acknowledgement covers host preference state; it does
+not claim that a storage write has reached durable storage.
+
+Browser enforcement: `tests/wallet-iframe/preferences.queue.test.ts` and
+`tests/wallet-iframe/preferences.sync.test.ts`.
+
+Email OTP transaction step-up belongs to the signing operation. Application code
+must not request a signing-session challenge or refresh a signing session through
+separate auth methods. The active signing bridge supplies the exact authority,
+wallet session, chain, and operation fingerprint to its challenge request.
+Custom login and registration flows retain their distinct proof contracts.
+
+## Worker preparation
+
+A fresh signed-out wallet host with no pending registration or recovery work
+must not create signer or custody workers merely because the runtime is
+constructed, the provider mounts, or a generic auth menu opens. Configuring
+multiple chains does not select all of their workers. Confirmation UI assets
+may load independently.
+
+Signer and custody workers are initialized by the operation that requires them.
+Selected registration preparation may start its required crypto during the
+credential prompt; a best-effort preparation failure does not replace the real
+operation's initialization check. A failed WASM load must be retryable on the
+same worker when asset delivery recovers. Concurrent requests share initialization;
+subsequent requests reuse the initialized module. A thread-ready notification
+alone does not prove crypto initialization succeeded. Worker reuse, cancellation,
+and durable presignature validity retain their existing contracts.
+
+The provider connects through `connection.connect`. Operation-specific ECDSA
+and Email OTP preparation remain internal. Applications do not expose or call a
+presignature-pool preparation method. Registration, unlock, and eligible session
+restoration schedule preparation inside the wallet host. Removing the public
+preparation call does not delete durable presignatures or change lock semantics.
+
+Google Email OTP registration prepares Yao only when its resolved signer
+selection includes NEAR. Rerolling the wallet name retains that selection and
+reuses preparation already started. ECDSA-only registration does not fetch the
+Yao client binary for speculative preparation. Each operation still initializes
+its required crypto independently of preparation.
+
+NEAR-only Email OTP wallets restore signing material without an ECDSA capability.
+The active wallet authority selects the restore branch. A combined wallet still
+requires its exact ECDSA manifest and activation. Both branches verify the returned
+Wallet Session against the selected wallet and factor before using it. Restored
+NEAR-only authorization is persisted so subsequent reloads can restore signing.
+
+Cleanup of volatile linked ECDSA holder material or Email OTP warm material must
+not create an absent worker. An existing worker receives the cleanup operation.
+Lock preserves valid durable presignatures. The production NEAR-only passkey
+scenario verifies registration, lock, unlock, and restored signing without ECDSA
+or Email OTP worker creation.
+
+The custody worker loads ceremony WASM when starting a key-set ceremony,
+restoring a NEAR registration ceremony, or rotating recovery codes. Continuation
+steps use the ceremony handles already held by that worker. Envelope open/reseal,
+export-root transfer, and lane-source operations initialize their own required
+modules without loading ceremony WASM merely because they share its worker.
+
+## Public account queries
+
+Public NEAR account queries use `seams.near.accountExists(accountId)` and the
+application's configured or injected RPC client. They work before wallet
+connection or authentication. A successful query returns true for an existing
+account and false for a confirmed missing account. Invalid account input and
+unavailable RPC reads reject; an RPC failure does not establish account absence.
+The SDK owns transient read retry and RPC handling. The browser contract is
+`tests/wallet-iframe/account-query.test.ts`.
+
 ## Terms
 
 | Term                              | Meaning                                                                                                                                                                                                   |
@@ -89,6 +178,57 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   under the existing lease. Exact completed finalization replay returns the
   durable first result, while altered finalization input is rejected.
 
+- Reusable-session ECDSA prepare returns the exact active session projection
+  validated for admission, including its pre-claim quota balance. The SDK reconciles
+  this projection before committing the client presignature or computing its share.
+  Signing requires no separate post-approval session-status request. Prepare still
+  checks live revocation, expiry, policy, material identity, and atomic quota admission.
+  An unavailable prepare or mismatched projection stops signing before finalization.
+  Finalization retains its independent live authorization checks.
+  A projection that prepare read before a NEAR-only authority extension names the
+  same session on the authority that was extended. It reconciles with the rebound
+  local session, and that signature completes.
+
+- An admitted ECDSA or NEAR prepare claims one use of the balance it reports. The
+  SDK records the balance that claim leaves as its local session observation, and
+  the next confirmation plans against it. When the claim takes the last use, the
+  next signature plans same-method step-up before the user confirms. That plan
+  shows one confirmation and needs no session-status request.
+
+- A warm-session NEP-413 signature sends its prepare when the confirmation
+  dialog opens, bound to the digest the dialog shows and to the signing digest.
+  The signature consumes the answer after the confirmation. A declined
+  confirmation, a changed digest or a step-up leaves that prepare to expire
+  with its lease, and the use it claimed stays spent. A step-up signature
+  sends no prepare before the user confirms.
+
+- Another tab or device can use a shared session's quota. When prepare then
+  refuses the session and asks for step-up, the SDK drops its local observation
+  of that session, and that signature continues with step-up. The next plan
+  reads the server status once. Later signatures plan step-up before the user
+  confirms and send no prepare under the refused session.
+
+- NEAR signing uses an existing, identity-matched session observation to select
+  its lane. Repeated signing needs no separate session-status request while that
+  observation is available. Prepare returns fresh authority and quota facts, which
+  the SDK checks before creating a client signature share. Server admission still
+  enforces revocation, expiry, policy, and quota. An exhausted session requires
+  operation step-up. Missing observations after page refresh require a fresh
+  status read. Export continues to use its exact authorization reader.
+
+- NEAR signing validates the exact local material and proceeds directly to
+  prepare. It makes no separate owner-lane preflight request. Prepare and finalize
+  check live session authority, active signer material, policy, and operation
+  admission. The SDK checks the prepare response before creating a client share.
+  A retired reusable session cannot authorize signing or operation step-up.
+  An authenticated unlock can establish a new session after retirement.
+
+- Reusable-session NEAR prepare and finalize evaluate live signing policy for
+  the wallet's authority. Project denial takes precedence over abuse denial;
+  abuse rejection and rate limiting return their respective errors. Policy
+  denial leaves quota unchanged. Policy records of another scope, wallet, or
+  authority do not apply.
+
 - Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
   signing policy. Project denial takes precedence over abuse denial; abuse
   rejection and rate limiting return their respective errors. Policy denial
@@ -107,6 +247,10 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation
   remains bounded to its exact operation.
+- The public `auth.lock()` retires session authority and clears volatile material,
+  while retaining otherwise-valid durable presignatures. A later unlock requires
+  fresh authorization before retained entries can sign. The SDK exposes no
+  separate logout operation that deletes those entries.
 - Target five available entries per exact client pool identity. Restore and refill
   any deficit while the client can execute with an unexpired, unrevoked session
   scoped to the wallet and active material. Refill after every consumption,
@@ -114,7 +258,7 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   cross-tab claim rules.
 - Preprocessing requires no remaining signing uses and consumes no signing quota.
   Actual signing retains its quota checks. Stop refill on expiry, revocation,
-  logout, or material invalidation; resume transient failures with bounded backoff.
+  lock, or material invalidation; resume transient failures with bounded backoff.
   Generation cannot continue while the browser is closed.
 - A returning user with an unchanged activation and an available persisted entry
   must restore it after a page or worker restart and reach signing without any
@@ -166,7 +310,110 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - Primary and hosted operation credentials are opaque. Client code must not decode
   identity, budget, expiry, authority, or signing claims from them.
 
+## Wallet preferences
+
+Preference writes keep the wallet selected when the write starts. A wallet change
+during storage work cannot redirect that write or apply its result to another
+wallet. The host acknowledges wallet-bound writes after IndexedDB commits them.
+Successful acknowledgements include the current wallet-bound preference snapshot
+and revision, so immediate UI actions do not depend on event delivery timing.
+Storage failures reject the request and leave the confirmed values unchanged.
+Application `preferences.flush()` reports those failures through its existing queue.
+
+A wallet's first confirmation preference write must produce a readable record.
+Network and relayer choices are optional configuration values; preserve them when
+present and validate their values. Confirmation preferences remain required when
+a preference record exists. Preferences for no selected wallet remain in memory.
+
+A delayed preference read cannot overwrite a later wallet selection, a newer read,
+a committed write, or disposed state. Selecting another wallet resets the display
+to default preferences until that wallet's stored preferences arrive.
+
+Session bootstrap can restore a saved wallet when no wallet is selected. A wallet
+selection or removal during the saved-wallet read takes precedence over that
+read. Reading the session of an already selected wallet does not select it again.
+
+The application discards a session response captured before an observed wallet
+selection change and reads the current wallet again. Removing the selection clears
+the application's session projection. A closed connection clears that projection.
+Delayed session-read responses cannot repopulate it. Router disposal is terminal;
+initializing a disposed router rejects the call.
+
+Within a live connection, session snapshots carry a host-issued observation
+revision. The application ignores snapshots older than the last accepted revision.
+The host recaptures a read when a local authority commit or selection change occurs
+during that read. It checks again immediately before publishing the response.
+Selection removal returns a fresh locked projection. Repeated changes exhaust
+three attempts and reject the read instead of publishing an unstable observation.
+
+Session events and query responses use the same host observation revision sequence.
+Every snapshot identifies its wallet selection, including locked snapshots. The
+application ignores events for another selected wallet. Session expiry notifications
+also carry an observation revision on the wire; the public lifecycle event stays
+unchanged. An old expiry can cancel work bound to its exact session, but it cannot
+replace a newer session projection.
+
+The host publishes current session state after local authority commits and wallet
+selection changes. It combines changes within a host operation before refreshing.
+Unlock and successful hosted authentication publish the session before completion.
+Unchanged projections do not produce repeated login-state notifications. Concurrent
+wallet-session queries share pending work within the same connection, selection,
+and session observation revision. A completed query does not cache later queries.
+The host also shares an in-flight exact observation between a session notification
+and an explicit query for the same wallet, read mode, selection, and authority
+revision. Both consumers receive the same observation revision. Each consumer
+checks authority and selection again before publication. Subsequent observations
+read fresh server status. Signing prepare still verifies current authorization.
+Replacing an identical exact-session record preserves the stored row without a write.
+A known expiry remains expired when a delayed status response reports that same
+session as active. A replacement session has its own identity and can become active.
+Disposing or replacing the host observer stops its subscriptions and publication.
+
+Committed authority changes notify other contexts through a database-scoped browser
+broadcast channel. The notification contains no wallet identity, credential, or
+session projection. A receiver advances its own observation revision and rereads
+persisted authority. It never accepts authentication state from the notification.
+Received notifications are not broadcast again. The final listener's removal closes
+the receiving channel. Database changes and disabling persistence retire that
+channel. Explicit reads retain their persisted-authority checks if browser broadcast
+channels are unavailable. Cross-context delivery is limited to the browser's shared
+broadcast scope; it does not synchronize independent database partitions.
+
+Current-state reads never restore a saved selection. Bootstrap can restore it once.
+If selection changes during bootstrap, the client retries as a current-state read.
+This prevents selection removal from starting another saved-wallet lookup.
+
+Clearing a wallet's persisted session credentials reads and deletes its keys in
+one transaction. It preserves other wallets' credentials. A corrupt session read
+or failed replacement rolls back any earlier deletions in that transaction.
+A refresh cannot recreate an exact credential that was already retired.
+
+A remote session-status response cannot make an older local authorization active
+again. After that response, the host rechecks the selected factor, lock generation,
+authority binding, exact session record, and operation credential. A changed binding
+causes a fresh observation. Repeated changes stop after three attempts and report
+`superseded`. The host also rechecks the expiry deadline after the response.
+
 ## Hosted Auth Menu Entry Point
+
+The application resolves wallet configuration before sending it to the wallet
+host. The host validates the complete snapshot without applying defaults again.
+An incomplete snapshot is rejected before replacing the active configuration.
+Execution configuration replacement advances the host's execution generation.
+Pending runtime requests, including requests waiting for code to load, reject with
+`wallet_configuration_changed`. Their later results and progress cannot update the
+replacement runtime. Cached handlers cannot acquire a runtime from a newer generation.
+Appearance updates and equivalent execution settings retain active work. Invalid
+configuration leaves the current generation intact. Replacement disposes volatile
+runtime state and preserves valid durable presignatures. Request rejection does not
+roll back work already committed by the wallet or network.
+Signing-only clients can initialize without registration credentials. Registration
+still requires its normal configured credentials.
+
+Appearance updates preserve execution settings and warm signing state. Updating
+the same theme merges its colors and shape values. Selecting another theme removes
+the previous theme's overrides. Configuration alone does not load the full wallet
+runtime; the recovery summary can appear and cancel without that runtime.
 
 When hosted wallet-iframe mode is configured, mounting `HostedSeamsAuthMenu` opens one
 `modal_auth_menu` surface in the wallet-origin iframe. The app document contains
@@ -180,13 +427,18 @@ CTA belong to the wallet origin.
   same prepared surface; it does not open a second registration-confirmation modal.
 - The wallet host owns passkey and Email OTP validation, OTP state,
   registration continuation, and unlock continuation.
+- Demo email delivery displays its code inside the wallet-origin OTP prompt.
+  Replacement delivery replaces the displayed code. Provider-only delivery shows
+  no demo code. Displaying a code never submits it automatically. Hosted demo
+  delivery does not require an application callback or a parent-window event.
+  Custom UI reads the delivery result from its returned authentication flow.
 - A hosted-wallet handoff is single-use and bound to the application and wallet
   origins. The wallet iframe receives one short-lived hosted operation credential
   for the exact parent Wallet Session; the primary operation credential stays in
   the wallet origin and never reaches the outer application.
 - The adapter emits exactly one terminal `HostedAuthMenuOutcome` for the session.
   Unmounting or closing cancels only that session and leaves direct
-  `registerWallet()`, `addWalletSigner()`, and `unlock()` confirmation surfaces
+  `registerWallet()`, `addSigner()`, and `unlock()` confirmation surfaces
   unchanged.
 
 - Hosted exchange redemption publishes the child's home locator before consuming
@@ -194,11 +446,16 @@ CTA belong to the wallet origin.
   exchange usable for retry. Concurrent redemption still produces one credential;
   an unused locator never grants authorization.
 
+Wallet-origin transaction details and raw calldata use the same disclosure
+sizing path. With normal motion, expanding or collapsing content announces one
+target height before the card changes size. The card must fit within the iframe
+throughout the resize. Reduced-motion behavior remains immediate.
+
 ## Registration
 
 ### Wallet-management protocol
 
-- Wallet-management requests send `X-Seams-Wallet-Protocol: 2`. This wire
+- Wallet-management requests send `X-Seams-Wallet-Protocol: 3`. This wire
   contract covers registration, signer setup and inventory, auth-method
   management, and implicit NEAR funding through the wallet-management routes.
 - Missing or unsupported values return HTTP 409 with code
@@ -214,6 +471,26 @@ CTA belong to the wallet origin.
 
 ### Registration setup delivery
 
+- Setup requires fresh publishable-key validation and the exact active application
+  environment. Revoked keys, forbidden origins, and mismatched environments fail.
+  Missing or inactive environments also fail before setup issues a signed response.
+  Hosts must preserve these checks when combining authentication and environment
+  resolution with home reservation. Rejected credentials create no reservation. The Console service-binding E2E verifies durable
+  key rotation, revocation, environment changes, and archival.
+- After a lost NEAR-only completion reply, credential-free replay may restore
+  the committed wallet identity and sealed local material for exact-method unlock.
+  When no local session exists, restoration creates a locked selection and installs
+  no Wallet Session or operation credential. Publication and journal removal are
+  atomic. Existing selections remain unchanged; corrupt session records fail closed.
+- Successful setup returns its required `home`: either a direct endpoint or an
+  existing regional home. NEAR-only respond, activation and provisioning carry
+  that routing hint before a Wallet Session exists. The hint selects a handler;
+  the signed setup, tenant binding and current local authority still authorize work.
+- NEAR Yao registration admission and execution carry the setup home in both
+  NEAR-only and mixed registration. Resumed mixed work uses its session credential
+  home. Requests can enter another region without a Console directory lookup.
+  Recovery, export and add-signer transports explicitly request discovery when
+  their current inputs do not contain a known home.
 - Before the first setup request, the SDK durably records a random
   `registrationOperationId`, scoped to Gateway URL, publishable key, environment
   and the normalized registration request. Matching retries and concurrent tabs
@@ -233,9 +510,45 @@ CTA belong to the wallet origin.
 - Hosted setup fails closed without its reservation authority or at a different
   physical D1 resource. The local standalone host provides a persistent local
   authority for development.
-- After a committed registration receipt, Console must confirm the wallet's
-  established state before ceremony cleanup. A lost completion reply is reconciled
-  idempotently. Definitive registration cancellation records the terminal outcome
+- Setup saves the authenticated wallet home generation with its ceremony in one
+  local transaction. Continuations use that local execution identity. A missing
+  identity fails locally and cannot create one through a directory lookup.
+  Setup retries preserve the current ceremony and cannot reopen a retired home.
+- When registration starts, the SDK sends one `OPTIONS` request to each Gateway
+  route that the registration calls after setup. A registration with a NEAR
+  signer also sends one to each of the two NEAR signing routes. The requests
+  carry no body and no credential. They let the browser finish its CORS
+  preflight for those routes before their first request. A failed early request
+  changes nothing, because the later request runs its own preflight. A relayer
+  on the wallet's own origin receives no early request.
+- After verifying the ceremony proof and activation identity, NEAR finalization
+  can consume Router activation and reserve the passkey credential concurrently.
+  Both requests settle before local wallet persistence. A refused or unavailable
+  credential claim prevents local persistence. Exact retries retain the original
+  activation consumer and credential owner.
+- Registration finalization starts the recovery-code route claim of its custody
+  commit in that interval, for either signer leg. The claim stores no custody
+  record, and local wallet persistence does not wait for it. A refused or
+  unavailable route claim does not prevent local persistence: the response
+  reports the custody commit as rejected, and the client retries it. The custody
+  records are stored after the wallet commit and after the route claim, beside
+  session publication. Both settle before finalization responds. A finalization
+  that fails settles its started route claim before it responds. An exact retry
+  repeats the same route claim.
+- Registration commits its session and the matching ceremony's established decision
+  in one local transaction. A conflicting ceremony or cancelled registration prevents
+  this commit. Fresh NEAR-only registration includes its wallet, signer, founding
+  authority, auth method, capability, and lifecycle decision in that transaction.
+  A failed session write rolls back those records. Concurrent exact retries retain
+  the winning session credential and quota. The wallet remains unavailable for ordinary signing until Console
+  acknowledges completion. Registration publishes the session locator and
+  completes the home in one Console request. Console atomically commits the session
+  locator, established home, and display row. The Gateway acknowledges completion before
+  it enables ordinary signing or saves the completed registration receipt. It
+  enables ordinary signing and saves that receipt in one local transaction, so
+  neither exists without the other. A lost
+  reply is reconciled with the original session digest and expiry. Exact retries preserve later display
+  updates. Definitive registration cancellation records the terminal outcome
   before local deletion; cancelled operations cannot resume. Established setup
   replay returns the saved response without recreating a mutable ceremony.
 - Candidate setup forwarding occurs after publishable-key, Origin and policy
@@ -244,6 +557,21 @@ CTA belong to the wallet origin.
   cancelled, mismatched or unavailable homes fail closed on the covered paths.
   Shared identity routing, deployment-set activation, expiry reconciliation and
   explicit fresh attempts remain release gates.
+
+### Established-session home routing
+
+- Issued primary and hosted credentials include an explicit direct or regional home.
+  Regional metadata names US, WEUR, APAC, or OC. It never contains a destination URL.
+  The SDK retains the home when it serializes and restores the credential.
+- Signing, refill, and hosted exchange carry the regional hint through their request
+  boundaries. The hint selects a configured service binding and grants no authority.
+  The receiving home still checks the exact credential, wallet, tenant, ownership
+  generation, revocation, expiry, budget, and material state.
+- A request can forward once. A missing credential at a hinted or forwarded home
+  returns `wallet_home_discovery_required`. It cannot trigger automatic region probing.
+  Ordinary authorization failures do not trigger discovery or replay a signing operation.
+- Hosted exchange retains the home across the parent-to-iframe message and redemption.
+  Its existing origin, nonce, expiry, and one-use checks remain required.
 
 ### Hosted recovery/export lifecycle routing
 
@@ -272,6 +600,11 @@ CTA belong to the wallet origin.
   a selected wallet remains a separate flow and requires shared provider authority
   before regional release acceptance.
 
+- Email login retains the code challenge's expiry separately from the provider
+  flow's expiry. A missing or expired challenge fails before code collection.
+  Submitting an expired code fails locally before factor release or wallet unlock.
+  Resend can replace that challenge while the provider flow remains active.
+
 ### Passkey authentication
 
 Expected behaviour:
@@ -298,7 +631,10 @@ Expected behaviour:
   ceremony's remaining lifetime, including response-body delivery. A stalled
   exchange is aborted; recovery starts a fresh ceremony identity. Foreground
   signing retains priority through failed-refill recovery so maintenance cannot
-  launch competing generation before that signing operation finishes.
+  launch competing generation before the replacement material is available.
+  Once material is ready, bounded background refill continues during prepare and
+  finalize. Reserving any available item triggers replenishment without waiting
+  for the pool to become empty or for the signature to finish.
   Gateway requests remain independent: cancellation of one refill cannot block
   subsequent background ceremonies. Refill scheduling and foreground priority
   belong to the client pool; live Gateway authorization still applies per exchange.
@@ -309,6 +645,12 @@ Expected behaviour:
 - For a mixed signer set, Ed25519/NEAR provisioning continues under the same
   authenticated ceremony and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
+- NEAR-only registration completes Yao and confirms recovery backup before one
+  finalization request commits its wallet, signer, custody and session. It stores
+  one finalization checkpoint for retry. It does not create an intermediate
+  wallet without a signer. The same rule applies to Email OTP registration.
+  Its authenticated response includes the admitted Yao request and receipt.
+  An exact response retry retains the same admission and execution identity.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
   Authorized NEAR admission overlaps ECDSA respond. Yao execution starts only
@@ -316,6 +658,11 @@ Expected behaviour:
 - Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
   with the founding method resumes its saved phase, using fresh session authority
   when the registration grant has expired. No replacement key is generated.
+- A resumed Yao execution can reach the Router while an earlier send of the same
+  request still executes. The Router answers that the execution is in progress.
+  The SDK sends the exact request again with bounded backoff and completes with
+  the recorded result. The total delay is at most 15 seconds; a longer execution
+  leaves a retryable failure.
 - NEAR completion extends the current Wallet Session while preserving its identity,
   expiry, remaining quota, revocation epoch, and existing ECDSA capabilities.
   Concurrent ECDSA signing continues through this NEAR-only authority extension.
@@ -327,6 +674,10 @@ Expected behaviour:
 - After EVM activation, the retained NEAR journal supplies the exact session identity.
   Passkey client-seal preparation may overlap custody execution and server finalization.
   Finalization applies the prepared server seal and returns it in the same response.
+  Server sealing may overlap home publication after the Wallet Session is durable.
+  The response waits for publication and the finalization receipt. It binds the seal
+  to the committed wallet, session and expiry. A sealing failure does not prevent
+  the registration receipt from committing. The client can recover through normal unlock.
   Preparation creates no signing authority. Temporary keys are consumed once for
   the matching session and factor, or discarded on failure, lock, expiry, or abandonment.
 - After NEAR authority publication, passkey session hydration and local signer
@@ -338,6 +689,23 @@ Expected behaviour:
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.
 - Passkey registration must not send or verify an Email OTP challenge.
+- `auth.unlock(walletId)` resumes pending passkey activation through the ordinary
+  unlock flow. Applications do not call a separate registration resume operation.
+  Successful recovery emits unlock completion and invokes the normal callback once.
+  Explicit NEAR selection waits for NEAR readiness before reporting success.
+  Default mixed recovery allows EVM use while NEAR completes in the background.
+- Pending activation recovery selects the stored ceremony by wallet identity.
+  Applications do not supply a ceremony ID or passkey origin. The executing wallet
+  host supplies its origin. Ambiguous activation records and mismatched
+  authentication methods fail before activation replay or credential collection.
+  Replay verifies committed facts before requesting the exact founding passkey.
+- Pending activation recovery uses the configured unlock session lifetime and use
+  budget, including per-call unlock overrides. It does not replace them with
+  registration defaults. A disabled session policy leaves the pending journal unchanged and fails before activation replay
+  or credential collection. NEAR completion preserves the newly issued session's
+  remaining budget and expiry.
+
+
 
 Failure behaviour:
 
@@ -346,6 +714,35 @@ Failure behaviour:
 - If blockchain account creation has already happened, immutable chain-state
   rollback messaging must be separate from local persistence rollback/repair
   messaging.
+
+### Selected signing assets
+
+Generic confirmation preparation during registration or unlock does not load
+EVM/Tempo signing modules. A NEAR-only wallet can register, unlock, sign, and
+restore signing without the EVM/Tempo operation modules or the secp256k1 and
+WebAuthn P256 signing engines. EVM and Tempo operations load their
+required signing modules on first use. Shared host chunks can still contain
+ECDSA support code; this is separate from operation preparation. Shared custody ceremony dependencies
+remain required when an operation creates or verifies a key set.
+
+### Device removal
+
+`devices.remove({ walletId, walletAuthMethodId })` collects fresh authorization
+inside the wallet host. The selected active method must differ from the target.
+The host binds the proof to the wallet, target, and request timestamp. Applications
+do not supply that timestamp, a code, or a raw proof. Network retries reuse the
+same authorized request and preserve the management service's recorded result.
+
+### Registration methods
+
+- `registration.addSigner` adds a selected signer to an existing wallet.
+- `registration.addEmail` adds email authentication through the existing verification flow.
+- `registration.removeAuthMethod` removes a method using proof from a surviving method.
+  The React device list uses this operation for both passkey and email authorization.
+  The wallet host collects email proof in its confirmation view and binds the
+  challenge to the exact removal operation. The application does not collect the code.
+- React exposes signer addition as `addSigner`. These operations retain their
+  existing authorization, retry, signing, and export behavior.
 
 ### Email OTP authentication
 
@@ -558,12 +955,64 @@ Failure behaviour:
 
 ## Transaction Signing
 
+NEAR nonce recovery reads current chain state once per exact wallet/key lane in
+each recovery pass. It shares that observation across saved nonce reservations.
+A later pass reads the chain again. A failed read retains unexpired reservations.
+Reload and concurrent-tab coordination must still prevent reuse of an unexpired
+signed nonce. Existing expiry and chain-consumption rules remain unchanged.
+
+NEAR reusable-session finalize uses one standalone lookup of the prepared operation
+before transactional admission. It checks the receipt against the stored identity,
+fingerprint, operation kind, and digests. Fresh transactional admission still checks authority, material,
+replay, and quota. An exact retry can replay a completed operation after budget
+exhaustion. A retired session cannot replay it. Missing or changed receipts cannot
+create a new claim, consume quota, or invoke signing.
+
+NEAR uses `signTransaction` for signing without broadcast, `signMessage` for the
+existing NEP-413 message operation, and `sendDelegateAction` for delegate relay
+submission. Message inputs and results retain their message, recipient, state,
+nonce, account, public-key, and signature contracts. Sign-and-send delegate
+orchestration uses the same relay operation. React exposes `signMessage`.
+
+NEAR message signatures follow [NEP-413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md).
+The signed Borsh payload contains `message`, the 32-byte `nonce`, `recipient`, and
+optional `callbackUrl`, in that order. The digest is SHA-256 of the little-endian
+`2^31 + 413` prefix and that payload. The SDK generates and returns the nonce.
+It signs a supplied `callbackUrl` and returns the result directly without a redirect.
+An omitted `callbackUrl` encodes as the Borsh `None` option.
+The SDK returns `state` unchanged, including an empty string. `state` is transport
+data and does not enter the signed payload. Changes to message, nonce, recipient,
+or callback URL invalidate the signature.
+
+
+NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
+actions, options })`, including React bindings. A single action is a one-element
+`actions` array. Signing and submission failures reject the promise through the
+existing send API; callers handle them with `try`/`catch`. There is no separate
+`executeAction` operation or wire command that converts exceptions into a
+`success: false` result. Confirmation, callbacks, wait status, and nonce reporting
+retain the canonical send path's contracts.
+
+
+EVM and Tempo use `signTransaction` for signing without broadcast and
+`signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
+React wallet bindings use the same names. Existing result types, payload
+verification, review reservations, cancellation, and nonce reporting retain their
+contracts. Custom broadcasters report lifecycle outcomes through `advanced`.
+Tempo exposes `getFeeToken`, `validateFeeToken`, and `setFeeToken`.
+`setFeeToken` submits an on-chain transaction.
+
+
 ECDSA reusable Wallet Session finalization requires an already admitted prepare
 for the exact operation. An authenticated finalize with no matching prepare
 returns `authorized_operation_missing` without creating a claim or audit event,
 consuming quota, or invoking custody signing. Repeating that finalize preserves
 the same state. Existing exact-response replay remains available after quota
 exhaustion, subject to live authority and material checks.
+
+A retired reusable Wallet Session cannot prepare or finalize an ECDSA or Ed25519 signature.
+The Gateway returns HTTP 401 / `wallet_session_invalid`. Retirement is a known
+credential state and must not become HTTP 503 / `wallet_session_unavailable`.
 
 ### Passkey authentication
 
@@ -633,6 +1082,27 @@ Expected behaviour:
   unlock or same-method step-up.
 
 ## Step-Up Auth
+
+### Regional execution
+
+An established passkey Wallet Session can authorize an exact NEAR or ECDSA
+operation after its shared signing budget is exhausted. Fresh factor verification
+is required. Exhaustion does not invalidate the identity used for step-up, and
+step-up does not renew that session or replenish its reusable budget.
+
+NEAR signing uses its exact local material to reach prepare after exhaustion.
+Prepare and finalize enforce the budget or require fresh step-up authorization.
+There is no separate NEAR owner-lane metadata request.
+
+With the regional home and custody services available, this flow must succeed
+while Console is unavailable. Requests retain the admitted home and authenticate
+locally. Another ingress must forward to that home. A request naming a different
+wallet must fail before execution. Revocation, expiry, material retirement, and
+ownership fences still apply.
+
+The private composed regional contract verifies three shared-budget signatures,
+including concurrent ECDSA signatures, followed by fresh NEAR and ECDSA step-up.
+It asserts zero Console requests and five home-owned operation records.
 
 ### Admission expiry
 
@@ -939,6 +1409,19 @@ restore, lane selection, or budget handling.
 - Local disconnect removes browser listeners and connection state. Revoking the
   site's permission remains an explicit action in the external wallet.
 
+- `waitForReceipt(submission, options?)` polls the configured chain RPC after
+  validating its chain ID. It resolves to `confirmed` or `reverted` only after a
+  receipt matches the submitted hash and account, with valid status and block.
+  Confirmation means inclusion in one block, without a chain-finality guarantee.
+- Receipt polling defaults to 90 seconds and a 1.25-second interval. Callers can
+  supply `timeoutMs` or `signal`. Timeout, cancellation, unavailable RPC, missing
+  configuration, and unverified receipts return `unresolved`; none cause resend.
+  Cancellation follows the shared RPC wait behavior; an in-flight request can
+  complete before cancellation settles.
+
+Receipt behavior: `tests/wallet-ui/external-evm-receipt.browser.test.ts` produces
+`receipt-observations.json` with outcomes and RPC counts.
+
 ## Application transaction review
 
 Hosted React transactions may supply an application review through an explicit
@@ -1052,10 +1535,31 @@ Cancellation atomically releases pending shared Google registration offers and
 retains the immutable home tombstone. An active shared offer prevents cancellation.
 The writer must reconcile regional custody before choosing a terminal outcome.
 
-Hosted Email OTP challenge, verification, grant and Google-registration policies
-consume counters in shared tenant authority. Requests through different regional
-Gateways share an allowance; tenant scopes remain independent. An unavailable
-shared counter fails the request without a regional counter fallback.
+Hosted Email OTP spam limits use the admitted Gateway's existing regional signer D1.
+Wallet-specific counters have explicit tenant and wallet ownership. Foreign ingress
+routes wallet requests to the fixed home before consuming those counters.
+Relocation transfers counters unexpired at source freeze, preserving counts and
+reset times. Snapshot retries use that fixed freeze time. Frozen sources and
+inactive destinations reject ordinary wallet counter writes. Source cleanup removes
+wallet counters after the destination activates.
+
+IP, organization, provider, and subject counters are regional. They protect flows
+before wallet creation and stay in their region when one wallet moves. Requests
+served in different regions may receive independent allowances. This approximation
+is intentional for spam control. Tenant scopes remain independent. Storage errors
+fail the request without a Console or shared-database fallback.
+
+OTP expiration, per-challenge verification-attempt limits, single-use consumption,
+and authorization checks remain enforced independently of these spam limits.
+No dedicated OTP database, shared counter RPC, or cross-region counter replication
+is required.
+
+Email-OTP enrollment and authentication state move with the wallet. The destination
+preserves the sealed factor, provider identity, failure count, and lockout deadline.
+Frozen sources and inactive destinations reject ordinary enrollment and auth-state
+writes. Only the exact admitted import can install destination records. Source
+cleanup removes these records after activation. A new destination OTP challenge
+must honor the copied lockout and retain single-use verification.
 
 ### Hosted passkey ownership reservation
 
@@ -1162,3 +1666,661 @@ Email OTP grant issuance likewise checks the current session state in its INSERT
 If cancellation commits first, verification returns a refusal without a grant token.
 Both new- and existing-enrollment verification propagate that refusal. Grant
 consumption remains a single-use transactional state change.
+
+
+### Application session subscriptions
+
+`seams.auth.onSessionChange(listener)` publishes the complete reconciled
+`WalletSession`. A subscription made before connection receives its first state
+when the host is reconciled. A subscription made after connection requests the
+current state. Subscribing alone does not open the connection. Later host
+observations can repeat a state.
+
+A newer observed wallet selection or authority revision supersedes older pending
+read results. Reconnect retains subscribers and reconciles the new host; responses
+from an earlier connection cannot publish. Unsubscribe and client disposal stop
+pending delivery. A listener failure does not stop other listeners. Connection
+failures belong to `connection.onChange`; they do not invent a signed-out session.
+React consumes this subscription without an additional session read per event.
+
+One host observation supplies the exact session state and the complete public
+`WalletSession`. Reconciliation and capability projection share the same scoped
+server-status reads. A lock, wallet-selection change, or authority change during
+that observation makes the host discard it and observe again. Each later explicit
+`getSession` or `refreshSession` request obtains fresh server status.
+Registration publishes that observation before returning. A NEAR-only
+registration's response states the session the server issued as its last step,
+so this one observation takes the session's status from the response and sends
+no status request. A registration that includes ECDSA observes the server,
+because its session changes after the response. React uses its session
+subscription to display the registered wallet without another status request.
+Signing prepare continues to enforce current revocation, expiry, and quota state.
+The iframe protocol requires matching client and wallet-host assets at version 15.0.0.
+
+
+### Connection and operation preparation
+
+The React provider connects on mount through `connection.connect`. It has no
+separate idle prewarm lifecycle or `eager` option. Application clients have no
+`prewarm` or `prefetchBlockheight` method. Their operations acquire the connection
+through the same coordinator.
+
+The wallet host owns required preparation for each selected operation. Keep
+registration's signer-selection preparation, Email OTP Yao preparation, and
+first-use worker/WASM initialization. Removing an unused generic preparation
+entry must not remove these dependencies or create an all-signer startup path.
+
+Opening a registration menu while its account-name input is empty must not
+speculatively import unrelated signing implementations. The menu keeps its UI and
+input-validation lifecycle. Once registration preparation has a valid input, the
+existing selected-signer ceremony owns required crypto preparation. Cancellation
+must not terminate shared workers or discard durable signing material.
+
+Wallet creation uses `registration.registerWallet` in the client and explicit runtime,
+and `registerWallet` in React. The request declares the authentication method,
+wallet identity allocation, and signer selection. Passkey and Email OTP proofs
+remain distinct branches of the existing authentication input. NEAR-only,
+ECDSA-only, and combined signer selections use the same creation operation.
+Chain namespaces do not expose separate wallet-creation calls. Registration
+callbacks, pending NEAR results, and durable continuation retain their contracts.
+Email OTP enrollment belongs to `registration.registerWallet` and
+`registration.addEmail`. Applications do not request an enrollment challenge or
+finalize enrollment separately. Custom authentication UI uses the existing flow
+contract; the SDK retains challenge acquisition and factor preparation internally.
+
+`registration.getNearAccountState` reads the wallet's NEAR provisioning state.
+`registration.onNearAccountChange` observes its transitions.
+`registration.waitForNearAccount` subscribes before reading current state, so it
+cannot miss a readiness event between those operations. Omitting `timeoutMs`
+uses 120 seconds. Explicit timeouts and abort signals remain supported. The wait
+returns ready, retryable failure, or timeout; abort rejects and releases its
+subscription. A pending NEAR account does not block available EVM-family signing.
+
+
+Custom email-code UI requests delivery through `auth.requestEmailCode`. Use
+`{ method: 'google', idToken, target }` for Google, or
+`{ method: 'email', walletId, email }` for an existing local email method.
+The successful result contains a host-owned challenge flow. Submit the code with
+`auth.unlockWithEmailCode({ challenge: result.value, code })`.
+The host retains the exact wallet, method, signer selection, and unlock purpose.
+The SDK handles ECDSA, NEAR-only, added-method, and pending activation internally.
+Operation-bound signing and device-removal proofs remain internal to their operations.
+
+A challenge supports `resend()` and `cancel()`. Successful resend replaces the
+old challenge. Expired or cancelled challenges cannot unlock. One operation can
+use a challenge at a time. Cancellation before submission retires the challenge.
+Cancellation during submission rejects because the host already owns that operation.
+A successful submission ends the flow. Recoverable failures permit a retry while
+the challenge remains valid. The hosted Google flow uses the same execution path.
+
+### Persist local execution generations
+
+The D1 execution-authority adapter records the generation admitted for registration.
+Registration completion enables local execution. A lost local completion write can
+resume from the registration authority's confirmed completion, using the same
+wallet, ceremony, and generation. A conflicting registration cannot replace it.
+
+Destination preparation installs the move's next generation as inactive.
+Verified destination activation enables it in the same database transaction.
+Source session retirement permanently closes its local generation. Cleanup retains
+that execution record. A late registration reply cannot reopen the source.
+
+Ordinary reads through this adapter use local storage. They reject missing,
+inactive, retired, or differently scoped homes. They do not query Console or derive
+an ownership generation from a signing key, cipher identity, or client connection.
+
+Router-admitted ECDSA prepare and finalize commands require the complete wallet
+scope and the Gateway-pinned ownership generation. Constructors validate that
+scope against the admitted tenant and wallet. Missing scope cannot reach execution. Missing, zero, and unsafe integer generations are invalid.
+The wallet store checks the active local generation before reserving or consuming
+a presignature and before recording a new terminal result. Exact terminal-result
+replays remain available after transfer and return. The generation does not change
+the wallet scope used to authenticate stored ciphertext.
+The ECDSA wallet store requires an explicit local execution-authority record.
+Initial registration commits this record with its material. Verified import
+activation commits destination authority with its activation receipt. Cleanup
+retains local authority and source fences. Missing authority never implies
+generation 1. A checked empty source can record closed authority for its move,
+which grants no signing permission. Execution authority stays local and does not
+form part of the transferred historical inventory.
+
+A later move can prepare a completely cleaned ECDSA resource as its destination.
+Preparation replaces the old local authority and fence with inactive import state.
+It requires a later source generation and durable evidence of completed cleanup.
+The old cleanup receipt remains local history. Exact cleanup retries return that
+receipt without deleting the returned wallet. Changed cleanup receipts fail.
+Verified activation installs the new generation before fresh signing can start.
+
+The ECDSA source commits immutable snapshot pages with its frozen receipt.
+Export reads the sealed pages and checks their digests. Each response contains
+at most 65,536 bytes and reads at most 17 pages of 4,096 bytes. Live inventory
+changes cannot alter the sealed bytes. Source cleanup removes these pages in
+bounded batches after destination activation. Each source invalidation call commits
+at most 16 records with its progress cursor. Restart resumes from that cursor.
+A failed transaction rolls back both invalidation and progress. Snapshot
+serialization reads at most 16 records per batch. Source sealing and the restored
+inventory digest check stream their bytes without a complete-inventory buffer.
+Destination decoding reads one staged chunk at a time and restores one typed
+record at a time. It checks the complete input digest and restored inventory
+before verification commits. Any late parse, binding, or digest failure rolls
+back all restored records. Initial sealing and destination verification still
+complete in one transaction each.
+
+Linked presign inventory is available while the ECDSA wallet drains. Each entry
+records its creation generation. The wallet cannot seal its snapshot until every
+linked session from the source generation has a durable freeze acknowledgement.
+The session stores its immutable snapshot before acknowledging the wallet. Lost
+replies replay that acknowledgement. Changed receipts fail, and exact receipts
+remain replayable after cleanup. Imported inventory remains historical and does
+not hold a later generation open.
+
+
+
+Each new operation claim reads the active local generation in its insert statement.
+The database rejects an absent or inactive home before the claim can consume quota.
+The stored generation cannot change. In-progress retries read that stored generation.
+Historical restore preserves it, even when the destination now uses a later generation.
+New destination claims use the activated destination generation.
+
+The persistence migration leaves older records without a proven generation unchanged.
+Such records cannot produce a pinned execution scope. The system must not infer a
+generation from the current home to dispatch an older operation.
+
+The Gateway includes the pinned generation in owner Wallet Session and step-up
+bindings for Ed25519 and ECDSA. The Router requires that field and rejects zero
+or values above JavaScript's maximum safe integer before forwarding signing work.
+The generation remains execution metadata, separate from wallet cipher identity.
+Ed25519 prepare and finalize commands require the admitted wallet scope and retain
+that generation through SigningWorker admission. Missing wallet scope fails at request
+decoding. Owner, step-up, and linked-device constructors require the scope before
+validation. Prepared round-1 material records it. A finalize command with another
+generation cannot consume that material. The original command can still complete
+and replay its terminal result after a worker restart.
+The native and wallet-DO stores commit initial Ed25519 execution authority with
+registration. Prepare and fresh finalize check that stored generation in the same
+transaction as their signing writes. Missing authority cannot default to generation
+1. Historical terminal replay remains available without creating new signing work.
+The Ed25519 source fence records the exact move identity under dedicated
+Router-to-SigningWorker authentication. It closes new preparation and registration
+writes. Repeated commands return the stored identity after restart. Changed move
+inputs fail. Admitted finalize can settle while this fence is draining, and exact
+terminal replay stays available. This fence alone does not attest a sealed snapshot.
+The settlement command counts admitted rounds in the transaction that closes
+preparation. A claimed round or an unexpired preparation keeps settlement draining.
+Expired unclaimed preparations do not block settlement. When no round remains,
+the source stores the exact settlement identity and rejects fresh finalization.
+Known terminal results remain replayable. Exact settlement retries survive restart.
+Settlement permits subsequent snapshot capture; it does not attest that snapshot.
+The wallet-DO source captures registrations, retired activation indexes, linked
+material, and round-1 history only after that exact move has settled. Each capture
+command reads at most 16 records from one collection. It commits immutable 4,096-byte
+segments with its cursor and rolling digest. Restart resumes that cursor. The final
+receipt binds the source, record count, segment count, and digest. Export requires
+the exact final receipt and returns one stored segment. Changed moves, receipts,
+and missing segments fail. Unsettled registration material cannot enter a snapshot.
+The destination prepares before source settlement and closes ordinary writes.
+Each imported segment commits with its acknowledgement and progress. Exact retries
+return that acknowledgement after restart. Changed or out-of-order segments fail.
+The Router accepts typed Ed25519 settlement and snapshot commands with
+Gateway-to-Router authentication and bounded JSON input. It forwards them through
+its SigningWorker binding with the separate Router-to-SigningWorker credential.
+The Worker E2E sends source settlement, capture, export, and cleanup through this
+transport. The private Wallet Runtime dispatcher admits only its explicit
+relocation operation list, POST, JSON, and bounded bodies. It uses its configured
+Gateway-to-Router credential and ignores caller-supplied credentials. Public origins
+and unknown operations cannot select this transport. The Ed25519 Worker scenario
+executes source relocation through the production Runtime handler and real Router
+and SigningWorker Workers. Console source-command authorization now checks the
+running freeze attempt, source Runtime deployment, and pinned resource verification.
+It builds Ed25519 settlement/capture and ECDSA freeze commands from the journal,
+including one stable invalidation timestamp. The directory E2E verifies exact
+replies and rejects the destination Runtime and Gateway. Runtime consumption of
+these authorized commands remains unconnected.
+The same Router transport accepts typed ECDSA freeze, export, and
+transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
+and activation replay through this boundary. A SigningWorker credential cannot
+authorize the Router request. Linked-presignature inventory, fence, freeze, export,
+and transfer commands use the same typed transport. The ECDSA Worker scenario
+settles and exports source sessions through the Router, including the race with
+terminal replay and the requirement for both session acknowledgements.
+An authenticated status command returns the destination cursor or its verified or
+activated state under the exact receipt. It does not change import state. The
+Worker E2E resumes transfer from this cursor after each eviction.
+The final segment must complete the expected record count and digest. Verification
+restores at most 16 segments per command and retains an incomplete record across
+calls. Production readers validate each record before insertion. Stored values
+must equal the original values, including nullable indexes and terminal history.
+The destination remains inactive until verification finishes. Activation installs
+the next execution generation and removes only its preparation fence. An exact
+activation retry preserves a later source fence. The restored wallet accepts fresh
+signing under the new generation and rejects the old generation. Prepare and
+finalize return exact results after eviction. The next snapshot preserves the
+completed signing result. The Worker E2E verifies the resulting Ed25519 signature.
+Source cleanup deletes at most 16 records per transaction. It requires the exact
+frozen receipt supplied by the authenticated coordinator after destination
+activation. It retains execution authority, settlement, and the write fence.
+The Worker E2E resumes cleanup across eviction and repeats its completed receipt.
+The cleaned source rejects registration and snapshot export. Fresh destination
+signing succeeds after cleanup. A cleaned location can prepare for a higher
+source generation with a different move ID. Preparation archives its old cleanup
+receipt and replaces authority atomically. Delayed cleanup returns that receipt
+without deleting new data. The Worker E2E restores registration and terminal history
+to the original location and verifies fresh generation-3 signing after delayed
+cleanup retries and eviction. Full relocation still requires composed verification.
+
+The same fence prevents new Ed25519 recovery and linked-device mutations. Native
+refresh deliveries also check the fence. Each mutation commits with its fence check
+in one storage transaction. Native control routes reload durable state after errors
+and never save rejected in-memory mutations through automatic snapshot persistence.
+
+
+
+
+### Restore authorization history during relocation
+
+The internal restore path accepts authorities, auth methods, session quotas,
+retired primary sessions, retired hosted credentials, and issued or consumed
+exchanges. It also accepts scoped step-up evidence, completed operations, and their
+terminal audit records. It preserves enrollment, identities, original expiry,
+retirement, redemption, quota facts, and exact response status, content type, and body. SQLite decodes and inserts each assembled record,
+so large integers do not pass through JavaScript numbers.
+
+Each record, its exact stored-value check, and its acknowledgement commit
+atomically. An exact retry returns the original acknowledgement. Changed content
+or wallet scope is rejected. Ordinary lifecycle, identity, and parent guards stay
+installed. A temporary context permits one exact historical insert.
+
+The destination rejects ordinary changes to imported records while admission is
+closed. Imported quotas receive this protection before their parent sessions
+arrive. Import cannot close while an imported quota lacks its retired wallet
+parent. Each imported operation must have its matching terminal audit before import
+closes. Restoring history never claims an operation, consumes quota, or creates a
+second audit. Imported step-up evidence cannot authorize new operations, even after
+activation and before its original expiry. Exact retries of completed step-up
+operations return the stored result. Retired Wallet Session credentials stay rejected.
+Closing import rejects new records and preserves exact retries. Closure
+does not verify the complete snapshot or activate the wallet.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` owns this D1 component contract.
+It feeds exported snapshot records into production restore for all nine tables.
+It verifies two-device retirement, exact values, large integers, rollback,
+concurrent retries, inactive admission, and an unaffected neighboring wallet.
+The record boundary accepts assembled records up to 2 MiB. The existing bounded
+intake verifies the authorization manifest. Larger records require separate work.
+
+### Settle Gateway ceremonies before session retirement
+
+The authorization destination remains inactive after import verification. Its internal
+activation route requires a live Console command for the cutover phase. That command
+includes the pinned authorization manifest and destination verification receipt.
+Activation atomically stores its exact receipt and opens ordinary authorization
+writes. Repeated commands return the same activation time and digest.
+
+The authorization storage E2E verifies that incomplete imports cannot activate,
+Console denial prevents activation, and handler restart preserves the receipt.
+After activation, a fresh session can be issued through the authorization service.
+Transferred retired credentials remain invalid. This component check does not prove
+fresh factor authentication, other participants' activation, or complete relocation.
+
+Source authorization cleanup requires the Console's destination-activation receipt
+and pinned authorization manifest. Each call deletes at most 16 selected rows and,
+for session rows, their associated quotas in the same transaction. It deletes hosted
+children before sessions, then auth methods and authorities. It also removes obsolete
+import receipts and snapshot payloads. Source fences and exact completion metadata
+remain durable. Other stores must remove dependent linked-device records before
+authorization cleanup can remove their parent sessions.
+
+The storage E2E interrupts deletion, resumes through new handlers, and verifies exact
+completion replay. It checks quota removal, neighboring-wallet isolation, continued
+destination session use, and refusal to issue a session at the cleaned source.
+
+The Gateway commits each ceremony's wallet activity index with its lifecycle state.
+Session retirement rejects wallets with unsettled registration, recovery, or export
+work. Gateway registration admission must finish its local claim. The Router separately
+requires execution and activation consumption to finish. Gateway finalization and
+deferred provisioning must complete their durable operation journals before session
+retirement. Recovery must reach promotion
+or supersession. Export must reach completion. A stored failure alone does not prove
+that its external effects settled.
+
+The internal freeze command returns a repeatable pending response while this work
+remains. It retires no sessions and seals no snapshot. Admitted work can finish while
+the command waits. Retirement and new pending ceremony writes exclude each other in
+one database transaction. A delayed admission cannot reopen work after retirement.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` verifies pending replies across
+handler recreation, atomic retirement rejection, settlement, delayed admission
+rejection, and completion through the original freeze command. It also verifies that
+completed Gateway admissions permit local freeze, interrupted operation journals
+delay freeze, and exact operation retries remain readable after freeze. Other participant
+work and automatic reconciliation remain separate requirements.
+
+Wallet Session operation claims also block session retirement until each operation
+has a terminal result. The claim's exact session scope identifies its wallet.
+The database rejects retirement if a new claim arrives after the pending check.
+Failed completion leaves the claim pending and permits another completion attempt.
+Another wallet's pending operation does not block retirement. After retirement,
+the obsolete session cannot claim another operation.
+
+The storage E2E verifies this race through the production claim and completion store.
+It preserves completed responses at the source and repeats the original freeze command.
+Step-up evidence stores its project and environment when verification completes.
+Pending step-up operations block retirement through that stored scope. Evidence for a
+claimed operation cannot change owner or disappear. Retirement rejects new claims,
+even when their evidence has not expired. Completed step-up responses remain readable
+through exact retries at the source. Another environment cannot use their stored claim.
+
+`tests/e2e/step-up-expiry.e2e.mjs` verifies settlement and rejection through the production
+HTTP admission and SQL store on Node SQLite and local Cloudflare D1. Its backend result
+is symbolic; it does not establish cryptographic signing after a move. The migration
+preserves existing evidence and claims when persisted signers identify one scope.
+Missing evidence or ambiguous scope aborts migration without removing historical rows.
+The authorization transfer includes these evidence sets, completed operations, and
+matching audits. It rejects pending operation restore and freezes the source records.
+Cleanup deletes audits and operations before their evidence or session parents.
+The storage E2E preserves a response larger than one chunk, interrupts its import
+acknowledgement, and checks exact results before and after destination activation.
+
+### Reconcile Router execution while relocation drains
+
+Router physical objects include the wallet's ownership generation. Ordinary commands
+and source freeze use the admitted source generation. Destination preparation, import,
+and verification use the destination generation. Export reads the frozen source object.
+Returning to a prior region prepares a fresh object without changing its old source
+snapshot. A prepared object stays inactive, including after a Router restart.
+
+The local Router HTTP E2E verifies return preparation beside a frozen source, exact
+preparation replay after restart, and rejection of work at the inactive destination.
+This check does not establish complete wallet relocation.
+
+The Router's authenticated internal transfer endpoint has separate activation and
+cleanup commands. Its caller must authorize activation after directory cutover and
+forward the destination's activation receipt before source cleanup. The complete
+coordinator integration remains required.
+
+Activation requires the exact locally verified snapshot. Its durable acknowledgement
+and admission change commit together. Cleanup deletes at most 16 source records per
+call, including old import segments. It preserves a tombstone that rejects ordinary
+work. Cleanup retries resume after restart. A delayed activation retry returns its
+old acknowledgement without reopening a source frozen or cleaned by a later move.
+
+The local Router HTTP E2E transfers consumed registration history to generation two,
+activates it, and returns it to generation three. It verifies exact consumption
+results, rejection before verification, authenticated commands, independent cleanup,
+and restart during bounded cleanup. This is Router-role evidence, not evidence of
+post-relocation signing or a complete wallet move.
+
+Each authenticated Router freeze call can reconcile one expired registration claim.
+The Router uses the exact stored request and its existing claim-generation rules.
+A live claim keeps its lease. A resumed old execution cannot replace the result
+recorded by the takeover execution. Expiry permits reconciliation; it does not
+prove that the work settled.
+
+Completed registration still waits for Gateway activation consumption before the
+Router seals its snapshot. Repeated freeze calls preserve that completed result.
+The local worker HTTP takeover scenario verifies real Deriver completion, an
+interrupted reply, freeze-driven takeover, refusal of the old run's result, and
+exact result replay without another pair. Gateway finalization and recovery/export
+reconciliation remain separate requirements.
+
+### Freeze authorization history before relocation export
+
+After admitted work settles and all wallet sessions retire, the internal D1
+freeze operation preserves authorities, auth methods, primary sessions, hosted
+credentials, exchange history, and their session quotas. It rejects subsequent
+inserts, updates, identity changes, and deletes for that wallet. Retirement alone
+does not establish this stronger freeze.
+
+The freeze and its identity guard commit atomically. Concurrent and restarted
+exact retries retain the original freeze time. A different move cannot replace
+the fence. A failed freeze leaves these records mutable. Unrelated wallets can
+continue to issue and use sessions.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` owns this component contract.
+Its scenario retains record counts and digests after attempted delayed writes.
+This fence does not attest other stores, a complete snapshot, activation, or
+source cleanup. The coordinator must collect every participant's evidence before
+it seals the common snapshot.
+
+### Capture and export frozen authorization history
+
+The internal snapshot operation requires the authorization source fence. It captures
+all nine covered record families in a fixed table and column order. SQLite encodes
+each row before JavaScript receives its bytes. This preserves integer precision,
+nulls, and the exact contents of stored JSON strings.
+
+Capture persists segments of at most 32 KiB with an ordered digest chain. The
+schema and initial digest bind the wallet scope, move, and source generation.
+An interrupted capture retains completed segments. An exact retry resumes from
+the last durable chunk without replacing completed segments. Export remains closed
+until all records are captured and the snapshot is sealed. Sealed snapshots retain the same manifest and bytes
+through concurrent calls and store recreation.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` verifies interruption, concurrent
+capture, exact export, a record larger than one segment, and an integer beyond
+JavaScript's exact range. The transfer scenario consumes exported snapshot records.
+All nine authorization tables use production restore. This component contract
+does not establish a complete wallet move or signing after relocation.
+
+
+### Reserve the authorization destination before source pause
+
+Gateway preparation compares the source and destination authorization schema digests.
+A schema mismatch leaves the destination unreserved. A matching destination reserves
+its empty authorization store for the exact wallet, move, request digest, and source
+generation. Exact retries return the same reservation. Conflicting moves fail.
+The reservation blocks ordinary destination authority writes and requires no frozen
+source snapshot. The source remains usable until admission pauses it.
+
+`tests/e2e/authorization-storage-transfer.e2e.mjs` verifies these boundaries and then
+imports the source history into the reserved destination. This component evidence
+does not establish preparation or activation of every wallet participant.
+
+
+### Reserve Deriver wallet destinations
+
+The private Runtime forwards destination preparation through each authenticated
+Deriver service boundary. Both roles use one reservation protocol while retaining
+their separate owner types and physical objects. Preparation requires an empty
+wallet pair store and binds its reservation to the wallet owner, move, request
+digest, and generations. Exact retries retain the same receipt after object
+restart. A nonempty store or conflicting reservation is rejected. Ordinary pair
+commands cannot write to a reserved destination. SQL guards also reject deferred
+writes to pair records and admission fences. Empty-store inspection remains
+available through the existing read commands.
+
+The Worker pair-execution E2E exercises separate destination objects for the same
+wallet in both roles. It verifies private Runtime preparation, authentication,
+restart replay, conflict rejection, and rejection of ordinary pair writes. It also
+verifies that Deriver B reconciliation cannot add a fence to its reserved store.
+Before reservation, the source reports a digest of its pair-encryption public key,
+key version, environment label, role, and schema. Each role checks that its private
+key opens ciphertext sealed with its configured public key. The destination must
+match the source digest before it creates any reservation. The reservation retains
+that digest, including during exact retries. No encryption key material is returned.
+The E2E rejects a context from the other role, a changed encryption environment,
+and a private key that does not match the configured public key.
+
+Deriver state transfer, tenant-root and peer-key continuity checks, activation,
+and the aggregate preparation adapter remain open.
+
+### Read wallet placement from the application
+
+`wallet.placement.get(walletId)` reads placement through the wallet host. The host
+uses its existing owner credential and requires the matching authenticated wallet.
+The parent request carries only the wallet identity. A lock or authentication
+change during the request discards the response. A locked read sends no request.
+
+The result distinguishes a settled home, a moving wallet, and unavailable placement.
+Transfer stages report paused availability. Cleanup reports active availability,
+including when cleanup waits for a retry. Invalid response combinations fail at
+the boundary. Unauthorized reads fail before the directory receives a request.
+This explicit read does not run during signing or refill.
+
+`node tests/e2e/authorization-storage-transfer.e2e.mjs` exercises the application
+commands, host handler, and Gateway with real D1 authorization. It checks cleanup
+availability, invalid responses, and a lock during a pending read. Evidence is in
+`.artifacts/r153/authorization-storage-transfer/placement-client-evidence.json`.
+The scenario simulates the directory and host credential adapter. It does not
+verify browser startup, settings, or local credential selection.
+
+`wallet.placement.getMove(walletId, moveId)` reads one exact move. A parsed move
+identity is required. The host keeps the owner credential out of parent messages.
+After server-side session retirement, the approved original credential can still
+read that move until its existing expiry. It cannot read general placement or an
+unapproved move. Completed responses retain the original move identity and both
+generations. A response for another move fails. Local lock prevents move reads.
+
+The same authorization E2E retires the initiating session in D1 before exercising
+this client path. It records results in `retired-move-client-evidence.json` beside
+the placement evidence. Local credential retention across reload and post-move
+client reconciliation remain outside this scenario.
+
+`wallet.placement.move(request)` requires the wallet, move identity, destination,
+and expected source generation. The host first reads that exact move. An existing
+matching move returns without another factor prompt. If no move exists, the host
+first attempts to resume an existing owner approval. Preparation failure can
+therefore retry the same approved request without issuing another challenge.
+The Gateway requires fresh owner approval when none exists. A new request then
+collects its proof inside the wallet iframe. Proofs and owner credentials do not
+cross into parent messages. A lost submission reply gets one retry with the same
+intent and proof. An authentication change during approval prevents submission.
+
+The authorization transfer E2E verifies this command through production client
+factories, iframe handlers, Gateway authentication, and D1 OTP approval. It
+simulates the prompt and Console admission. Evidence is in
+`move-submission-client-evidence.json`. Actual move admission and the passkey browser
+prompt remain unfinished. Settings evidence appears below.
+
+The wallet host saves the last submitted move request before sending a relocation
+POST. `wallet.placement.getLastMoveRequest(walletId)` reads this local locator,
+including after lock or reload. The record contains only the wallet ID, move ID,
+destination, and expected generation. It contains no credential or approval proof.
+Reading it makes no server request and grants no authority. The caller can use the
+same request to reconnect after authentication becomes available. The locator is
+not authoritative progress and does not show whether admission succeeded.
+The Chromium move-locator journey verifies an uncertain submission, lock, reload,
+exact reconnect, and wallet isolation using real IndexedDB and simulated server
+responses. Local lock continues to prevent authenticated progress reads.
+
+The owner settings page includes Wallet region. It reads placement before enabling
+other settings, displays the current region, and explains session retirement before
+submission. Selecting the current region sends no move. A pending move keeps other
+settings disabled and leaves local lock available. The view shows transfer stages,
+service recovery for a blocked stage, and separate activation and cleanup messages.
+Unknown outcomes keep the exact request for explicit retry. Automatic polling only
+reads progress. The host locks obsolete sessions when it observes activation.
+After fresh unlock, active-destination progress enables other settings while cleanup
+continues. Another move remains unavailable until cleanup completes.
+The region-settings browser journey verifies selection, an uncertain submission,
+exact retry, blocked-stage reporting, cleanup, local lock, and narrow-screen layout.
+It uses the production component with simulated placement and surrounding actions.
+Global application signing controls, automatic activation reconciliation, and the
+assembled regional move remain outside this UI evidence.
+
+Successful host placement reads, exact move reads, and move submissions reconcile
+the local ownership generation before returning success. An admitted move advances
+the local generation to its destination generation, including while transfer is
+paused. The same IndexedDB transaction removes obsolete durable presignatures.
+Existing resident-pool checks reject subsequent use and delayed refill publication
+from the source generation. Historical completed-move reads cannot lower this
+local generation. This observation does not issue a destination credential.
+Ordinary locking does not advance the generation or invoke this invalidation path.
+
+When a placement response confirms destination activation, the host locks an
+obsolete local session through the ordinary lock flow. Copying-stage reads retain
+the original session for bounded move progress. A session already issued for the
+active generation remains usable during cleanup. An activation response that locks
+the wallet returns `wallet_unlock_required`. Later authenticated move reads require
+ordinary unlock. No credential survives local lock for progress polling.
+The activation-lock browser contract uses a real registered wallet, stored session,
+and iframe commands with simulated regional responses. It verifies copying-stage
+access, automatic lock at activation, no progress request after lock, and a locked
+state after reload. It does not establish destination unlock or regional relocation.
+
+The iframe request boundary checks the selected session's ownership generation
+before new signing, export, recovery, factor changes, or owner device changes.
+The check uses the requested wallet and local IndexedDB state. It makes no Console
+request. A session from an obsolete generation fails before its operation handler
+runs. Ordinary authentication checks still handle missing or expired sessions.
+Move reads, exact move replay, local lock, fresh authentication, and completion
+reports for admitted transactions remain available. Server writer fences remain
+authoritative for requests already in flight and devices that have not observed
+the move.
+
+### Verify SigningWorker encryption context before admission
+
+SigningWorker preparation compares source and destination wallet encryption contexts
+before reserving either signing curve at the destination. The context identifies
+the environment, wallet storage schema, key version, and recipient public key.
+Each role checks its configured key pair through its existing seal and open methods.
+A missing context, a different context, or a mismatched key pair prevents admission.
+The source remains active. The context digest contains no private key material.
+
+### Keep owner presign work retired after a return move
+
+Fresh owner and linked-device operation credentials carry a required positive
+`ownershipGeneration`. Issuance reads the local wallet execution record. Inactive
+destinations and retired sources cannot issue fresh credentials. Registration may
+issue its initial credential while its execution record is registering.
+The client preserves this generation with the credential and rejects a different
+generation for the same stored session and token. Credentials without a generation
+require fresh authentication. This does not delete durable presignatures.
+
+The authorization transfer E2E verifies generation 1 at the source and generation
+2 after destination activation. ECDSA signing and refill carry this generation
+into resident and durable pool identities. A pool cannot select material from a
+different generation. The persistence boundary upgrades initial-generation rows
+without changing their authenticated ciphertext. The browser lock E2E exercises
+this upgrade and signs with a retained presignature.
+
+Accepting a newer session generation persists that generation and removes older
+session credentials and durable presignatures in one transaction. Durable
+admission, listing, and consumption require the accepted generation. Ordinary
+locking preserves this generation and usable durable material. The browser storage
+contract uses a real registered presignature to verify deletion, delayed old
+admission rejection, exact advancement retries, rollback rejection, and current
+generation consumption. Its generation transition is local and does not prove
+regional relocation.
+
+Resident pool hydration, refill, and signing check the persisted ownership
+generation. A stale pool stops maintenance, invalidates pending results, and
+destroys resident handles. Hydration and refill check again before publishing
+results. An old pool's invalidation does not clear a newer generation's pool.
+The browser refill contract holds a real Gateway completion reply, advances the
+local generation, and then releases the reply. The refill fails with zero resident
+pool depth and no durable presignatures. Full regional relocation and offline
+device reconciliation still require composed verification.
+
+Owner presign authorities record the ownership generation at initialization. Each
+protocol step requires that exact current generation. Returning to the original
+region cannot reactivate an unfinished ceremony from an earlier generation.
+Historical restore preserves these authorities without granting new execution.
+It rejects an authority whose generation exceeds the source generation. Older
+persisted authorities without a generation remain readable as history and cannot
+resume protocol work. Completed durable presignatures and ordinary locking keep
+their existing lifecycle.
+
+The native ECDSA relocation scenario holds a real final presign batch before
+source freeze. It rejects that batch during the move and after return at generation
+3, then verifies a fresh signature. Run `scripts/test-private-d1.mjs
+--ecdsa-wallet-do-pool` from `crates/router-ab-cloudflare` with the wallet-DO
+harness and development Worker builds enabled.
+
+Pool publication also requires the original presign session identity. Its stored
+generation check and pool insertion run in one wallet transaction. A completed
+result from an earlier generation cannot enter the pool after a return move.
+Unbound pool-fill commands are rejected at the wallet object boundary.
+The VM adapter uses the same store admission function.
+
+The native scenario separately completes a real owner presign protocol, holds its
+result before publication, and attempts publication during freeze and after return.
+Both attempts fail. Fresh owner presigning and signing still succeed.
+
+### Explicit home discovery during signing
+
+For signing prepare/finalize and ECDSA refill requests, an HTTP 409 with code
+`wallet_home_discovery_required` permits one retry without the region hint.
+The retry uses the same public URL, serialized body, operation identity, bearer
+token, and abort signal. It cannot retry again. Authentication, revocation, quota,
+other conflicts, and network failures do not trigger this routing retry.

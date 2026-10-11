@@ -1,0 +1,3536 @@
+{
+  "baseline": {
+    "attempted": 40,
+    "completed": 40,
+    "failed": 0,
+    "cohorts": {
+      "near_only": {
+        "completed": 20,
+        "metrics": {
+          "registration/harness_return": {
+            "count": 20,
+            "p50Ms": 1633.3329789999952,
+            "p95Ms": 1913.7640000000101,
+            "maxMs": 2046.593875000006,
+            "above2000Ms": 1
+          },
+          "registration/harness_near_ready": {
+            "count": 20,
+            "p50Ms": 1633.3338540000004,
+            "p95Ms": 1913.7645000000048,
+            "maxMs": 2046.594459,
+            "above2000Ms": 1
+          },
+          "registration/iframe.iframeMountMs": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/iframe.iframeLoadWaitMs": {
+            "count": 20,
+            "p50Ms": 56,
+            "p95Ms": 81,
+            "maxMs": 83,
+            "above2000Ms": 0
+          },
+          "registration/iframe.bootHintWaitMs": {
+            "count": 20,
+            "p50Ms": 51,
+            "p95Ms": 52,
+            "maxMs": 52,
+            "above2000Ms": 0
+          },
+          "registration/iframe.handshakeMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/iframe.connectTotalMs": {
+            "count": 20,
+            "p50Ms": 107,
+            "p95Ms": 134,
+            "maxMs": 134,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.setup": {
+            "count": 20,
+            "p50Ms": 19.94999998807907,
+            "p95Ms": 27.800000071525574,
+            "maxMs": 34.5,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.authentication": {
+            "count": 20,
+            "p50Ms": 188.19999998807907,
+            "p95Ms": 212,
+            "maxMs": 227.90000009536743,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.respond": {
+            "count": 20,
+            "p50Ms": 22.099999964237213,
+            "p95Ms": 43.199999928474426,
+            "maxMs": 64,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.begin": {
+            "count": 20,
+            "p50Ms": 13.8,
+            "p95Ms": 29.1,
+            "maxMs": 29.9,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_credential_digest": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_d1_admission_read": {
+            "count": 20,
+            "p50Ms": 3,
+            "p95Ms": 6,
+            "maxMs": 7,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_execution": {
+            "count": 20,
+            "p50Ms": 282,
+            "p95Ms": 395,
+            "maxMs": 411,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_result_reconstruction": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_prepare_pair": {
+            "count": 20,
+            "p50Ms": 42,
+            "p95Ms": 63,
+            "maxMs": 65,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_verify_readiness": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_role_execution": {
+            "count": 20,
+            "p50Ms": 222,
+            "p95Ms": 302,
+            "maxMs": 321,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_signing_worker_delivery": {
+            "count": 20,
+            "p50Ms": 6.5,
+            "p95Ms": 12,
+            "maxMs": 20,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.router_round": {
+            "count": 20,
+            "p50Ms": 292.5,
+            "p95Ms": 404.7,
+            "maxMs": 423.5,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.complete": {
+            "count": 20,
+            "p50Ms": 3.7,
+            "p95Ms": 3.9,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.finish": {
+            "count": 20,
+            "p50Ms": 2.1,
+            "p95Ms": 2.3,
+            "maxMs": 2.3,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.custody": {
+            "count": 20,
+            "p50Ms": 326.9000000357628,
+            "p95Ms": 465.89999997615814,
+            "maxMs": 485.5,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.backup_and_checkpoint": {
+            "count": 20,
+            "p50Ms": 1.75,
+            "p95Ms": 2,
+            "maxMs": 2.200000047683716,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.activate": {
+            "count": 20,
+            "p50Ms": 7.75,
+            "p95Ms": 18.699999928474426,
+            "maxMs": 19.40000009536743,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.provision_checkpoint": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1.2999999523162842,
+            "maxMs": 1.3000000715255737,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.finalize": {
+            "count": 20,
+            "p50Ms": 38.35000002384186,
+            "p95Ms": 65.89999997615814,
+            "maxMs": 77.80000007152557,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.publication": {
+            "count": 20,
+            "p50Ms": 7.349999964237213,
+            "p95Ms": 9,
+            "maxMs": 9,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_ready": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_put": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_existing_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_seal": {
+            "count": 20,
+            "p50Ms": 140.5,
+            "p95Ms": 162,
+            "maxMs": 163,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_runtime_setup": {
+            "count": 20,
+            "p50Ms": 11,
+            "p95Ms": 15,
+            "maxMs": 17,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_seal": {
+            "count": 20,
+            "p50Ms": 42,
+            "p95Ms": 46,
+            "maxMs": 46,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_route": {
+            "count": 20,
+            "p50Ms": 44,
+            "p95Ms": 61,
+            "maxMs": 61,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_unseal": {
+            "count": 20,
+            "p50Ms": 39.5,
+            "p95Ms": 43,
+            "maxMs": 43,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_policy_update": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_register": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_verify_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_persist": {
+            "count": 20,
+            "p50Ms": 142.5,
+            "p95Ms": 166,
+            "maxMs": 166,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration": {
+            "count": 20,
+            "p50Ms": 143.0999999642372,
+            "p95Ms": 166.5,
+            "maxMs": 166.60000002384186,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.session_hydration": {
+            "count": 20,
+            "p50Ms": 143.3499999642372,
+            "p95Ms": 166.79999995231628,
+            "maxMs": 166.80000007152557,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.material_activation": {
+            "count": 20,
+            "p50Ms": 10.200000047683716,
+            "p95Ms": 19.699999928474426,
+            "maxMs": 28.600000023841858,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.export_capability": {
+            "count": 20,
+            "p50Ms": 6,
+            "p95Ms": 13.399999976158142,
+            "maxMs": 21.200000047683716,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.wallet_ready": {
+            "count": 20,
+            "p50Ms": 1.399999976158142,
+            "p95Ms": 1.600000023841858,
+            "maxMs": 1.899999976158142,
+            "above2000Ms": 0
+          },
+          "registration/registration_return": {
+            "count": 20,
+            "p50Ms": 774.5,
+            "p95Ms": 970,
+            "maxMs": 1007,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupMs": {
+            "count": 20,
+            "p50Ms": 17,
+            "p95Ms": 38,
+            "maxMs": 42,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationIntentMs": {
+            "count": 20,
+            "p50Ms": 20,
+            "p95Ms": 28,
+            "maxMs": 34,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthConfirmationMs": {
+            "count": 20,
+            "p50Ms": 188,
+            "p95Ms": 212,
+            "maxMs": 227,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptUserMs": {
+            "count": 20,
+            "p50Ms": 155,
+            "p95Ms": 180,
+            "maxMs": 199,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptMountMs": {
+            "count": 20,
+            "p50Ms": 5,
+            "p95Ms": 6,
+            "maxMs": 7,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptConfirmEventMs": {
+            "count": 20,
+            "p50Ms": 150,
+            "p95Ms": 175,
+            "maxMs": 194,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptDecisionWaitMs": {
+            "count": 20,
+            "p50Ms": 150,
+            "p95Ms": 175,
+            "maxMs": 194,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateStartMs": {
+            "count": 20,
+            "p50Ms": 155,
+            "p95Ms": 180,
+            "maxMs": 199,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateMs": {
+            "count": 20,
+            "p50Ms": 27,
+            "p95Ms": 42,
+            "maxMs": 61,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthMainThreadTotalMs": {
+            "count": 20,
+            "p50Ms": 186.5,
+            "p95Ms": 210,
+            "maxMs": 226,
+            "above2000Ms": 0
+          },
+          "registration/sdk_registration_return": {
+            "count": 20,
+            "p50Ms": 947.3999999165535,
+            "p95Ms": 1242.5,
+            "maxMs": 1272.5,
+            "above2000Ms": 0
+          },
+          "signing/first/sdk_total": {
+            "count": 20,
+            "p50Ms": 383.0999999642372,
+            "p95Ms": 468.40000009536743,
+            "maxMs": 496.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/harness_total": {
+            "count": 20,
+            "p50Ms": 720.4078330000002,
+            "p95Ms": 770.5084579999966,
+            "maxMs": 826.7818750000006,
+            "above2000Ms": 0
+          },
+          "signing/first/preparation_modal": {
+            "count": 20,
+            "p50Ms": 5.199999928474426,
+            "p95Ms": 6.5,
+            "maxMs": 6.600000023841858,
+            "above2000Ms": 0
+          },
+          "signing/first/authorization_probe": {
+            "count": 20,
+            "p50Ms": 11.649999976158142,
+            "p95Ms": 26.300000071525574,
+            "maxMs": 37.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/lane_preparation": {
+            "count": 20,
+            "p50Ms": 42.10000002384186,
+            "p95Ms": 91.19999992847443,
+            "maxMs": 103.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/execution_setup": {
+            "count": 20,
+            "p50Ms": 22.599999964237213,
+            "p95Ms": 41.90000009536743,
+            "maxMs": 46.90000009536743,
+            "above2000Ms": 0
+          },
+          "signing/first/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 3.149999976158142,
+            "p95Ms": 4.100000023841858,
+            "maxMs": 5.200000047683716,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 194,
+            "p95Ms": 198,
+            "maxMs": 199,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmation": {
+            "count": 20,
+            "p50Ms": 202.05000001192093,
+            "p95Ms": 206.39999997615814,
+            "maxMs": 206.90000009536743,
+            "above2000Ms": 0
+          },
+          "signing/first/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/first/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 3.299999952316284,
+            "p95Ms": 3.5,
+            "maxMs": 3.700000047683716,
+            "above2000Ms": 0
+          },
+          "signing/first/prepare": {
+            "count": 20,
+            "p50Ms": 20.100000023841858,
+            "p95Ms": 52.199999928474426,
+            "maxMs": 53.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/client_share": {
+            "count": 20,
+            "p50Ms": 3.4000000953674316,
+            "p95Ms": 3.799999952316284,
+            "maxMs": 3.8000000715255737,
+            "above2000Ms": 0
+          },
+          "signing/first/finalize": {
+            "count": 20,
+            "p50Ms": 21.600000023841858,
+            "p95Ms": 46.300000071525574,
+            "maxMs": 49.300000071525574,
+            "above2000Ms": 0
+          },
+          "signing/first/signature_total": {
+            "count": 20,
+            "p50Ms": 45.65000003576279,
+            "p95Ms": 86.59999990463257,
+            "maxMs": 105.69999992847443,
+            "above2000Ms": 0
+          },
+          "signing/first/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.550000011920929,
+            "p95Ms": 1.600000023841858,
+            "maxMs": 1.7000000476837158,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0.10000002384185791,
+            "p95Ms": 0.20000004768371582,
+            "maxMs": 0.20000004768371582,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 63.950000047683716,
+            "p95Ms": 123.70000004768372,
+            "maxMs": 130.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 189.1500000357628,
+            "p95Ms": 332.2999999523163,
+            "maxMs": 338.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 33.549999952316284,
+            "p95Ms": 34.50000023841858,
+            "maxMs": 34.699999928474426,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 338.35000002384186,
+            "p95Ms": 393.7999999523163,
+            "maxMs": 412,
+            "above2000Ms": 0
+          },
+          "signing/warm/sdk_total": {
+            "count": 20,
+            "p50Ms": 365.75,
+            "p95Ms": 471.89999997615814,
+            "maxMs": 472.2999999523163,
+            "above2000Ms": 0
+          },
+          "signing/warm/harness_total": {
+            "count": 20,
+            "p50Ms": 747.8567500000026,
+            "p95Ms": 850.3995419999992,
+            "maxMs": 854.8449580000015,
+            "above2000Ms": 0
+          },
+          "signing/warm/preparation_modal": {
+            "count": 20,
+            "p50Ms": 1.600000023841858,
+            "p95Ms": 2,
+            "maxMs": 2.100000023841858,
+            "above2000Ms": 0
+          },
+          "signing/warm/authorization_probe": {
+            "count": 20,
+            "p50Ms": 10.149999976158142,
+            "p95Ms": 17.200000047683716,
+            "maxMs": 18.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/lane_preparation": {
+            "count": 20,
+            "p50Ms": 38.05000001192093,
+            "p95Ms": 90.60000002384186,
+            "maxMs": 145.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/execution_setup": {
+            "count": 20,
+            "p50Ms": 23.149999976158142,
+            "p95Ms": 47.200000047683716,
+            "maxMs": 77.10000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.650000035762787,
+            "p95Ms": 4.200000047683716,
+            "maxMs": 4.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 202,
+            "p95Ms": 211,
+            "maxMs": 215,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmation": {
+            "count": 20,
+            "p50Ms": 207.55000001192093,
+            "p95Ms": 216.10000002384186,
+            "maxMs": 220.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/warm/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 2.9999999403953552,
+            "p95Ms": 4.100000023841858,
+            "maxMs": 4.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/prepare": {
+            "count": 20,
+            "p50Ms": 20.150000035762787,
+            "p95Ms": 62.700000047683716,
+            "maxMs": 73.10000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/client_share": {
+            "count": 20,
+            "p50Ms": 1.2999999523162842,
+            "p95Ms": 1.5,
+            "maxMs": 1.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/finalize": {
+            "count": 20,
+            "p50Ms": 20.899999976158142,
+            "p95Ms": 56.5,
+            "maxMs": 57.89999997615814,
+            "above2000Ms": 0
+          },
+          "signing/warm/signature_total": {
+            "count": 20,
+            "p50Ms": 42.25,
+            "p95Ms": 117,
+            "maxMs": 132.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.3999999761581421,
+            "p95Ms": 0.6000000238418579,
+            "maxMs": 1.7000000476837158,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 47.25,
+            "p95Ms": 121.89999997615814,
+            "maxMs": 138.70000004768372,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 159.25,
+            "p95Ms": 350.89999997615814,
+            "maxMs": 386.2999999523163,
+            "above2000Ms": 0
+          },
+          "signing/warm/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 32.6499999165535,
+            "p95Ms": 33.50000011920929,
+            "maxMs": 33.799999952316284,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 323.5499999523163,
+            "p95Ms": 356.1999999284744,
+            "maxMs": 358.5,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupEmailOtpYaoWasmInitMs": {
+            "count": 9,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          }
+        }
+      },
+      "mixed": {
+        "completed": 20,
+        "metrics": {
+          "registration/harness_return": {
+            "count": 20,
+            "p50Ms": 1132.384479500004,
+            "p95Ms": 2287.1722080000036,
+            "maxMs": 3322.693916000004,
+            "above2000Ms": 2
+          },
+          "registration/harness_near_ready": {
+            "count": 20,
+            "p50Ms": 1908.946770500008,
+            "p95Ms": 3081.040374999997,
+            "maxMs": 4123.653625000006,
+            "above2000Ms": 7
+          },
+          "registration/iframe.iframeMountMs": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/iframe.iframeLoadWaitMs": {
+            "count": 20,
+            "p50Ms": 56,
+            "p95Ms": 75,
+            "maxMs": 151,
+            "above2000Ms": 0
+          },
+          "registration/iframe.bootHintWaitMs": {
+            "count": 20,
+            "p50Ms": 51,
+            "p95Ms": 52,
+            "maxMs": 52,
+            "above2000Ms": 0
+          },
+          "registration/iframe.handshakeMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/iframe.connectTotalMs": {
+            "count": 20,
+            "p50Ms": 108,
+            "p95Ms": 126,
+            "maxMs": 204,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/early_admission": {
+            "count": 20,
+            "p50Ms": 14.300000011920929,
+            "p95Ms": 28.199999928474426,
+            "maxMs": 37.5,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.admission": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.1,
+            "maxMs": 0.1,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.begin": {
+            "count": 20,
+            "p50Ms": 4.6,
+            "p95Ms": 5.3,
+            "maxMs": 6,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.checkpoint": {
+            "count": 20,
+            "p50Ms": 1.2,
+            "p95Ms": 1.3,
+            "maxMs": 1.5,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.journal_prepared": {
+            "count": 20,
+            "p50Ms": 2.4,
+            "p95Ms": 2.7,
+            "maxMs": 3.7,
+            "above2000Ms": 0
+          },
+          "registration/registration_return": {
+            "count": 20,
+            "p50Ms": 553.5,
+            "p95Ms": 778,
+            "maxMs": 1285,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupMs": {
+            "count": 20,
+            "p50Ms": 20,
+            "p95Ms": 62,
+            "maxMs": 172,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupEmailOtpYaoWasmInitMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationIntentMs": {
+            "count": 20,
+            "p50Ms": 24,
+            "p95Ms": 41,
+            "maxMs": 46,
+            "above2000Ms": 0
+          },
+          "registration/summary.authProofMs": {
+            "count": 20,
+            "p50Ms": 179.5,
+            "p95Ms": 236,
+            "maxMs": 757,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthConfirmationMs": {
+            "count": 20,
+            "p50Ms": 179,
+            "p95Ms": 236,
+            "maxMs": 757,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptUserMs": {
+            "count": 20,
+            "p50Ms": 150.5,
+            "p95Ms": 190,
+            "maxMs": 725,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptMountMs": {
+            "count": 20,
+            "p50Ms": 5,
+            "p95Ms": 7,
+            "maxMs": 7,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptConfirmEventMs": {
+            "count": 20,
+            "p50Ms": 145.5,
+            "p95Ms": 183,
+            "maxMs": 718,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptDecisionWaitMs": {
+            "count": 20,
+            "p50Ms": 145.5,
+            "p95Ms": 184,
+            "maxMs": 718,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateStartMs": {
+            "count": 20,
+            "p50Ms": 151,
+            "p95Ms": 191,
+            "maxMs": 725,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateMs": {
+            "count": 20,
+            "p50Ms": 28,
+            "p95Ms": 31,
+            "maxMs": 43,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthMainThreadTotalMs": {
+            "count": 20,
+            "p50Ms": 178,
+            "p95Ms": 234,
+            "maxMs": 755,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRespondRouterMs": {
+            "count": 20,
+            "p50Ms": 58.5,
+            "p95Ms": 110,
+            "maxMs": 155,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRespondD1CommitMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRespondTotalMs": {
+            "count": 20,
+            "p50Ms": 64,
+            "p95Ms": 120,
+            "maxMs": 169,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateD1ClaimMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 4,
+            "maxMs": 5,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateRouterMs": {
+            "count": 20,
+            "p50Ms": 13.5,
+            "p95Ms": 39,
+            "maxMs": 66,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateBootstrapMs": {
+            "count": 5,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateD1CommitMs": {
+            "count": 19,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateTotalMs": {
+            "count": 20,
+            "p50Ms": 16.5,
+            "p95Ms": 42,
+            "maxMs": 72,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtAuthorizeMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 3,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtDeriversMs": {
+            "count": 20,
+            "p50Ms": 42.5,
+            "p95Ms": 77,
+            "maxMs": 120,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtDeriverAMs": {
+            "count": 20,
+            "p50Ms": 42,
+            "p95Ms": 77,
+            "maxMs": 120,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtDeriverBMs": {
+            "count": 20,
+            "p50Ms": 41.5,
+            "p95Ms": 70,
+            "maxMs": 72,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtTotalMs": {
+            "count": 20,
+            "p50Ms": 45,
+            "p95Ms": 81,
+            "maxMs": 122,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtActWorkerMs": {
+            "count": 20,
+            "p50Ms": 11,
+            "p95Ms": 31,
+            "maxMs": 31,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtActTotalMs": {
+            "count": 20,
+            "p50Ms": 11.5,
+            "p95Ms": 32,
+            "maxMs": 33,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverAParseMs": {
+            "count": 8,
+            "p50Ms": 1,
+            "p95Ms": 3,
+            "maxMs": 3,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverAPreloadMs": {
+            "count": 20,
+            "p50Ms": 37.5,
+            "p95Ms": 62,
+            "maxMs": 110,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverAExecuteMs": {
+            "count": 20,
+            "p50Ms": 3,
+            "p95Ms": 5,
+            "maxMs": 6,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverATotalMs": {
+            "count": 20,
+            "p50Ms": 40,
+            "p95Ms": 71,
+            "maxMs": 114,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBParseMs": {
+            "count": 9,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBPreloadMs": {
+            "count": 20,
+            "p50Ms": 37,
+            "p95Ms": 57,
+            "maxMs": 58,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBExecuteMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 6,
+            "maxMs": 6,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBTotalMs": {
+            "count": 20,
+            "p50Ms": 39.5,
+            "p95Ms": 61,
+            "maxMs": 65,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaSigningWorkerParseMs": {
+            "count": 13,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaSigningWorkerActivateMs": {
+            "count": 20,
+            "p50Ms": 4,
+            "p95Ms": 9,
+            "maxMs": 10,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaSigningWorkerTotalMs": {
+            "count": 20,
+            "p50Ms": 4,
+            "p95Ms": 10,
+            "maxMs": 11,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationTotalMs": {
+            "count": 20,
+            "p50Ms": 328,
+            "p95Ms": 461,
+            "maxMs": 469,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationClientCreateMs": {
+            "count": 20,
+            "p50Ms": 6,
+            "p95Ms": 8,
+            "maxMs": 9,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationGatewayRespondMs": {
+            "count": 20,
+            "p50Ms": 69.5,
+            "p95Ms": 140,
+            "maxMs": 183,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationClientProofVerifyMs": {
+            "count": 20,
+            "p50Ms": 4,
+            "p95Ms": 4,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationGatewayActivateMs": {
+            "count": 20,
+            "p50Ms": 44,
+            "p95Ms": 135,
+            "maxMs": 158,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationTargetCount": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/sdk_registration_return": {
+            "count": 20,
+            "p50Ms": 756.6000000238419,
+            "p95Ms": 1097,
+            "maxMs": 2041.8000000715256,
+            "above2000Ms": 1
+          },
+          "registration/near_registration_timing/session_seal_preparation": {
+            "count": 20,
+            "p50Ms": 55.800000071525574,
+            "p95Ms": 62.39999997615814,
+            "maxMs": 66.10000002384186,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_credential_digest": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_d1_admission_read": {
+            "count": 20,
+            "p50Ms": 2.5,
+            "p95Ms": 10,
+            "maxMs": 26,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_execution": {
+            "count": 20,
+            "p50Ms": 302.5,
+            "p95Ms": 503,
+            "maxMs": 548,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_result_reconstruction": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_prepare_pair": {
+            "count": 20,
+            "p50Ms": 44.5,
+            "p95Ms": 78,
+            "maxMs": 125,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_verify_readiness": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_role_execution": {
+            "count": 20,
+            "p50Ms": 233.5,
+            "p95Ms": 388,
+            "maxMs": 390,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_signing_worker_delivery": {
+            "count": 20,
+            "p50Ms": 6,
+            "p95Ms": 13,
+            "maxMs": 13,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.router_round": {
+            "count": 20,
+            "p50Ms": 311.45000000000005,
+            "p95Ms": 566.9,
+            "maxMs": 591.3,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.complete": {
+            "count": 20,
+            "p50Ms": 3.1,
+            "p95Ms": 3.4,
+            "maxMs": 3.4,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.finish": {
+            "count": 20,
+            "p50Ms": 0.2,
+            "p95Ms": 0.3,
+            "maxMs": 0.4,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.journal_joined": {
+            "count": 20,
+            "p50Ms": 3.75,
+            "p95Ms": 4.3,
+            "maxMs": 4.5,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/custody_join": {
+            "count": 20,
+            "p50Ms": 330.05000001192093,
+            "p95Ms": 586.7000000476837,
+            "maxMs": 612.9000000953674,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_seal_preparation_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.09999990463256836,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/server_finalize": {
+            "count": 20,
+            "p50Ms": 68.99999994039536,
+            "p95Ms": 142,
+            "maxMs": 147.09999990463257,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/local_publication": {
+            "count": 20,
+            "p50Ms": 5.649999976158142,
+            "p95Ms": 6.799999952316284,
+            "maxMs": 7.300000071525574,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_ready": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_put": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_install": {
+            "count": 20,
+            "p50Ms": 3.899999976158142,
+            "p95Ms": 5,
+            "maxMs": 7.399999976158142,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/signer_activation": {
+            "count": 20,
+            "p50Ms": 6.600000023841858,
+            "p95Ms": 7.5,
+            "maxMs": 7.699999928474426,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_existing_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_seal": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_runtime_setup": {
+            "count": 20,
+            "p50Ms": 10,
+            "p95Ms": 15,
+            "maxMs": 20,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_seal": {
+            "count": 20,
+            "p50Ms": 43,
+            "p95Ms": 46,
+            "maxMs": 48,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_route": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_unseal": {
+            "count": 20,
+            "p50Ms": 40,
+            "p95Ms": 43,
+            "maxMs": 44,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_policy_update": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_register": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 3,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_verify_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_persist": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration": {
+            "count": 20,
+            "p50Ms": 43.59999996423721,
+            "p95Ms": 48.199999928474426,
+            "maxMs": 49.300000071525574,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration_wait": {
+            "count": 20,
+            "p50Ms": 32.80000001192093,
+            "p95Ms": 36.60000002384186,
+            "maxMs": 37.40000009536743,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/durable_ready": {
+            "count": 20,
+            "p50Ms": 1.5,
+            "p95Ms": 1.7999999523162842,
+            "maxMs": 1.899999976158142,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/provisioning_total": {
+            "count": 20,
+            "p50Ms": 372.75,
+            "p95Ms": 579.3999999761581,
+            "maxMs": 612.3999999761581,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/registration_total": {
+            "count": 20,
+            "p50Ms": 937,
+            "p95Ms": 1365,
+            "maxMs": 1903.5,
+            "above2000Ms": 0
+          },
+          "signing/first/sdk_total": {
+            "count": 20,
+            "p50Ms": 385.05000001192093,
+            "p95Ms": 494.7000000476837,
+            "maxMs": 565.3000000715256,
+            "above2000Ms": 0
+          },
+          "signing/first/harness_total": {
+            "count": 20,
+            "p50Ms": 716.2571875000067,
+            "p95Ms": 784.8451249999925,
+            "maxMs": 838.466499999995,
+            "above2000Ms": 0
+          },
+          "signing/first/preparation_modal": {
+            "count": 20,
+            "p50Ms": 4.900000035762787,
+            "p95Ms": 5.800000071525574,
+            "maxMs": 6,
+            "above2000Ms": 0
+          },
+          "signing/first/authorization_probe": {
+            "count": 20,
+            "p50Ms": 14.199999988079071,
+            "p95Ms": 25.5,
+            "maxMs": 25.699999928474426,
+            "above2000Ms": 0
+          },
+          "signing/first/lane_preparation": {
+            "count": 20,
+            "p50Ms": 44.300000071525574,
+            "p95Ms": 102.80000007152557,
+            "maxMs": 112.10000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/execution_setup": {
+            "count": 20,
+            "p50Ms": 23.55000001192093,
+            "p95Ms": 54.39999997615814,
+            "maxMs": 62.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.949999988079071,
+            "p95Ms": 4.299999952316284,
+            "maxMs": 4.600000023841858,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 190.5,
+            "p95Ms": 195,
+            "maxMs": 208,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmation": {
+            "count": 20,
+            "p50Ms": 199.5999999642372,
+            "p95Ms": 205,
+            "maxMs": 217.5,
+            "above2000Ms": 0
+          },
+          "signing/first/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/first/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 3.300000011920929,
+            "p95Ms": 3.899999976158142,
+            "maxMs": 4.899999976158142,
+            "above2000Ms": 0
+          },
+          "signing/first/prepare": {
+            "count": 20,
+            "p50Ms": 19.649999976158142,
+            "p95Ms": 54,
+            "maxMs": 64.5,
+            "above2000Ms": 0
+          },
+          "signing/first/client_share": {
+            "count": 20,
+            "p50Ms": 3.5,
+            "p95Ms": 4,
+            "maxMs": 5.200000047683716,
+            "above2000Ms": 0
+          },
+          "signing/first/finalize": {
+            "count": 20,
+            "p50Ms": 22.149999976158142,
+            "p95Ms": 67.10000002384186,
+            "maxMs": 102,
+            "above2000Ms": 0
+          },
+          "signing/first/signature_total": {
+            "count": 20,
+            "p50Ms": 46.049999952316284,
+            "p95Ms": 125.69999992847443,
+            "maxMs": 172.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.6000000238418579,
+            "p95Ms": 1.5,
+            "maxMs": 1.600000023841858,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0.09999996423721313,
+            "p95Ms": 0.19999992847442627,
+            "maxMs": 0.20000004768371582,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 63.749999940395355,
+            "p95Ms": 157.5,
+            "maxMs": 227.29999995231628,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 193.5,
+            "p95Ms": 337.7000000476837,
+            "maxMs": 474.3000000715256,
+            "above2000Ms": 0
+          },
+          "signing/first/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 33.8999999165535,
+            "p95Ms": 34.799999833106995,
+            "maxMs": 35.30000019073486,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 338.5,
+            "p95Ms": 392.7000000476837,
+            "maxMs": 417.89999997615814,
+            "above2000Ms": 0
+          },
+          "signing/warm/sdk_total": {
+            "count": 20,
+            "p50Ms": 366.4500000476837,
+            "p95Ms": 431.40000009536743,
+            "maxMs": 435.2000000476837,
+            "above2000Ms": 0
+          },
+          "signing/warm/harness_total": {
+            "count": 20,
+            "p50Ms": 748.0853749999933,
+            "p95Ms": 821.8038329999981,
+            "maxMs": 844.4769579999993,
+            "above2000Ms": 0
+          },
+          "signing/warm/preparation_modal": {
+            "count": 20,
+            "p50Ms": 1.6999999284744263,
+            "p95Ms": 2,
+            "maxMs": 2.100000023841858,
+            "above2000Ms": 0
+          },
+          "signing/warm/authorization_probe": {
+            "count": 20,
+            "p50Ms": 11,
+            "p95Ms": 16.5,
+            "maxMs": 52.09999990463257,
+            "above2000Ms": 0
+          },
+          "signing/warm/lane_preparation": {
+            "count": 20,
+            "p50Ms": 39.25,
+            "p95Ms": 73.19999992847443,
+            "maxMs": 73.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/warm/execution_setup": {
+            "count": 20,
+            "p50Ms": 23.55000001192093,
+            "p95Ms": 39,
+            "maxMs": 39.799999952316284,
+            "above2000Ms": 0
+          },
+          "signing/warm/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.600000023841858,
+            "p95Ms": 2.9000000953674316,
+            "maxMs": 3.399999976158142,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 203.5,
+            "p95Ms": 207,
+            "maxMs": 208,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmation": {
+            "count": 20,
+            "p50Ms": 209.19999998807907,
+            "p95Ms": 213,
+            "maxMs": 213.29999995231628,
+            "above2000Ms": 0
+          },
+          "signing/warm/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/warm/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 3.5,
+            "p95Ms": 4.799999952316284,
+            "maxMs": 5.600000023841858,
+            "above2000Ms": 0
+          },
+          "signing/warm/prepare": {
+            "count": 20,
+            "p50Ms": 19.349999964237213,
+            "p95Ms": 41,
+            "maxMs": 52.799999952316284,
+            "above2000Ms": 0
+          },
+          "signing/warm/client_share": {
+            "count": 20,
+            "p50Ms": 1.2999999523162842,
+            "p95Ms": 1.4000000953674316,
+            "maxMs": 1.4000000953674316,
+            "above2000Ms": 0
+          },
+          "signing/warm/finalize": {
+            "count": 20,
+            "p50Ms": 20.94999998807907,
+            "p95Ms": 50.200000047683716,
+            "maxMs": 51.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/warm/signature_total": {
+            "count": 20,
+            "p50Ms": 41.85000002384186,
+            "p95Ms": 94,
+            "maxMs": 104.69999992847443,
+            "above2000Ms": 0
+          },
+          "signing/warm/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.5,
+            "p95Ms": 0.6000000238418579,
+            "maxMs": 0.6999999284744263,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 48.44999998807907,
+            "p95Ms": 99.5,
+            "maxMs": 110,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 162.80000007152557,
+            "p95Ms": 263.40000009536743,
+            "maxMs": 274.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/warm/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 32.34999996423721,
+            "p95Ms": 33.50000011920929,
+            "maxMs": 34.40000009536743,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 323.7999999523163,
+            "p95Ms": 341.89999997615814,
+            "maxMs": 372.0000001192093,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtActSessionMs": {
+            "count": 13,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationSessionFinalizeMs": {
+            "count": 3,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          }
+        }
+      }
+    }
+  },
+  "candidate-repeat": {
+    "attempted": 40,
+    "completed": 40,
+    "failed": 0,
+    "cohorts": {
+      "near_only": {
+        "completed": 20,
+        "metrics": {
+          "registration/harness_return": {
+            "count": 20,
+            "p50Ms": 1599.4684164999999,
+            "p95Ms": 1670.3129579999986,
+            "maxMs": 1781.3923750000001,
+            "above2000Ms": 0
+          },
+          "registration/harness_near_ready": {
+            "count": 20,
+            "p50Ms": 1599.468895500002,
+            "p95Ms": 1670.3134159999972,
+            "maxMs": 1781.3927500000002,
+            "above2000Ms": 0
+          },
+          "registration/iframe.iframeMountMs": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/iframe.iframeLoadWaitMs": {
+            "count": 20,
+            "p50Ms": 19,
+            "p95Ms": 53,
+            "maxMs": 56,
+            "above2000Ms": 0
+          },
+          "registration/iframe.bootHintWaitMs": {
+            "count": 20,
+            "p50Ms": 51,
+            "p95Ms": 52,
+            "maxMs": 52,
+            "above2000Ms": 0
+          },
+          "registration/iframe.handshakeMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/iframe.connectTotalMs": {
+            "count": 20,
+            "p50Ms": 71,
+            "p95Ms": 104,
+            "maxMs": 109,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.setup": {
+            "count": 20,
+            "p50Ms": 18.449999928474426,
+            "p95Ms": 20.200000047683716,
+            "maxMs": 28.5,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.authentication": {
+            "count": 20,
+            "p50Ms": 228.80000001192093,
+            "p95Ms": 238.5,
+            "maxMs": 248.29999995231628,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.respond": {
+            "count": 20,
+            "p50Ms": 20.049999952316284,
+            "p95Ms": 23.399999976158142,
+            "maxMs": 28.09999990463257,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.begin": {
+            "count": 20,
+            "p50Ms": 13.1,
+            "p95Ms": 14.1,
+            "maxMs": 16,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_credential_digest": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_d1_admission_read": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 4,
+            "maxMs": 5,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_execution": {
+            "count": 20,
+            "p50Ms": 269.5,
+            "p95Ms": 377,
+            "maxMs": 408,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_result_reconstruction": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_prepare_pair": {
+            "count": 20,
+            "p50Ms": 40,
+            "p95Ms": 45,
+            "maxMs": 62,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_verify_readiness": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_role_execution": {
+            "count": 20,
+            "p50Ms": 214,
+            "p95Ms": 284,
+            "maxMs": 322,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_signing_worker_delivery": {
+            "count": 20,
+            "p50Ms": 6,
+            "p95Ms": 7,
+            "maxMs": 24,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.router_round": {
+            "count": 20,
+            "p50Ms": 276.6,
+            "p95Ms": 382.9,
+            "maxMs": 418,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.complete": {
+            "count": 20,
+            "p50Ms": 3.5,
+            "p95Ms": 3.9,
+            "maxMs": 4.1,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.finish": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2.1,
+            "maxMs": 2.1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.custody": {
+            "count": 20,
+            "p50Ms": 310.10000002384186,
+            "p95Ms": 414.7999999523163,
+            "maxMs": 451.2000000476837,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.backup_and_checkpoint": {
+            "count": 20,
+            "p50Ms": 1.7999999523162842,
+            "p95Ms": 2.399999976158142,
+            "maxMs": 2.600000023841858,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.activate": {
+            "count": 20,
+            "p50Ms": 7.5,
+            "p95Ms": 9.699999928474426,
+            "maxMs": 13,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.provision_checkpoint": {
+            "count": 20,
+            "p50Ms": 0.949999988079071,
+            "p95Ms": 1.100000023841858,
+            "maxMs": 1.2000000476837158,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.finalize": {
+            "count": 20,
+            "p50Ms": 32.049999952316284,
+            "p95Ms": 54.5,
+            "maxMs": 83.30000007152557,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.publication": {
+            "count": 20,
+            "p50Ms": 7,
+            "p95Ms": 8.300000071525574,
+            "maxMs": 9.100000023841858,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_ready": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_put": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_existing_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_seal": {
+            "count": 20,
+            "p50Ms": 136,
+            "p95Ms": 143,
+            "maxMs": 154,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_runtime_setup": {
+            "count": 20,
+            "p50Ms": 11,
+            "p95Ms": 15,
+            "maxMs": 16,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_seal": {
+            "count": 20,
+            "p50Ms": 42,
+            "p95Ms": 43,
+            "maxMs": 44,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_route": {
+            "count": 20,
+            "p50Ms": 43,
+            "p95Ms": 46,
+            "maxMs": 62,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_unseal": {
+            "count": 20,
+            "p50Ms": 39,
+            "p95Ms": 40,
+            "maxMs": 40,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_policy_update": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_register": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_verify_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_persist": {
+            "count": 20,
+            "p50Ms": 138,
+            "p95Ms": 145,
+            "maxMs": 157,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration": {
+            "count": 20,
+            "p50Ms": 138.94999992847443,
+            "p95Ms": 145.5,
+            "maxMs": 157.39999997615814,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.session_hydration": {
+            "count": 20,
+            "p50Ms": 139.0999999642372,
+            "p95Ms": 145.89999997615814,
+            "maxMs": 158.79999995231628,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.material_activation": {
+            "count": 20,
+            "p50Ms": 9.800000011920929,
+            "p95Ms": 10.5,
+            "maxMs": 11.100000023841858,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.export_capability": {
+            "count": 20,
+            "p50Ms": 5.799999952316284,
+            "p95Ms": 6.800000071525574,
+            "maxMs": 7.5,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/near_only.wallet_ready": {
+            "count": 20,
+            "p50Ms": 1.2999999523162842,
+            "p95Ms": 1.4000000953674316,
+            "maxMs": 1.5,
+            "above2000Ms": 0
+          },
+          "registration/registration_return": {
+            "count": 20,
+            "p50Ms": 774.5,
+            "p95Ms": 912,
+            "maxMs": 949,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupMs": {
+            "count": 20,
+            "p50Ms": 16,
+            "p95Ms": 18,
+            "maxMs": 25,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupEmailOtpYaoWasmInitMs": {
+            "count": 5,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationIntentMs": {
+            "count": 20,
+            "p50Ms": 18,
+            "p95Ms": 20,
+            "maxMs": 28,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthConfirmationMs": {
+            "count": 20,
+            "p50Ms": 228.5,
+            "p95Ms": 238,
+            "maxMs": 248,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptUserMs": {
+            "count": 20,
+            "p50Ms": 200.5,
+            "p95Ms": 205,
+            "maxMs": 210,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptMountMs": {
+            "count": 20,
+            "p50Ms": 5,
+            "p95Ms": 6,
+            "maxMs": 10,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptConfirmEventMs": {
+            "count": 20,
+            "p50Ms": 195.5,
+            "p95Ms": 200,
+            "maxMs": 205,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptDecisionWaitMs": {
+            "count": 20,
+            "p50Ms": 195.5,
+            "p95Ms": 200,
+            "maxMs": 205,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateStartMs": {
+            "count": 20,
+            "p50Ms": 201,
+            "p95Ms": 206,
+            "maxMs": 210,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateMs": {
+            "count": 20,
+            "p50Ms": 26,
+            "p95Ms": 41,
+            "maxMs": 70,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthMainThreadTotalMs": {
+            "count": 20,
+            "p50Ms": 227,
+            "p95Ms": 237,
+            "maxMs": 247,
+            "above2000Ms": 0
+          },
+          "registration/sdk_registration_return": {
+            "count": 20,
+            "p50Ms": 912.8000000119209,
+            "p95Ms": 1039,
+            "maxMs": 1169.7000000476837,
+            "above2000Ms": 0
+          },
+          "signing/first/sdk_total": {
+            "count": 20,
+            "p50Ms": 377.60000002384186,
+            "p95Ms": 390.89999997615814,
+            "maxMs": 425.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/harness_total": {
+            "count": 20,
+            "p50Ms": 704.6793749999997,
+            "p95Ms": 724.2582500000062,
+            "maxMs": 738.2104170000002,
+            "above2000Ms": 0
+          },
+          "signing/first/preparation_modal": {
+            "count": 20,
+            "p50Ms": 5.100000023841858,
+            "p95Ms": 6.099999904632568,
+            "maxMs": 6.799999952316284,
+            "above2000Ms": 0
+          },
+          "signing/first/authorization_probe": {
+            "count": 20,
+            "p50Ms": 10.5,
+            "p95Ms": 13.700000047683716,
+            "maxMs": 14.399999976158142,
+            "above2000Ms": 0
+          },
+          "signing/first/lane_preparation": {
+            "count": 20,
+            "p50Ms": 32.34999996423721,
+            "p95Ms": 47.700000047683716,
+            "maxMs": 48.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/execution_setup": {
+            "count": 20,
+            "p50Ms": 21.75,
+            "p95Ms": 25.200000047683716,
+            "maxMs": 28.700000047683716,
+            "above2000Ms": 0
+          },
+          "signing/first/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.8000000715255737,
+            "p95Ms": 3.600000023841858,
+            "maxMs": 3.6999999284744263,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 198.5,
+            "p95Ms": 208,
+            "maxMs": 210,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmation": {
+            "count": 20,
+            "p50Ms": 207.5999999642372,
+            "p95Ms": 216.60000002384186,
+            "maxMs": 218.70000004768372,
+            "above2000Ms": 0
+          },
+          "signing/first/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/first/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 3.100000023841858,
+            "p95Ms": 3.5,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "signing/first/prepare": {
+            "count": 20,
+            "p50Ms": 18.75,
+            "p95Ms": 31.399999976158142,
+            "maxMs": 54.299999952316284,
+            "above2000Ms": 0
+          },
+          "signing/first/client_share": {
+            "count": 20,
+            "p50Ms": 3.400000035762787,
+            "p95Ms": 3.5,
+            "maxMs": 3.5,
+            "above2000Ms": 0
+          },
+          "signing/first/finalize": {
+            "count": 20,
+            "p50Ms": 20.25,
+            "p95Ms": 27.5,
+            "maxMs": 29.399999976158142,
+            "above2000Ms": 0
+          },
+          "signing/first/signature_total": {
+            "count": 20,
+            "p50Ms": 43.34999996423721,
+            "p95Ms": 57.700000047683716,
+            "maxMs": 87.89999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.6000000238418579,
+            "p95Ms": 0.6999999284744263,
+            "maxMs": 0.8000000715255737,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0.09999996423721313,
+            "p95Ms": 0.19999992847442627,
+            "maxMs": 0.20000004768371582,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 60.35000002384186,
+            "p95Ms": 72.5,
+            "maxMs": 103.79999995231628,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 177.30000001192093,
+            "p95Ms": 198.39999997615814,
+            "maxMs": 229.39999997615814,
+            "above2000Ms": 0
+          },
+          "signing/first/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 33.64999997615814,
+            "p95Ms": 34.99999988079071,
+            "maxMs": 35.19999980926514,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 336.75000005960464,
+            "p95Ms": 338.5,
+            "maxMs": 339.3000000715256,
+            "above2000Ms": 0
+          },
+          "signing/warm/sdk_total": {
+            "count": 20,
+            "p50Ms": 361.10000002384186,
+            "p95Ms": 366.5,
+            "maxMs": 368.10000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/harness_total": {
+            "count": 20,
+            "p50Ms": 747.5848124999975,
+            "p95Ms": 763.765707999999,
+            "maxMs": 776.0449170000029,
+            "above2000Ms": 0
+          },
+          "signing/warm/preparation_modal": {
+            "count": 20,
+            "p50Ms": 1.5999999642372131,
+            "p95Ms": 1.7999999523162842,
+            "maxMs": 1.8000000715255737,
+            "above2000Ms": 0
+          },
+          "signing/warm/authorization_probe": {
+            "count": 20,
+            "p50Ms": 9.25,
+            "p95Ms": 11.899999976158142,
+            "maxMs": 12.200000047683716,
+            "above2000Ms": 0
+          },
+          "signing/warm/lane_preparation": {
+            "count": 20,
+            "p50Ms": 28.799999952316284,
+            "p95Ms": 30.90000009536743,
+            "maxMs": 46.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/execution_setup": {
+            "count": 20,
+            "p50Ms": 21.19999998807907,
+            "p95Ms": 26.299999952316284,
+            "maxMs": 32.699999928474426,
+            "above2000Ms": 0
+          },
+          "signing/warm/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.3000000715255737,
+            "p95Ms": 3.799999952316284,
+            "maxMs": 3.899999976158142,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 217.5,
+            "p95Ms": 220,
+            "maxMs": 223,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmation": {
+            "count": 20,
+            "p50Ms": 222.25,
+            "p95Ms": 225.5,
+            "maxMs": 228,
+            "above2000Ms": 0
+          },
+          "signing/warm/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 2.600000023841858,
+            "p95Ms": 2.8000000715255737,
+            "maxMs": 3.200000047683716,
+            "above2000Ms": 0
+          },
+          "signing/warm/prepare": {
+            "count": 20,
+            "p50Ms": 18.350000023841858,
+            "p95Ms": 20.600000023841858,
+            "maxMs": 21.699999928474426,
+            "above2000Ms": 0
+          },
+          "signing/warm/client_share": {
+            "count": 20,
+            "p50Ms": 1.3000000715255737,
+            "p95Ms": 1.399999976158142,
+            "maxMs": 1.399999976158142,
+            "above2000Ms": 0
+          },
+          "signing/warm/finalize": {
+            "count": 20,
+            "p50Ms": 18.849999964237213,
+            "p95Ms": 23.399999976158142,
+            "maxMs": 30.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/signature_total": {
+            "count": 20,
+            "p50Ms": 38.89999997615814,
+            "p95Ms": 44.89999997615814,
+            "maxMs": 53.699999928474426,
+            "above2000Ms": 0
+          },
+          "signing/warm/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.3999999761581421,
+            "p95Ms": 0.5,
+            "maxMs": 0.5,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 43.450000047683716,
+            "p95Ms": 49.199999928474426,
+            "maxMs": 58.200000047683716,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 145,
+            "p95Ms": 157.80000007152557,
+            "maxMs": 178.79999995231628,
+            "above2000Ms": 0
+          },
+          "signing/warm/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 32.550000071525574,
+            "p95Ms": 33.10000014305115,
+            "maxMs": 33.299999952316284,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 322.4500000476837,
+            "p95Ms": 323.2000000476837,
+            "maxMs": 324.10000002384186,
+            "above2000Ms": 0
+          }
+        }
+      },
+      "mixed": {
+        "completed": 20,
+        "metrics": {
+          "registration/harness_return": {
+            "count": 20,
+            "p50Ms": 1101.0807710000008,
+            "p95Ms": 1119.5514579999945,
+            "maxMs": 1253.904040999998,
+            "above2000Ms": 0
+          },
+          "registration/harness_near_ready": {
+            "count": 20,
+            "p50Ms": 1880.1545414999996,
+            "p95Ms": 1899.3679579999953,
+            "maxMs": 2033.0932909999974,
+            "above2000Ms": 1
+          },
+          "registration/iframe.iframeMountMs": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/iframe.iframeLoadWaitMs": {
+            "count": 20,
+            "p50Ms": 36,
+            "p95Ms": 56,
+            "maxMs": 70,
+            "above2000Ms": 0
+          },
+          "registration/iframe.bootHintWaitMs": {
+            "count": 20,
+            "p50Ms": 51,
+            "p95Ms": 51,
+            "maxMs": 51,
+            "above2000Ms": 0
+          },
+          "registration/iframe.handshakeMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/iframe.connectTotalMs": {
+            "count": 20,
+            "p50Ms": 87,
+            "p95Ms": 108,
+            "maxMs": 122,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/early_admission": {
+            "count": 20,
+            "p50Ms": 13.249999940395355,
+            "p95Ms": 17.399999976158142,
+            "maxMs": 22,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.admission": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.1,
+            "maxMs": 0.1,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.begin": {
+            "count": 20,
+            "p50Ms": 5.1,
+            "p95Ms": 6,
+            "maxMs": 6.1,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.checkpoint": {
+            "count": 20,
+            "p50Ms": 1.3,
+            "p95Ms": 1.5,
+            "maxMs": 1.5,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.journal_prepared": {
+            "count": 20,
+            "p50Ms": 2.3,
+            "p95Ms": 2.7,
+            "maxMs": 2.7,
+            "above2000Ms": 0
+          },
+          "registration/registration_return": {
+            "count": 20,
+            "p50Ms": 576.5,
+            "p95Ms": 598,
+            "maxMs": 601,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupMs": {
+            "count": 20,
+            "p50Ms": 18,
+            "p95Ms": 20,
+            "maxMs": 59,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationWarmupEmailOtpYaoWasmInitMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.registrationIntentMs": {
+            "count": 20,
+            "p50Ms": 23,
+            "p95Ms": 37,
+            "maxMs": 39,
+            "above2000Ms": 0
+          },
+          "registration/summary.authProofMs": {
+            "count": 20,
+            "p50Ms": 202,
+            "p95Ms": 230,
+            "maxMs": 233,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthConfirmationMs": {
+            "count": 20,
+            "p50Ms": 202,
+            "p95Ms": 230,
+            "maxMs": 233,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptUserMs": {
+            "count": 20,
+            "p50Ms": 173.5,
+            "p95Ms": 202,
+            "maxMs": 205,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptMountMs": {
+            "count": 20,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "maxMs": 7,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptConfirmEventMs": {
+            "count": 20,
+            "p50Ms": 168.5,
+            "p95Ms": 197,
+            "maxMs": 200,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthPromptDecisionWaitMs": {
+            "count": 20,
+            "p50Ms": 168.5,
+            "p95Ms": 197,
+            "maxMs": 200,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateStartMs": {
+            "count": 20,
+            "p50Ms": 173.5,
+            "p95Ms": 202,
+            "maxMs": 205,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthCredentialCreateMs": {
+            "count": 20,
+            "p50Ms": 26,
+            "p95Ms": 27,
+            "maxMs": 35,
+            "above2000Ms": 0
+          },
+          "registration/summary.passkeyAuthMainThreadTotalMs": {
+            "count": 20,
+            "p50Ms": 200,
+            "p95Ms": 228,
+            "maxMs": 232,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRespondRouterMs": {
+            "count": 20,
+            "p50Ms": 53,
+            "p95Ms": 64,
+            "maxMs": 68,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRespondD1CommitMs": {
+            "count": 17,
+            "p50Ms": 1,
+            "p95Ms": 3,
+            "maxMs": 3,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRespondTotalMs": {
+            "count": 20,
+            "p50Ms": 57,
+            "p95Ms": 69,
+            "maxMs": 90,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateD1ClaimMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 5,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateRouterMs": {
+            "count": 20,
+            "p50Ms": 18,
+            "p95Ms": 21,
+            "maxMs": 33,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateBootstrapMs": {
+            "count": 3,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateD1CommitMs": {
+            "count": 16,
+            "p50Ms": 1,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaActivateTotalMs": {
+            "count": 20,
+            "p50Ms": 21.5,
+            "p95Ms": 23,
+            "maxMs": 37,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtAuthorizeMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtDeriversMs": {
+            "count": 20,
+            "p50Ms": 40,
+            "p95Ms": 48,
+            "maxMs": 49,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtDeriverAMs": {
+            "count": 20,
+            "p50Ms": 40,
+            "p95Ms": 48,
+            "maxMs": 49,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtDeriverBMs": {
+            "count": 20,
+            "p50Ms": 39.5,
+            "p95Ms": 45,
+            "maxMs": 47,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtTotalMs": {
+            "count": 20,
+            "p50Ms": 42,
+            "p95Ms": 52,
+            "maxMs": 53,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtActWorkerMs": {
+            "count": 20,
+            "p50Ms": 14,
+            "p95Ms": 16,
+            "maxMs": 29,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtActTotalMs": {
+            "count": 20,
+            "p50Ms": 14,
+            "p95Ms": 16,
+            "maxMs": 29,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverAParseMs": {
+            "count": 5,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverAPreloadMs": {
+            "count": 20,
+            "p50Ms": 35,
+            "p95Ms": 39,
+            "maxMs": 44,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverAExecuteMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 3,
+            "maxMs": 5,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverATotalMs": {
+            "count": 20,
+            "p50Ms": 38,
+            "p95Ms": 45,
+            "maxMs": 47,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBParseMs": {
+            "count": 4,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBPreloadMs": {
+            "count": 20,
+            "p50Ms": 35,
+            "p95Ms": 38,
+            "maxMs": 39,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBExecuteMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 3,
+            "maxMs": 5,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaDeriverBTotalMs": {
+            "count": 20,
+            "p50Ms": 38,
+            "p95Ms": 41,
+            "maxMs": 45,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaSigningWorkerParseMs": {
+            "count": 5,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaSigningWorkerActivateMs": {
+            "count": 20,
+            "p50Ms": 4,
+            "p95Ms": 5,
+            "maxMs": 9,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaSigningWorkerTotalMs": {
+            "count": 20,
+            "p50Ms": 4,
+            "p95Ms": 5,
+            "maxMs": 10,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationTotalMs": {
+            "count": 20,
+            "p50Ms": 325.5,
+            "p95Ms": 345,
+            "maxMs": 347,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationClientCreateMs": {
+            "count": 20,
+            "p50Ms": 6,
+            "p95Ms": 6,
+            "maxMs": 8,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationGatewayRespondMs": {
+            "count": 20,
+            "p50Ms": 63,
+            "p95Ms": 76,
+            "maxMs": 99,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationClientProofVerifyMs": {
+            "count": 20,
+            "p50Ms": 4,
+            "p95Ms": 4,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationGatewayActivateMs": {
+            "count": 20,
+            "p50Ms": 45,
+            "p95Ms": 54,
+            "maxMs": 61,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationTargetCount": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/sdk_registration_return": {
+            "count": 20,
+            "p50Ms": 743.4000000357628,
+            "p95Ms": 768.6000000238419,
+            "maxMs": 846.2999999523163,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_seal_preparation": {
+            "count": 20,
+            "p50Ms": 54,
+            "p95Ms": 56.59999990463257,
+            "maxMs": 56.89999997615814,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.router_round": {
+            "count": 20,
+            "p50Ms": 289.85,
+            "p95Ms": 318.3,
+            "maxMs": 339,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_credential_digest": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_d1_admission_read": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 4,
+            "maxMs": 4,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_execution": {
+            "count": 20,
+            "p50Ms": 280.5,
+            "p95Ms": 308,
+            "maxMs": 325,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_result_reconstruction": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_prepare_pair": {
+            "count": 20,
+            "p50Ms": 41,
+            "p95Ms": 46,
+            "maxMs": 47,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_verify_readiness": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_role_execution": {
+            "count": 20,
+            "p50Ms": 222.5,
+            "p95Ms": 232,
+            "maxMs": 259,
+            "above2000Ms": 0
+          },
+          "registration/server.execute.yao_router_signing_worker_delivery": {
+            "count": 20,
+            "p50Ms": 6,
+            "p95Ms": 10,
+            "maxMs": 25,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.complete": {
+            "count": 20,
+            "p50Ms": 3,
+            "p95Ms": 3.3,
+            "maxMs": 3.4,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.finish": {
+            "count": 20,
+            "p50Ms": 0.2,
+            "p95Ms": 0.3,
+            "maxMs": 0.4,
+            "above2000Ms": 0
+          },
+          "registration/wallet_custody_timing/custody.journal_joined": {
+            "count": 20,
+            "p50Ms": 3.7,
+            "p95Ms": 4.2,
+            "maxMs": 6.8,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/custody_join": {
+            "count": 20,
+            "p50Ms": 307.75,
+            "p95Ms": 337,
+            "maxMs": 361.09999990463257,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_seal_preparation_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/server_finalize": {
+            "count": 20,
+            "p50Ms": 67.34999996423721,
+            "p95Ms": 74.39999997615814,
+            "maxMs": 74.69999992847443,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/local_publication": {
+            "count": 20,
+            "p50Ms": 5.199999988079071,
+            "p95Ms": 5.899999976158142,
+            "maxMs": 6,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_ready": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.worker_put": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_install": {
+            "count": 20,
+            "p50Ms": 3.599999964237213,
+            "p95Ms": 3.899999976158142,
+            "maxMs": 4.100000023841858,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/signer_activation": {
+            "count": 20,
+            "p50Ms": 6.300000071525574,
+            "p95Ms": 6.799999952316284,
+            "maxMs": 7.899999976158142,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_existing_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_seal": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_runtime_setup": {
+            "count": 20,
+            "p50Ms": 10,
+            "p95Ms": 11,
+            "maxMs": 13,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_seal": {
+            "count": 20,
+            "p50Ms": 43,
+            "p95Ms": 43,
+            "maxMs": 45,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_server_route": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_client_unseal": {
+            "count": 20,
+            "p50Ms": 39,
+            "p95Ms": 40,
+            "maxMs": 40,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_apply_policy_update": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_register": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_verify_read": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration.sealed_record_persist": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration": {
+            "count": 20,
+            "p50Ms": 42.799999952316284,
+            "p95Ms": 43.299999952316284,
+            "maxMs": 44.200000047683716,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/session_hydration_wait": {
+            "count": 20,
+            "p50Ms": 32.200000047683716,
+            "p95Ms": 32.60000002384186,
+            "maxMs": 32.700000047683716,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/durable_ready": {
+            "count": 20,
+            "p50Ms": 1.5,
+            "p95Ms": 1.600000023841858,
+            "maxMs": 1.7000000476837158,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/provisioning_total": {
+            "count": 20,
+            "p50Ms": 344.69999998807907,
+            "p95Ms": 374.7000000476837,
+            "maxMs": 390.2000000476837,
+            "above2000Ms": 0
+          },
+          "registration/near_registration_timing/registration_total": {
+            "count": 20,
+            "p50Ms": 925.1500000357628,
+            "p95Ms": 968.8999999761581,
+            "maxMs": 975.6000000238419,
+            "above2000Ms": 0
+          },
+          "signing/first/sdk_total": {
+            "count": 20,
+            "p50Ms": 377.55000001192093,
+            "p95Ms": 381.59999990463257,
+            "maxMs": 383.1999999284744,
+            "above2000Ms": 0
+          },
+          "signing/first/harness_total": {
+            "count": 20,
+            "p50Ms": 705.9648330000055,
+            "p95Ms": 709.4809580000001,
+            "maxMs": 709.5958329999994,
+            "above2000Ms": 0
+          },
+          "signing/first/preparation_modal": {
+            "count": 20,
+            "p50Ms": 4.899999976158142,
+            "p95Ms": 5.300000071525574,
+            "maxMs": 5.5,
+            "above2000Ms": 0
+          },
+          "signing/first/authorization_probe": {
+            "count": 20,
+            "p50Ms": 11,
+            "p95Ms": 14.199999928474426,
+            "maxMs": 14.699999928474426,
+            "above2000Ms": 0
+          },
+          "signing/first/lane_preparation": {
+            "count": 20,
+            "p50Ms": 34.44999998807907,
+            "p95Ms": 42,
+            "maxMs": 43.10000002384186,
+            "above2000Ms": 0
+          },
+          "signing/first/execution_setup": {
+            "count": 20,
+            "p50Ms": 22.80000001192093,
+            "p95Ms": 25.600000023841858,
+            "maxMs": 27.600000023841858,
+            "above2000Ms": 0
+          },
+          "signing/first/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.75,
+            "p95Ms": 3.299999952316284,
+            "maxMs": 3.5,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 2,
+            "p95Ms": 2,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/first/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 200,
+            "p95Ms": 205,
+            "maxMs": 206,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmation": {
+            "count": 20,
+            "p50Ms": 208.85000002384186,
+            "p95Ms": 213.69999992847443,
+            "maxMs": 215.19999992847443,
+            "above2000Ms": 0
+          },
+          "signing/first/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/first/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 3.100000023841858,
+            "p95Ms": 3.4000000953674316,
+            "maxMs": 3.5,
+            "above2000Ms": 0
+          },
+          "signing/first/prepare": {
+            "count": 20,
+            "p50Ms": 18.899999976158142,
+            "p95Ms": 22,
+            "maxMs": 24.200000047683716,
+            "above2000Ms": 0
+          },
+          "signing/first/client_share": {
+            "count": 20,
+            "p50Ms": 3.3000000715255737,
+            "p95Ms": 3.5,
+            "maxMs": 3.5,
+            "above2000Ms": 0
+          },
+          "signing/first/finalize": {
+            "count": 20,
+            "p50Ms": 19.350000023841858,
+            "p95Ms": 22.800000071525574,
+            "maxMs": 25.5,
+            "above2000Ms": 0
+          },
+          "signing/first/signature_total": {
+            "count": 20,
+            "p50Ms": 42.60000002384186,
+            "p95Ms": 48.700000047683716,
+            "maxMs": 53.5,
+            "above2000Ms": 0
+          },
+          "signing/first/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.5999999046325684,
+            "p95Ms": 0.6999999284744263,
+            "maxMs": 1.4000000953674316,
+            "above2000Ms": 0
+          },
+          "signing/first/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0.09999990463256836,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/first/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 59.749999940395355,
+            "p95Ms": 66.20000004768372,
+            "maxMs": 71.59999990463257,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 178.70000004768372,
+            "p95Ms": 189.79999995231628,
+            "maxMs": 191.79999995231628,
+            "above2000Ms": 0
+          },
+          "signing/first/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 33.5,
+            "p95Ms": 35.00000011920929,
+            "maxMs": 35.200000166893005,
+            "above2000Ms": 0
+          },
+          "signing/first/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 336.5499999523163,
+            "p95Ms": 338.39999997615814,
+            "maxMs": 339.10000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/sdk_total": {
+            "count": 20,
+            "p50Ms": 362.4000000357628,
+            "p95Ms": 366.2999999523163,
+            "maxMs": 368.2000000476837,
+            "above2000Ms": 0
+          },
+          "signing/warm/harness_total": {
+            "count": 20,
+            "p50Ms": 747.2631040000051,
+            "p95Ms": 748.1860840000008,
+            "maxMs": 748.6765830000077,
+            "above2000Ms": 0
+          },
+          "signing/warm/preparation_modal": {
+            "count": 20,
+            "p50Ms": 1.600000023841858,
+            "p95Ms": 1.8000000715255737,
+            "maxMs": 1.899999976158142,
+            "above2000Ms": 0
+          },
+          "signing/warm/authorization_probe": {
+            "count": 20,
+            "p50Ms": 9.300000011920929,
+            "p95Ms": 12.5,
+            "maxMs": 16.40000009536743,
+            "above2000Ms": 0
+          },
+          "signing/warm/lane_preparation": {
+            "count": 20,
+            "p50Ms": 29.400000035762787,
+            "p95Ms": 33.300000071525574,
+            "maxMs": 40.60000002384186,
+            "above2000Ms": 0
+          },
+          "signing/warm/execution_setup": {
+            "count": 20,
+            "p50Ms": 20.94999998807907,
+            "p95Ms": 23.899999976158142,
+            "maxMs": 25.100000023841858,
+            "above2000Ms": 0
+          },
+          "signing/warm/pre_confirmation": {
+            "count": 20,
+            "p50Ms": 2.399999976158142,
+            "p95Ms": 2.5999999046325684,
+            "maxMs": 4.299999952316284,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.mountMs": {
+            "count": 20,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 2,
+            "above2000Ms": 0
+          },
+          "signing/warm/prompt.decisionWaitMs": {
+            "count": 20,
+            "p50Ms": 215.5,
+            "p95Ms": 220,
+            "maxMs": 221,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmation": {
+            "count": 20,
+            "p50Ms": 221.39999997615814,
+            "p95Ms": 225.40000009536743,
+            "maxMs": 226.30000007152557,
+            "above2000Ms": 0
+          },
+          "signing/warm/durable_lease_recovery_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/material_resolution_wait": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0,
+            "maxMs": 0,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_context": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.09999990463256836,
+            "maxMs": 0.09999990463256836,
+            "above2000Ms": 0
+          },
+          "signing/warm/wallet_session_authorization": {
+            "count": 20,
+            "p50Ms": 2.700000047683716,
+            "p95Ms": 2.899999976158142,
+            "maxMs": 2.9000000953674316,
+            "above2000Ms": 0
+          },
+          "signing/warm/prepare": {
+            "count": 20,
+            "p50Ms": 18.750000059604645,
+            "p95Ms": 22.299999952316284,
+            "maxMs": 22.600000023841858,
+            "above2000Ms": 0
+          },
+          "signing/warm/client_share": {
+            "count": 20,
+            "p50Ms": 1.2999999523162842,
+            "p95Ms": 1.399999976158142,
+            "maxMs": 1.4000000953674316,
+            "above2000Ms": 0
+          },
+          "signing/warm/finalize": {
+            "count": 20,
+            "p50Ms": 19.44999998807907,
+            "p95Ms": 22.700000047683716,
+            "maxMs": 22.799999952316284,
+            "above2000Ms": 0
+          },
+          "signing/warm/signature_total": {
+            "count": 20,
+            "p50Ms": 40,
+            "p95Ms": 43.200000047683716,
+            "maxMs": 44.300000071525574,
+            "above2000Ms": 0
+          },
+          "signing/warm/nonce_lease_commit": {
+            "count": 20,
+            "p50Ms": 0.3999999761581421,
+            "p95Ms": 0.5,
+            "maxMs": 1.2000000476837158,
+            "above2000Ms": 0
+          },
+          "signing/warm/transaction_assembly": {
+            "count": 20,
+            "p50Ms": 0,
+            "p95Ms": 0.10000002384185791,
+            "maxMs": 0.10000002384185791,
+            "above2000Ms": 0
+          },
+          "signing/warm/confirmed_to_signed": {
+            "count": 20,
+            "p50Ms": 44.44999998807907,
+            "p95Ms": 48.10000002384186,
+            "maxMs": 48.89999997615814,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_prompt_decision_wait": {
+            "count": 20,
+            "p50Ms": 147.75,
+            "p95Ms": 160.29999995231628,
+            "maxMs": 162.90000009536743,
+            "above2000Ms": 0
+          },
+          "signing/warm/unattributed_sdk": {
+            "count": 20,
+            "p50Ms": 32.59999996423721,
+            "p95Ms": 33.60000002384186,
+            "maxMs": 34.39999985694885,
+            "above2000Ms": 0
+          },
+          "signing/warm/outside_signature_total": {
+            "count": 20,
+            "p50Ms": 323,
+            "p95Ms": 323.89999997615814,
+            "maxMs": 324.2999999523163,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRtActSessionMs": {
+            "count": 8,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          },
+          "registration/summary.ecdsaRegistrationSessionFinalizeMs": {
+            "count": 4,
+            "p50Ms": 1,
+            "p95Ms": 1,
+            "maxMs": 1,
+            "above2000Ms": 0
+          }
+        }
+      }
+    }
+  }
+}

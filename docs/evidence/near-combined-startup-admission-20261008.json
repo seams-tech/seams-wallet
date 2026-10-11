@@ -1,0 +1,425 @@
+{
+  "kind": "near_combined_startup_admission_benchmark_v1",
+  "measuredOn": "2026-10-08",
+  "sourceCommits": [
+    "cf2c270628482f2bf38a129af9265969a5a2b967",
+    "fa9efc2897221ead980e69f95f8abdc654220861"
+  ],
+  "method": "Three fresh NEAR-only wallets with parallel object startup and prepared-admission reads enabled together. SDK assets and broad APAC placement remain fixed. The runner restores all original Worker versions.",
+  "summary": {
+    "name": "combined-baseline",
+    "completedWallets": 3,
+    "verifiedSignatures": 21,
+    "browserTimings": [
+      {
+        "workload": "registration_to_first_verified",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 3,
+        "medianMs": 16610.83,
+        "minimumMs": 15830.053,
+        "maximumMs": 19003.132
+      },
+      {
+        "workload": "registration_to_first_verified",
+        "metric": "sdkSigningMs",
+        "samples": 3,
+        "medianMs": 7510.195,
+        "minimumMs": 7230.81,
+        "maximumMs": 7979.525
+      },
+      {
+        "workload": "registration",
+        "metric": "yaoExecuteHttpMs",
+        "samples": 3,
+        "medianMs": 3465.656,
+        "minimumMs": 2276.055,
+        "maximumMs": 3802.38
+      },
+      {
+        "workload": "warm_signing",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 6,
+        "medianMs": 3033.003,
+        "minimumMs": 2262.758,
+        "maximumMs": 3797.376
+      },
+      {
+        "workload": "warm_signing",
+        "metric": "sdkSigningMs",
+        "samples": 6,
+        "medianMs": 2269.652,
+        "minimumMs": 1429.59,
+        "maximumMs": 3068.29
+      },
+      {
+        "workload": "unlock_to_first_verified",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 3,
+        "medianMs": 5704.479,
+        "minimumMs": 4196.289,
+        "maximumMs": 5709.006
+      },
+      {
+        "workload": "unlock_to_first_verified",
+        "metric": "sdkSigningMs",
+        "samples": 3,
+        "medianMs": 2104.94,
+        "minimumMs": 1285.47,
+        "maximumMs": 2677.49
+      },
+      {
+        "workload": "three_consecutive",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 9,
+        "medianMs": 2268.014,
+        "minimumMs": 1453.03,
+        "maximumMs": 2979.49
+      },
+      {
+        "workload": "three_consecutive",
+        "metric": "sdkSigningMs",
+        "samples": 9,
+        "medianMs": 1725.78,
+        "minimumMs": 1200.41,
+        "maximumMs": 2253.67
+      }
+    ],
+    "requestCounts": {
+      "registration_to_first_verified": [
+        14,
+        14,
+        15
+      ],
+      "warm_signing": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "unlock_to_first_verified": [
+        9,
+        9,
+        9
+      ],
+      "three_consecutive": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    "routerDispatch": {
+      "claim_registration": {
+        "samples": 3,
+        "medianMs": 483,
+        "minimumMs": 58,
+        "maximumMs": 502
+      },
+      "finish_registration": {
+        "samples": 3,
+        "medianMs": 64,
+        "minimumMs": 56,
+        "maximumMs": 73
+      },
+      "consume_registration": {
+        "samples": 3,
+        "medianMs": 482,
+        "minimumMs": 54,
+        "maximumMs": 495
+      }
+    },
+    "claimAndFinishPaired": {
+      "samples": 3,
+      "medianMs": 539,
+      "minimumMs": 122,
+      "maximumMs": 575
+    },
+    "coordinatorSpans": {
+      "router.parse_and_authorize": {
+        "samples": 3,
+        "medianMs": 497,
+        "minimumMs": 69,
+        "maximumMs": 511
+      },
+      "router.prepare_pair.deriver_b": {
+        "samples": 3,
+        "medianMs": 699,
+        "minimumMs": 326,
+        "maximumMs": 867
+      },
+      "router.prepare_pair.deriver_a": {
+        "samples": 3,
+        "medianMs": 726,
+        "minimumMs": 361,
+        "maximumMs": 735
+      },
+      "router.prepare_pair": {
+        "samples": 3,
+        "medianMs": 726,
+        "minimumMs": 361,
+        "maximumMs": 867
+      },
+      "router.verify_readiness_receipts": {
+        "samples": 3,
+        "medianMs": 0,
+        "minimumMs": 0,
+        "maximumMs": 0
+      },
+      "router.deriver_a_execute.http": {
+        "samples": 3,
+        "medianMs": 1511,
+        "minimumMs": 1392,
+        "maximumMs": 1543
+      },
+      "router.deriver_a_execute": {
+        "samples": 3,
+        "medianMs": 1511,
+        "minimumMs": 1392,
+        "maximumMs": 1543
+      },
+      "router.signing_worker_delivery": {
+        "samples": 3,
+        "medianMs": 548,
+        "minimumMs": 129,
+        "maximumMs": 646
+      },
+      "router.yao_execute": {
+        "samples": 3,
+        "medianMs": 2778,
+        "minimumMs": 2012,
+        "maximumMs": 2967
+      }
+    },
+    "startup": {
+      "calls": 3,
+      "successful": 3,
+      "timing": {
+        "samples": 3,
+        "medianMs": 1084,
+        "minimumMs": 817,
+        "maximumMs": 1201
+      }
+    },
+    "boundRootCalls": {
+      "loads": 12,
+      "roundTrips": 18,
+      "statements": 48,
+      "initialRead": {
+        "samples": 12,
+        "medianMs": 43.0,
+        "minimumMs": 0,
+        "maximumMs": 100
+      },
+      "batch": {
+        "samples": 12,
+        "medianMs": 96.5,
+        "minimumMs": 53,
+        "maximumMs": 118
+      }
+    },
+    "firstWorkByRole": {
+      "router": {
+        "objects": 3,
+        "startupObserved": 3,
+        "firstCommandAfterConstructor": 0,
+        "cpu": {
+          "samples": 3,
+          "medianMs": 14,
+          "minimumMs": 13,
+          "maximumMs": 34
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 56,
+          "minimumMs": 50,
+          "maximumMs": 75
+        }
+      },
+      "deriver-a": {
+        "objects": 3,
+        "startupObserved": 3,
+        "firstCommandAfterConstructor": 0,
+        "cpu": {
+          "samples": 3,
+          "medianMs": 113,
+          "minimumMs": 111,
+          "maximumMs": 117
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 340,
+          "minimumMs": 333,
+          "maximumMs": 355
+        }
+      },
+      "deriver-b": {
+        "objects": 3,
+        "startupObserved": 3,
+        "firstCommandAfterConstructor": 0,
+        "cpu": {
+          "samples": 3,
+          "medianMs": 132,
+          "minimumMs": 116,
+          "maximumMs": 222
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 314,
+          "minimumMs": 295,
+          "maximumMs": 418
+        }
+      },
+      "signing-worker": {
+        "objects": 3,
+        "startupObserved": 3,
+        "firstCommandAfterConstructor": 0,
+        "cpu": {
+          "samples": 3,
+          "medianMs": 25,
+          "minimumMs": 24,
+          "maximumMs": 36
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 133,
+          "minimumMs": 113,
+          "maximumMs": 135
+        }
+      }
+    },
+    "objectInvocations": {
+      "claim_registration": {
+        "cpu": {
+          "samples": 3,
+          "medianMs": 14,
+          "minimumMs": 13,
+          "maximumMs": 34
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 56,
+          "minimumMs": 50,
+          "maximumMs": 75
+        }
+      },
+      "finish_registration": {
+        "cpu": {
+          "samples": 3,
+          "medianMs": 2,
+          "minimumMs": 2,
+          "maximumMs": 5
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 55,
+          "minimumMs": 47,
+          "maximumMs": 65
+        }
+      },
+      "consume_registration": {
+        "cpu": {
+          "samples": 3,
+          "medianMs": 9,
+          "minimumMs": 7,
+          "maximumMs": 12
+        },
+        "wall": {
+          "samples": 3,
+          "medianMs": 48,
+          "minimumMs": 46,
+          "maximumMs": 53
+        }
+      }
+    }
+  },
+  "versionAudit": [
+    {
+      "role": "router",
+      "expectedVersionIds": [
+        "780bb5f3-7d0c-4471-9604-ef6f19a6e7ce"
+      ],
+      "actualInvocationCounts": {
+        "780bb5f3-7d0c-4471-9604-ef6f19a6e7ce": 18
+      },
+      "allMatched": true
+    },
+    {
+      "role": "deriver-a",
+      "expectedVersionIds": [
+        "b5496bce-8f45-4b8f-93ac-3ab99e8138a0"
+      ],
+      "actualInvocationCounts": {
+        "b5496bce-8f45-4b8f-93ac-3ab99e8138a0": 9
+      },
+      "allMatched": true
+    },
+    {
+      "role": "deriver-b",
+      "expectedVersionIds": [
+        "831c3915-a55f-4688-a3a1-c8829a9f8fe8"
+      ],
+      "actualInvocationCounts": {
+        "831c3915-a55f-4688-a3a1-c8829a9f8fe8": 12
+      },
+      "allMatched": true
+    },
+    {
+      "role": "signing-worker",
+      "expectedVersionIds": [
+        "ea6b209b-466b-4105-9384-3caaae29fa8c"
+      ],
+      "actualInvocationCounts": {
+        "ea6b209b-466b-4105-9384-3caaae29fa8c": 48
+      },
+      "allMatched": true
+    },
+    {
+      "role": "gateway",
+      "expectedVersionIds": [
+        "0bf32d3c-5445-4c2e-92b2-2ae2d8272652"
+      ],
+      "actualInvocationCounts": {
+        "0bf32d3c-5445-4c2e-92b2-2ae2d8272652": 3
+      },
+      "allMatched": true
+    }
+  ],
+  "completion": {
+    "freshWallets": 3,
+    "verifiedSignatures": 21,
+    "allVersionsRestored": true
+  },
+  "limitations": [
+    "Three sequential wallets and no concurrent control arm.",
+    "Yao execute excludes funding, NEAR provisioning, and first signature.",
+    "D1 counts cover bound-root loads only.",
+    "Application spans overlap and omit some CPU time. Their medians must not be added.",
+    "Worker and object wall times cannot isolate network latency exactly.",
+    "The two-second setup target remains unmet."
+  ],
+  "signingWorkerDelivery": [
+    {
+      "workerCpuMs": 1,
+      "workerWallMs": 637
+    },
+    {
+      "workerCpuMs": 1,
+      "workerWallMs": 540
+    },
+    {
+      "workerCpuMs": 3,
+      "workerWallMs": 124
+    }
+  ],
+  "restoration": {
+    "verifiedWorkerCount": 13,
+    "activationRun": 37702765750
+  }
+}

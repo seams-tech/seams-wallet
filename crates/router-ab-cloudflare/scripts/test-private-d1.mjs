@@ -1,4 +1,15 @@
+import { deliveryHeaders, readDeliveryBody, verifyDeliveryAddress } from './streamed-delivery-evidence.mjs';
+import { runtimeRelocationSource, runtimeRelocationDestination } from './runtime-relocation-evidence.mjs';
+import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-preparation-evidence.mjs';
+import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
+import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
 import assert from 'node:assert/strict';
+import {
+  verifyLinkedImportRejection,
+  cleanupTransferredWalletSource,
+  evictTransferredWallet,
+  returnTransferredWallet,
+} from './linked-presign-transfer-evidence.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   createHash,
@@ -71,7 +82,7 @@ const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execut
 const controlPlaneRefreshActivationPath = '/tenant-root-control-plane/refresh/v1/activate';
 const creationStateRefreshActivationPath = '/router-ab/internal/tenant-root/refresh/v1/activation';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
-const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
+const deriverAYaoExecutePath = '/router-ab/deriver-a/ed25519-yao/execute-pair';
 const deriverCleanupPath = '/router-ab/internal/deriver/tenant-root/cleanup/v1/execute';
 const controlPlaneCleanupCommandPath = '/tenant-root-control-plane/creation/v1/cleanup-command';
 const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
@@ -135,14 +146,14 @@ const ecdsaClientWasmPath = resolve(
   'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
 );
 let capturedSigningWorkerDelivery;
+let earlyDeliveryStarted;
+let rejectNextSigningWorkerDelivery = false;
 let capturedEcdsaSigningWorkerPrepare;
 let loseNextEcdsaSigningWorkerFinalizeReply = false;
-let capturedDeriverAPreparation;
 let capturedDeriverAExecution;
 let capturedDeriverAExecutionRequest;
 let competeDeriverAExecution = false;
 let dropDeriverAExecutionResponse = false;
-let holdDeriverAExecutionBeforeDispatch = false;
 let deriverBOffline = false;
 let blockedDeriverBCalls = 0;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
@@ -238,7 +249,7 @@ function recoveryCreationGrant(label, lifetimeMs) {
   return JSON.parse(output);
 }
 
-function loadFixture() {
+export function loadFixture() {
   const output = execFileSync(
     'cargo',
     [
@@ -254,7 +265,7 @@ function loadFixture() {
   return JSON.parse(output);
 }
 
-function configureRouterJwt(fixture) {
+export function configureRouterJwt(fixture) {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const keyId = 'private-d1-router-jwt-v1';
   const publicJwk = publicKey.export({ format: 'jwk' });
@@ -305,32 +316,8 @@ if (workerBuildProfile !== 'dev' && workerBuildProfile !== 'release') {
     "set ROUTER_AB_WORKER_BUILD_PROFILE to 'dev' or 'release': the run loads that profile's Worker builds",
   );
 }
-const walletObjectBuild = process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
-// `--yao-acceptance-skew <ms>`: a dev Deriver B signs its start acceptances
-// that far ahead of the other roles' clocks.
-const yaoAcceptanceSkewMs = yaoAcceptanceSkewArgument();
-// ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1: how far ahead B's timestamps may be.
-const yaoPeerMaxFutureSkewMs = 1_000;
-
-function yaoAcceptanceSkewArgument() {
-  const index = process.argv.indexOf('--yao-acceptance-skew');
-  if (index === -1) return null;
-  const value = Number(process.argv[index + 1]);
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error('--yao-acceptance-skew needs a non-negative number of milliseconds');
-  }
-  if (workerBuildProfile !== 'dev') {
-    throw new Error('--yao-acceptance-skew needs dev Worker builds');
-  }
-  return value;
-}
-
 function workerBuildRoot(role) {
-  // Release wallet-object builds have their own directory; dev builds of
-  // either variant share one, so the stamp tells them apart.
-  return workerBuildProfile === 'release' && walletObjectBuild && role !== 'tenant-root-control-plane'
-    ? join(packageRoot, 'build/wallet-do', role)
-    : join(packageRoot, workerBuildProfile === 'dev' ? 'build/dev' : 'build', role);
+  return join(packageRoot, workerBuildProfile === 'dev' ? 'build/dev' : 'build', role);
 }
 
 // The newest source file of the Worker crate and every workspace crate it
@@ -368,11 +355,9 @@ function newestWorkerSource() {
 const checkedWorkerBuilds = new Set();
 function requireCurrentWorkerBuild(role, buildRoot) {
   if (checkedWorkerBuilds.has(buildRoot)) return;
-  const walletObjects = walletObjectBuild && role !== 'tenant-root-control-plane';
+  const walletObjects = role !== 'tenant-root-control-plane';
   const variant = (objects) => (objects ? 'wallet-object' : 'role-store');
-  const rebuild = `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile}${
-    walletObjectBuild ? ' ROUTER_AB_WALLET_DO_HARNESS=enabled' : ''
-  } bash scripts/build-strict-worker.sh ${role}`;
+  const rebuild = `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile} bash scripts/build-strict-worker.sh ${role}`;
   const stampPath = join(buildRoot, 'build-stamp.json');
   if (!existsSync(stampPath)) {
     throw new Error(`${buildRoot} has no build stamp; rebuild it: ${rebuild}`);
@@ -404,6 +389,7 @@ function strictWorker(name, role, bindings) {
     name,
     modules: true,
     scriptPath: join(buildRoot, 'worker/shim.mjs'),
+    modulesRoot: repoRoot,
     modulesRules: [
       { type: 'ESModule', include: ['**/*.js', '**/*.mjs'] },
       { type: 'CompiledWasm', include: ['**/*.wasm'] },
@@ -423,8 +409,8 @@ const retirementTriggerRun = process.argv.includes('--retirement-trigger');
 // replays it; one second keeps them short.
 const shortRegistrationLeaseRun = [
   '--do-historical-replay',
-  '--do-historical-starting-replay',
   '--do-pair-lost-reply',
+  '--do-package-delivery-failure',
 ].some((flag) => process.argv.includes(flag));
 const registrationLeaseMs = 1_000;
 const admissionRecoveryWindowBinding =
@@ -434,7 +420,7 @@ const admissionRecoveryWindowBinding =
       ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '30000' }
       : {};
 
-function deriverAWorker(fixture) {
+export function deriverAWorker(fixture) {
   return {
     ...strictWorker('deriver-a', 'deriver-a', {
       ...fixture.deriver_a_env,
@@ -458,7 +444,20 @@ function deriverAWorker(fixture) {
   };
 }
 
-function deriverBWorker(fixture) {
+function deriverAWithRelocationCipherFault(fixture, fault) {
+  const worker = deriverAWorker(fixture);
+  const bindings = { ...worker.bindings };
+  if (fault === 'wrong-key') {
+    bindings[fixture.deriver_a_env.DERIVER_ROLE_PRIVATE_D1_KEK_BINDING] =
+      `hpke-x25519-role-private-d1-private-v1:${'11'.repeat(32)}`;
+  } else {
+    assert.equal(fault, 'wrong-environment');
+    bindings.DERIVER_ROLE_PRIVATE_D1_ENVIRONMENT = 'relocation-wrong-environment';
+  }
+  return { ...worker, name: `deriver-a-relocation-${fault}`, bindings };
+}
+
+export function deriverBWorker(fixture) {
   const bindings = {
     ...fixture.deriver_b_env,
     ...admissionRecoveryWindowBinding,
@@ -469,9 +468,6 @@ function deriverBWorker(fixture) {
     walletObjectClaimedRecoveryRun
   ) {
     bindings.R150_TEST_B_BURN_BEFORE_COMPLETE = 'enabled';
-  }
-  if (yaoAcceptanceSkewMs !== null) {
-    bindings.R150_TEST_YAO_ACCEPTANCE_SKEW_MS = String(yaoAcceptanceSkewMs);
   }
   return {
     ...strictWorker('deriver-b', 'deriver-b', bindings),
@@ -484,20 +480,16 @@ function deriverBWorker(fixture) {
         useSQLite: true,
       },
       // A wallet-object build keeps Deriver B's pairs in its own objects.
-      ...(process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled'
-        ? {
-            DERIVER_B_WALLET_DO: {
-              className: 'RouterAbDeriverBWalletDurableObject',
-              useSQLite: true,
-            },
-          }
-        : {}),
+      DERIVER_B_WALLET_DO: {
+        className: 'RouterAbDeriverBWalletDurableObject',
+        useSQLite: true,
+      },
     },
     serviceBindings: { DERIVER_A: 'deriver-a' },
   };
 }
 
-function signingWorker(name, databaseId, fixture) {
+export function signingWorker(name, databaseId, fixture, namespaceOwner = name) {
   return {
     ...strictWorker(name, 'signing-worker', {
       ...fixture.signing_worker_env,
@@ -514,21 +506,19 @@ function signingWorker(name, databaseId, fixture) {
     durableObjects: {
       SIGNING_WORKER_PRESIGN_SESSION_DO: {
         className: 'RouterAbSigningWorkerPresignSessionDurableObject',
+        scriptName: namespaceOwner,
         useSQLite: true,
       },
-      ...(process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled'
-        ? {
-            SIGNING_WORKER_WALLET_DO: {
-              className: 'RouterAbSigningWorkerWalletDurableObject',
-              useSQLite: true,
-            },
-          }
-        : {}),
+      SIGNING_WORKER_WALLET_DO: {
+        className: 'RouterAbSigningWorkerWalletDurableObject',
+        scriptName: namespaceOwner,
+        useSQLite: true,
+      },
     },
   };
 }
 
-function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = false) {
+export function routerWorker(fixture, capturePairExecution = false, gateDeriverB = false) {
   return {
     ...strictWorker('router', 'router', {
       ...fixture.router_env,
@@ -561,7 +551,7 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
       },
     },
     serviceBindings: {
-      DERIVER_A: capturePairPreparation ? captureDeriverAPreparation : 'deriver-a',
+      DERIVER_A: capturePairExecution ? captureDeriverAExecution : 'deriver-a',
       DERIVER_B: gateDeriverB ? routeDeriverBWithOfflineGate : 'deriver-b',
       SIGNING_WORKER: captureSigningWorkerDelivery,
       TENANT_ROOT_CONTROL_PLANE: 'tenant-root-control-plane',
@@ -691,7 +681,7 @@ function recoveryRouterWorker(fixture) {
 /// A Router with no active-root read binding and a wallet object of its own:
 /// its first run of a registration fails before any pair effect, and a
 /// retry after the claim's lease lapses replays from the roles' records.
-function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a') {
+function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a', signingWorkerBinding = captureSigningWorkerForHistoricalReplay) {
   const worker = routerWorker(fixture, false, true);
   return {
     ...worker,
@@ -705,7 +695,7 @@ function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a')
     serviceBindings: {
       ...worker.serviceBindings,
       DERIVER_A: deriverAName,
-      SIGNING_WORKER: captureSigningWorkerForHistoricalReplay,
+      SIGNING_WORKER: signingWorkerBinding,
     },
   };
 }
@@ -737,7 +727,7 @@ async function routeDeriverBWithOfflineGate(request, miniflare) {
   return worker.fetch(request);
 }
 
-function tenantRootControlPlaneWorker(fixture) {
+export function tenantRootControlPlaneWorker(fixture) {
   return {
     ...strictWorker(
       'tenant-root-control-plane',
@@ -760,14 +750,25 @@ async function captureSigningWorkerDelivery(request, miniflare) {
     capturedEcdsaSigningWorkerPrepare = await request.clone().json();
   }
   if (path === ed25519ActivationPackagesPath) {
-    signingWorkerActivationCalls += 1;
-    capturedSigningWorkerDelivery = await request.clone().text();
+    earlyDeliveryStarted?.resolve();
+    if (rejectNextSigningWorkerDelivery) {
+      rejectNextSigningWorkerDelivery = false;
+      throw new Error('Simulated early SigningWorker delivery failure');
+    }
   }
   if (path === ed25519FinalizationLookupPath) {
     signingWorkerFinalizationLookups += 1;
   }
+  const deliveryBody = path === ed25519ActivationPackagesPath
+    ? readDeliveryBody(request.clone())
+    : Promise.resolve(undefined);
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
   const response = await worker.fetch(request);
+  const receivedDelivery = await deliveryBody;
+  if (receivedDelivery !== undefined) {
+    signingWorkerActivationCalls += 1;
+    capturedSigningWorkerDelivery = receivedDelivery;
+  }
   if (path === ecdsaSigningWorkerFinalizePath && loseNextEcdsaSigningWorkerFinalizeReply) {
     loseNextEcdsaSigningWorkerFinalizeReply = false;
     assert.equal(response.ok, true, 'Simulated lost reply requires a committed signature');
@@ -784,17 +785,23 @@ async function captureSigningWorkerForHistoricalReplay(request, miniflare) {
   return captureSigningWorkerDelivery(request, miniflare);
 }
 
-async function captureDeriverAPreparation(request, miniflare) {
+function rejectEarlyDeliveryTimeout(resolve, reject) {
+  const timer = setTimeout(reject, 10_000, new Error('Delivery must start before A preparation completes'));
+  timer.unref();
+}
+
+async function captureDeriverAExecution(request, miniflare) {
   const path = new URL(request.url).pathname;
-  const isPreparation = path.endsWith('/ed25519-yao/prepare-pair');
   const isExecution = path.endsWith('/ed25519-yao/execute-pair');
-  const preparation = isPreparation ? await request.clone().json() : null;
+  if (isExecution && earlyDeliveryStarted) {
+    await Promise.race([
+      earlyDeliveryStarted.promise,
+      new Promise(rejectEarlyDeliveryTimeout),
+    ]);
+  }
   const execution = isExecution ? await request.clone().json() : null;
   if (execution) {
     capturedDeriverAExecutionRequest = execution;
-    if (holdDeriverAExecutionBeforeDispatch) {
-      return new Response('simulated held Deriver A execution', { status: 503 });
-    }
   }
   const worker = await miniflare.getWorker('deriver-a');
   let response;
@@ -814,12 +821,6 @@ async function captureDeriverAPreparation(request, miniflare) {
   } else {
     response = await worker.fetch(request);
   }
-  if (preparation && response.ok) {
-    capturedDeriverAPreparation = {
-      request: preparation,
-      receipt: await response.clone().json(),
-    };
-  }
   if (execution && response.ok) {
     capturedDeriverAExecution = {
       request: execution,
@@ -832,7 +833,7 @@ async function captureDeriverAPreparation(request, miniflare) {
   return response;
 }
 
-async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
+export async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
   const database = await miniflare.getD1Database(binding, workerName);
   const migrationFiles = (await readdir(migrationsPath))
     .filter((file) => file.endsWith('.sql'))
@@ -907,6 +908,7 @@ function authenticatedJsonRequest(body, additionalHeaders = {}) {
     headers: {
       'content-type': 'application/json',
       [internalAuthHeader]: internalAuthSecret,
+      'x-seams-wallet-home-region': 'US',
       ...additionalHeaders,
     },
     body: JSON.stringify(body),
@@ -1138,7 +1140,7 @@ async function testTenantRootCommandReplayCasGuard(database, expectedRole) {
   );
 }
 
-async function testTenantRootCreationOperatingPath(topology, fixture, databases) {
+export async function testTenantRootCreationOperatingPath(topology, fixture, databases) {
   const router = await topology.getWorker('router');
   const backupBucketA = await topology.getR2Bucket(managedBackupR2Binding, 'deriver-a');
   const backupBucketB = await topology.getR2Bucket(managedBackupR2Binding, 'deriver-b');
@@ -1313,8 +1315,14 @@ async function testTenantRootCreationOperatingPath(topology, fixture, databases)
 /// ceremony that must be freed, its request, binding and bearer token. Each
 /// `label` names a distinct lifecycle, session and replay nonce; `identity`
 /// names the tenant root's organisation, project and environment.
-function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identity = null) {
-  const accountId = `${label}-account`;
+function buildEcdsaRegistration(
+  fixture,
+  jwtSigner,
+  label = 'ecdsa-live',
+  identity = null,
+  accountId = `${label}-account`,
+  projectEnvironmentId = 'project-environment-miniflare',
+) {
   const clientId = `${label}-client`;
   const sessionId = `${label}-session`;
   const lifecycleId = `${label}-lifecycle`;
@@ -1400,8 +1408,9 @@ function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identi
       org_id: identity?.orgId ?? 'org-miniflare',
       project_id: identity?.projectId ?? 'project-r120',
       environment: identity?.envId ?? 'test',
-      project_environment_id: 'project-environment-miniflare',
+      project_environment_id: projectEnvironmentId,
       account_id: accountId,
+      ownership_generation: 1,
       routerAbRequestPolicy: {
         policyVersion: 'router-ab-ecdsa-registration-v1',
         workKind: 'registration_prepare',
@@ -1427,7 +1436,15 @@ function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identi
   }
 }
 
-async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner) {
+export async function testEcdsaRegistrationAndActivation(
+  topology,
+  fixture,
+  tenantRoot,
+  jwtSigner,
+  label = 'ecdsa-live',
+  walletId = `${label}-account`,
+  projectEnvironmentId = 'project-environment-miniflare',
+) {
   ensureEcdsaClientWasm();
   const router = await topology.getWorker('router');
   const {
@@ -1441,7 +1458,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
     registrationRequest,
     binding,
     token,
-  } = buildEcdsaRegistration(fixture, jwtSigner);
+  } = buildEcdsaRegistration(fixture, jwtSigner, label, null, walletId, projectEnvironmentId);
   try {
     const registrationBytes = await expectOk(
       await postWorkerJson(
@@ -1492,19 +1509,17 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       'live Router ECDSA activation',
     );
     const activation = JSON.parse(activationBytes.toString('utf8'));
-    if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
-      const changedOwner = JSON.parse(JSON.stringify(activationBody));
-      changedOwner.pending.wallet_scope.project_environment_id = 'another-project-environment';
-      const rejected = await postWorkerJson(router, ecdsaActivationPath, changedOwner, {
-        authorization: `Bearer ${token}`,
-      });
-      const rejectedBody = Buffer.from(await rejected.arrayBuffer()).toString('utf8');
-      assert.equal(rejected.status, 500, rejectedBody);
-      assert.match(
-        rejectedBody,
-        /ECDSA activation owner differs from the verified ceremony session/,
-      );
-    }
+    const changedOwner = JSON.parse(JSON.stringify(activationBody));
+    changedOwner.pending.wallet_scope.project_environment_id = 'another-project-environment';
+    const rejected = await postWorkerJson(router, ecdsaActivationPath, changedOwner, {
+      authorization: `Bearer ${token}`,
+    });
+    const rejectedBody = Buffer.from(await rejected.arrayBuffer()).toString('utf8');
+    assert.equal(rejected.status, 500, rejectedBody);
+    assert.match(
+      rejectedBody,
+      /ECDSA activation owner differs from the verified ceremony session/,
+    );
     assert.equal(activation.activated, true);
     assert.equal(
       activation.lifecycle_id,
@@ -1601,6 +1616,8 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       'exact live activation retry must preserve the complete public identity',
     );
     return {
+      walletScope: activationBody.pending.wallet_scope,
+      executionHome: { workerName: 'fixture-signing-worker', ownershipGeneration: 1 },
       activation,
       activationBody,
       activationBytes,
@@ -1655,24 +1672,20 @@ function parseEcdsaPresignProgress(bytes, sessionId, label) {
   return progress;
 }
 
-async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true) {
-  const signingWorker = await topology.getWorker('fixture-signing-worker');
+export async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true, lifetimeMs = 120_000, pauseAfterInitMs = 0, onInitialized = null) {
+  const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const authority = {
     kind: 'owner_wallet_session',
-    wallet_scope: {
-      org_id: 'org-miniflare',
-      project_id: 'project-r120',
-      project_environment_id: 'project-environment-miniflare',
-      wallet_id: ecdsa.accountId,
-    },
+    ownership_generation: ecdsa.executionHome.ownershipGeneration,
+    wallet_scope: ecdsa.walletScope,
   };
   const groupPublicKey = Buffer.from(
     scope.public_identity.threshold_public_key33_b64u,
     'base64url',
   );
   assert.equal(groupPublicKey.length, 33, 'ECDSA aggregate public key must be compressed secp256k1');
-  const expiresAtMs = Date.now() + 120_000;
+  const expiresAtMs = Date.now() + lifetimeMs;
   const presignSessionId = `ecdsa-presign-v2:${expiresAtMs}:${randomBytes(32).toString("base64url")}`;
   const client = new EcdsaRoleLocalPresignSessionV1(
     ecdsa.finalized.stateBlob.stateBlobB64u,
@@ -1696,6 +1709,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
         ...initRequest,
         authority: {
           kind: 'owner_wallet_session',
+          ownership_generation: authority.ownership_generation,
           wallet_scope: { ...authority.wallet_scope, wallet_id: 'another-wallet' },
         },
       });
@@ -1716,6 +1730,8 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
       'ECDSA presign session init',
     );
     assert.equal(progress.outgoing_messages_b64u.length, 2);
+    if (onInitialized) onInitialized();
+    if (pauseAfterInitMs > 0) await new Promise(resolvePause.bind(null, pauseAfterInitMs));
     let exchanges = 1;
     while (progress.kind !== 'complete' && exchanges < 8) {
       for (const message of progress.outgoing_messages_b64u) {
@@ -1752,7 +1768,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
       if (checkRejections && exchanges === 1) {
         const changedAuthority = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
           ...stepRequest,
-          authority: { kind: 'operation_step_up', wallet_scope: authority.wallet_scope },
+          authority: { kind: 'operation_step_up', ownership_generation: authority.ownership_generation, wallet_scope: authority.wallet_scope },
         });
         assert.equal(changedAuthority.ok, false, 'A changed authority must not advance presigning');
         assert.match(await changedAuthority.text(), /authority does not match initialized session/);
@@ -1760,11 +1776,12 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
           ...stepRequest,
           authority: {
             kind: 'owner_wallet_session',
+            ownership_generation: authority.ownership_generation,
             wallet_scope: { ...authority.wallet_scope, org_id: 'another-org' },
           },
         });
         assert.equal(changedTenant.ok, false, 'A changed tenant must not advance presigning');
-        assert.match(await changedTenant.text(), /authority does not match initialized session/);
+        assert.match(await changedTenant.text(), /ExpiredLocalRequest: (Presign authority is unavailable|SigningWorker ECDSA presign authority is unavailable)/);
         const peerBearer = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, stepRequest, {
           [internalAuthHeader]: internalAuthSecret,
         });
@@ -1785,12 +1802,12 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
     assert.equal(client.stage(), 'done');
     if (checkRejections) {
     const objectIds = await topology.listDurableObjectIds(
-      'SIGNING_WORKER_PRESIGN_SESSION_DO', 'fixture-signing-worker',
+      'SIGNING_WORKER_PRESIGN_SESSION_DO', ecdsa.executionHome.workerName,
     );
     assert.ok(objectIds.length > 0);
     for (const id of objectIds) {
       await topology.unsafeEvictDurableObject(
-        'fixture-signing-worker', 'RouterAbSigningWorkerPresignSessionDurableObject', { id },
+        ecdsa.executionHome.workerName, 'RouterAbSigningWorkerPresignSessionDurableObject', { id },
       );
     }
     const replay = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest);
@@ -1844,14 +1861,25 @@ function buildEcdsaAuthorizedOperation(operationId, operationDigests) {
   };
 }
 
-async function testEcdsaNormalSigning(
+function resolvePause(delayMs, resolve) {
+  setTimeout(resolve, delayMs);
+}
+
+function signingSignatureDigest(signing) {
+  return createHash('sha256')
+    .update(Buffer.from(signing.response.signature65_b64u, 'base64url'))
+    .digest('hex');
+}
+
+export async function testEcdsaNormalSigning(
   topology,
   ecdsa,
   mode = 'pool',
   checkRejections = true,
   interruptAfterClaim = false,
+  routerName = 'router',
 ) {
-  const router = await topology.getWorker('router');
+  const router = await topology.getWorker(routerName);
   const presign = await runEcdsaPresignSession(topology, ecdsa, mode, checkRejections);
   try {
     const operationId = `ecdsa-live-normal-sign-operation-${randomBytes(16).toString('hex')}`;
@@ -1871,16 +1899,17 @@ async function testEcdsaNormalSigning(
     };
     const acceptedBinding = {
       kind: 'gateway_owner_wallet_session',
+      ownership_generation: ecdsa.executionHome.ownershipGeneration,
       subject_id: ecdsa.accountId,
       account_id: ecdsa.accountId,
       authorization_id: 'ecdsa-live-normal-authorization',
       wallet_session_id: authorization.wallet_session_id,
       quota_id: 'ecdsa-live-normal-quota',
       threshold_session_id: 'ecdsa-live-normal-threshold-session',
-      org_id: 'org-miniflare',
-      project_id: 'project-r120',
+      org_id: ecdsa.walletScope.org_id,
+      project_id: ecdsa.walletScope.project_id,
       environment: 'test',
-      project_environment_id: 'project-environment-miniflare',
+      project_environment_id: ecdsa.walletScope.project_environment_id,
       signing_worker_id: ecdsa.selectedServerId,
       expires_at_ms: expiresAtMs,
     };
@@ -1924,7 +1953,7 @@ async function testEcdsaNormalSigning(
       assert.equal(bundled.ok, false, 'Bundled final batch must be gated before signing admission');
       assert.match(await bundled.text(), /Bundled final presign batch is gated/);
 
-      const signingWorker = await topology.getWorker('fixture-signing-worker');
+      const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
       if (checkRejections) {
         assert.ok(capturedEcdsaSigningWorkerPrepare, 'A prior Router admission must be available');
         const forgedWorkerPrepare = await postWorkerJson(
@@ -1972,12 +2001,34 @@ async function testEcdsaNormalSigning(
       assert.deepEqual(Buffer.from(presign.client.presignature_big_r_33()), presign.clientBigR);
       delete prepareRequest.presign_source;
     }
+    if (ecdsa.executionHome.ownershipGeneration > 1) {
+      const stale = structuredClone(prepareRequest);
+      stale.authorized_operation.binding.ownership_generation -= 1;
+      const rejected = await postWorkerJson(router, ecdsaSigningPreparePath, stale);
+      assert.equal(
+        rejected.ok,
+        false,
+        'The previous ownership generation cannot reserve destination material',
+      );
+      assert.match(await rejected.text(), /Wallet relocation has closed ECDSA pool admission|ECDSA wallet activation material is missing/);
+    }
     const prepareResponse = await postWorkerJson(
       router,
       ecdsaSigningPreparePath,
       prepareRequest,
     );
     const prepareBytes = await expectOk(prepareResponse, 'live ECDSA normal-signing prepare');
+    if (ecdsa.executionHome.ownershipGeneration > 1) {
+      await evictTransferredWallet(topology, ecdsa.executionHome.workerName, {
+        org_id: ecdsa.walletScope.org_id,
+        project_id: ecdsa.walletScope.project_id,
+        project_environment_id: ecdsa.walletScope.project_environment_id,
+        wallet_id: ecdsa.accountId,
+      }, ecdsa.executionHome.ownershipGeneration);
+      const replayResponse = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
+      const replayBytes = await expectOk(replayResponse, 'destination ECDSA prepare retry');
+      assert.deepEqual(replayBytes, prepareBytes, 'Prepare retry must preserve the exact response');
+    }
     const response = JSON.parse(prepareBytes.toString('utf8'));
     const prepared = response;
     assert.equal(prepared.request_id, prepareRequest.request_id);
@@ -2033,11 +2084,11 @@ async function testEcdsaNormalSigning(
       assert.match(interruptedBody, /R150 test interrupted after ECDSA claim/);
       const objectIds = await topology.listDurableObjectIds(
         'RouterAbSigningWorkerWalletDurableObject',
-        'fixture-signing-worker',
+        ecdsa.executionHome.workerName,
       );
       assert.equal(objectIds.length, 1);
       await topology.unsafeEvictDurableObject(
-        'fixture-signing-worker',
+        ecdsa.executionHome.workerName,
         'RouterAbSigningWorkerWalletDurableObject',
         { id: objectIds[0] },
       );
@@ -2048,7 +2099,7 @@ async function testEcdsaNormalSigning(
       assert.equal(retry.status, 409, `interrupted retry response: ${retryBody}`);
       assert.match(retryBody, /^ReplayedLocalRequest: /);
       assert.match(retryBody, /SigningWorker ECDSA effect is already in progress/);
-      const signingWorker = await topology.getWorker('fixture-signing-worker');
+      const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
       const consumedPrepare = await postWorkerJson(
         signingWorker,
         ecdsaSigningWorkerPreparePath,
@@ -2057,7 +2108,7 @@ async function testEcdsaNormalSigning(
       assert.equal(consumedPrepare.ok, false, 'interrupted presignature must stay consumed');
       return { finalizeRequest, pendingAfterEviction: true, materialConsumed: true };
     }
-    if (mode === 'prepare' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+    if (mode === 'prepare') {
       loseNextEcdsaSigningWorkerFinalizeReply = true;
       const lostReply = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
       assert.equal(lostReply.ok, false, 'Simulated lost SigningWorker reply must reach Router');
@@ -2091,19 +2142,17 @@ async function testEcdsaNormalSigning(
         ...finalizeRequest, client_signature_share32_b64u: base64urlBytes(Buffer.alloc(32, 0x66)),
       });
       assert.equal(substituted.ok, false, 'Consumed material cannot be rebound to different finalization input');
-      if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
-        const signingWorker = await topology.getWorker('fixture-signing-worker');
-        const consumedPrepare = await postWorkerJson(
-          signingWorker,
-          ecdsaSigningWorkerPreparePath,
-          capturedEcdsaSigningWorkerPrepare,
-        );
-        assert.equal(
-          consumedPrepare.ok,
-          false,
-          'Consumed wallet-DO material cannot be prepared again',
-        );
-      }
+      const signingWorker = await topology.getWorker(ecdsa.executionHome.workerName);
+      const consumedPrepare = await postWorkerJson(
+        signingWorker,
+        ecdsaSigningWorkerPreparePath,
+        capturedEcdsaSigningWorkerPrepare,
+      );
+      assert.equal(
+        consumedPrepare.ok,
+        false,
+        'Consumed wallet-DO material cannot be prepared again',
+      );
     }
     return { prepare: prepared, response: signed, finalizeRequest };
   } finally {
@@ -2111,7 +2160,262 @@ async function testEcdsaNormalSigning(
   }
 }
 
-function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot, source = fixture[fixtureKey]) {
+async function activateEcdsaThroughRouter(topology, receipt) {
+  const source = await runtimeRelocationSource(topology, gatewayToRouterAuthSecret, { scope: receipt.scope, request: receipt.request });
+  const destination = await runtimeRelocationDestination(topology, source);
+  const headers = { [internalAuthHeader]: gatewayToRouterAuthSecret };
+  const previousTarget = signingWorkerDeliveryTarget;
+  try {
+    signingWorkerDeliveryTarget = 'fixture-signing-worker';
+    const frozen = await postWorkerJson(source, '/router-ab/signing-worker/wallet/pool/freeze', {
+      scope: receipt.scope, request: receipt.request,
+    }, headers);
+    assert.deepEqual(await frozen.json(), { state: 'frozen', receipt });
+    const exported = await postWorkerJson(source, '/router-ab/signing-worker/wallet/ecdsa/export', {
+      receipt, segment_index: 0, chunk_bytes: 4096,
+    }, headers);
+    const chunk = await exported.json();
+    assert.equal(exported.status, 200, JSON.stringify(chunk));
+    assert.deepEqual(chunk.receipt, receipt);
+    assert.equal(chunk.segment_index, 0);
+    const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+    const command = { kind: 'activate', receipt };
+    const premature = await postWorkerJson(source, path, { kind: 'cleanup', activation: receipt }, headers);
+    assert.equal(premature.status, 409);
+    destination.env.WALLET_CONSOLE.receiptMode = 'lost_reply';
+    const lost = await postWorkerJson(destination, path, command, headers);
+    assert.equal(lost.status, 503);
+    assert.deepEqual(destination.env.WALLET_CONSOLE.ecdsaActivation, receipt);
+    await evictTransferredWallet(topology, 'fixture-signing-worker-after-refresh', receipt.scope, receipt.request.source_generation + 1);
+    destination.env.WALLET_CONSOLE.receiptMode = 'available';
+    const activated = await postWorkerJson(destination, path, command, headers);
+    assert.deepEqual(await activated.json(), { kind: 'activated', receipt });
+    const replay = await postWorkerJson(destination, path, command, headers);
+    assert.deepEqual(await replay.json(), { kind: 'activated', receipt });
+    return source;
+  } finally {
+    signingWorkerDeliveryTarget = previousTarget;
+  }
+}
+
+async function cleanupEcdsaThroughRuntime(topology, runtime, receipt) {
+  const previousTarget = signingWorkerDeliveryTarget;
+  const path = '/router-ab/signing-worker/wallet/ecdsa/transfer';
+  const command = { kind: 'cleanup', activation: receipt };
+  const headers = { [internalAuthHeader]: gatewayToRouterAuthSecret };
+  try {
+    signingWorkerDeliveryTarget = 'fixture-signing-worker';
+    for (let step = 1; step <= 64; step += 1) {
+      const response = await postWorkerJson(runtime, path, command, headers);
+      const result = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(result));
+      await evictTransferredWallet(topology, 'fixture-signing-worker', receipt.scope, receipt.request.source_generation);
+      if (result.kind === 'cleaned') {
+        const replay = await postWorkerJson(runtime, path, command, headers);
+        assert.deepEqual(await replay.json(), result);
+        return { boundedCalls: step, exactCompletionReplay: true, runtimeUsesStoredActivation: true };
+      }
+      assert.equal(result.kind, 'cleaning');
+    }
+    assert.fail('ECDSA cleanup must complete within 64 bounded commands');
+  } finally {
+    signingWorkerDeliveryTarget = previousTarget;
+  }
+}
+
+function isDelayedPresignAuthority(presignSessionId, record) {
+  return record.kind === 'presign_authority' && record.row.presign_session_id === presignSessionId;
+}
+
+export async function completeOwnerPresignBeforePublication(topology, ecdsa, fixture) {
+  const pending = await runEcdsaPresignSession(topology, ecdsa, 'prepare', false);
+  try {
+    const namespace = await topology.getDurableObjectNamespace(
+      'SIGNING_WORKER_PRESIGN_SESSION_DO',
+      ecdsa.executionHome.workerName,
+    );
+    const hostDigest = createHash('sha256').update(JSON.stringify([
+      'owner-presign-host/v1',
+      pending.presignSource.batch.authority.wallet_scope,
+      pending.scope.material_activation,
+    ])).digest('base64url');
+    const hostName = `${fixture.signing_worker_env.SIGNING_WORKER_PRESIGN_SESSION_DO_OBJECT}-${hostDigest}`;
+    const generation = pending.presignSource.batch.authority.ownership_generation;
+    const physicalHost = generation === 1 ? hostName : `${hostName}/generation/${generation}`;
+    const host = namespace.get(namespace.idFromName(physicalHost));
+    const response = await postWorkerJson(
+      host,
+      '/router-ab/internal/signing-worker/ecdsa-presign-session/step',
+      {
+        request: pending.presignSource.batch,
+      },
+    );
+    const completed = JSON.parse(
+      (await expectOk(response, 'owner presign completion before publication')).toString('utf8'),
+    );
+    assert.equal(completed.kind, 'complete');
+    return {
+      command: 'publish_ecdsa_presignature',
+      ownership_generation: completed.authority.ownership_generation,
+      completed_at_ms: Date.now(),
+      scope: completed.authority.wallet_scope,
+      presign_session_id: pending.presignSource.batch.presign_session_id,
+      request: completed.pool_put_request,
+    };
+  } finally {
+    pending.client.free();
+  }
+}
+
+async function publishOwnerPresignature(topology, publication) {
+  const namespace = await topology.getDurableObjectNamespace(
+    signingWorkerWalletDoBinding,
+    'fixture-signing-worker',
+  );
+  const wallet = namespace.get(
+    namespace.idFromName(signingWorkerWalletDoObjectName(publication.scope, publication.ownership_generation)),
+  );
+  return postWorkerJson(wallet, '/router-ab/internal/signing-worker/wallet', publication);
+}
+
+export async function rejectDelayedPresignPublication(topology, publication, expectedError) {
+  const response = await publishOwnerPresignature(topology, publication);
+  assert.equal(response.ok, false, 'Old completed presign work cannot enter the wallet pool');
+  assert.match(await response.text(), expectedError);
+}
+
+async function verifyEcdsaWalletRelocation(topology, fixture, ecdsa) {
+  const readyPublication = await completeOwnerPresignBeforePublication(topology, ecdsa, fixture);
+  const firstPublicationResponse = await publishOwnerPresignature(topology, readyPublication);
+  const firstPublication = JSON.parse(
+    (await expectOk(firstPublicationResponse, 'fresh owner publication')).toString('utf8'),
+  );
+  assert.equal(firstPublication.stored, true);
+  await evictTransferredWallet(topology, 'fixture-signing-worker', readyPublication.scope, readyPublication.ownership_generation);
+  const repeatedPublicationResponse = await publishOwnerPresignature(topology, readyPublication);
+  const repeatedPublication = JSON.parse(
+    (await expectOk(repeatedPublicationResponse, 'owner publication after lost reply')).toString('utf8'),
+  );
+  assert.deepEqual(repeatedPublication, { ...firstPublication, stored: false });
+  const delayedPublication = await completeOwnerPresignBeforePublication(topology, ecdsa, fixture);
+  const delayedPresign = await runEcdsaPresignSession(topology, ecdsa, 'prepare', false);
+  const delayedBatch = delayedPresign.presignSource.batch;
+  delayedPresign.client.free();
+
+  const linkedImportRejection = await verifyLinkedImportRejection(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    internalAuthSecret,
+    fixture.linked_presign_init,
+    ecdsa,
+    gatewayToRouterAuthSecret,
+  );
+  const receipt = linkedImportRejection.initializedTransfer.walletInventory.sourceFreezeReceipt;
+  const frozenSource = await topology.getWorker('fixture-signing-worker');
+  const authorityChunks = [];
+  let authoritySegmentCount = 1;
+  for (let segmentIndex = 0; segmentIndex < authoritySegmentCount; segmentIndex += 1) {
+    const response = await postWorkerJson(frozenSource, '/router-ab/signing-worker/wallet/ecdsa/export', {
+      receipt, segment_index: segmentIndex, chunk_bytes: 4096,
+    }, { [internalAuthHeader]: routerToSigningWorkerEcdsaAuthSecret });
+    const chunk = JSON.parse((await expectOk(response, 'source authority snapshot')).toString('utf8'));
+    authoritySegmentCount = chunk.segment_count;
+    authorityChunks.push(Buffer.from(chunk.data_b64u, 'base64url'));
+  }
+  const authorityRecords = Buffer.concat(authorityChunks).toString('utf8').trimEnd().split('\n').slice(1).map(JSON.parse);
+  const delayedAuthorities = authorityRecords.filter(isDelayedPresignAuthority.bind(null, delayedBatch.presign_session_id));
+  assert.equal(delayedAuthorities.length, 1, 'Snapshot must retain the delayed presign authority');
+  assert.equal(JSON.parse(delayedAuthorities[0].row.authority_json).ownership_generation, 1);
+  const duringMove = await postWorkerJson(frozenSource, ecdsaPresignSessionStepPath, delayedBatch);
+  assert.equal(duringMove.ok, false, 'A delayed owner refill cannot publish into the frozen source');
+  assert.match(await duringMove.text(), /closed ECDSA pool admission/);
+  await rejectDelayedPresignPublication(topology, delayedPublication, /closed ECDSA pool admission/);
+  const runtime = await activateEcdsaThroughRouter(topology, receipt);
+  ecdsa.executionHome = {
+    workerName: 'fixture-signing-worker-after-refresh',
+    ownershipGeneration: receipt.request.source_generation + 1,
+  };
+  signingWorkerDeliveryTarget = ecdsa.executionHome.workerName;
+  const beforeCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const generationTwoHosts = await topology.listDurableObjectIds(
+    'RouterAbSigningWorkerPresignSessionDurableObject', 'fixture-signing-worker',
+  );
+  const cleanup = await cleanupEcdsaThroughRuntime(topology, runtime, receipt);
+  const afterCleanup = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  assert.deepEqual((await topology.listDurableObjectIds(
+    'RouterAbSigningWorkerPresignSessionDurableObject', 'fixture-signing-worker',
+  )).sort(), [...generationTwoHosts].sort(), 'Repeated destination refill must reuse its generation host');
+  const returned = await returnTransferredWallet(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    receipt,
+  );
+  ecdsa.executionHome = {
+    workerName: 'fixture-signing-worker',
+    ownershipGeneration: returned.receipt.request.source_generation + 1,
+  };
+  signingWorkerDeliveryTarget = ecdsa.executionHome.workerName;
+  const returnedSource = await topology.getWorker('fixture-signing-worker');
+  const afterReturnRefill = await postWorkerJson(returnedSource, ecdsaPresignSessionStepPath, delayedBatch);
+  const afterReturnRefillBody = await afterReturnRefill.text();
+  assert.equal(afterReturnRefill.ok, false, `A delayed owner refill must remain retired after a return move: ${afterReturnRefillBody}`);
+  assert.match(afterReturnRefillBody, /Presign authority is unavailable/);
+  await rejectDelayedPresignPublication(topology, delayedPublication, /Presign authority is unavailable/);
+  const afterReturn = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+  const generationThreeHosts = await topology.listDurableObjectIds(
+    'RouterAbSigningWorkerPresignSessionDurableObject', 'fixture-signing-worker',
+  );
+  assert.equal(generationThreeHosts.length, generationTwoHosts.length + 1,
+    'The return generation must create one fresh reusable owner host');
+  const returnCleanup = await cleanupTransferredWalletSource(
+    topology,
+    routerToSigningWorkerEcdsaAuthSecret,
+    returned.receipt,
+    'fixture-signing-worker-after-refresh',
+  );
+  return {
+    linkedImportRejection,
+    signingAfterRelocation: {
+      freezeExportAndActivationUseAuthenticatedRouter: true,
+      activationReceiptLostReplyRecovered: true,
+      activationAndCleanupUseJournalAuthority: true,
+      scope:
+        'SigningWorker transfer and fresh ECDSA execution; Gateway routing is selected by the harness. Excludes the complete wallet coordinator.',
+      ownershipGeneration: receipt.request.source_generation + 1,
+      sharedSigningWorkerAndPresignNamespaces: true,
+      repeatedDestinationRefillReusesHost: true,
+      returnGenerationCreatesOneFreshOwnerHost: true,
+      freshPresignatureAndSignatureBeforeCleanup: true,
+      freshPresignatureAndSignatureAfterCleanup: true,
+      staleGenerationRejectedBeforeReservation: true,
+      delayedOwnerRefillRejectedAfterReturn: true,
+      delayedOwnerAuthorityPreservedInSnapshot: true,
+      completedPresignPublicationRejectedDuringMoveAndAfterReturn: true,
+      ownerPublicationReplayAfterWalletEviction: true,
+      exactPrepareReplayAfterEviction: true,
+      beforeCleanupSignatureSha256Hex: createHash('sha256')
+        .update(Buffer.from(beforeCleanup.response.signature65_b64u, 'base64url'))
+        .digest('hex'),
+      afterCleanupSignatureSha256Hex: createHash('sha256')
+        .update(Buffer.from(afterCleanup.response.signature65_b64u, 'base64url'))
+        .digest('hex'),
+      cleanup,
+      returnTransfer: {
+        preparationWithoutInvalidationTime: returned.preparationWithoutInvalidationTime,
+        ownershipGeneration: ecdsa.executionHome.ownershipGeneration,
+        segments: returned.segments,
+        historicalSessionsPreservedWithoutBlockingFreeze: true,
+        delayedOldCleanupReplayedWithoutDeletingReturnedWallet: true,
+        freshSignatureSha256Hex: createHash('sha256')
+          .update(Buffer.from(afterReturn.response.signature65_b64u, 'base64url'))
+          .digest('hex'),
+        cleanup: returnCleanup,
+      },
+    },
+  };
+}
+
+export function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot, source = fixture[fixtureKey]) {
   const identity = tenantRoot.identity ?? (fixtureKey.startsWith('second_tenant')
     ? fixture.tenant_root_creation.second_tenant_identity
     : fixture.tenant_root_creation.identity);
@@ -2164,7 +2468,7 @@ function parseEd25519ActivationResult(bytes, label) {
   return { result, publicReceipt };
 }
 
-async function captureValidActivationDelivery(
+export async function captureValidActivationDelivery(
   topology,
   fixture,
   tenantRoot,
@@ -2844,7 +3148,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   let result = await create(unused);
   assert.equal(result.status, 200, result.body);
   const epochOneReceipt = (await activeState(unused)).activation_receipt_b64u;
-  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoPreparePath);
+  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoExecutePath);
   const heldRegistration = register(unused, races.held_preparation);
   const heldPreparation = await hold.held;
   assert.equal(
@@ -2932,7 +3236,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
 
   return {
     unusedBinding: {
-      heldBefore: 'deriver_a_prepare_pair',
+      heldBefore: 'deriver_a_execute_pair',
       refreshStatus: unusedRefresh.status,
       deriverAPreparationStatus: preparationAnswer.status,
       deriverAPreparationBody: preparationAnswer.body.slice(0, 200),
@@ -3036,13 +3340,13 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
         (
           await database
             .prepare(
-              `SELECT tenant_root_share_epoch AS epoch, status, pair_object_name
+              `SELECT tenant_root_share_epoch AS epoch, status, pair_object_id
                FROM tenant_root_root_use_admissions
                WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms`,
             )
             .bind(ceremony.custody_lineage_b64u)
             .all()
-        ).results.map((row) => [row.epoch, row.status, row.pair_object_name !== null]),
+        ).results.map((row) => [row.epoch, row.status, row.pair_object_id !== null]),
       ),
     );
   const revision = async (database, ceremony, epoch) =>
@@ -3082,7 +3386,7 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
     const database = role === 'deriver_a' ? databases.deriverA : databases.deriverB;
     const row = await database
       .prepare(
-        `SELECT attempt_key_hex, pair_object_name FROM tenant_root_root_use_admissions
+        `SELECT attempt_key_hex, pair_object_id FROM tenant_root_root_use_admissions
          WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2`,
       )
       .bind(ceremony.custody_lineage_b64u, epoch)
@@ -3090,7 +3394,7 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
     const binding = role === 'deriver_a' ? deriverAWalletDoBinding : 'DERIVER_B_WALLET_DO';
     const worker = role === 'deriver_a' ? 'deriver-a' : 'deriver-b';
     const namespace = await topology.getDurableObjectNamespace(binding, worker);
-    const object = namespace.get(namespace.idFromName(row.pair_object_name));
+    const object = namespace.get(namespace.idFromString(row.pair_object_id));
     const response = await object.fetch(
       `https://router-ab-do.internal/router-ab/internal/${worker}/wallet-pair/reconcile`,
       {
@@ -3122,19 +3426,24 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
 }
 
 async function testWalletObjectAdmissionSettlement(topology, fixture, databases) {
-  assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
   const { create, refresh, register, succeeded, admissions, retire, objectReport } =
     await rootLifecycleHelpers(topology, fixture, databases);
   const races = fixture.admission_race;
 
-  // Root R: a held registration is fenced in both objects.
+  // Root R: B is admitted before the held A execution. Retirement fences B.
+  // A must refuse its old root when the combined request resumes.
   const fenced = recoveryCreationGrant('do-admission-fence', 60_000);
   await create(fenced);
   const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const heldRegistration = register(fenced, races.held_preparation);
   await hold.held;
+  // The Router sends B its preparation while A's execution is held.
+  for (let attempt = 0; (await admissions(fenced))[1].length === 0; attempt += 1) {
+    assert.ok(attempt < 500, 'Deriver B must admit the registration');
+    await sleep(10);
+  }
   const whileHeld = await admissions(fenced);
-  assert.deepEqual(whileHeld, [[[1, 'admitted', true]], [[1, 'admitted', true]]]);
+  assert.deepEqual(whileHeld, [[], [[1, 'admitted', true]]]);
   await refresh(fenced, 'harness-do-admission-fence');
   await sleep(1_100);
   const bFenced = await retire(fenced, 'deriver_b');
@@ -3144,14 +3453,13 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   const refused = await heldRegistration;
   assert.ok(!succeeded(refused), refused.body);
   const aFenced = await retire(fenced, 'deriver_a');
-  assert.equal(aFenced.cancelled_admissions, 1, JSON.stringify(aFenced));
-  assert.equal(await objectReport(fenced, 'deriver_a', 1), 'fenced');
-  assert.deepEqual(await admissions(fenced), [[[1, 'cancelled', true]], [[1, 'cancelled', true]]]);
+  assert.equal(aFenced.cancelled_admissions, 0, JSON.stringify(aFenced));
+  assert.deepEqual(await admissions(fenced), [[], [[1, 'cancelled', true]]]);
   const fresh = await register(fenced, races.after_refresh);
   assert.ok(succeeded(fresh), fresh.body);
   const afterFresh = await admissions(fenced);
   assert.deepEqual(afterFresh, [
-    [[1, 'cancelled', true], [2, 'settled', true]],
+    [[2, 'settled', true]],
     [[1, 'cancelled', true], [2, 'settled', true]],
   ]);
 
@@ -3208,18 +3516,10 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   };
 }
 
-/// Opt-in (`--retirement-trigger`, either build). The Router erases a
-/// refresh's retired epoch on a later pass, once the grace after the swap has
-/// passed and each role's work on it has settled. The grace is one second
-/// here, and `W` thirty.
-/// 1. A registration is admitted at both Derivers and its execute is held. A
-///    refresh moves the root to epoch 2, and reports both roles keeping
-///    epoch 1: the grace.
-/// 2. After the grace, an exact retry of the refresh is a pass. Both roles
-///    keep epoch 1, since the held work on it has not settled.
-/// 3. Released, the work completes on epoch 1 and settles.
-/// 4. The next pass erases epoch 1 at both roles. A retry replays the
-///    recorded erasures exactly.
+/// B admits a registration while its combined A request is held. Retirement
+/// can erase A's unused epoch after the grace. B retains its admitted epoch
+/// until the recovery window permits cancellation. The held A request must
+/// refuse the retired epoch, and a fresh registration must use the new epoch.
 async function testRetirementTrigger(topology, fixture, databases) {
   const { activeState, create, register, succeeded, admissions, races } =
     await rootLifecycleHelpers(topology, fixture, databases);
@@ -3257,47 +3557,53 @@ async function testRetirementTrigger(topology, fixture, databases) {
       ),
     );
 
-  // 1. Work admitted on epoch 1 is held over the refresh.
+  // 1. B admits epoch 1 before the held combined A request.
   const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
   const registering = register(root, races.after_delivery);
   await hold.held;
-  assert.deepEqual(await statuses(root), [[[1, 'admitted']], [[1, 'admitted']]]);
+  // The Router sends B its preparation while A's execution is held.
+  for (let attempt = 0; (await statuses(root))[1].length === 0; attempt += 1) {
+    assert.ok(attempt < 500, 'Deriver B must admit the registration');
+    await sleep(10);
+  }
+  assert.deepEqual(await statuses(root), [[], [[1, 'admitted']]]);
   const first = await refresh();
   const refreshedAt = Date.now();
   assert.deepEqual(retirementKinds(first.retirement), ['pending', 'pending'], JSON.stringify(first));
   assert.match(first.retirement.deriver_a.reason, /the grace after the swap/);
 
-  // 2. After the grace, the unsettled work keeps epoch 1 at both roles.
+  // 2. A has no admission. B must retain its unsettled epoch after the grace.
   await sleep(Math.max(0, refreshedAt + 1_100 - Date.now()));
   const whileHeld = await refresh();
-  assert.deepEqual(retirementKinds(whileHeld.retirement), ['pending', 'pending']);
-  for (const role of ['deriver_a', 'deriver_b']) {
-    assert.match(whileHeld.retirement[role].reason, /1 admitted operation\(s\) are not settled/);
-  }
-  assert.deepEqual(await epochOneShares(), [1, 1]);
+  assert.deepEqual(retirementKinds(whileHeld.retirement), ['erased', 'pending']);
+  assert.match(whileHeld.retirement.deriver_b.reason, /1 admitted operation\(s\) are not settled/);
+  assert.deepEqual(await epochOneShares(), [0, 1]);
 
-  // 3. The work completes on its epoch.
+  // 3. A cannot start new work on its erased epoch. A fresh registration succeeds.
   hold.release();
   const registered = await registering;
-  assert.ok(succeeded(registered), registered.body);
-  assert.deepEqual(await statuses(root), [[[1, 'settled']], [[1, 'settled']]]);
+  assert.equal(succeeded(registered), false, registered.body);
+  assert.deepEqual(await statuses(root), [[], [[1, 'admitted']]]);
+  const fresh = await register(root, races.after_refresh);
+  assert.ok(succeeded(fresh), fresh.body);
+  assert.deepEqual(await statuses(root), [[[2, 'settled']], [[1, 'admitted'], [2, 'settled']]]);
 
-  // 4. The next pass erases epoch 1; a retry replays the recorded erasures.
+  // 4. B can cancel its unclaimed preparation after the recovery window.
+  await sleep(Math.max(0, refreshedAt + 31_000 - Date.now()));
   const erased = await refresh();
   assert.deepEqual(retirementKinds(erased.retirement), ['erased', 'erased'], JSON.stringify(erased));
-  for (const role of ['deriver_a', 'deriver_b']) {
-    assert.equal(erased.retirement[role].cancelled_admissions, 0);
-  }
+  assert.equal(erased.retirement.deriver_a.cancelled_admissions, 0);
+  assert.equal(erased.retirement.deriver_b.cancelled_admissions, 1);
   assert.deepEqual(await epochOneShares(), [0, 0]);
   const replayed = await refresh();
   assert.deepEqual(replayed.retirement, erased.retirement);
   return {
     kind: 'tenant_root_retirement_trigger_workers_e2e_v1',
-    build: process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled' ? 'wallet_objects' : 'role_store',
+    build: 'wallet_objects',
     graceMs: 1000,
     firstRefresh: retirementKinds(first.retirement),
     afterGraceWhileWorkHeld: [retirementKinds(whileHeld.retirement), whileHeld.retirement.deriver_b.reason],
-    heldWork: 'succeeded on epoch 1',
+    heldWork: 'refused erased A epoch; fresh registration succeeded on epoch 2',
     afterSettlement: retirementKinds(erased.retirement),
     epochOneSharesAfter: [0, 0],
     recordedErasuresReplayExactly: true,
@@ -3394,7 +3700,7 @@ async function testReplayAfterErasure(topology, fixture, databases) {
   assert.deepEqual(await statuses(root), settled);
   return {
     kind: 'tenant_root_replay_after_erasure_workers_e2e_v1',
-    build: process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled' ? 'wallet_objects' : 'role_store',
+    build: 'wallet_objects',
     registration: 'succeeded on epoch 1',
     retired: retired.map((cleanup) => [cleanup.kind, cleanup.cancelled_admissions]),
     epochOneShares,
@@ -3873,88 +4179,6 @@ async function testTenantRootRefreshAbandonmentAfterExpiry(topology, databases) 
   };
 }
 
-async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
-  assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
-  const { request, receipt } = capturedDeriverAPreparation;
-  const walletId = request.pair_binding.ceremony.binding.lifecycle.account_id;
-  const owner = {
-    org_id: rootIdentity.orgId,
-    project_id: rootIdentity.projectId,
-    env_id: rootIdentity.envId,
-    wallet_id: walletId,
-  };
-  const objectName = deriverAWalletDoObjectName(owner);
-  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
-  const objectId = namespace.idFromName(objectName);
-  const object = namespace.get(objectId);
-  const record = {
-    status: 'prepared',
-    pair_binding: request.pair_binding,
-    root_metadata_digest: receipt.root_metadata_digest.bytes,
-    expires_at_ms: receipt.expires_at_ms,
-    receipt,
-    payload: {
-      tenant_root: request.tenant_root,
-      work: request.work,
-      input: request.input,
-    },
-  };
-  const prepare = {
-    operation: 'prepare',
-    owner,
-    root_identity: rootIdentity,
-    record,
-    now_ms: receipt.prepared_at_ms,
-  };
-  const first = await callDeriverAWalletDo(object, prepare);
-  assert.equal(first.status, 200, `Deriver A wallet DO prepare: ${JSON.stringify(first.body)}`);
-  assert.equal(first.body.result.kind, 'applied');
-  assert.equal(first.body.result.revision, 1);
-  const duplicate = await callDeriverAWalletDo(object, prepare);
-  assert.equal(duplicate.body.result.kind, 'duplicate');
-  assert.equal(duplicate.body.result.revision, 1);
-  const changedExpiry = await callDeriverAWalletDo(object, {
-    ...prepare,
-    record: { ...record, expires_at_ms: receipt.expires_at_ms + 1 },
-  });
-  assert.equal(changedExpiry.body.result.kind, 'rejected');
-
-  await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
-    id: objectId.toString(),
-  });
-  const lookup = { operation: 'read', owner, pair_binding: request.pair_binding };
-  const recovered = await callDeriverAWalletDo(object, lookup);
-  assert.equal(recovered.body.kind, 'read');
-  assert.equal(recovered.body.revision, 1);
-  assert.deepEqual(recovered.body.record, record);
-
-  const expired = await callDeriverAWalletDo(object, {
-    operation: 'expire',
-    owner,
-    pair_binding: request.pair_binding,
-    now_ms: receipt.expires_at_ms + 1,
-  });
-  assert.equal(expired.body.result.kind, 'applied');
-  assert.equal(expired.body.result.record.status, 'expired');
-  const late = await callDeriverAWalletDo(object, { ...prepare, now_ms: receipt.expires_at_ms + 1 });
-  assert.equal(late.body.result.kind, 'rejected');
-  const wrongOwner = await callDeriverAWalletDo(object, {
-    ...lookup,
-    owner: { ...owner, org_id: `${owner.org_id}-other` },
-  });
-  assert.notEqual(wrongOwner.status, 200);
-  const wrongWallet = await callDeriverAWalletDo(object, {
-    ...lookup,
-    owner: { ...owner, wallet_id: `${owner.wallet_id}-other` },
-  });
-  assert.notEqual(wrongWallet.status, 200);
-  const wrongRole = await callDeriverAWalletDo(object, {
-    ...lookup,
-    owner: { ...owner, role: 'deriver_b' },
-  });
-  assert.notEqual(wrongRole.status, 200);
-}
-
 function deriverAWalletDoObjectName(owner) {
   return `deriver-a-wallet-${createHash('sha256')
     .update('seams/deriver-a/wallet-do/v1')
@@ -3964,11 +4188,12 @@ function deriverAWalletDoObjectName(owner) {
 
 /// The SigningWorker's wallet object for one wallet scope, whose fields are
 /// in the order the SigningWorker serializes them.
-function signingWorkerWalletDoObjectName(scope) {
-  return `signing-worker-wallet-${createHash('sha256')
+function signingWorkerWalletDoObjectName(scope, generation = 1) {
+  const logicalName = `signing-worker-wallet-${createHash('sha256')
     .update('seams/signing-worker/wallet-do/v1')
     .update(JSON.stringify(scope))
     .digest('hex')}`;
+  return generation === 1 ? logicalName : `${logicalName}/generation/${generation}`;
 }
 
 /// Loses or fences one registration activation in the SigningWorker's
@@ -3999,12 +4224,36 @@ async function deriverBPairStatus(topology, rootIdentity, pairBinding) {
   const deriverB = await topology.getWorker('deriver-b');
   const bytes = await expectOk(
     await postWorkerJson(deriverB, deriverBPairStatusPath, {
+      wallet_home: 'US',
+      ownership_generation: 1,
       root_identity: rootIdentity,
       pair_binding: pairBinding,
     }),
     'Deriver B pair status',
   );
   return JSON.parse(bytes.toString('utf8'));
+}
+
+async function signRelocatedEd25519(topology, activation, fixture, destinationName, ownershipGeneration) {
+  const priorTarget = signingWorkerDeliveryTarget;
+  signingWorkerDeliveryTarget = destinationName;
+  try {
+    return await verifyEd25519DestinationSigning({
+      topology,
+      routerName: 'router',
+      activation: activation.result.result.result,
+      identity: fixture.tenant_root_creation.identity,
+      clientRecipientSeed: fixture.activation.client_recipient_seed,
+      ownershipGeneration,
+      credential: gatewayToRouterAuthSecret,
+      repoRoot,
+      evictWallet: evictTransferredWallet.bind(
+        undefined, topology, destinationName, JSON.parse(activation.delivery).scope, ownershipGeneration,
+      ),
+    });
+  } finally {
+    signingWorkerDeliveryTarget = priorTarget;
+  }
 }
 
 async function testDeriverAWalletDoExecution(
@@ -4015,8 +4264,11 @@ async function testDeriverAWalletDoExecution(
   databases,
 ) {
   competeDeriverAExecution = true;
+  earlyDeliveryStarted = Promise.withResolvers();
   const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
+  earlyDeliveryStarted = undefined;
   competeDeriverAExecution = false;
+  const streamedDelivery = await verifyDeliveryAddress(topology, activation, internalAuthSecret);
   assert.ok(capturedDeriverAExecution, 'Deriver A execute request must be captured');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
@@ -4110,7 +4362,7 @@ async function testDeriverAWalletDoExecution(
     '/router-ab/deriver-a/ed25519-yao/execute-pair',
     mismatchedRoot,
   );
-  assert.notEqual(mismatched.status, 200, 'root identity must match its signed receipt');
+  assert.notEqual(mismatched.status, 200, 'root identity must match its activation receipt');
   const afterMismatch = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
@@ -4145,9 +4397,36 @@ async function testDeriverAWalletDoExecution(
     .first();
   assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
+  // A preparation of the completed pair for another wallet object. Nothing
+  // executes it, so its root metadata digest only has to be present.
+  const preparedAtMs = Date.now();
+  const prepared = {
+    request: {
+      pair_binding: secondRecord.body.record.pair_binding,
+      tenant_root: secondRecord.body.record.payload.tenant_root,
+      work: secondRecord.body.record.payload.work,
+      input: secondRecord.body.record.payload.input,
+    },
+    rootMetadataDigest: [...createHash('sha256').update('deriver-a-relocation-fixture-root').digest()],
+    preparedAtMs,
+    expiresAtMs: preparedAtMs + 60_000,
+  };
+  const deriverPreparation = await verifyDeriverPreparation(
+    topology, secondOwner, secondIdentity, prepared, internalAuthSecret,
+  );
+  const ed25519Snapshot = await verifyEd25519Snapshot(
+    topology, activation, fixture, routerToSigningWorkerEcdsaAuthSecret, gatewayToRouterAuthSecret, internalAuthSecret, signRelocatedEd25519,
+  );
+  const deriverSourceFences = await verifyDeriverSourceFences(
+    topology, secondOwner, secondIdentity, prepared, internalAuthSecret,
+  );
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
-    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
+    streamedDelivery: { ...streamedDelivery, startedBeforePreparationCompleted: true },
+    deriverSourceFences,
+    deriverPreparation,
+    ed25519Snapshot,
+    reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile} node ./scripts/test-private-d1.mjs --do-pair-execution`,
     registeredPublicKey: activation.publicReceipt.registered_public_key,
     outcomeSha256Hex: createHash('sha256').update(JSON.stringify(firstResponse)).digest('hex'),
     aD1PairRows: aRows.count,
@@ -4159,7 +4438,7 @@ async function testDeriverAWalletDoExecution(
     stableOwnerDerivationAcrossRootVersions: true,
     crossTenantAndWalletReadsRejected: true,
     secondTenantRegistrationUsedSeparateWalletObject: true,
-    mismatchedRootReceiptRejectedWithoutWrite: true,
+    mismatchedRootIdentityRejectedWithoutWrite: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-execution.json');
   await mkdir(dirname(artifactPath), { recursive: true });
@@ -4322,7 +4601,7 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
   const artifact = {
     kind: 'yao_historical_registration_replay_e2e_v1',
     reproduce:
-      'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
+      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
     exactResponseSha256Hex: createHash('sha256').update(replayBytes).digest('hex'),
     replayAfterLapsedClaimWithEvictedAAndUnavailableRoot: true,
     bUnavailableAndUnchanged: true,
@@ -4362,7 +4641,7 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
     });
     assert.equal(missingBearer.status, 403, `${path} must reject a missing bearer`);
   }
-  assert.equal(capturedDeriverAPreparation, undefined);
+  assert.equal(capturedDeriverAExecutionRequest, undefined);
   const bRows = await databases.deriverB
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
@@ -4386,92 +4665,18 @@ async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databa
   assert.ok(collidingResponse.status >= 500, 'shared Gateway credential must fail closed');
 }
 
-async function testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases) {
-  capturedDeriverAExecutionRequest = undefined;
-  holdDeriverAExecutionBeforeDispatch = true;
-  const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
-  const router = await topology.getWorker('router');
-  const initialResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
-  holdDeriverAExecutionBeforeDispatch = false;
-  const initialBody = (await responseBytes(initialResponse)).toString('utf8');
-  if (initialResponse.status === 200) {
-    assert.notEqual(JSON.parse(initialBody).status, 'succeeded');
-  }
-  assert.ok(capturedDeriverAExecutionRequest, 'Router must reach A execution after preparation');
-  const pair = capturedDeriverAExecutionRequest.pair_binding;
-  const rootIdentity = fixture.tenant_root_creation.identity;
-  const owner = {
-    org_id: rootIdentity.orgId,
-    project_id: rootIdentity.projectId,
-    env_id: rootIdentity.envId,
-    wallet_id: pair.ceremony.binding.lifecycle.account_id,
-  };
-  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
-  const object = namespace.get(namespace.idFromName(deriverAWalletDoObjectName(owner)));
-  const prepared = await callDeriverAWalletDo(object, {
-    operation: 'read',
-    owner,
-    pair_binding: pair,
-  });
-  assert.equal(prepared.body.record.status, 'prepared');
-  const started = await callDeriverAWalletDo(object, {
-    operation: 'reserve',
-    owner,
-    pair_binding: pair,
-    local_receipt: capturedDeriverAExecutionRequest.local_receipt,
-    peer_receipt: capturedDeriverAExecutionRequest.peer_receipt,
-    execution_id: pair.pair_digest.bytes,
-    now_ms: Date.now(),
-  });
-  assert.equal(started.status, 200, `A start claim: ${JSON.stringify(started.body)}`);
-  assert.equal(started.body.result.kind, 'applied');
-  assert.equal(started.body.result.record.status, 'starting');
-  deriverBOffline = true;
-  blockedDeriverBCalls = 0;
-  const replayRouter = await topology.getWorker('router-replay');
-  await firstRunLeavingClaim(replayRouter, envelope);
-  const pendingBytes = await expectOk(
-    await postWorkerJson(replayRouter, ed25519ExecutePath, envelope),
-    'historical replay after A start claim',
-  );
-  assert.deepEqual(JSON.parse(pendingBytes.toString('utf8')), {
-    status: 'recoverable_failure',
-    code: 'service_unavailable',
-    retry_after_ms: 1000,
-  });
-  assert.equal(historicalReplayActivationCalls, 0);
-  assert.equal(blockedDeriverBCalls, 0);
-  const stillStarting = await callDeriverAWalletDo(object, {
-    operation: 'read',
-    owner,
-    pair_binding: pair,
-  });
-  assert.equal(stillStarting.body.record.status, 'starting');
-  assert.equal(stillStarting.body.revision, started.body.result.revision);
-  const bAfter = await deriverBPairStatus(topology, rootIdentity, pair);
-  assert.equal(bAfter.status, 'prepared');
-
-  const artifact = {
-    kind: 'yao_historical_replay_after_a_start_claim_e2e_v1',
-    reproduce:
-      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-starting-replay',
-    startingARevision: started.body.result.revision,
-    replayStayedPendingAfterAStartClaim: true,
-    noReplayActivationOrBCall: true,
-  };
-  const artifactPath = join(repoRoot, '.artifacts/r150/yao-historical-starting-replay.json');
-  await mkdir(dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
-  console.log(JSON.stringify({ ...artifact, artifactPath }));
-}
-
 async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases) {
-  dropDeriverAExecutionResponse = true;
+  const deliveryFailure = process.argv.includes('--do-package-delivery-failure');
+  rejectNextSigningWorkerDelivery = deliveryFailure;
+  dropDeriverAExecutionResponse = !deliveryFailure;
   capturedDeriverAExecution = undefined;
   const router = await topology.getWorker('router');
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
   const routerResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
   const routerBody = (await responseBytes(routerResponse)).toString('utf8');
+  if (deliveryFailure) {
+    assert.equal(routerResponse.status, 500, 'Early delivery failure must remain a retryable service error');
+  }
   if (routerResponse.status === 200) {
     assert.notEqual(
       JSON.parse(routerBody).status,
@@ -4514,6 +4719,8 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   });
   assert.equal(stored.body.record.status, 'completed');
   const scopedLookup = {
+    wallet_home: 'US',
+    ownership_generation: 1,
     root_identity: rootIdentity,
     pair_binding: capturedDeriverAExecution.request.pair_binding,
   };
@@ -4594,7 +4801,9 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   assert.equal(afterReplay.body.revision, stored.body.revision);
   const artifact = {
     kind: 'deriver_a_wallet_do_lost_reply_e2e_v1',
-    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply',
+    earlyDeliveryFailureIsRetryable: deliveryFailure,
+    initialHttpStatus: routerResponse.status,
+    reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=release node ./scripts/test-private-d1.mjs ${deliveryFailure ? '--do-package-delivery-failure' : '--do-pair-lost-reply'}`,
     outcomeSha256Hex: createHash('sha256')
       .update(JSON.stringify(capturedDeriverAExecution.response))
       .digest('hex'),
@@ -4606,7 +4815,9 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     wrongTenantRootAndExecutionCancellationLeftStateUnchanged: true,
     exactReplayAfterLostReplyAndEviction: true,
   };
-  const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-lost-reply.json');
+  const artifactPath = join(repoRoot, deliveryFailure
+    ? '.artifacts/r150/early-package-delivery-failure.json'
+    : '.artifacts/r150/deriver-a-wallet-do-lost-reply.json');
   await mkdir(dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(JSON.stringify({ ...artifact, artifactPath }));
@@ -4614,7 +4825,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
 
 async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases) {
   capturedSigningWorkerDelivery = undefined;
-  capturedDeriverAPreparation = undefined;
+  capturedDeriverAExecutionRequest = undefined;
   const router = await topology.getWorker('router');
   const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
   const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
@@ -4622,20 +4833,20 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
   if (response.status === 200) {
     assert.notEqual(JSON.parse(responseBody).status, 'succeeded');
   }
-  assert.ok(capturedDeriverAPreparation, 'A pair preparation must reach the wallet DO');
+  assert.ok(capturedDeriverAExecutionRequest, 'A pair preparation must reach the wallet DO');
   assert.equal(capturedSigningWorkerDelivery, undefined);
 
   const bTerminal = await deriverBPairStatus(
     topology,
     fixture.tenant_root_creation.identity,
-    capturedDeriverAPreparation.request.pair_binding,
+    capturedDeriverAExecutionRequest.pair_binding,
   );
   assert.equal(bTerminal.status, 'burned', 'B must persist the injected burn');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
   assert.equal(aRows.count, 0);
-  const pair = capturedDeriverAPreparation.request.pair_binding;
+  const pair = capturedDeriverAExecutionRequest.pair_binding;
   const rootIdentity = fixture.tenant_root_creation.identity;
   const owner = {
     org_id: rootIdentity.orgId,
@@ -4672,50 +4883,6 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
     noFreshBExecutionOnReplay: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/deriver-b-completion-burn-race.json');
-  await mkdir(dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
-  console.log(JSON.stringify({ ...artifact, artifactPath }));
-}
-
-// Deriver B's start acceptance arrives `skewMs` ahead of Deriver A's clock.
-// Within the bound the pair starts and the activation completes; beyond it
-// Deriver A refuses the start, and nothing reaches the SigningWorker.
-async function testYaoAcceptanceSkew(topology, fixture, tenantRoot, skewMs) {
-  const withinBound = skewMs <= yaoPeerMaxFutureSkewMs;
-  let outcome;
-  let responseStatus;
-  if (withinBound) {
-    const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
-    assert.ok(activation.delivery);
-    outcome = 'succeeded';
-    responseStatus = 200;
-  } else {
-    capturedSigningWorkerDelivery = undefined;
-    const router = await topology.getWorker('router');
-    const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
-    const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
-    const body = (await responseBytes(response)).toString('utf8');
-    responseStatus = response.status;
-    if (response.status === 200) {
-      assert.notEqual(JSON.parse(body).status, 'succeeded', body);
-    }
-    assert.equal(capturedSigningWorkerDelivery, undefined);
-    outcome = 'refused';
-  }
-  const build = walletObjectBuild ? 'wallet_objects' : 'role_store';
-  const artifact = {
-    kind: 'yao_acceptance_clock_skew_e2e_v1',
-    reproduce: `${walletObjectBuild ? 'ROUTER_AB_WALLET_DO_HARNESS=enabled ' : ''}ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --yao-acceptance-skew ${skewMs}`,
-    build,
-    skewMs,
-    boundMs: yaoPeerMaxFutureSkewMs,
-    outcome,
-    responseStatus,
-  };
-  const artifactPath = join(
-    repoRoot,
-    `.artifacts/r150/yao-acceptance-skew-${build}-${skewMs}.json`,
-  );
   await mkdir(dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(JSON.stringify({ ...artifact, artifactPath }));
@@ -5067,10 +5234,7 @@ async function postSigningWorkerDelivery(worker, delivery) {
     'https://private.test/router-ab/signing-worker/ed25519-yao/activation/packages',
     {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        [internalAuthHeader]: internalAuthSecret,
-      },
+      headers: deliveryHeaders(JSON.parse(delivery), internalAuthSecret),
       body: delivery,
     },
   );
@@ -5221,24 +5385,40 @@ async function testConcurrentActivationAndLostResponse(fixture, delivery) {
   }
 }
 
+function deriverRelocationDestination(worker, binding) {
+  return {
+    ...worker,
+    name: `${worker.name}-relocation-destination`,
+    durableObjects: {
+      ...worker.durableObjects,
+      [binding]: { ...worker.durableObjects[binding], scriptName: worker.name },
+    },
+  };
+}
+
 async function main() {
   const fixture = loadFixture();
   const jwtSigner = configureRouterJwt(fixture);
-  const testWalletDo = process.argv.includes('--do-pair-store');
   const testWalletDoExecution = process.argv.includes('--do-pair-execution');
-  const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
+  const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply')
+    || process.argv.includes('--do-package-delivery-failure');
   const testHistoricalReplay = process.argv.includes('--do-historical-replay');
-  const testHistoricalStartingReplay = process.argv.includes('--do-historical-starting-replay');
   const testDeriverBCompletionBurn = process.argv.includes('--do-pair-b-burn-before-complete');
   const topology = new Miniflare({
     workers: [
       routerWorker(
         fixture,
-        testWalletDo || testWalletDoExecution || testWalletDoLostReply ||
-          testHistoricalReplay || testHistoricalStartingReplay || testDeriverBCompletionBurn,
+        testWalletDoExecution || testWalletDoLostReply ||
+          testHistoricalReplay || testDeriverBCompletionBurn,
         testWalletDoLostReply,
       ),
       deriverAWorker(fixture),
+      ...(testWalletDoExecution ? [
+        deriverRelocationDestination(deriverAWorker(fixture), deriverAWalletDoBinding),
+        deriverRelocationDestination(deriverBWorker(fixture), 'DERIVER_B_WALLET_DO'),
+        deriverAWithRelocationCipherFault(fixture, 'wrong-key'),
+        deriverAWithRelocationCipherFault(fixture, 'wrong-environment'),
+      ] : []),
       deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
       signingWorker('fixture-signing-worker', 'fixture-signing-worker-d1', fixture),
@@ -5246,10 +5426,13 @@ async function main() {
         'fixture-signing-worker-after-refresh',
         'fixture-signing-worker-after-refresh-d1',
         fixture,
+        testWalletDoExecution || process.argv.includes('--ecdsa-wallet-do-pool')
+          ? 'fixture-signing-worker' : 'fixture-signing-worker-after-refresh',
       ),
       recoveryRouterWorker(fixture),
+      ...((testWalletDoExecution || process.argv.includes('--ecdsa-wallet-do-pool')) ? [historicalReplayRouterWorker(fixture, 'router-relocation-destination', 'deriver-a', 'fixture-signing-worker-after-refresh')] : []),
       lateWritingDeriverAWorker(fixture),
-      ...(testHistoricalReplay || testHistoricalStartingReplay
+      ...(testHistoricalReplay
         ? [
             historicalReplayRouterWorker(fixture, 'router-replay'),
             historicalReplayRouterWorker(fixture, 'router-replay-missing-a', 'deriver-a-empty'),
@@ -5290,15 +5473,6 @@ async function main() {
       'fixture-signing-worker-after-refresh',
       signingWorkerMigrationsPath,
     );
-    if (testWalletDo) {
-      await captureValidActivationDelivery(topology, fixture, tenantRoot);
-      await testDeriverAWalletDoPreparation(
-        topology,
-        fixture.tenant_root_creation.identity,
-      );
-      console.log('Deriver A wallet DO preparation, exact retry, restart, and expiry passed');
-      return;
-    }
     if (testWalletDoExecution) {
       await testDeriverAWalletDoExecution(
         topology,
@@ -5317,16 +5491,8 @@ async function main() {
       await testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases);
       return;
     }
-    if (testHistoricalStartingReplay) {
-      await testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases);
-      return;
-    }
     if (testDeriverBCompletionBurn) {
       await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
-      return;
-    }
-    if (yaoAcceptanceSkewMs !== null) {
-      await testYaoAcceptanceSkew(topology, fixture, tenantRoot, yaoAcceptanceSkewMs);
       return;
     }
     if (process.argv.includes('--admission-races')) {
@@ -5350,8 +5516,7 @@ async function main() {
       return;
     }
     if (walletObjectClaimedRecoveryRun) {
-      assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
-      const summary = await testWalletObjectClaimedRecovery(topology, fixture, databases);
+          const summary = await testWalletObjectClaimedRecovery(topology, fixture, databases);
       console.log(`R150_WORKERS_WALLET_OBJECT_CLAIMED_RECOVERY ${JSON.stringify(summary)}`);
       return;
     }
@@ -5395,6 +5560,73 @@ async function main() {
       console.log(`R150_WORKERS_ECDSA_ACROSS_REFRESH ${JSON.stringify(summary)}`);
       return;
     }
+    if (process.argv.includes('--reusable-owner-presign-host')) {
+      const workerName = ecdsa.executionHome.workerName;
+      const objectClass = 'RouterAbSigningWorkerPresignSessionDurableObject';
+      const before = await topology.listDurableObjectIds(objectClass, workerName);
+      assert.equal(before.length, 1, 'registration must start the exact material host before signing');
+      const first = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+      const afterFirst = await topology.listDurableObjectIds(objectClass, workerName);
+      assert.deepEqual(afterFirst, before, 'first signing must use the host started by registration');
+      const second = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false);
+      assert.deepEqual(await topology.listDurableObjectIds(objectClass, workerName), afterFirst);
+      const concurrent = await Promise.all([
+        testEcdsaNormalSigning(topology, ecdsa, 'pool', false),
+        testEcdsaNormalSigning(topology, ecdsa, 'pool', false),
+      ]);
+      assert.deepEqual(await topology.listDurableObjectIds(objectClass, workerName), afterFirst);
+      const otherWallet = await testEcdsaRegistrationAndActivation(
+        topology, fixture, tenantRoot, jwtSigner, 'ecdsa-other-wallet',
+      );
+      const separateWallets = await Promise.all([
+        testEcdsaNormalSigning(topology, ecdsa, 'pool', false),
+        testEcdsaNormalSigning(topology, otherWallet, 'pool', false),
+      ]);
+      assert.equal((await topology.listDurableObjectIds(objectClass, workerName)).length, afterFirst.length + 1);
+      await topology.unsafeEvictDurableObject(workerName, objectClass, { id: afterFirst[0] });
+      const afterEviction = await testEcdsaNormalSigning(topology, ecdsa, 'pool', true);
+      const expiryResults = await Promise.allSettled([
+        runEcdsaPresignSession(topology, ecdsa, 'pool', false, 2_000, 3_000),
+        runEcdsaPresignSession(topology, ecdsa, 'pool', false, 15_000, 4_000),
+      ]);
+      const [expired, surviving] = expiryResults;
+      assert.equal(expired.status, 'rejected');
+      assert.match(String(expired.reason), /ExpiredLocalRequest/);
+      assert.equal(surviving.status, 'fulfilled', String(surviving.reason));
+      surviving.value.client.free();
+      const initialized = Promise.withResolvers();
+      const interrupted = Promise.allSettled([
+        runEcdsaPresignSession(topology, ecdsa, 'pool', false, 15_000, 2_000, initialized.resolve),
+      ]);
+      await initialized.promise;
+      await topology.unsafeEvictDurableObject(workerName, objectClass, { id: afterFirst[0] });
+      const [interruptedResult] = await interrupted;
+      assert.equal(interruptedResult.status, 'rejected');
+      assert.match(String(interruptedResult.reason), /presign session is missing/);
+      const recovered = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+      const artifact = {
+        kind: 'reusable_owner_presign_host_e2e_v1',
+        reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --reusable-owner-presign-host',
+        verifiedSignatures: 8,
+        interruptedSessionFailedSafelyAndFreshSessionSigned: true,
+        separateWalletsVerified: true,
+        concurrentPreparationVerified: true,
+        expiredSessionRejectedAndOtherSessionSurvived: true,
+        newSessionAfterEvictionVerified: true,
+        burnedIdentityReplayRejected: true,
+        tenantIsolationVerified: true,
+        registrationStartedExactHost: true,
+        newHosts: afterFirst.length - before.length,
+        completedPoolAndBundledPrepare: true,
+        signatureDigests: [first, second, ...concurrent, ...separateWallets, afterEviction, recovered].map(signingSignatureDigest),
+      };
+      assert.equal(new Set(artifact.signatureDigests).size, 8);
+      const artifactPath = join(repoRoot, '.artifacts/r155/reusable-owner-presign-host.json');
+      await mkdir(dirname(artifactPath), { recursive: true });
+      await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+      console.log(JSON.stringify({ ...artifact, artifactPath }));
+      return;
+    }
     if (process.argv.includes('--ecdsa-presign-handoff-benchmark')) {
       const timings = { pool: [], prepare: [] };
       for (let sample = 0; sample < 5; sample += 1) {
@@ -5408,8 +5640,7 @@ async function main() {
       return;
     }
     if (process.argv.includes('--ecdsa-wallet-do-interruption')) {
-      assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
-      const interrupted = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false, true);
+          const interrupted = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false, true);
       const poolRows = await signingWorkerDatabase
         .prepare('SELECT COUNT(*) AS count FROM signing_worker_ecdsa_pool')
         .first();
@@ -5425,7 +5656,7 @@ async function main() {
       const artifact = {
         kind: 'signing_worker_wallet_do_ecdsa_interruption_e2e_v1',
         reproduce:
-          'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-interruption',
+          'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-interruption',
         operationId: interrupted.finalizeRequest.operation_id,
         noSignatureReply: true,
         pendingAfterEviction: interrupted.pendingAfterEviction,
@@ -5446,22 +5677,18 @@ async function main() {
       process.argv.includes('--ecdsa-wallet-do-pool')
     ) {
       const walletDoPool = process.argv.includes('--ecdsa-wallet-do-pool');
-      if (walletDoPool) {
-        assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
-      }
       const priorSigning = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
       assert.ok(priorSigning.response.signature65_b64u);
+      const objectIds = walletDoPool
+        ? await topology.listDurableObjectIds('RouterAbSigningWorkerWalletDurableObject', 'fixture-signing-worker')
+        : [];
+      if (walletDoPool) assert.equal(objectIds.length, 1, 'ECDSA owner material must live in one wallet object before tenant rejection probes');
       const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
       if (walletDoPool) {
         const activationRows = await signingWorkerDatabase
           .prepare('SELECT COUNT(*) AS count FROM signing_worker_activations')
           .first();
         assert.equal(activationRows.count, 0, 'Wallet-DO ECDSA activation must not write D1 material');
-        const objectIds = await topology.listDurableObjectIds(
-          'RouterAbSigningWorkerWalletDurableObject',
-          'fixture-signing-worker',
-        );
-        assert.equal(objectIds.length, 1, 'ECDSA owner material must live in one wallet object');
         await topology.unsafeEvictDurableObject(
           'fixture-signing-worker',
           'RouterAbSigningWorkerWalletDurableObject',
@@ -5489,12 +5716,15 @@ async function main() {
           .first();
         assert.equal(terminalRows.count, 0, 'Wallet-DO ECDSA signing must not commit D1 terminals');
       }
+      const walletRelocation = walletDoPool
+        ? await verifyEcdsaWalletRelocation(topology, fixture, ecdsa)
+        : {};
       const artifact = {
         kind: walletDoPool
           ? 'signing_worker_wallet_do_ecdsa_pool_e2e_v1'
           : 'gateway_router_normal_signing_auth_e2e_v1',
         reproduce: walletDoPool
-          ? 'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-pool'
+          ? 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-pool'
           : 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-presign-handoff',
         sharedRoleBearerRejected: true,
         dedicatedGatewayBearerSigned: true,
@@ -5511,6 +5741,7 @@ async function main() {
               consumedWalletDoMaterialRejected: true,
               terminalReplayAfterWalletDoEviction: true,
               lostReplyAfterCommitReplayed: true,
+              ...walletRelocation,
             }
           : {}),
         signatureSha256Hex: createHash('sha256')
@@ -5627,4 +5858,6 @@ async function main() {
   console.log('real workerd D1 managed restore and signing continuity tests passed');
 }
 
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

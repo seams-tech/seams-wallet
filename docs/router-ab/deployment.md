@@ -2,10 +2,21 @@
 
 Status: current deployment topology and release procedure.
 
-The supported hosted topology places the Router A/B role Workers in one
-Cloudflare account per deployment lane. Service bindings connect the roles.
-Each role keeps separate entrypoints, Secrets, persistence bindings, and
-protocol authority.
+One trusted organisation operates Deriver A and Deriver B. Separate Workers
+provide logical role separation, with separate entrypoints, Secrets, stores,
+and encryption keys. Each role receives only its own plaintext inputs and
+tenant-root share.
+
+The current hosted configuration places the role Workers in one Cloudflare
+account per deployment lane. Service bindings connect the roles. The
+organisation may place A and B in separate Cloudflare accounts for additional
+administrative isolation. Both accounts remain under the same organisation.
+Independent operators are not required.
+
+Each account arrangement requires authenticated inter-role communication and
+the same wallet, operation, replay, and ownership checks. A separate-account
+deployment must validate its authenticated transport before activation. The
+current manifests and hosted measurements cover the same-account configuration.
 
 The deployable Worker artifacts are built and packaged by `seams-wallet`. The
 private `seams-monorepo` consumes an exact `@seams/wallet-server` release and
@@ -97,17 +108,46 @@ Each Worker receives only the keys required by its role:
 | --- | --- |
 | Router | Internal service authentication; JWT verification configuration; public Deriver and SigningWorker recipient keys |
 | Tenant Root Control Plane | Internal service authentication; tenant-root issuer signing key; recovery trust configuration |
-| Deriver A | Internal service authentication; A D1 KEK; A envelope private key; A peer-signing key; A backup-protection material |
-| Deriver B | Internal service authentication; B D1 KEK; B envelope private key; B peer-signing key; B backup-protection material |
+| Deriver A | Internal service authentication; A D1 KEK; A envelope private key; A backup-protection material |
+| Deriver B | Internal service authentication; B D1 KEK; B envelope private key; B backup-protection material |
 | SigningWorker | Internal service authentication; SigningWorker D1 KEK; SigningWorker recipient private key and lane-protection material |
 
 Deriver A and Deriver B must use distinct private databases, R2 buckets, KEKs,
-envelope keys, and peer-signing keys. A Worker must fail startup if a required
-binding is absent or if forbidden cross-role material is present.
+and envelope keys. A Worker must fail startup if a required binding is absent or
+if forbidden cross-role material is present.
 
-The same-account topology creates an operational separation boundary between
-Workers and resources. It does not provide an independent Cloudflare account or
-administrator boundary.
+The same-account topology isolates Worker roles and resources under a trusted
+account administrator. Separate accounts can also separate credentials and
+deployment permissions. Neither arrangement claims protection from an operator
+or deployment authority that controls both roles.
+
+The Derivers hold no peer-message signing key, and no Worker reads a peer
+verifying key. The Ed25519 Yao pair runs over authenticated service calls
+([R155C](../refactor-155C-yao-peer-connection.md)), and ECDSA derivation sends
+no message from one Deriver to the other. Role encryption keys, tenant-root
+lifecycle signing keys, and authenticated transport remain required.
+
+### Retiring the peer-signing keys from a deployment
+
+Versions before this removal fail startup without the peer-signing
+configuration. Retire it in two steps:
+
+1. Activate, on every role, a version that no longer reads it. That version
+   ignores leftover `DERIVER_*_PEER_SIGNING_KEY` Secrets and the
+   `DERIVER_*_PEER_SIGNING_KEY_BINDING`, `DERIVER_*_PEER_SIGNING_KEY_EPOCH`, and
+   `DERIVER_*_PEER_VERIFYING_KEY_HEX` variables.
+2. Delete those Secrets and variables once no older version can be restored.
+   A rollback to an older version needs them back first.
+
+The Router keyset no longer carries `signer_peer_verifying_keys`. The Gateway
+rejects a configured keyset that still names it, and an older Gateway rejects a
+keyset without it, so update the Gateway's `ROUTER_AB_PUBLIC_KEYSET_JSON` in the
+same activation as the Gateway version.
+
+Router, Deriver A, and Deriver B change together for R155C. A Router of that
+version sends no receipt, a Deriver A accepts none, and a Deriver B expects no
+receipt header. Settle running ceremonies and activate the three roles
+together.
 
 ## Deployment lanes
 

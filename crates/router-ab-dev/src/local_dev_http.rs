@@ -1,6 +1,4 @@
-use router_ab_core::{
-    LocalServiceRoleV1, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
-};
+use router_ab_core::{LocalServiceRoleV1, RouterAbProtocolError, RouterAbProtocolErrorCode};
 use serde::Serialize;
 use std::{
     io::{Read, Write},
@@ -8,9 +6,8 @@ use std::{
 };
 
 use super::{
-    handle_local_deriver_peer_message_json_v1, local_worker_health_response_json_v1,
-    local_worker_owns_path_v1, LocalRouterWorkerConfigV1, LocalWorkerRoleConfigV1,
-    LOCAL_DERIVER_A_PEER_PATH, LOCAL_DERIVER_B_PEER_PATH, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+    local_worker_health_response_json_v1, local_worker_owns_path_v1, LocalRouterWorkerConfigV1,
+    LocalWorkerRoleConfigV1, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
     LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH, LOCAL_WORKER_HEALTH_PATH,
     LOCAL_WORKER_READY_PATH,
 };
@@ -78,14 +75,6 @@ pub fn local_dev_http_handle_request_with_dispatcher_v1(
             404,
             "path is not owned by the local Router",
         );
-    }
-
-    if path == LOCAL_DERIVER_A_PEER_PATH {
-        return local_dev_deriver_peer_route_v1(topology, request, LocalServiceRoleV1::DeriverA);
-    }
-
-    if path == LOCAL_DERIVER_B_PEER_PATH {
-        return local_dev_deriver_peer_route_v1(topology, request, LocalServiceRoleV1::DeriverB);
     }
 
     let LocalDevHttpTopologyV1::FourWorker(config) = topology else {
@@ -185,45 +174,6 @@ fn require_local_dev_router_internal_service_auth_v1(
         }
         Some(_) => Err("local Router internal service-auth header is invalid"),
         None => Err("local Router internal service-auth header is missing"),
-    }
-}
-
-fn local_dev_deriver_peer_route_v1(
-    topology: LocalDevHttpTopologyV1<'_>,
-    request: &LocalDevHttpRequestPartsV1,
-    route_role: LocalServiceRoleV1,
-) -> Result<(u16, String), Box<dyn std::error::Error>> {
-    let path = request.path.as_str();
-    if request.method != "POST" {
-        return local_dev_http_error_body_v1(route_role, path, 405, "method not allowed");
-    }
-    let LocalDevHttpTopologyV1::FourWorker(config) = topology else {
-        unreachable!("Router topology is handled before role dispatch")
-    };
-    let owned = config.role() == route_role;
-    if !owned {
-        return local_dev_http_error_body_v1(
-            topology.local_http_error_role(),
-            path,
-            404,
-            "path is not owned by this worker",
-        );
-    }
-    local_dev_protocol_response_v1(
-        route_role,
-        path,
-        handle_local_deriver_peer_message_json_v1(route_role, path, &request.body),
-    )
-}
-
-fn local_dev_protocol_response_v1(
-    role: LocalServiceRoleV1,
-    path: &str,
-    result: RouterAbProtocolResult<String>,
-) -> Result<(u16, String), Box<dyn std::error::Error>> {
-    match result {
-        Ok(response) => Ok((200, response)),
-        Err(error) => local_dev_http_route_error_v1(role, path, error),
     }
 }
 
@@ -484,23 +434,6 @@ mod tests {
         .expect("fixture admission bindings")
     }
 
-    /// Deterministic peer verifying keys for in-module Router fixtures.
-    fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
-        let key = |seed: u8, role: router_ab_core::Role| {
-            router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(
-                role,
-                ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
-                    .verifying_key()
-                    .to_bytes(),
-            )
-            .expect("fixture verifying key")
-        };
-        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
-            key(1, router_ab_core::Role::SignerA),
-            key(2, router_ab_core::Role::SignerB),
-        )
-        .expect("fixture verifying key set")
-    }
     use std::cell::Cell;
 
     struct RecordingDispatcher {
@@ -543,7 +476,6 @@ mod tests {
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             router_to_signing_worker_ecdsa_auth: "local-test-router-ecdsa-auth".to_owned(),
-            peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
             tenant_root: Default::default(),
         }

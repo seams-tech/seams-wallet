@@ -4,7 +4,7 @@ import type { HydratedEcdsaSignerMaterial } from '../../../session/identity/evmF
 import type {
   BuildReadySecp256k1SigningMaterialInput,
   ReusableEcdsaSigningAuthorization,
-} from './secp256k1';
+} from '../readySecp256k1Material';
 
 declare const signerSession: HydratedEcdsaSignerMaterial;
 declare const reusableAuthorization: ReusableEcdsaSigningAuthorization;
@@ -26,6 +26,8 @@ const reusable: BuildReadySecp256k1SigningMaterialInput = {
   authorization: reusableAuthorization,
   credential: {
     kind: 'reusable_wallet_session',
+    home: { kind: 'direct' },
+    ownershipGeneration: 1,
     walletSessionToken: 'wallet-session-token',
   },
 };
@@ -33,7 +35,12 @@ const reusable: BuildReadySecp256k1SigningMaterialInput = {
 const operation: BuildReadySecp256k1SigningMaterialInput = {
   ...base,
   authorization: operationAuthorization,
-  credential: { kind: 'operation_step_up', walletSessionToken: 'opaque-token' },
+  credential: {
+    kind: 'operation_step_up',
+    home: { kind: 'direct' },
+    ownershipGeneration: 1,
+    walletSessionToken: 'opaque-token',
+  },
   operationStepUpPreparation: operationPreparation,
 };
 

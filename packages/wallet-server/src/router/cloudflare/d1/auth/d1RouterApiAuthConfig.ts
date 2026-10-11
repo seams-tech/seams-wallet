@@ -2,14 +2,18 @@ import type { LinkedDeviceBootstrapStore } from '../../../../core/deviceLinking/
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
 import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import type { PasskeyCredentialClaims } from '../../../../core/passkeyCredentialClaims';
-import type { EmailOtpRateLimitCounter } from '../emailOtp/d1EmailOtpRateLimitStore';
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import type { IdentityStore } from '../../../../core/IdentityStore';
 import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
 import type { WalletRegistrationSetupDispatcher } from '../../../framework/registrationSetupDispatch';
-import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type {
+  RegistrationWalletStarter,
+  WalletExecutionAuthority,
+  WalletRegistrationReservationAuthority,
+} from '../../../domains/walletRegistration/walletRegistrationReservation';
+import { admitD1EstablishedWalletHome, D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import type { LinkedDevicePasskeyTargetConfigurationFieldsV1 } from '@shared/device-linking/contracts';
@@ -157,7 +161,6 @@ export type CloudflareD1GithubOAuthConfig = {
 
 export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly identityStore?: IdentityStore;
-  readonly emailOtpRateLimitCounter?: EmailOtpRateLimitCounter;
   readonly credentialClaims?: PasskeyCredentialClaims;
   readonly linkedDeviceBootstrap?: LinkedDeviceBootstrapStore;
   readonly linkedDeviceProofNonces?: LinkedDeviceRequestProofNonceStoreV1;
@@ -168,6 +171,7 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly registrationSetupDispatcher?: WalletRegistrationSetupDispatcher;
   readonly registrationAuthority?: WalletRegistrationReservationAuthority;
+  readonly startRegistrationWallets?: RegistrationWalletStarter;
   readonly database: D1DatabaseLike;
   readonly namespace: string;
   readonly orgId: string;
@@ -261,6 +265,7 @@ export type EmailOtpServerSealRuntimeConfig =
 
 export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   CloudflareD1RouterApiAuthServiceOptions,
+  | 'registrationAuthority'
   | 'relayerAccount'
   | 'relayerPublicKey'
   | 'relayerPrivateKey'
@@ -291,6 +296,9 @@ export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   | 'emailOtpGoogleRegistrationAttemptRateLimitWindowMs'
   | 'routerAbEcdsaPresignRuntime'
 > & {
+  /** The host's registration authority, with this home's execution state around it. */
+  readonly registrationAuthority?: D1WalletExecutionAuthority;
+  readonly walletExecution: WalletExecutionAuthority;
   readonly relayerAccount?: string;
   readonly relayerPublicKey?: string;
   readonly relayerPrivateKey?: string;
@@ -333,6 +341,12 @@ export function parseBooleanFlag(input: unknown, fallback: boolean, field: strin
 export function normalizeD1RouterApiAuthOptions(
   input: CloudflareD1RouterApiAuthServiceOptions,
 ): NormalizedCloudflareD1RouterApiAuthServiceOptions {
+  const scope = {
+    namespace: requireD1RouterApiAuthScopeString(input.namespace, 'namespace'),
+    orgId: requireD1RouterApiAuthScopeString(input.orgId, 'orgId'),
+    projectId: requireD1RouterApiAuthScopeString(input.projectId, 'projectId'),
+    envId: requireD1RouterApiAuthScopeString(input.envId, 'envId'),
+  };
   const githubClientId = toOptionalTrimmedString(input.githubOAuth?.clientId);
   const githubClientSecret = toOptionalTrimmedString(input.githubOAuth?.clientSecret);
   const githubCallbackUrl = toOptionalTrimmedString(input.githubOAuth?.callbackUrl);
@@ -349,8 +363,10 @@ export function normalizeD1RouterApiAuthOptions(
   }
   return {
     database: input.database,
+    walletExecution: {
+      admitEstablishedHome: admitD1EstablishedWalletHome.bind(undefined, input.database, scope),
+    },
     identityStore: input.identityStore,
-    emailOtpRateLimitCounter: input.emailOtpRateLimitCounter,
     credentialClaims: input.credentialClaims,
     syncChallenges: input.syncChallenges,
     linkedDeviceProofNonces: input.linkedDeviceProofNonces,
@@ -359,12 +375,15 @@ export function normalizeD1RouterApiAuthOptions(
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,
     lifecycleRouting: input.lifecycleRouting,
-    registrationAuthority: input.registrationAuthority,
+    registrationAuthority: input.registrationAuthority
+      ? new D1WalletExecutionAuthority(input.database, scope, input.registrationAuthority)
+      : undefined,
     registrationSetupDispatcher: input.registrationSetupDispatcher,
-    namespace: requireD1RouterApiAuthScopeString(input.namespace, 'namespace'),
-    orgId: requireD1RouterApiAuthScopeString(input.orgId, 'orgId'),
-    projectId: requireD1RouterApiAuthScopeString(input.projectId, 'projectId'),
-    envId: requireD1RouterApiAuthScopeString(input.envId, 'envId'),
+    startRegistrationWallets: input.startRegistrationWallets,
+    namespace: scope.namespace,
+    orgId: scope.orgId,
+    projectId: scope.projectId,
+    envId: scope.envId,
     relayerAccount: toOptionalTrimmedString(input.relayerAccount),
     relayerPublicKey: toOptionalTrimmedString(input.relayerPublicKey),
     relayerPrivateKey: toOptionalTrimmedString(input.relayerPrivateKey),

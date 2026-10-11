@@ -479,6 +479,18 @@ pub(super) async fn handle_strict_router_fetch_v1(
     env: Env,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == "/router-ab/router/wallet/allocate" {
+        if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {
+            return cloudflare_private_service_auth_error_response_v1(error);
+        }
+        if request.method() != Method::Post {
+            return Response::error("Wallet address allocation requires POST", 405);
+        }
+        return crate::durable_object::wallet_startup::allocate_wallet_addresses(&env).await;
+    }
+    if path == "/router-ab/router/wallet/start" {
+        return handle_router_wallet_start(&mut request, &env).await;
+    }
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         return handle_router_prewarm_v1(&request, &env).await;
     }
@@ -904,6 +916,15 @@ pub(super) async fn handle_strict_router_fetch_v1(
     if path == CLOUDFLARE_ROUTER_ED25519_YAO_EXECUTE_PRIVATE_REQUEST_PATH {
         return handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(request, &env).await;
     }
+    if crate::signing_worker_relocation_transport::handles(&path) {
+        return crate::signing_worker_relocation_transport::handle(request, &env).await;
+    }
+    if path == crate::ROUTER_WALLET_FREEZE_PATH_V1 {
+        return crate::router_wallet_relocation::handle_freeze(request, &env).await;
+    }
+    if path == crate::ROUTER_WALLET_TRANSFER_PATH_V1 {
+        return crate::router_wallet_transfer::handle_transfer(request, &env).await;
+    }
     if path == crate::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH {
         return crate::handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1(
             request, &env,
@@ -941,6 +962,8 @@ pub(super) async fn handle_strict_router_fetch_v1(
         if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(err);
         }
+        let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+            .map_err(|error| worker::Error::RustError(error.to_string()))?;
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
@@ -962,6 +985,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         let response =
             execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_service_call_v1(
                 &env,
+                wallet_objects,
                 runtime.signing_worker_peer(),
                 parsed,
             )
@@ -975,6 +999,8 @@ pub(super) async fn handle_strict_router_fetch_v1(
         || path == CLOUDFLARE_ROUTER_NORMAL_SIGNING_PUBLIC_REQUEST_PATH
         || path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PUBLIC_REQUEST_PATH
         || path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PUBLIC_REQUEST_PATH
+        || path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PUBLIC_REQUEST_PATH
+        || path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PUBLIC_REQUEST_PATH
     {
         if let Err(err) = require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(err);
@@ -1103,6 +1129,8 @@ pub(super) async fn handle_strict_router_fetch_v1(
     };
 
     if path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PUBLIC_REQUEST_PATH {
+        let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+            .map_err(|error| worker::Error::RustError(error.to_string()))?;
         let trace_id = match router_ecdsa_trace_context_v1(&request, &env)? {
             Ok(trace_id) => trace_id,
             Err(response) => return Ok(response),
@@ -1130,6 +1158,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         let response =
             handle_cloudflare_router_ab_ecdsa_derivation_activation_authenticated_public_request_v1(
                 &env,
+                wallet_objects,
                 &runtime,
                 now_unix_ms,
                 activation_request,
@@ -1308,6 +1337,8 @@ pub(super) async fn handle_strict_router_fetch_v1(
         let response =
             handle_cloudflare_router_ab_ecdsa_derivation_explicit_export_authenticated_public_request_v1(
                 &env,
+                crate::WalletObjectRoute::from_gateway_request(&request)
+                    .map_err(|error| worker::Error::RustError(error.to_string()))?,
                 &runtime,
                 now_unix_ms,
                 export_request,
@@ -1455,6 +1486,8 @@ async fn execute_strict_router_normal_signing_request_v1(
     trusted_source_digest: PublicDigest32,
     verifier: CloudflareRouterEd25519JwksJwtVerifierV1,
 ) -> worker::Result<Response> {
+    let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let operation_step_up = parsed.is_operation_step_up();
     let gateway_linked_device_wallet_session = parsed.is_gateway_linked_device_wallet_session();
     match parsed {
@@ -1465,6 +1498,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             let response =
                 handle_cloudflare_router_normal_signing_prepare_internal_linked_device_request_v2(
                     env,
+                    wallet_objects,
                     runtime,
                     now_unix_ms,
                     signing_request,
@@ -1481,6 +1515,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             let response =
                 handle_cloudflare_router_normal_signing_prepare_internal_step_up_request_v2(
                     env,
+                    wallet_objects,
                     runtime,
                     now_unix_ms,
                     signing_request,
@@ -1509,6 +1544,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             let response =
                 handle_cloudflare_router_normal_signing_prepare_authenticated_public_request_v2(
                     env,
+                    wallet_objects,
                     runtime,
                     now_unix_ms,
                     signing_request,
@@ -1527,6 +1563,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             let response =
                 handle_cloudflare_router_normal_signing_finalize_internal_linked_device_request_v2(
                     env,
+                    wallet_objects,
                     runtime,
                     now_unix_ms,
                     signing_request,
@@ -1543,6 +1580,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             let response =
                 handle_cloudflare_router_normal_signing_finalize_internal_step_up_request_v2(
                     env,
+                    wallet_objects,
                     runtime,
                     now_unix_ms,
                     signing_request,
@@ -1571,6 +1609,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             let response =
                 handle_cloudflare_router_normal_signing_finalize_authenticated_public_request_v2(
                     env,
+                    wallet_objects,
                     runtime,
                     now_unix_ms,
                     signing_request,
@@ -1589,6 +1628,7 @@ async fn execute_strict_router_normal_signing_request_v1(
         } if operation_step_up => {
             let response = handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_prepare_internal_step_up_request_v1(
                 env,
+                wallet_objects,
                 runtime,
                 now_unix_ms,
                 signing_request,
@@ -1618,6 +1658,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             };
             let response = handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_prepare_authenticated_public_request_v1(
                 env,
+                wallet_objects,
                 runtime,
                 now_unix_ms,
                 signing_request,
@@ -1636,6 +1677,7 @@ async fn execute_strict_router_normal_signing_request_v1(
         } if operation_step_up => {
             let response = handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_finalize_internal_step_up_request_v1(
                 env,
+                wallet_objects,
                 runtime,
                 now_unix_ms,
                 signing_request,
@@ -1663,6 +1705,7 @@ async fn execute_strict_router_normal_signing_request_v1(
             };
             let response = handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_finalize_authenticated_public_request_v1(
                 env,
+                wallet_objects,
                 runtime,
                 now_unix_ms,
                 signing_request,
@@ -1675,6 +1718,25 @@ async fn execute_strict_router_normal_signing_request_v1(
             router_json_cors_response_v1(response, request, env)
         }
     }
+}
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+async fn handle_router_wallet_start(request: &mut Request, env: &Env) -> worker::Result<Response> {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(request, env) {
+        return cloudflare_private_service_auth_error_response_v1(error);
+    }
+    if request.method() != Method::Post {
+        return Response::error("Router wallet startup requires POST", 405);
+    }
+    let home = match crate::WalletObjectRoute::from_gateway_request(request) {
+        Ok(home) => home,
+        Err(error) => return cloudflare_protocol_error_response_v1(error),
+    };
+    let startup = match decode_bounded_json_request::<crate::durable_object::wallet_startup::WalletStartup>(request, 2048).await {
+        Ok(startup) => startup,
+        Err(error) => return cloudflare_protocol_error_response_v1(error),
+    };
+    crate::durable_object::start_registration_wallets(env, home, startup).await
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -1698,24 +1760,6 @@ async fn handle_router_prewarm_v1(request: &Request, env: &Env) -> worker::Resul
         return Response::error("Router A/B prewarm fan-out failed", 502);
     }
     cloudflare_prewarm_response_v1(request)
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-async fn prewarm_service_binding_v1(env: &Env, binding_name: &str) -> Result<(), ()> {
-    let fetcher = env.service(binding_name).map_err(|_| ())?;
-    let headers = worker::Headers::new();
-    set_cloudflare_internal_service_auth_header_v1(env, &headers, "Worker prewarm")
-        .map_err(|_| ())?;
-    let mut init = worker::RequestInit::new();
-    init.with_method(Method::Post).with_headers(headers);
-    let request =
-        Request::new_with_init("https://router-ab-prewarm.internal/internal/prewarm", &init)
-            .map_err(|_| ())?;
-    let response = fetcher.fetch_request(request).await.map_err(|_| ())?;
-    if !(200..=299).contains(&response.status_code()) {
-        return Err(());
-    }
-    Ok(())
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]

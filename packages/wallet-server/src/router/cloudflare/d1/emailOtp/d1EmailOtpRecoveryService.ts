@@ -444,6 +444,7 @@ export class CloudflareD1EmailOtpRecoveryService {
       if (!parsed.ok) return parsed.result;
 
       const rateLimit = await this.emailOtpRateLimits.consume({
+        kind: 'wallet',
         scope: 'grant',
         userId: parsed.value.userId,
         walletId: parsed.value.walletId,

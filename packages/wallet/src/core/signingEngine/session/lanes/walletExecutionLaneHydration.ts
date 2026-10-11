@@ -2,7 +2,6 @@ import { parseSigningLaneRecord, parseWalletKeyRecord } from '@shared/signing-la
 import { parseLaneShareEpoch, type LaneShareEpoch } from '@shared/signing-lanes/ids';
 import type {
   ActiveSigningLaneReference,
-  Ed25519WalletKeyRecord,
   EvmFamilyWalletKeyRecord,
   OwnerLaneParticipantContinuityV1,
   SigningLaneRecord,
@@ -12,12 +11,6 @@ import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
-import { base64UrlEncode } from '@shared/utils/base64';
-import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
-import {
-  resolveNearEd25519YaoCapabilityHydrationV1,
-  type NearEd25519YaoCapabilityHydrationInputV1,
-} from '../material/nearEd25519YaoMaterialActivation';
 import {
   resolveEcdsaCapabilityHydration,
   type EcdsaCapabilityHydrationInput,
@@ -27,21 +20,13 @@ import type { MpcCapabilityHydrationPlan } from '../material/mpcCapabilityHydrat
 import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes/evmFamilySigningKeySlotId';
 
-type WalletExecutionLaneMaterialHydrationInput =
-  | {
-      readonly keyFamily: 'ed25519';
-      /** The lane epoch carried by the exact Yao lane manifest. */
-      readonly laneShareEpoch: unknown;
-      readonly metadata: RouterAbEd25519YaoActiveClientMetadataV1;
-      readonly hydration: NearEd25519YaoCapabilityHydrationInputV1;
-    }
-  | {
-      readonly keyFamily: 'ecdsa_secp256k1';
-      /** The lane epoch carried by the exact ECDSA capability manifest. */
-      readonly laneShareEpoch: unknown;
-      readonly lookup: EcdsaCapabilityManifestLookup;
-      readonly runtime: EcdsaCapabilityRuntimeObservation;
-    };
+type WalletExecutionLaneMaterialHydrationInput = {
+  readonly keyFamily: 'ecdsa_secp256k1';
+  /** The lane epoch carried by the exact ECDSA capability manifest. */
+  readonly laneShareEpoch: unknown;
+  readonly lookup: EcdsaCapabilityManifestLookup;
+  readonly runtime: EcdsaCapabilityRuntimeObservation;
+};
 
 export type WalletExecutionLaneHydrationInput = {
   readonly walletKey: unknown;
@@ -64,8 +49,6 @@ type WalletExecutionLaneRefusalReason =
   | 'share_epoch_mismatch'
   | 'participant_binding_mismatch'
   | 'hydration_blocked'
-  | 'material_activation_mismatch'
-  | 'public_identity_mismatch'
   | 'activation_receipt_mismatch';
 
 type WalletExecutionLaneRefusalWithoutIdentity = {
@@ -86,30 +69,21 @@ type WalletExecutionLaneRefusal =
       readonly laneId: SigningLaneRecord['laneId'];
     };
 
-type WalletExecutionLanePublicIdentity =
-  | {
-      readonly keyFamily: 'ed25519';
-      readonly registeredPublicKeyB64u: Ed25519WalletKeyRecord['registeredPublicKeyB64u'];
-      readonly nearEd25519SigningKeyId: Ed25519WalletKeyRecord['nearEd25519SigningKeyId'];
-      readonly keyCreationSignerSlot: Ed25519WalletKeyRecord['keyCreationSignerSlot'];
-    }
-  | {
-      readonly keyFamily: 'ecdsa_secp256k1';
-      readonly thresholdPublicKey33B64u: EvmFamilyWalletKeyRecord['thresholdPublicKey33B64u'];
-      readonly evmAddress: EvmFamilyWalletKeyRecord['evmAddress'];
-      readonly evmFamilySigningKeySlotId: EvmFamilyWalletKeyRecord['evmFamilySigningKeySlotId'];
-    };
-
-export type ActiveWalletExecutionLaneHydration = {
+type ActiveWalletExecutionLaneHydration = {
   readonly kind: 'active_wallet_execution_lane_v1';
-  readonly keyFamily: WalletKeyRecord['keyFamily'];
-  readonly walletKey: WalletKeyRecord;
+  readonly keyFamily: 'ecdsa_secp256k1';
+  readonly walletKey: EvmFamilyWalletKeyRecord;
   readonly lane: ActiveSigningLaneReference;
   readonly ownerParticipantContinuity: OwnerLaneParticipantContinuityV1;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly laneShareEpoch: LaneShareEpoch;
   readonly activationReceiptDigestB64u: string;
-  readonly publicIdentity: WalletExecutionLanePublicIdentity;
+  readonly publicIdentity: {
+    readonly keyFamily: 'ecdsa_secp256k1';
+    readonly thresholdPublicKey33B64u: EvmFamilyWalletKeyRecord['thresholdPublicKey33B64u'];
+    readonly evmAddress: EvmFamilyWalletKeyRecord['evmAddress'];
+    readonly evmFamilySigningKeySlotId: EvmFamilyWalletKeyRecord['evmFamilySigningKeySlotId'];
+  };
 };
 
 export type WalletExecutionLaneHydrationResult =
@@ -123,8 +97,8 @@ function parseLaneEpoch(raw: unknown): LaneShareEpoch {
 }
 
 /**
- * Parse only the durable boundary records here. Curve-specific material is
- * already parsed by its capability/Yao adapter and is consumed as an exact
+ * Parse only the durable boundary records here. ECDSA material is
+ * already parsed by its capability adapter and is consumed as an exact
  * typed projection below.
  */
 function parseWalletExecutionLaneRecords(
@@ -253,86 +227,9 @@ function isActiveHydrationPlan(
   return plan.kind === 'use_live_runtime' || plan.kind === 'rehydrate_material_activation';
 }
 
-function hydrateEd25519(
-  records: ParsedWalletExecutionLaneRecords,
-  material: Extract<WalletExecutionLaneMaterialHydrationInput, { keyFamily: 'ed25519' }>,
-): WalletExecutionLaneHydrationResult {
-  const common = commonRefusal(records, material);
-  if (common) return common;
-  const walletKey = records.walletKey;
-  const lane = records.lane;
-  const ownerParticipantContinuity = ownerParticipantContinuityForLane(lane);
-  if (walletKey.keyFamily !== 'ed25519' || lane.lifecycle.state !== 'active') {
-    return refusal('key_family_mismatch', records);
-  }
-  if (ownerParticipantContinuity === null) return invalidBoundaryRefusal();
-  const plan = resolveNearEd25519YaoCapabilityHydrationV1(material.hydration);
-  if (!isActiveHydrationPlan(plan)) return refusal('hydration_blocked', records);
-  if (
-    !mpcMaterialActivationRefsEqual(plan.materialActivation, material.metadata.materialActivation)
-  ) {
-    return refusal('material_activation_mismatch', records);
-  }
-  const application = material.metadata.applicationBinding;
-  const publicLocator = material.hydration.publicLocator;
-  if (
-    publicLocator.kind !== 'available' ||
-    String(publicLocator.walletId) !== String(walletKey.walletId) ||
-    publicLocator.signerSlot !== application.key_creation_signer_slot ||
-    !mpcMaterialActivationRefsEqual(
-      publicLocator.materialActivation,
-      material.metadata.materialActivation,
-    ) ||
-    String(plan.authority.walletId) !== String(walletKey.walletId) ||
-    String(application.wallet_id) !== String(walletKey.walletId) ||
-    String(material.metadata.scope.account_id) !== String(application.wallet_id) ||
-    String(material.metadata.scope.signing_worker_id) !==
-      String(plan.materialActivation.signingWorker) ||
-    String(application.near_ed25519_signing_key_id) !== String(walletKey.nearEd25519SigningKeyId) ||
-    application.key_creation_signer_slot !== walletKey.keyCreationSignerSlot ||
-    base64UrlEncode(material.metadata.registeredPublicKey) !==
-      String(walletKey.registeredPublicKeyB64u)
-  ) {
-    return refusal('public_identity_mismatch', records);
-  }
-  if (
-    String(ownerParticipantContinuity.signingWorkerId) !==
-      String(plan.materialActivation.signingWorker) ||
-    !participantIdsMatch(ownerParticipantContinuity, material.metadata.participantIds)
-  ) {
-    return refusal('participant_binding_mismatch', records);
-  }
-  if (
-    material.metadata.participantIds.length !== 2 ||
-    material.metadata.participantIds[0] === material.metadata.participantIds[1] ||
-    material.metadata.participantIds.some(
-      (participantId) => !Number.isSafeInteger(participantId) || participantId < 1,
-    )
-  ) {
-    return refusal('participant_binding_mismatch', records);
-  }
-  const materialActivation = plan.materialActivation;
-  return {
-    kind: 'active_wallet_execution_lane_v1',
-    keyFamily: 'ed25519',
-    walletKey,
-    lane: activeLaneReference({ lane, materialActivation }),
-    ownerParticipantContinuity,
-    materialActivation,
-    laneShareEpoch: lane.laneShareEpoch,
-    activationReceiptDigestB64u: lane.lifecycle.activationReceiptDigestB64u,
-    publicIdentity: {
-      keyFamily: 'ed25519',
-      registeredPublicKeyB64u: walletKey.registeredPublicKeyB64u,
-      nearEd25519SigningKeyId: walletKey.nearEd25519SigningKeyId,
-      keyCreationSignerSlot: walletKey.keyCreationSignerSlot,
-    },
-  };
-}
-
 function hydrateEcdsa(
   records: ParsedWalletExecutionLaneRecords,
-  material: Extract<WalletExecutionLaneMaterialHydrationInput, { keyFamily: 'ecdsa_secp256k1' }>,
+  material: WalletExecutionLaneMaterialHydrationInput,
 ): WalletExecutionLaneHydrationResult {
   const common = commonRefusal(records, material);
   if (common) return common;
@@ -421,15 +318,7 @@ export function hydrateWalletExecutionLane(
     return invalidBoundaryRefusal();
   }
   try {
-    switch (input.material.keyFamily) {
-      case 'ed25519':
-        return hydrateEd25519(records, input.material);
-      case 'ecdsa_secp256k1':
-        return hydrateEcdsa(records, input.material);
-      default:
-        input.material satisfies never;
-        return invalidBoundaryRefusal();
-    }
+    return hydrateEcdsa(records, input.material);
   } catch {
     return invalidBoundaryRefusal();
   }

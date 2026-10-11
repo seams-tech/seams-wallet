@@ -1,3 +1,4 @@
+import type { WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import { test, expect } from '@playwright/test';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import {
@@ -34,7 +35,7 @@ const HIDE_SIGNING_SURFACE_SCRIPT = String.raw`
           originalHandler?.(event);
           const data = event.data || {};
           if (!data || typeof data !== 'object') return;
-          if (data.type !== 'PM_EXECUTE_ACTION' || typeof data.requestId !== 'string') return;
+          if (data.type !== 'PM_SIGN_AND_SEND_TX' || typeof data.requestId !== 'string') return;
           window.addEventListener('message', function releaseSigningSurface(event) {
             if (event.data?.type !== 'TEST_RELEASE_SIGNING_SURFACE') return;
             window.removeEventListener('message', releaseSigningSurface);
@@ -78,7 +79,7 @@ const SIGN_TEMPO_SESSION_LOSS_SCRIPT = String.raw`
                 payload: {
                   code: 'session_not_ready',
                   message:
-                    '[SigningEngine] missing canonical threshold ECDSA session for alice.testnet; reconnect threshold session via bootstrapEcdsaSession',
+                    '[SigningEngine] missing canonical threshold ECDSA session for alice.testnet; unlock the wallet to restore its signing session',
                 },
               });
             } catch (err) {
@@ -183,6 +184,7 @@ const CAPTURE_UNLOCK_PAYLOAD_SCRIPT = String.raw`
       };
 `;
 const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
+      let registrationCompleted = false;
       const captureEmailOtpRequest = (requestType) => {
         window.parent?.postMessage(
           {
@@ -253,6 +255,9 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
           }
           if (data.type === 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION') {
             captureEmailOtpRequest(data.type);
+            registrationCompleted = true;
+            basePreferenceSnapshot = { ...basePreferenceSnapshot, walletId: 'alice.testnet', revision: basePreferenceSnapshot.revision + 1 };
+            adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
             postResult(requestId, {
               ok: true,
               value: {
@@ -266,12 +271,16 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
           if (data.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
             captureEmailOtpRequest(data.type);
             postResult(requestId, {
-              kind: 'wallet_unlocked_without_signing_session',
-              walletId: 'alice.testnet',
-              authorizationId: 'wallet-session-authorization-router-fixture',
-              walletSessionId: 'wallet-session-router-fixture',
-              authMethod: 'email_otp',
-              reason: 'not_found',
+              revision: ++sessionObservationRevision,
+              walletId: registrationCompleted ? 'alice.testnet' : null,
+              state: registrationCompleted ? {
+                kind: 'wallet_unlocked_without_signing_session',
+                walletId: 'alice.testnet',
+                authorizationId: 'wallet-session-authorization-router-fixture',
+                walletSessionId: 'wallet-session-router-fixture',
+                authMethod: 'email_otp',
+                reason: 'not_found',
+              } : { kind: 'wallet_locked' },
             });
             return;
           }
@@ -292,7 +301,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('addEmailOtp shows an interactive wallet surface while awaiting the OTP', async ({
+  test('addEmail shows an interactive wallet surface while awaiting the OTP', async ({
     page,
   }) => {
     const routerPath = SDK_ESM_PATHS.walletIframeRouter;
@@ -303,6 +312,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         const { WalletIframeRouter } =
           mod as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -313,7 +323,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
         let settled = false;
         const request = router
-          .addEmailOtp({ walletId: 'alice.testnet', emailAddress: 'alice@example.test' })
+          .addEmail({ walletId: 'alice.testnet', emailAddress: 'alice@example.test' })
           .then(
             () => {
               settled = true;
@@ -339,7 +349,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     expect(result.mode).toBe('compact_modal');
   });
 
-  test('executeAction shows overlay then hides it after request timeout', async ({ page }) => {
+  test('signAndSendTransaction shows overlay then hides it after request timeout', async ({ page }) => {
     const routerPath = SDK_ESM_PATHS.walletIframeRouter;
     const result = await page.evaluate(
       async ({ walletOrigin, waitForSource, captureOverlaySource, routerPath }) => {
@@ -352,6 +362,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -363,11 +374,13 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
           // Fire-and-forget request that will time out since the stub never replies with PM_RESULT
           const p = router
-            .executeAction({
+            .signAndSendTransaction({
               walletId: 'e2e_router_timeout.testnet',
               nearAccountId: 'e2e_router_timeout.testnet',
-              receiverId: 'seams-v1.testnet',
-              actionArgs: { type: 'Transfer', amount: '1' } as any,
+              transaction: {
+                receiverId: 'seams-v1.testnet',
+                actions: [{ type: 'Transfer', amount: '1' } as any],
+              },
               options: {},
             })
             .catch((e) => ({ ok: false, error: String(e?.message || e) }));
@@ -414,7 +427,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     expect(result.hidden).toBe(true);
   });
 
-  test('executeAction hides the overlay when signing progress releases the surface', async ({
+  test('signAndSendTransaction hides the overlay when signing progress releases the surface', async ({
     page,
   }) => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
@@ -433,6 +446,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         const { WalletIframeRouter } =
           mod as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -443,11 +457,13 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         await router.init();
 
         const pending = router
-          .executeAction({
+          .signAndSendTransaction({
             walletId: 'e2e_router_signing.testnet',
             nearAccountId: 'e2e_router_signing.testnet',
-            receiverId: 'seams-v1.testnet',
-            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
             options: {},
           })
           .catch((error: unknown) => String((error as Error)?.message || error));
@@ -481,7 +497,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     expect(result.requestResult).toContain('Wallet request timeout');
   });
 
-  test('executeAction still times out when host keeps sending PROGRESS frames', async ({
+  test('signAndSendTransaction still times out when host keeps sending PROGRESS frames', async ({
     page,
   }) => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
@@ -524,6 +540,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -535,11 +552,13 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
           const start = Date.now();
           const outcome = await router
-            .executeAction({
+            .signAndSendTransaction({
               walletId: 'e2e_router_progress_timeout.testnet',
               nearAccountId: 'e2e_router_progress_timeout.testnet',
-              receiverId: 'seams-v1.testnet',
-              actionArgs: { type: 'Transfer', amount: '1' } as any,
+              transaction: {
+                receiverId: 'seams-v1.testnet',
+                actions: [{ type: 'Transfer', amount: '1' } as any],
+              },
               options: {},
             })
             .then(
@@ -569,7 +588,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
     expect(result.outcome.ok).toBe(false);
     if (result.outcome.ok) return;
-    expect(result.outcome.error).toContain('Wallet request timeout for PM_EXECUTE_ACTION');
+    expect(result.outcome.error).toContain('Wallet request timeout for PM_SIGN_AND_SEND_TX');
     expect(result.outcome.elapsedMs).toBeGreaterThanOrEqual(500);
     expect(result.outcome.elapsedMs).toBeLessThan(2500);
   });
@@ -593,6 +612,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -662,6 +682,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         const { WalletIframeRouter } =
           mod as typeof import('@/SeamsWeb/walletIframe/client/router');
         const router = new WalletIframeRouter({
+          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
           walletOrigin,
           servicePath: '/wallet-service',
           connectTimeoutMs: 3000,
@@ -766,6 +787,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
           const accountId = 'crisp-plain-29ph888gzw.w3a-relayer.testnet';
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -776,7 +798,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           await router.init();
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-          router.onLoginStatusChanged((status) => statuses.push(status));
+          router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
 
           const unlockResult = await router.unlock({
             kind: 'default_options',
@@ -835,6 +857,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           const { WalletIframeRouter } =
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,
@@ -845,8 +868,8 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           await router.init();
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-          router.onLoginStatusChanged((status) => statuses.push(status));
-          const started = await router.beginGoogleEmailOtpWalletAuth({
+          router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
+          const started = await router.startGoogleSignIn({
             idToken: 'google-id-token',
             mode: 'register',
           });
@@ -929,6 +952,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           const { WalletIframeRouter } =
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
           const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
             servicePath: '/wallet-service',
             connectTimeoutMs: 3000,

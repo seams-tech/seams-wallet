@@ -1,5 +1,4 @@
 import {
-  enrollEmailOtpWallet,
   prepareEmailOtpRegistrationEnrollmentMaterial,
 } from '../../session/emailOtp/workerEnrollment';
 import type { EmailOtpAuthPolicy } from '@/core/types/seams';
@@ -20,11 +19,6 @@ import type {
   EmailOtpWorkerProgressEvent,
 } from '../../workerManager/workerTypes';
 import type { EmailOtpEcdsaBootstrapAuthorization } from '../../session/emailOtp/routePlan';
-import {
-  requestEmailOtpSigningSessionChallenge as requestEmailOtpSigningSessionChallengeValue,
-  resolveEmailOtpEcdsaSigningSessionAuth,
-  refreshEmailOtpSigningSession as refreshEmailOtpSigningSessionValue,
-} from './emailOtpSigningSession';
 import type {
   EmailOtpEcdsaProviderIdentity,
   EmailOtpThresholdEcdsaLoginResult,
@@ -32,7 +26,6 @@ import type {
 } from '../../session/emailOtp/ecdsaLogin';
 import { type EmailOtpRoutePlan } from '../../stepUpConfirmation/otpPrompt/authLane';
 import { buildFreshEmailOtpRoutePlan } from '../../session/emailOtp/routePlan';
-import type { EmailOtpEcdsaSigningSessionAuthorityPorts } from '../../session/emailOtp/ecdsaSigningSessionAuthority';
 
 export type LoginWithEmailOtpEcdsaCapabilityInternalArgs = {
   walletSession: WalletSessionRef;
@@ -62,18 +55,6 @@ export type LoginWithEmailOtpEcdsaCapabilityInternalArgs = {
 
 export type LoginWithEmailOtpEcdsaCapabilityInternalResult = EmailOtpThresholdEcdsaLoginResult;
 
-export type EnrollEmailOtpInternalArgs = {
-  walletId: WalletId;
-  otpCode: string;
-  relayUrl?: string;
-  challengeId?: string;
-  groupId?: string;
-  clientSecret32?: Uint8Array;
-  otpChannel?: WalletEmailOtpChannel;
-};
-
-export type EnrollEmailOtpInternalResult = Awaited<ReturnType<typeof enrollEmailOtpWallet>>;
-
 type PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgsBase = {
   walletId: WalletId;
   userId: string;
@@ -94,14 +75,7 @@ export type EmailOtpPublicDeps = {
   relayerUrl: string;
   groupId: string;
   getSignerWorkerContext: () => WorkerOperationContext;
-  withThresholdEcdsaSigningQueue: Parameters<
-    typeof refreshEmailOtpSigningSessionValue
-  >[0]['withThresholdEcdsaSigningQueue'];
-  signingSessionAuthorityPorts: EmailOtpEcdsaSigningSessionAuthorityPorts;
   emailOtpSessions: {
-    requestTransactionSigningChallenge: Parameters<
-      typeof requestEmailOtpSigningSessionChallengeValue
-    >[0]['emailOtpSessions']['requestTransactionSigningChallenge'];
     loginWithEcdsaCapabilityInternal: (
       args: LoginEmailOtpEcdsaCapabilityArgs,
     ) => Promise<LoginWithEmailOtpEcdsaCapabilityInternalResult>;
@@ -159,104 +133,6 @@ export async function loginWithEmailOtpEcdsaCapabilityInternal(
   return await deps.emailOtpSessions.loginWithEcdsaCapabilityInternal(
     emailOtpEcdsaLoginCoreArgsFromBoundary(args),
   );
-}
-
-export async function requestEmailOtpSigningSessionChallenge(
-  deps: EmailOtpPublicDeps,
-  args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-  },
-): Promise<{ challengeId: string; emailHint?: string }> {
-  return await requestEmailOtpSigningSessionChallengeValue(
-    {
-      resolveSigningSessionAuth: (args) =>
-        resolveEmailOtpEcdsaSigningSessionAuth(args, deps.signingSessionAuthorityPorts),
-      withThresholdEcdsaSigningQueue: deps.withThresholdEcdsaSigningQueue,
-      emailOtpSessions: {
-        requestTransactionSigningChallenge: (challengeArgs) =>
-          deps.emailOtpSessions.requestTransactionSigningChallenge(challengeArgs),
-        loginWithEcdsaCapabilityInternal: ({ publicFacts, ...loginArgs }) =>
-          deps.emailOtpSessions.loginWithEcdsaCapabilityInternal({
-            ...loginArgs,
-            keyHandle: String(publicFacts.keyHandle),
-            participantIds: publicFacts.participantIds.map((participantId) =>
-              Number(participantId),
-            ),
-            ecdsaBootstrapAuthorization: { kind: 'route_plan_auth' },
-            ed25519YaoRecovery: { kind: 'not_requested' },
-          }),
-      },
-    },
-    {
-      walletSession: args.walletSession,
-      chainTarget: args.chainTarget,
-    },
-  );
-}
-
-export async function refreshEmailOtpSigningSession(
-  deps: EmailOtpPublicDeps,
-  args: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-  },
-): Promise<LoginWithEmailOtpEcdsaCapabilityInternalResult> {
-  const refreshed = await refreshEmailOtpSigningSessionValue(
-    {
-      resolveSigningSessionAuth: (args) =>
-        resolveEmailOtpEcdsaSigningSessionAuth(args, deps.signingSessionAuthorityPorts),
-      withThresholdEcdsaSigningQueue: deps.withThresholdEcdsaSigningQueue,
-      emailOtpSessions: {
-        requestTransactionSigningChallenge: (challengeArgs) =>
-          deps.emailOtpSessions.requestTransactionSigningChallenge(challengeArgs),
-        loginWithEcdsaCapabilityInternal: (loginArgs) =>
-          deps.emailOtpSessions.loginWithEcdsaCapabilityInternal({
-            ...loginArgs,
-            ed25519YaoRecovery: { kind: 'not_requested' },
-          }),
-      },
-    },
-    {
-      walletSession: args.walletSession,
-      chainTarget: args.chainTarget,
-      challengeId: args.challengeId,
-      otpCode: args.otpCode,
-      ...(typeof args.ttlMs === 'number' ? { ttlMs: args.ttlMs } : {}),
-      ...(typeof args.remainingUses === 'number' ? { remainingUses: args.remainingUses } : {}),
-    },
-  );
-  return { ...refreshed, ed25519YaoRecovery: { kind: 'not_requested' } };
-}
-
-export async function enrollEmailOtpInternal(
-  deps: EmailOtpPublicDeps,
-  args: EnrollEmailOtpInternalArgs,
-): Promise<EnrollEmailOtpInternalResult> {
-  const walletId = toWalletId(args.walletId);
-  const relayUrl = String(args.relayUrl || deps.relayerUrl || '').trim();
-  if (!relayUrl) {
-    throw new Error('Missing relayer url (configs.network.relayer.url)');
-  }
-  const groupId = String(args.groupId || deps.groupId || '').trim();
-  if (!groupId) {
-    throw new Error('Missing shamir prime for Email OTP runtime');
-  }
-  return await enrollEmailOtpWallet({
-    relayUrl,
-    walletId: String(walletId),
-    userId: String(walletId),
-    challengeId: args.challengeId,
-    otpCode: args.otpCode,
-    groupId,
-    workerCtx: deps.getSignerWorkerContext(),
-    otpChannel: args.otpChannel,
-    ...(args.clientSecret32 ? { clientSecret32: args.clientSecret32 } : {}),
-  });
 }
 
 export async function prepareEmailOtpRegistrationEnrollmentMaterialInternal(

@@ -1,0 +1,3244 @@
+{
+  "date": "2026-10-08",
+  "scope": "Existing staging testnet Router and Signing Worker; six existing wallet objects; no new resources.",
+  "method": "Each lookup arm sends 36 authenticated requests. Each request makes three sequential no-op object calls. Three objects per role, three rounds, alternating reused and fresh stubs. Signing Worker requests traverse the existing Router service binding.",
+  "clock": "Date.now spans surround the object fetch and response-body read. These are application spans, not isolated network clocks.",
+  "limitations": [
+    "No-op probes omit protocol execution, persisted reads/writes, and production payload sizes.",
+    "The first probe after each deployment includes possible object reconstruction and provider routing work. These effects cannot be separated.",
+    "Different arms reuse the same objects and may retain provider routing caches.",
+    "Warm means the same object instance answered a preceding probe in this arm, not a guaranteed production condition.",
+    "Application clocks do not account for uninterrupted CPU execution. Provider CPU measures whole invocations.",
+    "This experiment does not measure Yao setup or establish a signing latency improvement.",
+    "Physical execution locations and provider-internal routing are not directly observed.",
+    "Samples are sequential and small. They do not establish a population percentile."
+  ],
+  "arms": [
+    {
+      "name": "id",
+      "requests": 36,
+      "objectCalls": 108,
+      "roles": [
+        {
+          "role": "router",
+          "firstCallAfterDeployment": {
+            "samples": 3,
+            "medianMs": 635,
+            "minimumMs": 630,
+            "maximumMs": 640
+          },
+          "metrics": [
+            {
+              "stubMode": "reuse",
+              "allWarmCalls": {
+                "samples": 24,
+                "medianMs": 53.0,
+                "minimumMs": 48,
+                "maximumMs": 59
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 6,
+                "medianMs": 56.0,
+                "minimumMs": 53,
+                "maximumMs": 59
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 52.0,
+                "minimumMs": 48,
+                "maximumMs": 58
+              }
+            },
+            {
+              "stubMode": "fresh",
+              "allWarmCalls": {
+                "samples": 27,
+                "medianMs": 56,
+                "minimumMs": 53,
+                "maximumMs": 67
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 9,
+                "medianMs": 56,
+                "minimumMs": 54,
+                "maximumMs": 67
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 56.5,
+                "minimumMs": 53,
+                "maximumMs": 66
+              }
+            }
+          ],
+          "objects": [
+            {
+              "objectIndex": 0,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 1,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 2,
+              "instances": 1,
+              "calls": 18
+            }
+          ],
+          "servingVersions": {
+            "expectedVersion": "4362278d-0dfc-4d4a-83e6-77eb6d98c18f",
+            "invocationVersions": {
+              "4362278d-0dfc-4d4a-83e6-77eb6d98c18f": 65
+            },
+            "allMatched": true,
+            "outerInvocationCpu": {
+              "samples": 38,
+              "medianMs": 1.0,
+              "minimumMs": 0,
+              "maximumMs": 4
+            },
+            "objectInvocationCpu": {
+              "samples": 27,
+              "medianMs": 0,
+              "minimumMs": 0,
+              "maximumMs": 2
+            }
+          }
+        },
+        {
+          "role": "signingWorker",
+          "firstCallAfterDeployment": {
+            "samples": 3,
+            "medianMs": 534,
+            "minimumMs": 471,
+            "maximumMs": 655
+          },
+          "metrics": [
+            {
+              "stubMode": "reuse",
+              "allWarmCalls": {
+                "samples": 24,
+                "medianMs": 51.5,
+                "minimumMs": 49,
+                "maximumMs": 62
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 6,
+                "medianMs": 55.5,
+                "minimumMs": 52,
+                "maximumMs": 62
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 51.0,
+                "minimumMs": 49,
+                "maximumMs": 54
+              }
+            },
+            {
+              "stubMode": "fresh",
+              "allWarmCalls": {
+                "samples": 27,
+                "medianMs": 56,
+                "minimumMs": 51,
+                "maximumMs": 59
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 9,
+                "medianMs": 57,
+                "minimumMs": 51,
+                "maximumMs": 59
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 55.5,
+                "minimumMs": 53,
+                "maximumMs": 58
+              }
+            }
+          ],
+          "objects": [
+            {
+              "objectIndex": 0,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 1,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 2,
+              "instances": 1,
+              "calls": 18
+            }
+          ],
+          "servingVersions": {
+            "expectedVersion": "bfdcd6e8-4d21-4012-8752-c17f732484a2",
+            "invocationVersions": {
+              "bfdcd6e8-4d21-4012-8752-c17f732484a2": 45
+            },
+            "allMatched": true,
+            "outerInvocationCpu": {
+              "samples": 18,
+              "medianMs": 2.0,
+              "minimumMs": 1,
+              "maximumMs": 3
+            },
+            "objectInvocationCpu": {
+              "samples": 27,
+              "medianMs": 0,
+              "minimumMs": 0,
+              "maximumMs": 3
+            }
+          }
+        }
+      ],
+      "samples": [
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 635,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 471,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 61,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 59,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 630,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 534,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 67,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 66,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 63,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 59,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 640,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 655,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 50,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 56,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 61,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 52,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 59,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 58,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 51,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 48,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 58,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 62,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 50,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 51,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 56,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 59,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 60,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 56,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 58,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 18
+            }
+          ]
+        }
+      ],
+      "localVerification": {
+        "passed": true,
+        "checks": [
+          "Unauthenticated probe rejected",
+          "Object outside existing allowlist rejected",
+          "router: same object survives fresh stubs and separate requests",
+          "signingWorker: same object survives fresh stubs and separate requests"
+        ],
+        "noD1BindingConfigured": true,
+        "objectCalls": 18
+      },
+      "boundaryChecks": {
+        "unauthorizedStatus": 401,
+        "unknownObjectStatus": 400
+      },
+      "probeSourceSha256": {
+        "probe.mjs": "9fb4ae18ae7a61d6f2155d7e02b2a7ded6575629ed4e6b54197a474b33fdd76f",
+        "router/probe.mjs": "41695b6c35a2f987a9d2a099c6570ff7d532606ebba4e37eaf6803d703eae0be",
+        "signing-worker/probe.mjs": "c304572e2cdabc50f7277e41c08a48bfe5ae962839c239fe11a1d415d676b7c7",
+        "run.py": "337bffdf48542fbaa54c2e381ca920e64cafd17a046c6843b55b6a54eec48734",
+        "local-e2e.mjs": "d21bb61e7633cb788bf72e179714e2ca0dfc4ec7a82b993feaad59633d1c27c6"
+      },
+      "allThirteenOriginalVersionsRestored": true,
+      "rawArtifactDirectory": "/Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe",
+      "originalBundles": {
+        "router": [
+          {
+            "name": "shim.js",
+            "bytes": 55044,
+            "sha256": "4e14a61b3dd63b019aa93bd58d29069871079c6a599d0dbbb4cf2ed2da28a57c"
+          },
+          {
+            "name": "./a528889e1dea62eab28e12d4a5784ad0d31a3402-index_bg.wasm",
+            "bytes": 9501875,
+            "sha256": "e302545eb95b46547256036416ce5ece93dfb86297382019e8f25ca395fce423"
+          }
+        ],
+        "signing-worker": [
+          {
+            "name": "./e94dcc6d19a02cef2cee700cdc44757dac47c453-index_bg.wasm",
+            "bytes": 10962812,
+            "sha256": "c43764f89558af4ad86968ef7934345fc89b7c4b32790524e7cda11a92c8e17b"
+          },
+          {
+            "name": "shim.js",
+            "bytes": 58495,
+            "sha256": "b6ab0821c451ec22638807047f2dd2770842b949571d02aba9fd742b64e07e9e"
+          }
+        ]
+      },
+      "reproduce": [
+        "node /Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe/local-e2e.mjs",
+        "python3 /Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe/run.py"
+      ],
+      "reproductionConditions": "Existing source modules and configs must remain frozen. Live versions must match before.json. The runner refuses concurrent changes and restores exact originals. Do not activate stale benchmark versions without checking current staging work."
+    },
+    {
+      "name": "id_apac_hint",
+      "requests": 36,
+      "objectCalls": 108,
+      "roles": [
+        {
+          "role": "router",
+          "firstCallAfterDeployment": {
+            "samples": 3,
+            "medianMs": 170,
+            "minimumMs": 140,
+            "maximumMs": 180
+          },
+          "metrics": [
+            {
+              "stubMode": "reuse",
+              "allWarmCalls": {
+                "samples": 24,
+                "medianMs": 52.0,
+                "minimumMs": 49,
+                "maximumMs": 57
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 6,
+                "medianMs": 55.5,
+                "minimumMs": 55,
+                "maximumMs": 57
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 52.0,
+                "minimumMs": 49,
+                "maximumMs": 54
+              }
+            },
+            {
+              "stubMode": "fresh",
+              "allWarmCalls": {
+                "samples": 27,
+                "medianMs": 56,
+                "minimumMs": 52,
+                "maximumMs": 59
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 9,
+                "medianMs": 55,
+                "minimumMs": 52,
+                "maximumMs": 59
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 56.0,
+                "minimumMs": 53,
+                "maximumMs": 59
+              }
+            }
+          ],
+          "objects": [
+            {
+              "objectIndex": 0,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 1,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 2,
+              "instances": 1,
+              "calls": 18
+            }
+          ],
+          "servingVersions": {
+            "expectedVersion": "102755ac-9e78-4294-80df-0cf5effbfa17",
+            "invocationVersions": {
+              "102755ac-9e78-4294-80df-0cf5effbfa17": 64
+            },
+            "allMatched": true,
+            "outerInvocationCpu": {
+              "samples": 38,
+              "medianMs": 1.0,
+              "minimumMs": 0,
+              "maximumMs": 3
+            },
+            "objectInvocationCpu": {
+              "samples": 26,
+              "medianMs": 0.0,
+              "minimumMs": 0,
+              "maximumMs": 1
+            }
+          }
+        },
+        {
+          "role": "signingWorker",
+          "firstCallAfterDeployment": {
+            "samples": 3,
+            "medianMs": 147,
+            "minimumMs": 146,
+            "maximumMs": 196
+          },
+          "metrics": [
+            {
+              "stubMode": "reuse",
+              "allWarmCalls": {
+                "samples": 24,
+                "medianMs": 52.0,
+                "minimumMs": 48,
+                "maximumMs": 57
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 6,
+                "medianMs": 53.5,
+                "minimumMs": 52,
+                "maximumMs": 57
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 52.0,
+                "minimumMs": 48,
+                "maximumMs": 53
+              }
+            },
+            {
+              "stubMode": "fresh",
+              "allWarmCalls": {
+                "samples": 27,
+                "medianMs": 56,
+                "minimumMs": 50,
+                "maximumMs": 61
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 9,
+                "medianMs": 56,
+                "minimumMs": 53,
+                "maximumMs": 59
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 55.5,
+                "minimumMs": 50,
+                "maximumMs": 61
+              }
+            }
+          ],
+          "objects": [
+            {
+              "objectIndex": 0,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 1,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 2,
+              "instances": 1,
+              "calls": 18
+            }
+          ],
+          "servingVersions": {
+            "expectedVersion": "0ca6daad-e147-47cb-84c2-98122a724f3f",
+            "invocationVersions": {
+              "0ca6daad-e147-47cb-84c2-98122a724f3f": 41
+            },
+            "allMatched": true,
+            "outerInvocationCpu": {
+              "samples": 18,
+              "medianMs": 1.0,
+              "minimumMs": 0,
+              "maximumMs": 3
+            },
+            "objectInvocationCpu": {
+              "samples": 23,
+              "medianMs": 0,
+              "minimumMs": 0,
+              "maximumMs": 2
+            }
+          }
+        }
+      ],
+      "samples": [
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 170,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 147,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 48,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 52,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 58,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 180,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 146,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 59,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 58,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 140,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 196,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 52,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 56,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 59,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 58,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 58,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 61,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 52,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 50,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 59,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 18
+            }
+          ]
+        }
+      ],
+      "localVerification": {
+        "passed": true,
+        "checks": [
+          "Unauthenticated probe rejected",
+          "Object outside existing allowlist rejected",
+          "router: same object survives fresh stubs and separate requests",
+          "signingWorker: same object survives fresh stubs and separate requests"
+        ],
+        "noD1BindingConfigured": true,
+        "objectCalls": 18
+      },
+      "boundaryChecks": {
+        "unauthorizedStatus": 401,
+        "unknownObjectStatus": 400
+      },
+      "probeSourceSha256": {
+        "probe.mjs": "f9ff837f197dbf45ed2cafe19fbda2f2ef8687f074aa7559fec630f2109a271c",
+        "router/probe.mjs": "41695b6c35a2f987a9d2a099c6570ff7d532606ebba4e37eaf6803d703eae0be",
+        "signing-worker/probe.mjs": "c304572e2cdabc50f7277e41c08a48bfe5ae962839c239fe11a1d415d676b7c7",
+        "run.py": "2a7364b2ea3e81aea040f5bc159bb414eb544c9887279d0751c1a6492be373f0",
+        "local-e2e.mjs": "d21bb61e7633cb788bf72e179714e2ca0dfc4ec7a82b993feaad59633d1c27c6"
+      },
+      "allThirteenOriginalVersionsRestored": true,
+      "rawArtifactDirectory": "/Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe-hinted",
+      "originalBundles": {
+        "router": [
+          {
+            "name": "shim.js",
+            "bytes": 55044,
+            "sha256": "4e14a61b3dd63b019aa93bd58d29069871079c6a599d0dbbb4cf2ed2da28a57c"
+          },
+          {
+            "name": "./a528889e1dea62eab28e12d4a5784ad0d31a3402-index_bg.wasm",
+            "bytes": 9501875,
+            "sha256": "e302545eb95b46547256036416ce5ece93dfb86297382019e8f25ca395fce423"
+          }
+        ],
+        "signing-worker": [
+          {
+            "name": "./e94dcc6d19a02cef2cee700cdc44757dac47c453-index_bg.wasm",
+            "bytes": 10962812,
+            "sha256": "c43764f89558af4ad86968ef7934345fc89b7c4b32790524e7cda11a92c8e17b"
+          },
+          {
+            "name": "shim.js",
+            "bytes": 58495,
+            "sha256": "b6ab0821c451ec22638807047f2dd2770842b949571d02aba9fd742b64e07e9e"
+          }
+        ]
+      },
+      "reproduce": [
+        "node /Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe-hinted/local-e2e.mjs",
+        "python3 /Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe-hinted/run.py"
+      ],
+      "reproductionConditions": "Existing source modules and configs must remain frozen. Live versions must match before.json. The runner refuses concurrent changes and restores exact originals. Do not activate stale benchmark versions without checking current staging work."
+    },
+    {
+      "name": "name_apac_hint",
+      "requests": 36,
+      "objectCalls": 108,
+      "roles": [
+        {
+          "role": "router",
+          "firstCallAfterDeployment": {
+            "samples": 3,
+            "medianMs": 175,
+            "minimumMs": 142,
+            "maximumMs": 176
+          },
+          "metrics": [
+            {
+              "stubMode": "reuse",
+              "allWarmCalls": {
+                "samples": 24,
+                "medianMs": 52.5,
+                "minimumMs": 49,
+                "maximumMs": 58
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 6,
+                "medianMs": 56.5,
+                "minimumMs": 54,
+                "maximumMs": 58
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 51.0,
+                "minimumMs": 49,
+                "maximumMs": 54
+              }
+            },
+            {
+              "stubMode": "fresh",
+              "allWarmCalls": {
+                "samples": 27,
+                "medianMs": 55,
+                "minimumMs": 52,
+                "maximumMs": 63
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 9,
+                "medianMs": 54,
+                "minimumMs": 52,
+                "maximumMs": 62
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 55.0,
+                "minimumMs": 52,
+                "maximumMs": 63
+              }
+            }
+          ],
+          "objects": [
+            {
+              "objectIndex": 0,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 1,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 2,
+              "instances": 1,
+              "calls": 18
+            }
+          ],
+          "servingVersions": {
+            "expectedVersion": "cd239528-e9e2-49f9-97a7-6d8904343856",
+            "invocationVersions": {
+              "cd239528-e9e2-49f9-97a7-6d8904343856": 66
+            },
+            "allMatched": true,
+            "outerInvocationCpu": {
+              "samples": 38,
+              "medianMs": 1.0,
+              "minimumMs": 0,
+              "maximumMs": 4
+            },
+            "objectInvocationCpu": {
+              "samples": 28,
+              "medianMs": 0.0,
+              "minimumMs": 0,
+              "maximumMs": 2
+            }
+          }
+        },
+        {
+          "role": "signingWorker",
+          "firstCallAfterDeployment": {
+            "samples": 3,
+            "medianMs": 177,
+            "minimumMs": 157,
+            "maximumMs": 178
+          },
+          "metrics": [
+            {
+              "stubMode": "reuse",
+              "allWarmCalls": {
+                "samples": 24,
+                "medianMs": 52.0,
+                "minimumMs": 49,
+                "maximumMs": 58
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 6,
+                "medianMs": 56.0,
+                "minimumMs": 52,
+                "maximumMs": 58
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 52.0,
+                "minimumMs": 49,
+                "maximumMs": 54
+              }
+            },
+            {
+              "stubMode": "fresh",
+              "allWarmCalls": {
+                "samples": 27,
+                "medianMs": 55,
+                "minimumMs": 52,
+                "maximumMs": 62
+              },
+              "warmFirstCallPerRequest": {
+                "samples": 9,
+                "medianMs": 55,
+                "minimumMs": 53,
+                "maximumMs": 62
+              },
+              "laterCallsWithinRequest": {
+                "samples": 18,
+                "medianMs": 54.0,
+                "minimumMs": 52,
+                "maximumMs": 61
+              }
+            }
+          ],
+          "objects": [
+            {
+              "objectIndex": 0,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 1,
+              "instances": 1,
+              "calls": 18
+            },
+            {
+              "objectIndex": 2,
+              "instances": 1,
+              "calls": 18
+            }
+          ],
+          "servingVersions": {
+            "expectedVersion": "c8157970-ebfe-4b17-9a36-e654c88d96c6",
+            "invocationVersions": {
+              "c8157970-ebfe-4b17-9a36-e654c88d96c6": 43
+            },
+            "allMatched": true,
+            "outerInvocationCpu": {
+              "samples": 18,
+              "medianMs": 1.0,
+              "minimumMs": 1,
+              "maximumMs": 5
+            },
+            "objectInvocationCpu": {
+              "samples": 25,
+              "medianMs": 0,
+              "minimumMs": 0,
+              "maximumMs": 1
+            }
+          }
+        }
+      ],
+      "samples": [
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 175,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 178,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 62,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 61,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 54,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 176,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 50,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 157,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 56,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 142,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 177,
+              "instanceCall": 1
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 2
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 3
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 0,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 4
+            },
+            {
+              "index": 1,
+              "durationMs": 54,
+              "instanceCall": 5
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 6
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 62,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 63,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 58,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 57,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 58,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 52,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 52,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 7
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 8
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 9
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 1,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 52,
+              "instanceCall": 10
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 11
+            },
+            {
+              "index": 2,
+              "durationMs": 50,
+              "instanceCall": 12
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 57,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 53,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 0,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 56,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 49,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 51,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 51,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 50,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 59,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 57,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 1,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 56,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 54,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 50,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 49,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "reuse",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 58,
+              "instanceCall": 13
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 14
+            },
+            {
+              "index": 2,
+              "durationMs": 53,
+              "instanceCall": 15
+            }
+          ]
+        },
+        {
+          "role": "router",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 53,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 55,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 59,
+              "instanceCall": 18
+            }
+          ]
+        },
+        {
+          "role": "signingWorker",
+          "round": 2,
+          "objectIndex": 2,
+          "stubMode": "fresh",
+          "calls": [
+            {
+              "index": 0,
+              "durationMs": 55,
+              "instanceCall": 16
+            },
+            {
+              "index": 1,
+              "durationMs": 52,
+              "instanceCall": 17
+            },
+            {
+              "index": 2,
+              "durationMs": 55,
+              "instanceCall": 18
+            }
+          ]
+        }
+      ],
+      "localVerification": {
+        "passed": true,
+        "checks": [
+          "Unauthenticated probe rejected",
+          "Object outside existing allowlist rejected",
+          "router: same object survives fresh stubs and separate requests",
+          "signingWorker: same object survives fresh stubs and separate requests"
+        ],
+        "noD1BindingConfigured": true,
+        "objectCalls": 18
+      },
+      "boundaryChecks": {
+        "unauthorizedStatus": 401,
+        "unknownObjectStatus": 400
+      },
+      "probeSourceSha256": {
+        "probe.mjs": "ab1f4425e3d18cdc623357c6c21a948965171f539f14496f3fc172ad733c5ac7",
+        "router/probe.mjs": "41695b6c35a2f987a9d2a099c6570ff7d532606ebba4e37eaf6803d703eae0be",
+        "signing-worker/probe.mjs": "c304572e2cdabc50f7277e41c08a48bfe5ae962839c239fe11a1d415d676b7c7",
+        "run.py": "62d23b7271af190d057f8a3181102e337bc06131ab81fae8af7bb0d81e18e992",
+        "local-e2e.mjs": "dafe193aae72dd66299193bc9a0b1e2edfc74c510e8f49610c35196ee10e5350"
+      },
+      "allThirteenOriginalVersionsRestored": true,
+      "rawArtifactDirectory": "/Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe-named",
+      "originalBundles": {
+        "router": [
+          {
+            "name": "shim.js",
+            "bytes": 55044,
+            "sha256": "4e14a61b3dd63b019aa93bd58d29069871079c6a599d0dbbb4cf2ed2da28a57c"
+          },
+          {
+            "name": "./a528889e1dea62eab28e12d4a5784ad0d31a3402-index_bg.wasm",
+            "bytes": 9501875,
+            "sha256": "e302545eb95b46547256036416ce5ece93dfb86297382019e8f25ca395fce423"
+          }
+        ],
+        "signing-worker": [
+          {
+            "name": "./e94dcc6d19a02cef2cee700cdc44757dac47c453-index_bg.wasm",
+            "bytes": 10962812,
+            "sha256": "c43764f89558af4ad86968ef7934345fc89b7c4b32790524e7cda11a92c8e17b"
+          },
+          {
+            "name": "shim.js",
+            "bytes": 58495,
+            "sha256": "b6ab0821c451ec22638807047f2dd2770842b949571d02aba9fd742b64e07e9e"
+          }
+        ]
+      },
+      "reproduce": [
+        "node /Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe-named/local-e2e.mjs",
+        "python3 /Users/pta/Dev/rust/seams-monorepo/.artifacts/r155b-dispatch-probe-named/run.py"
+      ],
+      "reproductionConditions": "Existing source modules and configs must remain frozen. Live versions must match before.json. The runner refuses concurrent changes and restores exact originals. Do not activate stale benchmark versions without checking current staging work."
+    }
+  ],
+  "conclusion": {
+    "demonstrated": "Warm no-op calls to the same object remain fast across separate incoming requests, fresh handles, APAC hints, and named lookups.",
+    "notDemonstrated": "The experiment does not explain the repeated ~0.5 second dispatch spans in real registration or show a Yao latency improvement.",
+    "decision": "Keep the existing placement and lookup implementation. Do not add a global stub cache or rewrite coordinator placement from these results.",
+    "nextStep": "Correlate actual startup, claim, and package-delivery requests for the same wallet. Record execution-location observations separately from timing. Measure payload sizes and response-header/body-read boundaries before choosing another optimization."
+  },
+  "verificationNotes": [
+    "All captured invocation versions match each arm. Durable Object tails are incomplete; returned instance counters verify all 324 successful calls.",
+    "Each object reports exactly one instance and consecutive calls 1 through 18 in each arm.",
+    "All three local E2E runs verify unauthorized rejection, unknown-object rejection, fresh handles, service forwarding, and object reuse across requests.",
+    "The first hosted attempt was rejected by Cloudflare error 1010 before reaching the Workers. Exact versions were restored. The successful run used the benchmark browser User-Agent.",
+    "One read-only D1 query supplied existing wallet ownership metadata for deriving object names. No-op handlers perform no storage calls.",
+    "id: Object-tail coverage is router 27/54, signingWorker 27/54.",
+    "id_apac_hint: Object-tail coverage is router 26/54, signingWorker 23/54.",
+    "name_apac_hint: Object-tail coverage is router 28/54, signingWorker 25/54."
+  ]
+}

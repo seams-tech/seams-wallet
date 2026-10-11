@@ -10,12 +10,49 @@ use super::*;
 use crate::ordinary_inactive_signer_material as linked;
 use serde::de::DeserializeOwned;
 
+mod execution;
+mod relocation;
+mod presign_authority;
+mod linked_presign_inventory;
+mod linked_presign_settlement;
+pub use linked_presign_settlement::{
+    SigningWorkerLinkedPresignRelocationRequestV1, SigningWorkerLinkedPresignFreezeReceiptV1,
+};
+pub use linked_presign_inventory::{
+    SigningWorkerLinkedPresignCursorV1, SigningWorkerLinkedPresignInventoryRequestV1,
+    SigningWorkerLinkedPresignPreparationInventoryRequestV1,
+    SIGNING_WORKER_LINKED_PRESIGN_PREPARATION_INVENTORY_PATH_V1,
+    SigningWorkerLinkedPresignInventoryPageV1, SigningWorkerLinkedPresignIdentityV1,
+    SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1,
+};
+mod snapshot;
+mod sealed_snapshot;
+mod sql_integer;
+mod transfer;
+mod import;
+mod cleanup;
+pub use import::{
+    SigningWorkerEcdsaTransferRequestV1, SigningWorkerEcdsaTransferResponseV1,
+    SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1,
+};
+pub use transfer::{
+    SigningWorkerEcdsaExportRequestV1, SigningWorkerEcdsaSnapshotChunkV1,
+    SIGNING_WORKER_ECDSA_EXPORT_PATH_V1,
+};
+pub use relocation::{
+    SigningWorkerPoolAdmissionV1, SigningWorkerPoolFreezeCommandV1,
+    SigningWorkerPoolFreezeReceiptV1, SigningWorkerPoolFreezeResponseV1,
+    SIGNING_WORKER_POOL_FREEZE_PATH_V1,
+};
+
 /// One bound parameter of a wallet statement.
 pub enum SigningWorkerWalletSqlValueV1 {
     /// A TEXT value.
     Text(String),
     /// An INTEGER value.
     Integer(i64),
+    /// A SQL NULL value.
+    Null,
 }
 
 /// Runs one SQLite statement for the wallet store and returns its rows, each
@@ -57,11 +94,20 @@ const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecds
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 4] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 13] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
     LINKED_ECDSA_SCHEMA,
+    relocation::SCHEMA,
+    import::SCHEMA,
+    import::ACTIVATION_SCHEMA,
+    execution::SCHEMA,
+    sealed_snapshot::PAGES_SCHEMA,
+    sealed_snapshot::MANIFEST_SCHEMA,
+    presign_authority::SCHEMA,
+    linked_presign_inventory::SCHEMA,
+    linked_presign_settlement::SCHEMA,
 ];
 
 /// The outcome of claiming one signing effect and consuming its presignature.
@@ -103,6 +149,7 @@ pub struct SigningWorkerWalletEcdsaActivationMaterialV1 {
 struct EcdsaPoolRowV1 {
     owner_json: String,
     ciphertext_json: String,
+    #[serde(deserialize_with = "sql_integer::deserialize")]
     version: i64,
 }
 
@@ -245,6 +292,15 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             activated_at_ms,
         };
         call.validate()?;
+        self.require_mutation_admission(&scope)?;
+        if self.execution_authority(&scope)?.is_none()
+            && (self.ecdsa_snapshot_record_count(&scope)? != 0
+                || self.import_activation(&scope)?.is_some())
+        {
+            return Err(wallet_error(
+                "ECDSA registration cannot infer missing execution authority",
+            ));
+        }
         let material_key = call.storage_key();
         let active_key = call.active_state_index_key()?;
         let active = crate::cloudflare_active_signing_worker_state_from_activation_request_v1(
@@ -276,6 +332,14 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             ],
         )?;
         let stored = if written.len() == 1 && written[0].material_key == material_key {
+            if self.execution_authority(&scope)?.is_none() {
+                self.install_execution_authority(
+                    &scope,
+                    execution::ExecutionAuthority::Registration {
+                        material_key: material_key.clone(),
+                    },
+                )?;
+            }
             candidate
         } else {
             let stored = self
@@ -413,6 +477,15 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         scope: CloudflareSigningWorkerWalletScopeV1,
         command: CloudflareSigningWorkerEcdsaPoolCommandV1,
     ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
+        self.require_mutation_admission(&scope)?;
+        self.mutate_pool_record(scope, command)
+    }
+
+    fn mutate_pool_record(
+        &self,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        command: CloudflareSigningWorkerEcdsaPoolCommandV1,
+    ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
         scope.validate()?;
         command.validate()?;
         if scope.wallet_id != command.scope().wallet_id {
@@ -426,7 +499,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         .storage_key();
         let owner_json = owner_json(&scope, "ECDSA pool")?;
         let rows = self.sql.query::<EcdsaPoolRowV1>(
-            "SELECT owner_json, ciphertext_json, version FROM wallet_ecdsa_pool WHERE pool_key = ?",
+            "SELECT owner_json, ciphertext_json, CAST(version AS TEXT) AS version FROM wallet_ecdsa_pool WHERE pool_key = ?",
             vec![text(key.clone())],
         )?;
         let current = match rows.as_slice() {
@@ -445,7 +518,18 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             }
             _ => return Err(wallet_error("ECDSA pool lookup returned duplicate rows")),
         };
+        let terminal = current.as_ref().is_some_and(|record| {
+            matches!(
+                record.lifecycle,
+                router_ab_ecdsa_pool::PoolRecord::Consumed(_)
+                    | router_ab_ecdsa_pool::PoolRecord::Tombstone(_)
+            )
+        });
         let outcome = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(current, command)?;
+        if terminal {
+            outcome.validate()?;
+            return Ok(outcome);
+        }
         outcome.validate()?;
         if matches!(
             outcome,
@@ -517,6 +601,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
         if !existing.is_empty() {
             return Err(wallet_error("ECDSA effect lookup returned duplicate rows"));
         }
+        self.require_execution_generation(&scope, request.ownership_generation)?;
         request.request.validate_at(now_unix_ms)?;
         // A linked device's revocation commits in this store too: once it
         // is revoked, no presignature is consumed for its material.
@@ -602,6 +687,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
                 response_json: terminal_json.clone(),
             });
         }
+        self.require_execution_generation(scope, request.ownership_generation)?;
         let response_json = serde_json::to_string(response)
             .map_err(|error| wallet_error(format!("ECDSA terminal is invalid: {error}")))?;
         let written = self.sql.query::<WrittenEcdsaEffectRowV1>(
@@ -688,6 +774,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         {
             return Ok(response);
         }
+        self.require_mutation_admission(scope)?;
         let source = linked::mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?;
         let source_share = match self.read_activation(
             scope,
@@ -773,6 +860,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         {
             return Ok(response);
         }
+        self.require_mutation_admission(scope)?;
         let state = stored
             .state
             .into_source_preserving_phase_v1(linked::SourcePreservingPhaseV1::Active)?;
@@ -841,6 +929,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
                     reservation_id,
                 } => (binding, source_derivation, reservation_id, now_unix_ms),
             };
+        self.require_mutation_admission(scope)?;
         let revoked = WalletLinkedEcdsaV1 {
             state: linked::EcdsaReservationStateV1::SourcePreservingRevoked {
                 binding,
@@ -976,7 +1065,7 @@ pub(crate) fn validate_wallet_ecdsa_effect_scope_v1(
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
 ) -> RouterAbProtocolResult<()> {
     request.validate()?;
-    if request.wallet_scope.as_ref() != Some(scope) {
+    if &request.wallet_scope != scope {
         return Err(wallet_error(
             "SigningWorker ECDSA effect wallet scope changed",
         ));

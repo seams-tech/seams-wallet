@@ -32,9 +32,14 @@ export type EmailOtpSigningSessionAuthLane =
       chainTarget: ThresholdEcdsaChainTarget;
     };
 
-export type EmailOtpRouteFamily = 'login' | 'registration' | 'signing_session';
+export type EmailOtpRouteFamily = 'login' | 'registration' | 'signing_session' | 'operation_step_up';
 
 export type EmailOtpRoutePlan = ExclusiveUnion<
+  | {
+      routeFamily: 'operation_step_up';
+      operation: typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION;
+      operationCredential: WalletSessionOperationCredentialV1;
+    }
   | { routeFamily: 'login'; operation: WalletEmailOtpLoginOperation }
   | { routeFamily: 'registration'; operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION }
   | {
@@ -103,19 +108,15 @@ function buildEmailOtpSigningSessionAuthLane(args: {
 }
 
 export function buildEmailOtpRoutePlan(
-  args: ExclusiveUnion<
-    | { routeFamily: 'login'; operation: WalletEmailOtpLoginOperation }
-    | { routeFamily: 'registration'; operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION }
-    | {
-        routeFamily: 'signing_session';
-        authLane: EmailOtpSigningSessionAuthLane;
-        operation:
-          | typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION
-          | typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
-      }
-  >,
+  args: EmailOtpRoutePlan,
 ): EmailOtpRoutePlan {
   switch (args.routeFamily) {
+    case 'operation_step_up':
+      return {
+        routeFamily: args.routeFamily,
+        operation: args.operation,
+        operationCredential: args.operationCredential,
+      };
     case 'registration':
       if (args.operation !== WALLET_EMAIL_OTP_REGISTRATION_OPERATION) {
         throw new Error('Email OTP registration routes require registration operation');
@@ -142,7 +143,7 @@ export function emailOtpRoutePath(
   plan: EmailOtpRoutePlan,
   action: 'challenge' | 'seal' | 'finalize',
 ): string {
-  if (plan.routeFamily === 'signing_session') {
+  if (plan.routeFamily === 'signing_session' || plan.routeFamily === 'operation_step_up') {
     if (action === 'challenge') return '/wallet/email-otp/challenge';
   }
   if (plan.routeFamily === 'registration') {
@@ -161,6 +162,7 @@ export function normalizeEmailOtpRoutePlan(value: unknown): EmailOtpRoutePlan | 
   const input = value as {
     routeFamily?: unknown;
     operation?: unknown;
+    operationCredential?: unknown;
     authLane?: {
       kind?: unknown;
       operationCredential?: unknown;
@@ -170,7 +172,7 @@ export function normalizeEmailOtpRoutePlan(value: unknown): EmailOtpRoutePlan | 
     };
   };
   const routeFamily = nonEmptyString(input.routeFamily);
-  if (!['login', 'registration', 'signing_session'].includes(routeFamily)) return undefined;
+  if (!['login', 'registration', 'signing_session', 'operation_step_up'].includes(routeFamily)) return undefined;
   const operation = nonEmptyString(input.operation);
   if (
     !isWalletEmailOtpLoginOperation(operation) &&
@@ -179,6 +181,14 @@ export function normalizeEmailOtpRoutePlan(value: unknown): EmailOtpRoutePlan | 
     return undefined;
   }
   try {
+    if (routeFamily === 'operation_step_up') {
+      if (operation !== WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION) return undefined;
+      return buildEmailOtpRoutePlan({
+        routeFamily,
+        operation,
+        operationCredential: parseWalletSessionOperationCredentialV1(input.operationCredential),
+      });
+    }
     if (routeFamily === 'login') {
       if (!isWalletEmailOtpLoginOperation(operation)) return undefined;
       return buildEmailOtpRoutePlan({ routeFamily, operation });

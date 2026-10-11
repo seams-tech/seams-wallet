@@ -47,8 +47,19 @@ struct NearRowV1 {
     terminal_json: Option<String>,
 }
 
+/// Round-1 state, and the wallet's Ed25519 execution, fence and settlement
+/// records that prepare and finalize read. The deployment check expects
+/// exactly what this creates.
 pub(crate) fn ensure_schema(connection: &Connection) -> RouterAbProtocolResult<()> {
-    connection.execute_batch(SCHEMA).map_err(store_error)
+    for schema in [
+        SCHEMA,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1,
+        router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1,
+    ] {
+        connection.execute_batch(schema).map_err(store_error)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn prepare(
@@ -59,6 +70,11 @@ pub(crate) fn prepare(
     now_ms: u64,
 ) -> RouterAbProtocolResult<String> {
     request.validate()?;
+    let wallet_scope = &request.wallet_scope;
+    require_execution_generation(connection, wallet_scope, request.ownership_generation)?;
+    let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(connection);
+    router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+        .require_unfenced(wallet_scope)?;
     let binding = request
         .admission_candidate
         .round1_binding_digest
@@ -114,6 +130,14 @@ pub(crate) fn finalize(
     if let Some(response) = read_terminal(connection, &request)? {
         return Ok(response);
     }
+    require_execution_generation(
+        connection,
+        &request.wallet_scope,
+        request.ownership_generation,
+    )?;
+    let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(connection);
+    router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+        .require_finalization_admission(&request.wallet_scope)?;
     request.request.validate_at(now_ms)?;
     let authorization_key = authorization_key(&request)?;
     if read_row(connection, "authorization_key", &authorization_key)?.is_some() {
@@ -142,6 +166,11 @@ pub(crate) fn finalize(
         now_ms,
     )?;
     prepared.record.validate_for_lookup(&lookup)?;
+    if prepared.request.ownership_generation != request.ownership_generation {
+        return Err(replayed(
+            "SigningWorker finalize generation differs from prepared round-1",
+        ));
+    }
     if prepared.request.scope != request.request.scope {
         return Err(replayed(
             "SigningWorker finalize scope differs from prepared round-1",
@@ -192,6 +221,33 @@ pub(crate) fn finalize(
     let row = read_row(connection, "effect_operation_key", &operation_key)?
         .ok_or_else(|| invalid_state("SigningWorker terminal write is uncertain"))?;
     replay_terminal(&request, &effect_digest, row)
+}
+
+pub(crate) fn settle_for_relocation(
+    connection: &Connection,
+    command: router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<router_ab_cloudflare::SigningWorkerEd25519SettlementV1> {
+    let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(connection);
+    let execution = router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql);
+    let mut statement = connection
+        .prepare(
+            "SELECT state, record_json FROM local_signing_worker_near_round1
+             WHERE state != 'completed' AND json_extract(prepare_json, '$.wallet_scope') = ?1",
+        )
+        .map_err(store_error)?;
+    let owner = encode(&command.scope)?;
+    let mut rows = statement.query([owner]).map_err(store_error)?;
+    let mut pending_rounds = 0;
+    while let Some(row) = rows.next().map_err(store_error)? {
+        let state: String = row.get(0).map_err(store_error)?;
+        let encoded: String = row.get(1).map_err(store_error)?;
+        let record: CloudflareSigningWorkerRound1RecordV1 = decode(&encoded)?;
+        if state == "claimed" || now_ms < record.expires_at_ms {
+            pending_rounds += 1;
+        }
+    }
+    execution.settle(command, pending_rounds)
 }
 
 pub(crate) fn read_terminal(
@@ -349,4 +405,14 @@ fn invalid_state(message: impl Into<String>) -> RouterAbProtocolError {
 
 fn replayed(message: &'static str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::ReplayedLocalRequest, message)
+}
+
+fn require_execution_generation(
+    connection: &Connection,
+    scope: &router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1,
+    generation: u64,
+) -> RouterAbProtocolResult<()> {
+    let sql = crate::local_signing_worker_wallet_sqlite::LocalWalletSqlV1(connection);
+    router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(&sql)
+        .require_generation(scope, generation)
 }

@@ -1,3 +1,8 @@
+import { assertWalletHostMutationAllowed } from './walletMutationGuard';
+import { WalletHostSessionObserver } from './sessionObserver';
+import { getWalletSession } from '@/SeamsWeb/operations/auth/login';
+import type { WalletIframeExactSessionSnapshot } from '../shared/exactSessionState';
+import type { PMGetExactWalletSessionStatePayload } from '../shared/messages';
 import type { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import type {
   ChildToParentEnvelope,
@@ -7,12 +12,12 @@ import type {
   ProgressPayload,
   WalletIframeSurfaceMeasurement,
 } from '../shared/messages';
-import { SeamsWeb } from '@/SeamsWeb';
-import type { SeamsConfigsInput } from '@/core/types/seams';
+import { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
+import type { WalletHostConfigurationState } from '../shared/configuration';
 import {
   applyWalletConfig,
   createHostContext,
-  ensureSeamsWeb,
+  ensureWalletRuntime,
   ensureWalletHostLifecycleSubscription,
   setWalletHostLifecycleListener,
   type HostContext,
@@ -35,12 +40,15 @@ import {
 export type WalletHostRuntimeState = {
   parentOrigin: string | null;
   port: MessagePort | null;
-  walletConfigs: SeamsConfigsInput | null;
+  configuration: WalletHostConfigurationState;
+  executionGeneration: number;
+  onConfigurationChanged: (() => void) | null;
 };
 
 export type WalletHostRuntimeRequest = {
   transactionReview: TransactionReviewAdmission | null;
   state: WalletHostRuntimeState;
+  readonly executionGeneration: number;
   req: ParentToChildEnvelope;
   post(msg: ChildToParentEnvelope): void;
   isCancelled(requestId: string | undefined): boolean;
@@ -51,6 +59,7 @@ type HandlerFactory = (deps: HandlerDeps) => HandlerMap;
 
 let runtimeContext: HostContext | null = null;
 const handlerMaps = new Map<HandlerFactory, HandlerMap>();
+let handlerExecutionGeneration: number | null = null;
 
 const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = new Set([
   'PM_REGISTER_WALLET',
@@ -58,16 +67,13 @@ const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = ne
   'PM_ADD_PASSKEY',
   'PM_ADD_EMAIL_OTP',
   'PM_REVOKE_AUTH_METHOD',
-  'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET',
+  'PM_REVOKE_LINKED_DEVICE',
   'PM_SIGN_TX_WITH_ACTIONS',
   'PM_SIGN_AND_SEND_TX',
-  'PM_EXECUTE_ACTION',
   'PM_SIGN_DELEGATE_ACTION',
   'PM_SIGN_NEP413',
   'PM_UNLOCK',
   'PM_SIGN_TEMPO',
-  'PM_ENROLL_EMAIL_OTP',
-  'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
   'PM_ROTATE_WALLET_RECOVERY_CODES',
   'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP',
   'PM_SYNC_ACCOUNT_FLOW',
@@ -136,7 +142,7 @@ function clearSurfaceMeasurementBindingForRequest(
   const binding = ctx.surfaceMeasurementBinding;
   if (binding.kind !== 'wallet_iframe' || binding.requestId !== requestId) return;
   ctx.surfaceMeasurementBinding = { kind: 'disabled' };
-  ctx.seamsWeb?.setWalletIframeSurfaceMeasurementBinding({ kind: 'disabled' });
+  ctx.walletRuntime?.setWalletIframeSurfaceMeasurementBinding({ kind: 'disabled' });
 }
 
 /**
@@ -161,50 +167,51 @@ function takeForegroundSurfaceBinding(
   binding: UiConfirmSurfaceMeasurementBinding,
 ): void {
   ctx.surfaceMeasurementBinding = binding;
-  ensureSeamsWeb(ctx).setWalletIframeSurfaceMeasurementBinding(binding);
+  ensureWalletRuntime(ctx).setWalletIframeSurfaceMeasurementBinding(binding);
 }
 
 function syncRuntimeContext(state: WalletHostRuntimeState): HostContext {
+  if (handlerExecutionGeneration !== state.executionGeneration) {
+    handlerMaps.clear();
+    handlerExecutionGeneration = state.executionGeneration;
+  }
   if (!runtimeContext) {
     runtimeContext = createHostContext();
   }
+  state.onConfigurationChanged = syncActiveWalletHostRuntimeConfig.bind(null, state);
   runtimeContext.parentOrigin = state.parentOrigin;
+  if (runtimeContext.port !== state.port) {
+    runtimeContext.sessionObserver?.dispose();
+    runtimeContext.sessionObserver = null;
+  }
   runtimeContext.port = state.port;
   if (state.parentOrigin !== null) {
     recordAdoptedWalletIframeParentOrigin(state.parentOrigin);
   }
   setWalletHostLifecycleListener(runtimeContext, postLifecycleEvent.bind(null, runtimeContext));
-  if (state.walletConfigs) {
-    applyWalletConfig(runtimeContext, state.walletConfigs);
-    state.walletConfigs = runtimeContext.walletConfigs;
+  if (state.configuration.kind === 'configured') {
+    applyWalletConfig(runtimeContext, state.configuration);
   }
   return runtimeContext;
 }
 
-export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState): void {
-  if (!runtimeContext || !state.walletConfigs) return;
+function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState): void {
+  if (!runtimeContext || state.configuration.kind === 'unconfigured') return;
   syncRuntimeContext(state);
 }
 
-function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): SeamsWeb {
-  const previous = ctx.seamsWeb;
-  const seamsWeb = ensureSeamsWeb(ctx);
-  ensureWalletHostLifecycleSubscription(ctx, seamsWeb);
-  if (previous === seamsWeb) return seamsWeb;
+function ensureRequestWalletRuntime(ctx: HostContext): WalletHostRuntime {
+  const previous = ctx.walletRuntime;
+  const walletRuntime = ensureWalletRuntime(ctx);
+  ensureWalletHostLifecycleSubscription(ctx, walletRuntime);
+  if (previous === walletRuntime) {
+    ensureSessionObserver(ctx, walletRuntime);
+    return walletRuntime;
+  }
 
-  const preferences = seamsWeb.preferences;
+  const preferences = walletRuntime.preferences;
   ctx.prefsUnsubscribe?.();
-  const emitPreferencesChanged = (): void => {
-    const walletId = String(preferences.getCurrentWalletId?.() || '').trim();
-    input.post({
-      type: 'PREFERENCES_CHANGED',
-      payload: {
-        walletId: walletId || null,
-        confirmationConfig: preferences.getConfirmationConfig(),
-        updatedAt: Date.now(),
-      } satisfies PreferencesChangedPayload,
-    });
-  };
+  const emitPreferencesChanged = publishPreferences.bind(null, ctx, walletRuntime);
   const unsubscribeConfirmationConfig =
     preferences.onConfirmationConfigChange?.(emitPreferencesChanged) || null;
   const unsubscribeCurrentWallet =
@@ -217,10 +224,88 @@ function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): 
       unsubscribeCurrentWallet?.();
     } catch {}
   };
+  ensureSessionObserver(ctx, walletRuntime);
   Promise.resolve()
     .then(emitPreferencesChanged)
     .catch(() => {});
-  return seamsWeb;
+  return walletRuntime;
+}
+
+function postSessionMessage(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+  port: MessagePort,
+  message: ChildToParentEnvelope,
+): void {
+  if (ctx.walletRuntime !== runtime || ctx.port !== port) return;
+  port.postMessage(message);
+}
+
+function ensureSessionObserver(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+): WalletHostSessionObserver {
+  if (ctx.sessionObserver) return ctx.sessionObserver;
+  if (!ctx.port) throw new Error('Wallet session observation requires a connected parent');
+  ctx.sessionObserver = new WalletHostSessionObserver(
+    runtime,
+    postSessionMessage.bind(null, ctx, runtime, ctx.port),
+    ctx.expiredSessionsByWallet,
+    getWalletSession.bind(null, runtime.getContext()),
+  );
+  return ctx.sessionObserver;
+}
+
+function observeSession(
+  ctx: HostContext,
+  input: WalletHostRuntimeRequest,
+  payload: PMGetExactWalletSessionStatePayload,
+  publish: (snapshot: WalletIframeExactSessionSnapshot) => void,
+): Promise<void> {
+  const runtime = getRequestWalletRuntime(ctx, input);
+  return ensureSessionObserver(ctx, runtime).observe(payload, publish);
+}
+
+function publishCurrentSession(ctx: HostContext, input: WalletHostRuntimeRequest): Promise<void> {
+  const runtime = getRequestWalletRuntime(ctx, input);
+  return ensureSessionObserver(ctx, runtime).publishCurrentSession();
+}
+
+function preferencesSnapshot(
+  ctx: HostContext,
+  runtime: WalletHostRuntime,
+): PreferencesChangedPayload {
+  return {
+    walletId: runtime.preferences.getCurrentWalletId(),
+    confirmationConfig: runtime.preferences.getConfirmationConfig(),
+    revision: ctx.preferencesRevision,
+  };
+}
+
+function publishPreferences(ctx: HostContext, runtime: WalletHostRuntime): void {
+  if (ctx.walletRuntime !== runtime) return;
+  ctx.preferencesRevision += 1;
+  ctx.port?.postMessage({
+    type: 'PREFERENCES_CHANGED',
+    payload: preferencesSnapshot(ctx, runtime),
+  });
+}
+
+function getRequestWalletRuntime(
+  ctx: HostContext,
+  input: WalletHostRuntimeRequest,
+): WalletHostRuntime {
+  if (input.executionGeneration !== input.state.executionGeneration) {
+    throw new Error('Wallet configuration changed during request');
+  }
+  return ensureRequestWalletRuntime(ctx);
+}
+
+function readPreferences(
+  ctx: HostContext,
+  input: WalletHostRuntimeRequest,
+): PreferencesChangedPayload {
+  return preferencesSnapshot(ctx, getRequestWalletRuntime(ctx, input));
 }
 
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
@@ -230,7 +315,10 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
   };
 
   return {
-    getSeamsWeb: ensureHostSeamsWeb.bind(null, ctx, input),
+    getWalletRuntime: getRequestWalletRuntime.bind(null, ctx, input),
+    readPreferences: readPreferences.bind(null, ctx, input),
+    observeSession: observeSession.bind(null, ctx, input),
+    publishCurrentSession: publishCurrentSession.bind(null, ctx, input),
     post: postActivityMessage.bind(null, input),
     postProgress,
     isCancelled: input.isCancelled,
@@ -242,12 +330,13 @@ function postActivityMessage(
   input: WalletHostRuntimeRequest,
   message: ChildToParentEnvelope,
 ): void {
+  if (input.executionGeneration !== input.state.executionGeneration) return;
   observeTransactionActivity(message);
   input.post(message);
 }
 
 function postLifecycleEvent(ctx: HostContext, event: SdkLifecycleEvent): void {
-  ctx.port?.postMessage({ type: 'SDK_LIFECYCLE_EVENT', payload: event });
+  ctx.sessionObserver?.onLifecycleEvent(event);
 }
 
 export async function handleWalletHostRuntimeRequestWithHandlers(
@@ -256,6 +345,8 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
 ): Promise<void> {
   if (input.respondIfCancelled(input.req.requestId)) return;
   const ctx = syncRuntimeContext(input.state);
+  const observer = ensureSessionObserver(ctx, getRequestWalletRuntime(ctx, input));
+  observer.beginOperation();
   beginTransactionActivity(input.req, input.post);
   const foregroundBinding = isForegroundConfirmationRequest(input)
     ? surfaceMeasurementBindingForRequest(input)
@@ -265,6 +356,8 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   }
 
   try {
+    const runtime = getRequestWalletRuntime(ctx, input);
+    await assertWalletHostMutationAllowed(input.req, runtime.preferences.getCurrentWalletId());
     let handlers = handlerMaps.get(createHandlers);
     if (!handlers) {
       handlers = createHandlers(buildHandlerDeps(ctx, input));
@@ -278,12 +371,17 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
     await handler(input.req);
-    observeTransactionLifecycleReport(input.req);
+    if (input.executionGeneration === input.state.executionGeneration) {
+      observeTransactionLifecycleReport(input.req);
+    }
   } catch (error) {
-    failTransactionActivity(input.req.requestId, error);
+    if (input.executionGeneration === input.state.executionGeneration) {
+      failTransactionActivity(input.req.requestId, error);
+    }
     throw error;
   } finally {
-    if (foregroundBinding) {
+    observer.endOperation();
+    if (foregroundBinding && input.executionGeneration === input.state.executionGeneration) {
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);
     }
   }

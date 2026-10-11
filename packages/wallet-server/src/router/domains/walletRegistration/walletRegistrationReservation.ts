@@ -1,3 +1,6 @@
+import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
+import type { CommittedWalletRegistration } from '../../../authorization/domain';
+import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import { alphabetizeStringify, sha256HexUtf8 } from '@shared/utils/digests';
 import {
@@ -27,6 +30,8 @@ export type WalletRegistrationSetupReservationResult =
   | {
       readonly ok: true;
       readonly reservation: WalletRegistrationSetupReservation;
+      /** The ownership generation the reserved wallet's custody objects are named by. */
+      readonly ownershipGeneration: number;
       readonly lifecycle: 'reserved' | 'established';
       readonly code?: never;
       readonly message?: never;
@@ -36,23 +41,105 @@ export type WalletRegistrationSetupReservationResult =
       readonly code: string;
       readonly message: string;
       readonly reservation?: never;
+      readonly ownershipGeneration?: never;
       readonly lifecycle?: never;
     };
+
+/** Persist custody addresses before setup completes, then start the reserved wallet objects. */
+export type RegistrationWalletStarter = (registration: {
+  readonly walletId: WalletId;
+  readonly ownershipGeneration: number;
+}) => Promise<void>;
 
 type ReservationOutcome =
   | { readonly ok: true }
   | { readonly ok: false; readonly code: string; readonly message: string };
+
+type RegistrationHomeAdmission<
+  Purpose extends 'registration' | 'ordinary' = 'registration' | 'ordinary',
+> =
+  | {
+      readonly ok: true;
+      readonly ownershipGeneration: number;
+      readonly purpose: Purpose;
+      readonly code?: never;
+      readonly message?: never;
+    }
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly ownershipGeneration?: never;
+      readonly purpose?: never;
+    };
+
+export interface WalletExecutionAuthority {
+  admitEstablishedHome(input: {
+    readonly walletId: WalletId;
+  }): Promise<RegistrationHomeAdmission<'ordinary'>>;
+}
 
 export interface WalletRegistrationReservationAuthority {
   reserve(input: WalletRegistrationSetupInput): Promise<WalletRegistrationSetupReservationResult>;
   admitHome(input: {
     readonly ceremonyId: string;
     readonly walletId: WalletId;
-  }): Promise<ReservationOutcome>;
-  complete(input: {
+  }): Promise<RegistrationHomeAdmission>;
+  complete(
+    input: {
+      readonly ceremonyId: string;
+      readonly walletId: WalletId;
+    } & (
+      | {
+          readonly outcome: 'established';
+          readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+        }
+      | { readonly outcome: 'cancelled'; readonly session?: never }
+    ),
+  ): Promise<ReservationOutcome>;
+}
+
+/**
+ * The local write that makes an established registration active. It follows
+ * the acknowledged directory write. It commits in the batch of the record
+ * that completes the registration operation, or it does not commit.
+ */
+export type RegistrationActivationWrite = {
+  readonly statements: readonly D1PreparedStatementLike[];
+};
+
+export type RegistrationEstablishedPublication =
+  | {
+      readonly ok: true;
+      /** None when an earlier completion already activated the registration. */
+      readonly activation: RegistrationActivationWrite | null;
+      readonly code?: never;
+      readonly message?: never;
+    }
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly activation?: never;
+    };
+
+/** The registration authority at the wallet's home, which owns the local activation. */
+export interface WalletRegistrationHomeAuthority extends Pick<
+  WalletRegistrationReservationAuthority,
+  'reserve' | 'admitHome'
+> {
+  /**
+   * Publishes the committed registration decision to its directory and prepares the
+   * activation. The caller commits the activation with its completion record.
+   */
+  publishEstablished(input: {
+    readonly registration: CommittedWalletRegistration;
+    readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+  }): Promise<RegistrationEstablishedPublication>;
+  /** Fixes a definitive cancellation, publishes it, and retires the local home. */
+  cancel(input: {
     readonly ceremonyId: string;
     readonly walletId: WalletId;
-    readonly outcome: 'established' | 'cancelled';
   }): Promise<ReservationOutcome>;
 }
 
@@ -97,7 +184,7 @@ export function parseWalletRegistrationSetupReservation(
 }
 
 export function proposeWalletRegistrationSetup(
-  input: WalletRegistrationSetupInput,
+  input: Pick<WalletRegistrationSetupInput, 'request'>,
 ): WalletRegistrationSetupReservation {
   return parseWalletRegistrationSetupReservation({
     walletId:
@@ -115,7 +202,10 @@ export function proposeWalletRegistrationSetup(
 
 export async function walletRegistrationSetupRequestDigest(
   namespace: string,
-  input: WalletRegistrationSetupInput,
+  input: Pick<
+    WalletRegistrationSetupInput,
+    'request' | 'orgId' | 'expectedOrigin' | 'runtimePolicyScope'
+  >,
 ): Promise<string> {
   if (!input.runtimePolicyScope || input.runtimePolicyScope.orgId !== input.orgId) {
     throw new Error('Registration reservation requires an exact authenticated tenant scope');
@@ -132,9 +222,9 @@ export async function walletRegistrationSetupRequestDigest(
   );
 }
 
-export async function completeRegistrationReservation(
-  authority: WalletRegistrationReservationAuthority | null,
-  input: Parameters<WalletRegistrationReservationAuthority['complete']>[0],
+export async function cancelRegistrationHome(
+  authority: Pick<WalletRegistrationHomeAuthority, 'cancel'> | null,
+  input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0],
 ): Promise<ReservationOutcome> {
   if (!authority)
     return {
@@ -142,13 +232,13 @@ export async function completeRegistrationReservation(
       code: 'registration_authority_unavailable',
       message: 'Registration reservation authority is required',
     };
-  return authority.complete(input);
+  return authority.cancel(input);
 }
 
 export async function admitRegistrationReservationHome(
-  authority: WalletRegistrationReservationAuthority | null,
+  authority: Pick<WalletRegistrationReservationAuthority, 'admitHome'> | null,
   input: Parameters<WalletRegistrationReservationAuthority['admitHome']>[0],
-): Promise<ReservationOutcome> {
+): Promise<RegistrationHomeAdmission> {
   if (!authority)
     return {
       ok: false,

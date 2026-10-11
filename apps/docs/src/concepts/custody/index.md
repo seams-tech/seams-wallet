@@ -5,14 +5,13 @@ description: Understand why isolated wallet and split-server infrastructure cann
 
 # Custody model
 
-Seams is non-custodial because hosted infrastructure cannot produce wallet
-signatures or export wallet keys by itself. Signing requires holder-side
-participation, Wallet Session admission, policy checks, replay checks, quota
-checks, budget admission, and the correct server-side signing material for the
-selected lane.
+Seams is non-custodial because hosted infrastructure cannot produce wallet signatures or
+export wallet keys by itself. Signing requires holder-side participation and the correct
+server-side material for the selected lane. The request must pass Wallet Session
+admission, policy, replay, quota, and budget checks.
 
-Export uses a separate, freshly authorized flow. Ordinary signing consumes
-shares and presignature state; it does not reconstruct the full private key.
+Export uses a separate, freshly authorized flow. Ordinary signing uses shares and
+presignature state. It does not reconstruct the full private key.
 
 ## Who holds what
 
@@ -31,23 +30,23 @@ shares and presignature state; it does not reconstruct the full private key.
 
 ### Tenant derivation roots
 
-R120 gives each tenant an independently randomized server-side derivation root.
-Deriver A and B each retain only their own encrypted operational share in a
-role-private D1 store, with a separately encrypted managed backup in that role's
-R2 bucket. Router coordinates public lifecycle state and receipts.
+R120 gives each tenant an independently randomized server-side derivation root. Deriver
+A and B each retain only their own encrypted operational share in a role-private D1
+store. Each role keeps a separately encrypted managed backup in its own R2 bucket.
+Router coordinates public lifecycle state and receipts.
 
-These tenant-root shares support derivation ceremonies. Wallet custody seeds,
-client signing roots, and provisioned holder/SigningWorker signing shares have
-separate custody paths. Refreshing the tenant-root shares preserves the root
-and wallet identities; it does not replace a wallet custody seed or rekey a
-wallet. See [tenant-root backups](/deploy-and-operate/tenant-root-backups).
+These tenant-root shares support derivation ceremonies. Wallet custody seeds, client
+signing roots, and provisioned holder/SigningWorker signing shares have separate custody
+paths. Refreshing the tenant-root shares preserves the root and wallet identities. It
+does not replace a wallet custody seed or rekey a wallet. See [tenant-root
+backups](/deploy-and-operate/tenant-root-backups).
 
 ### Signing and authorization
 
 1. Router cannot sign by itself.
 2. A single Deriver cannot derive the full server contribution by itself.
 3. SigningWorker cannot export wallet keys.
-4. App-origin code receives public results and explicit export results only.
+4. App-origin code receives public results. Exported keys stay in the wallet-origin viewer.
 5. Agents and linked devices receive lane-scoped authority.
 6. Revocation, expiry, and budget exhaustion are checked before signing work.
 

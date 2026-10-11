@@ -1,0 +1,18 @@
+{
+  "baseCommit": "789cce94cd4f7a36a5cd0c37f740c8eba7746e8c",
+  "classification": "valid_test_needs_update",
+  "cause": "The local PM_SET_CONFIRMATION_CONFIG override returned undefined instead of the required wallet preference snapshot.",
+  "change": "Remove the obsolete override and use the existing shared harness preference handler. Keep presentation assertions unchanged.",
+  "sourceSha256": {
+    "tests/wallet-iframe/export.surfaceVariant.integration.test.ts": "98c00193f6ae767520bafa19ae5e0653c47bcd655641407c7cde00402bf8ae94"
+  },
+  "verification": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/export.flow.integration.test.ts wallet-iframe/export.surfaceVariant.integration.test.ts --project=chromium --output=../.artifacts/r170-key-export-final-browser",
+    "result": [
+      "  4 passed (3.2s)"
+    ]
+  },
+  "limits": [
+    "Stub transport verifies presentation and stale-close handling, not cryptographic export."
+  ]
+}

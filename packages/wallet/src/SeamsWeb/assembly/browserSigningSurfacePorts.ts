@@ -3,13 +3,11 @@ import type { SigningEngineStorePorts } from '@/core/signingEngine/assembly/port
 import type { ManagerAssemblyStores } from '@/core/signingEngine/assembly/createManagers';
 import type { BrowserSealedSigningSessionStorePorts } from './createBrowserSigningStores';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import type { CreateBrowserSigningRuntimeArgs } from './createBrowserSigningRuntime';
-import type { WorkerResourceWarmupPolicy } from '@/core/signingEngine/assembly/warmup';
+import type { UiConfirmPrewarmPredicate } from '@/core/signingEngine/assembly/warmup';
 import type { Ed25519YaoPublicCapabilityReferenceStorePort } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 
 type InitializeSigningRuntimePort = (args: {
-  config: SeamsConfigsReadonly;
   userPreferencesManager: Pick<UserPreferencesManager, 'initFromIndexedDB'>;
   getWorkerBaseOrigin: () => string;
   setWorkerBaseOrigin: (origin: string) => void;
@@ -22,5 +20,5 @@ export type BrowserSigningSurfaceConstructorDeps = {
   ed25519YaoPublicCapabilityReferences: Ed25519YaoPublicCapabilityReferenceStorePort;
   createRuntime: (args: CreateBrowserSigningRuntimeArgs) => SigningRuntime;
   initializeRuntime: InitializeSigningRuntimePort;
-  workerWarmupPolicy: WorkerResourceWarmupPolicy;
+  shouldPrewarmUiConfirmUi: UiConfirmPrewarmPredicate;
 };

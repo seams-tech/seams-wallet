@@ -88,6 +88,9 @@ the change affects shared APIs, state, persistence, authorization, or cryptograp
 The main starting commands are `pnpm test:intended`,
 `pnpm test:wallet-browser`, and `pnpm type-check`.
 Package changes also use `pnpm check:packed-wallet`.
+The contracts that end a NEAR execution burned need local Workers built and run
+with `ROUTER_AB_WORKER_BUILD_PROFILE=dev`. A release Router ignores that fault and
+runs the execution, so the harness refuses to arm it.
 
 Regenerate cryptographic vectors and wire fixtures with their owning tools;
 never edit generated output by hand. Asynchronous tests should observe actual

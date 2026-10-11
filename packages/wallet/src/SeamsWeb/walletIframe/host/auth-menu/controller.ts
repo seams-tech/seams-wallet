@@ -1,5 +1,5 @@
 import type { AppearanceConfig, GetRecentUnlocksResult } from '@/core/types/seams';
-import type { SeamsWeb } from '@/SeamsWeb';
+import type { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import type {
   ChildToParentEnvelope,
   HostedAuthMenuCancelPayload,
@@ -37,7 +37,6 @@ import type {
   StartDevice2LinkingFlowResults,
 } from '@/core/types/linkDevice';
 import { listLocalLoginAuthMethods } from '@/SeamsWeb/operations/auth/login';
-import { preloadWalletHostRegistrationSurface } from '../runtimeLoader';
 import type {
   HostedRecoveryEmailOtpVerified,
   HostedRecoveryCredentialCreated,
@@ -50,25 +49,25 @@ import type {
 } from '../recovery-port';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 
-type GetSeamsWeb = () => SeamsWeb;
+type GetWalletRuntime = () => WalletHostRuntime;
 
-async function loadHostedRecoveryPort(getSeamsWeb: GetSeamsWeb): Promise<HostedRecoveryPort> {
+async function loadHostedRecoveryPort(getWalletRuntime: GetWalletRuntime): Promise<HostedRecoveryPort> {
   const recoveryEntrypoint = await import('../recovery-entrypoint');
-  const seamsWeb = getSeamsWeb();
+  const walletRuntime = getWalletRuntime();
   return recoveryEntrypoint.createHostedRecoveryPort({
-    context: seamsWeb.getContext(),
-    relayUrl: String(seamsWeb.configs.network.relayer.url),
+    context: walletRuntime.getContext(),
+    relayUrl: String(walletRuntime.configs.network.relayer.url),
   });
 }
 
 class LazyHostedRecoveryPort implements HostedRecoveryPort {
   private portPromise: Promise<HostedRecoveryPort> | null = null;
 
-  constructor(private readonly getSeamsWeb: GetSeamsWeb) {}
+  constructor(private readonly getWalletRuntime: GetWalletRuntime) {}
 
   targetFor(kind: HostedRecoveryTargetKind): WalletRecoveryTargetV1 {
     if (kind === 'google_email_otp') return { kind, googleProvider: 'google' };
-    const rpId = parseWebAuthnRpId(this.getSeamsWeb().getContext().signingEngine.getRpId());
+    const rpId = parseWebAuthnRpId(this.getWalletRuntime().getContext().signingEngine.getRpId());
     if (!rpId.ok) throw new Error(`wallet recovery RP ID ${rpId.error.message}`);
     return { kind, rpId: rpId.value };
   }
@@ -122,13 +121,13 @@ class LazyHostedRecoveryPort implements HostedRecoveryPort {
   }
 
   private port(): Promise<HostedRecoveryPort> {
-    this.portPromise ??= loadHostedRecoveryPort(this.getSeamsWeb);
+    this.portPromise ??= loadHostedRecoveryPort(this.getWalletRuntime);
     return this.portPromise;
   }
 }
 
 type AuthMenuControllerDeps = {
-  readonly getSeamsWeb: () => SeamsWeb;
+  readonly getWalletRuntime: () => WalletHostRuntime;
   readonly getAppearance: () => AppearanceConfig;
   readonly send: (message: ChildToParentEnvelope) => void;
 };
@@ -153,8 +152,6 @@ function requestedWalletIdForLoginTarget(target: HostedAuthMenuLoginTarget): str
       return String(target.walletId);
   }
 }
-
-function ignoreRegistrationPreloadFailure(): void {}
 
 function resolveOnNextTask(resolve: () => void): void {
   window.setTimeout(resolve, 0);
@@ -190,7 +187,7 @@ export class AuthMenuController {
         await this.beginGoogleEmailOtp({ idToken, authTarget, signal }),
       startDeviceLinking: this.startDeviceLinking,
       cancelDeviceLinking: this.cancelDeviceLinking,
-      recoveryPort: new LazyHostedRecoveryPort(this.deps.getSeamsWeb),
+      recoveryPort: new LazyHostedRecoveryPort(this.deps.getWalletRuntime),
       prepareRecoveredLogin: this.prepareRecoveredLogin.bind(
         this,
         requestId,
@@ -204,9 +201,6 @@ export class AuthMenuController {
     try {
       session.mount();
       await yieldAfterAuthMenuMount();
-      if (args.request.initialMode === 'register') {
-        void preloadWalletHostRegistrationSurface().catch(ignoreRegistrationPreloadFailure);
-      }
       session.setRegistrationPreparation((registrationValue, cancellation) =>
         this.prepareRegistration(
           args.request,
@@ -248,7 +242,7 @@ export class AuthMenuController {
   ): Promise<void> {
     const [recentUnlocks, localAuthMethods] = await Promise.all([
       this.deps
-        .getSeamsWeb()
+        .getWalletRuntime()
         .auth.getRecentUnlocks()
         .catch(() => null),
       listLocalLoginAuthMethods().catch(() => []),
@@ -296,11 +290,11 @@ export class AuthMenuController {
     recentUnlocks: GetRecentUnlocksResult | null,
     loginTarget: HostedAuthMenuLoginTarget,
   ): Promise<HostedPasskeyPrepared> {
-    const context = createHostedPasskeyContext(this.deps.getSeamsWeb().getContext());
+    const context = createHostedPasskeyContext(this.deps.getWalletRuntime().getContext());
     const localUnlocks =
       recentUnlocks ??
       (await this.deps
-        .getSeamsWeb()
+        .getWalletRuntime()
         .auth.getRecentUnlocks()
         .catch(() => null));
     const localAuthMethods = await listLocalLoginAuthMethods().catch(() => []);
@@ -343,7 +337,7 @@ export class AuthMenuController {
     cancellation: Extract<WebAuthnPromptCancellation, { kind: 'abort_signal' }>,
   ): Promise<HostedPasskeyPrepared> {
     return await prepareHostedPasskeyLogin({
-      context: createHostedPasskeyContext(this.deps.getSeamsWeb().getContext()),
+      context: createHostedPasskeyContext(this.deps.getWalletRuntime().getContext()),
       walletId: String(walletId),
       authMenuSessionId,
       requestId,
@@ -362,7 +356,7 @@ export class AuthMenuController {
     signal: AbortSignal;
   }): Promise<GoogleEmailOtpWalletAuthFlow> {
     if (args.signal.aborted) throw new Error('Google sign-in was cancelled');
-    const result = await this.deps.getSeamsWeb().auth.beginGoogleEmailOtpWalletAuth({
+    const result = await this.deps.getWalletRuntime().auth.startGoogleSignIn({
       idToken: args.idToken,
       ...args.authTarget,
     });
@@ -384,13 +378,13 @@ export class AuthMenuController {
       >;
     },
   ): Promise<StartDevice2LinkingFlowResults> =>
-    await this.deps.getSeamsWeb().devices.startDevice2LinkingFlow({
+    await this.deps.getWalletRuntime().devices.startLinking({
       ...target,
       options: callbacks,
     });
 
   private cancelDeviceLinking = async (): Promise<void> =>
-    await this.deps.getSeamsWeb().devices.cancelDeviceLinking();
+    await this.deps.getWalletRuntime().devices.cancelLinking();
 
   private async prepareRegistration(
     request: HostedAuthMenuOpenRequest,
@@ -401,7 +395,7 @@ export class AuthMenuController {
   ): Promise<
     import('@/SeamsWeb/operations/registration/registration').HostedPasskeyRegistrationPrepared
   > {
-    const context = this.deps.getSeamsWeb().getContext();
+    const context = this.deps.getWalletRuntime().getContext();
     const parsedRpId = parseWebAuthnRpId(String(context.signingEngine.getRpId() || ''));
     if (!parsedRpId.ok) throw new Error(parsedRpId.error.message);
     const wallet = { kind: 'provided' as const, walletId: walletIdFromString(registrationValue) };

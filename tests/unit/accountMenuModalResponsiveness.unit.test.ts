@@ -55,7 +55,7 @@ async function mountModalWithPendingInventory(
           },
         },
         devices: {
-          listLinkedDevices: async () => {
+          list: async () => {
             inventoryAttempts += 1;
             if (inventoryMode === 'pending') {
               await new Promise((resolve) => window.setTimeout(resolve, 2_000));
@@ -113,7 +113,7 @@ async function mountModalWithPendingInventory(
       ).__accountMenuModalTestContext = {
         seams,
         loginState,
-        refreshLoginState: async () => undefined,
+        refreshSession: async () => undefined,
       };
       (
         globalThis as typeof globalThis & {

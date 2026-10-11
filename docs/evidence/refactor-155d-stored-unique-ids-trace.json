@@ -1,0 +1,2792 @@
+{
+  "date": "2026-10-10",
+  "dateTimezone": "Asia/Tokyo",
+  "sampleCount": 3,
+  "addressReadMs": {
+    "samples": 15,
+    "median": 7,
+    "min": 6,
+    "max": 12
+  },
+  "completedAddressReadTotalMsPerWallet": {
+    "values": [
+      41,
+      48,
+      33
+    ],
+    "samples": 3,
+    "median": 41,
+    "min": 33,
+    "max": 48
+  },
+  "servedRegions": [
+    "APAC"
+  ],
+  "addressServedRegions": [
+    "APAC"
+  ],
+  "paths": {
+    "/wallets/register/setup": {
+      "d1RoundTripsPerSample": [
+        6,
+        6,
+        6
+      ],
+      "d1StatementsPerSample": [
+        12,
+        12,
+        12
+      ],
+      "d1ElapsedSumMs": {
+        "samples": 3,
+        "median": 170,
+        "min": 145,
+        "max": 185
+      },
+      "addressReadsPerSample": [
+        1,
+        1,
+        1
+      ],
+      "addressReadMs": {
+        "samples": 3,
+        "median": 7,
+        "min": 6,
+        "max": 12
+      },
+      "addressAllocationBatchMs": {
+        "samples": 3,
+        "median": 44,
+        "min": 41,
+        "max": 47
+      },
+      "gatewayMs": {
+        "samples": 3,
+        "median": 636,
+        "min": 620,
+        "max": 881
+      }
+    },
+    "/wallets/register/respond": {
+      "d1RoundTripsPerSample": [
+        10,
+        10,
+        10
+      ],
+      "d1StatementsPerSample": [
+        24,
+        24,
+        24
+      ],
+      "d1ElapsedSumMs": {
+        "samples": 3,
+        "median": 226,
+        "min": 217,
+        "max": 234
+      },
+      "addressReadsPerSample": [
+        0,
+        0,
+        0
+      ],
+      "addressReadMs": null,
+      "addressAllocationBatchMs": null,
+      "gatewayMs": {
+        "samples": 3,
+        "median": 509,
+        "min": 412,
+        "max": 597
+      }
+    },
+    "/router-ab/ed25519/yao/registration/execute": {
+      "d1RoundTripsPerSample": [
+        4,
+        4,
+        4
+      ],
+      "d1StatementsPerSample": [
+        7,
+        7,
+        7
+      ],
+      "d1ElapsedSumMs": {
+        "samples": 3,
+        "median": 31,
+        "min": 29,
+        "max": 35
+      },
+      "addressReadsPerSample": [
+        1,
+        1,
+        1
+      ],
+      "addressReadMs": {
+        "samples": 3,
+        "median": 8,
+        "min": 7,
+        "max": 8
+      },
+      "addressAllocationBatchMs": null,
+      "gatewayMs": {
+        "samples": 3,
+        "median": 1572,
+        "min": 1502,
+        "max": 1884
+      }
+    },
+    "/wallets/register/near-provisioning": {
+      "d1RoundTripsPerSample": [
+        21,
+        21,
+        21
+      ],
+      "d1StatementsPerSample": [
+        86,
+        86,
+        86
+      ],
+      "d1ElapsedSumMs": {
+        "samples": 3,
+        "median": 594,
+        "min": 558,
+        "max": 785
+      },
+      "addressReadsPerSample": [
+        1,
+        1,
+        1
+      ],
+      "addressReadMs": {
+        "samples": 3,
+        "median": 7,
+        "min": 6,
+        "max": 8
+      },
+      "addressAllocationBatchMs": null,
+      "gatewayMs": {
+        "samples": 3,
+        "median": 1109,
+        "min": 875,
+        "max": 1330
+      }
+    },
+    "/router-ab/ed25519/sign/prepare": {
+      "d1RoundTripsPerSample": [
+        8,
+        8,
+        8
+      ],
+      "d1StatementsPerSample": [
+        17,
+        17,
+        17
+      ],
+      "d1ElapsedSumMs": {
+        "samples": 3,
+        "median": 170,
+        "min": 119,
+        "max": 272
+      },
+      "addressReadsPerSample": [
+        1,
+        1,
+        1
+      ],
+      "addressReadMs": {
+        "samples": 3,
+        "median": 12,
+        "min": 6,
+        "max": 12
+      },
+      "addressAllocationBatchMs": null,
+      "gatewayMs": {
+        "samples": 3,
+        "median": 242,
+        "min": 215,
+        "max": 506
+      }
+    },
+    "/router-ab/ed25519/sign": {
+      "d1RoundTripsPerSample": [
+        9,
+        9,
+        9
+      ],
+      "d1StatementsPerSample": [
+        18,
+        18,
+        18
+      ],
+      "d1ElapsedSumMs": {
+        "samples": 3,
+        "median": 123,
+        "min": 121,
+        "max": 132
+      },
+      "addressReadsPerSample": [
+        1,
+        1,
+        1
+      ],
+      "addressReadMs": {
+        "samples": 3,
+        "median": 7,
+        "min": 7,
+        "max": 9
+      },
+      "addressAllocationBatchMs": null,
+      "gatewayMs": {
+        "samples": 3,
+        "median": 253,
+        "min": 211,
+        "max": 570
+      }
+    }
+  },
+  "versionAudit": {
+    "router": {
+      "expected": "b52ef48d-038c-40fb-a809-db6523c80dad",
+      "invocations": {
+        "b52ef48d-038c-40fb-a809-db6523c80dad": 39
+      },
+      "allMatched": true
+    },
+    "deriver-a": {
+      "expected": "4f459356-ce44-45eb-a4d9-e5c6039ea6b9",
+      "invocations": {
+        "4f459356-ce44-45eb-a4d9-e5c6039ea6b9": 20
+      },
+      "allMatched": true
+    },
+    "deriver-b": {
+      "expected": "e4a9c9b0-2838-4077-896d-c6ee41689cb3",
+      "invocations": {
+        "e4a9c9b0-2838-4077-896d-c6ee41689cb3": 26
+      },
+      "allMatched": true
+    },
+    "signing-worker": {
+      "expected": "290f2564-b3c7-4a21-bc66-7dc1426b5f04",
+      "invocations": {
+        "290f2564-b3c7-4a21-bc66-7dc1426b5f04": 31
+      },
+      "allMatched": true
+    },
+    "gateway": {
+      "expected": "5780ee5d-ef2a-47b5-a02e-3ae1bb52668b",
+      "invocations": {
+        "5780ee5d-ef2a-47b5-a02e-3ae1bb52668b": 31
+      },
+      "allMatched": true
+    },
+    "console": {
+      "expected": "c8188615-b80d-4a52-9270-aabc7d2cc5d1",
+      "invocations": {
+        "c8188615-b80d-4a52-9270-aabc7d2cc5d1": 22
+      },
+      "allMatched": true
+    }
+  },
+  "requestTrace": {
+    "/wallets/register/setup": [
+      {
+        "browserMs": 1020.016,
+        "gatewayMs": 881,
+        "d1RoundTrips": 6,
+        "d1Statements": 12,
+        "d1ElapsedSumMs": 170,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 1,
+        "services": [
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-console/v1/registration-context",
+            "startedMs": 10,
+            "elapsedMs": 174
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/reserve",
+            "startedMs": 184,
+            "elapsedMs": 122
+          },
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/wallet/allocate",
+            "startedMs": 422,
+            "elapsedMs": 415
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 10,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 306,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 315,
+            "elapsedMs": 51,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 366,
+            "elapsedMs": 49,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 415,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 837,
+            "elapsedMs": 44,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT wallet_object_addresses",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 793.316,
+        "gatewayMs": 636,
+        "d1RoundTrips": 6,
+        "d1Statements": 12,
+        "d1ElapsedSumMs": 185,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 1,
+        "services": [
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-console/v1/registration-context",
+            "startedMs": 12,
+            "elapsedMs": 144
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/reserve",
+            "startedMs": 156,
+            "elapsedMs": 295
+          },
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/wallet/allocate",
+            "startedMs": 577,
+            "elapsedMs": 12
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 12,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 451,
+            "elapsedMs": 15,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 466,
+            "elapsedMs": 49,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 515,
+            "elapsedMs": 50,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 565,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 589,
+            "elapsedMs": 47,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT wallet_object_addresses",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 794.546,
+        "gatewayMs": 620,
+        "d1RoundTrips": 6,
+        "d1Statements": 12,
+        "d1ElapsedSumMs": 145,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 1,
+        "services": [
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-console/v1/registration-context",
+            "startedMs": 7,
+            "elapsedMs": 151
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/reserve",
+            "startedMs": 158,
+            "elapsedMs": 109
+          },
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/wallet/allocate",
+            "startedMs": 364,
+            "elapsedMs": 215
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 7,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 267,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 275,
+            "elapsedMs": 41,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 316,
+            "elapsedMs": 42,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 358,
+            "elapsedMs": 6,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 579,
+            "elapsedMs": 41,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT wallet_object_addresses",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      }
+    ],
+    "/wallets/register/respond": [
+      {
+        "browserMs": 553.335,
+        "gatewayMs": 412,
+        "d1RoundTrips": 10,
+        "d1Statements": 24,
+        "d1ElapsedSumMs": 217,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/registration-home",
+            "startedMs": 21,
+            "elapsedMs": 101
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-console/v1/tenant-root/active-lineage",
+            "startedMs": 201,
+            "elapsedMs": 94
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 13,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 122,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 130,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 138,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT wallet_execution_generations",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 184,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_auth_methods"
+            ]
+          },
+          {
+            "startedMs": 191,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 295,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 305,
+            "elapsedMs": 63,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 368,
+            "elapsedMs": 44,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE registration_ceremony_records"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 699.19,
+        "gatewayMs": 597,
+        "d1RoundTrips": 10,
+        "d1Statements": 24,
+        "d1ElapsedSumMs": 234,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/registration-home",
+            "startedMs": 26,
+            "elapsedMs": 258
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-console/v1/tenant-root/active-lineage",
+            "startedMs": 383,
+            "elapsedMs": 105
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 14,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 14,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 284,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 296,
+            "elapsedMs": 15,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 311,
+            "elapsedMs": 47,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT wallet_execution_generations",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 358,
+            "elapsedMs": 14,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_auth_methods"
+            ]
+          },
+          {
+            "startedMs": 372,
+            "elapsedMs": 11,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 488,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 498,
+            "elapsedMs": 50,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 548,
+            "elapsedMs": 49,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE registration_ceremony_records"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 642.465,
+        "gatewayMs": 509,
+        "d1RoundTrips": 10,
+        "d1Statements": 24,
+        "d1ElapsedSumMs": 226,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/registration-home",
+            "startedMs": 24,
+            "elapsedMs": 86
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-console/v1/tenant-root/active-lineage",
+            "startedMs": 208,
+            "elapsedMs": 197
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 12,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 12,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 110,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 122,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 134,
+            "elapsedMs": 48,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT wallet_execution_generations",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 182,
+            "elapsedMs": 13,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_auth_methods"
+            ]
+          },
+          {
+            "startedMs": 195,
+            "elapsedMs": 13,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 405,
+            "elapsedMs": 11,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 416,
+            "elapsedMs": 47,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 463,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE registration_ceremony_records"
+            ]
+          }
+        ]
+      }
+    ],
+    "/router-ab/ed25519/yao/registration/execute": [
+      {
+        "browserMs": 1816.181,
+        "gatewayMs": 1572,
+        "d1RoundTrips": 4,
+        "d1Statements": 7,
+        "d1ElapsedSumMs": 29,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/ed25519-yao/execute",
+            "startedMs": 29,
+            "elapsedMs": 1543
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 6,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 6,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 14,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 22,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 1988.45,
+        "gatewayMs": 1884,
+        "d1RoundTrips": 4,
+        "d1Statements": 7,
+        "d1ElapsedSumMs": 35,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/ed25519-yao/execute",
+            "startedMs": 35,
+            "elapsedMs": 1849
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 10,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 10,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 17,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 27,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 1590.076,
+        "gatewayMs": 1502,
+        "d1RoundTrips": 4,
+        "d1Statements": 7,
+        "d1ElapsedSumMs": 31,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/ed25519-yao/execute",
+            "startedMs": 31,
+            "elapsedMs": 1471
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 16,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 23,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      }
+    ],
+    "/wallets/register/near-provisioning": [
+      {
+        "browserMs": 1705.114,
+        "gatewayMs": 1330,
+        "d1RoundTrips": 21,
+        "d1Statements": 86,
+        "d1ElapsedSumMs": 785,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 1,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/ed25519-yao/registration/consume",
+            "startedMs": 123,
+            "elapsedMs": 106
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/claim-passkey",
+            "startedMs": 239,
+            "elapsedMs": 125
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/publish-routes",
+            "startedMs": 450,
+            "elapsedMs": 383
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/complete",
+            "startedMs": 1092,
+            "elapsedMs": 148
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 18,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 25,
+            "elapsedMs": 11,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 36,
+            "elapsedMs": 5,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 41,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_auth_methods+wallet_authorities"
+            ]
+          },
+          {
+            "startedMs": 50,
+            "elapsedMs": 58,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 108,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 115,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 229,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT yao_lifecycle_decisions"
+            ]
+          },
+          {
+            "startedMs": 239,
+            "elapsedMs": 6,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_authorities",
+              "SELECT wallet_auth_methods"
+            ]
+          },
+          {
+            "startedMs": 364,
+            "elapsedMs": 86,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT set+wallets",
+              "INSERT set+wallet_signers",
+              "INSERT set+webauthn_authenticators",
+              "INSERT set+webauthn_credential_bindings",
+              "INSERT wallet_authorities",
+              "INSERT set+wallet_auth_methods",
+              "INSERT yao_lifecycle_decisions",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 450,
+            "elapsedMs": 32,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 482,
+            "elapsedMs": 26,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 508,
+            "elapsedMs": 153,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 833,
+            "elapsedMs": 61,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators"
+            ]
+          },
+          {
+            "startedMs": 894,
+            "elapsedMs": 145,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "DELETE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_exchange_codes_v2",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "SELECT wallet_session_authorizations_v2",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 1039,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 1047,
+            "elapsedMs": 45,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 1240,
+            "elapsedMs": 44,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 1284,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 1430.653,
+        "gatewayMs": 1109,
+        "d1RoundTrips": 21,
+        "d1Statements": 86,
+        "d1ElapsedSumMs": 594,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 1,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/ed25519-yao/registration/consume",
+            "startedMs": 104,
+            "elapsedMs": 110
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/claim-passkey",
+            "startedMs": 223,
+            "elapsedMs": 259
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/publish-routes",
+            "startedMs": 544,
+            "elapsedMs": 148
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/complete",
+            "startedMs": 869,
+            "elapsedMs": 146
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 10,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 10,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 18,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 25,
+            "elapsedMs": 6,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 31,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 39,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_auth_methods+wallet_authorities"
+            ]
+          },
+          {
+            "startedMs": 46,
+            "elapsedMs": 44,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 90,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 97,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 214,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT yao_lifecycle_decisions"
+            ]
+          },
+          {
+            "startedMs": 223,
+            "elapsedMs": 6,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_authorities",
+              "SELECT wallet_auth_methods"
+            ]
+          },
+          {
+            "startedMs": 482,
+            "elapsedMs": 62,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT set+wallets",
+              "INSERT set+wallet_signers",
+              "INSERT set+webauthn_authenticators",
+              "INSERT set+webauthn_credential_bindings",
+              "INSERT wallet_authorities",
+              "INSERT set+wallet_auth_methods",
+              "INSERT yao_lifecycle_decisions",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 544,
+            "elapsedMs": 21,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 565,
+            "elapsedMs": 22,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 587,
+            "elapsedMs": 99,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 692,
+            "elapsedMs": 58,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators"
+            ]
+          },
+          {
+            "startedMs": 750,
+            "elapsedMs": 65,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "DELETE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_exchange_codes_v2",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "SELECT wallet_session_authorizations_v2",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 815,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 824,
+            "elapsedMs": 45,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 1015,
+            "elapsedMs": 48,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 1063,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 1144.43,
+        "gatewayMs": 875,
+        "d1RoundTrips": 21,
+        "d1Statements": 86,
+        "d1ElapsedSumMs": 558,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 1,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/router/ed25519-yao/registration/consume",
+            "startedMs": 100,
+            "elapsedMs": 92
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/claim-passkey",
+            "startedMs": 201,
+            "elapsedMs": 96
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/publish-routes",
+            "startedMs": 350,
+            "elapsedMs": 137
+          },
+          {
+            "service": "WALLET_CONSOLE",
+            "path": "/internal/wallet-placement/v1/complete",
+            "startedMs": 658,
+            "elapsedMs": 127
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 16,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 23,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 30,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT registration_ceremony_records"
+            ]
+          },
+          {
+            "startedMs": 37,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_auth_methods+wallet_authorities"
+            ]
+          },
+          {
+            "startedMs": 44,
+            "elapsedMs": 43,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 87,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 94,
+            "elapsedMs": 6,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 192,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT yao_lifecycle_decisions"
+            ]
+          },
+          {
+            "startedMs": 201,
+            "elapsedMs": 11,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_authorities",
+              "SELECT wallet_auth_methods"
+            ]
+          },
+          {
+            "startedMs": 297,
+            "elapsedMs": 53,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT set+wallets",
+              "INSERT set+wallet_signers",
+              "INSERT set+webauthn_authenticators",
+              "INSERT set+webauthn_credential_bindings",
+              "INSERT wallet_authorities",
+              "INSERT set+wallet_auth_methods",
+              "INSERT yao_lifecycle_decisions",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 350,
+            "elapsedMs": 16,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 366,
+            "elapsedMs": 21,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 387,
+            "elapsedMs": 87,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          },
+          {
+            "startedMs": 487,
+            "elapsedMs": 57,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators",
+              "INSERT wallet_recovery_code_locators"
+            ]
+          },
+          {
+            "startedMs": 544,
+            "elapsedMs": 62,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "DELETE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_exchange_codes_v2",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2",
+              "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+              "SELECT wallet_session_authorizations_v2",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 606,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_execution_generations"
+            ]
+          },
+          {
+            "startedMs": 613,
+            "elapsedMs": 45,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 785,
+            "elapsedMs": 44,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE wallet_execution_generations",
+              "INSERT router_ab_yao_versioned_json_cas_guard"
+            ]
+          },
+          {
+            "startedMs": 829,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE router_ab_yao_versioned_json_records",
+              "INSERT router_ab_yao_versioned_json_cas_guard",
+              "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+              "INSERT set+wallet_ceremony_activity"
+            ]
+          }
+        ]
+      }
+    ],
+    "/router-ab/ed25519/sign/prepare": [
+      {
+        "browserMs": 796.754,
+        "gatewayMs": 506,
+        "d1RoundTrips": 8,
+        "d1Statements": 17,
+        "d1ElapsedSumMs": 272,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/ed25519/sign/prepare",
+            "startedMs": 272,
+            "elapsedMs": 234
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 16,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 16,
+            "elapsedMs": 14,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2"
+            ]
+          },
+          {
+            "startedMs": 30,
+            "elapsedMs": 23,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 53,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_signers"
+            ]
+          },
+          {
+            "startedMs": 65,
+            "elapsedMs": 114,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 179,
+            "elapsedMs": 16,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "WITH router_ab_normal_signing_admission_records+scope"
+            ]
+          },
+          {
+            "startedMs": 195,
+            "elapsedMs": 65,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT authorized_operations+wallet_execution_generations+wallet_operation_authorizations",
+              "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 260,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 337.749,
+        "gatewayMs": 242,
+        "d1RoundTrips": 8,
+        "d1Statements": 17,
+        "d1ElapsedSumMs": 170,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/ed25519/sign/prepare",
+            "startedMs": 170,
+            "elapsedMs": 72
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 13,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 13,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2"
+            ]
+          },
+          {
+            "startedMs": 25,
+            "elapsedMs": 13,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 38,
+            "elapsedMs": 14,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_signers"
+            ]
+          },
+          {
+            "startedMs": 52,
+            "elapsedMs": 28,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 80,
+            "elapsedMs": 16,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "WITH router_ab_normal_signing_admission_records+scope"
+            ]
+          },
+          {
+            "startedMs": 96,
+            "elapsedMs": 62,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT authorized_operations+wallet_execution_generations+wallet_operation_authorizations",
+              "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 158,
+            "elapsedMs": 12,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 404.533,
+        "gatewayMs": 215,
+        "d1RoundTrips": 8,
+        "d1Statements": 17,
+        "d1ElapsedSumMs": 119,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/ed25519/sign/prepare",
+            "startedMs": 119,
+            "elapsedMs": 96
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2"
+            ]
+          },
+          {
+            "startedMs": 15,
+            "elapsedMs": 5,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 20,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_signers"
+            ]
+          },
+          {
+            "startedMs": 28,
+            "elapsedMs": 16,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 44,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "WITH router_ab_normal_signing_admission_records+scope"
+            ]
+          },
+          {
+            "startedMs": 54,
+            "elapsedMs": 59,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "INSERT authorized_operations+wallet_execution_generations+wallet_operation_authorizations",
+              "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 113,
+            "elapsedMs": 6,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          }
+        ]
+      }
+    ],
+    "/router-ab/ed25519/sign": [
+      {
+        "browserMs": 407.172,
+        "gatewayMs": 253,
+        "d1RoundTrips": 9,
+        "d1Statements": 18,
+        "d1ElapsedSumMs": 123,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/ed25519/sign",
+            "startedMs": 77,
+            "elapsedMs": 130
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2"
+            ]
+          },
+          {
+            "startedMs": 15,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 24,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_signers"
+            ]
+          },
+          {
+            "startedMs": 32,
+            "elapsedMs": 17,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 49,
+            "elapsedMs": 13,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "WITH router_ab_normal_signing_admission_records+scope"
+            ]
+          },
+          {
+            "startedMs": 62,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 70,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 207,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE authorized_operations"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 691.655,
+        "gatewayMs": 570,
+        "d1RoundTrips": 9,
+        "d1Statements": 18,
+        "d1ElapsedSumMs": 132,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/ed25519/sign",
+            "startedMs": 88,
+            "elapsedMs": 438
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 8,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 8,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2"
+            ]
+          },
+          {
+            "startedMs": 16,
+            "elapsedMs": 10,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 26,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_signers"
+            ]
+          },
+          {
+            "startedMs": 35,
+            "elapsedMs": 20,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 55,
+            "elapsedMs": 15,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "WITH router_ab_normal_signing_admission_records+scope"
+            ]
+          },
+          {
+            "startedMs": 70,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 79,
+            "elapsedMs": 9,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 526,
+            "elapsedMs": 44,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE authorized_operations"
+            ]
+          }
+        ]
+      },
+      {
+        "browserMs": 343.497,
+        "gatewayMs": 211,
+        "d1RoundTrips": 9,
+        "d1Statements": 18,
+        "d1ElapsedSumMs": 121,
+        "d1Regions": [
+          "APAC"
+        ],
+        "pendingD1": 0,
+        "services": [
+          {
+            "service": "MPC_ROUTER",
+            "path": "/router-ab/ed25519/sign",
+            "startedMs": 75,
+            "elapsedMs": 90
+          }
+        ],
+        "d1Calls": [
+          {
+            "startedMs": 0,
+            "elapsedMs": 7,
+            "method": "first",
+            "statements": [
+              "SELECT regional_deployment_admissions"
+            ]
+          },
+          {
+            "startedMs": 7,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2"
+            ]
+          },
+          {
+            "startedMs": 15,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 22,
+            "elapsedMs": 8,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_signers"
+            ]
+          },
+          {
+            "startedMs": 30,
+            "elapsedMs": 20,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT router_ab_yao_versioned_json_records",
+              "SELECT router_ab_yao_versioned_json_records"
+            ]
+          },
+          {
+            "startedMs": 50,
+            "elapsedMs": 11,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "WITH router_ab_normal_signing_admission_records+scope"
+            ]
+          },
+          {
+            "startedMs": 61,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+            ]
+          },
+          {
+            "startedMs": 68,
+            "elapsedMs": 7,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "SELECT wallet_object_addresses"
+            ]
+          },
+          {
+            "startedMs": 165,
+            "elapsedMs": 46,
+            "method": "batch",
+            "statements": [
+              "INSERT regional_deployment_write_checks",
+              "UPDATE authorized_operations"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "proofs": {
+    "verifier": "Node.js crypto Ed25519 with independent NEP-413 Borsh encoding",
+    "arms": [
+      "trace"
+    ],
+    "results": [
+      {
+        "name": "trace/registration-1.json",
+        "publicKey": "ed25519:7DRPV8JTAnvecRzBFZo6sjyRggjELGxgfXubEhdWJuqC",
+        "digestHex": "21a8af12ebdad77330805fd66f3d5c193bdeeda61f4539566c61579bfeab4fb5",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "trace/registration-2.json",
+        "publicKey": "ed25519:5untngXjrv8xae6n8fPMrU5GSVvj8oS7mbePK9bURAcn",
+        "digestHex": "766ab82452c83283bf3829fbc606a3cb5b51fc9e3922d4874d57d4cec32e2dd4",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "trace/registration-3.json",
+        "publicKey": "ed25519:BYDtoQabBUCa8GKp1tiKNoQMmkCVgH4dzDTYYiczYoWL",
+        "digestHex": "7761360b751672b0058dad94f2b256f470971adac18b49aaf7a74887168697f6",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      }
+    ]
+  },
+  "limitations": [
+    "Three fresh implicit NEAR wallets, one trace arm, against the previous frozen stored-ID candidate.",
+    "Gateway D1 calls only. Console and Rust custody databases are outside this observer.",
+    "Address-read duration includes the regional deployment write check in the same D1 batch.",
+    "Elapsed D1 time includes network and SQL. Sums can overlap and are not critical-path durations.",
+    "Background calls unfinished at response are reported as pending. Later calls are outside the response trace.",
+    "The observer uses all() for first() to retain metadata, with the same SQL and one query. This is diagnostic evidence, not a new latency comparison."
+  ],
+  "sourceCommits": {
+    "public-candidate": "28c58d85bab8dc0f67c8d21bf26dd460a50ff2c1",
+    "public-baseline": "f16a32e2a364c6ed662e8131d06034018748c788",
+    "private-candidate": "13a5529e95e138a00ca4f8ab5b485b829d58285d",
+    "private-baseline": "dd5e16d1535eed3e28885111ed5c99ba847881e9"
+  },
+  "measurementPayloadSha256": "5f57e552030e884e573ae8844687e7dac1be644984f52f339c93364ba97f7151",
+  "deploymentArms": [
+    {
+      "name": "trace",
+      "sdk": "site",
+      "startedAtMs": 1791580044731,
+      "versions": {
+        "seams-sdk-d1-console-staging": [
+          {
+            "version_id": "c8188615-b80d-4a52-9270-aabc7d2cc5d1",
+            "percentage": 100
+          }
+        ],
+        "router-ab-deriver-a-staging": [
+          {
+            "version_id": "4f459356-ce44-45eb-a4d9-e5c6039ea6b9",
+            "percentage": 100
+          }
+        ],
+        "router-ab-deriver-b-staging": [
+          {
+            "version_id": "e4a9c9b0-2838-4077-896d-c6ee41689cb3",
+            "percentage": 100
+          }
+        ],
+        "router-ab-mpc-router-staging": [
+          {
+            "version_id": "b52ef48d-038c-40fb-a809-db6523c80dad",
+            "percentage": 100
+          }
+        ],
+        "router-ab-signing-worker-staging": [
+          {
+            "version_id": "290f2564-b3c7-4a21-bc66-7dc1426b5f04",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging": [
+          {
+            "version_id": "5780ee5d-ef2a-47b5-a02e-3ae1bb52668b",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-oc": [
+          {
+            "version_id": "01046eb8-fbb7-459f-9473-d8912b07421c",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-us": [
+          {
+            "version_id": "0cbcb0f0-58e6-4451-94f6-6f7ddde2f315",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-gateway-staging-weur": [
+          {
+            "version_id": "9b2b24f6-8b89-437f-8ed0-d118c653062d",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging": [
+          {
+            "version_id": "bee6ad81-4889-467d-8e6e-6089f1e7c01e",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-oc": [
+          {
+            "version_id": "ffa2a726-6a29-42bf-ac24-59731399ac67",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-us": [
+          {
+            "version_id": "10378f13-773c-45cb-aa39-ba14a7ea6b2a",
+            "percentage": 100
+          }
+        ],
+        "seams-sdk-d1-wallet-runtime-staging-weur": [
+          {
+            "version_id": "3e83d86c-d2be-427f-bea0-a8aa68174364",
+            "percentage": 100
+          }
+        ]
+      },
+      "result": "passed",
+      "endedAtMs": 1791580071583
+    }
+  ],
+  "publicSignatureProofs": [
+    {
+      "message": "Verify this new implicit NEAR wallet before funding",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "5c54aa9f66311d72f20c45be00d3859935f11a58a9f6234a6141c995c7297cb3",
+      "publicKey": "ed25519:7DRPV8JTAnvecRzBFZo6sjyRggjELGxgfXubEhdWJuqC",
+      "signature": "y6fRr5VZw4GJcWeyTgPRbwglRbuN0Bv2auelLK7sdtLZKMYmIG8FZ6aVUwfQu0PH8YPswyvzp1F2fRseBY51BA==",
+      "nonce": "5v3+McJRdDn2MXPC1e06V+FV6J09CanhkiosBzbau+Q=",
+      "digestHex": "21a8af12ebdad77330805fd66f3d5c193bdeeda61f4539566c61579bfeab4fb5",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    {
+      "message": "Verify this new implicit NEAR wallet before funding",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "48f4d74df5d4565e9b321caf9329fd2f6143d342595964dacd4c6378c09aa10f",
+      "publicKey": "ed25519:5untngXjrv8xae6n8fPMrU5GSVvj8oS7mbePK9bURAcn",
+      "signature": "W6RhRsqasfGntYmmRCQYQ1wl9/au8776GizlbA6cw2jSFWg1hK4ZocUnDsCH0C47JAEZwteq+1IASjfJDWtEDQ==",
+      "nonce": "PSiKvp/AZm9hSkVfZOyr0/didRmTyq9TfhUwSVezjpE=",
+      "digestHex": "766ab82452c83283bf3829fbc606a3cb5b51fc9e3922d4874d57d4cec32e2dd4",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    {
+      "message": "Verify this new implicit NEAR wallet before funding",
+      "recipient": "checkout.example",
+      "state": "quote-170",
+      "success": true,
+      "accountId": "9c9473df4554b203797ee0e1fa689962ea68e6af6d04964f6c245b6b9ed66c25",
+      "publicKey": "ed25519:BYDtoQabBUCa8GKp1tiKNoQMmkCVgH4dzDTYYiczYoWL",
+      "signature": "pE/xs8Pf7+1XWk0mcUAXcVvZ385jzro0b6u5Mb0UvIm3zNQ0g26Rs2vC3/7mkjLxIdajkfMJvEqotP558bK4BQ==",
+      "nonce": "UuzNLntoD7EFlH1/CGAzor4Mn6ToSDEnFSYexc3qnzM=",
+      "digestHex": "7761360b751672b0058dad94f2b256f470971adac18b49aaf7a74887168697f6",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    }
+  ],
+  "cleanup": {
+    "restoredOriginalVersions": true,
+    "restoredRoleSchema": true,
+    "additiveGatewayTablesRetained": true
+  },
+  "liveCleanupVerification": {
+    "passed": true,
+    "workers": [
+      {
+        "worker": "seams-sdk-d1-console-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "router-ab-deriver-a-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "router-ab-deriver-b-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "router-ab-mpc-router-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "router-ab-signing-worker-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-gateway-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-gateway-staging-oc",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-gateway-staging-us",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-gateway-staging-weur",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-wallet-runtime-staging",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-wallet-runtime-staging-oc",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-wallet-runtime-staging-us",
+        "originalVersionRestored": true
+      },
+      {
+        "worker": "seams-sdk-d1-wallet-runtime-staging-weur",
+        "originalVersionRestored": true
+      }
+    ],
+    "originalDeriverColumnRestored": {
+      "deriver-a": true,
+      "deriver-b": true
+    },
+    "additiveGatewayTableRetained": {
+      "gateway": true,
+      "gateway-us": true,
+      "gateway-weur": true,
+      "gateway-oc": true
+    }
+  },
+  "privateArtifactDirectory": ".artifacts/r155d-stored-ids-trace",
+  "reproduction": [
+    "node verify-proofs.mjs",
+    "python3 summarize.py",
+    "python3 verify-cleanup.py",
+    "python3 export-evidence.py"
+  ]
+}

@@ -1,3 +1,5 @@
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { Variant } from '@shared/utils/variant';
 import type {
   ActiveWalletAuthMethodRecordV2,
@@ -155,6 +157,7 @@ export type IssuedHostedWalletSeamsSessionExchangeV2 = {
 
 export type HostedWalletSeamsSessionExchangeDeliveryV2 = {
   readonly kind: 'hosted_wallet_session_exchange_delivery_v2';
+  readonly home: WalletSessionHome;
   readonly exchangeCode: HostedWalletSeamsSessionExchangeCode;
   readonly nonce: HostedWalletSeamsSessionExchangeNonce;
   readonly appOrigin: SessionOrigin;
@@ -205,6 +208,7 @@ export type RedeemHostedWalletSeamsSessionExchangeV2Input = {
 
 export type HostedWalletSessionOperationCredentialV1 = {
   readonly kind: 'opaque_hosted_wallet_session_operation_credential_v1';
+  readonly home: WalletSessionHome;
   readonly token: HostedWalletSessionOperationCredentialToken;
   readonly walletSessionId: WalletSessionId;
 };
@@ -323,6 +327,7 @@ export type WalletSessionExactOperationContext = {
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
   readonly ownerWalletScope: {
+    readonly ownershipGeneration: number;
     readonly orgId: string;
     readonly projectId: string;
     readonly projectEnvironmentId: string;
@@ -530,12 +535,28 @@ export type WalletSessionAuthorizationV2MintRead = {
   readonly retiredAtMs: number | null;
 };
 
-export type DirectV2CommitResult =
-  | { readonly kind: 'inserted' }
+/** The registration decision fixed in the Wallet Session transaction. */
+export type CommittedWalletRegistration = {
+  readonly ceremonyId: string;
+  readonly walletId: WalletId;
+  readonly state: 'registering' | 'active';
+};
+
+export type DirectV2CommitResult = {
+  /** Ordinary session issuance has no registration decision. */
+  readonly registration: CommittedWalletRegistration | null;
+} & (
+  | {
+      readonly kind: 'inserted';
+      readonly ownershipGeneration: number;
+      readonly committed?: never;
+    }
   | {
       readonly kind: 'already_committed';
+      readonly ownershipGeneration?: never;
       readonly committed: WalletSessionAuthorizationV2MintRead;
-    };
+    }
+);
 
 export type DirectV2IssueResult =
   | {
@@ -1201,6 +1222,7 @@ export function parseHostedWalletSessionOperationCredentialV1(
   }
   return {
     kind: raw.kind,
+    home: parseWalletSessionHome(raw.home),
     token,
     walletSessionId: walletSessionId.value,
   };
@@ -1214,7 +1236,7 @@ function isHostedWalletSessionOperationCredentialRecordV1(
   value: unknown,
 ): value is HostedWalletSessionOperationCredentialRecordV1 {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  return Object.keys(value).sort().join('|') === 'kind|token|walletSessionId';
+  return Object.keys(value).sort().join('|') === 'home|kind|token|walletSessionId';
 }
 
 export function parsePrimaryWalletSessionOperationCredentialToken(

@@ -1,4 +1,19 @@
 import type { RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult } from './presignaturePool';
+import type { RouterAbEcdsaPresignCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
+import type { EcdsaClientPresignPoolIdentity } from '../../workerManager/ecdsaPresignPoolIdentity';
+import type { Variant } from '@shared/utils/variant';
+
+declare const credentialWithoutGeneration: Omit<
+  Variant<RouterAbEcdsaPresignCredential, 'kind', 'wallet_session_opaque'>,
+  'ownershipGeneration'
+>;
+declare const poolWithoutGeneration: Omit<EcdsaClientPresignPoolIdentity, 'ownershipGeneration'>;
+// @ts-expect-error Refills must retain the admitted credential generation.
+const unboundCredential: RouterAbEcdsaPresignCredential = { ...credentialWithoutGeneration };
+// @ts-expect-error Worker pool identity must retain the ownership generation.
+const unboundPool: EcdsaClientPresignPoolIdentity = { ...poolWithoutGeneration };
+void unboundCredential;
+void unboundPool;
 
 const scheduled: RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult = {
   scheduled: true,

@@ -192,17 +192,6 @@ export type PendingWalletRegistrationCommitV1 =
       readonly admissionReceipt?: never;
       readonly baseCustodyCommit?: never;
       readonly checkpointJson?: never;
-      readonly signerPlanKind: 'near_ed25519';
-      readonly localMaterial: PendingWalletRegistrationEd25519LocalMaterialBranchV1;
-    })
-  | (PendingWalletRegistrationCommitCommonV1 & {
-      readonly operation: 'registration_activate';
-      readonly phase?: never;
-      readonly completion?: never;
-      readonly admissionRequest?: never;
-      readonly admissionReceipt?: never;
-      readonly baseCustodyCommit?: never;
-      readonly checkpointJson?: never;
       readonly signerPlanKind: 'evm_family_ecdsa';
       readonly localMaterial: Extract<
         PendingWalletRegistrationLocalMaterialV1,
@@ -680,24 +669,7 @@ export function parsePendingWalletRegistrationCommitV1(
   }
   if (operation === 'registration_activate') {
     if (phase !== undefined) return null;
-    if (signerPlanKind === 'near_ed25519') {
-      return isEd25519LocalMaterial(localMaterial)
-        ? {
-            kind: 'pending_wallet_registration_commit_v1',
-            operation,
-            signerPlanKind,
-            registrationCeremonyId,
-            idempotencyKey,
-            walletId: walletId.value,
-            walletAuthMethodId: walletAuthMethodId.value,
-            signedSetup,
-            auth,
-            localMaterial,
-            createdAtMs,
-            updatedAtMs,
-          }
-        : null;
-    }
+    if (signerPlanKind === 'near_ed25519') return null;
     if (signerPlanKind === 'evm_family_ecdsa') {
       return isEcdsaOnlyLocalMaterial(localMaterial)
         ? {

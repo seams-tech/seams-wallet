@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-07",
+  "scenario": "Email OTP budget exhaustion and both signing step-ups work while Console is unavailable",
+  "result": "incomplete",
+  "completedBeforeFailure": [
+    "Email OTP registration and unlock",
+    "NEAR reusable signing",
+    "Concurrent Tempo and Arc signing",
+    "Independent shared-budget exhaustion check"
+  ],
+  "failure": {
+    "operation": "NEAR Email OTP step-up challenge",
+    "homeHandlerStatus": 500,
+    "forwardedStatus": 503,
+    "consoleRequests": [
+      "/internal/wallet-placement/v1/rate-limit"
+    ]
+  },
+  "routingFix": "Challenge uses exact session credential and regional home; matching local session avoids directory discovery.",
+  "securityConstraint": "Keep existing global IP, subject, wallet, provider and organization rate limits. Do not replace shared counters with independent regional counters.",
+  "pendingDecision": "Dedicated shared rate-limit D1 versus retaining Console rate-limit dependency. Binding the Console database directly would broaden Gateway access.",
+  "reproduce": "Run tests/scripts/run-regional-real.mjs google-email-otp.recovery.contract.test.ts --grep \"Email OTP budget exhaustion\" in seams-monorepo with a current Google test token and the frozen SDK candidate.",
+  "verification": {
+    "normalEmailOtpRegistrationUnlockExportAndBothCurveStepUp": "passed",
+    "sdkTypecheck": "passed",
+    "privateConsoleTypecheck": "passed",
+    "lifecycleTypeFixtures": "passed",
+    "bloat": "passed"
+  }
+}

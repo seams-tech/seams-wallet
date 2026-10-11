@@ -1,0 +1,89 @@
+{
+  "baseCommit": "3d8dd57082c83a16526fc3e1337e59d0dca7d7c9",
+  "scope": "Move the unchanged ECDSA material builder and types into the existing material module so host imports do not load the signing engine.",
+  "sourceSha256": {
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/readySecp256k1Material.ts": "dadad15e4e799d42e6fba44165f8bc3d3bc925d7c16847027e346be277e21105",
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/requireEvmFamilyStepUpAuth.ts": "8a867280ece9f438a4d8dae0a0b321dec04f5bbfbbea2685e033297a10c20db7",
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/signers/secp256k1.ts": "d096300f8c38df8d649a2535ff6c74e8c371aa81b95a4aed174b210ef46c8e0e",
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/signers/secp256k1.typecheck.ts": "7da31accdfe861aa1cfe959426b5c689b2d87291c7248b469a10292b226ddfd8",
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/signingFlow.ts": "90ed26d720544b830aae3ef03b0bba37474a2861fecf30b80430e64a1780bc84",
+    "packages/wallet/src/core/signingEngine/flows/signEvmFamily/thresholdAdmission.ts": "2a85d9e0994c4e9e8d552085b11b4eed6642ad972e9cee4d7137136d6df570db",
+    "tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts": "1488ee0451bc0b5e77f35717ce8c149731b9802c79c169f9258559c1faa9623c"
+  },
+  "productionSourceNetLines": 2,
+  "builderBodySha256": "952f8eaa4932cdfa1ddfc907010e817c5649973e098779caf37bcc330a494799",
+  "builderBodyUnchanged": true,
+  "checks": {
+    "walletTypes": "passed (includes existing material type fixture)",
+    "intendedTypes": "passed",
+    "walletStateTypes": "passed",
+    "productionBuild": "passed",
+    "externalPackedDeclarations": "passed",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "productionNearOnly": "passed (34.9s)",
+    "productionMixedNearEvm": "passed (34.2s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "engineRequests": {
+    "before": [
+      {
+        "phase": "near-only-registration",
+        "file": "secp256k1-CXsGITC_.js"
+      },
+      {
+        "phase": "locked-reload",
+        "file": "secp256k1-CXsGITC_.js"
+      },
+      {
+        "phase": "near-only-unlock",
+        "file": "secp256k1-CXsGITC_.js"
+      },
+      {
+        "phase": "near-only-restored-sign",
+        "file": "secp256k1-CXsGITC_.js"
+      }
+    ],
+    "after": [],
+    "mixed": [
+      {
+        "phase": "first-evm-sign",
+        "file": "secp256k1-BR0HO024.js"
+      },
+      {
+        "phase": "repeat-evm-sign",
+        "file": "secp256k1-BR0HO024.js"
+      }
+    ]
+  },
+  "artifacts": {
+    "before": {
+      "path": ".artifacts/r170-material-boundary/before.json",
+      "sha256": "d6b86ac64cb20aab3bfb4143e097b5de7b70970b958ffee0863e8d2ba1dc7116"
+    },
+    "after": {
+      "path": ".artifacts/r170-material-boundary/after.json",
+      "sha256": "3084a6116f9cd5c5782a6e62aadc4ce7587fb9cbcc0369a99cef6aaa6983d1ef"
+    },
+    "mixed": {
+      "path": ".artifacts/r170-material-boundary/mixed.json",
+      "sha256": "8ac289179b90097c849d14c6967572207f5afae81c4cb5ed7fce2b6e63a6a5da"
+    },
+    "before-engine": {
+      "path": ".artifacts/r170-material-boundary/before-engine.json",
+      "sha256": "889429cbed06f1d67b6c959542629d9bc31ffcf08018d0b16a2fcf4ae65b3544"
+    },
+    "after-engine": {
+      "path": ".artifacts/r170-material-boundary/after-engine.json",
+      "sha256": "b88f1eec3ce006558c38f0c0cd8e709974d39bfb4e3e2722bb40db66dd209ea8"
+    }
+  },
+  "reproduce": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts --grep 'production NEAR-only wallet records unlock and restored signing assets|production wallet records asset traffic across registration, signing, and unlock'",
+  "limits": [
+    "Shared ECDSA support still belongs to the host; this change isolates the signing engine, not every ECDSA-related helper.",
+    "Before capture was retained from the immediately preceding selective-preparation task; source/build provenance is recorded in that task evidence.",
+    "No repeated latency or total-transfer improvement claim from these single runs.",
+    "No protocol, domain-state, publication, or deployment change."
+  ]
+}

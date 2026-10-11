@@ -126,7 +126,6 @@ export type {
   RegisteredEvmFamilyEcdsaCapability,
   RegisteredNearEd25519Capability,
   RegistrationResult,
-  PasskeyRegistrationOptions,
   // Re-exported from SeamsWeb types
   RegistrationHooksOptions,
   LoginHooksOptions,
@@ -182,8 +181,6 @@ export type {
   HostedAuthMenuExternalAuthBroker,
   HostedAuthMenuExternalAuthEvidence,
   HostedAuthMenuExternalAuthRequest,
-  HostedAuthMenuDemoEmailOtpDelivery,
-  HostedAuthMenuDemoEmailOtpHandler,
   HostedAuthMenuExternalProvider,
   HostedAuthMenuMode,
   HostedAuthMenuOpenRequest,

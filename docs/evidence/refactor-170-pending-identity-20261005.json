@@ -1,0 +1,76 @@
+{
+  "baseCommit": "dd71be85a9b13da343f9ca582d30394187237074",
+  "scope": "Resolve pending activation by wallet identity in the host and derive passkey origin locally; remove caller ceremony/origin inputs and redundant dispatcher.",
+  "sourceSha256": {
+    "packages/wallet/scripts/checks/check-declarations-resolve-externally.mjs": "e25d3c62796561bc9173083191b4ae0cd8743cc6f84b500ac3bf974de5a5ffb7",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecovery.ts": "ee5273cc492dd7926e1a5064c86eb12cdc1c8092a8c4fd690fc83118416913d0",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryUnlock.ts": "4dd099646818034d28f302d3dcca4ca6278af82a45c8432672f62fb0230f15c0",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts": "2987489769538e902b36cec781ffe48c98da154389c76b32fa05376a6713a7c2",
+    "packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts": "49d3ced37b60f6f918e4cd586139dc10fe27fc6784ec50d4f0ee8d8fe7daf2f2",
+    "packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts": "df16df9df3c47ce8db9195ded0c972f776d3baed66db7d9e27a2eac6765217da",
+    "tests/e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts": "747a966ffeb397441aefe0e981fe3f1b02181517fd0c4d78534904fffb0d9ae4",
+    "tests/intended-app/src/ResumeRegistration.tsx": "e8620cb822e49e96355221719d904323d485c76aad49e942facd0bb2657e60fe",
+    "tests/wallet-iframe/handshake.test.ts": "388b4fdd9e255035e4acf5dd1198df2c129705f2acd995d34251aebd0943d06a"
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "intendedTypes": "passed",
+    "browserTypes": "passed",
+    "docsTypes": "passed",
+    "productionBuild": "passed",
+    "packedDeclarations": "passed; removed inputs and mixed proof spreads rejected",
+    "runtimeEntryBoundaries": "passed",
+    "buildFreshness": "passed",
+    "handshake": "5 passed (2.5s)",
+    "productionEcdsaOnly": "passed (26.6s)",
+    "productionMixed": "passed (26.6s)",
+    "bloat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "protocolVersion": "11.0.0",
+  "productionSourceNetLines": -22,
+  "scenarios": {
+    "ecdsa_only": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "applicationSuppliesCeremonyId": false,
+      "applicationSuppliesPasskeyOrigin": false,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-ecdsa_only.json",
+      "artifactSha256": "aac529dc1165af692fbab2e2d96aad37aee65e957d035454be3b5efb1ea09ec9"
+    },
+    "mixed": {
+      "exactReplays": 3,
+      "exactMethodUnlocks": 1,
+      "verifiedSignatures": 1,
+      "alteredActivationDigestRejectedBeforeUnlock": true,
+      "unrelatedWalletRejectedBeforeReplay": true,
+      "applicationSuppliesCeremonyId": false,
+      "applicationSuppliesPasskeyOrigin": false,
+      "artifactPath": ".artifacts/r150/registration-activation-resume-mixed.json",
+      "artifactSha256": "36a4496600ce8978c87b8f0c6864a1732d00540180b8bd19185d6e8d8de74e35"
+    }
+  },
+  "commands": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+    "pnpm -C apps/docs exec tsc --noEmit",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:declarations-external",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C packages/wallet build:check:fresh",
+    "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/handshake.test.ts --project=chromium --output=../.artifacts/r170-pending-identity-handshake",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts",
+    "pnpm report:bloat --check",
+    "git diff --check"
+  ],
+  "limits": [
+    "Public resume operation and test form remain until normal unlock owns the complete recovery path.",
+    "Normal unlock options, Email OTP continuation, and mixed NEAR readiness remain open.",
+    "Ambiguous records and mismatched methods are rejected in code; these E2Es cover missing wallet selection and corrupted activation facts.",
+    "Client and host protocol versions must match; no release or deployment performed."
+  ]
+}

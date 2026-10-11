@@ -1,0 +1,82 @@
+{
+  "baseCommit": "a66bb657dd5a6660752f3b3dfd1708ce05cd44e1",
+  "scope": "Rename confirmation preference setter and remove three redundant React forwarding wrappers.",
+  "publicMethod": "preferences.setConfirmationBehavior",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/publicApi/types.ts": "aaafc71bec388d35748958bb84a55daa3d1e0cf17d20613e4aeaccc12d559f82",
+    "packages/wallet/src/SeamsWeb/publicNamespaceApi.typecheck.ts": "9ef922ca95b625305d5f2d3dbcd35fb2259139a9355cf78927f4d2b6826d187c",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/preferences.ts": "7425d3e0749319d0565f4bdf8336854a23bc5f6ba665d996bb7facc8c3c95416",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "e83fdec10f9cee926c170d07985d8f5ac2dcb9b15a08b8f5ab68cdc2a58d5180",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "b1d3ca45054726221b0427d0eb495aed121c7db8035b1f39409268e240f7e41d",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/preferences.ts": "5be4c788dac175c02ffe4739c041b19636e85e12d2801eaec1b2c021d59bedbb",
+    "packages/wallet/src/core/signingEngine/session/userPreferences.ts": "8fe67307e0fd2af051c2cc5d066c202f51d84b6710fb5e7e6e5e5a5756a8ac8f",
+    "packages/wallet/src/react/components/AccountMenuButton/index.tsx": "8974cc1f36b004f36e61fa9ae21f04ae0a938d2e7530e4a06063f28b596210d5",
+    "packages/wallet/src/react/context/useSeamsContextValue.ts": "d3a668d69b815f3a0267384d53aa03d0d39fcd77333aab3184574cf25091637e",
+    "packages/wallet/src/react/types.ts": "58fbfcf2bd0580b24d540aac5f5074fac61353b5bf2f119f85edec822142ecf1",
+    "tests/wallet-iframe/preferences.queue.test.ts": "0d574388862594a1646844489d06303b6e146886486dbfc906ab410937219c8d",
+    "tests/wallet-iframe/preferences.sync.test.ts": "d2c404d7028644d43cb225dc0d138bfc4cac5288db37e2d90b0d3eae38cc5651"
+  },
+  "productionLines": {
+    "added": 16,
+    "removed": 30,
+    "net": -14,
+    "scope": "SDK source excluding type fixtures"
+  },
+  "preserved": [
+    "Synchronous application preference view",
+    "Ordered wallet-bound writes, flush boundaries, rollback, and signing admission",
+    "Durable host acknowledgement",
+    "Iframe protocol 4.0.0 and wire message names"
+  ],
+  "verification": {
+    "browser": {
+      "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4289 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/preferences.sync.test.ts wallet-iframe/preferences.queue.test.ts wallet-iframe/preferences.persistence.test.ts wallet-iframe/transaction-review.test.ts --project=chromium --output=../.artifacts/r170-preference-name-browser",
+      "matchedFiles": [
+        "wallet-iframe/preferences.sync.test.ts",
+        "wallet-iframe/preferences.queue.test.ts",
+        "wallet-iframe/preferences.persistence.test.ts"
+      ],
+      "selectionNote": "The transaction-review path matched no file; no transaction-review browser cases are claimed.",
+      "cases": [
+        "[1/8] [chromium] \u203a wallet-iframe/preferences.persistence.test.ts:174:1 \u203a preference acknowledgements await durable storage and delayed reads retain their wallet",
+        "[2/8] [chromium] \u203a wallet-iframe/preferences.queue.test.ts:254:1 \u203a preference writes preserve targets, rollback, flush boundaries, signing admission, and disposal",
+        "[3/8] [chromium] \u203a wallet-iframe/preferences.sync.test.ts:157:3 \u203a Wallet iframe preferences sync \u203a app-origin mirrors wallet-host confirmation config via PREFERENCES_CHANGED",
+        "[4/8] [chromium] \u203a wallet-iframe/preferences.sync.test.ts:267:3 \u203a Wallet iframe preferences sync \u203a uses the mirrored wallet preference to present a drawer before dispatch",
+        "[5/8] [chromium] \u203a wallet-iframe/preferences.sync.test.ts:327:3 \u203a Wallet iframe preferences sync \u203a dispatches a foreground request without a nested confirmation-config round trip",
+        "[6/8] [chromium] \u203a wallet-iframe/preferences.sync.test.ts:381:3 \u203a Wallet iframe preferences sync \u203a current-wallet preference updates do not revalidate the session",
+        "[7/8] [chromium] \u203a wallet-iframe/preferences.sync.test.ts:422:3 \u203a Wallet iframe preferences sync \u203a configuration selects chain targets and forwards appearance to the wallet host",
+        "[8/8] [chromium] \u203a wallet-iframe/preferences.sync.test.ts:647:1 \u203a wallet-bound preference events outrank delayed snapshots and stop on disposal"
+      ],
+      "initialResult": "7 passed, 1 failed due to a mismatched wallet selection in the persistence fixture.",
+      "repair": "a66bb657; valid_test_needs_update. See refactor-170-preference-fixture-20261005.json.",
+      "rerun": "Persistence case passes unchanged assertions in 1.2s after fixture repair. All 8 selected cases pass across the initial run and targeted rerun."
+    },
+    "production": {
+      "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.contract.test.ts --grep 'custom review requires wallet approval before a live Arc signature'",
+      "cases": [
+        "[wallet-intended] 1/1 e2e/intended-behaviours/passkey.registration.contract.test.ts:176 custom review requires wallet approval before a live Arc signature"
+      ],
+      "passes": [
+        "1 passed (27.3s)"
+      ],
+      "exitCode": 0
+    },
+    "passedCommands": [
+      "pnpm -C packages/wallet type-check",
+      "pnpm -C tests exec tsc -p tsconfig.wallet-browser.json",
+      "pnpm -C tests type-check:intended",
+      "pnpm -C packages/wallet build:prod",
+      "pnpm -C packages/wallet check:declarations-external",
+      "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "pnpm -C packages/wallet build:check:fresh",
+      "git diff --check",
+      "pnpm report:bloat --check"
+    ],
+    "tarballIntegrity": "sha512-qSyC8vTli8w7XV5hviG+136dIKaaM8nf72uNufCMrNEP8vj8wUhFmlNJNi8ZQ1trYmSJ/VPGQ099Fbz7ZLD3oA=="
+  },
+  "limitations": [
+    "Full React remount/SSR and cross-browser acceptance remain open.",
+    "Production scenario verifies wallet approval before signing; it does not prove live-chain broadcast/finalization.",
+    "Full R170 worker-loading and release-consumer gates remain open."
+  ]
+}

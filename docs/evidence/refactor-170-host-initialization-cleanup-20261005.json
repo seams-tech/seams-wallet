@@ -1,0 +1,50 @@
+{
+  "scope": "Delete obsolete application-mode branches from host-only initialization and replace the tagged warmup-policy wrapper with a direct UI-preparation predicate.",
+  "baseRevision": "fd9a4b457b3d44b16ed4d11cfbbe85a27eeb4cd9",
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/assembly/browserSigningSurfaceAssembly.ts": "735dec05ab086ecc3da209c78e0e3a4c79c362bff77c7010fe0812c60e995a96",
+    "packages/wallet/src/SeamsWeb/assembly/browserSigningSurfacePorts.ts": "1088df4552fb3c35bf8f3e6b99902c6b5e1afcd4cf9fe203e20ba6ad9d4d8b73",
+    "packages/wallet/src/SeamsWeb/assembly/initializeBrowserSigningRuntime.ts": "171fbfa0f12aeb0919c4dbc64b75a472155630dfdece5e94c56629290784de6d",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "a6bae0512e806c98516904a954a4bc0d110c01fe7e2de1c92a7e9231d44d1b23",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "919e5f18b73ee5e87f7e003906b5ebe85630e09e93aae9a993e00c38d4d71e61",
+    "packages/wallet/src/core/signingEngine/assembly/ports/shared.ts": "46b41535788b42a2a0acae76157e78c33dcfe4efe3e46d6807a38db1ce557da6",
+    "packages/wallet/src/core/signingEngine/assembly/warmup.ts": "ee0a1a30b657fe71f038abeebaebbaf12c7ab52ebba702bc5eca99839f1e68f3"
+  },
+  "deletedSources": [
+    "packages/wallet/src/SeamsWeb/assembly/browserWorkerWarmupPolicy.ts"
+  ],
+  "productionLineChange": {
+    "added": 19,
+    "removed": 72,
+    "net": -53
+  },
+  "checks": {
+    "walletTypes": "passed",
+    "walletStateTypes": "passed",
+    "productionBuild": "passed",
+    "runtimeEntryBundles": "passed",
+    "bloatGate": "passed"
+  },
+  "productionCases": [
+    {
+      "case": "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts:111 production signed-out mount and menu record cold and warm cache traffic",
+      "result": "1 passed (34.8s)"
+    },
+    {
+      "case": "e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "result": "1 passed (38.4s)"
+    }
+  ],
+  "limitations": [
+    "Other host-mode callers still require an ownership audit.",
+    "Resolved client/host configuration and protocol revision ordering remain unfinished."
+  ],
+  "reproduce": [
+    "pnpm -C packages/wallet type-check",
+    "pnpm -C packages/wallet build:prod",
+    "pnpm -C packages/wallet check:runtime-entry-bundles",
+    "pnpm -C tests type-check:wallet-state",
+    "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/passkey.registration.assets.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'production signed-out|page refresh hydrates'",
+    "pnpm report:bloat --check"
+  ]
+}

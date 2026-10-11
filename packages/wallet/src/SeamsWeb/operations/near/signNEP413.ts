@@ -10,6 +10,7 @@ import { base64Encode } from '@shared/utils/base64';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';
+import { assertString, requireCanonicalString } from '@shared/utils/validation';
 
 export type { SignNEP413MessageParams, SignNEP413MessageResult };
 
@@ -17,7 +18,7 @@ export type { SignNEP413MessageParams, SignNEP413MessageResult };
  * Sign a NEP-413 message using the active threshold-controlled NEAR key.
  *
  * This function implements the NEP-413 standard for off-chain message signing:
- * - Creates a payload with message, recipient, nonce, and state
+ * - Creates a payload with message, nonce, recipient, and callbackUrl
  * - Serializes using Borsh
  * - Adds NEP-413 prefix (2^31 + 413)
  * - Hashes with SHA-256
@@ -30,7 +31,7 @@ export type { SignNEP413MessageParams, SignNEP413MessageResult };
  * @param options - Action options for event handling
  * @returns Promise resolving to signing result
  */
-export async function signNEP413Message(args: {
+export async function signMessage(args: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
   walletSession: WalletSessionRef;
@@ -46,6 +47,11 @@ export async function signNEP413Message(args: {
     typeof signerSlot === 'number' && Number.isSafeInteger(signerSlot) && signerSlot >= 1;
 
   try {
+    const callbackUrl =
+      params.callbackUrl === undefined
+        ? null
+        : requireCanonicalString(params.callbackUrl, 'callbackUrl');
+    const state = params.state === undefined ? null : assertString(params.state, 'state');
     // Emit preparation event
     emitNearSigningEvent(options?.onEvent, nearAccountId, {
       phase: SigningEventPhase.STEP_01_STARTED,
@@ -96,7 +102,8 @@ export async function signNEP413Message(args: {
         message: params.message,
         recipient: params.recipient,
         nonce,
-        state: params.state || null,
+        callbackUrl,
+        state,
         signerSlot: hasValidSignerSlot ? signerSlot : undefined,
         title: confirmerText?.title,
         body: confirmerText?.body,
@@ -119,7 +126,7 @@ export async function signNEP413Message(args: {
         publicKey: result.publicKey,
         signature: result.signature,
         nonce,
-        ...(result.state ? { state: result.state } : {}),
+        ...(result.state !== undefined ? { state: result.state } : {}),
       };
     } else {
       throw new Error(`NEP-413 signing failed: ${result.error || 'Unknown error'}`);

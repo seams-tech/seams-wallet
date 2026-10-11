@@ -5,9 +5,8 @@ description: Model runtime signing authority through wallet sessions, capability
 
 # Sessions
 
-Sessions describe runtime signing authority: which lane is selected, which
-budget is available, which material can be restored, and which nonce lane is
-safe to use.
+Sessions describe runtime signing authority. They identify the selected lane, available
+budget, material that can be restored, and nonce lane that is safe to use.
 
 Read next:
 

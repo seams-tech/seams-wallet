@@ -53,10 +53,9 @@ use router_ab_cloudflare::{
     parse_cloudflare_signing_worker_bindings_v1, prepare_cloudflare_deriver_ecdsa_registration_v1,
     prepare_signing_worker_wallet_ecdsa_from_pool_v1, router_ab_service_credential_matches_v1,
     router_trusted_source_digest_v1, signing_worker_ecdsa_presign_session_start_v1,
-    signing_worker_ecdsa_stored_terminal_response_v1, signing_worker_wallet_ecdsa_scope_v1,
-    step_signing_worker_ecdsa_presign_session_v1, CloudflareDeriverAWorkerRuntimeV1,
-    CloudflareDeriverBWorkerRuntimeV1, CloudflareDeriverSignerRuntimeV1,
-    CloudflareEcdsaPrepareResponseV1,
+    signing_worker_ecdsa_stored_terminal_response_v1, step_signing_worker_ecdsa_presign_session_v1,
+    CloudflareDeriverAWorkerRuntimeV1, CloudflareDeriverBWorkerRuntimeV1,
+    CloudflareDeriverSignerRuntimeV1, CloudflareEcdsaPrepareResponseV1,
     CloudflareRoleSeparatedRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
     CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1,
     CloudflareRouterAbEcdsaDerivationSigningWorkerActivationReceiptV1,
@@ -109,10 +108,7 @@ use std::{
 
 use super::{
     local_router_coordinator::local_now_ms_v1,
-    local_signing_worker_wallet_sqlite::{
-        claim_local_presign_authority_v1, load_local_presign_authority_v1,
-        with_local_signing_worker_wallet_store_v1,
-    },
+    local_signing_worker_wallet_sqlite::with_local_signing_worker_wallet_store_v1,
     local_tenant_root::{
         local_router_tenant_root_admission_receipt_v1, LocalTenantRootDeriverHostV1,
     },
@@ -216,6 +212,74 @@ pub fn local_router_ab_ecdsa_route_v1(
             _ => None,
         },
         LocalWorkerRoleConfigV1::SigningWorker(signing_worker) => match path {
+            router_ab_cloudflare::SIGNING_WORKER_ECDSA_TRANSFER_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerEcdsaTransferRequestV1| {
+                    let response = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |store, _| store.transfer_ecdsa_snapshot(command),
+                    )?;
+                    json(&response)
+                },
+            )),
+            router_ab_cloudflare::SIGNING_WORKER_ECDSA_EXPORT_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerEcdsaExportRequestV1| {
+                    let chunk = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |store, _| store.export_ecdsa_snapshot(command),
+                    )?;
+                    json(&chunk)
+                },
+            )),
+            router_ab_cloudflare::SIGNING_WORKER_LINKED_PRESIGN_INVENTORY_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerLinkedPresignInventoryRequestV1| {
+                    let page = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |store, _| store.list_relocating_linked_presign_sessions(command),
+                    )?;
+                    json(&page)
+                },
+            )),
+            router_ab_cloudflare::SIGNING_WORKER_ED25519_SETTLE_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1| {
+                    let receipt = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |_, sql| crate::local_signing_worker_near_sqlite::settle_for_relocation(
+                            sql.0, command, local_now_ms_v1()?,
+                        ),
+                    )?;
+                    json(&receipt)
+                },
+            )),
+            router_ab_cloudflare::SIGNING_WORKER_ED25519_FENCE_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerEd25519FenceCommandV1| {
+                    let receipt = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |_, sql| router_ab_cloudflare::SigningWorkerEd25519ExecutionStoreV1::new(sql).fence(command),
+                    )?;
+                    json(&receipt)
+                },
+            )),
+            router_ab_cloudflare::SIGNING_WORKER_POOL_FREEZE_PATH_V1 => Some(authorized(
+                &signing_worker.router_to_signing_worker_ecdsa_auth,
+                request,
+                |command: router_ab_cloudflare::SigningWorkerPoolFreezeCommandV1| {
+                    let receipt = with_local_signing_worker_wallet_store_v1(
+                        signing_worker,
+                        |store, _| store.freeze_pool_for_relocation(command.scope, command.request),
+                    )?;
+                    json(&receipt)
+                },
+            )),
             CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH => Some(authorized(
                 &signing_worker.router_to_signing_worker_ecdsa_auth,
                 request,
@@ -297,8 +361,10 @@ pub fn local_router_ab_ecdsa_route_v1(
 
 /// `Server-Timing` spans for one presignature step, named as the Workers
 /// SigningWorker names them. The in-process session map stands where the
-/// Workers presignature-session Durable Object does, so its time also
-/// reports as that Durable Object's total.
+/// Workers presignature-session Durable Object does. A Worker waits for that
+/// object's response headers while the object works, then reads its body.
+/// Here the session work reports as the header span, and the body span is
+/// zero because no response crosses a boundary.
 struct LocalPresignTimingV1 {
     started: Instant,
     entries: Vec<(&'static str, u128)>,
@@ -318,7 +384,8 @@ impl LocalPresignTimingV1 {
 
     fn mark_session(&mut self, since: Instant) {
         self.mark("ecdsa_presign_sw_session", since);
-        self.mark("ecdsa_presign_sw_do_total", since);
+        self.mark("ecdsa_presign_sw_do_response_headers", since);
+        self.entries.push(("ecdsa_presign_sw_do_response_body", 0));
     }
 
     fn finish(mut self, into: &RefCell<Option<String>>) {
@@ -779,9 +846,10 @@ fn start_presign_session(
     // The wallet's material is read and the session's authority claimed in
     // one transaction, before the session emits any server message.
     let material_started = Instant::now();
-    let start = with_local_signing_worker_wallet_store_v1(config, |store, sql| {
+    let start = with_local_signing_worker_wallet_store_v1(config, |store, _sql| {
+        store.require_mutation_admission(&wallet_scope)?;
         let (active, material) = store.load_activated_material(&wallet_scope, &request.scope)?;
-        claim_local_presign_authority_v1(sql, &request, now_ms)?;
+        store.claim_presign_authority(&request, now_ms)?;
         signing_worker_ecdsa_presign_session_start_v1(request, &active, &material)
     })?;
     timing.mark("ecdsa_presign_sw_material", material_started);
@@ -823,14 +891,14 @@ fn step_presign_session(
     let mut timing = LocalPresignTimingV1::new();
     let now_ms = local_now_ms_v1()?;
     request.validate_at(now_ms)?;
-    let pinned = with_local_signing_worker_wallet_store_v1(config, |_, sql| {
-        load_local_presign_authority_v1(sql, &request.presign_session_id, now_ms)
-    })?;
-    if request.authority != pinned {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "SigningWorker ECDSA presign authority does not match initialized session",
-        ));
+    let admission = with_local_signing_worker_wallet_store_v1(config, |store, _sql| {
+        store.admit_presign_step(&request, now_ms)
+    });
+    if let Err(error) = admission {
+        if error.code() == RouterAbProtocolErrorCode::LifecycleTransitionInProgress {
+            live_presign_sessions()?.remove(&request.presign_session_id);
+        }
+        return Err(error);
     }
     let presign_session_id = request.presign_session_id.clone();
     let session_started = Instant::now();
@@ -870,6 +938,8 @@ fn step_presign_session(
                 admit_signing_worker_wallet_ecdsa_presignature_v1(
                     store,
                     &wallet_scope,
+                    &presign_session_id,
+                    now_ms,
                     pool_put_request,
                     now_ms,
                 )
@@ -1049,8 +1119,7 @@ fn finalize_at_signing_worker(
 ) -> RouterAbProtocolResult<String> {
     let now_ms = local_now_ms_v1()?;
     admitted.validate()?;
-    let wallet_scope =
-        signing_worker_wallet_ecdsa_scope_v1(admitted.wallet_scope.as_ref())?.clone();
+    let wallet_scope = admitted.wallet_scope.clone();
     // Stale material fails before the one-use claim. The claim and the
     // presignature it consumes commit before any signing work, as in the
     // wallet's Durable Object.

@@ -1,0 +1,36 @@
+{
+  "kind": "regional_deployment_renewal_evidence_v1",
+  "initialRevision": "tdb_TX50AJQ70CbC8jix5F4kttJl1G-3Ihr_Mj-e2Hr4Bdc",
+  "renewedRevision": "tdb_6kDgvcyWCBHJT_6ChyGWNPIw81Gj_KhFsbDQ34A1XaQ",
+  "activationSequence": 2,
+  "admittedWriters": 6,
+  "retiredWriters": 6,
+  "credentialCount": 1,
+  "browserCredentialPreserved": true,
+  "committedActivationPreservedAfterLostReply": true,
+  "partialRegionalActivationRecovered": true,
+  "privateControlRetryVerified": true,
+  "wrongWriterAndPublicControlRequestsRejected": true,
+  "delayedRetiredWriterWriteRejected": true,
+  "regionalGuardLeavesNoRows": true,
+  "incompleteProofSetRejected": true,
+  "resourceRemovalRejected": true,
+  "unverifiedResourceAdditionRejected": true,
+  "resourceAdditionCannotReuseActivation": true,
+  "regionalCounts": {
+    "acknowledgedBindingRevision": "tdb_TX50AJQ70CbC8jix5F4kttJl1G-3Ihr_Mj-e2Hr4Bdc",
+    "sourceDurableWalletCount": 3,
+    "targetDurableWalletCount": 6,
+    "inFlightCeremonyCount": 1
+  },
+  "crossResourceReadinessRejected": true,
+  "incompleteReadinessCoverageRejected": true,
+  "apacCeremonyBlockedRenewal": true,
+  "unavailableApacBlockedRenewal": true,
+  "failedRootAndCredentialAttemptsReleased": 5,
+  "authenticatedCanaries": 0,
+  "limits": [
+    "Local D1 and production Console services; provider proofs and Router status are controlled fixtures.",
+    "Canary endpoint authenticates the real persisted browser key; no wallet ceremony or regional latency is measured."
+  ]
+}

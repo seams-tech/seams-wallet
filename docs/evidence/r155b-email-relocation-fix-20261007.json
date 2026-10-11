@@ -1,0 +1,24 @@
+{
+  "recordedAt": "2026-10-07T02:48:42.767976+00:00",
+  "checks": {
+    "authorizationTransfer": "passed",
+    "serverTypecheck": "passed",
+    "bloat": "passed"
+  },
+  "evidencePath": "/Users/pta/Dev/rust/seams-wallet/.artifacts/r153/authorization-storage-transfer/evidence.json",
+  "evidenceSha256": "39c0970710082fa5cf15ca4cbf1d1fb2510c77256d97f116c8ffe7d9a13b2be2",
+  "observations": {
+    "sealedFactorPreserved": true,
+    "lockoutPreserved": true,
+    "freshChallengeVerified": true,
+    "singleUsePreserved": true,
+    "sourceCleaned": true,
+    "neighborPreserved": true,
+    "scope": "Production OTP challenge and verification after authorization relocation; email delivery and encrypted factor bytes use fixtures. Full browser unlock/MPC signing is not exercised here."
+  },
+  "migration": "0074_email_otp_relocation.sql",
+  "limits": [
+    "Email delivery and encrypted factor bytes use fixtures. Full browser unlock and MPC signing were not exercised by this scenario.",
+    "No live resources changed."
+  ]
+}

@@ -127,6 +127,7 @@ export type OrdinaryInactiveSignerMaterialReservationRequestV1 =
   | OrdinaryEcdsaSignerMaterialReservationRequestV1;
 
 type OrdinarySignerMaterialReservationRequestV1<F extends OrdinarySignerFamilyV1> = {
+  readonly ownershipGeneration: number;
   readonly kind: OrdinaryRequestKindByFamilyV1[F];
   readonly keyFamily: F;
   readonly signer: OrdinarySignerByFamilyV1[F];
@@ -371,6 +372,9 @@ export class OrdinaryInactiveSignerMaterialReservationServiceV1 {
 export function validateOrdinaryInactiveSignerMaterialReservationRequestV1(
   request: OrdinaryInactiveSignerMaterialReservationRequestV1,
 ): void {
+  if (!Number.isSafeInteger(request.ownershipGeneration) || request.ownershipGeneration < 1) {
+    throw new Error('ordinary signer material ownership generation is invalid');
+  }
   switch (request.kind) {
     case 'ordinary_ed25519_signer_material_reservation_request_v1': {
       if (

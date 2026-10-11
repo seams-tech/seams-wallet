@@ -1,0 +1,932 @@
+{
+  "order": [
+    "control-1",
+    "candidate-1",
+    "control-2",
+    "candidate-2"
+  ],
+  "runs": {
+    "control-1": {
+      "wallets": 2,
+      "verifiedSignatures": 6,
+      "firstSigning": {
+        "samples": [
+          4502.439999997616,
+          4297.079999983311
+        ],
+        "medianMs": 4399.759999990463,
+        "maximumMs": 4502.439999997616
+      },
+      "firstGeneration": {
+        "samples": [
+          3856.399999976158,
+          3786.199999988079
+        ],
+        "medianMs": 3821.2999999821186,
+        "maximumMs": 3856.399999976158
+      },
+      "firstRefillWait": {
+        "samples": [
+          2404.5,
+          2509.199999988079
+        ],
+        "medianMs": 2456.8499999940395,
+        "maximumMs": 2509.199999988079
+      },
+      "doCpuTotal": {
+        "samples": [
+          209,
+          261
+        ],
+        "medianMs": 235.0,
+        "maximumMs": 261
+      },
+      "doWallTotal": {
+        "samples": [
+          292,
+          350
+        ],
+        "medianMs": 321.0,
+        "maximumMs": 350
+      },
+      "firstProtocolCalls": [
+        [
+          {
+            "operation": "init",
+            "cpuMs": 105,
+            "wallMs": 188
+          },
+          {
+            "operation": "step",
+            "cpuMs": 67,
+            "wallMs": 67
+          },
+          {
+            "operation": "step",
+            "cpuMs": 7,
+            "wallMs": 7
+          },
+          {
+            "operation": "step",
+            "cpuMs": 10,
+            "wallMs": 10
+          },
+          {
+            "operation": "step",
+            "cpuMs": 17,
+            "wallMs": 17
+          },
+          {
+            "operation": "step",
+            "cpuMs": 3,
+            "wallMs": 3
+          }
+        ],
+        [
+          {
+            "operation": "init",
+            "cpuMs": 126,
+            "wallMs": 211
+          },
+          {
+            "operation": "step",
+            "cpuMs": 79,
+            "wallMs": 80
+          },
+          {
+            "operation": "step",
+            "cpuMs": 11,
+            "wallMs": 11
+          },
+          {
+            "operation": "step",
+            "cpuMs": 14,
+            "wallMs": 15
+          },
+          {
+            "operation": "step",
+            "cpuMs": 27,
+            "wallMs": 28
+          },
+          {
+            "operation": "step",
+            "cpuMs": 4,
+            "wallMs": 5
+          }
+        ]
+      ]
+    },
+    "candidate-1": {
+      "wallets": 2,
+      "verifiedSignatures": 6,
+      "firstSigning": {
+        "samples": [
+          4082.9449999928474,
+          3760.3800000548363
+        ],
+        "medianMs": 3921.662500023842,
+        "maximumMs": 4082.9449999928474
+      },
+      "firstGeneration": {
+        "samples": [
+          4018.100000023842,
+          3178.899999976158
+        ],
+        "medianMs": 3598.5,
+        "maximumMs": 4018.100000023842
+      },
+      "firstRefillWait": {
+        "samples": [
+          2309.5,
+          1979.4000000357628
+        ],
+        "medianMs": 2144.4500000178814,
+        "maximumMs": 2309.5
+      },
+      "doCpuTotal": {
+        "samples": [
+          232,
+          200
+        ],
+        "medianMs": 216.0,
+        "maximumMs": 232
+      },
+      "doWallTotal": {
+        "samples": [
+          322,
+          289
+        ],
+        "medianMs": 305.5,
+        "maximumMs": 322
+      },
+      "firstProtocolCalls": [
+        [
+          {
+            "operation": "init",
+            "cpuMs": 121,
+            "wallMs": 205
+          },
+          {
+            "operation": "step",
+            "cpuMs": 54,
+            "wallMs": 55
+          },
+          {
+            "operation": "step",
+            "cpuMs": 11,
+            "wallMs": 12
+          },
+          {
+            "operation": "step",
+            "cpuMs": 13,
+            "wallMs": 15
+          },
+          {
+            "operation": "step",
+            "cpuMs": 29,
+            "wallMs": 30
+          },
+          {
+            "operation": "step",
+            "cpuMs": 4,
+            "wallMs": 5
+          }
+        ],
+        [
+          {
+            "operation": "init",
+            "cpuMs": 95,
+            "wallMs": 180
+          },
+          {
+            "operation": "step",
+            "cpuMs": 52,
+            "wallMs": 53
+          },
+          {
+            "operation": "step",
+            "cpuMs": 12,
+            "wallMs": 13
+          },
+          {
+            "operation": "step",
+            "cpuMs": 14,
+            "wallMs": 15
+          },
+          {
+            "operation": "step",
+            "cpuMs": 23,
+            "wallMs": 23
+          },
+          {
+            "operation": "step",
+            "cpuMs": 4,
+            "wallMs": 5
+          }
+        ]
+      ]
+    },
+    "control-2": {
+      "wallets": 2,
+      "verifiedSignatures": 6,
+      "firstSigning": {
+        "samples": [
+          3526.035000026226,
+          4810.714999973774
+        ],
+        "medianMs": 4168.375,
+        "maximumMs": 4810.714999973774
+      },
+      "firstGeneration": {
+        "samples": [
+          3602.399999976158,
+          4226.399999976158
+        ],
+        "medianMs": 3914.399999976158,
+        "maximumMs": 4226.399999976158
+      },
+      "firstRefillWait": {
+        "samples": [
+          1341.7999999523163,
+          3052.199999988079
+        ],
+        "medianMs": 2196.9999999701977,
+        "maximumMs": 3052.199999988079
+      },
+      "doCpuTotal": {
+        "samples": [
+          200,
+          174
+        ],
+        "medianMs": 187.0,
+        "maximumMs": 200
+      },
+      "doWallTotal": {
+        "samples": [
+          286,
+          256
+        ],
+        "medianMs": 271.0,
+        "maximumMs": 286
+      },
+      "firstProtocolCalls": [
+        [
+          {
+            "operation": "init",
+            "cpuMs": 104,
+            "wallMs": 188
+          },
+          {
+            "operation": "step",
+            "cpuMs": 58,
+            "wallMs": 59
+          },
+          {
+            "operation": "step",
+            "cpuMs": 8,
+            "wallMs": 8
+          },
+          {
+            "operation": "step",
+            "cpuMs": 9,
+            "wallMs": 9
+          },
+          {
+            "operation": "step",
+            "cpuMs": 18,
+            "wallMs": 18
+          },
+          {
+            "operation": "step",
+            "cpuMs": 3,
+            "wallMs": 4
+          }
+        ],
+        [
+          {
+            "operation": "init",
+            "cpuMs": 77,
+            "wallMs": 158
+          },
+          {
+            "operation": "step",
+            "cpuMs": 63,
+            "wallMs": 64
+          },
+          {
+            "operation": "step",
+            "cpuMs": 7,
+            "wallMs": 7
+          },
+          {
+            "operation": "step",
+            "cpuMs": 8,
+            "wallMs": 8
+          },
+          {
+            "operation": "step",
+            "cpuMs": 16,
+            "wallMs": 16
+          },
+          {
+            "operation": "step",
+            "cpuMs": 3,
+            "wallMs": 3
+          }
+        ]
+      ]
+    },
+    "candidate-2": {
+      "wallets": 2,
+      "verifiedSignatures": 6,
+      "firstSigning": {
+        "samples": [
+          3542.860000014305,
+          3937.0199999809265
+        ],
+        "medianMs": 3739.939999997616,
+        "maximumMs": 3937.0199999809265
+      },
+      "firstGeneration": {
+        "samples": [
+          3599.800000011921,
+          3202.699999988079
+        ],
+        "medianMs": 3401.25,
+        "maximumMs": 3599.800000011921
+      },
+      "firstRefillWait": {
+        "samples": [
+          1641.5999999642372,
+          2044.699999988079
+        ],
+        "medianMs": 1843.1499999761581,
+        "maximumMs": 2044.699999988079
+      },
+      "doCpuTotal": {
+        "samples": [
+          219,
+          152
+        ],
+        "medianMs": 185.5,
+        "maximumMs": 219
+      },
+      "doWallTotal": {
+        "samples": [
+          310,
+          240
+        ],
+        "medianMs": 275.0,
+        "maximumMs": 310
+      },
+      "firstProtocolCalls": [
+        [
+          {
+            "operation": "init",
+            "cpuMs": 99,
+            "wallMs": 186
+          },
+          {
+            "operation": "step",
+            "cpuMs": 57,
+            "wallMs": 58
+          },
+          {
+            "operation": "step",
+            "cpuMs": 12,
+            "wallMs": 13
+          },
+          {
+            "operation": "step",
+            "cpuMs": 21,
+            "wallMs": 22
+          },
+          {
+            "operation": "step",
+            "cpuMs": 25,
+            "wallMs": 25
+          },
+          {
+            "operation": "step",
+            "cpuMs": 5,
+            "wallMs": 6
+          }
+        ],
+        [
+          {
+            "operation": "init",
+            "cpuMs": 70,
+            "wallMs": 156
+          },
+          {
+            "operation": "step",
+            "cpuMs": 46,
+            "wallMs": 47
+          },
+          {
+            "operation": "step",
+            "cpuMs": 6,
+            "wallMs": 6
+          },
+          {
+            "operation": "step",
+            "cpuMs": 10,
+            "wallMs": 10
+          },
+          {
+            "operation": "step",
+            "cpuMs": 17,
+            "wallMs": 17
+          },
+          {
+            "operation": "step",
+            "cpuMs": 3,
+            "wallMs": 4
+          }
+        ]
+      ]
+    }
+  },
+  "combined": {
+    "control": {
+      "firstSigning": {
+        "samples": [
+          4502.439999997616,
+          4297.079999983311,
+          3526.035000026226,
+          4810.714999973774
+        ],
+        "medianMs": 4399.759999990463,
+        "maximumMs": 4810.714999973774
+      },
+      "firstGeneration": {
+        "samples": [
+          3856.399999976158,
+          3786.199999988079,
+          3602.399999976158,
+          4226.399999976158
+        ],
+        "medianMs": 3821.2999999821186,
+        "maximumMs": 4226.399999976158
+      },
+      "firstRefillWait": {
+        "samples": [
+          2404.5,
+          2509.199999988079,
+          1341.7999999523163,
+          3052.199999988079
+        ],
+        "medianMs": 2456.8499999940395,
+        "maximumMs": 3052.199999988079
+      },
+      "doCpuTotal": {
+        "samples": [
+          209,
+          261,
+          200,
+          174
+        ],
+        "medianMs": 204.5,
+        "maximumMs": 261
+      },
+      "doWallTotal": {
+        "samples": [
+          292,
+          350,
+          286,
+          256
+        ],
+        "medianMs": 289.0,
+        "maximumMs": 350
+      }
+    },
+    "candidate": {
+      "firstSigning": {
+        "samples": [
+          4082.9449999928474,
+          3760.3800000548363,
+          3542.860000014305,
+          3937.0199999809265
+        ],
+        "medianMs": 3848.7000000178814,
+        "maximumMs": 4082.9449999928474
+      },
+      "firstGeneration": {
+        "samples": [
+          4018.100000023842,
+          3178.899999976158,
+          3599.800000011921,
+          3202.699999988079
+        ],
+        "medianMs": 3401.25,
+        "maximumMs": 4018.100000023842
+      },
+      "firstRefillWait": {
+        "samples": [
+          2309.5,
+          1979.4000000357628,
+          1641.5999999642372,
+          2044.699999988079
+        ],
+        "medianMs": 2012.050000011921,
+        "maximumMs": 2309.5
+      },
+      "doCpuTotal": {
+        "samples": [
+          232,
+          200,
+          219,
+          152
+        ],
+        "medianMs": 209.5,
+        "maximumMs": 232
+      },
+      "doWallTotal": {
+        "samples": [
+          322,
+          289,
+          310,
+          240
+        ],
+        "medianMs": 299.5,
+        "maximumMs": 322
+      }
+    }
+  },
+  "schema": "seams.initial-protocol-alternating-comparison.v1",
+  "date": "2026-10-06",
+  "versions": {
+    "control": "00d01efe-1aa9-440b-a3e7-3f37caa478f4",
+    "candidate": "7ec20bf3-2209-4fd9-a652-84532e7cc583",
+    "headerDiagnostic": "6a7c4ed2-c1fc-400e-97b2-9900ff93f1e3",
+    "logDiagnostic": "0bffd2c8-ec5b-4355-83e7-ee8ec97c7ebd"
+  },
+  "scope": "APAC staging, NRT browser; fixed SDK/site and all non-SigningWorker deployments; full signing excludes blockchain broadcast and confirmation.",
+  "caveats": [
+    "Four fresh wallets per arm; no causal or guaranteed latency saving is established.",
+    "Platform CPU and wall time are per DO invocation; sums do not include all Worker, transport, browser, or scheduling time.",
+    "Application timer do_total was unsuitable for synchronous CPU measurement and is retired.",
+    "The new header spans require a Gateway build with the updated shared parser. The diagnostic log observes them without modifying the Gateway deployment."
+  ],
+  "ioDiagnosticCalls": [
+    {
+      "operation": "init",
+      "responseHeadersMs": 777,
+      "responseBodyMs": 0,
+      "workerCpuMs": 85,
+      "workerWallMs": 873
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 114,
+      "responseBodyMs": 0,
+      "workerCpuMs": 55,
+      "workerWallMs": 164
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 58,
+      "responseBodyMs": 0,
+      "workerCpuMs": 3,
+      "workerWallMs": 61
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 68,
+      "responseBodyMs": 3,
+      "workerCpuMs": 9,
+      "workerWallMs": 79
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 585,
+      "responseBodyMs": 0,
+      "workerCpuMs": 86,
+      "workerWallMs": 634
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 61,
+      "responseBodyMs": 0,
+      "workerCpuMs": 88,
+      "workerWallMs": 295
+    },
+    {
+      "operation": "init",
+      "responseHeadersMs": 132,
+      "responseBodyMs": 0,
+      "workerCpuMs": 22,
+      "workerWallMs": 204
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 86,
+      "responseBodyMs": 0,
+      "workerCpuMs": 5,
+      "workerWallMs": 91
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 58,
+      "responseBodyMs": 0,
+      "workerCpuMs": 5,
+      "workerWallMs": 62
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 58,
+      "responseBodyMs": 18,
+      "workerCpuMs": 4,
+      "workerWallMs": 79
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 72,
+      "responseBodyMs": 0,
+      "workerCpuMs": 3,
+      "workerWallMs": 73
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 50,
+      "responseBodyMs": 0,
+      "workerCpuMs": 25,
+      "workerWallMs": 215
+    },
+    {
+      "operation": "init",
+      "responseHeadersMs": 117,
+      "responseBodyMs": 0,
+      "workerCpuMs": 12,
+      "workerWallMs": 178
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 51,
+      "responseBodyMs": 0,
+      "workerCpuMs": 9,
+      "workerWallMs": 60
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 57,
+      "responseBodyMs": 0,
+      "workerCpuMs": 4,
+      "workerWallMs": 62
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 63,
+      "responseBodyMs": 2,
+      "workerCpuMs": 3,
+      "workerWallMs": 68
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 75,
+      "responseBodyMs": 0,
+      "workerCpuMs": 3,
+      "workerWallMs": 77
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 50,
+      "responseBodyMs": 0,
+      "workerCpuMs": 8,
+      "workerWallMs": 200
+    },
+    {
+      "operation": "init",
+      "responseHeadersMs": 123,
+      "responseBodyMs": 0,
+      "workerCpuMs": 6,
+      "workerWallMs": 177
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 98,
+      "responseBodyMs": 0,
+      "workerCpuMs": 4,
+      "workerWallMs": 103
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 16,
+      "responseBodyMs": 1,
+      "workerCpuMs": 2,
+      "workerWallMs": 19
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 13,
+      "responseBodyMs": 2,
+      "workerCpuMs": 6,
+      "workerWallMs": 23
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 30,
+      "responseBodyMs": 0,
+      "workerCpuMs": 4,
+      "workerWallMs": 35
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 47,
+      "responseBodyMs": 0,
+      "workerCpuMs": 8,
+      "workerWallMs": 191
+    },
+    {
+      "operation": "init",
+      "responseHeadersMs": 178,
+      "responseBodyMs": 0,
+      "workerCpuMs": 5,
+      "workerWallMs": 231
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 487,
+      "responseBodyMs": 0,
+      "workerCpuMs": 9,
+      "workerWallMs": 487
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 444,
+      "responseBodyMs": 0,
+      "workerCpuMs": 1,
+      "workerWallMs": 445
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 26,
+      "responseBodyMs": 0,
+      "workerCpuMs": 5,
+      "workerWallMs": 31
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 28,
+      "responseBodyMs": 0,
+      "workerCpuMs": 1,
+      "workerWallMs": 30
+    },
+    {
+      "operation": "init",
+      "responseHeadersMs": 88,
+      "responseBodyMs": 0,
+      "workerCpuMs": 4,
+      "workerWallMs": 143
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 18,
+      "responseBodyMs": 0,
+      "workerCpuMs": 1,
+      "workerWallMs": 19
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 15,
+      "responseBodyMs": 3,
+      "workerCpuMs": 5,
+      "workerWallMs": 24
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 31,
+      "responseBodyMs": 0,
+      "workerCpuMs": 2,
+      "workerWallMs": 33
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 8,
+      "responseBodyMs": 0,
+      "workerCpuMs": 8,
+      "workerWallMs": 260
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 48,
+      "responseBodyMs": 1,
+      "workerCpuMs": 2,
+      "workerWallMs": 51
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 18,
+      "responseBodyMs": 0,
+      "workerCpuMs": 1,
+      "workerWallMs": 19
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 22,
+      "responseBodyMs": 1,
+      "workerCpuMs": 8,
+      "workerWallMs": 32
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 30,
+      "responseBodyMs": 0,
+      "workerCpuMs": 2,
+      "workerWallMs": 32
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 10,
+      "responseBodyMs": 0,
+      "workerCpuMs": 6,
+      "workerWallMs": 151
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 18,
+      "responseBodyMs": 0,
+      "workerCpuMs": 1,
+      "workerWallMs": 19
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 32,
+      "responseBodyMs": 0,
+      "workerCpuMs": 1,
+      "workerWallMs": 33
+    },
+    {
+      "operation": "step",
+      "responseHeadersMs": 11,
+      "responseBodyMs": 0,
+      "workerCpuMs": 7,
+      "workerWallMs": 152
+    }
+  ],
+  "restoredStagingVersions": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "strictWorkerWasm": "passed",
+    "walletDoWasm": "passed",
+    "sharedTypescript": "passed",
+    "alternatingHosted": "24 verified signatures",
+    "diagnosticHosted": "12 verified signatures; separate from comparison",
+    "metricParser": "Both I/O fields preserved for all 42 observed spans",
+    "bloatCheck": "passed; no ratcheted measure grew"
+  }
+}

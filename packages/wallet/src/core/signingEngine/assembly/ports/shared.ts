@@ -49,12 +49,6 @@ import type {
   UiConfirmRuntimeBridgePort,
   WarmSessionStatusResult,
 } from '../../uiConfirm/uiConfirm.types';
-import {
-  loadSecp256k1EngineCtor,
-  loadSignEvmFamilyWithUiConfirmForTempo,
-  loadSignEvmWithUiConfirm,
-  loadWebAuthnP256EngineCtor,
-} from '../../flows/signEvmFamily/signerLoader';
 import type { SignerWorkerManager } from '../../workerManager/SignerWorkerManager';
 import {
   warmCriticalResources as warmCriticalResourcesValue,
@@ -137,7 +131,7 @@ export type CreateSigningEnginePortsArgs = {
   getWalletSessionStatus: (args: SigningSessionStatusCheck) => Promise<SigningSessionStatus | null>;
   signerWorkerManager: SignerWorkerManager;
   getWorkerBaseOrigin: () => string;
-  workerWarmupPolicy: WorkerResourceWarmupDeps['workerWarmupPolicy'];
+  shouldPrewarmUiConfirmUi: WorkerResourceWarmupDeps['shouldPrewarmUiConfirmUi'];
   getTheme: () => ThemeMode;
   signTempo: SigningEngineConveniencePorts['signTempo'];
   activateAuthenticatedWalletState: WorkerResourceWarmupDeps['activateAuthenticatedWalletState'];
@@ -206,19 +200,11 @@ export function createWorkerResourceWarmupDepsFactory(
     store: runtimeDeps.warmupStore,
     nearClient: args.nearClient,
     nonceCoordinator: args.nonceCoordinator,
-    prewarmWorkers: args.signerWorkerManager.prewarmWorkers.bind(args.signerWorkerManager),
-    workerWarmupPolicy: args.workerWarmupPolicy,
+    shouldPrewarmUiConfirmUi: args.shouldPrewarmUiConfirmUi,
     prewarmUiConfirmUi: async () => {
       await Promise.all([
         args.touchConfirm.initialize(),
         args.passkeyMpcSession.prewarmShamir3Pass(),
-        /* Also warm the lazily-imported EVM-family signing flow chunks: the
-           first sign after a page load otherwise pays these dynamic imports
-           before the confirmation modal can open. */
-        loadSignEvmFamilyWithUiConfirmForTempo().catch(() => {}),
-        loadSignEvmWithUiConfirm().catch(() => {}),
-        loadSecp256k1EngineCtor().catch(() => {}),
-        loadWebAuthnP256EngineCtor().catch(() => {}),
       ]);
     },
     activateAuthenticatedWalletState: args.activateAuthenticatedWalletState,

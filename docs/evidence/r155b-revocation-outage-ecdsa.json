@@ -1,0 +1,569 @@
+{
+  "consoleRequests": [],
+  "requests": [
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/device-linking/v1/devices",
+      "status": 200,
+      "entry": "ingress",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/device-linking/v1/devices/wallet-auth-method%3AY9BxqbDMDy1pvfmvN2U2rRY6y2tnE6clN0LbtmsLU00/revoke",
+      "status": 200,
+      "entry": "ingress",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/device-linking/v1/devices",
+      "status": 200,
+      "entry": "ingress",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 401,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 401,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "home",
+      "region": "US"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/step",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/presignature-pool/fill/init",
+      "status": 401,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/router-ab/ecdsa-derivation/sign/prepare",
+      "status": 401,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    },
+    {
+      "path": "/wallet/session/status",
+      "status": 200,
+      "entry": "ingress",
+      "forwarded": true,
+      "region": "WEUR"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import { respondOkResult, withProgress } from './shared';
 export function createRecoveryWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     PM_SYNC_ACCOUNT_FLOW: async (req: Req<'PM_SYNC_ACCOUNT_FLOW'>) => {
-      const pm = deps.getSeamsWeb();
+      const pm = deps.getWalletRuntime();
       const { walletId } = req.payload || {};
       if (deps.respondIfCancelled(req.requestId)) return;
       const result = await pm.recovery.syncAccount({

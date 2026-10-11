@@ -10,7 +10,9 @@ users.
 
 ## Build and identity
 
-- [ ] SDK package code and hosted wallet assets come from a compatible release.
+- [ ] SDK, Wallet Server, and hosted wallet assets use the matching 0.9.0 release.
+- [ ] An already-open older client shows an upgrade message. After reload,
+      registration and signing complete with the current release.
 - [ ] The docs, application, wallet runtime, workers, and WASM build without
       uncommitted generated output.
 - [ ] Network, project environment, wallet origin, and RP ID match the target
@@ -39,15 +41,18 @@ users.
 
 - [ ] Audit events exclude credentials, key material, OTP codes, and tokens.
 - [ ] Alerts identify the affected lane and boundary without exposing secrets.
-- [ ] Backup, restore, rollback, and secret-rotation procedures have been
-      rehearsed.
+- [ ] The team rehearsed backup, restore, rollback, and secret-rotation procedures.
 - [ ] Support can map public error codes to the current troubleshooting runbook.
+- [ ] Each enabled regional home has verified Worker/D1 bindings and DO/Container
+      placement. Routing and directory outages fail safely.
+- [ ] One wallet retains the same home across devices and travel.
+      Concurrent wallets can operate in different homes.
 
 ## Tenant-root release
 
-- [ ] The deployed release includes the intended refresh admission policy;
-      same-operation retries replay, and a distinct manual refresh during the
-      hourly cooldown is rejected before provider work.
+- [ ] The deployed release includes the intended refresh admission policy.
+      Same-operation retries replay the recorded result. A distinct manual refresh
+      during the hourly cooldown fails before provider work.
 - [ ] Fresh ECDSA and Ed25519 registration and signing pass on the deployed
       lane, with stable wallet identity across tenant-root refresh.
 - [ ] A/B backup objects and the authoritative identity/activation metadata
@@ -58,6 +63,7 @@ users.
 - [ ] Published security claims match actual administration and key-retention
       boundaries. Shared KMS versions do not establish per-tenant erasure.
 
-R120 implementation closure does not complete this deployment checklist. Keep
-R121 recovery UI/CLI and R122 portability unavailable until their own operating
-paths ship; do not infer availability from a design document.
+SDK publication does not establish that administrative recovery or portability
+is enabled in a particular environment. Verify the actual dashboard, signed CLI
+binary, recovery custody, and destination restore path before offering them.
+See [recovery availability](/deploy-and-operate/recovery-and-portability#availability).

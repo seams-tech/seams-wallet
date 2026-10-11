@@ -39,6 +39,7 @@ import type {
 import type { EcdsaCommittedLane } from '../../flows/signEvmFamily/ecdsaSelection';
 import {
   WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+  WALLET_EMAIL_OTP_RELOCATION_OPERATION,
   WALLET_EMAIL_OTP_EXPORT_OPERATION,
   WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
@@ -858,6 +859,8 @@ function emailOtpNonUnlockWorkerHandleOperationFromLoginOperation(
       return 'export';
     case WALLET_EMAIL_OTP_UNLOCK_OPERATION:
       throw new Error('Email OTP wallet unlock requires first-session activation');
+    case WALLET_EMAIL_OTP_RELOCATION_OPERATION:
+      throw new Error('Email OTP relocation approval cannot create a signing session');
     case WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION:
       throw new Error('Email OTP device linking requires linked-device activation');
     case 'registration':

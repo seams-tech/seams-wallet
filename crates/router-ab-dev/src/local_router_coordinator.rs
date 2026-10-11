@@ -5,8 +5,9 @@ use router_ab_cloudflare::{
 };
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
-    CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
-    CloudflareEd25519YaoPairStatusResponseV1, CloudflareRouterEd25519YaoExecuteRequestV2,
+    CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPreparationV1,
+    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareRouterEd25519YaoExecuteRequestV2,
     CloudflareRouterEd25519YaoRegistrationConsumeRequestV1, RouterWalletRegistrationV1,
     RouterWalletResponseV1,
 };
@@ -19,10 +20,7 @@ use router_ab_core::{
 };
 use router_ab_ed25519_yao::{Ed25519YaoActivationRoleExecutionV1, Ed25519YaoRoleExecutionV1};
 use serde::{Deserialize, Serialize};
-use std::{
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 
@@ -47,7 +45,6 @@ use super::{
     LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1, LocalHttpServiceBindingClientV1,
     LocalRouterRequestDispatcherV1, LocalRouterWorkerConfigV1, LocalServiceRoleV1,
     LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-    LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
@@ -83,26 +80,38 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
     ) -> RouterAbProtocolResult<String> {
         let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
             .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("local Router Ed25519 Yao execute request is malformed: {error}"),
-                )
-            })?;
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router Ed25519 Yao execute request is malformed: {error}"),
+            )
+        })?;
+        if let Some(admission) =
+            router_ab_cloudflare::RouterWalletRequestV1::settlement_admission(&envelope)
+        {
+            let admitted = crate::local_router_wallet::serve_local_router_wallet_v1(
+                &config.tenant_root.creation_storage_path,
+                admission,
+            )?;
+            if !matches!(admitted, RouterWalletResponseV1::SettlementAdmitted) {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "Router wallet returned an invalid settlement admission",
+                ));
+            }
+        }
         let Some(registration) = RouterWalletRegistrationV1::from_request(&envelope)? else {
-            return answer_json(&self.run_execution(config, body, replay)?);
+            return answer_json(&self.run_execution(config, body, replay, None)?);
         };
         if replay {
             return Err(router_ab_cloudflare::router_wallet_registration_replay_refused_v1());
         }
         let storage_path = &config.tenant_root.creation_storage_path;
+        let claimed_at_ms = local_now_ms_v1()?;
+        let lease_ms =
+            router_ab_cloudflare::parse_router_yao_registration_lease_ms_v1(&config.tenant_root.env)?;
         let answer = match crate::local_router_wallet::serve_local_router_wallet_v1(
             storage_path,
-            registration.claim(
-                local_now_ms_v1()?,
-                router_ab_cloudflare::parse_router_yao_registration_lease_ms_v1(
-                    &config.tenant_root.env,
-                )?,
-            ),
+            registration.claim(claimed_at_ms, lease_ms),
         )? {
             RouterWalletResponseV1::Run {
                 request_json,
@@ -112,7 +121,12 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 let result = if burn {
                     burned_registration_v1(config, request_json.as_bytes())?
                 } else {
-                    self.run_execution(config, request_json.as_bytes(), replay)?
+                    self.run_execution(
+                        config,
+                        request_json.as_bytes(),
+                        replay,
+                        Some(claimed_at_ms.saturating_add(lease_ms)),
+                    )?
                 };
                 let Some(finish) = registration.finish(&result, generation, local_now_ms_v1()?)?
                 else {
@@ -139,6 +153,40 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 "Router wallet object answered a registration execute with another command's response",
             )),
         }
+    }
+
+    fn freeze_wallet(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        freeze: router_ab_cloudflare::RouterWalletFreezeRequestV1,
+    ) -> RouterAbProtocolResult<router_ab_cloudflare::RouterWalletFreezeResponseV1> {
+        use router_ab_cloudflare::{
+            RouterWalletCommandV1, RouterWalletFreezeResponseV1, RouterWalletRequestV1,
+        };
+        let path = &config.tenant_root.creation_storage_path;
+        let response =
+            crate::local_router_wallet::freeze_local_router_wallet_v1(path, freeze.clone())?;
+        if matches!(response, RouterWalletFreezeResponseV1::Draining { .. }) {
+            let pending = crate::local_router_wallet::serve_local_router_wallet_v1(
+                path,
+                RouterWalletRequestV1 {
+                    owner: freeze.owner.clone(),
+                    ownership_generation: freeze.source_generation,
+                    command: RouterWalletCommandV1::PendingRegistration {
+                        now_ms: local_now_ms_v1()?,
+                    },
+                },
+            )?;
+            match pending {
+                RouterWalletResponseV1::PendingRegistration { request_json } => {
+                    self.execute(config, request_json.as_bytes(), false, false)?;
+                    return crate::local_router_wallet::freeze_local_router_wallet_v1(path, freeze);
+                }
+                RouterWalletResponseV1::NoPendingRegistration => {}
+                _ => return Err(coordinator_error("Router settlement response is invalid")),
+            }
+        }
+        Ok(response)
     }
 
     /// Consumes one completed registration's activation for one finalization.
@@ -168,6 +216,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         config: &LocalRouterWorkerConfigV1,
         body: &[u8],
         replay: bool,
+        claim_lapses_at_ms: Option<u64>,
     ) -> RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1> {
         let now_ms = local_now_ms_v1()?;
         let request = decode_local_router_ed25519_yao_execute_request_v1(
@@ -185,7 +234,8 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 return Ok(replayed);
             }
         }
-        let (execution_a, completed) = match self.run_pair(config, &request, true)? {
+        let deadline_ms = run_deadline_ms(now_ms, claim_lapses_at_ms);
+        let (execution_a, completed) = match self.run_pair(config, &request, true, deadline_ms)? {
             LocalPairRunV1::Executed(execution_a, completed) => (execution_a, completed),
             LocalPairRunV1::Ended(result) => return Ok(result),
         };
@@ -211,96 +261,60 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         }
     }
 
-    /// Prepares and executes one admitted pair and validates both roles'
-    /// executions. A pair that fails is burned, unless `reconcile` lets a
-    /// prior run's completed answer end the run instead.
+    /// Runs one admitted pair and validates both roles' executions. Deriver
+    /// B's preparation and Deriver A's execution are sent together: A
+    /// connects to B, which admits the connection once its own preparation
+    /// has landed, or refuses it at `deadline_ms`.
+    ///
+    /// Deriver A's answer decides the run. A pair whose execution failed is
+    /// burned, unless `reconcile` lets a prior run's completed answer end the
+    /// run instead, or neither role took the pair past its preparation.
     fn run_pair(
         &self,
         config: &LocalRouterWorkerConfigV1,
         request: &super::LocalRouterEd25519YaoPairDispatchV1,
         reconcile: bool,
+        deadline_ms: u64,
     ) -> RouterAbProtocolResult<LocalPairRunV1> {
         let pair = request.pair_binding.clone();
-        let prepare_a = CloudflareEd25519YaoPairPrepareRequestV1 {
-            pair_binding: pair.clone(),
-            tenant_root: request.tenant_root.clone(),
-            work: request.work.clone(),
-            input: request.deriver_a_input.clone(),
-        };
         let prepare_b = CloudflareEd25519YaoPairPrepareRequestV1 {
             pair_binding: pair.clone(),
             tenant_root: request.tenant_root.clone(),
             work: request.work.clone(),
             input: request.deriver_b_input.clone(),
         };
-        let (receipt_a, receipt_b) = match self.prepare_pair(config, prepare_a, prepare_b) {
-            Ok(receipts) => receipts,
-            Err(_) => {
-                if let Some(replayed) = self.reconcile_prior_run(config, request, reconcile)? {
-                    return Ok(LocalPairRunV1::Ended(replayed));
-                }
-                self.burn_pair(config, &pair);
-                return RouterEd25519YaoExecuteResultV1::recoverable(
-                    RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
-                    1_000,
-                )
-                .map(LocalPairRunV1::Ended);
-            }
+        let execute_a = CloudflareEd25519YaoPairExecuteRequestV1 {
+            pair_binding: pair.clone(),
+            tenant_root: request.tenant_root.clone(),
+            work: request.work.clone(),
+            input: request.deriver_a_input.clone(),
+            deadline_ms,
         };
-        let readiness_now_ms = local_now_ms_v1()?;
-        if router_ab_cloudflare::validate_router_ed25519_yao_readiness_v1(
-            &receipt_a,
-            &pair,
-            readiness_now_ms,
-            Ed25519YaoDeriverRoleV1::DeriverA,
-            &config.peer_verifying_keys,
-        )
-        .is_err()
-            || router_ab_cloudflare::validate_router_ed25519_yao_readiness_v1(
-                &receipt_b,
-                &pair,
-                readiness_now_ms,
-                Ed25519YaoDeriverRoleV1::DeriverB,
-                &config.peer_verifying_keys,
-            )
-            .is_err()
-        {
-            self.burn_pair(config, &pair);
-            return Ok(LocalPairRunV1::Ended(
-                RouterEd25519YaoExecuteResultV1::burned(
-                    execution_id_for_pair(&pair)?,
-                    router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
-                ),
-            ));
-        }
-        let execution = match self
-            .client
-            .post_json_authenticated_v1::<_, CloudflareEd25519YaoPairExecuteResponseV1>(
-                &config.deriver_a_url,
-                LocalServiceRoleV1::DeriverA,
-                LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-                &config.internal_service_auth,
-                &CloudflareEd25519YaoPairExecuteRequestV1 {
-                    pair_binding: pair.clone(),
-                    tenant_root: request.tenant_root.clone(),
-                    work: request.work.clone(),
-                    input: request.deriver_a_input.clone(),
-                    local_receipt: receipt_a,
-                    peer_receipt: receipt_b,
-                },
-            ) {
+        let execution = match self.dispatch_pair(config, &prepare_b, &execute_a) {
             Ok(execution) => execution,
             Err(_) => {
                 if let Some(replayed) = self.reconcile_prior_run(config, request, reconcile)? {
                     return Ok(LocalPairRunV1::Ended(replayed));
                 }
-                self.burn_pair(config, &pair);
-                return Ok(LocalPairRunV1::Ended(
-                    RouterEd25519YaoExecuteResultV1::burned(
+                // What the roles hold says whether an execution started.
+                // Deriver A releases its reservation when Deriver B held no
+                // claim, so a pair neither role took past its preparation
+                // can run again: nothing burns.
+                let ended = match self.read_prior_pair(config, request)? {
+                    PriorPairV1::NotStarted => RouterEd25519YaoExecuteResultV1::recoverable(
+                        RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
+                        1_000,
+                    )?,
+                    PriorPairV1::Ended(ended) => ended,
+                    PriorPairV1::Completed(..) => RouterEd25519YaoExecuteResultV1::burned(
                         execution_id_for_pair(&pair)?,
                         router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
                     ),
-                ));
+                };
+                if matches!(ended, RouterEd25519YaoExecuteResultV1::Burned { .. }) {
+                    self.burn_pair(config, &pair);
+                }
+                return Ok(LocalPairRunV1::Ended(ended));
             }
         };
         if router_ab_cloudflare::validate_router_ed25519_yao_role_execution_v1(
@@ -408,7 +422,12 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             PriorPairV1::Completed(execution_a, execution_b) => (execution_a, execution_b),
             // A linked target is not the wallet's registration: no prior
             // registration run answers for it.
-            PriorPairV1::NotStarted => match self.run_pair(config, &request, false)? {
+            PriorPairV1::NotStarted => match self.run_pair(
+                config,
+                &request,
+                false,
+                run_deadline_ms(local_now_ms_v1()?, None),
+            )? {
                 LocalPairRunV1::Executed(execution_a, execution_b) => (execution_a, execution_b),
                 LocalPairRunV1::Ended(ended) => return Err(source_preserving_ended(&ended)),
             },
@@ -424,6 +443,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
                 &config.internal_service_auth,
                 &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+                    ownership_generation: request.tenant_root.ownership_generation,
                     // The wallet the admitted binding names, under the tenant
                     // root this execution was admitted with.
                     scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
@@ -500,48 +520,38 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         Ok(receipt)
     }
 
-    fn prepare_pair(
+    /// Sends Deriver B its preparation and Deriver A its execution at the
+    /// same time and waits for both answers. Deriver A's answer is the
+    /// pair's: a completed execution carries Deriver B's sealed completion,
+    /// so it stands whatever became of the preparation's reply.
+    fn dispatch_pair(
         &self,
         config: &LocalRouterWorkerConfigV1,
-        prepare_a: CloudflareEd25519YaoPairPrepareRequestV1,
-        prepare_b: CloudflareEd25519YaoPairPrepareRequestV1,
-    ) -> RouterAbProtocolResult<(
-        router_ab_core::Ed25519YaoRoleReadinessReceiptV1,
-        router_ab_core::Ed25519YaoRoleReadinessReceiptV1,
-    )> {
-        let client = Arc::new(self.client.clone());
-        let auth = config.internal_service_auth.clone();
-        let auth_b = auth.clone();
-        let url_a = config.deriver_a_url.clone();
-        let url_b = config.deriver_b_url.clone();
+        prepare_b: &CloudflareEd25519YaoPairPrepareRequestV1,
+        execute_a: &CloudflareEd25519YaoPairExecuteRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoPairExecuteResponseV1> {
         std::thread::scope(|scope| {
-            let client_a = Arc::clone(&client);
-            let client_b = Arc::clone(&client);
-            let a = scope.spawn(move || {
-                client_a.post_json_authenticated_v1(
-                    &url_a,
+            let preparation = scope.spawn(|| {
+                self.client
+                    .post_json_authenticated_v1::<_, CloudflareEd25519YaoPairPreparationV1>(
+                        &config.deriver_b_url,
+                        LocalServiceRoleV1::DeriverB,
+                        LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+                        &config.internal_service_auth,
+                        prepare_b,
+                    )
+            });
+            let execution = self
+                .client
+                .post_json_authenticated_v1::<_, CloudflareEd25519YaoPairExecuteResponseV1>(
+                    &config.deriver_a_url,
                     LocalServiceRoleV1::DeriverA,
-                    LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
-                    &auth,
-                    &prepare_a,
-                )
-            });
-            let b = scope.spawn(move || {
-                client_b.post_json_authenticated_v1(
-                    &url_b,
-                    LocalServiceRoleV1::DeriverB,
-                    LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
-                    &auth_b,
-                    &prepare_b,
-                )
-            });
-            let receipt_a = a
-                .join()
-                .map_err(|_| coordinator_error("Deriver A preparation thread panicked"))??;
-            let receipt_b = b
-                .join()
-                .map_err(|_| coordinator_error("Deriver B preparation thread panicked"))??;
-            Ok((receipt_a, receipt_b))
+                    LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+                    &config.internal_service_auth,
+                    execute_a,
+                );
+            let _ = preparation.join();
+            execution
         })
     }
 
@@ -935,6 +945,49 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
         config: &LocalRouterWorkerConfigV1,
         request: &LocalDevHttpRequestPartsV1,
     ) -> Result<Option<(u16, String)>, Box<dyn std::error::Error>> {
+        if request.path == router_ab_cloudflare::ROUTER_WALLET_TRANSFER_PATH_V1 {
+            let transfer = serde_json::from_slice::<router_ab_cloudflare::RouterWalletTransferRequestV1>(
+                &request.body,
+            )
+            .map_err(|error| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    format!("Router wallet transfer request is malformed: {error}"),
+                )
+            });
+            return match transfer.and_then(|transfer| {
+                crate::local_router_wallet::transfer_local_router_wallet_v1(
+                    &config.tenant_root.creation_storage_path,
+                    transfer,
+                )
+            }) {
+                Ok(response) => Ok(Some((200, serde_json::to_string(&response)?))),
+                Err(error) => Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?)),
+            };
+        }
+        if request.path == router_ab_cloudflare::ROUTER_WALLET_FREEZE_PATH_V1 {
+            let freeze = serde_json::from_slice::<router_ab_cloudflare::RouterWalletFreezeRequestV1>(
+                &request.body,
+            )
+            .map_err(|error| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    format!("Router wallet freeze request is malformed: {error}"),
+                )
+            });
+            return match freeze.and_then(|freeze| self.freeze_wallet(config, freeze)) {
+                Ok(response) => Ok(Some((200, serde_json::to_string(&response)?))),
+                Err(error) => Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?)),
+            };
+        }
         if crate::local_router_normal_signing::is_local_router_normal_signing_path_v1(&request.path)
         {
             return match crate::local_router_normal_signing::serve_local_router_normal_signing_v1(
@@ -1226,6 +1279,14 @@ fn execution_id_for_pair(
     router_ab_core::Ed25519YaoExecutionIdV1::new(pair.pair_digest().bytes)
 }
 
+/// When a run ends for the roles: when a call to a role would time out, or
+/// when the registration claim the run holds lapses, whichever comes first.
+/// Deriver B waits for its own preparation no longer than this.
+fn run_deadline_ms(now_ms: u64, claim_lapses_at_ms: Option<u64>) -> u64 {
+    let bound = now_ms.saturating_add(super::LOCAL_HTTP_SERVICE_BINDING_TIMEOUT_MS_V1);
+    claim_lapses_at_ms.map_or(bound, |lapses_at_ms| lapses_at_ms.min(bound))
+}
+
 pub(crate) fn local_now_ms_v1() -> RouterAbProtocolResult<u64> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1257,23 +1318,6 @@ mod tests {
         .expect("fixture admission bindings")
     }
 
-    /// Deterministic peer verifying keys for in-module Router fixtures.
-    fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
-        let key = |seed: u8, role: router_ab_core::Role| {
-            router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(
-                role,
-                ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
-                    .verifying_key()
-                    .to_bytes(),
-            )
-            .expect("fixture verifying key")
-        };
-        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
-            key(1, router_ab_core::Role::SignerA),
-            key(2, router_ab_core::Role::SignerB),
-        )
-        .expect("fixture verifying key set")
-    }
     use crate::LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1;
     use router_ab_core::{
         Ed25519YaoSessionIdV1, Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1,
@@ -1477,7 +1521,6 @@ mod tests {
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             router_to_signing_worker_ecdsa_auth: "local-test-router-ecdsa-auth".to_owned(),
-            peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
             tenant_root: LocalRouterTenantRootConfigV1::default(),
         };

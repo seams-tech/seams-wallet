@@ -1,3 +1,12 @@
+import { D1WalletObjectAddresses } from '../d1/walletObjectAddresses';
+import type { D1DatabaseLike } from '../../../storage/tenantRoute';
+import {
+  readWalletObjectIdentityHeader,
+  type WalletObjectAddressSnapshot,
+  WALLET_OBJECT_IDENTITY_HEADER,
+  WALLET_OBJECT_ADDRESSES_HEADER,
+} from './walletObjectAddresses';
+
 export interface CloudflareServiceBindingFetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
@@ -5,6 +14,40 @@ export interface CloudflareServiceBindingFetcher {
 export interface RouterAbServiceBindingEnv {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
   readonly SIGNING_WORKER: CloudflareServiceBindingFetcher;
+}
+
+export type WalletHomeRegion = 'US' | 'WEUR' | 'APAC' | 'OC';
+
+/** Apply only after the host admits this request to the wallet's fixed home. */
+export class WalletHomeCustodyBinding implements CloudflareServiceBindingFetcher {
+  constructor(
+    private readonly binding: CloudflareServiceBindingFetcher,
+    private readonly home: WalletHomeRegion,
+    private readonly database: D1DatabaseLike,
+    private readonly namespace: string,
+    private readonly initialAddresses: WalletObjectAddressSnapshot | null,
+  ) {}
+
+  async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const request = new Request(input, init);
+    request.headers.set('x-seams-wallet-home-region', this.home);
+    request.headers.delete(WALLET_OBJECT_ADDRESSES_HEADER);
+    const identity = readWalletObjectIdentityHeader(request.headers);
+    request.headers.delete(WALLET_OBJECT_IDENTITY_HEADER);
+    if (identity !== null) {
+      const store = new D1WalletObjectAddresses(this.database, {
+        namespace: this.namespace,
+        orgId: identity.orgId,
+        projectId: identity.projectId,
+        envId: identity.envId,
+      });
+      const addresses = this.initialAddresses?.resolve(this.namespace, identity)
+        ?? await store.read(identity);
+      if (addresses === null) throw new Error('Wallet object addresses are not initialized');
+      request.headers.set(WALLET_OBJECT_ADDRESSES_HEADER, JSON.stringify(addresses));
+    }
+    return this.binding.fetch(request);
+  }
 }
 
 export const ROUTER_AB_MPC_ROUTER_ORIGIN = 'https://mpc-router.router-ab.internal';

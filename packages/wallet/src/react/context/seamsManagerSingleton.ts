@@ -68,7 +68,7 @@ function stableStringify(value: unknown): string {
 }
 
 function computeConfigKey(config: SeamsConfigsReadonly): string {
-  // Appearance is dynamic and controlled via seams.setAppearance.
+  // Appearance is dynamic and controlled via seams.config.setAppearance.
   const { ui, ...configWithoutUi } = config;
   const { appearance: _appearance, ...uiWithoutAppearance } = ui;
   return stableStringify({ ...configWithoutUi, ui: uiWithoutAppearance });
@@ -89,7 +89,7 @@ export function getOrCreateSeamsManager(
   }
 
   if (state.configKey !== nextKey) {
-    state.manager.dispose();
+    state.manager.connection.dispose();
     state.manager = new SeamsWeb(config, nearClient);
     state.configKey = nextKey;
   }

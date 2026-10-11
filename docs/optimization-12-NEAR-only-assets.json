@@ -1,0 +1,126 @@
+{
+  "productionApp": true,
+  "accounting": {
+    "scope": "BrowserContext requestfinished events and Page dedicated-worker events",
+    "phaseAttribution": "Request completion phase; concurrent requests may cross phase boundaries",
+    "bytes": "Encoded response body and HTTP response headers counted separately; decoded bodies where available",
+    "cache": "disabled_by_routing",
+    "omissions": "No claim of complete worker-target network coverage; no service-worker or socket accounting",
+    "privacy": "Only static asset URLs without query strings; no request headers, payloads, auth responses, or bodies retained"
+  },
+  "phases": [
+    {
+      "name": "initialization",
+      "startedAtMs": 1791295205550,
+      "durationMs": 394.9008749999999
+    },
+    {
+      "name": "near-only-registration",
+      "startedAtMs": 1791295205945,
+      "durationMs": 1658.5568750000002
+    },
+    {
+      "name": "locked-reload",
+      "startedAtMs": 1791295207604,
+      "durationMs": 222.68270799999982
+    },
+    {
+      "name": "near-only-unlock",
+      "startedAtMs": 1791295207826,
+      "durationMs": 622.931458
+    },
+    {
+      "name": "near-only-sign",
+      "startedAtMs": 1791295208449,
+      "durationMs": 707.5114169999997
+    },
+    {
+      "name": "near-only-restored-sign",
+      "startedAtMs": 1791295209157,
+      "durationMs": 1088.0997910000006
+    },
+    {
+      "name": "near-only-export",
+      "startedAtMs": 1791295210245,
+      "durationMs": 1338.1658749999997
+    },
+    {
+      "name": "completed",
+      "startedAtMs": 1791295211583,
+      "durationMs": 2.2560410000005504
+    }
+  ],
+  "workers": [
+    {
+      "phase": "near-only-registration",
+      "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-registration",
+      "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-registration",
+      "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-registration",
+      "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-unlock",
+      "url": "http://localhost:4202/sdk/workers/wallet-custody-ceremony.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-unlock",
+      "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-sign",
+      "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-sign",
+      "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/passkey-mpc-session.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/passkey-confirm.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/shamir3pass.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-restored-sign",
+      "url": "http://localhost:4202/sdk/workers/near-signer.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    },
+    {
+      "phase": "near-only-export",
+      "url": "http://localhost:4202/sdk/workers/passkey-mpc-export.worker.js",
+      "pageOrigin": "http://localhost:4201"
+    }
+  ],
+  "totals": {
+    "encodedBodyBytes": 10420178,
+    "responseHeaderBytes": 154698,
+    "decodedBodyBytes": 23223074,
+    "unknownDecodedBodies": 0
+  }
+}

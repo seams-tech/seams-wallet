@@ -1,3 +1,5 @@
+mod bound_share;
+pub(crate) use bound_share::RootUseAccess;
 pub(crate) mod recovery;
 
 use core::{fmt, future::Future, pin::Pin};
@@ -165,14 +167,14 @@ const ADMIT_ROOT_USE_SQL: &str = "INSERT INTO tenant_root_root_use_admissions \
     (tenant_identity_digest_hex, custody_lineage_b64u, role, attempt_kind, attempt_key_hex, \
     tenant_root_share_epoch, activation_receipt_digest_hex, attempt_digest_hex, \
     first_binding_digest_hex, issued_at_ms, expires_at_ms, status, admitted_at_ms, \
-    pair_object_name) \
+    pair_object_id) \
     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'admitted', ?12, ?13 \
     WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND tenant_root_share_epoch = ?6 AND role = ?3 AND lifecycle = 'active') \
     ON CONFLICT DO NOTHING";
 const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
-    activation_receipt_digest_hex, attempt_digest_hex, status, pair_object_name \
+    activation_receipt_digest_hex, attempt_digest_hex, status, pair_object_id \
     FROM tenant_root_root_use_admissions \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?3 \
     AND attempt_kind = ?4 AND attempt_key_hex = ?5";
@@ -199,36 +201,36 @@ pub const TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1: &str =
 pub const TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1: &str =
     "UPDATE tenant_root_root_use_admissions \
     SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
-    AND pair_object_name = ?4 AND status IN ('admitted', 'claimed')";
+    AND pair_object_id = ?4 AND status IN ('admitted', 'claimed')";
 /// Cancels the admission of one pair session held in a wallet object, once
 /// that object has fenced the pair. Parameters as for the settlement.
 const CANCEL_WALLET_OBJECT_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
-    AND pair_object_name = ?4 AND status = 'admitted'";
+    AND pair_object_id = ?4 AND status = 'admitted'";
 /// Deriver A's claimed admissions on one epoch whose pairs are in this role
 /// store and that are still unsettled at or before a cutoff.
 const LIST_CLAIMED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex \
     FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND attempt_kind = ?5 AND status = 'claimed' AND pair_object_name IS NULL \
+    AND attempt_kind = ?5 AND status = 'claimed' AND pair_object_id IS NULL \
     AND admitted_at_ms <= ?6 ORDER BY admitted_at_ms, attempt_key_hex";
 /// Ends one claimed attempt whose peer can no longer complete it. Its
 /// completion here, which needs the admission live, is refused from then on.
 const CANCEL_CLAIMED_ROOT_USE_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND attempt_kind = ?4 \
-    AND attempt_key_hex = ?5 AND status = 'claimed' AND pair_object_name IS NULL";
+    AND attempt_key_hex = ?5 AND status = 'claimed' AND pair_object_id IS NULL";
 /// Cancels one attempt that was only admitted here and whose pair, if any,
 /// is in this role store. Its start and completion here are then refused.
 const CANCEL_ADMITTED_ROOT_USE_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND attempt_kind = ?4 \
-    AND attempt_key_hex = ?5 AND status = 'admitted' AND pair_object_name IS NULL";
+    AND attempt_key_hex = ?5 AND status = 'admitted' AND pair_object_id IS NULL";
 /// The unsettled admissions on one epoch here whose pairs wallet objects hold.
-const LIST_WALLET_OBJECT_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex, pair_object_name, \
+const LIST_WALLET_OBJECT_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex, pair_object_id, \
     admitted_at_ms FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND status IN ('admitted', 'claimed') AND pair_object_name IS NOT NULL \
+    AND status IN ('admitted', 'claimed') AND pair_object_id IS NOT NULL \
     ORDER BY admitted_at_ms, attempt_key_hex";
 /// The status of one attempt's admission, for a pair store's own checks.
 /// Parameters as for the claim.
@@ -320,7 +322,7 @@ const COUNT_CANCELLED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT COUNT(*) AS admiss
 const CANCEL_UNCLAIMED_ROOT_USE_ADMISSIONS_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND status = 'admitted' AND pair_object_name IS NULL AND admitted_at_ms <= ?5";
+    AND status = 'admitted' AND pair_object_id IS NULL AND admitted_at_ms <= ?5";
 const LOAD_COMMAND_REPLAY_SQL: &str = "SELECT replay_key_digest_hex, \
     tenant_identity_digest_hex, custody_lineage_b64u, session_id_hex, nonce_hex, role, \
     command_digest_hex, admission_digest_hex, status, receipt_b64u, \
@@ -1467,29 +1469,6 @@ impl CloudflareTenantRootRoleShareRecordV1 {
         )
     }
 
-    /// The artifact of an activated record: active, or retired by a later
-    /// refresh. A pending record has never been usable.
-    fn into_bound_online_role_share_artifact(self) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
-        let installation_evidence_digest = match &self.lifecycle {
-            CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
-                active.pending.installation_evidence_digest()
-            }
-            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
-                retired.active.pending.installation_evidence_digest()
-            }
-            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
-                return Err(store_error(
-                    "tenant-root online role-share artifact requires an activated record",
-                ));
-            }
-        };
-        self.validate()?;
-        validate_record_activation_binding(&self)?;
-        self.into_online_role_share_artifact_with_installation_evidence_digest(
-            installation_evidence_digest,
-        )
-    }
-
     fn into_online_role_share_artifact_with_installation_evidence_digest(
         self,
         installation_evidence_digest: TenantRootLifecycleReceiptDigestV1,
@@ -1713,18 +1692,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
         self.record.into_online_role_share_artifact()
     }
 
-    /// Reconstructs the provider artifact of the share a custody binding
-    /// named, which `load_bound` has already matched to that binding.
-    pub(crate) fn into_bound_online_role_share_artifact(
-        self,
-    ) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
-        if self.revision <= 0 {
-            return Err(store_error(
-                "tenant-root role-private revision must be positive",
-            ));
-        }
-        self.record.into_bound_online_role_share_artifact()
-    }
+
 }
 
 /// The execution attempt one root-use admission belongs to
@@ -1753,7 +1721,7 @@ impl TenantRootRootUseAttemptV1 {
         }
     }
 
-    fn pair_object_name(&self) -> Option<&str> {
+    fn pair_object_id(&self) -> Option<&str> {
         match self {
             Self::Ed25519YaoPairSession { pair_object, .. } => pair_object.as_deref(),
             Self::EcdsaOperation => None,
@@ -1827,14 +1795,14 @@ pub struct TenantRootWalletPairReconcileRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TenantRootYaoAdmissionStateV1 {
     pub(crate) status: String,
-    pub(crate) pair_object_name: Option<String>,
+    pub(crate) pair_object_id: Option<String>,
 }
 
 /// One unsettled admission whose pair a wallet object holds.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub(crate) struct TenantRootWalletObjectAdmissionV1 {
     pub(crate) attempt_key_hex: String,
-    pub(crate) pair_object_name: String,
+    pub(crate) pair_object_id: String,
     pub(crate) admitted_at_ms: i64,
 }
 
@@ -1852,7 +1820,7 @@ pub(crate) enum TenantRootSettlementOutcomeV1 {
 /// The role share a custody binding names, if its operation may read it.
 #[derive(Debug)]
 pub(crate) enum TenantRootBoundShareV1 {
-    Readable(CloudflareStoredTenantRootRoleShareV1),
+    Readable(TenantRootSealedOnlineRoleShareV1),
     EpochClosed,
     NotYetActive,
     AttemptConflict,
@@ -3836,7 +3804,7 @@ impl TenantRootRoleD1MetadataV1 {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct TenantRootRoleD1RowV1 {
     tenant_identity_digest_hex: String,
     custody_lineage_b64u: String,
@@ -11006,283 +10974,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         Ok(active)
     }
 
-    /// Admits one execution attempt, named by its authenticated custody
-    /// binding, on the binding's epoch.
-    ///
-    /// The admission is written only while that epoch is active here: the
-    /// insert is conditional on the active row, so it is ordered exactly
-    /// against the refresh swap that retires the epoch. An attempt admitted
-    /// before the swap stays admitted; an unused binding for a retired epoch
-    /// is refused; and a pending epoch admits nothing.
-    ///
-    /// One row per attempt: a retry of the attempt finds its row again, and
-    /// must present the same binding apart from the window the Router stamps
-    /// on each try. Anything else conflicts.
-    pub(crate) async fn admit_bound(
-        &self,
-        custody_binding: &TenantRootCustodyBindingV1,
-        attempt: &TenantRootRootUseAttemptV1,
-        admitted_at_ms: u64,
-    ) -> RoleStoreResult<TenantRootRootUseAdmissionV1> {
-        custody_binding
-            .validate()
-            .map_err(|error| store_error(error.message()))?;
-        // Only a retired share is ever erased. Without its row, every outcome
-        // below is a refusal, so the binding is not checked against it.
-        let stored = self
-            .load_epoch_by_identity_digest(
-                custody_binding.identity_digest(),
-                custody_binding.custody_lineage(),
-                custody_binding.epoch(),
-            )
-            .await?;
-        let lifecycle_is_active = match stored.as_ref().map(|stored| stored.record().lifecycle()) {
-            Some(CloudflareTenantRootRoleShareLifecycleV1::Pending(_)) => {
-                return Ok(TenantRootRootUseAdmissionV1::NotYetActive);
-            }
-            Some(CloudflareTenantRootRoleShareLifecycleV1::Active(_)) => true,
-            Some(CloudflareTenantRootRoleShareLifecycleV1::Retired(_)) | None => false,
-        };
-        if let Some(stored) = &stored {
-            self.verify_bound_row(stored, custody_binding)?;
-        }
-        let identity_digest_hex = encode_hex(custody_binding.identity_digest().as_bytes());
-        let custody_lineage_b64u = custody_binding.custody_lineage().to_base64url();
-        let binding_digest_hex = encode_hex(
-            custody_binding
-                .digest()
-                .map_err(|error| store_error(error.message()))?
-                .as_bytes(),
-        );
-        let attempt_digest_hex = encode_hex(
-            custody_binding
-                .attempt_digest()
-                .map_err(|error| store_error(error.message()))?
-                .as_bytes(),
-        );
-        let attempt_kind = attempt.kind();
-        let attempt_key_hex = attempt.key_hex(custody_binding);
-        let epoch = epoch_i64(custody_binding.epoch())?.to_string();
-        let receipt_digest_hex = encode_hex(custody_binding.activation_receipt_digest().as_bytes());
-        if lifecycle_is_active {
-            let issued_at_ms = custody_binding.issued_at_ms().to_string();
-            let expires_at_ms = custody_binding.expires_at_ms().to_string();
-            let admitted_at_ms = admitted_at_ms.to_string();
-            self.session
-                .prepare(ADMIT_ROOT_USE_SQL)
-                .bind_refs(
-                    [
-                        RoleSqlValue::Text(identity_digest_hex.as_str()),
-                        RoleSqlValue::Text(custody_lineage_b64u.as_str()),
-                        RoleSqlValue::Text(self.cipher.role.as_str()),
-                        RoleSqlValue::Text(attempt_kind),
-                        RoleSqlValue::Text(attempt_key_hex.as_str()),
-                        RoleSqlValue::Text(epoch.as_str()),
-                        RoleSqlValue::Text(receipt_digest_hex.as_str()),
-                        RoleSqlValue::Text(attempt_digest_hex.as_str()),
-                        RoleSqlValue::Text(binding_digest_hex.as_str()),
-                        RoleSqlValue::Text(issued_at_ms.as_str()),
-                        RoleSqlValue::Text(expires_at_ms.as_str()),
-                        RoleSqlValue::Text(admitted_at_ms.as_str()),
-                        attempt.pair_object_name().map_or(RoleSqlValue::Null, RoleSqlValue::Text),
-                    ]
-                    .iter(),
-                )?
-                .run()
-                .await?;
-        }
-        let admission = self
-            .session
-            .prepare(LOAD_ROOT_USE_ADMISSION_SQL)
-            .bind_refs(
-                [
-                    RoleSqlValue::Text(identity_digest_hex.as_str()),
-                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
-                    RoleSqlValue::Text(self.cipher.role.as_str()),
-                    RoleSqlValue::Text(attempt_kind),
-                    RoleSqlValue::Text(attempt_key_hex.as_str()),
-                ]
-                .iter(),
-            )?
-            .first::<TenantRootRootUseAdmissionRowV1>(None)
-            .await?;
-        match admission {
-            Some(admission) => {
-                if admission.tenant_root_share_epoch.to_string() != epoch
-                    || admission.activation_receipt_digest_hex != receipt_digest_hex
-                    || admission.attempt_digest_hex != attempt_digest_hex
-                    || admission.pair_object_name.as_deref() != attempt.pair_object_name()
-                {
-                    return Ok(TenantRootRootUseAdmissionV1::AttemptConflict);
-                }
-                match (admission.status.as_str(), stored.is_some()) {
-                    ("cancelled", _) => Ok(TenantRootRootUseAdmissionV1::Cancelled),
-                    (_, true) => Ok(TenantRootRootUseAdmissionV1::Admitted),
-                    ("settled", false) => Ok(TenantRootRootUseAdmissionV1::Erased),
-                    (_, false) => Err(store_error(
-                        "tenant-root root-use admission is unsettled but its role share is gone",
-                    )),
-                }
-            }
-            // The conditional insert found the epoch no longer active: a
-            // refresh retired it before this operation was admitted.
-            None if stored.is_some() => Ok(TenantRootRootUseAdmissionV1::EpochClosed),
-            // Neither the share nor an admission: the epoch closed here before
-            // this operation was admitted if a later one is active here.
-            None => {
-                let active = self
-                    .session
-                    .prepare(LOAD_LINEAGE_ACTIVE_EPOCH_SQL)
-                    .bind_refs(
-                        [
-                            RoleSqlValue::Text(identity_digest_hex.as_str()),
-                            RoleSqlValue::Text(custody_lineage_b64u.as_str()),
-                            RoleSqlValue::Text(self.cipher.role.as_str()),
-                        ]
-                        .iter(),
-                    )?
-                    .first::<TenantRootActiveEpochRowV1>(None)
-                    .await?;
-                match active {
-                    Some(active)
-                        if active.tenant_root_share_epoch > epoch_i64(custody_binding.epoch())? =>
-                    {
-                        Ok(TenantRootRootUseAdmissionV1::EpochClosed)
-                    }
-                    _ => Err(store_error(
-                        "tenant-root role share named by the custody binding does not exist",
-                    )),
-                }
-            }
-        }
-    }
-
-    /// Loads the role share an authenticated custody binding names, for an
-    /// operation admitted on its epoch.
-    ///
-    /// The Router issues a binding from its committed active state when it
-    /// admits work, so the binding names the epoch that work started on. The
-    /// operation is admitted here first (`admit_bound`). While the epoch is
-    /// active this is `load_active`. After a refresh has retired it, the
-    /// retired share is returned, until it is erased, only for an operation
-    /// admitted before the swap, so work already admitted follows the version
-    /// it started with (Spec 6). A retired share must match every binding
-    /// field against the activation evidence it retained, including the
-    /// activation receipt that made its epoch active. A pending share is never
-    /// returned.
-    pub(crate) async fn load_bound(
-        &self,
-        custody_binding: &TenantRootCustodyBindingV1,
-        attempt: &TenantRootRootUseAttemptV1,
-        admitted_at_ms: u64,
-    ) -> RoleStoreResult<TenantRootBoundShareV1> {
-        match self.admit_bound(custody_binding, attempt, admitted_at_ms).await? {
-            TenantRootRootUseAdmissionV1::Admitted => {}
-            TenantRootRootUseAdmissionV1::EpochClosed => {
-                return Ok(TenantRootBoundShareV1::EpochClosed)
-            }
-            TenantRootRootUseAdmissionV1::NotYetActive => {
-                return Ok(TenantRootBoundShareV1::NotYetActive)
-            }
-            TenantRootRootUseAdmissionV1::AttemptConflict => {
-                return Ok(TenantRootBoundShareV1::AttemptConflict)
-            }
-            TenantRootRootUseAdmissionV1::Cancelled => {
-                return Ok(TenantRootBoundShareV1::Cancelled)
-            }
-            TenantRootRootUseAdmissionV1::Erased => return Ok(TenantRootBoundShareV1::Erased),
-        }
-        let stored = self.load_bound_row(custody_binding).await?;
-        match stored.record().lifecycle() {
-            CloudflareTenantRootRoleShareLifecycleV1::Active(_) => {
-                match self.load_active(custody_binding).await {
-                    Ok(active) => Ok(TenantRootBoundShareV1::Readable(active)),
-                    // A refresh may have retired the epoch since it was read.
-                    Err(error) => {
-                        let current = self.load_bound_row(custody_binding).await?;
-                        if !matches!(
-                            current.record().lifecycle(),
-                            CloudflareTenantRootRoleShareLifecycleV1::Retired(_)
-                        ) {
-                            return Err(error);
-                        }
-                        self.verify_bound_row(&current, custody_binding)?;
-                        Ok(TenantRootBoundShareV1::Readable(current))
-                    }
-                }
-            }
-            CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => {
-                self.verify_bound_row(&stored, custody_binding)?;
-                Ok(TenantRootBoundShareV1::Readable(stored))
-            }
-            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
-                Ok(TenantRootBoundShareV1::NotYetActive)
-            }
-        }
-    }
-
-    async fn load_bound_row(
-        &self,
-        custody_binding: &TenantRootCustodyBindingV1,
-    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
-        self.load_epoch_by_identity_digest(
-            custody_binding.identity_digest(),
-            custody_binding.custody_lineage(),
-            custody_binding.epoch(),
-        )
-        .await?
-        .ok_or_else(|| {
-            store_error("tenant-root role share named by the custody binding does not exist")
-        })
-    }
-
-    /// Checks an activated row against every custody-binding field: identity,
-    /// lineage, epoch, role, this role's commitment, and the activation
-    /// receipt that made the epoch active.
-    fn verify_bound_row(
-        &self,
-        stored: &CloudflareStoredTenantRootRoleShareV1,
-        custody_binding: &TenantRootCustodyBindingV1,
-    ) -> RoleStoreResult<()> {
-        let record = stored.record();
-        record.validate()?;
-        validate_record_activation_binding(record)?;
-        let activation_receipt_digest = match record.lifecycle() {
-            CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
-                active.activation.activation_receipt_digest
-            }
-            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
-                retired.active.activation.activation_receipt_digest
-            }
-            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
-                return Err(store_error(
-                    "tenant-root role share named by the custody binding is not active",
-                ));
-            }
-        };
-        let expected_role = self.cipher.role.managed_restore_role();
-        let expected_commitment = match expected_role {
-            TenantRootManagedRestoreRoleV1::DeriverA => custody_binding.commitments().deriver_a(),
-            TenantRootManagedRestoreRoleV1::DeriverB => custody_binding.commitments().deriver_b(),
-        };
-        let identity_digest = record
-            .identity()
-            .digest()
-            .map_err(|error| store_error(error.message()))?;
-        if identity_digest != custody_binding.identity_digest()
-            || record.custody_lineage() != custody_binding.custody_lineage()
-            || record.epoch() != custody_binding.epoch()
-            || record.role().managed_restore_role() != expected_role
-            || record.share_commitment() != expected_commitment
-            || activation_receipt_digest != custody_binding.activation_receipt_digest()
-        {
-            return Err(store_error(
-                "tenant-root role share does not match authenticated custody binding",
-            ));
-        }
-        Ok(())
-    }
-
     /// Observes all active rows for the debug lifecycle probe.
     async fn observe_active(
         &self,
@@ -11306,6 +10997,14 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .all()
             .await?
             .results::<TenantRootRoleD1RowV1>()?;
+        self.resolve_active_rows(identity_digest, rows).await
+    }
+
+    async fn resolve_active_rows(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        rows: Vec<TenantRootRoleD1RowV1>,
+    ) -> RoleStoreResult<CloudflareTenantRootActiveRoleShareV1> {
         let mut stored = Vec::with_capacity(rows.len());
         for row in rows {
             let opened = self
@@ -11379,22 +11078,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         custody_lineage: TenantRootCustodyLineageId,
         epoch: TenantRootShareEpoch,
     ) -> RoleStoreResult<Option<CloudflareStoredTenantRootRoleShareV1>> {
-        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
-        let custody_lineage_b64u = custody_lineage.to_base64url();
-        let epoch = epoch_i64(epoch)?.to_string();
         let row = self
-            .session
-            .prepare(LOAD_EPOCH_SQL)
-            .bind_refs(
-                [
-                    RoleSqlValue::Text(identity_digest_hex.as_str()),
-                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
-                    RoleSqlValue::Text(epoch.as_str()),
-                    RoleSqlValue::Text(self.cipher.role.as_str()),
-                ]
-                .iter(),
-            )?
-            .first::<TenantRootRoleD1RowV1>(None)
+            .load_epoch_row_by_identity_digest(identity_digest, custody_lineage, epoch)
             .await?;
         self.open_row(row).await
     }
@@ -13275,7 +12960,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     pub(crate) async fn record_wallet_object_reconciliation(
         &self,
         attempt_key_hex: &str,
-        pair_object_name: &str,
+        pair_object_id: &str,
         reconciliation: TenantRootWalletPairReconciliationV1,
     ) -> RoleStoreResult<()> {
         let sql = match reconciliation {
@@ -13293,7 +12978,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     RoleSqlValue::Text(self.cipher.role.as_str()),
                     RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
                     RoleSqlValue::Text(attempt_key_hex),
-                    RoleSqlValue::Text(pair_object_name),
+                    RoleSqlValue::Text(pair_object_id),
                 ]
                 .iter(),
             )?
@@ -13328,7 +13013,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .await?;
         Ok(row.map(|row| TenantRootYaoAdmissionStateV1 {
             status: row.status,
-            pair_object_name: row.pair_object_name,
+            pair_object_id: row.pair_object_id,
         }))
     }
 
@@ -17364,7 +17049,7 @@ struct TenantRootRootUseAdmissionRowV1 {
     activation_receipt_digest_hex: String,
     attempt_digest_hex: String,
     status: String,
-    pair_object_name: Option<String>,
+    pair_object_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

@@ -9,6 +9,12 @@ export * from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export * from './core/types';
 export * from './delegateAction';
 export * from './router/framework/apiCredentialPorts';
+export {
+  createWalletRegistrationContextResolver,
+  unavailableRegistrationContext,
+  walletRegistrationContext,
+} from './router/auth/walletRegistrationContext';
+export { parseWalletRegistrationSetupRequest } from './router/domains/walletRegistration/walletRegistrationRoutes';
 export * from './router/framework/applyRouteMetering';
 export * from './router/cloudflare-adaptor';
 export type {
@@ -54,6 +60,7 @@ export * from './router/cloudflare/runtime/sessionAdapterRuntime';
 export * from './router/cloudflare/runtime/walletConsoleOps';
 export * from './router/cloudflare/runtime/walletConsoleOpsClient';
 export * from './router/cloudflare/runtime/walletGateway';
+export { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
 export * from './router/cloudflare/runtime/walletRuntimeOps';
 export * from './router/cloudflare/runtime/walletRuntimeOpsHandler';
 export * from './router/cloudflare/runtime/walletControlOps';
@@ -83,8 +90,6 @@ export * from './router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecoveryWa
 export * from './router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 export * from './router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
 export {
-  buildRouterAbEcdsaAcceptedAuthorizedOperationV1,
-  buildRouterAbEd25519AcceptedAuthorizedOperationV1,
   evaluateRouterAbNormalSigningAdmission,
   type RouterAbEcdsaOperationAdmission,
   type RouterAbEcdsaOperationAdmissionKind,
@@ -257,9 +262,6 @@ export {
 } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationRecords';
 export { prepareD1TenantStatement } from './core/d1TenantStore';
 
-export { D1EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
-export type { EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
-
 export type { PasskeyCredentialClaims } from './core/passkeyCredentialClaims';
 
 export type {
@@ -282,3 +284,7 @@ export type {
 export { parseLinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
 export type { LinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
 export { computeLinkedDeviceSessionClaimDigestV1 } from '@shared/device-linking/digests';
+
+export { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+export { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
+export { walletObjectIdentity, WalletObjectAddressSnapshot, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';

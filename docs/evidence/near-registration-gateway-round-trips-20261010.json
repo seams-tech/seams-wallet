@@ -1,0 +1,293 @@
+{
+  "schema": "near_registration_gateway_round_trips_v1",
+  "date": "2026-10-10",
+  "method": "One NEAR-only passkey registration, a NEP-413 signature through another region, an explicit session refresh, and a lock, in the private composed registration scenario. It runs the hosted Gateway composition with the deployment-fenced D1 and the real Console service in process, against local role Workers. Round trips and statements come from the Gateway D1 trace header on each response.",
+  "publicCommit": "e0a8efec3d6049c493b2af2f0bc2c97ab4ca9d95",
+  "privateCommit": "ccc5fc62bc818d1adb0bcc59de7416d351cc2565",
+  "limits": [
+    "Structural counts from one local run. A local D1 says nothing about staging round-trip time.",
+    "The trace wraps the fenced database the service uses. The two or three reads each request makes before the service runs are not counted.",
+    "Every fenced round trip carries one deployment write check beside its statements; it is listed with them.",
+    "Work still running when a response left is not in that response's trace."
+  ],
+  "walletStartup": {
+    "routerRequests": 1,
+    "sentBeforeRespondMs": 841
+  },
+  "sessionObservation": {
+    "registrationStatusRequests": 0,
+    "firstSignatureStatusRequests": 0,
+    "explicitRefreshStatusRequests": 1,
+    "reactLoginPublished": true,
+    "nearIdentityPublished": true,
+    "lockClearsAuthentication": true
+  },
+  "consoleRequestsPerRegistration": [
+    "/internal/wallet-console/v1/registration-context",
+    "/internal/wallet-placement/v1/reserve",
+    "/internal/wallet-placement/v1/registration-home",
+    "/internal/wallet-console/v1/tenant-root/active-lineage",
+    "/internal/wallet-placement/v1/claim-passkey",
+    "/internal/wallet-placement/v1/publish-routes",
+    "/internal/wallet-placement/v1/complete"
+  ],
+  "gatewayRequests": [
+    {
+      "stage": "registration",
+      "path": "/wallets/register/setup",
+      "roundTrips": 3,
+      "statements": 3,
+      "calls": [
+        [
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "INSERT registration_ceremony_records"
+        ],
+        [
+          "INSERT registration_ceremony_records"
+        ]
+      ]
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/respond",
+      "roundTrips": 8,
+      "statements": 13,
+      "calls": [
+        [
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "SELECT wallet_execution_generations"
+        ],
+        [
+          "INSERT wallet_execution_generations",
+          "UPDATE wallet_execution_generations",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ],
+        [
+          "SELECT wallet_auth_methods"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity"
+        ],
+        [
+          "UPDATE registration_ceremony_records"
+        ]
+      ]
+    },
+    {
+      "stage": "registration",
+      "path": "/router-ab/ed25519/yao/registration/execute",
+      "roundTrips": 1,
+      "statements": 1,
+      "calls": [
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ]
+      ]
+    },
+    {
+      "stage": "registration",
+      "path": "/wallets/register/near-provisioning",
+      "roundTrips": 21,
+      "statements": 66,
+      "calls": [
+        [
+          "SELECT wallet_execution_generations"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "SELECT wallet_auth_methods+wallet_authorities"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity"
+        ],
+        [
+          "SELECT registration_ceremony_records"
+        ],
+        [
+          "SELECT wallet_auth_methods+wallet_authorities"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "SELECT yao_lifecycle_decisions"
+        ],
+        [
+          "SELECT wallet_authorities",
+          "SELECT wallet_auth_methods"
+        ],
+        [
+          "INSERT set+wallets",
+          "INSERT set+wallet_signers",
+          "INSERT set+webauthn_authenticators",
+          "INSERT set+webauthn_credential_bindings",
+          "INSERT wallet_authorities",
+          "INSERT set+wallet_auth_methods",
+          "INSERT yao_lifecycle_decisions",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records",
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records",
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators",
+          "INSERT wallet_recovery_code_locators"
+        ],
+        [
+          "INSERT router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "UPDATE router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity"
+        ],
+        [
+          "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "DELETE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_exchange_codes_v2",
+          "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_session_hosted_credentials_v2",
+          "UPDATE authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "INSERT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2",
+          "SELECT wallet_session_authorizations_v2",
+          "SELECT wallet_execution_generations"
+        ],
+        [
+          "SELECT wallet_execution_generations"
+        ],
+        [
+          "UPDATE wallet_execution_generations",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ],
+        [
+          "UPDATE wallet_execution_generations",
+          "INSERT router_ab_yao_versioned_json_cas_guard"
+        ],
+        [
+          "UPDATE router_ab_yao_versioned_json_records",
+          "INSERT router_ab_yao_versioned_json_cas_guard",
+          "INSERT router_ab_yao_versioned_json_cas_guard+wallet_execution_generations+wallet_relocation_authorization_fences",
+          "INSERT set+wallet_ceremony_activity"
+        ],
+        [
+          "SELECT registration_ceremony_records"
+        ]
+      ]
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign/prepare",
+      "roundTrips": 6,
+      "statements": 8,
+      "calls": [
+        [
+          "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+        ],
+        [
+          "SELECT wallet_signers"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records",
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "WITH router_ab_normal_signing_admission_records+scope"
+        ],
+        [
+          "INSERT authorized_operations+wallet_execution_generations+wallet_operation_authorizations",
+          "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+        ],
+        [
+          "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_session_authorizations_v2"
+        ]
+      ]
+    },
+    {
+      "stage": "first_signature",
+      "path": "/router-ab/ed25519/sign",
+      "roundTrips": 8,
+      "statements": 10,
+      "calls": [
+        [
+          "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2"
+        ],
+        [
+          "SELECT wallet_signers"
+        ],
+        [
+          "SELECT router_ab_yao_versioned_json_records",
+          "SELECT router_ab_yao_versioned_json_records"
+        ],
+        [
+          "WITH router_ab_normal_signing_admission_records+scope"
+        ],
+        [
+          "SELECT authorized_operations"
+        ],
+        [
+          "INSERT authorized_operations+wallet_execution_generations+wallet_operation_authorizations",
+          "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_auth_methods+wallet_authorities+wallet_session_authorizations_v2"
+        ],
+        [
+          "SELECT authorized_operations+verified_wallet_operation_evidence_sets+wallet_session_authorizations_v2"
+        ],
+        [
+          "UPDATE authorized_operations"
+        ]
+      ]
+    },
+    {
+      "stage": "explicit_refresh",
+      "path": "/wallet/session/status",
+      "roundTrips": 2,
+      "statements": 2,
+      "calls": [
+        [
+          "SELECT authorization_wallet_session_quotas+wallet_auth_methods+wallet_authorities+wallet_execution_generations+wallet_session_authorizations_v2+wallet_signers"
+        ],
+        [
+          "SELECT wallet_signers"
+        ]
+      ]
+    }
+  ]
+}

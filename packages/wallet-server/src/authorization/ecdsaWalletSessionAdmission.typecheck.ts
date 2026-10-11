@@ -1,4 +1,9 @@
 import type { AuthorizedOperation, AuthorizedOperationInput } from './domain';
+import type { Variant } from '@shared/utils/variant';
+import type {
+  AuthorizedOperationWireInput,
+  OperationStepUpBinding,
+} from '../router/domains/signingOperations/authorizedOperationWire';
 import type {
   EcdsaWalletSessionAdmissionInput,
   EcdsaWalletSessionAdmissionResult,
@@ -10,6 +15,26 @@ declare const ownerScope: PinnedOwnerWalletScope;
 declare const material: EcdsaWalletSessionAdmissionInput['material'];
 declare const generalInput: AuthorizedOperationInput;
 declare const raw: unknown;
+
+type OwnerBinding = Variant<
+  AuthorizedOperationWireInput['binding'],
+  'kind',
+  'gateway_owner_wallet_session'
+>;
+declare const unpinnedOwnerBinding: Omit<OwnerBinding, 'ownershipGeneration'>;
+declare const unpinnedStepUpBinding: Omit<OperationStepUpBinding, 'ownershipGeneration'>;
+// @ts-expect-error Gateway owner admission must carry its persisted generation.
+const ownerWithoutGeneration: OwnerBinding = unpinnedOwnerBinding;
+// @ts-expect-error A spread cannot turn unpinned step-up data into a dispatch binding.
+const stepUpWithoutGeneration: OperationStepUpBinding = { ...unpinnedStepUpBinding };
+void [ownerWithoutGeneration, stepUpWithoutGeneration];
+
+// @ts-expect-error Dispatch requires the generation pinned with the operation.
+const unpinnedScope: PinnedOwnerWalletScope = {
+  orgId: 'org',
+  projectId: 'project',
+  projectEnvironmentId: 'environment',
+};
 
 const claimed = { kind: 'claimed', operation, ownerScope } satisfies EcdsaWalletSessionAdmissionResult;
 const replayed = { kind: 'replayed', operation } satisfies EcdsaWalletSessionAdmissionResult;
@@ -27,4 +52,14 @@ const broadInput: EcdsaWalletSessionAdmissionInput = { operation: generalInput, 
 // @ts-expect-error Raw storage values must be parsed before becoming admission results.
 const rawResult: EcdsaWalletSessionAdmissionResult = raw;
 
-void [claimed, replayed, missingScope, replayWithScope, rejectedClaim, unscopedProgress, broadInput, rawResult];
+void [
+  claimed,
+  replayed,
+  missingScope,
+  replayWithScope,
+  rejectedClaim,
+  unscopedProgress,
+  broadInput,
+  rawResult,
+  unpinnedScope,
+];

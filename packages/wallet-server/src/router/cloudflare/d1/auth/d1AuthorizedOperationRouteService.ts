@@ -25,6 +25,14 @@ export function createD1AuthorizedOperationRouteService(
     admitEcdsaWalletSessionOperation: assembly.authorizationStore.admitEcdsaWalletSessionOperation.bind(
       assembly.authorizationStore,
     ),
+    admitEd25519WalletSessionOperation:
+      assembly.authorizationStore.admitEd25519WalletSessionOperation.bind(
+        assembly.authorizationStore,
+      ),
+    resolveEd25519WalletSessionOperation:
+      assembly.authorizationStore.resolveEd25519WalletSessionOperation.bind(
+        assembly.authorizationStore,
+      ),
     readPinnedOwnerWalletScope: assembly.authorizationStore.readPinnedOwnerWalletScope.bind(
       assembly.authorizationStore,
     ),

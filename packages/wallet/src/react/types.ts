@@ -8,7 +8,6 @@ import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
   RegistrationCapability,
-  PasskeyRegistrationOptions,
 } from '../SeamsWeb';
 import type { AppearanceConfigInput, ThemeMode, WalletAuthMethod } from '../core/types/seams';
 import type {
@@ -36,7 +35,6 @@ export type {
   StartDeviceLinkingOptionsDevice2,
 } from '../core/types/linkDevice';
 
-export type { PasskeyRegistrationOptions };
 
 // === React states types ===
 
@@ -99,7 +97,7 @@ export interface AccountInputState {
 
 // Account input hook types
 export interface UseAccountInputReturn extends AccountInputState {
-  setInputUsername: (username: string) => void;
+  setAccountName: (username: string) => void;
   refreshAccountData: () => Promise<void>;
 }
 
@@ -181,23 +179,22 @@ export interface SeamsContextType {
   ////////////////////////////
 
   // Registration and wallet unlock functions
-  addWalletSigner: RegistrationCapability['addWalletSigner'];
+  addSigner: RegistrationCapability['addSigner'];
   registerWallet: RegistrationCapability['registerWallet'];
-  registerPasskey: RegistrationCapability['registerPasskey'];
   unlock: (walletId: string, options?: LoginHooksOptions) => Promise<LoginAndCreateSessionResult>;
   lock: () => Promise<void>;
 
-  // Execute actions
-  executeAction: (args: {
+  // Sign and submit a NEAR transaction.
+  signAndSendTransaction: (args: {
     walletSession: WalletSessionRef;
     nearAccount: NearAccountRef;
     receiverId: string;
-    actionArgs: ActionArgs;
+    actions: ActionArgs[];
     options?: ActionHooksOptions;
   }) => Promise<ActionResult>;
 
   // NEP-413 message signing
-  signNEP413Message: (args: {
+  signMessage: (args: {
     walletSession: WalletSessionRef;
     nearAccount: NearAccountRef;
     params: SignNEP413MessageParams;
@@ -218,29 +215,29 @@ export interface SeamsContextType {
   }>;
 
   // Device linking functions
-  startDevice2LinkingFlow: (args: StartDevice2LinkingFlowArgs) => Promise<{
+  startLinking: (args: StartDevice2LinkingFlowArgs) => Promise<{
     qrData: QrLinkedDeviceSessionPayloadV5;
     qrCodeDataURL: string;
   }>;
 
-  cancelDeviceLinking: () => Promise<void>;
+  cancelLinking: () => Promise<void>;
 
   // Login State
   loginState: LoginState;
   // Wallet iframe connectivity (true when service client handshake completes)
   walletIframeConnected: boolean;
 
-  getWalletSession: (walletId?: string) => Promise<WalletSession>;
-  refreshLoginState: (walletId?: string) => Promise<void>;
+  getSession: (walletId?: string) => Promise<WalletSession>;
+  refreshSession: (walletId?: string) => Promise<void>;
 
   // Account input management
   // UI account name input state (form/input tracking)
   accountInputState: AccountInputState;
-  setInputUsername: (username: string) => void;
+  setAccountName: (username: string) => void;
   refreshAccountData: () => Promise<void>;
 
   // Confirmation configuration functions
-  setConfirmBehavior: (behavior: ConfirmationBehavior) => void;
+  setConfirmationBehavior: (behavior: ConfirmationBehavior) => void;
   setConfirmationConfig: (config: Partial<ConfirmationConfig>) => void;
   getConfirmationConfig: () => ConfirmationConfig;
 
@@ -281,12 +278,6 @@ export interface SeamsContextProviderProps {
     setTheme?: (theme: ThemeMode) => void;
     appearance?: AppearanceConfigInput;
   };
-  /**
-   * When true, the provider will opportunistically pre-warm iframe + workers
-   * on idle after mount to reduce first-action latency.
-   * Default: false (lazy by default).
-   */
-  eager?: boolean;
 }
 
 // === CONVENIENCE RE-EXPORTS ===

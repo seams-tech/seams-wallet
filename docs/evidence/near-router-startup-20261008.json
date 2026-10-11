@@ -1,0 +1,1076 @@
+{
+  "date": "2026-10-08",
+  "implementationCommit": "eddb696a5912df6ef5e9dccadcc81b56718ef095",
+  "objective": {
+    "hostedYaoSetupTargetMs": [
+      1000,
+      2000
+    ],
+    "achieved": false
+  },
+  "hostedControl": {
+    "freshWallets": 3,
+    "verifiedSignatures": 21,
+    "timings": [
+      {
+        "workload": "registration_to_first_verified",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 3,
+        "medianMs": 21480.609,
+        "minimumMs": 20678.183,
+        "maximumMs": 22374.582
+      },
+      {
+        "workload": "registration_to_first_verified",
+        "metric": "sdkSigningMs",
+        "samples": 3,
+        "medianMs": 8401.275,
+        "minimumMs": 8285.005,
+        "maximumMs": 9073.455
+      },
+      {
+        "workload": "registration",
+        "metric": "yaoExecuteHttpMs",
+        "samples": 3,
+        "medianMs": 5316.868,
+        "minimumMs": 4998.066,
+        "maximumMs": 5332.255
+      },
+      {
+        "workload": "warm_signing",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 6,
+        "medianMs": 3435.85,
+        "minimumMs": 3024.376,
+        "maximumMs": 3824.268
+      },
+      {
+        "workload": "warm_signing",
+        "metric": "sdkSigningMs",
+        "samples": 6,
+        "medianMs": 2670.98,
+        "minimumMs": 2165.91,
+        "maximumMs": 3051.865
+      },
+      {
+        "workload": "unlock_to_first_verified",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 3,
+        "medianMs": 5765.17,
+        "minimumMs": 5749.212,
+        "maximumMs": 5773.425
+      },
+      {
+        "workload": "unlock_to_first_verified",
+        "metric": "sdkSigningMs",
+        "samples": 3,
+        "medianMs": 2294.485,
+        "minimumMs": 2152.115,
+        "maximumMs": 2453.36
+      },
+      {
+        "workload": "three_consecutive",
+        "metric": "elapsedToVerifiedMs",
+        "samples": 9,
+        "medianMs": 2310.051,
+        "minimumMs": 2256.807,
+        "maximumMs": 3819.245
+      },
+      {
+        "workload": "three_consecutive",
+        "metric": "sdkSigningMs",
+        "samples": 9,
+        "medianMs": 1989.19,
+        "minimumMs": 1449.615,
+        "maximumMs": 3026.06
+      }
+    ]
+  },
+  "localRouterExecution": {
+    "boundary": "Router HTTP request through completed response body; excludes browser and Gateway",
+    "samples": [
+      {
+        "home": "US",
+        "elapsedMs": 420.238
+      },
+      {
+        "home": "WEUR",
+        "elapsedMs": 427.219
+      },
+      {
+        "home": "APAC",
+        "elapsedMs": 426.496
+      },
+      {
+        "home": "OC",
+        "elapsedMs": 424.983
+      }
+    ],
+    "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs"
+  },
+  "candidateHostedResult": {
+    "completedWallets": 3,
+    "verifiedSignatures": 21,
+    "latencyGainVerified": false,
+    "routerClaimMedianMs": 455,
+    "yaoSetupMedianMs": 4643.842
+  },
+  "deploymentFindings": [
+    "New Gateway versions require normal tenant activation. The runtime admission checks the exact deployed version.",
+    "The registration canary from successful activation leaves an unfinished ceremony. Two US rows for the same canary remained unexpired during the next rejected activation.",
+    "The US canary was absent from earlier APAC, WEUR and OC checks. Future readiness checks must cover all four regions.",
+    "After all regional unfinished records expired, GitHub workflow dispatch returned HTTP 500. No new run appeared in the workflow list.",
+    "All 13 original Worker versions were verified restored. Gateway healthz and tenant projection returned HTTP 200.",
+    "The later exact-version activation and restoration succeeded. The earlier dispatch failure no longer blocks this comparison."
+  ],
+  "limits": [
+    "Three hosted wallets are a small sequential sample, not a percentile estimate.",
+    "Local execution and browser-measured hosted setup have different request boundaries.",
+    "Application clocks do not isolate CPU time from transport. Nested stage medians must not be added.",
+    "The candidate has hosted correctness evidence. Total setup improvement is unproven, and the 1\u20132 second target remains unmet.",
+    "Deployment API versions do not prove which version served an invocation. Eligible latency statistics exclude any wallet with a mismatched custody version during startup or setup; raw arm summaries are retained."
+  ],
+  "controlledComparison": {
+    "method": "Three fresh NEAR-only wallets per arm; fixed Gateway, A/B, Signing Worker and browser assets. Only Router startup support changes.",
+    "freshWallets": 9,
+    "verifiedSignatures": 63,
+    "arms": [
+      {
+        "name": "control-before",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "browserTimings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 20566.943,
+            "minimumMs": 18273.735,
+            "maximumMs": 20642.781
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 7877.735,
+            "minimumMs": 7450.05,
+            "maximumMs": 9564.5
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 4892.808,
+            "minimumMs": 4337.317,
+            "maximumMs": 5210.241
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3047.136,
+            "minimumMs": 2267.263,
+            "maximumMs": 4561.697
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2346.515,
+            "minimumMs": 1764.71,
+            "maximumMs": 3623.535
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 4981.326,
+            "minimumMs": 4965.79,
+            "maximumMs": 4987.261
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 1874.975,
+            "minimumMs": 1855.925,
+            "maximumMs": 1984.21
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 2263.403,
+            "minimumMs": 2247.772,
+            "maximumMs": 3049.494
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 1808.885,
+            "minimumMs": 1347.455,
+            "maximumMs": 2614.885
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            15,
+            14
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "routerDispatch": {
+          "claim_registration": {
+            "samples": 3,
+            "medianMs": 660,
+            "minimumMs": 632,
+            "maximumMs": 1019
+          },
+          "finish_registration": {
+            "samples": 3,
+            "medianMs": 51,
+            "minimumMs": 49,
+            "maximumMs": 55
+          },
+          "consume_registration": {
+            "samples": 3,
+            "medianMs": 484,
+            "minimumMs": 482,
+            "maximumMs": 547
+          }
+        },
+        "claimAndFinishPaired": {
+          "samples": 3,
+          "medianMs": 715,
+          "minimumMs": 681,
+          "maximumMs": 1070
+        },
+        "coordinatorSpans": {
+          "router.parse_and_authorize": {
+            "samples": 3,
+            "medianMs": 673,
+            "minimumMs": 645,
+            "maximumMs": 1030
+          },
+          "router.prepare_pair.deriver_b": {
+            "samples": 3,
+            "medianMs": 875,
+            "minimumMs": 708,
+            "maximumMs": 1022
+          },
+          "router.prepare_pair.deriver_a": {
+            "samples": 3,
+            "medianMs": 1121,
+            "minimumMs": 987,
+            "maximumMs": 1298
+          },
+          "router.prepare_pair": {
+            "samples": 3,
+            "medianMs": 1121,
+            "minimumMs": 987,
+            "maximumMs": 1298
+          },
+          "router.verify_readiness_receipts": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "router.deriver_a_execute.http": {
+            "samples": 3,
+            "medianMs": 1671,
+            "minimumMs": 1606,
+            "maximumMs": 1771
+          },
+          "router.deriver_a_execute": {
+            "samples": 3,
+            "medianMs": 1671,
+            "minimumMs": 1606,
+            "maximumMs": 1771
+          },
+          "router.signing_worker_delivery": {
+            "samples": 3,
+            "medianMs": 745,
+            "minimumMs": 722,
+            "maximumMs": 1123
+          },
+          "router.yao_execute": {
+            "samples": 3,
+            "medianMs": 3729,
+            "minimumMs": 3527,
+            "maximumMs": 3825
+          }
+        },
+        "startup": {
+          "calls": 3,
+          "successful": 0,
+          "timing": {
+            "samples": 3,
+            "medianMs": 4,
+            "minimumMs": 2,
+            "maximumMs": 6
+          }
+        },
+        "claimInstances": {
+          "calls": 0,
+          "firstCommandAfterConstructor": null
+        },
+        "objectInvocations": {
+          "claim_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 16,
+              "minimumMs": 16,
+              "maximumMs": 18
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 63,
+              "minimumMs": 55,
+              "maximumMs": 458
+            }
+          },
+          "finish_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 2,
+              "minimumMs": 2,
+              "maximumMs": 2
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 43,
+              "minimumMs": 40,
+              "maximumMs": 46
+            }
+          },
+          "consume_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 7,
+              "minimumMs": 6,
+              "maximumMs": 8
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 49,
+              "minimumMs": 46,
+              "maximumMs": 51
+            }
+          }
+        }
+      },
+      {
+        "name": "startup-candidate",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "browserTimings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 18839.18,
+            "minimumMs": 17352.674,
+            "maximumMs": 19106.08
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 7619.045,
+            "minimumMs": 6791.48,
+            "maximumMs": 8576.53
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 4643.842,
+            "minimumMs": 4236.726,
+            "maximumMs": 4755.937
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3406.747,
+            "minimumMs": 3011.256,
+            "maximumMs": 3798.949
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2539.252,
+            "minimumMs": 2104.54,
+            "maximumMs": 3027.86
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 4277.56,
+            "minimumMs": 4190.786,
+            "maximumMs": 4943.021
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 1171.235,
+            "minimumMs": 1156.775,
+            "maximumMs": 1736.675
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 2264.874,
+            "minimumMs": 1455.088,
+            "maximumMs": 3014.487
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 1724.915,
+            "minimumMs": 1204.665,
+            "maximumMs": 2372.65
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            14,
+            14,
+            15
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "routerDispatch": {
+          "claim_registration": {
+            "samples": 3,
+            "medianMs": 455,
+            "minimumMs": 399,
+            "maximumMs": 529
+          },
+          "finish_registration": {
+            "samples": 3,
+            "medianMs": 54,
+            "minimumMs": 52,
+            "maximumMs": 81
+          },
+          "consume_registration": {
+            "samples": 3,
+            "medianMs": 441,
+            "minimumMs": 62,
+            "maximumMs": 515
+          }
+        },
+        "claimAndFinishPaired": {
+          "samples": 3,
+          "medianMs": 507,
+          "minimumMs": 480,
+          "maximumMs": 583
+        },
+        "coordinatorSpans": {
+          "router.parse_and_authorize": {
+            "samples": 3,
+            "medianMs": 540,
+            "minimumMs": 411,
+            "maximumMs": 576
+          },
+          "router.prepare_pair.deriver_b": {
+            "samples": 3,
+            "medianMs": 1133,
+            "minimumMs": 1027,
+            "maximumMs": 1253
+          },
+          "router.prepare_pair.deriver_a": {
+            "samples": 3,
+            "medianMs": 1275,
+            "minimumMs": 1202,
+            "maximumMs": 1432
+          },
+          "router.prepare_pair": {
+            "samples": 3,
+            "medianMs": 1275,
+            "minimumMs": 1202,
+            "maximumMs": 1432
+          },
+          "router.verify_readiness_receipts": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "router.deriver_a_execute.http": {
+            "samples": 3,
+            "medianMs": 1796,
+            "minimumMs": 1533,
+            "maximumMs": 1852
+          },
+          "router.deriver_a_execute": {
+            "samples": 3,
+            "medianMs": 1796,
+            "minimumMs": 1533,
+            "maximumMs": 1852
+          },
+          "router.signing_worker_delivery": {
+            "samples": 3,
+            "medianMs": 744,
+            "minimumMs": 705,
+            "maximumMs": 801
+          },
+          "router.yao_execute": {
+            "samples": 3,
+            "medianMs": 3919,
+            "minimumMs": 3524,
+            "maximumMs": 4041
+          }
+        },
+        "startup": {
+          "calls": 3,
+          "successful": 3,
+          "timing": {
+            "samples": 3,
+            "medianMs": 688,
+            "minimumMs": 515,
+            "maximumMs": 705
+          }
+        },
+        "claimInstances": {
+          "calls": 3,
+          "firstCommandAfterConstructor": 0
+        },
+        "objectInvocations": {
+          "claim_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 17,
+              "minimumMs": 12,
+              "maximumMs": 17
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 59,
+              "minimumMs": 58,
+              "maximumMs": 59
+            }
+          },
+          "finish_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 3,
+              "minimumMs": 2,
+              "maximumMs": 4
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 46,
+              "minimumMs": 46,
+              "maximumMs": 72
+            }
+          },
+          "consume_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 10,
+              "minimumMs": 7,
+              "maximumMs": 10
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 53,
+              "minimumMs": 53,
+              "maximumMs": 56
+            }
+          }
+        }
+      },
+      {
+        "name": "control-after",
+        "completedWallets": 3,
+        "verifiedSignatures": 21,
+        "browserTimings": [
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 17334.358,
+            "minimumMs": 16627.984,
+            "maximumMs": 17428.271
+          },
+          {
+            "workload": "registration_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 6180.635,
+            "minimumMs": 6177.135,
+            "maximumMs": 6763.025
+          },
+          {
+            "workload": "registration",
+            "metric": "yaoExecuteHttpMs",
+            "samples": 3,
+            "medianMs": 4235.851,
+            "minimumMs": 4059.593,
+            "maximumMs": 4730.581
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 6,
+            "medianMs": 3024.771,
+            "minimumMs": 2262.708,
+            "maximumMs": 3087.907
+          },
+          {
+            "workload": "warm_signing",
+            "metric": "sdkSigningMs",
+            "samples": 6,
+            "medianMs": 2274.07,
+            "minimumMs": 1849.41,
+            "maximumMs": 2686.27
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 3,
+            "medianMs": 4203.574,
+            "minimumMs": 4181.835,
+            "maximumMs": 5850.271
+          },
+          {
+            "workload": "unlock_to_first_verified",
+            "metric": "sdkSigningMs",
+            "samples": 3,
+            "medianMs": 1220.205,
+            "minimumMs": 1215.735,
+            "maximumMs": 2280.075
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "elapsedToVerifiedMs",
+            "samples": 9,
+            "medianMs": 2268.066,
+            "minimumMs": 1446.341,
+            "maximumMs": 3797.952
+          },
+          {
+            "workload": "three_consecutive",
+            "metric": "sdkSigningMs",
+            "samples": 9,
+            "medianMs": 1749.65,
+            "minimumMs": 1187.07,
+            "maximumMs": 2831.855
+          }
+        ],
+        "requestCounts": {
+          "registration_to_first_verified": [
+            15,
+            14,
+            14
+          ],
+          "warm_signing": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "unlock_to_first_verified": [
+            9,
+            9,
+            9
+          ],
+          "three_consecutive": [
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "routerDispatch": {
+          "claim_registration": {
+            "samples": 3,
+            "medianMs": 642,
+            "minimumMs": 537,
+            "maximumMs": 685
+          },
+          "finish_registration": {
+            "samples": 3,
+            "medianMs": 51,
+            "minimumMs": 50,
+            "maximumMs": 55
+          },
+          "consume_registration": {
+            "samples": 3,
+            "medianMs": 489,
+            "minimumMs": 387,
+            "maximumMs": 513
+          }
+        },
+        "claimAndFinishPaired": {
+          "samples": 3,
+          "medianMs": 697,
+          "minimumMs": 588,
+          "maximumMs": 735
+        },
+        "coordinatorSpans": {
+          "router.parse_and_authorize": {
+            "samples": 3,
+            "medianMs": 654,
+            "minimumMs": 547,
+            "maximumMs": 696
+          },
+          "router.prepare_pair.deriver_a": {
+            "samples": 3,
+            "medianMs": 1174,
+            "minimumMs": 966,
+            "maximumMs": 1285
+          },
+          "router.prepare_pair.deriver_b": {
+            "samples": 3,
+            "medianMs": 1160,
+            "minimumMs": 923,
+            "maximumMs": 1348
+          },
+          "router.prepare_pair": {
+            "samples": 3,
+            "medianMs": 1174,
+            "minimumMs": 966,
+            "maximumMs": 1348
+          },
+          "router.verify_readiness_receipts": {
+            "samples": 3,
+            "medianMs": 0,
+            "minimumMs": 0,
+            "maximumMs": 0
+          },
+          "router.deriver_a_execute.http": {
+            "samples": 3,
+            "medianMs": 1574,
+            "minimumMs": 1545,
+            "maximumMs": 1706
+          },
+          "router.deriver_a_execute": {
+            "samples": 3,
+            "medianMs": 1574,
+            "minimumMs": 1545,
+            "maximumMs": 1706
+          },
+          "router.signing_worker_delivery": {
+            "samples": 3,
+            "medianMs": 778,
+            "minimumMs": 626,
+            "maximumMs": 823
+          },
+          "router.yao_execute": {
+            "samples": 3,
+            "medianMs": 3356,
+            "minimumMs": 3328,
+            "maximumMs": 3889
+          }
+        },
+        "startup": {
+          "calls": 3,
+          "successful": 0,
+          "timing": {
+            "samples": 3,
+            "medianMs": 3,
+            "minimumMs": 2,
+            "maximumMs": 3
+          }
+        },
+        "claimInstances": {
+          "calls": 1,
+          "firstCommandAfterConstructor": 1
+        },
+        "objectInvocations": {
+          "claim_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 18,
+              "minimumMs": 15,
+              "maximumMs": 27
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 60,
+              "minimumMs": 57,
+              "maximumMs": 72
+            }
+          },
+          "finish_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 1,
+              "minimumMs": 1,
+              "maximumMs": 2
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 43,
+              "minimumMs": 42,
+              "maximumMs": 47
+            }
+          },
+          "consume_registration": {
+            "cpu": {
+              "samples": 3,
+              "medianMs": 7,
+              "minimumMs": 7,
+              "maximumMs": 10
+            },
+            "wall": {
+              "samples": 3,
+              "medianMs": 49,
+              "minimumMs": 49,
+              "maximumMs": 54
+            }
+          }
+        }
+      }
+    ],
+    "conclusion": "Router claim dispatch fell to 455 ms median from 611\u2013660 ms in version-matched samples. Total setup improvement is unproven because the version-matched final control was faster than the candidate.",
+    "allThirteenWorkerVersionsRestored": true,
+    "activationRunIds": [
+      37692800264,
+      37694095291
+    ],
+    "eligibleControlAfterClaimMs": {
+      "samples": 2,
+      "medianMs": 611,
+      "minimumMs": 537,
+      "maximumMs": 685
+    }
+  },
+  "servingVersionAudit": [
+    {
+      "arm": "control-before",
+      "roles": {
+        "router": {
+          "invocations": 75,
+          "expectedVersion": "2cb11334-ac0f-4254-8827-96f6b6f10af0",
+          "mismatches": []
+        },
+        "deriver-a": {
+          "invocations": 22,
+          "expectedVersion": "d60f5d73-cd74-4aa3-8941-56c516172e40",
+          "mismatches": []
+        },
+        "deriver-b": {
+          "invocations": 22,
+          "expectedVersion": "d366bfd7-67e6-47a0-a59f-577e43b7d03d",
+          "mismatches": []
+        },
+        "gateway": {
+          "invocations": 194,
+          "expectedVersion": "0bf32d3c-5445-4c2e-92b2-2ae2d8272652",
+          "mismatches": []
+        }
+      },
+      "excludedSamples": [],
+      "eligibleYaoSetup": {
+        "samples": 3,
+        "medianMs": 4892.808,
+        "minimumMs": 4337.317,
+        "maximumMs": 5210.241
+      },
+      "eligibleTimings": [
+        {
+          "sample": "near-1.json",
+          "elapsedMs": 4892.808
+        },
+        {
+          "sample": "near-2.json",
+          "elapsedMs": 5210.241
+        },
+        {
+          "sample": "near-3.json",
+          "elapsedMs": 4337.317
+        }
+      ]
+    },
+    {
+      "arm": "startup-candidate",
+      "roles": {
+        "router": {
+          "invocations": 78,
+          "expectedVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710",
+          "mismatches": []
+        },
+        "deriver-a": {
+          "invocations": 22,
+          "expectedVersion": "d60f5d73-cd74-4aa3-8941-56c516172e40",
+          "mismatches": []
+        },
+        "deriver-b": {
+          "invocations": 22,
+          "expectedVersion": "d366bfd7-67e6-47a0-a59f-577e43b7d03d",
+          "mismatches": []
+        },
+        "gateway": {
+          "invocations": 192,
+          "expectedVersion": "0bf32d3c-5445-4c2e-92b2-2ae2d8272652",
+          "mismatches": []
+        }
+      },
+      "excludedSamples": [],
+      "eligibleYaoSetup": {
+        "samples": 3,
+        "medianMs": 4643.842,
+        "minimumMs": 4236.726,
+        "maximumMs": 4755.937
+      },
+      "eligibleTimings": [
+        {
+          "sample": "near-1.json",
+          "elapsedMs": 4643.842
+        },
+        {
+          "sample": "near-2.json",
+          "elapsedMs": 4755.937
+        },
+        {
+          "sample": "near-3.json",
+          "elapsedMs": 4236.726
+        }
+      ]
+    },
+    {
+      "arm": "control-after",
+      "roles": {
+        "router": {
+          "invocations": 75,
+          "expectedVersion": "2cb11334-ac0f-4254-8827-96f6b6f10af0",
+          "mismatches": [
+            {
+              "eventTimestamp": 1791410494217,
+              "entrypoint": "RouterAbRouterWalletDurableObject",
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            },
+            {
+              "eventTimestamp": 1791410494304,
+              "entrypoint": "RouterAbTenantRootCreationDurableObject",
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            },
+            {
+              "eventTimestamp": 1791410498188,
+              "entrypoint": "RouterAbRouterWalletDurableObject",
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            },
+            {
+              "eventTimestamp": 1791410499568,
+              "entrypoint": "RouterAbRouterWalletDurableObject",
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            },
+            {
+              "eventTimestamp": 1791410499023,
+              "entrypoint": null,
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            },
+            {
+              "eventTimestamp": 1791410510437,
+              "entrypoint": null,
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            },
+            {
+              "eventTimestamp": 1791410513576,
+              "entrypoint": null,
+              "actualVersion": "0647b14e-fac0-4fb9-9bcf-e24200317710"
+            }
+          ]
+        },
+        "deriver-a": {
+          "invocations": 22,
+          "expectedVersion": "d60f5d73-cd74-4aa3-8941-56c516172e40",
+          "mismatches": []
+        },
+        "deriver-b": {
+          "invocations": 22,
+          "expectedVersion": "d366bfd7-67e6-47a0-a59f-577e43b7d03d",
+          "mismatches": []
+        },
+        "gateway": {
+          "invocations": 193,
+          "expectedVersion": "0bf32d3c-5445-4c2e-92b2-2ae2d8272652",
+          "mismatches": []
+        }
+      },
+      "excludedSamples": [
+        "near-1.json"
+      ],
+      "eligibleYaoSetup": {
+        "samples": 2,
+        "medianMs": 4147.722,
+        "minimumMs": 4059.593,
+        "maximumMs": 4235.851
+      },
+      "eligibleTimings": [
+        {
+          "sample": "near-2.json",
+          "elapsedMs": 4235.851
+        },
+        {
+          "sample": "near-3.json",
+          "elapsedMs": 4059.593
+        }
+      ]
+    }
+  ]
+}

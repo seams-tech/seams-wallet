@@ -1,3 +1,4 @@
+import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import type { ThresholdEcdsaCanonicalExportArtifact } from '../../interfaces/signing';
 import { createWarmSessionCapabilityReader } from '../../session/warmCapabilities/capabilityReader';
@@ -47,6 +48,7 @@ type EcdsaExportArtifactStorePorts = {
 
 type WarmSigningEd25519AuthorizationResolver = (
   walletId: import('../../interfaces/ecdsaChainTarget').WalletId,
+  statusReads: WalletSessionStatusReadScope,
 ) => Promise<ExactNearEd25519WalletSessionAuthorization | null>;
 
 type WarmSigningPortsArgs = {

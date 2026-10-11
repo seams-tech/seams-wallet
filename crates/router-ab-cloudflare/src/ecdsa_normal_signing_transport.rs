@@ -24,11 +24,12 @@ pub(crate) trait CloudflareRouterAbEcdsaNormalSigningServiceTransportV1 {
 
 pub(crate) struct CloudflareWorkerEcdsaNormalSigningServiceTransportV1<'a> {
     env: &'a worker::Env,
+    wallet_objects: crate::WalletObjectRoute,
 }
 
 impl<'a> CloudflareWorkerEcdsaNormalSigningServiceTransportV1<'a> {
-    pub(crate) fn new(env: &'a worker::Env) -> Self {
-        Self { env }
+    pub(crate) fn new(env: &'a worker::Env, wallet_objects: crate::WalletObjectRoute) -> Self {
+        Self { env, wallet_objects }
     }
 }
 
@@ -48,6 +49,7 @@ impl CloudflareRouterAbEcdsaNormalSigningServiceTransportV1
                 CloudflareRouterAbEcdsaNormalSigningServiceRequestV1::Prepare(request) => {
                     let response = post_service_json_with_router_to_signing_worker_ecdsa_auth(
                         self.env,
+                        self.wallet_objects,
                         &peer.binding_name,
                         &cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_url(peer)?,
                         "Router A/B ECDSA derivation prepare",
@@ -59,6 +61,7 @@ impl CloudflareRouterAbEcdsaNormalSigningServiceTransportV1
                 CloudflareRouterAbEcdsaNormalSigningServiceRequestV1::Finalize(request) => {
                     let response = post_service_json_with_router_to_signing_worker_ecdsa_auth(
                         self.env,
+                        self.wallet_objects,
                         &peer.binding_name,
                         &cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_url(peer)?,
                         "Router A/B ECDSA derivation finalize",
@@ -308,7 +311,12 @@ mod tests {
         let admission =
             trusted_admission(&request.scope, request.request_digest().expect("digest"));
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
-            request, admission,
+            1,
+            CloudflareSigningWorkerWalletScopeV1::new(
+                "org-1", "project-1", "dev", &request.scope.wallet_id,
+            ).expect("wallet scope"),
+            request,
+            admission,
         )
         .expect("admitted prepare")
     }
@@ -369,6 +377,14 @@ mod tests {
             }
         };
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+            1,
+            CloudflareSigningWorkerWalletScopeV1::new(
+                "org-1",
+                "project-1",
+                "dev",
+                &request.scope.wallet_id,
+            )
+            .expect("wallet scope"),
             request,
             admission,
             authorized_operation_identity,

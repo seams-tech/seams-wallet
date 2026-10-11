@@ -1,16 +1,15 @@
 export {
   createPublicApi,
+  createApplicationPublicApi,
   type KeyExportCapabilityDomainMethods,
   type RegistrationCapabilityDomainMethods,
   type SeamsWebPublicApi,
-  type WalletIframeControlCapability,
 } from './createPublicApi';
 export {
   createDevicesCapability,
-  createWalletIframeLinkedDeviceManagementPortV1,
   parseLinkedDeviceListResultV1,
   parseLinkedDeviceRevokeResultV1,
   parseLinkedDeviceSummaryV1,
-  type DevicesCapabilityDomainMethods,
+  type DeviceCommands,
   type LinkedDeviceManagementPortV1,
 } from './devices';

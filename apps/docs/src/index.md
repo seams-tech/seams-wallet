@@ -5,24 +5,29 @@ description: Install Seams, create a wallet, and sign your first operation.
 
 # Start here
 
-Get a working wallet path running before you add recovery, linked devices, or
-delegated authority. You need a React app and a Seams project with a wallet
-origin, relayer URL, and managed-registration credentials.
+Create a wallet and sign a transaction before you add recovery, linked devices, or
+delegated authority. You need a React app and a Seams project with a wallet origin,
+relayer URL, and managed-registration credentials.
 
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet
+pnpm add @seams/wallet@0.9.0
 ```
 
 ## 2. Mount the provider
 
 Configure the isolated wallet origin once near the root of your app.
-`seamsTestnetConfig` takes the four values a wallet cannot start without and
-fills in the rest from the SDK defaults. The example reads them from
-`import.meta.env`; use the same names in your own environment or replace them
-with your config loader. Pass `chains` to configure different networks, or use
-`defineSeamsConfig` when you are not on testnet.
+`seamsTestnetConfig` requires the wallet origin, relayer URL, and managed-registration
+credentials. It uses SDK defaults for the remaining settings. The example reads these
+values from `import.meta.env`. Use the same environment variable names or your own
+configuration loader. Pass `chains` to configure different networks. Use
+`defineSeamsConfig` for networks other than testnet.
+
+These docs target `@seams/wallet` **0.9.0**. Keep the wallet-origin assets and
+`@seams/wallet-server` on the matching release. See
+[upgrading to 0.9.0](/deploy-and-operate/hosted-integration#upgrading-to-0-9-0)
+before updating an existing integration.
 
 <<< ./examples/setup.tsx
 
@@ -31,8 +36,9 @@ assets on the configured wallet origin.
 
 ## 3. Create a wallet
 
-Render the button from the registration example inside the provider. A click
-opens the passkey prompt and logs progress and the branch-specific result.
+Render the button from the registration example inside the provider. When the user
+clicks it, the SDK opens the passkey prompt. The example logs progress and the result
+for that registration outcome.
 
 <<< ./examples/registration.tsx
 
@@ -41,10 +47,10 @@ and retry guidance.
 
 ## 4. Sign a transaction
 
-Registration leaves the wallet ready to sign. `useWallet()` gives you the
-signed-in wallet with signing bound to it, so a call names only the
-transaction. Each request opens the wallet confirmation, and the user approves
-that transaction with the wallet's auth method.
+After the requested signer is ready, `useWallet()` provides signing methods for the
+signed-in wallet. Pass only the transaction to these methods. Each request opens the
+wallet confirmation. The user approves that transaction with the wallet's authentication
+method.
 
 To target a wallet other than the signed-in one, use `useSeams().seams` and
 pass an exact `walletSession` on the call.
@@ -52,17 +58,17 @@ pass an exact `walletSession` on the call.
 - [Sign a NEAR transaction](/getting-started/sign-with-policy#near-transaction)
 - [Execute an EVM-family transaction](/getting-started/sign-with-policy#evm-family-transaction)
 
-Build actions with `functionCall`, `transfer`, and friends rather than the raw
-`{ type: ActionType.FunctionCall, … }` shape, and pass `logWalletEvents()` to
-`onEvent` when you just want progress in the console.
+Build actions with helpers such as `functionCall` and `transfer`. Avoid constructing raw
+objects such as `{ type: ActionType.FunctionCall, … }`. Pass `logWalletEvents()` to
+`onEvent` to log progress in the console.
 
-`seams.evm` and `seams.tempo` mirror each other — `signTransaction`,
-`executeTransaction`, `advanced` — and stay separate because an EVM
-transaction is EIP-1559 and a Tempo one is EIP-2718.
+`seams.evm` and `seams.tempo` both provide `signTransaction`, `signAndSendTransaction`, and
+`advanced`. They use separate transaction formats: EIP-1559 for EVM and EIP-2718 for
+Tempo.
 
-There is no unlock step here. When your product needs repeated signatures
-without a prompt for each one, provision a signing session: read [wallet
-sessions and signing lanes](/guides/wallet-sessions-and-signing-lanes).
+These requests need no unlock step. To allow repeated signatures without a prompt for
+each one, create a signing session. Read [wallet sessions and signing
+lanes](/guides/wallet-sessions-and-signing-lanes).
 
 ## Add advanced capabilities
 

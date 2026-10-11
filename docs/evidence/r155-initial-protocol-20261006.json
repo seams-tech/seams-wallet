@@ -1,0 +1,789 @@
+{
+  "kind": "initial_protocol_duplicate_work_comparison_v1",
+  "date": "2026-10-06",
+  "scope": "NRT native browser, APAC hosted staging, same frozen SDK with registration-response prefill, same registration-host startup, changed SigningWorker base-ROT arithmetic only. The browser client WASM is unchanged. Full MPC signing includes automated approval and excludes blockchain broadcast and confirmation.",
+  "controlSigningWorkerVersion": "00d01efe-1aa9-440b-a3e7-3f37caa478f4",
+  "arms": {
+    "control": {
+      "wallets": 3,
+      "verifiedSignatures": 9,
+      "registration": {
+        "samples": [
+          6491.79075,
+          6441.321333,
+          5845.4345840000005
+        ],
+        "medianMs": 6441.321333,
+        "maximumMs": 6491.79075
+      },
+      "firstSigning": {
+        "samples": [
+          3104.189999997616,
+          3784.4550000429153,
+          3433.020000040531
+        ],
+        "medianMs": 3433.020000040531,
+        "maximumMs": 3784.4550000429153
+      },
+      "firstSigningRefillWait": {
+        "samples": [
+          1184.7999999523163,
+          851,
+          1815.699999988079
+        ],
+        "medianMs": 1184.7999999523163,
+        "maximumMs": 1815.699999988079
+      },
+      "initialPrefillScheduling": {
+        "samples": [
+          18.19999998807907,
+          17.69999998807907,
+          18.700000047683716
+        ],
+        "medianMs": 18.19999998807907,
+        "maximumMs": 18.700000047683716
+      },
+      "firstGeneration": {
+        "samples": [
+          2856.5,
+          3829.199999988079,
+          3030.699999988079
+        ],
+        "medianMs": 3030.699999988079,
+        "maximumMs": 3829.199999988079
+      },
+      "firstStepWorkerToDo": {
+        "samples": [
+          79,
+          61,
+          126
+        ],
+        "medianMs": 79,
+        "maximumMs": 126
+      },
+      "firstInitWorkerToDo": {
+        "samples": [
+          665,
+          695,
+          746
+        ],
+        "medianMs": 695,
+        "maximumMs": 746
+      },
+      "statusRequestsBeforeFirstInit": [
+        2,
+        2,
+        2
+      ],
+      "followingSignatures": {
+        "samples": [
+          1659.6399999856949,
+          1977.535000026226,
+          3606.104999959469,
+          1789.4800000190735,
+          2690.8799999952316,
+          2031.6949999928474
+        ],
+        "medianMs": 2004.6150000095367,
+        "maximumMs": 3606.104999959469
+      }
+    },
+    "candidate": {
+      "wallets": 3,
+      "verifiedSignatures": 9,
+      "registration": {
+        "samples": [
+          5794.222041000001,
+          5728.447083,
+          5685.130791
+        ],
+        "medianMs": 5728.447083,
+        "maximumMs": 5794.222041000001
+      },
+      "firstSigning": {
+        "samples": [
+          4347.615000009537,
+          3492.7150000333786,
+          4075.3650000095367
+        ],
+        "medianMs": 4075.3650000095367,
+        "maximumMs": 4347.615000009537
+      },
+      "firstSigningRefillWait": {
+        "samples": [
+          2358.2000000476837,
+          1525.3999999761581,
+          2210.099999964237
+        ],
+        "medianMs": 2210.099999964237,
+        "maximumMs": 2358.2000000476837
+      },
+      "initialPrefillScheduling": {
+        "samples": [
+          19.19999998807907,
+          18.30000001192093,
+          18.19999998807907
+        ],
+        "medianMs": 18.30000001192093,
+        "maximumMs": 19.19999998807907
+      },
+      "firstGeneration": {
+        "samples": [
+          3711.099999964237,
+          2691.5,
+          3389.199999988079
+        ],
+        "medianMs": 3389.199999988079,
+        "maximumMs": 3711.099999964237
+      },
+      "firstStepWorkerToDo": {
+        "samples": [
+          50,
+          81,
+          592
+        ],
+        "medianMs": 81,
+        "maximumMs": 592
+      },
+      "firstInitWorkerToDo": {
+        "samples": [
+          687,
+          571,
+          698
+        ],
+        "medianMs": 687,
+        "maximumMs": 698
+      },
+      "statusRequestsBeforeFirstInit": [
+        2,
+        2,
+        2
+      ],
+      "followingSignatures": {
+        "samples": [
+          3579.875,
+          1780.289999961853,
+          2400.824999988079,
+          1744.2800000309944,
+          1776.0349999666214,
+          1889.7300000190735
+        ],
+        "medianMs": 1835.0099999904633,
+        "maximumMs": 3579.875
+      }
+    }
+  },
+  "caveats": [
+    "Three fresh wallets per hosted arm; this run does not establish a latency distribution or a causal end-to-end change.",
+    "Hosted first signing and first generation medians were slower in the candidate. No hosted first-signature speedup is claimed.",
+    "Only SigningWorker changed in hosted acceptance. The browser client WASM and all other deployments were held fixed.",
+    "Following signatures overlap registration and refill; they are not a ready-material benchmark.",
+    "Native computation fell 25%; native savings cannot be treated as a hosted latency estimate.",
+    "The change removes duplicate curve arithmetic; it does not remove any protocol messages or network requests."
+  ],
+  "candidateSigningWorkerVersion": "7ec20bf3-2209-4fd9-a652-84532e7cc583",
+  "native": {
+    "control": {
+      "schema": "seams.refactor89.local-ecdsa-lifecycle-timing.v1",
+      "profile": "release",
+      "iterations": 25,
+      "medianMs": {
+        "presignSessionInitializeBothRoles": 0.444,
+        "presignTripleRounds": 34.958,
+        "presignFinalRounds": 0.165,
+        "presignTotal": 35.552,
+        "onlineClientShare": 0.041,
+        "onlineSigningWorkerFinalizeAndVerify": 0.156
+      },
+      "lastRecoveryId": 0,
+      "transcriptDigestSha256": "140399364606c72ebea4694391346efce504405bcb8e590991fad3ab2ed15324",
+      "signatureDigestSha256": "c599af94fd27314aa48de151ff51050fe3a1f1108a4a814791480e771e37c872"
+    },
+    "candidate": {
+      "schema": "seams.refactor89.local-ecdsa-lifecycle-timing.v1",
+      "profile": "release",
+      "iterations": 25,
+      "medianMs": {
+        "presignSessionInitializeBothRoles": 0.439,
+        "presignTripleRounds": 26.037,
+        "presignFinalRounds": 0.163,
+        "presignTotal": 26.661,
+        "onlineClientShare": 0.041,
+        "onlineSigningWorkerFinalizeAndVerify": 0.156
+      },
+      "lastRecoveryId": 0,
+      "transcriptDigestSha256": "140399364606c72ebea4694391346efce504405bcb8e590991fad3ab2ed15324",
+      "signatureDigestSha256": "c599af94fd27314aa48de151ff51050fe3a1f1108a4a814791480e771e37c872"
+    },
+    "reproduce": "cargo run --release --manifest-path crates/router-ab-ecdsa-presign/Cargo.toml --example local_lifecycle_timing",
+    "interpretation": "Both participants use the optimized code. Native timing excludes storage and network calls. Transcript and signature hashes match the control across 25 deterministic sessions."
+  },
+  "initialRequests": {
+    "control": [
+      [
+        {
+          "operation": "init",
+          "browserRequestElapsedMs": 1126.561,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 7,
+            "ecdsa_presign_proxy": 911,
+            "ecdsa_presign_total": 926,
+            "ecdsa_presign_sw_material": 50,
+            "ecdsa_presign_sw_session": 665,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 715
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 367.46,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 15,
+            "ecdsa_presign_material": 9,
+            "ecdsa_presign_proxy": 97,
+            "ecdsa_presign_total": 121,
+            "ecdsa_presign_sw_session": 79,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 79
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 255.948,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 12,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 23,
+            "ecdsa_presign_total": 43,
+            "ecdsa_presign_sw_session": 16,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 16
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 324.565,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 9,
+            "ecdsa_presign_material": 6,
+            "ecdsa_presign_proxy": 37,
+            "ecdsa_presign_total": 52,
+            "ecdsa_presign_sw_session": 19,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 19
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 288.806,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 51,
+            "ecdsa_presign_material": 6,
+            "ecdsa_presign_proxy": 33,
+            "ecdsa_presign_total": 90,
+            "ecdsa_presign_sw_session": 22,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 22
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 400.006,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 11,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 183,
+            "ecdsa_presign_total": 202,
+            "ecdsa_presign_sw_session": 13,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_admit": 134,
+            "ecdsa_presign_sw_total": 147
+          }
+        }
+      ],
+      [
+        {
+          "operation": "init",
+          "browserRequestElapsedMs": 1036.808,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 7,
+            "ecdsa_presign_proxy": 782,
+            "ecdsa_presign_total": 799,
+            "ecdsa_presign_sw_material": 71,
+            "ecdsa_presign_sw_session": 695,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 766
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 765.526,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 68,
+            "ecdsa_presign_total": 84,
+            "ecdsa_presign_sw_session": 61,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 61
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 799.46,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 466,
+            "ecdsa_presign_total": 484,
+            "ecdsa_presign_sw_session": 456,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 456
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 423.978,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 11,
+            "ecdsa_presign_material": 10,
+            "ecdsa_presign_proxy": 32,
+            "ecdsa_presign_total": 53,
+            "ecdsa_presign_sw_session": 23,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 23
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 290.584,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 41,
+            "ecdsa_presign_material": 9,
+            "ecdsa_presign_proxy": 40,
+            "ecdsa_presign_total": 90,
+            "ecdsa_presign_sw_session": 34,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 34
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 421.397,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 9,
+            "ecdsa_presign_material": 7,
+            "ecdsa_presign_proxy": 216,
+            "ecdsa_presign_total": 232,
+            "ecdsa_presign_sw_session": 12,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_admit": 185,
+            "ecdsa_presign_sw_total": 197
+          }
+        }
+      ],
+      [
+        {
+          "operation": "init",
+          "browserRequestElapsedMs": 1036.093,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 12,
+            "ecdsa_presign_material": 11,
+            "ecdsa_presign_proxy": 809,
+            "ecdsa_presign_total": 832,
+            "ecdsa_presign_sw_material": 47,
+            "ecdsa_presign_sw_session": 746,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 793
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 372.895,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 9,
+            "ecdsa_presign_proxy": 133,
+            "ecdsa_presign_total": 150,
+            "ecdsa_presign_sw_session": 126,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 126
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 295.15,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 10,
+            "ecdsa_presign_proxy": 67,
+            "ecdsa_presign_total": 87,
+            "ecdsa_presign_sw_session": 62,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 62
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 385.092,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 11,
+            "ecdsa_presign_material": 9,
+            "ecdsa_presign_proxy": 77,
+            "ecdsa_presign_total": 97,
+            "ecdsa_presign_sw_session": 67,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 67
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 287.555,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 7,
+            "ecdsa_presign_material": 7,
+            "ecdsa_presign_proxy": 35,
+            "ecdsa_presign_total": 49,
+            "ecdsa_presign_sw_session": 29,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 29
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 561.275,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 203,
+            "ecdsa_presign_total": 221,
+            "ecdsa_presign_sw_session": 50,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_admit": 137,
+            "ecdsa_presign_sw_total": 187
+          }
+        }
+      ]
+    ],
+    "candidate": [
+      [
+        {
+          "operation": "init",
+          "browserRequestElapsedMs": 1095.662,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 22,
+            "ecdsa_presign_proxy": 878,
+            "ecdsa_presign_total": 910,
+            "ecdsa_presign_sw_material": 48,
+            "ecdsa_presign_sw_session": 687,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 735
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 556.856,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 13,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 64,
+            "ecdsa_presign_total": 85,
+            "ecdsa_presign_sw_session": 50,
+            "ecdsa_presign_sw_do_total": 1,
+            "ecdsa_presign_sw_total": 50
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 286.185,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 16,
+            "ecdsa_presign_proxy": 21,
+            "ecdsa_presign_total": 47,
+            "ecdsa_presign_sw_session": 17,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 17
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 933.571,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 9,
+            "ecdsa_presign_proxy": 634,
+            "ecdsa_presign_total": 651,
+            "ecdsa_presign_sw_session": 500,
+            "ecdsa_presign_sw_do_total": 3,
+            "ecdsa_presign_sw_total": 500
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 278.817,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 31,
+            "ecdsa_presign_total": 47,
+            "ecdsa_presign_sw_session": 25,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 25
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 467.579,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 12,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 177,
+            "ecdsa_presign_total": 197,
+            "ecdsa_presign_sw_session": 12,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_admit": 139,
+            "ecdsa_presign_sw_total": 151
+          }
+        }
+      ],
+      [
+        {
+          "operation": "init",
+          "browserRequestElapsedMs": 844.829,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 10,
+            "ecdsa_presign_proxy": 632,
+            "ecdsa_presign_total": 650,
+            "ecdsa_presign_sw_material": 47,
+            "ecdsa_presign_sw_session": 571,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 618
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 356.451,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 11,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 87,
+            "ecdsa_presign_total": 106,
+            "ecdsa_presign_sw_session": 81,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 81
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 231.293,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 6,
+            "ecdsa_presign_material": 8,
+            "ecdsa_presign_proxy": 17,
+            "ecdsa_presign_total": 31,
+            "ecdsa_presign_sw_session": 12,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 12
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 435.456,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 6,
+            "ecdsa_presign_material": 5,
+            "ecdsa_presign_proxy": 73,
+            "ecdsa_presign_total": 84,
+            "ecdsa_presign_sw_session": 65,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 65
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 286.214,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 7,
+            "ecdsa_presign_material": 5,
+            "ecdsa_presign_proxy": 73,
+            "ecdsa_presign_total": 85,
+            "ecdsa_presign_sw_session": 68,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 68
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 443.247,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 7,
+            "ecdsa_presign_material": 45,
+            "ecdsa_presign_proxy": 199,
+            "ecdsa_presign_total": 251,
+            "ecdsa_presign_sw_session": 45,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_admit": 135,
+            "ecdsa_presign_sw_total": 180
+          }
+        }
+      ],
+      [
+        {
+          "operation": "init",
+          "browserRequestElapsedMs": 979.61,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 9,
+            "ecdsa_presign_proxy": 779,
+            "ecdsa_presign_total": 796,
+            "ecdsa_presign_sw_material": 68,
+            "ecdsa_presign_sw_session": 698,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 766
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 845.537,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 8,
+            "ecdsa_presign_material": 6,
+            "ecdsa_presign_proxy": 600,
+            "ecdsa_presign_total": 614,
+            "ecdsa_presign_sw_session": 592,
+            "ecdsa_presign_sw_do_total": 1,
+            "ecdsa_presign_sw_total": 592
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 321.696,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 11,
+            "ecdsa_presign_material": 11,
+            "ecdsa_presign_proxy": 60,
+            "ecdsa_presign_total": 82,
+            "ecdsa_presign_sw_session": 50,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 50
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 387.762,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 15,
+            "ecdsa_presign_material": 10,
+            "ecdsa_presign_proxy": 74,
+            "ecdsa_presign_total": 99,
+            "ecdsa_presign_sw_session": 62,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 62
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 270.069,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 10,
+            "ecdsa_presign_material": 12,
+            "ecdsa_presign_proxy": 69,
+            "ecdsa_presign_total": 91,
+            "ecdsa_presign_sw_session": 64,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_total": 65
+          }
+        },
+        {
+          "operation": "step",
+          "browserRequestElapsedMs": 492.295,
+          "stagesMs": {
+            "ecdsa_presign_authenticate": 33,
+            "ecdsa_presign_material": 23,
+            "ecdsa_presign_proxy": 201,
+            "ecdsa_presign_total": 257,
+            "ecdsa_presign_sw_session": 52,
+            "ecdsa_presign_sw_do_total": 0,
+            "ecdsa_presign_sw_admit": 129,
+            "ecdsa_presign_sw_total": 181
+          }
+        }
+      ]
+    ]
+  },
+  "validation": {
+    "presignCrateTests": "46 tests, 1 protocol scheduling integration test, and 7 compile-fail doctests passed",
+    "nativeProtocolComparison": "25 signatures per arm; transcript and signature hashes match",
+    "hostedControl": "9 signatures verified",
+    "hostedCandidate": "9 signatures verified",
+    "browserClientWasmCheck": "passed",
+    "releaseSigningWorkerBuild": "passed",
+    "bloatCheck": "passed; no ratcheted measure grew",
+    "constantTimeReview": "Source review: existing scalar multiplication and complete projective subtraction, unchanged rejection and selection, no new secret-dependent branch/index/loop. Not a WASM runtime side-channel proof."
+  },
+  "sourceSha256": {
+    "controlBaseRot": "65c2e103f754de112e35f9f389d718fbd3f232076b493126719834cd20dd47d9",
+    "candidateBaseRot": "92ac5731e903d2f6527a3a542dae315dc6e0b49f33db601c5f21df45936201df"
+  },
+  "restoredStagingVersions": [
+    {
+      "script": "seams-sdk-d1-gateway-staging",
+      "versions": [
+        {
+          "version_id": "cebc5a92-875f-4b52-8c42-2fa4b499b398",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "seams-sdk-d1-console-staging",
+      "versions": [
+        {
+          "version_id": "55ec63ea-d332-4ada-a181-8f968aed3b59",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-signing-worker-staging",
+      "versions": [
+        {
+          "version_id": "137dfce9-8ac7-4dbf-be2b-de0b1171f01d",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-mpc-router-staging",
+      "versions": [
+        {
+          "version_id": "2eafdb55-95e8-4d20-b091-c3e744d3aa05",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-a-staging",
+      "versions": [
+        {
+          "version_id": "9fdd3b52-b26a-4125-854a-ff1f5701662c",
+          "percentage": 100
+        }
+      ]
+    },
+    {
+      "script": "router-ab-deriver-b-staging",
+      "versions": [
+        {
+          "version_id": "5c5de8e7-3bb6-46de-bdfb-25deb77387ba",
+          "percentage": 100
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,8 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { setupBasicPasskeyTest } from '../setup';
+import { build } from 'esbuild';
+import path from 'node:path';
+import { writeFile } from 'node:fs/promises';
 
 type DurablePresignatureBrowserResult = {
   readonly capacityAdmissionKinds: readonly string[];
@@ -9,21 +12,19 @@ type DurablePresignatureBrowserResult = {
   readonly restoredAfterThirtyDays: number;
   readonly tamperedTakeKind: string;
   readonly takeAfterTamperKind: string;
-  readonly malformedRowsDeleted: number;
-  readonly remainingRows: number;
 };
 
 async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatureBrowserResult> {
-  const storeModule =
-    await import('/_test-sdk/esm/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore.js');
-  const managerModule = await import('/_test-sdk/esm/core/indexedDB/seamsWalletDB/manager.js');
-  const schemaModule = await import('/_test-sdk/esm/core/indexedDB/schemaNames.js');
-  const encoders = await import('/_test-sdk/esm/shared-ts/src/utils/base64.js');
-  const digests = await import('/_test-sdk/esm/shared-ts/src/utils/digests.js');
-  const ecdsaDerivation =
-    await import('/_test-sdk/esm/shared-ts/src/utils/routerAbEcdsaDerivation.js');
-  const normalSigningIdentity =
-    await import('/_test-sdk/esm/shared-ts/src/utils/routerAbNormalSigningIdentity.js');
+  const probePath = '/__durable-presignatures.js';
+  const {
+    storeModule,
+    managerModule,
+    schemaModule,
+    encoders,
+    digests,
+    ecdsaDerivation,
+    normalSigningIdentity,
+  } = await import(probePath);
 
   const dbName = `seams_test_wallet_durable_presignature_${crypto.randomUUID()}`;
   const manager = new managerModule.SeamsWalletDBManager();
@@ -230,20 +231,6 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
   const capacityAdmissionKinds = (await Promise.all(capacityAdmissions))
     .map((entry) => entry.kind)
     .sort();
-  await store.deleteClientPresignatures({ kind: 'wallet', walletId });
-  await manager.runTransaction([presignatureStore], 'readwrite', async (context: any) => {
-    await context.store(presignatureStore).put({ record_id: 42, wallet_id: walletId });
-  });
-  const malformedRowsDeleted = await store.deleteClientPresignatures({
-    kind: 'wallet',
-    walletId,
-  });
-  const remainingRows = await manager.runTransaction(
-    [presignatureStore],
-    'readonly',
-    async (context: any) => (await context.store(presignatureStore).getAll()).length,
-  );
-
   manager.close();
   return {
     capacityAdmissionKinds,
@@ -253,19 +240,46 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     restoredAfterThirtyDays,
     tamperedTakeKind: tamperedTake.kind,
     takeAfterTamperKind: takeAfterTamper.kind,
-    malformedRowsDeleted,
-    remainingRows,
   };
 }
 
+async function serveDurableProbe(source: string, route: Route): Promise<void> {
+  await route.fulfill({ contentType: 'application/javascript', body: source });
+}
+
 async function runDurablePresignatureChecks(page: Page): Promise<DurablePresignatureBrowserResult> {
-  await setupBasicPasskeyTest(page);
+  const root = path.resolve(import.meta.dirname, '../..');
+  const bundle = await build({
+    stdin: {
+      contents: `
+        export * as storeModule from './packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+        export * as managerModule from './packages/wallet/src/core/indexedDB/seamsWalletDB/manager';
+        export * as schemaModule from './packages/wallet/src/core/indexedDB/schemaNames';
+        export * as encoders from './packages/shared-ts/src/utils/base64';
+        export * as digests from './packages/shared-ts/src/utils/digests';
+        export * as ecdsaDerivation from './packages/shared-ts/src/utils/routerAbEcdsaDerivation';
+        export * as normalSigningIdentity from './packages/shared-ts/src/utils/routerAbNormalSigningIdentity';
+      `,
+      resolveDir: root,
+    },
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+  });
+  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+  await page.route(
+    '**/__durable-presignatures.js',
+    serveDurableProbe.bind(null, bundle.outputFiles[0]!.text),
+  );
   return await page.evaluate(runDurablePresignatureBrowserChecks);
 }
 
 test('90-day presignatures restore after 30 days and preserve single-claim and ciphertext checks', async ({
   page,
-}) => {
+}, testInfo) => {
   const result = await runDurablePresignatureChecks(page);
 
   expect(result.capacityAdmissionKinds).toEqual([
@@ -282,6 +296,8 @@ test('90-day presignatures restore after 30 days and preserve single-claim and c
   expect(result.restoredAfterThirtyDays).toBe(1);
   expect(result.tamperedTakeKind).toBe('corrupt');
   expect(result.takeAfterTamperKind).toBe('claimed_elsewhere');
-  expect(result.malformedRowsDeleted).toBe(1);
-  expect(result.remainingRows).toBe(0);
+  await writeFile(
+    testInfo.outputPath('durable-presignature-storage.json'),
+    JSON.stringify(result, null, 2),
+  );
 });

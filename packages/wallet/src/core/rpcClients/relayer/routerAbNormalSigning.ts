@@ -1,13 +1,20 @@
+import { parseWalletSessionId, parseMpcWalletSigningQuotaId } from '@shared/authorization/capabilityKinds';
+import { requireRecord } from '@shared/utils/validation';
+import {
+  parseExactWalletSessionStatusResponse,
+  WalletSessionStatusReadScope,
+} from './walletSessionAuthorizationStatus';
+import type { PreparedWalletSessionStatus } from './walletSessionAuthorizationStatus';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import { parseEcdsaPrepareSessionResponse, type EcdsaPrepareSessionResult } from './ecdsaPrepareSession';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   routerAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestDigestV1,
   routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1,
-  parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1,
   parseRouterAbEcdsaDerivationEvmDigestSigningResponseForCoreRequestV1,
   parseRouterAbEcdsaOperationStepUpPreparationV1,
   type RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1Wire,
-  type RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningResponseV1Wire,
   type RouterAbOwnerOperationAuthorizationDecisionV1Wire,
@@ -17,7 +24,8 @@ import type {
   RouterAbEd25519OperationStepUpPreparationV1Wire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
-  buildBearerAuthorizationHeader,
+  buildWalletSessionAuthorizationHeaders,
+  fetchWithWalletHomeDiscovery,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
@@ -107,6 +115,7 @@ function routerAbNormalSigningAdmissionErrorFromPayload(args: {
 
 type RouterAbOpaqueWalletSessionCredential = {
   kind: 'wallet_session_opaque';
+  home: WalletSessionHome;
   walletSessionToken: string;
 };
 
@@ -120,6 +129,10 @@ export type RouterAbEd25519NormalSigningCredential =
 
 export type RouterAbOwnerNormalSigningCredential =
   RouterAbOpaqueWalletSessionCredential | { kind: 'operation_step_up' };
+
+export type RouterAbEcdsaPresignCredential = RouterAbOwnerNormalSigningCredential & {
+  readonly ownershipGeneration: number;
+};
 
 export type RouterAbPublicDigest32Wire = {
   bytes: readonly number[];
@@ -422,8 +435,8 @@ function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
   const out: number[] = [];
   pushU32Le(out, NEP413_PREFIX);
   pushBorshString(out, message);
-  pushBorshString(out, recipient);
   pushBytes(out, nonce);
+  pushBorshString(out, recipient);
   if (callbackUrl) {
     out.push(1);
     pushBorshString(out, callbackUrl);
@@ -1042,11 +1055,11 @@ function buildRouterAbRequestInit(args: {
     args.credential.kind === 'wallet_session_opaque'
       ? {
           token: args.credential.walletSessionToken,
-          missingMessage: 'walletSessionToken is required',
+          home: args.credential.home,
         }
       : null;
   const init = buildRelayerJsonPostRequestInit({
-    ...(bearer ? { headers: buildBearerAuthorizationHeader(bearer) } : {}),
+    ...(bearer ? { headers: buildWalletSessionAuthorizationHeaders(bearer) } : {}),
     body: args.body,
   });
   return init;
@@ -1325,10 +1338,12 @@ async function postRouterAbNormalSigningJson<T>(args: {
     throw new Error('fetch is not available for Router A/B normal-signing request');
   }
   const base = normalizeRelayerBaseUrl(coerceNonEmptyString(args.relayServerUrl, 'relayServerUrl'));
-  const response = await fetch(`${base}${args.path}`, {
-    ...buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
-    signal: args.signal,
-  });
+  const response = await fetchWithWalletHomeDiscovery(
+    new Request(`${base}${args.path}`, {
+      ...buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
+      signal: args.signal,
+    }),
+  );
   try {
     args.onServerTiming?.(response.headers.get('Server-Timing'));
   } catch {
@@ -1336,26 +1351,79 @@ async function postRouterAbNormalSigningJson<T>(args: {
   }
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
-    throw routerAbSigningHttpError({
+    const error = routerAbSigningHttpError({
       path: args.path,
       status: response.status,
       bodyText: errorText,
     });
+    if (
+      args.credential.kind === 'wallet_session_opaque' &&
+      error instanceof WalletSessionQuotaAdmissionError &&
+      error.failure.kind === 'exhausted'
+    ) {
+      WalletSessionStatusReadScope.forgetCredential(args.credential.walletSessionToken);
+    }
+    throw error;
   }
   return args.parse(await response.json());
+}
+
+type Ed25519PrepareSessionResult =
+  | {
+      readonly kind: 'reusable_wallet_session';
+      readonly signing: RouterAbNormalSigningPrepareResponseV1Wire;
+      readonly sessionStatus: PreparedWalletSessionStatus;
+    }
+  | {
+      readonly kind: 'operation_step_up';
+      readonly signing: RouterAbNormalSigningPrepareResponseV1Wire;
+      readonly sessionStatus?: never;
+    };
+
+function parseEd25519PrepareSessionResponse(
+  request: RouterAbNormalSigningPrepareRequestV2Wire,
+  value: unknown,
+): Ed25519PrepareSessionResult {
+  const response = requireRecord(value, 'Ed25519 prepare response');
+  if (response.kind !== request.scope.authorization.kind) {
+    throw new Error('Ed25519 prepare authorization kind does not match the request');
+  }
+  const signing = parsePrepareResponse(response.signing);
+  if (request.scope.authorization.kind === 'operation_step_up') {
+    requireExactRecordFields(response, ['kind', 'signing'], 'Ed25519 step-up prepare response');
+    return { kind: 'operation_step_up', signing };
+  }
+  requireExactRecordFields(
+    response,
+    ['kind', 'signing', 'session_status'],
+    'Ed25519 session prepare response',
+  );
+  const snapshot = requireRecord(response.session_status, 'Ed25519 prepare session status');
+  const walletSessionId = parseWalletSessionId(request.scope.authorization.wallet_session_id);
+  const quotaId = parseMpcWalletSigningQuotaId(snapshot.quotaId);
+  if (!walletSessionId.ok || !quotaId.ok)
+    throw new Error('Invalid Ed25519 prepare session identity');
+  const status = parseExactWalletSessionStatusResponse(snapshot, {
+    walletSessionId: walletSessionId.value,
+    quotaId: quotaId.value,
+  });
+  if (!status || status.status !== 'active') {
+    throw new Error('Ed25519 prepare did not return an active Wallet Session');
+  }
+  return { kind: 'reusable_wallet_session', signing, sessionStatus: status };
 }
 
 export async function prepareRouterAbNormalSigningV2(args: {
   relayServerUrl: string;
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbNormalSigningPrepareRequestV2Wire;
-}): Promise<RouterAbNormalSigningPrepareResponseV1Wire> {
+}): Promise<Ed25519PrepareSessionResult> {
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
     path: '/router-ab/ed25519/sign/prepare',
     credential: args.credential,
     body: args.request,
-    parse: parsePrepareResponse,
+    parse: parseEd25519PrepareSessionResponse.bind(null, args.request),
   });
 }
 
@@ -1364,7 +1432,7 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire;
   onServerTiming?: (header: string | null) => void;
-}): Promise<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire> {
+}): Promise<EcdsaPrepareSessionResult> {
   await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(args.request);
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
@@ -1372,8 +1440,7 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
     onServerTiming: args.onServerTiming,
     credential: args.credential,
     body: args.request,
-    parse: (value) =>
-      parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1(args.request, value),
+    parse: parseEcdsaPrepareSessionResponse.bind(null, args.request),
   });
 }
 

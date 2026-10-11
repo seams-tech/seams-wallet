@@ -1,3 +1,15 @@
+import {
+  resolveEd25519WalletSessionOperation,
+  revalidateEd25519StepUpOperation,
+} from './ed25519AuthorizedOperationRevalidation';
+import { signingPrepareSessionResponse } from '../../../domains/signingOperations/signingPrepareSession';
+import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
+import {
+  buildAuthorizedOperationWire,
+  type AuthorizedOperationBindingWire,
+  type AuthorizedOperationWireInput,
+  type OperationStepUpBinding,
+} from '../../../domains/signingOperations/authorizedOperationWire';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
 import { thresholdEd25519StatusCode } from '../../../../threshold/statusCodes';
@@ -41,7 +53,6 @@ import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseAuthorizationAuditEventId,
   buildAuthorizationGrantRef,
-  buildNearEd25519MpcOperationRef,
   parseAuthFactorId,
   parseAuthorizedOperationId,
   parseCapabilityId,
@@ -56,12 +67,9 @@ import {
   parseCapabilityOperationFingerprintDigest,
   parseSigningOperationFingerprintDigest,
 } from '@shared/authorization/operationFingerprint';
-import type { CapabilityOperationEnvelope } from '@shared/authorization/operationFingerprint';
-import type { CapabilityOperationRef } from '@shared/authorization/capabilityKinds';
 import {
   authorizedOperationReplayBodyInit,
   type AuthorizedOperation,
-  type AuthorizedOperationInput,
   type AuthorizedOperationReplayResponse,
 } from '../../../../authorization/domain';
 import {
@@ -116,6 +124,7 @@ type Ed25519AuthorizedOperationAdmission =
   | {
       readonly kind: 'claimed';
       readonly operation: AuthorizedOperation;
+      readonly ownerScope: PinnedOwnerWalletScope;
       readonly receipt: Ed25519ReusableAuthorizedOperationReceipt;
     }
   | {
@@ -185,12 +194,13 @@ function ed25519ReusableWalletSessionIdentity(
 
 function buildEd25519GatewayOwnerWalletSessionBinding(
   authorization: AcceptedEd25519WalletSessionAuthorization,
-  projectEnvironmentId: string,
+  pinned: PinnedOwnerWalletScope,
 ) {
   const session = ed25519ReusableWalletSession(authorization);
   const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
   return {
     kind: 'gateway_owner_wallet_session' as const,
+    ownershipGeneration: pinned.ownershipGeneration,
     subjectId: String(session.principalId),
     accountId: String(session.walletId),
     authorizationId: String(session.authorizationId),
@@ -200,27 +210,22 @@ function buildEd25519GatewayOwnerWalletSessionBinding(
     orgId: runtimePolicyScope.orgId,
     projectId: runtimePolicyScope.projectId,
     environment: runtimePolicyScope.envId,
-    projectEnvironmentId,
+    projectEnvironmentId: pinned.projectEnvironmentId,
     signingWorkerId: authorization.activeMaterial.signingWorkerId,
     expiresAtMs: session.expiresAtMs,
   };
 }
 
-async function readPinnedEd25519WalletProjectEnvironmentId(
-  ctx: FetchRouterApiContext,
+/** The scope the operation's own admission pinned, checked against the active material. */
+function pinnedEd25519WalletScope(
   authorization: AcceptedEd25519WalletSessionAuthorization,
-  operation: AuthorizedOperation,
-): Promise<string> {
-  const session = ed25519ReusableWalletSession(authorization);
+  pinned: PinnedOwnerWalletScope,
+): PinnedOwnerWalletScope {
   const scope = authorization.activeMaterial.runtimePolicyScope;
-  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
-    operation,
-    walletId: session.walletId,
-  });
   if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
     throw new Error('Pinned owner Wallet Session scope differs from active material');
   }
-  return pinned.projectEnvironmentId;
+  return pinned;
 }
 
 /**
@@ -237,7 +242,7 @@ async function ed25519OperationStepUpBinding(
     readonly runtimePolicyScope: RuntimePolicyScope;
   },
   operation: AuthorizedOperation,
-): Promise<Ed25519OperationStepUpBinding> {
+): Promise<OperationStepUpBinding> {
   const scope = session.runtimePolicyScope;
   const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
     operation,
@@ -248,6 +253,7 @@ async function ed25519OperationStepUpBinding(
   }
   return {
     kind: 'operation_step_up',
+    ownershipGeneration: pinned.ownershipGeneration,
     authorizationSessionId: session.sessionId,
     orgId: scope.orgId,
     projectId: scope.projectId,
@@ -259,38 +265,7 @@ async function ed25519OperationStepUpBinding(
 }
 
 type RouterAbEd25519AuthorizedOperationWire = {
-  readonly binding:
-    | {
-        readonly kind: 'reusable_wallet_session';
-        readonly authorization_id: string;
-        readonly wallet_session_id: string;
-        readonly quota_id: string;
-      }
-    | {
-        readonly kind: 'gateway_owner_wallet_session';
-        readonly subject_id: string;
-        readonly account_id: string;
-        readonly authorization_id: string;
-        readonly wallet_session_id: string;
-        readonly quota_id: string;
-        readonly threshold_session_id: string;
-        readonly org_id: string;
-        readonly project_id: string;
-        readonly environment: string;
-        readonly project_environment_id: string;
-        readonly signing_worker_id: string;
-        readonly expires_at_ms: number;
-      }
-    | {
-        readonly kind: 'operation_step_up';
-        readonly authorization_session_id: string;
-        readonly org_id: string;
-        readonly project_id: string;
-        readonly environment: string;
-        readonly project_environment_id: string;
-        readonly subject_id: string;
-        readonly account_id: string;
-      };
+  readonly binding: AuthorizedOperationBindingWire;
   readonly authorized_operation:
     | Ed25519ReusableAuthorizedOperationReceipt
     | (Ed25519VerifiedStepUpAuthorizedOperationReceipt & {
@@ -298,51 +273,9 @@ type RouterAbEd25519AuthorizedOperationWire = {
       });
 };
 
-type RouterAbEd25519AuthorizedOperationWireInput =
-  | {
-      readonly operation: AuthorizedOperation;
-      readonly binding: {
-        readonly kind: 'reusable_wallet_session';
-        readonly walletSessionId: string;
-        readonly quotaId: string;
-      };
-    }
-  | {
-      readonly operation: AuthorizedOperation;
-      readonly binding: {
-        readonly kind: 'gateway_owner_wallet_session';
-        readonly subjectId: string;
-        readonly accountId: string;
-        readonly authorizationId: string;
-        readonly walletSessionId: string;
-        readonly quotaId: string;
-        readonly thresholdSessionId: string;
-        readonly orgId: string;
-        readonly projectId: string;
-        readonly environment: string;
-        readonly projectEnvironmentId: string;
-        readonly signingWorkerId: string;
-        readonly expiresAtMs: number;
-      };
-    }
-  | {
-      readonly operation: AuthorizedOperation;
-      readonly binding: Ed25519OperationStepUpBinding;
-    };
-
-type Ed25519OperationStepUpBinding = {
-  readonly kind: 'operation_step_up';
-  readonly authorizationSessionId: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly environment: string;
-  readonly projectEnvironmentId: string;
-  readonly subjectId: string;
-  readonly accountId: string;
-};
 
 function buildRouterAbEd25519AuthorizedOperationWire(
-  input: RouterAbEd25519AuthorizedOperationWireInput,
+  input: AuthorizedOperationWireInput,
 ): RouterAbEd25519AuthorizedOperationWire {
   const operation = input.operation;
   const operationRef = operation.operation.operation;
@@ -360,80 +293,7 @@ function buildRouterAbEd25519AuthorizedOperationWire(
     display_digest_b64u: operation.operation.digests.displayDigest,
     operation_fingerprint_digest: operation.operationFingerprintDigest,
   };
-  switch (input.binding.kind) {
-    case 'reusable_wallet_session':
-      if (
-        operation.authorization.kind !== 'authorization_grant' ||
-        operation.quota.kind !== 'consume_reusable_wallet_session'
-      ) {
-        throw new Error('Reusable Wallet Session authorized operation is invalid');
-      }
-      return {
-        binding: {
-          kind: 'reusable_wallet_session',
-          authorization_id: operation.authorization.authorizationGrantRef.authorizationId,
-          wallet_session_id: input.binding.walletSessionId,
-          quota_id: input.binding.quotaId,
-        },
-        authorized_operation: {
-          kind: 'reusable_wallet_session_authorized_operation_v1',
-          ...commonAuthorizedOperation,
-        },
-      };
-    case 'gateway_owner_wallet_session':
-      if (
-        operation.authorization.kind !== 'authorization_grant' ||
-        operation.quota.kind !== 'consume_reusable_wallet_session'
-      ) {
-        throw new Error('Gateway owner Wallet Session authorized operation is invalid');
-      }
-      return {
-        binding: {
-          kind: 'gateway_owner_wallet_session',
-          subject_id: input.binding.subjectId,
-          account_id: input.binding.accountId,
-          authorization_id: input.binding.authorizationId,
-          wallet_session_id: input.binding.walletSessionId,
-          quota_id: input.binding.quotaId,
-          threshold_session_id: input.binding.thresholdSessionId,
-          org_id: input.binding.orgId,
-          project_id: input.binding.projectId,
-          environment: input.binding.environment,
-          project_environment_id: input.binding.projectEnvironmentId,
-          signing_worker_id: input.binding.signingWorkerId,
-          expires_at_ms: input.binding.expiresAtMs,
-        },
-        authorized_operation: {
-          kind: 'reusable_wallet_session_authorized_operation_v1',
-          ...commonAuthorizedOperation,
-        },
-      };
-    case 'operation_step_up':
-      if (
-        operation.authorization.kind !== 'verified_step_up' ||
-        operation.quota.kind !== 'quota_neutral'
-      ) {
-        throw new Error('Verified step-up authorized operation is invalid');
-      }
-      return {
-        binding: {
-          kind: 'operation_step_up',
-          authorization_session_id: input.binding.authorizationSessionId,
-          org_id: input.binding.orgId,
-          project_id: input.binding.projectId,
-          environment: input.binding.environment,
-          project_environment_id: input.binding.projectEnvironmentId,
-          subject_id: input.binding.subjectId,
-          account_id: input.binding.accountId,
-        },
-        authorized_operation: {
-          kind: 'verified_step_up_authorized_operation_v1',
-          authorization_session_id: input.binding.authorizationSessionId,
-          evidence_set_digest: operation.authorization.evidenceSetDigest,
-          ...commonAuthorizedOperation,
-        },
-      };
-  }
+  return buildAuthorizedOperationWire(input, commonAuthorizedOperation);
 }
 
 type EmailOtpFactorReleaseEnrollment = {
@@ -696,22 +556,24 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
     const authorizedOperationId = requireAuthorizationValue(
       parseAuthorizedOperationId(`ed25519-operation:${operation.operationId}:${scope.request_id}`),
     );
-    const outcome = await input.ctx.service.authorizedOperations.admitAuthorizedOperation({
-      operation: {
-        tenantId: identity.tenantId,
-        authorizedOperationId,
-        auditEventId: requireAuthorizationValue(
-          parseAuthorizationAuditEventId(`ed25519-operation-audit:${operation.operationId}`),
-        ),
-        operation: envelope,
-        authorization: {
-          kind: 'authorization_grant',
-          authorizationGrantRef: buildAuthorizationGrantRef(identity.authorizationId),
+    const outcome =
+      await input.ctx.service.authorizedOperations.admitEd25519WalletSessionOperation({
+        operation: {
+          tenantId: identity.tenantId,
+          authorizedOperationId,
+          auditEventId: requireAuthorizationValue(
+            parseAuthorizationAuditEventId(`ed25519-operation-audit:${operation.operationId}`),
+          ),
+          operation: envelope,
+          authorization: {
+            kind: 'authorization_grant',
+            authorizationGrantRef: buildAuthorizationGrantRef(identity.authorizationId),
+          },
+          quota: { kind: 'consume_reusable_wallet_session', quotaId: identity.quotaId },
+          claimedAtMs: nowMs,
         },
-        quota: { kind: 'consume_reusable_wallet_session', quotaId: identity.quotaId },
-        claimedAtMs: nowMs,
-      },
-    });
+        walletId: session.walletId,
+      });
     if (
       outcome.kind !== 'claimed' &&
       outcome.kind !== 'operation_in_progress' &&
@@ -755,6 +617,7 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
       admission: {
         kind: 'claimed',
         operation: outcome.operation,
+        ownerScope: outcome.ownerScope,
         receipt: {
           kind: 'reusable_wallet_session_authorized_operation_v1',
           authorized_operation_id: outcome.operation.authorizedOperationId,
@@ -786,143 +649,6 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
   }
 }
 
-async function revalidateEd25519AuthorizedOperation(input: {
-  readonly ctx: FetchRouterApiContext;
-  readonly operation: AuthorizedOperation;
-}): Promise<
-  | { readonly ok: true; readonly operation: AuthorizedOperation }
-  | { readonly ok: false; readonly response: Response }
-> {
-  let admission: AuthorizedOperationInput;
-  if (input.operation.authorization.kind === 'verified_step_up') {
-    if (input.operation.quota.kind !== 'quota_neutral') {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'verified_step_up_rejected',
-            message: 'Ed25519 operation step-up authorization has an invalid quota',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    admission = {
-      tenantId: input.operation.tenantId,
-      authorizedOperationId: input.operation.authorizedOperationId,
-      auditEventId: input.operation.auditEventId,
-      operation: input.operation.operation,
-      authorization: input.operation.authorization,
-      quota: input.operation.quota,
-      claimedAtMs: Date.now(),
-    };
-  } else {
-    if (input.operation.quota.kind !== 'consume_reusable_wallet_session') {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'authorization_grant_rejected',
-            message: 'Ed25519 reusable operation authorization has an invalid quota',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    const operation = buildEd25519ReusableOperationEnvelope(input.operation);
-    if (!operation) {
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'authorization_grant_rejected',
-            message: 'Ed25519 reusable operation kind is invalid',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    admission = {
-      tenantId: input.operation.tenantId,
-      authorizedOperationId: input.operation.authorizedOperationId,
-      auditEventId: input.operation.auditEventId,
-      operation,
-      authorization: input.operation.authorization,
-      quota: input.operation.quota,
-      claimedAtMs: Date.now(),
-    };
-  }
-  const result = await input.ctx.service.authorizedOperations.admitAuthorizedOperation({
-    operation: admission,
-  });
-  switch (result.kind) {
-    case 'claimed':
-    case 'operation_in_progress':
-    case 'replayed':
-      if (result.operation.authorizedOperationId !== input.operation.authorizedOperationId) {
-        throw new Error('Ed25519 authorized operation changed during revalidation');
-      }
-      return { ok: true, operation: result.operation };
-    case 'authorization_grant_rejected':
-    case 'verified_step_up_rejected':
-      return {
-        ok: false,
-        response: json(
-          {
-            ok: false,
-            code: result.kind,
-            message: 'Ed25519 operation authorization is no longer active',
-          },
-          { status: 403 },
-        ),
-      };
-    case 'wallet_session_quota_exhausted':
-    case 'material_mismatch':
-      return {
-        ok: false,
-        response: json(
-          { ok: false, code: result.kind, message: 'Ed25519 operation admission failed' },
-          { status: 409 },
-        ),
-      };
-  }
-}
-
-type Ed25519ReusableOperationRef = Extract<
-  CapabilityOperationRef,
-  { readonly capabilityKind: 'near_ed25519_mpc_signing' }
-> & {
-  readonly operationKind:
-    | 'near.sign_transaction'
-    | 'near.sign_delegate_action'
-    | 'near.sign_nep413_message';
-};
-
-function buildEd25519ReusableOperationEnvelope(
-  operation: AuthorizedOperation,
-): CapabilityOperationEnvelope<Ed25519ReusableOperationRef> | null {
-  const operationRef = operation.operation.operation;
-  if (operationRef.capabilityKind !== 'near_ed25519_mpc_signing') return null;
-  switch (operationRef.operationKind) {
-    case 'near.sign_transaction':
-    case 'near.sign_delegate_action':
-    case 'near.sign_nep413_message':
-      return buildCapabilityOperationEnvelope({
-        tenantId: operation.operation.tenantId,
-        principalId: operation.operation.principalId,
-        capabilityId: operation.operation.capabilityId,
-        operationId: operation.operation.operationId,
-        operation: buildNearEd25519MpcOperationRef(operationRef.operationKind),
-        digests: operation.operation.digests,
-      });
-    case 'near.export_key':
-      return null;
-  }
-}
-
 async function validateEd25519ReusableAuthorizedOperation(input: {
   ctx: FetchRouterApiContext;
   body: Record<string, unknown>;
@@ -932,6 +658,8 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
       readonly ok: true;
       readonly receipt: Ed25519ReusableAuthorizedOperationReceipt;
       readonly operation: AuthorizedOperation;
+      /** Absent for a completed operation, which replays its stored response. */
+      readonly ownerScope: PinnedOwnerWalletScope | null;
     }
   | { readonly ok: false; readonly response: Response }
 > {
@@ -977,35 +705,44 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
     ) {
       throw new Error('Ed25519 authorized operation intent changed after prepare');
     }
-    const operationResult = await input.ctx.service.authorizedOperations.readAuthorizedOperation({
-      tenantId: identity.tenantId,
-      operationFingerprintDigest: fingerprint,
-    });
-    if (!operationResult) {
+    const authorizedOperationId = requireAuthorizationValue(
+      parseAuthorizedOperationId(receipt.authorized_operation_id),
+    );
+    // One read finds the prepared operation, checks its grant and pins its scope.
+    let resolved: Awaited<ReturnType<typeof resolveEd25519WalletSessionOperation>>;
+    try {
+      resolved = await resolveEd25519WalletSessionOperation({
+        ctx: input.ctx,
+        tenantId: identity.tenantId,
+        authorizedOperationId,
+        operationFingerprintDigest: fingerprint,
+        walletId: ed25519ReusableWalletSession(input.authorization).walletId,
+      });
+    } catch {
       return {
         ok: false,
         response: json(
-          {
-            ok: false,
-            code: 'authorized_operation_missing',
-            message: 'Authorized operation is unavailable',
-          },
-          { status: 409 },
+          { ok: false, code: 'internal', message: 'Authorized operation lookup failed' },
+          { status: 500 },
         ),
       };
     }
+    if (!resolved.ok) return resolved;
+    const operationResult = resolved.operation;
     if (
-      operationResult.authorizedOperationId !==
-        requireAuthorizationValue(parseAuthorizedOperationId(receipt.authorized_operation_id)) ||
-      operationResult.operationFingerprintDigest !== fingerprint
+      operationResult.tenantId !== identity.tenantId ||
+      operationResult.tenantId !== input.ctx.service.authorizedOperations.tenantId ||
+      operationResult.operationFingerprintDigest !== fingerprint ||
+      operationResult.operation.operationId !== operationId ||
+      operationResult.operation.digests.laneDigest !== envelope.digests.laneDigest ||
+      operationResult.operation.digests.intentDigest !== envelope.digests.intentDigest ||
+      operationResult.operation.digests.displayDigest !== envelope.digests.displayDigest ||
+      operationResult.operation.operation.capabilityKind !== 'near_ed25519_mpc_signing' ||
+      operationResult.operation.operation.operationKind !== receipt.operation_kind
     ) {
       throw new Error('Ed25519 authorized operation identity changed after prepare');
     }
-    const revalidated = await revalidateEd25519AuthorizedOperation({
-      ctx: input.ctx,
-      operation: operationResult,
-    });
-    return revalidated.ok ? { ok: true, receipt, operation: revalidated.operation } : revalidated;
+    return { ok: true, receipt, operation: operationResult, ownerScope: resolved.ownerScope };
   } catch (error: unknown) {
     return {
       ok: false,
@@ -1144,7 +881,7 @@ async function validateEd25519VerifiedStepUpAuthorizedOperation(input: {
     ) {
       throw new Error('Operation step-up evidence changed after prepare');
     }
-    const revalidated = await revalidateEd25519AuthorizedOperation({
+    const revalidated = await revalidateEd25519StepUpOperation({
       ctx: input.ctx,
       operation: operationResult,
     });
@@ -1788,17 +1525,21 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         });
         return requireCompletedEd25519OperationResponse(completed);
       }
+      const headers = new Headers(upstream.headers);
+      headers.delete('content-length');
       return new Response(
-        JSON.stringify({
-          ...upstreamBody,
-          authorized_operation: buildEd25519VerifiedStepUpAuthorizedOperationReceipt({
-            authorization,
-          }),
-        }),
+        JSON.stringify(
+          signingPrepareSessionResponse({
+            ...upstreamBody,
+            authorized_operation: buildEd25519VerifiedStepUpAuthorizedOperationReceipt({
+              authorization,
+            }),
+          }, authorization),
+        ),
         {
           status: upstream.status,
           statusText: upstream.statusText,
-          headers: new Headers(upstream.headers),
+          headers,
         },
       );
     }
@@ -1906,16 +1647,10 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         ...input.body,
         authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
           operation: execution.operation,
-          binding: {
-            ...buildEd25519GatewayOwnerWalletSessionBinding(
-              authorization,
-              await readPinnedEd25519WalletProjectEnvironmentId(
-                input.ctx,
-                authorization,
-                execution.operation,
-              ),
-            ),
-          },
+          binding: buildEd25519GatewayOwnerWalletSessionBinding(
+            authorization,
+            pinnedEd25519WalletScope(authorization, authorized.admission.ownerScope),
+          ),
         }),
       },
     });
@@ -1946,15 +1681,19 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
       });
       return requireCompletedEd25519OperationResponse(completed);
     }
+    const headers = new Headers(upstream.headers);
+    headers.delete('content-length');
     return new Response(
-      JSON.stringify({
-        ...upstreamBody,
-        authorized_operation: authorized.admission.receipt,
-      }),
+      JSON.stringify(
+        signingPrepareSessionResponse({
+          ...upstreamBody,
+          authorized_operation: authorized.admission.receipt,
+        }, authorization),
+      ),
       {
         status: upstream.status,
         statusText: upstream.statusText,
-        headers: new Headers(upstream.headers),
+        headers,
       },
     );
   }
@@ -1966,6 +1705,9 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
   if (!validatedAuthorization.ok) return validatedAuthorization.response;
   const replay = replayCompletedEd25519Operation(validatedAuthorization.operation);
   if (replay) return replay;
+  if (!validatedAuthorization.ownerScope) {
+    throw new Error('Pinned owner Wallet Session scope is unavailable');
+  }
   const upstream = await proxyEd25519OwnerLaneExecution({
     ctx: input.ctx,
     authorization,
@@ -1974,16 +1716,10 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
       ...input.body,
       authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
         operation: validatedAuthorization.operation,
-        binding: {
-          ...buildEd25519GatewayOwnerWalletSessionBinding(
-            authorization,
-            await readPinnedEd25519WalletProjectEnvironmentId(
-              input.ctx,
-              authorization,
-              validatedAuthorization.operation,
-            ),
-          ),
-        },
+        binding: buildEd25519GatewayOwnerWalletSessionBinding(
+          authorization,
+          pinnedEd25519WalletScope(authorization, validatedAuthorization.ownerScope),
+        ),
       }),
     },
   });

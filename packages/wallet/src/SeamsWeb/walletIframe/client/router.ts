@@ -1,3 +1,14 @@
+import { createIframePlacementCommands } from './placementCommands';
+import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { AuthCapability } from '@/SeamsWeb/publicApi/types';
+import type {
+  SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
+  SigningEngineResolveExactKeyExportLaneResult as ResolveExactKeyExportLaneResult,
+} from '@/core/signingEngine/flows/recovery/public';
+import type { Variant } from '@shared/utils/variant';
+import { replaceWalletHostAppearance, type WalletHostConfig } from '../shared/configuration';
+import { resolveRuntimeAppearance } from '../shared/facadeBoundary';
 import {
   TransactionReviewReservation,
   type TransactionDispatch,
@@ -11,56 +22,10 @@ import {
   sameTransactionReviewIdentity,
   type TransactionReviewValidity,
 } from '../shared/transactionReview';
-/*
- * WalletIframeRouter - Client-Side Communication Layer
- *
- * Owns wallet iframe request correlation and typed surface transitions.
- *
- * High-level flow:
- *
- *   Step legend
- *   -----------
- *   (1) App calls a router RPC (executeAction, registerPasskey, etc).
- *   (2) Router posts request to iframe and tracks a pending entry.
- *   (3) Wallet iframe sends PROGRESS messages back to the router.
- *   (4) Router forwards ProgressPayloads into OnEventsProgressBus.
- *   (5) Surface events own iframe visibility, geometry, and focus.
- *   (6) Router receives a final result and finishes only the matching surface.
- *
- *  +-----------+       +--------------------+       +----------------------+       +----------------------+
- *  |   App     |       | WalletIframeRouter |       | OnEventsProgressBus  |       | OverlayController    |
- *  +-----+-----+       +---------+----------+       +----------+-----------+       +----------+-----------+
- *        |   (1) RPC call (executeAction, etc.)                |                              |
- *        |---------------------->|---------------------------->|                              |
- *        |                                                     |                              |
- *        |                        (2) post(): send request to iframe                          |
- *        |                                                     |                              |
- *        |                        (3) PROGRESS from iframe via onPortMessage()                |
- *        |<----------------------------------------------------|                              |
- *        |                                                     |                              |
- *        |                        (4) ProgressPayload -> callbacks and diagnostics            |
- *        |                                                     |                              |
- *        |                        (5) Surface reducer -> renderer -> overlay DOM              |
- *        |                                                     |----------------------------->|
- *        |                                                     |                              |
- *        |                        (6) PM_RESULT/ERROR -> finish matching surface              |
- *        |<----------------------------------------------------|                              |
- *
- * Communication Flow (requests):
- * 1. Parent calls RPC method (e.g., registerPasskey).
- * 2. Router creates unique request ID and pending entry.
- * 3. Message sent to iframe via MessagePort.
- * 4. Progress events are bridged to parent callbacks and diagnostics.
- * 5. The request surface reducer drives the renderer.
- * 6. Final results resolve the pending promise and finish the matching surface.
- */
-
 import {
   type ParentToChildEnvelope,
   type ProgressPayload,
   type PreferencesChangedPayload,
-  type ErrorPayload,
-  type PMResultPayload,
   type PMExportKeypairUiPayload,
   type PMRegistrationAuthMethodInput,
   isDeviceLinkEmailOtpBaseFactorSelectionProgressV1,
@@ -75,9 +40,7 @@ import {
 } from '../shared/messages';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { OnEventsProgressBus } from './progress/on-events-progress-bus';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
-  ActionHooksOptions,
   AfterCall,
   LinkDeviceFlowEvent,
   LoginHooksOptions,
@@ -109,7 +72,6 @@ import {
   LinkDeviceEventPhase,
   RegistrationEventPhase,
   parseNearProvisioningState,
-  parseSdkLifecycleEvent,
   SigningEventPhase,
   UnlockEventPhase,
 } from '@/core/types/sdkSentEvents';
@@ -123,8 +85,6 @@ import type {
   RegistrationResult,
   SignDelegateActionResult,
   SignTransactionResult,
-  SeamsChainConfig,
-  SeamsConfigsInput,
 } from '@/core/types/seams';
 import type { WalletIframeRequestId } from '@/SeamsWeb/publicApi/types';
 import { walletIframeSurfaceIdFromBoundary } from '@/core/types/walletIframeIdentity';
@@ -132,9 +92,6 @@ import type { MultichainSigningRequest } from '@/core/signingEngine/chains/tempo
 import { requireTempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
-import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
-import type { DemoEmailOtpCodeResponse } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import {
   thresholdEcdsaChainTargetsEqual,
   toWalletId,
@@ -157,7 +114,6 @@ import type {
 import {
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
-  parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
   parseWalletSessionOperationCredentialV1,
   type QrLinkedDeviceSessionPayloadV5,
@@ -166,26 +122,14 @@ import {
   type WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
 import type { SyncAccountResult } from '@/SeamsWeb/operations/recovery/syncAccount';
-// The router sits below the public boundary: `options` is already normalized
-// by the time a request reaches it.
 import type { SigningEngineExportKeypairWithUIInput as ExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
 import type {
-  FundImplicitNearAccountForTestingResult,
-  ResolveExactKeyExportLaneInput,
-  ResolveExactKeyExportLaneResult,
   AddPasskeyResult,
   AddEmailOtpResult,
   RevokeAuthMethodResult,
-  ResumePendingEcdsaRegistrationResult,
   WalletRecoveryRotationOutcome,
 } from '@/SeamsWeb/publicApi/types';
 import type {
-  BootstrapThresholdEcdsaSessionArgs,
-  EmailOtpChallengeResult,
-  EmailOtpOperationChallengeResult,
-  EmailOtpEcdsaCapabilityArgs,
-  EmailOtpEcdsaCapabilityResult,
-  EmailOtpEnrollmentResult,
   GoogleEmailOtpWalletAuthFlow,
   GoogleEmailOtpWalletAuthRegistrationCompleted,
   GoogleEmailOtpWalletAuthRegistrationFlow,
@@ -207,7 +151,6 @@ import {
   hostedAuthMenuSessionIdFromBoundary,
   parseHostedAuthMenuExternalAuthRequest,
   parseHostedAuthMenuExternalAuthResolution,
-  parseHostedAuthMenuDemoEmailOtpDelivery,
 } from '../shared/messages';
 import type {
   PMGoogleEmailOtpWalletAuthCompleteRegistrationWireResult,
@@ -222,9 +165,8 @@ import type {
   HostedAuthMenuSessionId,
   HostedAuthMenuExternalAuthRequest,
   HostedAuthMenuExternalAuthResolutionInput,
-  HostedAuthMenuDemoEmailOtpDelivery,
 } from '../shared/messages';
-import { ActionArgs, TransactionInput } from '@/core/types';
+import { TransactionInput } from '@/core/types';
 import type { DelegateActionInput } from '@/core/types/delegate';
 import { IframeTransport } from './transport/IframeTransport';
 import OverlayController, { type OverlayControllerState } from './overlay/overlay-controller';
@@ -273,30 +215,34 @@ import {
 } from '@shared/utils/validation';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
-import { type WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import { type RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
 import { needsExplicitActivation } from '@/utils/deviceDetection';
-import type { AuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { type ConfirmationConfig } from '@/core/types/signer-worker';
-import type { SignNEP413MessageResult } from '@/SeamsWeb/operations/near';
-import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
-import { cloneResolvedChainConfig } from '@/core/config/chains';
-import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
+import type { SignNEP413MessageResult } from '@/SeamsWeb/operations/near/signNEP413';
 import type { LoginUnlockRequest } from '@/core/types/login.types';
 import { buildPMUnlockPayload } from '../shared/unlockOptions';
 import type { WalletId } from '@shared/utils/domainIds';
 import {
+  exactSessionIdentitiesMatch,
   parseWalletIframeExactSessionLockResult,
-  parseWalletIframeExactSessionState,
+  parseWalletIframeExactSessionSnapshot,
+  type WalletIframeExactSessionSnapshot,
   parseWalletSessionFromBoundary,
   WalletIframeSessionExpiredRequestError,
   type WalletIframeExactSessionIdentity,
   type WalletIframeExactSessionLockResult,
   type WalletIframeExactSessionState,
+  type WalletIframeSessionPublication,
   type WalletIframePendingSessionBinding,
 } from '../shared/exactSessionState';
+import { stripFunctionsShallow } from '@shared/utils/validation';
+import {
+  parseClientPreferencesChangedPayload,
+  parseClientChildToParentEnvelope,
+  parseSdkLifecycleEnvelope,
+} from './inboundMessages';
 
 // Simple, framework-agnostic service iframe client.
 // Responsibilities split:
@@ -319,18 +265,7 @@ interface WalletIframeRouterOptions {
     // Lazy mounting: when false, do not auto-connect/mount during init(); connect on first use
     autoMount?: boolean;
   };
-  // Optional config forwarded to wallet host
-  chains?: readonly SeamsChainConfig[];
-  relayerAccount?: string;
-  relayer?: SeamsConfigsInput['relayer'];
-  registration?: SeamsConfigsInput['registration'];
-  signingSessionDefaults?: SeamsConfigsInput['signingSessionDefaults'];
-  signingSessionPersistenceMode?: SeamsConfigsInput['signingSessionPersistenceMode'];
-  routerAb?: SeamsConfigsInput['routerAb'];
-  routerAbEcdsaDerivationPresignaturePool?: SeamsConfigsInput['routerAbEcdsaDerivationPresignaturePool'];
-  provisioningDefaults?: SeamsConfigsInput['provisioningDefaults'];
-  rpIdOverride?: string;
-  authenticatorOptions?: AuthenticatorOptions;
+  hostConfig: WalletHostConfig;
   // SDK asset base path for embedded bundles when mounting same‑origin via srcdoc
   // Must serve dist/esm under this base path. Defaults to '/sdk'.
   sdkBasePath?: string;
@@ -433,7 +368,6 @@ function requestSurfaceKindForMessage(
       return 'recovery_codes';
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
     case 'PM_SIGN_TEMPO':
@@ -457,7 +391,6 @@ function isTransactionSurfaceMessage(type: ParentToChildEnvelope['type']): boole
   switch (type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
     case 'PM_SIGN_TEMPO':
@@ -753,7 +686,49 @@ function buildSignTempoIframePayload(
     chainTarget: payload.chainTarget,
   };
 }
-const WALLET_IFRAME_EMAIL_OTP_ENROLLMENT_TIMEOUT_MS = 5 * 60 * 1000;
+
+function walletIframeSessionStatesEqual(
+  left: WalletIframeExactSessionState | null,
+  right: WalletIframeExactSessionState,
+): boolean {
+  if (left === null || left.kind !== right.kind) return false;
+  switch (left.kind) {
+    case 'wallet_locked':
+      return right.kind === 'wallet_locked';
+    case 'active_session':
+    case 'expired_session':
+      return (
+        (right.kind === 'active_session' || right.kind === 'expired_session') &&
+        exactSessionIdentitiesMatch(left, right) &&
+        left.authMethod === right.authMethod &&
+        left.expiresAtMs === right.expiresAtMs
+      );
+    case 'wallet_authenticated_identity_unresolvable':
+      return (
+        right.kind === left.kind && left.walletId === right.walletId && left.reason === right.reason
+      );
+    case 'wallet_unlocked_without_signing_session':
+      if (
+        right.kind !== left.kind ||
+        left.walletId !== right.walletId ||
+        left.reason !== right.reason
+      ) {
+        return false;
+      }
+      if (left.reason === 'not_found') {
+        return (
+          right.reason === 'not_found' &&
+          left.authorizationId === right.authorizationId &&
+          left.walletSessionId === right.walletSessionId &&
+          left.authMethod === right.authMethod
+        );
+      }
+      return true;
+    default:
+      left satisfies never;
+      return false;
+  }
+}
 
 type WalletIframeLoginStatusSnapshot = {
   isLoggedIn: boolean;
@@ -854,23 +829,6 @@ function walletIframeExportPayload(
   }
 }
 
-const EMAIL_OTP_APP_ORIGIN_FORBIDDEN_RESULT_KEYS = new Set([
-  'S',
-  'secretS',
-  'recoveredS',
-  'recoveredSB64u',
-  'recoveryKeys',
-  'clientSecret32',
-  'clientRootShare32',
-  'clientRootShare32B64u',
-  'clientAdditiveShare32',
-  'clientAdditiveShare32B64u',
-  'clientSigningShare32',
-  'clientSigningShare32B64u',
-  'kShareB64u',
-  'sigmaShareB64u',
-]);
-
 type PostResult<T> = {
   ok: boolean;
   result: T;
@@ -882,6 +840,7 @@ type HostedWalletSeamsSessionSource = {
 };
 
 type HostedWalletSeamsSessionExchangeDelivery = {
+  readonly home: WalletSessionHome;
   readonly exchangeCode: string;
   readonly nonce: string;
   readonly appOrigin: string;
@@ -951,6 +910,7 @@ function parseHostedWalletExchangeDelivery(
     throw new Error('session exchange response must contain one delivery');
   }
   const deliveryFields = new Set([
+    'home',
     'exchangeCode',
     'nonce',
     'appOrigin',
@@ -975,6 +935,7 @@ function parseHostedWalletExchangeDelivery(
     throw new Error('session exchange delivery is expired');
   }
   return {
+    home: parseWalletSessionHome(delivery.home),
     exchangeCode: requireCompactExchangeValue(delivery.exchangeCode, 'delivery.exchangeCode'),
     nonce: requireCompactExchangeValue(delivery.nonce, 'delivery.nonce'),
     appOrigin,
@@ -1159,20 +1120,15 @@ function createTerminalProgressForRequest(args: {
   const registrationRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_REGISTER_WALLET',
     'PM_ADD_PASSKEY',
-    'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE',
-    'PM_ENROLL_EMAIL_OTP',
   ]);
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
-    'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION',
     'PM_REQUEST_EMAIL_OTP_CHALLENGE',
-    'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
   ]);
   const signingRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_SIGN_TX_WITH_ACTIONS',
     'PM_SIGN_AND_SEND_TX',
     'PM_SEND_TRANSACTION',
-    'PM_EXECUTE_ACTION',
     'PM_SIGN_DELEGATE_ACTION',
     'PM_SIGN_NEP413',
     'PM_SIGN_TEMPO',
@@ -1226,24 +1182,6 @@ function createTerminalProgressForRequest(args: {
     });
   }
   return null;
-}
-
-function sanitizeEmailOtpIframeResult<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeEmailOtpIframeResult(entry)) as T;
-  }
-  if (!isObject(value)) {
-    return value;
-  }
-
-  const out: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (EMAIL_OTP_APP_ORIGIN_FORBIDDEN_RESULT_KEYS.has(key)) {
-      continue;
-    }
-    out[key] = sanitizeEmailOtpIframeResult(entry);
-  }
-  return out as T;
 }
 
 const CANONICAL_SIGNER_BOUNDARY_MESSAGES: Record<string, string> = {
@@ -1307,252 +1245,13 @@ function walletIframeRequestCancelledError(): Error & { code: 'cancelled' } {
   return error;
 }
 
-function emitDemoEmailOtpCodeFromWire(args: {
-  wire: PMGoogleEmailOtpWalletAuthWireFlow;
-  onDemoOtp: ((response: DemoEmailOtpCodeResponse) => void) | undefined;
-}): void {
-  if (args.wire.mode !== 'login') return;
-  switch (args.wire.delivery.kind) {
-    case 'provider':
-      return;
-    case 'demo_code_response':
-    case 'provider_and_demo_code':
-      args.onDemoOtp?.(args.wire.delivery);
-      return;
-  }
-}
-
-type ParsedSdkLifecycleEnvelope =
-  | { readonly kind: 'not_lifecycle_event' }
-  | { readonly kind: 'invalid_lifecycle_event' }
-  | { readonly kind: 'lifecycle_event'; readonly event: SdkLifecycleEvent };
-
-type ParsedChildToParentEnvelope =
-  | {
-      readonly type: 'TRANSACTION_REVIEW_STATE';
-      readonly requestId?: string;
-      readonly payload: NonNullable<ReturnType<typeof parseTransactionReviewState>>;
-    }
-  | { readonly type: 'PONG'; readonly requestId?: string }
-  | {
-      readonly type: 'PREFERENCES_CHANGED';
-      readonly requestId?: string;
-      readonly payload: PreferencesChangedPayload;
-    }
-  | {
-      readonly type: 'AUTH_MENU_EXTERNAL_AUTH_REQUEST';
-      readonly requestId?: string;
-      readonly payload: NonNullable<ReturnType<typeof parseHostedAuthMenuExternalAuthRequest>>;
-    }
-  | {
-      readonly type: 'AUTH_MENU_ERROR';
-      readonly requestId?: string;
-      readonly payload: NonNullable<ReturnType<typeof parseHostedAuthMenuErrorEvent>>;
-    }
-  | {
-      readonly type: 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY';
-      readonly requestId?: string;
-      readonly payload: NonNullable<ReturnType<typeof parseHostedAuthMenuDemoEmailOtpDelivery>>;
-    }
-  | {
-      readonly type: 'SURFACE_MEASUREMENT';
-      readonly requestId?: string;
-      readonly payload: NonNullable<ReturnType<typeof parseWalletIframeSurfaceMeasurement>>;
-    }
-  | {
-      readonly type: 'TRANSACTION_ACTIVITY';
-      readonly requestId: string;
-      readonly payload: 'expanded' | 'toast' | 'closed';
-    }
-  | { readonly type: 'PROGRESS'; readonly requestId?: string; readonly payload: ProgressPayload }
-  | { readonly type: 'PM_RESULT'; readonly requestId?: string; readonly payload: PMResultPayload }
-  | { readonly type: 'ERROR'; readonly requestId?: string; readonly payload: ErrorPayload };
-
-function rawClientMessageObject(value: unknown): object | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null;
-}
-
-function hasOnlyClientMessageFields(value: object, allowedFields: readonly string[]): boolean {
-  const allowed = new Set(allowedFields);
-  return Object.keys(value).every((field) => allowed.has(field));
-}
-
-function clientChildRequestId(value: object): string | undefined | null {
-  if (!Object.hasOwn(value, 'requestId')) return undefined;
-  const requestId: unknown = Reflect.get(value, 'requestId');
-  if (requestId === undefined) return undefined;
-  return typeof requestId === 'string' ? requestId : null;
-}
-
-function clientChildRequestIdFields(requestId: string | undefined): { requestId?: string } {
-  return requestId === undefined ? {} : { requestId };
-}
-
-function parseClientPreferencesChangedPayload(value: unknown): PreferencesChangedPayload | null {
-  const record = rawClientMessageObject(value);
-  if (
-    !record ||
-    !hasOnlyClientMessageFields(record, ['walletId', 'confirmationConfig', 'updatedAt'])
-  ) {
-    return null;
-  }
-  const walletId: unknown = Reflect.get(record, 'walletId');
-  if (walletId !== null && typeof walletId !== 'string') return null;
-  const confirmationConfig = rawClientMessageObject(Reflect.get(record, 'confirmationConfig'));
-  if (
-    !confirmationConfig ||
-    !hasOnlyClientMessageFields(confirmationConfig, ['uiMode', 'behavior', 'autoProceedDelay'])
-  ) {
-    return null;
-  }
-  const uiMode: unknown = Reflect.get(confirmationConfig, 'uiMode');
-  const behavior: unknown = Reflect.get(confirmationConfig, 'behavior');
-  if (uiMode !== 'none' && uiMode !== 'modal' && uiMode !== 'drawer') {
-    return null;
-  }
-  if (behavior !== 'requireClick' && behavior !== 'skipClick') return null;
-  const autoProceedDelay: unknown = Reflect.get(confirmationConfig, 'autoProceedDelay');
-  if (
-    autoProceedDelay !== undefined &&
-    (typeof autoProceedDelay !== 'number' || !Number.isFinite(autoProceedDelay))
-  ) {
-    return null;
-  }
-  const updatedAt: unknown = Reflect.get(record, 'updatedAt');
-  if (typeof updatedAt !== 'number' || !Number.isFinite(updatedAt)) return null;
-  return {
-    walletId,
-    confirmationConfig:
-      autoProceedDelay === undefined
-        ? { uiMode, behavior }
-        : { uiMode, behavior, autoProceedDelay },
-    updatedAt,
-  };
-}
-
-function isClientDeviceLinkProgressCandidate(
-  value: unknown,
-): value is
-  | DeviceLinkEmailOtpBaseFactorSelectionProgressV1
-  | DeviceLinkTargetFactorActivationProgressV1 {
-  const record = rawClientMessageObject(value);
-  if (!record) return false;
-  const event: unknown = Reflect.get(record, 'event');
-  return (
-    event === 'wallet_device_link_email_otp_base_factor_selection_required_v1' ||
-    event === 'wallet_device_link_target_factor_activation_v1'
-  );
-}
-
-function parseClientProgressPayload(value: unknown): ProgressPayload | null {
-  if (isWalletFlowEvent(value)) return value;
-  if (isRegistrationTimingSpanV1(value)) return value;
-  if (!isClientDeviceLinkProgressCandidate(value)) return null;
-  if (isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(value)) return value;
-  return isDeviceLinkTargetFactorActivationProgressV1(value) ? value : null;
-}
-
-function parseClientPmResultPayload(value: unknown): PMResultPayload | null {
-  const record = rawClientMessageObject(value);
-  if (!record || !hasOnlyClientMessageFields(record, ['ok', 'result', 'error'])) return null;
-  const ok: unknown = Reflect.get(record, 'ok');
-  if (typeof ok !== 'boolean') return null;
-  const error: unknown = Reflect.get(record, 'error');
-  if (error !== undefined && typeof error !== 'string') return null;
-  return {
-    ok,
-    ...(Object.hasOwn(record, 'result') ? { result: Reflect.get(record, 'result') } : {}),
-    ...(error !== undefined ? { error } : {}),
-  };
-}
-
-function parseClientErrorPayload(value: unknown): ErrorPayload | null {
-  const record = rawClientMessageObject(value);
-  if (!record || !hasOnlyClientMessageFields(record, ['code', 'message', 'details'])) return null;
-  const code: unknown = Reflect.get(record, 'code');
-  const message: unknown = Reflect.get(record, 'message');
-  if (typeof code !== 'string' || typeof message !== 'string') return null;
-  return {
-    code,
-    message,
-    ...(Object.hasOwn(record, 'details') ? { details: Reflect.get(record, 'details') } : {}),
-  };
-}
-
-function parseClientChildToParentEnvelope(value: unknown): ParsedChildToParentEnvelope | null {
-  const record = rawClientMessageObject(value);
-  if (!record || !hasOnlyClientMessageFields(record, ['type', 'requestId', 'payload'])) {
-    return null;
-  }
-  const requestId = clientChildRequestId(record);
-  if (requestId === null) return null;
-  const requestIdFields = clientChildRequestIdFields(requestId);
-  const type: unknown = Reflect.get(record, 'type');
-  switch (type) {
-    case 'PONG':
-      return Object.hasOwn(record, 'payload') ? null : { ...requestIdFields, type };
-    case 'PREFERENCES_CHANGED': {
-      const payload = parseClientPreferencesChangedPayload(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'AUTH_MENU_EXTERNAL_AUTH_REQUEST': {
-      const payload = parseHostedAuthMenuExternalAuthRequest(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'AUTH_MENU_ERROR': {
-      const payload = parseHostedAuthMenuErrorEvent(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY': {
-      const payload = parseHostedAuthMenuDemoEmailOtpDelivery(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'TRANSACTION_REVIEW_STATE': {
-      const payload = parseTransactionReviewState(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'SURFACE_MEASUREMENT': {
-      const payload = parseWalletIframeSurfaceMeasurement(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'TRANSACTION_ACTIVITY': {
-      const payload = Reflect.get(record, 'payload');
-      return typeof requestId === 'string' &&
-        (payload === 'expanded' || payload === 'toast' || payload === 'closed')
-        ? { type, requestId, payload }
-        : null;
-    }
-    case 'PROGRESS': {
-      const payload = parseClientProgressPayload(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'PM_RESULT': {
-      const payload = parseClientPmResultPayload(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    case 'ERROR': {
-      const payload = parseClientErrorPayload(Reflect.get(record, 'payload'));
-      return payload ? { ...requestIdFields, type, payload } : null;
-    }
-    default:
-      return null;
-  }
-}
-
-function parseSdkLifecycleEnvelope(value: unknown): ParsedSdkLifecycleEnvelope {
-  if (!isObject(value) || value.type !== 'SDK_LIFECYCLE_EVENT') {
-    return { kind: 'not_lifecycle_event' };
-  }
-  const event = parseSdkLifecycleEvent(value.payload);
-  if (!event) return { kind: 'invalid_lifecycle_event' };
-  return { kind: 'lifecycle_event', event };
-}
-
 function assertNeverSdkLifecycleEventName(value: never): never {
   throw new Error(`Unsupported SDK lifecycle event: ${String(value)}`);
 }
 
 export class WalletIframeRouter {
+  readonly placement = createIframePlacementCommands(this.post.bind(this));
+  private readonly walletSessionReads = new Map<string, Promise<WalletSession>>();
   private opts: Required<WalletIframeRouterOptions>;
   // Low-level transport handling iframe mount + handshake
   private transport: IframeTransport;
@@ -1571,19 +1270,20 @@ export class WalletIframeRouter {
     reqCounter: 0,
   };
   private readonly listeners = {
-    ready: new Set<() => void>(),
-    loginStatus: new Set<(status: { isLoggedIn: boolean; walletId: string | null }) => void>(),
+    connectionClosed: new Set<() => void>(),
+    sessionChanged: new Set<
+      (state: WalletIframeExactSessionState, publication: WalletIframeSessionPublication) => void
+    >(),
     preferencesChanged: new Set<(payload: PreferencesChangedPayload) => void>(),
     hostedAuthMenuExternalAuthRequest: new Set<
       (payload: HostedAuthMenuExternalAuthRequest) => void
-    >(),
-    hostedAuthMenuDemoEmailOtpDelivery: new Set<
-      (payload: HostedAuthMenuDemoEmailOtpDelivery) => void
     >(),
     sdkLifecycleEvent: new Set<SdkLifecycleEventListener>(),
   };
   private readonly expiredSigningSessionsByWallet = new Map<WalletId, Set<WalletSessionId>>();
   private exactSessionState: WalletIframeExactSessionState | null = null;
+  private sessionSelectionGeneration = 0;
+  private sessionObservationRevision = -1;
   private lastPreferencesChangedPayload: PreferencesChangedPayload | null = null;
   private mirroredConfirmationUiMode: RequestConfirmationUiMode | null = null;
   private progressBus: OnEventsProgressBus;
@@ -1679,9 +1379,6 @@ export class WalletIframeRouter {
       servicePath: normalizedServicePath,
       sdkBasePath: normalizedSdkBasePath,
       testOptions,
-      chains: (options.chains ?? PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains).map(
-        cloneResolvedChainConfig,
-      ),
     } as Required<WalletIframeRouterOptions>;
     this.walletOriginUrl = parsedOrigin;
     this.walletOriginOrigin = parsedOrigin.origin;
@@ -2704,10 +2401,19 @@ export class WalletIframeRouter {
     this.overlayState.controller.dispose();
     this.updateSurfaceViewportListeners();
     if (this.state.connectionId === connectionId) {
+      this.exactSessionState = null;
+      this.sessionObservationRevision = -1;
+      this.lastPreferencesChangedPayload = null;
+      this.mirroredConfirmationUiMode = null;
       this.state.connectionId = null;
       this.state.port = null;
       this.state.ready = false;
       this.state.configured = false;
+      for (const listener of Array.from(this.listeners.connectionClosed)) {
+        try {
+          listener();
+        } catch {}
+      }
     }
   }
 
@@ -2733,21 +2439,9 @@ export class WalletIframeRouter {
     this.finishRequestSurface(surface.identity.requestId, true);
   }
 
-  /**
-   * Subscribe to service-ready event. Returns an unsubscribe function.
-   * If already ready, the listener is invoked on next microtask.
-   */
-  onReady(listener: () => void): () => void {
-    if (this.state.ready) {
-      Promise.resolve().then(() => {
-        listener();
-      });
-      return () => {};
-    }
-    this.listeners.ready.add(listener);
-    return () => {
-      this.listeners.ready.delete(listener);
-    };
+  onConnectionClosed(listener: () => void): () => void {
+    this.listeners.connectionClosed.add(listener);
+    return this.listeners.connectionClosed.delete.bind(this.listeners.connectionClosed, listener);
   }
 
   onHostedAuthMenuExternalAuthRequest(
@@ -2755,13 +2449,6 @@ export class WalletIframeRouter {
   ): () => void {
     this.listeners.hostedAuthMenuExternalAuthRequest.add(listener);
     return () => this.listeners.hostedAuthMenuExternalAuthRequest.delete(listener);
-  }
-
-  onHostedAuthMenuDemoEmailOtpDelivery(
-    listener: (payload: HostedAuthMenuDemoEmailOtpDelivery) => void,
-  ): () => void {
-    this.listeners.hostedAuthMenuDemoEmailOtpDelivery.add(listener);
-    return () => this.listeners.hostedAuthMenuDemoEmailOtpDelivery.delete(listener);
   }
 
   async resolveHostedAuthMenuExternalAuth(
@@ -2782,19 +2469,12 @@ export class WalletIframeRouter {
     }).then(() => undefined);
   }
 
-  private emitReady(): void {
-    if (!this.listeners.ready.size) return;
-    for (const cb of Array.from(this.listeners.ready)) {
-      cb();
-    }
-    // Keep listeners registered; callers can unsubscribe if desired.
-  }
-
   /**
    * Initialize the transport and configure the wallet host.
    * Safe to call multiple times; concurrent calls deduplicate via initInFlight.
    */
   async init(hostedWalletSession?: HostedWalletSeamsSessionSource): Promise<void> {
+    if (this.disposed) throw new Error('Wallet iframe router is disposed');
     if (this.state.initInFlight) {
       return this.state.initInFlight;
     }
@@ -2804,11 +2484,10 @@ export class WalletIframeRouter {
       if (hostedWalletSession) {
         await this.ensureHostedWalletSeamsSession(hostedWalletSession);
       }
-      await this.refreshExactSessionAndEmitLoginStatus('restore', { kind: 'current' });
+      await this.refreshExactSessionAndEmitChange('restore', { kind: 'current' });
       // Resolve the host's confirmation mode while initialization is still in flight. Foreground
       // requests can then begin their surface without a nested config RPC on first use.
-      await this.getConfirmationConfig().catch(() => undefined);
-      this.emitReady();
+      await this.getConfirmationConfig();
     })();
 
     try {
@@ -2835,10 +2514,19 @@ export class WalletIframeRouter {
   private async connectAndConfigure(): Promise<void> {
     if (this.opts.testOptions.autoMount !== false && (!this.state.ready || !this.state.port)) {
       this.overlayState.controller.prepare();
-      this.state.port = await this.transport.connect();
+      const port = await this.transport.connect();
+      if (this.disposed) {
+        port.close();
+        throw new Error('Wallet iframe router is disposed');
+      }
+      this.state.port = port;
       const connectionId = walletIframeConnectionIdFromBoundary(
         `wallet-iframe-connection-${secureRandomBase36(16, 'wallet iframe connection IDs')}`,
       );
+      this.lastPreferencesChangedPayload = null;
+      this.mirroredConfirmationUiMode = null;
+      this.exactSessionState = null;
+      this.sessionObservationRevision = -1;
       this.state.connectionId = connectionId;
       this.state.port.onmessage = (event) => this.onPortMessage(event, connectionId);
       this.state.port.start?.();
@@ -2847,18 +2535,14 @@ export class WalletIframeRouter {
     await this.post({
       type: 'PM_SET_CONFIG',
       payload: {
-        chains: this.opts.chains,
-        relayerAccount: this.opts.relayerAccount,
-        relayer: this.opts.relayer,
-        registration: this.opts.registration,
-        signingSessionDefaults: this.opts.signingSessionDefaults,
-        signingSessionPersistenceMode: this.opts.signingSessionPersistenceMode,
-        routerAb: this.opts.routerAb,
-        routerAbEcdsaDerivationPresignaturePool: this.opts.routerAbEcdsaDerivationPresignaturePool,
-        provisioningDefaults: this.opts.provisioningDefaults,
-        iframeWallet: this.opts.rpIdOverride ? { rpIdOverride: this.opts.rpIdOverride } : undefined,
-        authenticatorOptions: this.opts.authenticatorOptions,
-        appearance: this.getCurrentAppearance(),
+        kind: 'configure',
+        config: replaceWalletHostAppearance(
+          this.opts.hostConfig,
+          resolveRuntimeAppearance(
+            this.opts.hostConfig.ui.appearance,
+            this.getCurrentAppearance() ?? {},
+          ),
+        ),
         assetsBaseUrl: this.walletAssetBaseUrl(),
       },
     });
@@ -2876,7 +2560,7 @@ export class WalletIframeRouter {
   }
 
   isReady(): boolean {
-    return this.state.ready;
+    return this.state.ready && this.state.configured && this.exactSessionState !== null && this.state.initInFlight === null;
   }
 
   async initializeHostedWalletSeamsSession(source: HostedWalletSeamsSessionSource): Promise<void> {
@@ -2929,6 +2613,9 @@ export class WalletIframeRouter {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${operationCredential.token}`,
+        ...(operationCredential.home.kind === 'regional'
+          ? { 'X-Seams-Wallet-Region': operationCredential.home.region }
+          : {}),
       },
       body: JSON.stringify({
         appOrigin,
@@ -2945,6 +2632,7 @@ export class WalletIframeRouter {
       type: 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION',
       payload: buildPMRedeemHostedWalletSeamsSessionPayload({
         exchangeCode: delivery.exchangeCode,
+        home: delivery.home,
         nonce: delivery.nonce,
         appOrigin: delivery.appOrigin,
         walletOrigin: delivery.walletOrigin,
@@ -2972,17 +2660,21 @@ export class WalletIframeRouter {
     this.updateSurfaceViewportListeners();
     this.overlayState.controller.dispose();
     this.transport.dispose();
+    for (const listeners of Object.values(this.listeners)) listeners.clear();
   }
 
   // ===== Public RPC helpers =====
 
-  // Subscribe to wallet-host login status changes observed by this client
-  onLoginStatusChanged(
-    listener: (status: { isLoggedIn: boolean; walletId: string | null }) => void,
+  // Subscribe to reconciled wallet-host session observations.
+  onSessionChange(
+    listener: (
+      state: WalletIframeExactSessionState,
+      publication: WalletIframeSessionPublication,
+    ) => void,
   ): () => void {
-    this.listeners.loginStatus.add(listener);
+    this.listeners.sessionChanged.add(listener);
     return () => {
-      this.listeners.loginStatus.delete(listener);
+      this.listeners.sessionChanged.delete(listener);
     };
   }
 
@@ -3018,38 +2710,71 @@ export class WalletIframeRouter {
   private async refreshExactSessionState(
     authenticationRead: 'restore' | 'current',
     wallet: { readonly kind: 'current' } | { readonly kind: 'exact'; readonly walletId: string },
+    emitChange = false,
   ): Promise<WalletIframeExactSessionState> {
-    const response = await this.post<unknown>({
-      type: 'PM_GET_EXACT_WALLET_SESSION_STATE',
-      payload: { authenticationRead, wallet },
-    });
-    const state = parseWalletIframeExactSessionState(response.result);
-    this.updateReviewSession(state);
-    this.exactSessionState = state;
-    return state;
+    if (!this.state.ready || !this.state.port) await this.init();
+    const connectionId = this.state.connectionId;
+    let requestedWallet = wallet;
+    let readMode = authenticationRead;
+    const selectedWalletId = this.lastPreferencesChangedPayload?.walletId;
+    if (
+      wallet.kind === 'exact' &&
+      selectedWalletId !== undefined &&
+      wallet.walletId !== selectedWalletId
+    ) {
+      requestedWallet = { kind: 'current' };
+    }
+    for (;;) {
+      const selectionGeneration = this.sessionSelectionGeneration;
+      const response = await this.post<unknown>({
+        type: 'PM_GET_EXACT_WALLET_SESSION_STATE',
+        payload: { authenticationRead: readMode, wallet: requestedWallet },
+      });
+      if (this.state.connectionId !== connectionId) {
+        throw new Error('Wallet iframe connection changed during session request');
+      }
+      if (selectionGeneration !== this.sessionSelectionGeneration) {
+        requestedWallet = { kind: 'current' };
+        readMode = 'current';
+        continue;
+      }
+      const snapshot = parseWalletIframeExactSessionSnapshot(response.result);
+      const changed = this.acceptSessionSnapshot(snapshot);
+      const state = this.getMirroredExactSessionState();
+      if (emitChange && changed) {
+        this.emitSessionChanged(state, { kind: 'observed', session: snapshot.session });
+      }
+      return state;
+    }
   }
 
-  private emitLoginStatusChanged(status: { isLoggedIn: boolean; walletId: string | null }): void {
-    for (const cb of Array.from(this.listeners.loginStatus)) {
+  private acceptSessionSnapshot(snapshot: WalletIframeExactSessionSnapshot): boolean {
+    if (snapshot.revision <= this.sessionObservationRevision) return false;
+    const walletId = this.lastPreferencesChangedPayload?.walletId;
+    if (walletId !== undefined && walletId !== snapshot.walletId) return false;
+    const changed = !walletIframeSessionStatesEqual(this.exactSessionState, snapshot.state);
+    this.sessionObservationRevision = snapshot.revision;
+    this.updateReviewSession(snapshot.state);
+    this.exactSessionState = snapshot.state;
+    return changed;
+  }
+
+  private emitSessionChanged(
+    state: WalletIframeExactSessionState,
+    publication: WalletIframeSessionPublication,
+  ): void {
+    for (const cb of Array.from(this.listeners.sessionChanged)) {
       try {
-        cb(status);
+        cb(state, publication);
       } catch {}
     }
   }
 
-  private mirrorExactSessionAndEmitLoginStatus(state: WalletIframeExactSessionState): void {
-    this.updateReviewSession(state);
-    this.exactSessionState = state;
-    this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(state));
-  }
-
-  private async refreshExactSessionAndEmitLoginStatus(
+  private async refreshExactSessionAndEmitChange(
     authenticationRead: 'restore' | 'current',
     wallet: { readonly kind: 'current' } | { readonly kind: 'exact'; readonly walletId: string },
   ): Promise<WalletIframeExactSessionState> {
-    const state = await this.refreshExactSessionState(authenticationRead, wallet);
-    this.mirrorExactSessionAndEmitLoginStatus(state);
-    return state;
+    return this.refreshExactSessionState(authenticationRead, wallet, true);
   }
 
   private emitPreferencesChanged(payload: PreferencesChangedPayload): void {
@@ -3070,26 +2795,42 @@ export class WalletIframeRouter {
   }
 
   private handlePreferencesChanged(payload: PreferencesChangedPayload): void {
+    if (
+      this.lastPreferencesChangedPayload &&
+      payload.revision <= this.lastPreferencesChangedPayload.revision
+    ) return;
     const previousWalletId = this.lastPreferencesChangedPayload?.walletId;
+    const selectionChanged = payload.walletId !== previousWalletId;
+    if (selectionChanged) this.sessionSelectionGeneration += 1;
     this.emitPreferencesChanged(payload);
+    if (this.disposed) return;
     const walletId = String(payload.walletId || '').trim();
-    if (walletId === previousWalletId) return;
+    if (!selectionChanged) return;
     if (previousWalletId !== undefined) this.invalidateReviews();
-    if (!walletId) return;
-    void this.refreshExactSessionAndEmitLoginStatus('current', {
-      kind: 'exact',
-      walletId: parseRequestedWalletId(walletId),
-    }).catch((error: unknown) => {
-      console.warn('[WalletIframeRouter] Exact session refresh after wallet change failed:', error);
-    });
+    if (!walletId) {
+      if (previousWalletId !== undefined) {
+        const state: WalletIframeExactSessionState = { kind: 'wallet_locked' };
+        this.updateReviewSession(state);
+        this.exactSessionState = state;
+        this.emitSessionChanged(state, { kind: 'refresh' });
+      }
+      return;
+    }
   }
 
-  private emitSdkLifecycleEvent(event: SdkLifecycleEvent): void {
+  private emitSdkLifecycleEvent(event: SdkLifecycleEvent, revision: number): void {
     const eventName = event.event;
     switch (eventName) {
       case 'signing_session.expired':
         this.failPendingRequestsForExpiredSession(event);
-        this.mirrorExpiredSession(event);
+        if (revision > this.sessionObservationRevision) {
+          const previous = this.exactSessionState;
+          this.mirrorExpiredSession(event);
+          if (this.exactSessionState !== previous) this.sessionObservationRevision = revision;
+          if (previous === null && this.lastPreferencesChangedPayload?.walletId === event.walletId) {
+            this.sessionSelectionGeneration += 1;
+          }
+        }
         if (!this.markSigningSessionExpiryAsNew(event)) return;
         for (const listener of Array.from(this.listeners.sdkLifecycleEvent)) {
           listener(event);
@@ -3120,7 +2861,7 @@ export class WalletIframeRouter {
     };
     this.updateReviewSession(expiredState);
     this.exactSessionState = expiredState;
-    this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(expiredState));
+    this.emitSessionChanged(expiredState, { kind: 'refresh' });
   }
 
   private failPendingRequestsForExpiredSession(event: SigningSessionExpiredEvent): void {
@@ -3169,7 +2910,7 @@ export class WalletIframeRouter {
 
   // ===== SeamsWeb RPCs =====
 
-  async signTransactionWithActions(payload: {
+  async signTransaction(payload: {
     walletId: string;
     nearAccountId: string;
     transaction: TransactionInput;
@@ -3271,14 +3012,10 @@ export class WalletIframeRouter {
       },
       { timeoutMs: WALLET_IFRAME_REGISTRATION_TIMEOUT_MS },
     );
-    const walletId = res.result?.success ? String(res.result.walletId || '') : '';
-    if (walletId) {
-      await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'exact', walletId });
-    }
     return res.result;
   }
 
-  async getNearProvisioningState(args: {
+  async getNearAccountState(args: {
     walletId: WalletId | string;
   }): Promise<NearProvisioningState | null> {
     const walletId = toWalletId(args.walletId);
@@ -3292,18 +3029,8 @@ export class WalletIframeRouter {
     return state;
   }
 
-  async resumePendingEcdsaRegistration(
-    args: Parameters<RegistrationCapability['resumePendingEcdsaRegistration']>[0],
-  ): Promise<ResumePendingEcdsaRegistrationResult> {
-    const response = await this.post<ResumePendingEcdsaRegistrationResult>({
-      type: 'PM_RESUME_PENDING_ECDSA_REGISTRATION',
-      payload: args,
-    });
-    return response.result;
-  }
-
-  async addWalletSigner(
-    payload: Parameters<RegistrationCapability['addWalletSigner']>[0],
+  async addSigner(
+    payload: Parameters<RegistrationCapability['addSigner']>[0],
   ): Promise<RegistrationResult> {
     const confirmationConfig = payload.options?.confirmationConfig;
     if (confirmationConfig) {
@@ -3351,8 +3078,8 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async addEmailOtp(
-    payload: Parameters<RegistrationCapability['addEmailOtp']>[0],
+  async addEmail(
+    payload: Parameters<RegistrationCapability['addEmail']>[0],
   ): Promise<AddEmailOtpResult> {
     const safeOptions = removeFunctionsFromOptions(payload.options);
     const res = await this.post<AddEmailOtpResult>(
@@ -3372,8 +3099,8 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async revokeAuthMethod(
-    payload: Parameters<RegistrationCapability['revokeAuthMethod']>[0],
+  async removeAuthMethod(
+    payload: Parameters<RegistrationCapability['removeAuthMethod']>[0],
   ): Promise<RevokeAuthMethodResult> {
     const res = await this.post<RevokeAuthMethodResult>({
       type: 'PM_REVOKE_AUTH_METHOD',
@@ -3385,26 +3112,9 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async bootstrapEcdsaSession(
-    payload: BootstrapThresholdEcdsaSessionArgs,
-  ): Promise<ThresholdEcdsaSessionBootstrapResult> {
-    const safePayload = removeFunctionsFromOptions(payload);
-    const res = await this.post<ThresholdEcdsaSessionBootstrapResult>(
-      {
-        type: 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION',
-        payload: safePayload,
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    return res.result;
-  }
-
   async unlock(payload: LoginUnlockRequest): Promise<LoginAndCreateSessionResult> {
     await this.ensureHostedWalletSeamsSession(
-      hostedWalletSeamsSessionSourceFromUnlock(payload, this.opts.relayer?.url),
+      hostedWalletSeamsSessionSourceFromUnlock(payload, this.opts.hostConfig.network.relayer.url),
     );
     const unlockPayload = buildPMUnlockPayload(payload);
     const onEvent = unlockOnEventFromRequest(payload);
@@ -3413,72 +3123,71 @@ export class WalletIframeRouter {
       payload: unlockPayload,
       options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
     });
-    const result = res.result;
-    if (result.success) {
-      await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
-    }
-    return result;
+    return res.result;
   }
 
   async getWalletSession(walletId?: string): Promise<WalletSession> {
     const expectedWalletId = walletId === undefined ? undefined : parseRequestedWalletId(walletId);
-    const res = await this.post<unknown>({
-      type: 'PM_GET_WALLET_SESSION',
-      payload: expectedWalletId ? { walletId: expectedWalletId } : undefined,
-    });
-    return parseWalletSessionFromBoundary(res.result, expectedWalletId);
+    if (!this.state.ready || !this.state.port) await this.init();
+    const key = JSON.stringify([
+      this.state.connectionId,
+      this.sessionSelectionGeneration,
+      this.sessionObservationRevision,
+      expectedWalletId ?? null,
+    ]);
+    const existing = this.walletSessionReads.get(key);
+    if (existing) return existing;
+    const pending = this.readWalletSession(expectedWalletId).finally(
+      this.finishWalletSessionRead.bind(this, key),
+    );
+    this.walletSessionReads.set(key, pending);
+    return pending;
   }
 
-  async requestEmailOtpChallenge(payload: {
-    walletId: string;
-    walletAuthMethodId?: string;
-    relayUrl?: string;
-    operation?: WalletEmailOtpLoginOperation;
-    operationFingerprintDigest?: DigestB64u;
-    onEvent?: (ev: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpOperationChallengeResult> {
+  private finishWalletSessionRead(key: string): void {
+    this.walletSessionReads.delete(key);
+  }
+
+  private async readWalletSession(expectedWalletId: string | undefined): Promise<WalletSession> {
+    const connectionId = this.state.connectionId;
+    for (;;) {
+      const selectionGeneration = this.sessionSelectionGeneration;
+      const observationRevision = this.sessionObservationRevision;
+      const res = await this.post<unknown>({
+        type: 'PM_GET_WALLET_SESSION',
+        payload: expectedWalletId ? { walletId: expectedWalletId } : undefined,
+      });
+      if (this.disposed || this.state.connectionId !== connectionId) {
+        throw new Error('Wallet iframe connection changed during session request');
+      }
+      if (
+        selectionGeneration !== this.sessionSelectionGeneration ||
+        observationRevision !== this.sessionObservationRevision
+      ) {
+        continue;
+      }
+      return parseWalletSessionFromBoundary(res.result, expectedWalletId);
+    }
+  }
+
+  async requestEmailCode(
+    payload: Parameters<AuthCapability['requestEmailCode']>[0],
+  ): ReturnType<AuthCapability['requestEmailCode']> {
     const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpOperationChallengeResult>({
+    const res = await this.post<PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthWireFlow>>({
       type: 'PM_REQUEST_EMAIL_OTP_CHALLENGE',
       payload: wirePayload,
       options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
     });
-    return res.result;
-  }
-
-  async requestEmailOtpEnrollmentChallenge(payload: {
-    walletId: string;
-    relayUrl?: string;
-    onEvent?: (ev: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpChallengeResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpChallengeResult>({
-      type: 'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE',
-      payload: wirePayload,
-      options: { onProgress: this.wrapOnEvent(onEvent, isRegistrationFlowEvent) },
-    });
-    return res.result;
-  }
-
-  async requestEmailOtpSigningSessionChallenge(payload: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    onEvent?: (ev: UnlockFlowEvent) => void;
-  }): Promise<Pick<EmailOtpChallengeResult, 'challengeId' | 'emailHint'>> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<Pick<EmailOtpChallengeResult, 'challengeId' | 'emailHint'>>({
-      type: 'PM_REQUEST_EMAIL_OTP_SIGNING_SESSION_CHALLENGE',
-      payload: wirePayload,
-      options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
-    });
-    return res.result;
+    if (!res.result.ok) return res.result;
+    const flow = this.googleEmailOtpWalletAuthFlowFromWire(res.result.value);
+    if (flow.mode !== 'login') throw new Error('Email code request returned a registration flow');
+    return { ok: true, value: flow };
   }
 
   private googleEmailOtpWalletAuthFlowFromWire(
     wire: PMGoogleEmailOtpWalletAuthWireFlow,
-    onDemoOtp: ((response: DemoEmailOtpCodeResponse) => void) | undefined,
   ): GoogleEmailOtpWalletAuthFlow {
-    emitDemoEmailOtpCodeFromWire({ wire, onDemoOtp });
     const cancel = async (): Promise<void> => {
       await this.post<void>({
         type: 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL',
@@ -3520,7 +3229,7 @@ export class WalletIframeRouter {
             },
           );
           if (res.result.ok) {
-            await this.refreshExactSessionAndEmitLoginStatus('current', {
+            await this.refreshExactSessionAndEmitChange('current', {
               kind: 'exact',
               walletId: String(res.result.value.walletId),
             });
@@ -3540,7 +3249,7 @@ export class WalletIframeRouter {
             },
           });
           if (!res.result.ok) return res.result;
-          const flow = this.googleEmailOtpWalletAuthFlowFromWire(res.result.value, onDemoOtp);
+          const flow = this.googleEmailOtpWalletAuthFlowFromWire(res.result.value);
           if (flow.mode !== 'register') {
             throw new Error('Google Email OTP registration reroll returned a login flow');
           }
@@ -3575,7 +3284,7 @@ export class WalletIframeRouter {
         return res.result.ok
           ? {
               ok: true,
-              value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value, onDemoOtp),
+              value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value),
             }
           : res.result;
       },
@@ -3599,7 +3308,7 @@ export class WalletIframeRouter {
           },
         );
         if (res.result.ok) {
-          await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
+          await this.refreshExactSessionAndEmitChange('current', { kind: 'current' });
         }
         return res.result;
       },
@@ -3607,10 +3316,10 @@ export class WalletIframeRouter {
     };
   }
 
-  async beginGoogleEmailOtpWalletAuth(
+  async startGoogleSignIn(
     payload: GoogleEmailOtpWalletAuthStartInput,
   ): Promise<GoogleEmailOtpWalletAuthResult<GoogleEmailOtpWalletAuthFlow>> {
-    const { onDemoOtp, onEvent, ...wirePayload } = payload;
+    const { onEvent, ...wirePayload } = payload;
     const diagnosticsEnabled =
       Reflect.get(globalThis, '__SEAMS_EMAIL_OTP_UNLOCK_DIAGNOSTICS') === true;
     const registrationBenchmarkTimings =
@@ -3644,97 +3353,12 @@ export class WalletIframeRouter {
     return res.result.ok
       ? {
           ok: true,
-          value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value, onDemoOtp),
+          value: this.googleEmailOtpWalletAuthFlowFromWire(res.result.value),
         }
       : res.result;
   }
 
-  async enrollEmailOtp(payload: {
-    walletId: string;
-    otpCode: string;
-    relayUrl?: string;
-    challengeId?: string;
-    groupId?: string;
-    onEvent?: (ev: RegistrationFlowEvent) => void;
-  }): Promise<EmailOtpEnrollmentResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpEnrollmentResult>(
-      {
-        type: 'PM_ENROLL_EMAIL_OTP',
-        payload: wirePayload,
-        options: { onProgress: this.wrapOnEvent(onEvent, isRegistrationFlowEvent) },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_EMAIL_OTP_ENROLLMENT_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    return sanitizeEmailOtpIframeResult(res.result);
-  }
-
-  async unlockAddedEmailOtpWallet(payload: {
-    walletId: string;
-    walletAuthMethodId: string;
-    email: string;
-    providerSubjectId: string;
-    challengeId: string;
-    otpCode: string;
-    relayUrl: string;
-  }): Promise<void> {
-    await this.post<{ ok: true }>({
-      type: 'PM_UNLOCK_ADDED_EMAIL_OTP_WALLET',
-      payload,
-    });
-    await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
-  }
-
-  async loginWithEmailOtpEcdsaCapability(
-    payload: EmailOtpEcdsaCapabilityArgs & {
-      publicationChainTargets?: readonly ThresholdEcdsaChainTarget[];
-    },
-  ): Promise<EmailOtpEcdsaCapabilityResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpEcdsaCapabilityResult>(
-      {
-        type: 'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY',
-        payload: wirePayload,
-        options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
-    return sanitizeEmailOtpIframeResult(res.result);
-  }
-
-  async refreshEmailOtpSigningSession(payload: {
-    walletSession: WalletSessionRef;
-    chainTarget: ThresholdEcdsaChainTarget;
-    challengeId: string;
-    otpCode: string;
-    ttlMs?: number;
-    remainingUses?: number;
-    onEvent?: (ev: UnlockFlowEvent) => void;
-  }): Promise<EmailOtpEcdsaCapabilityResult> {
-    const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<EmailOtpEcdsaCapabilityResult>(
-      {
-        type: 'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION',
-        payload: wirePayload,
-        options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    await this.refreshExactSessionAndEmitLoginStatus('current', { kind: 'current' });
-    return sanitizeEmailOtpIframeResult(res.result);
-  }
-
-  async getWalletRecoveryCodeStatus(payload: {
+  async getCodeStatus(payload: {
     walletId: string;
   }): Promise<WalletRecoveryCodeStatusResult> {
     const res = await this.post<WalletRecoveryCodeStatusResult>({
@@ -3744,7 +3368,7 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async acknowledgeWalletRecoveryCodeBackup(payload: {
+  async confirmBackup(payload: {
     walletId: string;
   }): Promise<WalletRecoveryBackupAcknowledgementResult> {
     await this.ensureConfigured();
@@ -3772,8 +3396,8 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async rotateWalletRecoveryCodes(
-    payload: Parameters<RecoveryCapability['rotateWalletRecoveryCodes']>[0],
+  async rotateCodes(
+    payload: Parameters<RecoveryCapability['rotateCodes']>[0],
   ): Promise<WalletRecoveryRotationOutcome> {
     const res = await this.post<WalletRecoveryRotationOutcome>({
       type: 'PM_ROTATE_WALLET_RECOVERY_CODES',
@@ -3791,15 +3415,7 @@ export class WalletIframeRouter {
     this.invalidateReviews();
     await this.post<void>({ type: 'PM_LOCK' });
     this.exactSessionState = { kind: 'wallet_locked' };
-    this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
-    return { ok: true, result: undefined };
-  }
-
-  async logout(): Promise<PostResult<void>> {
-    this.invalidateReviews();
-    await this.post<void>({ type: 'PM_LOGOUT' });
-    this.exactSessionState = { kind: 'wallet_locked' };
-    this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+    this.emitSessionChanged({ kind: 'wallet_locked' }, { kind: 'refresh' });
     return { ok: true, result: undefined };
   }
 
@@ -3814,10 +3430,10 @@ export class WalletIframeRouter {
     const result = parseWalletIframeExactSessionLockResult(response.result);
     if (result.kind === 'locked') {
       this.exactSessionState = { kind: 'wallet_locked' };
-      this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+      this.emitSessionChanged({ kind: 'wallet_locked' }, { kind: 'refresh' });
     } else {
       this.exactSessionState = result.current;
-      this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(result.current));
+      this.emitSessionChanged(result.current, { kind: 'refresh' });
     }
     return result;
   }
@@ -3827,6 +3443,7 @@ export class WalletIframeRouter {
     nearAccountId: string;
     message: string;
     recipient: string;
+    callbackUrl?: string;
     state?: string;
     options: {
       signerSlot?: number;
@@ -3852,6 +3469,7 @@ export class WalletIframeRouter {
         params: {
           message: payload.message,
           recipient: payload.recipient,
+          callbackUrl: payload.callbackUrl,
           state: payload.state,
         },
         options: safeOptions,
@@ -4022,56 +3640,11 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async executeAction(
-    payload: {
-      walletId: string;
-      nearAccountId: string;
-      receiverId: string;
-      actionArgs: ActionArgs | ActionArgs[];
-      options: ActionHooksOptions;
-    },
-    transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
-  ): Promise<ActionResult> {
-    // Strip non-cloneable functions from options; host emits PROGRESS events
-    if (transactionDispatch.kind === 'reviewed') {
-      payload = {
-        ...payload,
-        options: {
-          ...payload.options,
-          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
-        },
-      };
-    }
-    const { options } = payload;
-    const safeOptions = {
-      waitUntil: options.waitUntil,
-      confirmationConfig: options.confirmationConfig,
-      ...(typeof options.signerSlot === 'number' ? { signerSlot: options.signerSlot } : {}),
-      ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),
-    };
-
-    const res = await this.post<ActionResult>(
-      {
-        type: 'PM_EXECUTE_ACTION',
-        payload: {
-          walletId: payload.walletId,
-          nearAccountId: payload.nearAccountId,
-          receiverId: payload.receiverId,
-          actionArgs: payload.actionArgs,
-          options: safeOptions,
-        },
-        options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
-      },
-      { transactionDispatch },
-    );
-    return res.result;
-  }
-
-  async setConfirmBehavior(
+  async setConfirmationBehavior(
     behavior: 'requireClick' | 'skipClick',
     walletId?: string | null,
   ): Promise<void> {
-    await this.post<void>({
+    await this.requestPreferences({
       type: 'PM_SET_CONFIRM_BEHAVIOR',
       payload: { behavior, ...(walletId ? { walletId } : {}) },
     });
@@ -4081,19 +3654,33 @@ export class WalletIframeRouter {
     config: Partial<ConfirmationConfig>,
     walletId?: string | null,
   ): Promise<void> {
-    await this.post<void>({
+    await this.requestPreferences({
       type: 'PM_SET_CONFIRMATION_CONFIG',
       payload: { config, ...(walletId ? { walletId } : {}) },
     });
-    if (config.uiMode === 'none' || config.uiMode === 'modal' || config.uiMode === 'drawer') {
-      this.mirroredConfirmationUiMode = config.uiMode;
-    }
   }
 
   async getConfirmationConfig(): Promise<ConfirmationConfig> {
-    const res = await this.post<ConfirmationConfig>({ type: 'PM_GET_CONFIRMATION_CONFIG' });
-    this.mirroredConfirmationUiMode = res.result.uiMode;
-    return res.result;
+    return this.requestPreferences({ type: 'PM_GET_CONFIRMATION_CONFIG' });
+  }
+
+  private async requestPreferences(request: Variant<
+    ParentToChildEnvelope,
+    'type',
+    'PM_GET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRM_BEHAVIOR'
+  >): Promise<ConfirmationConfig> {
+    if (!this.state.ready || !this.state.port) await this.init();
+    const connectionId = this.state.connectionId;
+    const res = await this.post<unknown>(request);
+    if (this.state.connectionId !== connectionId) {
+      throw new Error('Wallet iframe connection changed during preference request');
+    }
+    const snapshot = parseClientPreferencesChangedPayload(res.result);
+    if (!snapshot) throw new Error('Invalid wallet preference snapshot');
+    this.handlePreferencesChanged(snapshot);
+    const current = this.lastPreferencesChangedPayload;
+    if (!current) throw new Error('Wallet preference snapshot is unavailable');
+    return current.confirmationConfig;
   }
 
   /**
@@ -4104,34 +3691,12 @@ export class WalletIframeRouter {
    * fingerprint, so this never drops warm signing-session state.
    */
   async setAppearance(appearance: AppearanceConfigInput): Promise<void> {
-    await this.post<void>({ type: 'PM_SET_CONFIG', payload: { appearance } });
-  }
-
-  async prefetchBlockheight(): Promise<void> {
-    await this.post<void>({ type: 'PM_PREFETCH_BLOCKHEIGHT' });
-  }
-
-  async prefillRouterAbEcdsaDerivationPresignaturePool(payload: {
-    walletSession: WalletSessionRef;
-    options: {
-      chainTarget: ThresholdEcdsaChainTarget;
-      waitForPoolReady?: boolean;
-    };
-  }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
-    const res = await this.post<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>(
-      {
-        type: 'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL',
-        payload: {
-          walletSession: payload.walletSession,
-          ...(payload.options ? { options: payload.options } : {}),
-        },
-      },
-      {
-        timeoutMs: WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS,
-        progressTimeoutExtensionFactor: 1,
-      },
-    );
-    return res.result;
+    const resolved = resolveRuntimeAppearance(this.opts.hostConfig.ui.appearance, appearance);
+    await this.post<void>({
+      type: 'PM_SET_CONFIG',
+      payload: { kind: 'appearance', appearance: resolved },
+    });
+    this.opts.hostConfig = replaceWalletHostAppearance(this.opts.hostConfig, resolved);
   }
 
   async getRecentUnlocks(): Promise<GetRecentUnlocksResult> {
@@ -4259,7 +3824,7 @@ export class WalletIframeRouter {
     options?.onEvent?.(progress);
     const outcome = classifyLinkDeviceFlowEvent(progress);
     if (outcome.kind !== 'active') return;
-    void this.refreshExactSessionAndEmitLoginStatus('current', {
+    void this.refreshExactSessionAndEmitChange('current', {
       kind: 'exact',
       walletId: outcome.walletId,
     }).catch((error: unknown) => {
@@ -4388,18 +3953,6 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async fundImplicitNearAccountForTesting(payload: {
-    walletId: string;
-    nearAccountId: string;
-    nearPublicKey: string;
-  }): Promise<FundImplicitNearAccountForTestingResult> {
-    const res = await this.post<FundImplicitNearAccountForTestingResult>({
-      type: 'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING',
-      payload,
-    });
-    return res.result;
-  }
-
   async hasPasskeyCredential(walletId: string): Promise<boolean> {
     const res = await this.post<boolean>({
       type: 'PM_HAS_PASSKEY',
@@ -4433,23 +3986,10 @@ export class WalletIframeRouter {
   async revokeLinkedDevice(payload: {
     walletId: string;
     walletAuthMethodId: string;
-    requestedAtMs: number;
-    sourceProof: WalletAuthMethodRevocationProof;
   }): Promise<LinkedDeviceRevokeResultV1> {
-    const request = parseLinkedDeviceRevokeRequestV1({
-      kind: 'linked_device_revoke_request_v1',
-      walletId: payload.walletId,
-      walletAuthMethodId: payload.walletAuthMethodId,
-      requestedAtMs: payload.requestedAtMs,
-    });
     const res = await this.post<unknown>({
       type: 'PM_REVOKE_LINKED_DEVICE',
-      payload: {
-        walletId: String(request.walletId),
-        walletAuthMethodId: String(request.walletAuthMethodId),
-        requestedAtMs: request.requestedAtMs,
-        sourceProof: payload.sourceProof,
-      },
+      payload,
     });
     return parseLinkedDeviceRevokeResultV1(res.result);
   }
@@ -4622,7 +4162,7 @@ export class WalletIframeRouter {
     const lifecycleEnvelope = parseSdkLifecycleEnvelope(e.data);
     switch (lifecycleEnvelope.kind) {
       case 'lifecycle_event':
-        this.emitSdkLifecycleEvent(lifecycleEnvelope.event);
+        this.emitSdkLifecycleEvent(lifecycleEnvelope.event, lifecycleEnvelope.revision);
         return;
       case 'invalid_lifecycle_event':
         if (this.debug) {
@@ -4635,6 +4175,15 @@ export class WalletIframeRouter {
     const msg = parseClientChildToParentEnvelope(e.data);
     if (!msg) return;
     // Some wallet-host messages are push-style and are not correlated to a requestId.
+    if (msg.type === 'SESSION_CHANGED') {
+      if (this.acceptSessionSnapshot(msg.payload)) {
+        this.emitSessionChanged(msg.payload.state, {
+          kind: 'observed',
+          session: msg.payload.session,
+        });
+      }
+      return;
+    }
     if (msg.type === 'PREFERENCES_CHANGED') {
       const payload = msg.payload;
       this.handlePreferencesChanged(payload);
@@ -4652,24 +4201,6 @@ export class WalletIframeRouter {
         return;
       }
       for (const listener of Array.from(this.listeners.hostedAuthMenuExternalAuthRequest)) {
-        try {
-          listener(payload);
-        } catch {}
-      }
-      return;
-    }
-    if (msg.type === 'AUTH_MENU_DEMO_EMAIL_OTP_DELIVERY') {
-      const payload = parseHostedAuthMenuDemoEmailOtpDelivery(msg.payload);
-      if (!payload) return;
-      const activeRequestId = this.hostedAuthMenuRequestIds.get(payload.authMenuSessionId);
-      if (
-        !activeRequestId ||
-        typeof msg.requestId !== 'string' ||
-        msg.requestId !== activeRequestId
-      ) {
-        return;
-      }
-      for (const listener of Array.from(this.listeners.hostedAuthMenuDemoEmailOtpDelivery)) {
         try {
           listener(payload);
         } catch {}
@@ -4787,7 +4318,7 @@ export class WalletIframeRouter {
       err.details = msg.payload?.details;
       if (isTerminalWalletStateErrorCode(msg.payload?.code)) {
         this.exactSessionState = { kind: 'wallet_locked' };
-        this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+        this.emitSessionChanged({ kind: 'wallet_locked' }, { kind: 'refresh' });
       }
       // Deliver to pending promise if present
       pending.reject(err);
@@ -5114,7 +4645,6 @@ function exactSessionRequestWalletId(envelope: WalletIframeRequestEnvelope): str
   switch (envelope.type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_EXECUTE_ACTION':
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
       return requestPayloadWalletId(payload);
@@ -5194,11 +4724,6 @@ function normalizeSignedTransactionResult(result: SignTransactionResult): SignTr
     }),
   };
 }
-
-/**
- * Strips out functions as they cannot be sent over postMessage to iframe
- */
-import { stripFunctionsShallow } from '@shared/utils/validation';
 
 function unlockOnEventFromRequest(
   request: LoginUnlockRequest,

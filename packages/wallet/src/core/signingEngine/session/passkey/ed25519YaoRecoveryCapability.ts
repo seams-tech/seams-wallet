@@ -1,3 +1,4 @@
+import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import {
   parseThresholdEd25519SessionId,
@@ -41,6 +42,7 @@ export type ParsedYaoRecoverySessionBaseV1 = {
 export type ParsedYaoRecoverySessionV1 = ParsedYaoRecoverySessionBaseV1 & {
   readonly sessionKind: 'opaque';
   readonly walletSessionToken: string;
+  readonly home: WalletSessionHome;
 };
 
 export type ParsedExactYaoRecoverySessionV1 = ParsedYaoRecoverySessionBaseV1 & {

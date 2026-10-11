@@ -14,6 +14,7 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
   RouterApiUsageMeterAdapter,
+  WalletRegistrationContextResolver,
 } from './apiCredentialPorts';
 import type { SessionParseResult } from '../../core/sessionValidation';
 
@@ -34,17 +35,6 @@ export type {
   RouterApiUsageMeterAdapter,
   RouterApiUsageMeterEvent,
 } from './apiCredentialPorts';
-
-export interface RouterApiWalletProjectionEvent {
-  readonly orgId: string;
-  readonly runtimePolicyScope: RuntimePolicyScope;
-  readonly walletId: string;
-  readonly occurredAt: string;
-}
-
-export interface RouterApiWalletProjectionAdapter {
-  recordCreatedWallet(input: RouterApiWalletProjectionEvent): Promise<void>;
-}
 
 // Minimal session adapter interface expected by the routers.
 export type SessionClaims = Record<string, unknown>;
@@ -255,6 +245,8 @@ export interface RouterApiOptions {
    * API credential routes like signed delegate execution.
    */
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
+  /** Fresh credential and active-environment resolution for registration setup. */
+  registrationContext?: WalletRegistrationContextResolver | null;
   /**
    * Optional Router API usage-meter adapter used to emit host runtime events.
    */
@@ -305,8 +297,6 @@ export interface RouterApiOptions {
    * Optional org/project/environment service used to resolve environment -> project scope.
    */
   orgProjectEnv?: RouterApiProjectEnvironmentResolver | null;
-  /** Projects successfully created wallets into the customer Console index. */
-  walletProjection?: RouterApiWalletProjectionAdapter | null;
   // Optional logger; defaults to silent.
   logger?: RouterLogger | null;
 }

@@ -1,0 +1,218 @@
+# NEAR-only baseline and signing-read reduction
+
+Measured 2026-10-06. Primary target: a wallet that selects only the NEAR signer.
+Local Workers, Chromium, virtual WebAuthn, stubbed chain RPC, no broadcast. Each
+complete arm contains 20 NEAR-only wallets and 20 mixed wallets, alternating order,
+with first and warm signatures per wallet. Each arm passed 40 wallets and verified
+80 signatures without automatic retries.
+
+| NEAR-only measurement | Baseline median | Candidate median | Candidate p95 | Candidate maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Registration to public SDK ready | 947.4ms | 912.8ms | 1039.0ms | 1169.7ms |
+| First signing, public SDK | 383.1ms | 377.6ms | 390.9ms | 425.4ms |
+| Warm signing, public SDK | 365.8ms | 361.1ms | 366.5ms | 368.1ms |
+| First lane preparation | 42.1ms | 32.3ms | 47.7ms | 48.4ms |
+| Warm lane preparation | 38.1ms | 28.8ms | 30.9ms | 46.6ms |
+| First core signing exchange | 45.7ms | 43.3ms | 57.7ms | 87.9ms |
+| Warm core signing exchange | 42.2ms | 38.9ms | 44.9ms | 53.7ms |
+
+The candidate shares one available-lane read between the authorization probe and
+transaction-session preparation within one signing attempt. It retains the reread
+when material restoration changes the exact session, and fresh server admission.
+No cross-operation cache is added. SDK type-check and the bloat check pass.
+
+Full-flow median changes are small: 5.5ms first and 4.7ms warm. Lane preparation
+falls by about 9–10ms. This is one complete baseline/candidate pair. Shared-machine
+variation affects the comparison. Do not attribute registration or all tail-latency
+changes to this signing-only edit. Baseline signing includes approximately
+194–202ms of automated confirmation handling. These are local timings, not hosted
+latency or human decision time.
+
+The first candidate attempt passed 39 wallets and failed during the final iframe
+startup. SDK artifacts changed during that attempt. It remains excluded. The
+complete replacement candidate used a copied SDK dist through the existing
+`SEAMS_INTENDED_WALLET_DIST_ROOT` setting. Initial pilot attempts also remain
+excluded: one used an incorrect app URL; another omitted timing diagnostics.
+
+Evidence: [complete cohort summaries](./optimization-12-NEAR-only-20261006.json).
+Private raw reports and runner scripts: `.artifacts/near-signing-20261006/`.
+Use `tests/scripts/analyze-near-local-latency.mjs` to regenerate summaries from the
+Playwright JSON reports. The benchmark is
+`tests/e2e/intended-behaviours/near-latency/passkey.registration.benchmark.test.ts`.
+
+## Next NEAR-only work
+
+- Verify production asset loads across registration, unlock, reload signing, and export.
+  The existing custody ceremony WASM links both protocol crates; NEAR-only signer
+  selection does not establish that the downloaded WASM contains no ECDSA code.
+- Measure cold loading separately from registration. Current cohorts use the existing
+  harness and do not claim cold download performance.
+- Reduce registration's exposed session hydration: baseline median 143.3ms.
+  Reuse the mixed path's existing prepared-seal machinery where lifecycle permits.
+  Custody work is 326.9ms median and remains another profiling target.
+- Verify reload, revocation, expiry, final-use step-up, and authority replacement
+  before treating the signing candidate as fully accepted.
+- Measure three-signature sessions and repeat matched hosted NEAR-only cohorts.
+
+## Production asset acceptance
+
+The existing `production NEAR-only wallet records unlock and restored signing assets`
+E2E passed (37.6 seconds including service setup). It registers a NEAR-only wallet,
+locks/reloads, unlocks, signs, reloads/signs again, and exports the Ed25519 key.
+No ECDSA Worker or EVM operation module was loaded. The shared custody ceremony
+WASM was loaded during registration. Its build still links both protocol crates.
+
+[Asset evidence](./optimization-12-NEAR-only-assets.json) records phases, Worker
+URLs, accounting, and transfer totals. These one-sample phase durations include
+harness actions and disabled caching. They are not substitutes for SDK latency
+cohorts. This verifies reload signing for the candidate; the other lifecycle cases
+listed above remain pending.
+
+## Early NEAR-only session preparation
+
+NEAR-only passkey registration now starts the existing client-seal preparation
+after respond supplies its admitted threshold session identity. Preparation runs
+alongside custody. Finalization applies the server seal in its existing response,
+and session hydration consumes that prepared result. Registration still awaits
+durable session storage and material installation before reporting ready. Cleanup
+settles and discards temporary seal preparation on success or failure.
+
+| NEAR-only measurement | Previous candidate median | Early-seal median | Early-seal p95 | Maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Public registration to ready | 912.8ms | 834.6ms | 914.0ms | 1049.2ms |
+| Exposed session hydration | 139.1ms | 41.3ms | 43.8ms | 44.0ms |
+| First signing | 377.6ms | 378.8ms | 387.6ms | 417.8ms |
+| Warm signing | 361.1ms | 360.2ms | 365.6ms | 370.4ms |
+
+The complete 40-wallet cohort verified 80 signatures. Registration median fell
+78.2ms (8.6%) in this local comparison. A repeated matched hosted comparison is
+still required before projecting a production gain. Evidence:
+[early-seal cohort](./optimization-12-NEAR-registration-seal.json).
+
+Four focused lifecycle cases pass: immediate NEAR signing and reload, another-tab
+lock during late completion, lock during overlapping hydration, and exact Router
+transport retry followed by signing. The latter three use the existing contract
+scenarios; the lock cases cover shared hydration behavior through mixed registration.
+SDK type-check, build, and bloat checks pass. Private reproduction scripts and raw
+reports are in `.artifacts/near-registration-seal/`.
+
+## R155/R155B applicability audit
+
+- Regional routing, bounded discovery, owner/linked Console-outage signing, and
+  Gateway/role restart recovery have NEAR acceptance evidence in R155B.
+- Reusing the initial lane read now applies to NEAR transaction signing.
+- Early prepared-session sealing now applies to NEAR-only passkey registration.
+- NEAR prepare now carries fresh session facts. The common transaction and
+  signature-only path checks the exact selected authority before creating a share.
+  The separate status-read removal remains pending. Its reader also serves export
+  and restoration, so a global cache change would exceed the signing boundary.
+- ECDSA's presignature pool and reusable presignature DO are protocol-specific.
+  NEAR nonce/material preparation needs its own measured audit, including immediate
+  registration-to-sign and consecutive signatures. Do not claim pool optimization parity.
+
+## NEAR prepare session reconciliation — 2026-10-07
+
+Both curves now use the same Gateway response builder for prepare. Reusable
+sessions carry their admitted session projection and quota snapshot. Step-up
+responses cannot carry reusable session state. The SDK parses this envelope at
+its HTTP boundary and rejects a mismatched authorization kind.
+
+For NEAR transactions, delegated actions, and message signatures, the common
+signing path resolves the selected local authority again after prepare. It compares
+that authority with the returned session, quota identity, active budget, and expiry.
+A mismatch fails before the client creates a signature share. Server admission and
+finalize checks remain in place. The old ECDSA-specific server builder was removed.
+
+This change closes the response/reconciliation gap. It does not yet remove a NEAR
+status request or establish a latency gain. The next optimization must isolate
+signing confirmation planning from readers used by export and restoration, then
+measure request counts and matched registration/first/warm signing cohorts.
+
+Source, logs, frozen SDK assets, and reproduction scripts are retained under
+`.artifacts/near-prepare-session/`. No hosted deployment or Cloudflare provisioning
+was performed for this change.
+
+Verification passes:
+- NEAR-only registration, immediate transaction signing, and reload signing.
+- NEAR message signatures against the registered key before and after reload.
+- Mixed-curve unlock, export, shared-budget signing, and NEAR step-up.
+- A changed prepare authority causes the exact SDK rejection and zero finalize
+  requests. Reload then permits a valid transaction and message signature.
+- SDK/server type-checks, builds, lifecycle type fixtures, and bloat check.
+
+[Sanitized rejection evidence](./evidence/near-prepare-session-20261007.json) is
+produced by the existing NEAR contract file. Run its `NEAR rejects changed prepare
+authority` case with the intended-behaviour CI configuration. Initial test attempts
+needed harness filename registration, fresh D1 state, and reload after the error
+dialog. They are excluded from passing evidence.
+
+## NEAR duplicate status-read removal — 2026-10-07
+
+Exact NEAR signing preparation now reuses the authorization it just read when
+binding the sealed runtime. Previously, that binding helper fetched the same
+status again. The shared binding function still checks wallet, factor, authority,
+session identity, and expiry. Fresh prepare reconciliation and finalize admission
+remain unchanged. Export, funding, and restoration status readers remain unchanged.
+No cross-operation cache was added.
+
+The same three existing browser scenarios passed with frozen baseline and candidate
+SDK artifacts. Network traces give these complete-scenario POST counts:
+
+| Scenario | Status calls before | Status calls after | Prepare / finalize calls, unchanged |
+| --- | ---: | ---: | ---: |
+| Registration, two immediate signatures, reload signature | 35 | 29 | 3 / 3 |
+| Message signatures across reload, then transaction | 29 | 25 | 3 / 3 |
+| Changed prepare authority rejected, then valid signing | 32 | 27 | 4 / 2 |
+
+These totals include lifecycle and harness reads. They are not per-signature
+budgets. The rejection case continues to prove zero finalize requests after the
+changed authority response. Remaining status requests need separate analysis.
+This bounded comparison establishes request removal, not hosted latency savings.
+
+The mixed-wallet unlock, export, and shared-budget signing case also passes.
+SDK type-check, build, and bloat checks pass. Reproduce with the intended-behaviour
+CI configuration and `passkey.ed25519-yao-local.contract.test.ts`, selecting
+`registration signs immediately|NEAR message signatures|NEAR rejects changed prepare authority`.
+Enable `--trace=on` to count POST requests from the trace network records.
+Raw traces and the runner remain in `.artifacts/near-status-reuse/`.
+[Sanitized counts and SDK fingerprints](./evidence/near-status-reuse-20261007.json).
+
+## Signing preparation uses existing observations — 2026-10-07
+
+NEAR signing preparation now uses the same bounded observation cache as ECDSA
+confirmation planning. It rereads the selected local authority and exact session.
+A missing observation or different full session record triggers a fresh status
+read. It never replaces persisted authorization with a cached observation.
+Prepare still returns fresh server authority. The client compares that response
+with the current local authority before creating its signing share, then records
+the checked response for subsequent planning. Finalize retains server enforcement.
+Export, funding, and shared restoration readers retain their fresh-read behavior.
+
+| Complete scenario | Status calls before | Status calls after | Prepare / finalize, unchanged |
+| --- | ---: | ---: | ---: |
+| Registration, two immediate signatures, reload signature | 29 | 19 | 3 / 3 |
+| Message signatures across reload, then transaction | 25 | 17 | 3 / 3 |
+| Changed prepare authority rejected, then valid signing | 27 | 18 | 4 / 2 |
+
+For the first scenario, request timestamps inside the public SDK signing intervals
+show **5→2**, **5→2**, and **9→5** status calls respectively. Whole-scenario totals
+also include registration and harness reads. The SDK intervals use the existing
+`near_sdk_signing_started` and `near_sdk_signing_timing` trace events. These are
+request counts, not D1 statement counts or hosted latency measurements.
+
+Both frozen arms pass all three cases. The candidate also passes linked-device
+revocation and shared-budget exhaustion followed by both-curve passkey step-up,
+with Console unavailable. The changed-authority case still rejects before finalize.
+No new cache, timeout, compatibility flag, or background keepalive was introduced.
+SDK type-check, build and bloat checks pass.
+
+[Sanitized comparison](./evidence/near-signing-observation-20261007.json) contains
+SDK fingerprints and request paths. Raw traces, frozen assets and runners remain
+in `.artifacts/near-signing-observation/`. Repeat the same three NEAR cases with
+`--trace=on`. Regional cases use the existing private regional-real runner and
+`--grep 'linked ed25519 signs then rejects|shared budget exhaustion'`.
+Remaining status calls and duplicate owner-lane reads are separate measured work;
+this change does not establish zero status requests per signature.
+
+The normal Email OTP registration/unlock lifecycle also passes with this candidate,
+including reload signing, both-curve step-up, and key export.

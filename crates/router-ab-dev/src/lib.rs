@@ -7,25 +7,16 @@
 use base64::Engine;
 use router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2;
 use router_ab_core::{
-    decode_ab_peer_message_payload_v1,
-    decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
     execute_local_persistence_sql_seed_plan_v1, local_persistence_seed_sql_plan_v1,
-    router_transcript_digest_v1, EcdsaThresholdPrfRequestV1, EncryptedPayloadV1,
-    ExpensiveWorkKindV1, LifecycleScopeV1, LocalDeriverAEndpointV1, LocalDeriverBEndpointV1,
-    LocalEnvSnapshotV1, LocalHttpCeremonyResultV1, LocalHttpMethodV1, LocalHttpPathV1,
-    LocalHttpRequestV1, LocalPersistenceSeedV1, LocalPersistenceSqlExecutionReceiptV1,
+    LocalPersistenceSeedV1, LocalPersistenceSqlExecutionReceiptV1,
     LocalPersistenceSqlSeedExecutorV1, LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1,
-    LocalRouterEndpointV1, LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1,
-    LocalServiceStartupV1, LocalSigningRootMetadataV1, LocalSigningWorkerEndpointV1,
-    LocalTransportEnvelopeV1, LocalTransportRouteV1, MpcMaterialActivationRefV1,
-    RoleEncryptedEnvelopeV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
-    RouterAbProtocolResult, RouterTranscriptMetadataV1, ServerIdentityV1, SignerIdentityV1,
-    SignerSetV1, SigningRootShareStore, TenantRootOnlineRoleShareBindingV1, WireMessageKindV1,
-    WireMessageV1,
+    LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalSigningRootMetadataV1,
+    RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult, SignerIdentityV1,
+    SigningRootShareStore, TenantRootOnlineRoleShareBindingV1,
 };
 use router_ab_core::{PublicDigest32, Role, RootShareEpoch};
 use rusqlite::{params, params_from_iter, types::Value, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
@@ -40,7 +31,6 @@ mod local_ed25519_yao_api;
 mod local_ed25519_yao_delivery;
 
 mod local_ed25519_yao_input;
-mod local_ed25519_yao_pair;
 mod local_ed25519_yao_pair_sqlite;
 mod local_ed25519_yao_refresh;
 mod local_ed25519_yao_router;
@@ -139,10 +129,6 @@ pub use local_ed25519_yao_input::{
     seal_local_ed25519_yao_activation_deriver_b_input_v1,
     seal_local_ed25519_yao_refresh_deriver_a_input_v1, LocalEd25519YaoEncryptedRefreshInputV1,
 };
-pub use local_ed25519_yao_pair::{
-    LocalEd25519YaoPairLifecycleStateV1, LocalEd25519YaoPairLifecycleV1,
-    LocalEd25519YaoPairSigningKeysV1, LocalEd25519YaoRoleReadinessReceiptV1,
-};
 pub use local_ed25519_yao_pair_sqlite::LocalDeriverAPairSqliteV1;
 pub use local_ed25519_yao_refresh::{
     derive_local_ed25519_yao_joint_refresh_delta_v1,
@@ -177,10 +163,11 @@ pub use local_ed25519_yao_stream::{
     LocalEd25519YaoStreamErrorV1,
 };
 pub use local_ed25519_yao_worker::{
-    dispatch_local_ed25519_yao_connection_with_persistence_v1, LocalEd25519YaoConnectionDispatchV1,
-    LocalEd25519YaoPairRoleRecordV1, LocalEd25519YaoRefreshPromotionReceiptV1,
-    LocalEd25519YaoRefreshPromotionRequestV1, LocalEd25519YaoRoleCompletionV1,
-    LocalEd25519YaoWorkerStateV1,
+    dispatch_local_ed25519_yao_connection_with_persistence_v1,
+    resume_local_ed25519_yao_parked_peer_v1, LocalEd25519YaoConnectionDispatchV1,
+    LocalEd25519YaoPairRoleRecordV1, LocalEd25519YaoParkedPeerV1,
+    LocalEd25519YaoRefreshPromotionReceiptV1, LocalEd25519YaoRefreshPromotionRequestV1,
+    LocalEd25519YaoRoleCompletionV1, LocalEd25519YaoWorkerStateV1,
 };
 pub use local_router_ab_ecdsa::{local_router_ab_ecdsa_route_v1, LocalRouterAbEcdsaResponseV1};
 pub use local_router_coordinator::LocalRouterEd25519YaoCoordinatorV1;
@@ -209,8 +196,6 @@ pub use router_ab_core::{
 };
 
 const LOCAL_DEV_ACCOUNT_ID_V1: &str = "alice.testnet";
-const LOCAL_DEV_APPLICATION_BINDING_DIGEST_B64U_V1: &str =
-    "ERERERERERERERERERERERERERERERERERERERERERE";
 
 /// Local worker role env key used by the private-worker development harness.
 pub const LOCAL_WORKER_ROLE_ENV_V1: &str = "ROUTER_AB_LOCAL_WORKER_ROLE";
@@ -240,14 +225,6 @@ pub const LOCAL_DERIVER_A_TARGET_PROOF_PEER_PUBLIC_KEY_ENV_V1: &str =
 /// Deriver B's peer HPKE public key for the V2 target-proof preface.
 pub const LOCAL_DERIVER_B_TARGET_PROOF_PEER_PUBLIC_KEY_ENV_V1: &str =
     "DERIVER_B_TARGET_PROOF_PEER_PUBLIC_KEY";
-/// Deriver A peer signing key env key.
-pub const LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1: &str = "DERIVER_A_PEER_SIGNING_KEY";
-/// Deriver B peer signing key env key.
-pub const LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1: &str = "DERIVER_B_PEER_SIGNING_KEY";
-/// Deriver A peer verifying key env key.
-pub const LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1: &str = "DERIVER_A_PEER_VERIFYING_KEY";
-/// Deriver B peer verifying key env key.
-pub const LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1: &str = "DERIVER_B_PEER_VERIFYING_KEY";
 /// Deriver A role-private SQLite path env key.
 pub const LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1: &str =
     "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH";
@@ -301,9 +278,6 @@ pub const LOCAL_WORKER_HEALTH_PATH: &str = "/healthz";
 pub const LOCAL_WORKER_READY_PATH: &str = "/readyz";
 /// Deriver B full-duplex Ed25519 Yao peer-stream path.
 pub const LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH: &str = "/router-ab/deriver-b/ed25519-yao/peer";
-/// Deriver A pair-bound preparation path mirrored from the strict Cloudflare worker.
-pub const LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH: &str =
-    "/router-ab/deriver-a/ed25519-yao/prepare-pair";
 /// Deriver A pair-bound claim path mirrored from the strict Cloudflare worker.
 pub const LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH: &str =
     "/router-ab/deriver-a/ed25519-yao/execute-pair";
@@ -387,10 +361,6 @@ pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str =
 pub const LOCAL_DERIVER_A_PRIVATE_PATH: &str = "/router-ab/deriver-a";
 /// Deriver B private Router-dispatch path mirrored from production.
 pub const LOCAL_DERIVER_B_PRIVATE_PATH: &str = "/router-ab/deriver-b";
-/// Deriver A private peer path mirrored from production.
-pub const LOCAL_DERIVER_A_PEER_PATH: &str = "/router-ab/deriver-a/peer";
-/// Deriver B private peer path mirrored from production.
-pub const LOCAL_DERIVER_B_PEER_PATH: &str = "/router-ab/deriver-b/peer";
 /// SigningWorker atomic activation package-pair delivery path.
 pub const LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH: &str =
     "/router-ab/signing-worker/ed25519-yao/activation/packages";
@@ -433,8 +403,6 @@ pub(crate) fn local_router_ab_internal_service_auth_matches_v1(
 const LOCAL_ROUTER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
     LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-    LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1,
-    LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1,
     LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
     LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
     LOCAL_SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_ENV_V1,
@@ -443,7 +411,6 @@ const LOCAL_ROUTER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
 
 const LOCAL_DERIVER_A_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-    LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1,
     LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
     LOCAL_SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_ENV_V1,
     LOCAL_SIGNING_WORKER_PRIVATE_STORAGE_PATH_ENV_V1,
@@ -451,7 +418,6 @@ const LOCAL_DERIVER_A_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
 
 const LOCAL_DERIVER_B_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-    LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1,
     LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
     LOCAL_SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_ENV_V1,
     LOCAL_SIGNING_WORKER_PRIVATE_STORAGE_PATH_ENV_V1,
@@ -460,32 +426,9 @@ const LOCAL_DERIVER_B_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
 const LOCAL_SIGNING_WORKER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
     LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
-    LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1,
-    LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1,
     LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
     LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
 ];
-
-fn required_peer_verifying_keys_v1(
-    env: &BTreeMap<String, String>,
-) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1> {
-    let key = |name: &'static str, role: Role| {
-        let bytes: [u8; 32] = hex::decode(required_env_v1(env, name)?)
-            .ok()
-            .and_then(|bytes| bytes.try_into().ok())
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    format!("{name} must be a 32-byte hex Ed25519 verifying key"),
-                )
-            })?;
-        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(role, bytes)
-    };
-    router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
-        key(LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1, Role::SignerA)?,
-        key(LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1, Role::SignerB)?,
-    )
-}
 
 /// The Router's credential for admitted ECDSA calls to the SigningWorker,
 /// distinct from the role-shared one as on Cloudflare.
@@ -643,8 +586,6 @@ pub struct LocalRouterWorkerConfigV1 {
     /// ECDSA activation and signing.
     #[serde(skip_serializing)]
     pub router_to_signing_worker_ecdsa_auth: String,
-    /// Deriver A/B verifying keys for their signed readiness receipts.
-    pub peer_verifying_keys: router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1,
     /// Wallet Session JWT verifier and project policy, parsed exactly as the
     /// Cloudflare Router parses them.
     pub admission_bindings: router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1,
@@ -667,12 +608,6 @@ pub struct LocalDeriverAWorkerConfigV1 {
     pub tenant_root: LocalDeriverTenantRootConfigV1,
     /// Deriver B HPKE public key used to seal A's V2 target proof.
     pub target_proof_peer_public_key: String,
-    /// Deriver A peer signing key.
-    pub peer_signing_key: String,
-    /// Deriver A peer verifying key.
-    pub deriver_a_peer_verifying_key: String,
-    /// Deriver B peer verifying key.
-    pub deriver_b_peer_verifying_key: String,
     /// Deriver A role-private SQLite path.
     pub role_private_storage_path: String,
     /// Role-shared credential for Router and peer calls.
@@ -694,12 +629,6 @@ pub struct LocalDeriverBWorkerConfigV1 {
     pub tenant_root: LocalDeriverTenantRootConfigV1,
     /// Deriver A HPKE public key used to seal B's V2 target proof.
     pub target_proof_peer_public_key: String,
-    /// Deriver B peer signing key.
-    pub peer_signing_key: String,
-    /// Deriver A peer verifying key.
-    pub deriver_a_peer_verifying_key: String,
-    /// Deriver B peer verifying key.
-    pub deriver_b_peer_verifying_key: String,
     /// Deriver B role-private SQLite path.
     pub role_private_storage_path: String,
     /// Role-shared credential for Router and peer calls.
@@ -1065,7 +994,6 @@ pub fn parse_local_worker_role_config_for_role_v1(
                 gateway_to_router_auth: required_gateway_to_router_auth_v1(&env)?,
                 router_to_signing_worker_ecdsa_auth:
                     required_router_to_signing_worker_ecdsa_auth_v1(&env)?,
-                peer_verifying_keys: required_peer_verifying_keys_v1(&env)?,
                 admission_bindings: router_ab_cloudflare::parse_cloudflare_router_admission_bindings_v1(
                     &router_ab_cloudflare::CloudflareEnvMapV1::new(
                         env.iter()
@@ -1093,18 +1021,6 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     target_proof_peer_public_key: required_x25519_public_key_env_v1(
                         &env,
                         LOCAL_DERIVER_A_TARGET_PROOF_PEER_PUBLIC_KEY_ENV_V1,
-                    )?,
-                    peer_signing_key: required_env_v1(
-                        &env,
-                        LOCAL_DERIVER_A_PEER_SIGNING_KEY_ENV_V1,
-                    )?,
-                    deriver_a_peer_verifying_key: required_env_v1(
-                        &env,
-                        LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1,
-                    )?,
-                    deriver_b_peer_verifying_key: required_env_v1(
-                        &env,
-                        LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1,
                     )?,
                     role_private_storage_path: required_env_v1(
                         &env,
@@ -1134,18 +1050,6 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     target_proof_peer_public_key: required_x25519_public_key_env_v1(
                         &env,
                         LOCAL_DERIVER_B_TARGET_PROOF_PEER_PUBLIC_KEY_ENV_V1,
-                    )?,
-                    peer_signing_key: required_env_v1(
-                        &env,
-                        LOCAL_DERIVER_B_PEER_SIGNING_KEY_ENV_V1,
-                    )?,
-                    deriver_a_peer_verifying_key: required_env_v1(
-                        &env,
-                        LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1,
-                    )?,
-                    deriver_b_peer_verifying_key: required_env_v1(
-                        &env,
-                        LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1,
                     )?,
                     role_private_storage_path: required_env_v1(
                         &env,
@@ -1222,134 +1126,6 @@ pub struct LocalSqliteSignerStartupCheckV1 {
     pub signer_key_epoch: String,
     /// Storage key for the sealed share blob.
     pub sealed_share_storage_key: String,
-}
-
-/// Combined dev harness output for the typed local HTTP Router/A/B ceremony.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LocalRouterAbDevHttpCeremonyResultV1 {
-    /// Fixed ECDSA threshold-PRF request used for the core local ceremony.
-    pub router_request: EcdsaThresholdPrfRequestV1,
-    /// Initial Router-to-Deriver A request over the checked local HTTP boundary.
-    pub deriver_a_request: LocalHttpRequestV1,
-    /// Initial Router-to-Deriver B request over the checked local HTTP boundary.
-    pub deriver_b_request: LocalHttpRequestV1,
-    /// Result of the typed local HTTP Router/Deriver/SigningWorker ceremony.
-    pub core_http_ceremony: LocalHttpCeremonyResultV1,
-}
-
-/// Redacted receipt from a local Deriver peer-message route.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LocalDeriverPeerMessageReceiptV1 {
-    /// Deriver worker role that accepted the peer message.
-    pub receiver_role: LocalServiceRoleV1,
-    /// Producing signer role bound inside the peer message.
-    pub accepted_from_role: Role,
-    /// Stable peer wire-message kind.
-    pub peer_message_kind: WireMessageKindV1,
-    /// Transcript digest for routing and smoke assertions.
-    pub transcript_digest_hex: String,
-    /// Number of proof bundles in the peer payload.
-    pub proof_bundle_count: usize,
-    /// Redacted receipt status.
-    pub status: String,
-}
-
-/// Parses and validates a Deriver peer-message JSON body for local worker routes.
-pub fn handle_local_deriver_peer_message_json_v1(
-    receiver_role: LocalServiceRoleV1,
-    path: &str,
-    body: &[u8],
-) -> RouterAbProtocolResult<String> {
-    let receipt = handle_local_deriver_peer_message_v1(
-        receiver_role,
-        path,
-        serde_json::from_slice::<WireMessageV1>(body).map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("local Deriver peer message JSON parse failed: {error}"),
-            )
-        })?,
-    )?;
-    serde_json::to_string(&receipt).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("local Deriver peer receipt JSON serialization failed: {error}"),
-        )
-    })
-}
-
-/// Validates a Deriver peer message and returns a redacted local receipt.
-pub fn handle_local_deriver_peer_message_v1(
-    receiver_role: LocalServiceRoleV1,
-    path: &str,
-    message: WireMessageV1,
-) -> RouterAbProtocolResult<LocalDeriverPeerMessageReceiptV1> {
-    let (expected_path, expected_kind, expected_from, expected_to) = match receiver_role {
-        LocalServiceRoleV1::DeriverA => (
-            LOCAL_DERIVER_A_PEER_PATH,
-            WireMessageKindV1::SignerBToSignerA,
-            Role::SignerB,
-            Role::SignerA,
-        ),
-        LocalServiceRoleV1::DeriverB => (
-            LOCAL_DERIVER_B_PEER_PATH,
-            WireMessageKindV1::SignerAToSignerB,
-            Role::SignerA,
-            Role::SignerB,
-        ),
-        LocalServiceRoleV1::Router | LocalServiceRoleV1::SigningWorker => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidRole,
-                "local Deriver peer route requires Deriver A or Deriver B receiver",
-            ));
-        }
-    };
-    if path != expected_path {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            format!(
-                "{} peer route must be served at {}",
-                receiver_role.as_str(),
-                expected_path
-            ),
-        ));
-    }
-    if message.kind != expected_kind {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalRoute,
-            format!(
-                "{} peer route expected {} message, received {}",
-                receiver_role.as_str(),
-                expected_kind.as_str(),
-                message.kind.as_str()
-            ),
-        ));
-    }
-    let peer_payload = decode_ab_peer_message_payload_v1(message.payload.as_bytes())?;
-    let proof_batch =
-        decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1(&peer_payload)?;
-    if peer_payload.transcript_digest != message.transcript_digest
-        || proof_batch.transcript_digest != message.transcript_digest
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "local Deriver peer payload transcript does not match wire message",
-        ));
-    }
-    if peer_payload.from.role != expected_from || peer_payload.to.role != expected_to {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidSignerIdentity,
-            "local Deriver peer message signer direction does not match route",
-        ));
-    }
-    Ok(LocalDeriverPeerMessageReceiptV1 {
-        receiver_role,
-        accepted_from_role: peer_payload.from.role,
-        peer_message_kind: message.kind,
-        transcript_digest_hex: hex::encode(message.transcript_digest.as_bytes()),
-        proof_bundle_count: proof_batch.proof_bundles.len(),
-        status: "accepted".to_owned(),
-    })
 }
 
 fn local_now_unix_ms_v1() -> RouterAbProtocolResult<u64> {
@@ -1476,42 +1252,6 @@ impl SigningRootShareStore for LocalSqliteSigningRootShareStoreV1<'_> {
             .map_err(map_sqlite_error)?;
         Ok(count > 0)
     }
-}
-
-/// Runs the local Router/Deriver/SigningWorker ceremony through checked local HTTP requests.
-pub fn run_example_local_router_ab_dev_http_ceremony_v1(
-) -> RouterAbProtocolResult<LocalRouterAbDevHttpCeremonyResultV1> {
-    let router_request = local_ecdsa_threshold_prf_request_v1()?;
-    let (signer_a_request, signer_b_request) = router_request.to_signer_wire_messages()?;
-    let deriver_a_request = LocalHttpRequestV1::new(
-        LocalHttpMethodV1::Post,
-        LocalHttpPathV1::RouterToSignerA,
-        LocalTransportEnvelopeV1::new(LocalTransportRouteV1::RouterToSignerA, signer_a_request)?,
-    )?;
-    let deriver_b_request = LocalHttpRequestV1::new(
-        LocalHttpMethodV1::Post,
-        LocalHttpPathV1::RouterToSignerB,
-        LocalTransportEnvelopeV1::new(LocalTransportRouteV1::RouterToSignerB, signer_b_request)?,
-    )?;
-    let core_http_ceremony = local_service_stack_v1()?.run_deterministic_http_ceremony(
-        router_request.lifecycle.lifecycle_id.clone(),
-        MpcMaterialActivationRefV1::new(
-            "opaque-local-example-activation-1",
-            "local-example-capability-1",
-            router_request.lifecycle.account_id.clone(),
-            "local-example-key-binding-1",
-            "opaque-local-example-material-lifecycle-1",
-            router_request.lifecycle.selected_server_id.clone(),
-        )?,
-        deriver_a_request.clone(),
-        deriver_b_request.clone(),
-    )?;
-    Ok(LocalRouterAbDevHttpCeremonyResultV1 {
-        router_request,
-        deriver_a_request,
-        deriver_b_request,
-        core_http_ceremony,
-    })
 }
 
 /// Ensures the local role-private state table exists.
@@ -1674,156 +1414,6 @@ fn sealed_share_record(role: Role) -> RouterAbProtocolResult<LocalSealedRootShar
     )
 }
 
-fn local_ecdsa_threshold_prf_request_v1() -> RouterAbProtocolResult<EcdsaThresholdPrfRequestV1> {
-    let account_public_key = LOCAL_DEV_APPLICATION_BINDING_DIGEST_B64U_V1.to_owned();
-    let lifecycle = local_lifecycle_scope_v1(LOCAL_DEV_ACCOUNT_ID_V1)?;
-    let signer_set = signer_set_v1()?;
-    let metadata = RouterTranscriptMetadataV1::new(
-        "near-testnet",
-        account_public_key.clone(),
-        "local-router",
-        "client",
-        "x25519:local-dev-client-ephemeral-public-key",
-    )?;
-    let transcript_digest =
-        router_transcript_digest_v1(&lifecycle, &signer_set, &metadata, root_epoch()?)?;
-    EcdsaThresholdPrfRequestV1::new(
-        "request-nonce-1",
-        2_000,
-        lifecycle,
-        signer_set,
-        metadata.network_id,
-        account_public_key,
-        metadata.router_id,
-        metadata.client_id,
-        metadata.client_ephemeral_public_key,
-        transcript_digest,
-        role_envelope_v1(Role::SignerA, 0xa0)?,
-        role_envelope_v1(Role::SignerB, 0xb0)?,
-    )
-}
-
-fn local_lifecycle_scope_v1(account_id: &str) -> RouterAbProtocolResult<LifecycleScopeV1> {
-    LifecycleScopeV1::new(
-        "lifecycle-1",
-        ExpensiveWorkKindV1::RegistrationPrepare,
-        root_epoch()?,
-        account_id,
-        "session-1",
-        "signer-set-v1",
-        "server-a",
-    )
-}
-
-fn signer_set_v1() -> RouterAbProtocolResult<SignerSetV1> {
-    SignerSetV1::v1_all2(
-        "signer-set-v1",
-        signer_identity(Role::SignerA)?,
-        signer_identity(Role::SignerB)?,
-        server_identity_v1()?,
-    )
-}
-
-fn server_identity_v1() -> RouterAbProtocolResult<ServerIdentityV1> {
-    ServerIdentityV1::new(
-        "server-a",
-        "server-epoch",
-        "x25519:1111111111111111111111111111111111111111111111111111111111111111",
-    )
-}
-
-fn role_envelope_v1(role: Role, seed: u8) -> RouterAbProtocolResult<RoleEncryptedEnvelopeV1> {
-    RoleEncryptedEnvelopeV1::new(
-        role,
-        digest(seed),
-        digest(seed.wrapping_add(1)),
-        EncryptedPayloadV1::new(vec![seed, seed.wrapping_add(2)])?,
-    )
-}
-
-fn local_service_stack_v1() -> RouterAbProtocolResult<LocalServiceStackV1> {
-    LocalServiceStackV1::new(
-        LocalServiceStartupV1::router(router_endpoint_v1()?, router_env_snapshot_v1()?)?,
-        LocalServiceStartupV1::deriver_a(
-            deriver_a_endpoint_v1()?,
-            signer_identity(Role::SignerA)?,
-            deriver_a_env_snapshot_v1()?,
-        )?,
-        LocalServiceStartupV1::deriver_b(
-            deriver_b_endpoint_v1()?,
-            signer_identity(Role::SignerB)?,
-            deriver_b_env_snapshot_v1()?,
-        )?,
-        LocalServiceStartupV1::signing_worker(
-            signing_worker_endpoint_v1()?,
-            server_identity_v1()?,
-            signing_worker_env_snapshot_v1()?,
-        )?,
-    )
-}
-
-fn router_endpoint_v1() -> RouterAbProtocolResult<LocalRouterEndpointV1> {
-    LocalRouterEndpointV1::new(
-        "http://127.0.0.1:4100",
-        "http://127.0.0.1:4103",
-        "http://127.0.0.1:4104",
-        "http://127.0.0.1:4105",
-    )
-}
-
-fn deriver_a_endpoint_v1() -> RouterAbProtocolResult<LocalDeriverAEndpointV1> {
-    LocalDeriverAEndpointV1::new("http://127.0.0.1:4103", "http://127.0.0.1:4104")
-}
-
-fn deriver_b_endpoint_v1() -> RouterAbProtocolResult<LocalDeriverBEndpointV1> {
-    LocalDeriverBEndpointV1::new("http://127.0.0.1:4104", "http://127.0.0.1:4103")
-}
-
-fn signing_worker_endpoint_v1() -> RouterAbProtocolResult<LocalSigningWorkerEndpointV1> {
-    LocalSigningWorkerEndpointV1::new("http://127.0.0.1:4105", "local-server-output")
-}
-
-fn router_env_snapshot_v1() -> RouterAbProtocolResult<LocalEnvSnapshotV1> {
-    LocalEnvSnapshotV1::new(
-        LocalServiceRoleV1::Router,
-        vec![
-            "GATEWAY_PUBLIC_URL".to_owned(),
-            "DERIVER_A_URL".to_owned(),
-            "DERIVER_B_URL".to_owned(),
-            "SIGNING_WORKER_URL".to_owned(),
-        ],
-    )
-}
-
-fn deriver_a_env_snapshot_v1() -> RouterAbProtocolResult<LocalEnvSnapshotV1> {
-    LocalEnvSnapshotV1::new(
-        LocalServiceRoleV1::DeriverA,
-        vec![
-            "DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY".to_owned(),
-            "SIGNING_ROOT_SHARE_A_KEK".to_owned(),
-            "DERIVER_B_URL".to_owned(),
-        ],
-    )
-}
-
-fn deriver_b_env_snapshot_v1() -> RouterAbProtocolResult<LocalEnvSnapshotV1> {
-    LocalEnvSnapshotV1::new(
-        LocalServiceRoleV1::DeriverB,
-        vec![
-            "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY".to_owned(),
-            "SIGNING_ROOT_SHARE_B_KEK".to_owned(),
-            "DERIVER_A_URL".to_owned(),
-        ],
-    )
-}
-
-fn signing_worker_env_snapshot_v1() -> RouterAbProtocolResult<LocalEnvSnapshotV1> {
-    LocalEnvSnapshotV1::new(
-        LocalServiceRoleV1::SigningWorker,
-        vec!["SERVER_OUTPUT_STORAGE".to_owned()],
-    )
-}
-
 fn signer_identity(role: Role) -> RouterAbProtocolResult<SignerIdentityV1> {
     match role {
         Role::SignerA => SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a"),
@@ -1976,44 +1566,10 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
             "dev-only-gateway-to-signing-worker-presign-auth",
             "gateway-to-signing-worker-presign-auth",
         ),
-        (
-            "dev-only-deriver-a-peer-signing-key",
-            "deriver-a-peer-signing-key",
-        ),
-        (
-            "dev-only-deriver-b-peer-signing-key",
-            "deriver-b-peer-signing-key",
-        ),
     ] {
         let seed_bytes = local_generated_secret_bytes_v1(label, seed)?;
         let material = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(seed_bytes);
         contents = contents.replace(placeholder, &material);
-    }
-    // The Router template carries parseable placeholder verifying keys (it
-    // validates them at startup); the Derivers carry named placeholders.
-    for (placeholder, label) in [
-        (
-            "dev-only-deriver-a-peer-verifying-key",
-            "deriver-a-peer-signing-key",
-        ),
-        (
-            "dev-only-deriver-b-peer-verifying-key",
-            "deriver-b-peer-signing-key",
-        ),
-        (
-            "c050c5637a44fa8629fff3cccce2300cb362a63d99d95fc54145266f4332445a",
-            "deriver-a-peer-signing-key",
-        ),
-        (
-            "2012cb90ca60e8e5d8daf66e2272d2233e0486d557e8c66141ed8920177d7eb7",
-            "deriver-b-peer-signing-key",
-        ),
-    ] {
-        let seed_bytes = local_generated_secret_bytes_v1(label, seed)?;
-        let verifying_key = ed25519_dalek::SigningKey::from_bytes(&seed_bytes)
-            .verifying_key()
-            .to_bytes();
-        contents = contents.replace(placeholder, &hex::encode(verifying_key));
     }
     for (private_placeholder, public_placeholder, label) in [
         (

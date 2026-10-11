@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-05",
+  "baseCommit": "7cf2160cbf34f3351c764a439b61e5986853838b",
+  "scope": "Consolidate session authorization transactions through SeamsWalletDBManager. Preserve corruption rollback and exact credential compare-and-update. Read and delete wallet credential keys in one transaction.",
+  "sourceSha256": {
+    "packages/wallet/src/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore.ts": "52b2d6ddeaa6928a278d227f7ead3d68824d27e03260e806abfbfe6a94f5dc55",
+    "tests/wallet-iframe/session.persistence.test.ts": "f7637ca3b27e585ed439226c2a216bdeb80906ebfdeaaf2e49fd721f7856b1fd"
+  },
+  "productionLines": {
+    "added": 156,
+    "removed": 185,
+    "net": -29
+  },
+  "browser": {
+    "command": "SEAMS_TEST_FRONTEND_URL=http://127.0.0.1:4288 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/session.persistence.test.ts wallet-iframe/session.authority.test.ts --project=chromium --output=../.artifacts/r170-session-transactions/browser",
+    "exitCode": 0,
+    "result": "7 passed",
+    "scope": "Browser IndexedDB with canonical fixtures. Persistence scenario covers rollback, scoped clearing, credential retirement and stale refresh. Six authority cases use a controlled remote status response.",
+    "receipts": {
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.auth-c714a-thority-after-status-expire-chromium/session-authority.json": {
+        "mutation": "expire",
+        "result": {
+          "kind": "expired_session",
+          "walletId": "wallet:session-observation",
+          "authorizationId": "authorization:management-original",
+          "walletSessionId": "wallet-session:management-original",
+          "authMethod": "email_otp",
+          "expiresAtMs": 10000
+        },
+        "statusReads": 1,
+        "expectedSessionId": "wallet-session:management-original"
+      },
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.auth-1bf18-uthority-after-status-churn-chromium/session-authority.json": {
+        "mutation": "churn",
+        "result": {
+          "kind": "wallet_unlocked_without_signing_session",
+          "walletId": "wallet:session-observation",
+          "reason": "superseded"
+        },
+        "statusReads": 3,
+        "expectedSessionId": "wallet-session:management-churn-3"
+      },
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.auth-91e9f-hority-after-status-replace-chromium/session-authority.json": {
+        "mutation": "replace",
+        "result": {
+          "kind": "active_session",
+          "status": "active",
+          "walletId": "wallet:session-observation",
+          "authorizationId": "authorization:management-replacement",
+          "walletSessionId": "wallet-session:management-replacement",
+          "authMethod": "email_otp",
+          "expiresAtMs": 10000
+        },
+        "statusReads": 2,
+        "expectedSessionId": "wallet-session:management-replacement"
+      },
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.pers-c8abc-e-exact-credentials-durably-chromium/session-persistence.json": {
+        "initial": "found",
+        "updated": "updated",
+        "corruptRead": "corrupt",
+        "legacySurvivedRead": true,
+        "retirementRejected": true,
+        "validSurvivedRetirement": true,
+        "legacySurvivedRetirement": true,
+        "replacementRejected": true,
+        "validSurvivedReplacement": true,
+        "legacySurvivedReplacement": true,
+        "recovered": "found",
+        "legacyPruned": true,
+        "cleared": null,
+        "staleRefresh": "superseded",
+        "otherWallet": "found",
+        "retiredCount": 1,
+        "retiredRead": null,
+        "remainingRows": 0,
+        "unavailable": "persistence_unavailable"
+      },
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.auth-17c48-authority-after-status-none-chromium/session-authority.json": {
+        "mutation": "none",
+        "result": {
+          "kind": "active_session",
+          "status": "active",
+          "walletId": "wallet:session-observation",
+          "authorizationId": "authorization:management-original",
+          "walletSessionId": "wallet-session:management-original",
+          "authMethod": "email_otp",
+          "expiresAtMs": 10000
+        },
+        "statusReads": 1,
+        "expectedSessionId": "wallet-session:management-original"
+      },
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.auth-8dc06-authority-after-status-lock-chromium/session-authority.json": {
+        "mutation": "lock",
+        "result": {
+          "kind": "wallet_locked"
+        },
+        "statusReads": 1,
+        "expectedSessionId": "wallet-session:management-original"
+      },
+      ".artifacts/r170-session-transactions/browser/wallet-iframe-session.auth-f662a-thority-after-status-retire-chromium/session-authority.json": {
+        "mutation": "retire",
+        "result": {
+          "kind": "wallet_unlocked_without_signing_session",
+          "walletId": "wallet:session-observation",
+          "reason": "absent"
+        },
+        "statusReads": 1,
+        "expectedSessionId": "wallet-session:management-original"
+      }
+    }
+  },
+  "production": {
+    "command": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.unlock.contract.test.ts e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'Email OTP registration and unlock lifecycle|page refresh hydrates warm signing|a cross-tab lock prevents delayed restoration|a fresh unlock survives a delayed restoration'",
+    "exitCode": 0,
+    "sanitizedSummary": [
+      "[wallet-intended] running 4 case(s) with fresh Wallet state",
+      "[wallet-intended] 1/4 e2e/intended-behaviours/email-otp.unlock.contract.test.ts:9 Email OTP registration and unlock lifecycle",
+      "  1 passed (46.8s)",
+      "[wallet-intended] 2/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:14 a cross-tab lock prevents delayed restoration from recreating its credential",
+      "  1 passed (28.3s)",
+      "[wallet-intended] 3/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:15 a fresh unlock survives a delayed restoration response from another tab",
+      "  1 passed (28.3s)",
+      "[wallet-intended] 4/4 e2e/intended-behaviours/passkey.unlock.contract.test.ts:61 page refresh hydrates warm signing, one-use step-up, and key export",
+      "  1 passed (33.9s)"
+    ]
+  },
+  "checks": [
+    {
+      "command": "pnpm -C packages/wallet type-check",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C tests exec tsc --noEmit -p tsconfig.wallet-browser.json",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C tests type-check:wallet-state",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C packages/wallet build:prod",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm -C packages/wallet check:runtime-entry-bundles",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm report:bloat --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "limits": [
+    "Session operations now inherit the existing manager open and transaction timeouts of eight seconds. Timeout injection was not part of this browser scenario.",
+    "Shared transaction handling does not yet provide mutation notifications or session revision envelopes.",
+    "Read-write transactions may be unchanged. Revision tracking must distinguish actual mutations.",
+    "This evidence does not prove month-later durable presignature reuse or full R170 completion."
+  ]
+}
