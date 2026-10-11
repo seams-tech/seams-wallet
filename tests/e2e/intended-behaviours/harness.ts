@@ -8414,29 +8414,26 @@ async function clickWalletIframeConfirm(
     });
     if (otpState === 'filled') return true;
     if (intendedAction === 'unlockEmailOtpWallet' || intendedAction === 'unlockWithAddedEmailOtp') {
+      /* A wallet that also holds a passkey is offered both methods at once,
+         and the menu's primary control starts the passkey unlock, which the
+         virtual authenticator answers. An email-code unlock therefore presses
+         the Google control or nothing; a complete code submits itself. */
       const google = frame.locator('[data-auth-menu-provider="google"]').first();
-      let googleVisible = false;
-      try {
-        googleVisible = await google.isVisible();
-      } catch {
-        googleVisible = false;
+      if (!(await google.isVisible().catch(() => false))) return false;
+      const fingerprint = await readWalletIframeConfirmationFingerprint(
+        google,
+        intendedAction,
+        timeoutMs,
+      );
+      if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
+        return false;
       }
-      if (googleVisible) {
-        const fingerprint = await readWalletIframeConfirmationFingerprint(
-          google,
-          intendedAction,
-          timeoutMs,
-        );
-        if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
-          return false;
-        }
-        await google.click({ timeout: timeoutMs });
-        dispatchedConfirmations.push(fingerprint);
-        if (opts?.diagnostics) {
-          opts.diagnostics.clicked = true;
-        }
-        return true;
+      await google.click({ timeout: timeoutMs });
+      dispatchedConfirmations.push(fingerprint);
+      if (opts?.diagnostics) {
+        opts.diagnostics.clicked = true;
       }
+      return true;
     }
 
     if (intendedAction === 'unlockPasskeyWallet') {
