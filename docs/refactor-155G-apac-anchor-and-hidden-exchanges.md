@@ -162,8 +162,36 @@ are all in another city.
 
 ### Phase 1 record
 
-Staging Console: started on October 11. The replacement database creation runs
-in `.artifacts/r155g-apac-anchor/`.
+**Staging Console moved on October 11, 19:13 JST.** Console version `adf09fee`
+runs in `aws:ap-east-1` against `seams-console-staging-hkg` (`73ae681c`), whose
+primary is `HKG`. The code is the Oct 7 commit `cc3993c` of the private
+repository, the commit era of the staging Gateway originals, so the Gateway and
+Console contract did not change. The 14 secrets and 19 variables of the live
+Worker were kept. Private commit `3cfc9a0` records the lane in
+`deployment/console/targets.json` and `deployment/wallet-system/targets.json`.
+
+The copy is a verified equivalent of `seams-console-staging-nrt` (`f77260ef`,
+`NRT`): 99 tables, 13,287 rows, 123 indexes, 86 triggers and views. Every line
+of the two dumps matches except the SQL comment lines inside trigger bodies,
+which Cloudflare's import drops. The old database stays until the stored
+versions that bind it are retired. The run directory
+`.artifacts/r155g-apac-anchor/` in `seams-monorepo` holds the scripts, dumps,
+digests and the cutover record.
+
+Four facts for the next move:
+
+- Cloudflare's file import failed on this 10 MB dump with `D1_RESET_DO` in
+  every attempt. The query API imports it when the statements run as tables,
+  then indexes, then rows ordered parents first, then triggers and views
+  through the file import, which accepts small files.
+- The GitHub deploy workflows build `origin/dev`, not the local `dev` that
+  holds the day's commits. A workflow deploy of the Console therefore carried
+  the old lane; the original was restored within minutes, and the move used a
+  local deploy of the archived commit instead.
+- A plain deploy of the rendered Console config drops a live variable that the
+  renderer does not emit. `keep_vars` keeps it.
+- The comparison Console versions stored before the move bind the old database.
+  A comparison deploys its Console against the new database instead.
 
 ## Phase 2 — Hide exchanges behind the user
 
