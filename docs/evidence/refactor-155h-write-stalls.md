@@ -14,7 +14,8 @@ does, for object storage and for D1, and it gives the cost for a caller.
   `fl` value that the platform's trace page reports to the object.
 - **The pause does not depend on the object.** Not on its age, its first
   write, its write rate, its row size, its database size or the storage API.
-  One write after ten idle seconds stalls when it arrives in the pause.
+  One write after more than five idle seconds stalls when it arrives in the
+  pause.
 - **Everything behind the object's output gate waits.** Every write that
   arrives in the pause is confirmed at its end. The response of every
   request and every outgoing request wait with it, also for a request that
@@ -117,8 +118,8 @@ object's cycle in absolute time, as milliseconds in the 5,000 ms cycle.
 | SIN | 998f90 | 3,531 | 3,576 | 45 |
 
 The last pair includes a stream with one write per 250 ms, which sets its
-resolution. The two objects on host 1026f87 also shared one pause of
-1,078 ms to the millisecond.
+resolution. The two objects on host 1026f87 also shared one long pause:
+1,079 ms and 1,078 ms, with starts 3 ms apart.
 
 - **Two objects on one host share the phase.** Nine pairs of nine. By
   chance, about one pair in fifty would be within 45 ms.
@@ -146,7 +147,8 @@ share was slow for those seconds. US east and London had single pauses of
 
 ## Which operations are exposed
 
-One stream of 30 s per variant and city, six cities:
+One stream per variant and city, six cities, 30 s each and 45 s for the
+slow one:
 
 | Variant | Cycle ticks with a pause | Pause p50 | Outgoing fetch stalled |
 | --- | ---: | ---: | ---: |
