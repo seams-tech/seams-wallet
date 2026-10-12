@@ -346,8 +346,9 @@ claim precede protocol material, role secret separation (A never carries B's
 input), ownership fences and relocation, and cancellation of a registration
 that never executed.
 
-Expected gain: about 0.35 s of the execute request at the median. Admission,
-connection and B's re-read leave the path. The oblivious transfer, the
+Expected gain: about 0.3 s of the execute request at the median. Admission,
+connection and B's re-read leave the path, and one D1 round trip per Deriver
+stays. The oblivious transfer, the
 garbling, the evaluation, the sealing, the delivery and the two Router
 commands stay.
 
@@ -411,6 +412,34 @@ The change, in order. Names are proposals; keep the `V1` suffix convention.
 7. **No engine change.** The role engines, the transcript, `stream_kats.rs`
    and `cargo yao-fv all` stay as they are. Any change that alters the
    transcript needs the user's go-ahead.
+
+The admission identity change, concretely. A Deriver admission is one row in
+its role database, written by `admit` in
+`tenant_root_role_d1/bound_share.rs` in two D1 round trips. Its key is the
+pair session (`TenantRootRootUseAttemptV1::Ed25519YaoPairSession`, `key_hex`
+in `tenant_root_role_d1.rs`). Its `attempt_digest` and `binding_digest` come
+from the `TenantRootCustodyBindingV1` that the Router authenticates for the
+pair, and that binding's outer transcript is the pair digest over the
+client's two encrypted inputs. A later request for the same session with
+another attempt digest is an `AttemptConflict`. At setup the session exists
+under item 1 and the pair digest does not. The change therefore needs:
+
+- a custody binding that the Router can authenticate at setup, bound to the
+  session, the epoch, the wallet objects and the deadline, without a pair
+  digest, under its own attempt kind so it cannot stand in for a pair
+  binding;
+- the setup-time `admit` under that binding, unchanged otherwise;
+- one batch per Deriver at execute that records the pair binding's digest on
+  the admitted row, refuses a row that already holds another pair digest, and
+  reads the share in the same transaction. For Deriver B this batch replaces
+  today's `read_admitted` round trip, so the fresh read at claim time stays.
+
+Execute then costs one D1 round trip per Deriver, in parallel, against two
+for A plus B's preparation and re-read today. Expected at execute: about
+70 ms before the oblivious transfer instead of about 365 ms. No role database
+migration is expected, because the row keeps its columns; confirm that
+against `migrations/deriver-a` and `migrations/deriver-b` before coding, and
+stop if a column is missing.
 8. **Exposure.** `enforceRoutePolicy` in
    `packages/wallet-server/src/router/framework/enforceRoutePolicy.ts` runs
    before setup with the publishable-key principal and `sourceIp`. If it has
