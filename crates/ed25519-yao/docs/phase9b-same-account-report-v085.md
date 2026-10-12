@@ -7,6 +7,11 @@ Status: canonical benchmark-only local-workerd evidence for the selected
 bound. It is neither deployed Cloudflare evidence nor a production security or
 capacity claim.
 
+Note (October 12, 2026): "A Worker elapsed" is a Worker clock span. On
+local workerd it follows real time. On deployed Cloudflare it excludes the
+Worker's own CPU time; see the
+[October 12 record](../../../docs/evidence/refactor-155h-probe-hosted.md).
+
 ## Configuration
 
 - circuit: activation;

@@ -18,8 +18,9 @@ profiles and are not implied by the deployed benchmark.
 
 The 0.9.0 hosted stack runs Rust compute compiled to WebAssembly inside Workers and
 Durable Objects. The July Worker/WebSocket measurements below describe historical
-implementation benchmarks. They do not measure current end-to-end wallet latency or
-costs.
+implementation benchmarks. They are Worker clock spans, and a Worker clock span excludes
+the Worker's own CPU time. They do not measure real ceremony time, current end-to-end
+wallet latency, or costs.
 
 ## When Yao runs
 
@@ -156,14 +157,28 @@ sequenceDiagram
 
 Streaming Yao is compute-intensive on A and B. Its dominant operations are symmetric-key
 hashes, XORs, oblivious transfer (OT), and transcript checks over a fixed circuit.
-Streaming controls peak memory and overlaps garbling, transfer, and evaluation. It does
-not reduce the total cryptographic work.
+Streaming controls peak memory. It can also overlap garbling, transfer, and evaluation.
+It does not reduce the total cryptographic work.
 
-The target wall time approaches:
+When the three stages overlap, the wall time approaches:
 
 ```text
 max(garbling CPU, transfer time, evaluation CPU) + protocol round trips
 ```
+
+On Cloudflare, this formula holds only for Deriver A builds from commit `6ec1c61d`
+(October 12, 2026) onward. A Worker WebSocket queues a message until the event loop
+turns. Earlier WebSocket builds, which include the July WebSocket benchmark pair, garbled
+and queued every table frame before Deriver A first waited. Deriver B started evaluation
+only after garbling ended. The stages ran in series, and the wall time was near:
+
+```text
+garbling CPU + evaluation CPU + protocol round trips
+```
+
+From that commit, Deriver A turns the event loop one time after each table frame. Each
+frame leaves before Deriver A garbles the next frame. The protocol messages, their order,
+and their bytes are the same.
 
 The client has a smaller workload:
 
@@ -188,23 +203,79 @@ Derivers: `2,185,420` bytes from A to B and `37,164` bytes from B to A. The
 largest encoded envelope is `131,180` bytes. Explicit export transfers
 `103,416` A/B bytes. Ordinary signing performs no Deriver traffic.
 
-The selected same-account Service Binding WebSocket was measured in two paired
-deployed campaigns on July 17, 2026:
+### July 2026: Worker clock spans
 
-| Transport and campaign | p50 | p95 | p99 | Mean | Failures |
+The selected same-account Service Binding WebSocket was measured in two paired
+deployed campaigns on July 17, 2026. Each value in this table is a Worker clock span. It
+is the time between two `Date.now()` readings in Deriver A, at protocol start and at
+protocol end. On deployed Cloudflare, the Worker clock excludes the invocation's own CPU
+time. A clock span therefore measures waits only. These values are historical data. They
+are not ceremony durations.
+
+| Transport and campaign | Clock span p50 | Clock span p95 | Clock span p99 | Clock span mean | Failures |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Service Binding HTTP stream, 60-pair control | 234 ms | 258 ms | 318 ms | 232.5 ms | 0/60 |
-| Service Binding WebSocket, 60-pair candidate | **202 ms** | **230 ms** | **236 ms** | **204.7 ms** | 0/60 |
-| Service Binding WebSocket, 40-pair control | **198 ms** | **222 ms** | **232 ms** | **200.8 ms** | 0/40 |
+| Service Binding WebSocket, 60-pair candidate | 202 ms | 230 ms | 236 ms | 204.7 ms | 0/60 |
+| Service Binding WebSocket, 40-pair control | 198 ms | 222 ms | 232 ms | 200.8 ms | 0/40 |
 | Native Workers RPC streams, 40-pair candidate | 231 ms | 249 ms | 264 ms | 227.5 ms | 0/40 |
 | Cross-account public WebSocket, separate checkpoint | 203 ms | 315 ms | 424 ms | 219.4 ms | 0/30 |
 
 A later production-artifact campaign recorded 21 successful ceremonies and no failures.
-Its 20 warm samples measured `202 ms` p50, `216 ms` p95, and `219 ms` p99 of Worker
-protocol time. The first immediate post-deploy cohort in the promotion campaign measured
-`298 ms` p50, `360 ms` p95, and `480 ms` p99. The following warm cohort measured `196 ms` p50, `224 ms` p95, and `296 ms` p99. Cloudflare does not expose whether an
-invocation created a fresh isolate, so these first-observation measurements describe
+Its 20 warm samples measured Worker clock spans of `202 ms` p50, `216 ms` p95, and
+`219 ms` p99. The first immediate post-deploy cohort in the promotion campaign measured
+`298 ms` p50, `360 ms` p95, and `480 ms` p99 by the same clock. The following warm cohort
+measured `196 ms` p50, `224 ms` p95, and `296 ms` p99. Cloudflare does not expose whether
+an invocation created a fresh isolate, so these first-observation measurements describe
 warm-up behavior without claiming a cold-start distribution.
+
+These clock spans exclude Deriver A's CPU time. In the production-artifact campaign, that
+CPU time had a mean of `226.3 ms` per ceremony (see [Cost model](#cost-model)).
+
+### October 2026: real time
+
+A
+[measurement on October 12, 2026](https://github.com/seams-tech/seams-wallet/blob/main/docs/evidence/refactor-155h-probe-hosted.md)
+ran the same benchmark pair again. It recorded the Worker clock span beside two real
+durations. The first is the client wall time. The second is the wall time that
+`wrangler tail` reports for Deriver A's invocation. The table gives the range of the
+per-run medians for the bare activation ceremony. The client was in Tokyo.
+
+| Run group | Worker clock span | Deriver A wall time | Client wall time | Deriver A CPU | Deriver B CPU |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Tokyo, before the table-frame yield, 3 runs | 251–359 ms | 520–608 ms | 535–643 ms | 216–353 ms | 181–295 ms |
+| Tokyo, with the table-frame yield, 3 runs | 94–106 ms | 292–333 ms | 318–353 ms | 195–231 ms | 184–191 ms |
+| Hong Kong placement, before the yield, 3 runs | 299–401 ms | 583–648 ms | 658–732 ms | 275–330 ms | 241–292 ms |
+| Hong Kong placement, with the yield, 2 runs | 103–184 ms | 455–485 ms | 528–573 ms | 321–323 ms | 186–295 ms |
+| Local workerd, Apple M4 Pro, 1 run | 135 ms | not recorded | 139 ms | not recorded | not recorded |
+
+Each Tokyo run has 21 ceremonies. Each Hong Kong run has 31 ceremonies. The local run
+has 6 ceremonies.
+
+The record gives these results:
+
+- **A Worker clock span is not a duration.** Before the yield, the clock reads
+  250–400 ms while Deriver A's invocation lasts 520–650 ms. The difference is close to
+  Deriver A's CPU time. Do not compare a clock span with a client wall time.
+- **The bare ceremony took 520–640 ms of real time before the yield.** This is the
+  Tokyo result. Garbling and evaluation ran in series, so the real time was near the
+  sum of the CPU time of both roles.
+- **The table-frame yield cuts the real time to 290–350 ms in Tokyo.** With Hong Kong
+  placement, the result is 455–485 ms of Deriver A wall time. The yield is one turn of
+  the event loop after each table frame. See
+  [Compute and embedded clients](#compute-and-embedded-clients).
+- **Local workerd is different.** Its clock follows real time: 135 ms by the Worker
+  clock against 139 ms of client wall time.
+
+These figures have limits:
+
+- The benchmark pair is not the hosted wallet stack. The hosted stack adds admission,
+  product checks, sealing, and a durable record.
+- The record measures the yield on the benchmark pair only. It does not measure the
+  yield on the hosted wallet path.
+- A new isolate costs 400–1,000 ms of CPU one time. With a placement region, 6 to 8 of
+  31 ceremonies met a new isolate, and the client wall p90 was 1.3–1.6 s.
+- The Hong Kong requests enter at the Tokyo edge. Their client wall time includes the
+  hop to the placement region.
 
 Local release-mode lifecycle measurements provide implementation baselines. They do not
 establish deployed latency:
@@ -222,6 +293,7 @@ The canonical benchmark sources are checked in with the implementation:
 - [current Cloudflare deployment topology](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/deployment.md)
 - [local lifecycle latency report](https://github.com/seams-tech/seams-wallet/blob/main/crates/router-ab-dev/reports/ed25519-yao-local-latency-v1.json)
 - [same-account Worker benchmark report](https://github.com/seams-tech/seams-wallet/blob/main/crates/ed25519-yao/docs/phase9b-same-account-report.md)
+- [October 12, 2026 real-time record for the benchmark pair](https://github.com/seams-tech/seams-wallet/blob/main/docs/evidence/refactor-155h-probe-hosted.md)
 
 ## Cloudflare deployment
 
@@ -237,9 +309,9 @@ Same-account deployment contains a compromise confined to one Worker runtime
 while the account administration and deployment control plane remain honest.
 An account administrator or shared deployment credential can replace both
 Workers and create effective A+B collusion. The selected P0 claim excludes that
-threat. The cross-account experiment preserved the exact wire protocol but its
-`315 ms` p95 missed the `250 ms` objective and a later reconnect defect remains
-unresolved.
+threat. The cross-account experiment preserved the exact wire protocol. Its `315 ms`
+p95 Worker clock span missed the `250 ms` objective, and a later reconnect defect
+remains unresolved.
 
 ## Security properties
 
