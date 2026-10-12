@@ -1,0 +1,2234 @@
+{
+  "date": "2026-10-12",
+  "dateTimezone": "Asia/Tokyo",
+  "subject": "Wait of an outgoing fetch after one durable SQLite write in a Durable Object, by object colo",
+  "client": "Tokyo",
+  "worker": "ed25519-yao-ab-benchmark-a (probe script, deleted after the runs)",
+  "unit": "ms",
+  "runs": [
+    {
+      "run": "apac",
+      "objectColo": "NRT",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1,
+            2,
+            2,
+            1,
+            1,
+            2,
+            1,
+            2,
+            1
+          ],
+          "roundTripMs": [
+            11,
+            12,
+            11,
+            9,
+            11,
+            13,
+            12,
+            12,
+            15,
+            9,
+            11,
+            10,
+            11,
+            8,
+            12
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            2
+          ],
+          "roundTripMs": [
+            11,
+            14,
+            14,
+            7,
+            11,
+            13,
+            9,
+            8,
+            11,
+            10,
+            12,
+            11,
+            8,
+            14,
+            13
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            12,
+            14,
+            11,
+            9,
+            10,
+            10,
+            10,
+            10,
+            10,
+            8,
+            8,
+            8,
+            9,
+            9,
+            7
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2
+          ],
+          "roundTripMs": [
+            13,
+            12,
+            11,
+            9,
+            11,
+            10,
+            10,
+            15,
+            10,
+            8,
+            8,
+            9,
+            8,
+            8,
+            13
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            11,
+            11,
+            10,
+            11,
+            10,
+            11,
+            11,
+            10,
+            11,
+            10,
+            10,
+            11,
+            10,
+            10,
+            11
+          ],
+          "roundTripMs": [
+            20,
+            19,
+            17,
+            22,
+            23,
+            20,
+            19,
+            19,
+            17,
+            17,
+            17,
+            23,
+            18,
+            19,
+            17
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            8,
+            12,
+            10,
+            8,
+            8,
+            7,
+            8,
+            11,
+            11,
+            6,
+            9,
+            11,
+            6,
+            10,
+            5
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            7,
+            10,
+            10,
+            6,
+            12,
+            13,
+            7,
+            9,
+            12,
+            10,
+            11,
+            11,
+            8,
+            7,
+            8
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            8,
+            11,
+            10,
+            7,
+            10,
+            8,
+            10,
+            9,
+            9,
+            9,
+            9,
+            15,
+            17,
+            9,
+            8
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            15,
+            16,
+            22,
+            27,
+            30,
+            159,
+            18,
+            22,
+            17,
+            17,
+            16,
+            18,
+            19,
+            16,
+            16
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-ap-northeast-1",
+      "objectColo": "HKG",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            4,
+            2,
+            1,
+            1,
+            2
+          ],
+          "roundTripMs": [
+            63,
+            64,
+            59,
+            62,
+            60,
+            60,
+            59,
+            59
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            2,
+            2,
+            2,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            482,
+            11,
+            54,
+            61,
+            62,
+            13,
+            56,
+            7
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            2,
+            1,
+            1,
+            2,
+            1,
+            1,
+            2
+          ],
+          "roundTripMs": [
+            488,
+            78,
+            64,
+            61,
+            63,
+            61,
+            54,
+            66
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            60,
+            56,
+            60,
+            57,
+            60,
+            59,
+            56,
+            61
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            36,
+            36,
+            36,
+            35,
+            36,
+            35,
+            36,
+            36
+          ],
+          "roundTripMs": [
+            501,
+            95,
+            91,
+            95,
+            92,
+            90,
+            91,
+            91
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            64,
+            58,
+            55,
+            57,
+            64,
+            58,
+            59,
+            59
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            56,
+            57,
+            58,
+            57,
+            57,
+            56,
+            57,
+            57
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            58,
+            10,
+            66,
+            57,
+            61,
+            55,
+            56,
+            59
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            93,
+            91,
+            42,
+            95,
+            96,
+            91,
+            91,
+            91
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-ap-northeast-2",
+      "objectColo": "ICN",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            331,
+            8,
+            6,
+            10,
+            5,
+            7,
+            8,
+            7
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1
+          ],
+          "roundTripMs": [
+            9,
+            6,
+            9,
+            8,
+            7,
+            7,
+            8,
+            6
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            2,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            397,
+            11,
+            8,
+            7,
+            7,
+            8,
+            7,
+            9
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            2,
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            9,
+            7,
+            11,
+            9,
+            7,
+            8,
+            7,
+            9
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            34,
+            33,
+            33,
+            34,
+            33,
+            33,
+            34,
+            33
+          ],
+          "roundTripMs": [
+            41,
+            42,
+            39,
+            40,
+            40,
+            40,
+            41,
+            39
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            8,
+            6,
+            7,
+            5,
+            6,
+            6,
+            6
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            7,
+            6,
+            7,
+            8,
+            6,
+            5,
+            7
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            7,
+            7,
+            19,
+            7,
+            5,
+            5,
+            7
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            40,
+            38,
+            41,
+            39,
+            38,
+            37,
+            39,
+            40
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-ap-northeast-3",
+      "objectColo": "NRT",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            3,
+            2,
+            2,
+            3,
+            2,
+            2,
+            3,
+            2
+          ],
+          "roundTripMs": [
+            20,
+            20,
+            20,
+            23,
+            19,
+            32,
+            18,
+            16
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            2,
+            2,
+            4,
+            2,
+            1,
+            2,
+            2,
+            4
+          ],
+          "roundTripMs": [
+            292,
+            21,
+            18,
+            17,
+            20,
+            20,
+            18,
+            23
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            2,
+            2,
+            3,
+            2,
+            2,
+            2,
+            3,
+            2
+          ],
+          "roundTripMs": [
+            21,
+            21,
+            21,
+            27,
+            17,
+            22,
+            25,
+            17
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            1
+          ],
+          "roundTripMs": [
+            19,
+            21,
+            23,
+            24,
+            20,
+            41,
+            25,
+            18
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            10,
+            10,
+            12,
+            11,
+            12,
+            11,
+            12,
+            10
+          ],
+          "roundTripMs": [
+            28,
+            30,
+            30,
+            33,
+            26,
+            27,
+            29,
+            28
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            16,
+            26,
+            25,
+            29,
+            19,
+            16,
+            18,
+            21
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            16,
+            21,
+            24,
+            16,
+            22,
+            26,
+            19,
+            23
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            18,
+            19,
+            14,
+            17,
+            25,
+            18,
+            18,
+            31
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            22,
+            26,
+            20,
+            32,
+            24,
+            111,
+            26,
+            26
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-ap-south-1",
+      "objectColo": "SIN",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            86,
+            68,
+            79,
+            66,
+            70,
+            76,
+            71,
+            73
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            78,
+            75,
+            77,
+            71,
+            69,
+            71,
+            71,
+            73
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1
+          ],
+          "roundTripMs": [
+            74,
+            71,
+            78,
+            67,
+            71,
+            76,
+            69,
+            70
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            3,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            69,
+            642,
+            70,
+            72,
+            73,
+            77,
+            72,
+            78
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            3,
+            5,
+            5,
+            3,
+            4,
+            3,
+            3,
+            3
+          ],
+          "roundTripMs": [
+            786,
+            79,
+            77,
+            72,
+            70,
+            74,
+            69,
+            77
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            72,
+            67,
+            69,
+            81,
+            73,
+            70,
+            90,
+            69
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            74,
+            647,
+            71,
+            71,
+            71,
+            84,
+            68,
+            70
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            83,
+            75,
+            92,
+            77,
+            72,
+            68,
+            65,
+            88
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            71,
+            75,
+            71,
+            81,
+            68,
+            68,
+            70,
+            70
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-ap-southeast-1",
+      "objectColo": "SIN",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            2,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            11,
+            18,
+            441,
+            8,
+            7,
+            11,
+            17,
+            11
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            0
+          ],
+          "roundTripMs": [
+            440,
+            448,
+            13,
+            13,
+            12,
+            9,
+            22,
+            11
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            2,
+            2,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            448,
+            449,
+            10,
+            16,
+            10,
+            24,
+            7,
+            19
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            464,
+            18,
+            20,
+            9,
+            12,
+            11,
+            10,
+            17
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            4,
+            3,
+            4,
+            3,
+            3,
+            4,
+            4,
+            3
+          ],
+          "roundTripMs": [
+            17,
+            17,
+            453,
+            17,
+            12,
+            15,
+            20,
+            14
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            9,
+            13,
+            10,
+            13,
+            7,
+            12,
+            12,
+            19
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            448,
+            15,
+            437,
+            19,
+            11,
+            9,
+            17,
+            8
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            9,
+            9,
+            12,
+            18,
+            11,
+            8,
+            8,
+            11
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            456,
+            465,
+            15,
+            452,
+            19,
+            10,
+            13,
+            11
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-ap-southeast-2",
+      "objectColo": "SYD",
+      "locationHint": "oc",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            2,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            8,
+            8,
+            5,
+            5,
+            6,
+            7,
+            6,
+            7
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            9,
+            943,
+            10,
+            4,
+            7,
+            7,
+            10,
+            5
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            946,
+            9,
+            10,
+            8,
+            5,
+            6,
+            5,
+            5
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            0
+          ],
+          "roundTripMs": [
+            6,
+            10,
+            9,
+            4,
+            8,
+            9,
+            5,
+            14
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            14,
+            14,
+            14,
+            16,
+            14,
+            15,
+            14,
+            14
+          ],
+          "roundTripMs": [
+            21,
+            21,
+            23,
+            23,
+            23,
+            23,
+            22,
+            22
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            9,
+            6,
+            5,
+            8,
+            4,
+            8,
+            6,
+            4
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            8,
+            6,
+            6,
+            3,
+            4,
+            4,
+            5,
+            9
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            11,
+            8,
+            3,
+            4,
+            9,
+            3,
+            6,
+            7
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            21,
+            23,
+            17,
+            22,
+            17,
+            21,
+            19,
+            92
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-eu-central-1",
+      "objectColo": "LHR",
+      "locationHint": "weur",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2
+          ],
+          "roundTripMs": [
+            23,
+            21,
+            21,
+            24,
+            25,
+            22,
+            23,
+            26
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            26,
+            26,
+            22,
+            25,
+            29,
+            21,
+            24,
+            26
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            0
+          ],
+          "roundTripMs": [
+            24,
+            22,
+            24,
+            22,
+            24,
+            21,
+            19,
+            23
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            2,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            21,
+            26,
+            18,
+            26,
+            23,
+            22,
+            24,
+            25
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            11,
+            10,
+            11,
+            10,
+            10,
+            11,
+            10,
+            10
+          ],
+          "roundTripMs": [
+            32,
+            32,
+            31,
+            28,
+            30,
+            35,
+            28,
+            29
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            25,
+            23,
+            27,
+            21,
+            21,
+            23,
+            20,
+            33
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            22,
+            31,
+            23,
+            26,
+            22,
+            19,
+            18,
+            25
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            20,
+            18,
+            18,
+            21,
+            34,
+            20,
+            26,
+            33
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            36,
+            31,
+            30,
+            32,
+            31,
+            30,
+            26,
+            30
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-eu-west-2",
+      "objectColo": "LHR",
+      "locationHint": "weur",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            2,
+            1,
+            1,
+            2,
+            1,
+            1,
+            2,
+            1
+          ],
+          "roundTripMs": [
+            16,
+            13,
+            12,
+            12,
+            10,
+            17,
+            12,
+            9
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            11,
+            10,
+            10,
+            6,
+            15,
+            13,
+            9,
+            10
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            14,
+            11,
+            15,
+            9,
+            10,
+            8,
+            11,
+            10
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            2,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            14,
+            11,
+            12,
+            11,
+            13,
+            11,
+            13,
+            12
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            10,
+            10,
+            10,
+            10,
+            64,
+            10,
+            11,
+            11
+          ],
+          "roundTripMs": [
+            29,
+            20,
+            18,
+            20,
+            72,
+            18,
+            22,
+            22
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            11,
+            9,
+            9,
+            11,
+            9,
+            11,
+            8,
+            11
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            14,
+            9,
+            10,
+            11,
+            8,
+            11,
+            11,
+            9
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            13,
+            9,
+            12,
+            12,
+            10,
+            9,
+            8
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            18,
+            21,
+            21,
+            21,
+            15,
+            21,
+            21,
+            19
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-us-east-1",
+      "objectColo": "IAD",
+      "locationHint": "enam",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            16,
+            10,
+            15,
+            20,
+            11,
+            12,
+            17,
+            10
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            15,
+            19,
+            13,
+            15,
+            12,
+            10,
+            14,
+            10
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            15,
+            12,
+            10,
+            12,
+            9,
+            10,
+            16,
+            14
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            1
+          ],
+          "roundTripMs": [
+            14,
+            8,
+            26,
+            13,
+            8,
+            9,
+            7,
+            10
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            18,
+            17,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          "roundTripMs": [
+            28,
+            26,
+            27,
+            25,
+            25,
+            23,
+            21,
+            24
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            13,
+            13,
+            10,
+            9,
+            12,
+            8,
+            7
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            17,
+            15,
+            7,
+            11,
+            10,
+            15,
+            9,
+            11
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            10,
+            15,
+            10,
+            9,
+            11,
+            8,
+            18,
+            15
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            24,
+            25,
+            42,
+            25,
+            25,
+            24,
+            23,
+            30
+          ]
+        }
+      }
+    },
+    {
+      "run": "aws-us-west-2",
+      "objectColo": "SJC",
+      "locationHint": "wnam",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            32,
+            36,
+            33,
+            33,
+            31,
+            31,
+            33,
+            32
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            2,
+            2,
+            1
+          ],
+          "roundTripMs": [
+            29,
+            32,
+            34,
+            34,
+            31,
+            32,
+            29,
+            57
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            2,
+            1,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2
+          ],
+          "roundTripMs": [
+            31,
+            30,
+            29,
+            28,
+            41,
+            27,
+            30,
+            32
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            1,
+            1,
+            1,
+            2,
+            1,
+            2,
+            2,
+            1
+          ],
+          "roundTripMs": [
+            43,
+            29,
+            28,
+            30,
+            28,
+            26,
+            30,
+            30
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            31,
+            30,
+            30,
+            30,
+            30,
+            31,
+            30,
+            31
+          ],
+          "roundTripMs": [
+            64,
+            62,
+            57,
+            60,
+            54,
+            58,
+            58,
+            58
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            27,
+            27,
+            37,
+            25,
+            29,
+            28,
+            30,
+            29
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            29,
+            36,
+            28,
+            27,
+            28,
+            30,
+            30,
+            27
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            27,
+            36,
+            28,
+            29,
+            26,
+            24,
+            33,
+            41
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            56,
+            61,
+            60,
+            59,
+            61,
+            67,
+            57,
+            58
+          ]
+        }
+      }
+    },
+    {
+      "run": "hkg",
+      "objectColo": "HKG",
+      "locationHint": "apac",
+      "samples": {
+        "none|1": {
+          "outgoingWaitMs": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            1,
+            3,
+            2,
+            2,
+            2,
+            2
+          ],
+          "roundTripMs": [
+            412,
+            11,
+            12,
+            17,
+            13,
+            9,
+            11,
+            13,
+            11,
+            11,
+            13,
+            16,
+            11,
+            12,
+            13
+          ]
+        },
+        "read|1": {
+          "outgoingWaitMs": [
+            2,
+            1,
+            2,
+            1,
+            1,
+            1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "roundTripMs": [
+            419,
+            11,
+            9,
+            6,
+            9,
+            11,
+            13,
+            9,
+            11,
+            10,
+            8,
+            13,
+            12,
+            9,
+            14
+          ]
+        },
+        "noop_ddl|1": {
+          "outgoingWaitMs": [
+            1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            1,
+            1,
+            1
+          ],
+          "roundTripMs": [
+            417,
+            10,
+            10,
+            13,
+            12,
+            12,
+            12,
+            11,
+            11,
+            11,
+            7,
+            11,
+            8,
+            10,
+            8
+          ]
+        },
+        "noop_ddl5|1": {
+          "outgoingWaitMs": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            1,
+            3,
+            1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "roundTripMs": [
+            12,
+            11,
+            11,
+            10,
+            14,
+            8,
+            10,
+            15,
+            9,
+            7,
+            15,
+            11,
+            7,
+            12,
+            10
+          ]
+        },
+        "write|1": {
+          "outgoingWaitMs": [
+            37,
+            36,
+            37,
+            36,
+            37,
+            37,
+            37,
+            36,
+            36,
+            38,
+            37,
+            37,
+            36,
+            36,
+            36
+          ],
+          "roundTripMs": [
+            442,
+            46,
+            46,
+            46,
+            45,
+            45,
+            47,
+            42,
+            44,
+            48,
+            44,
+            47,
+            44,
+            43,
+            44
+          ]
+        },
+        "none|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            12,
+            5,
+            11,
+            12,
+            9,
+            10,
+            7,
+            9,
+            11,
+            12,
+            8,
+            5,
+            9,
+            9
+          ]
+        },
+        "read|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            402,
+            7,
+            10,
+            8,
+            11,
+            8,
+            9,
+            9,
+            11,
+            10,
+            7,
+            9,
+            9,
+            7,
+            7
+          ]
+        },
+        "noop_ddl|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            6,
+            13,
+            10,
+            9,
+            8,
+            9,
+            12,
+            7,
+            7,
+            8,
+            11,
+            8,
+            9,
+            7,
+            11
+          ]
+        },
+        "write|0": {
+          "outgoingWaitMs": [],
+          "roundTripMs": [
+            45,
+            46,
+            43,
+            46,
+            43,
+            45,
+            50,
+            43,
+            40,
+            42,
+            43,
+            40,
+            43,
+            48,
+            44
+          ]
+        }
+      }
+    }
+  ]
+}

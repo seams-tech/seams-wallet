@@ -66,6 +66,11 @@ Decided on October 12:
   setup route policy must hold a per-key rate limit before Phase 1 ships.
 - **A registration that fails after its passkey claim releases the claim:
   yes.** The release acts only on a terminal registration without a session.
+  Phase 2 turned out not to need it: the NEAR-only path never cancels its
+  home after respond, and the specification keeps a retained claim until
+  the hosted reconciliation that is its own release gate. No release route is
+  built. The decision stands for the day a path that can cancel takes the
+  early claim.
 - **Console completion from a tracked outbox: yes, and last.** Phase 3 runs
   after Phases 1, 2 and 4 are measured, and only if registration after setup
   still needs it.
@@ -397,16 +402,20 @@ What the code says about them:
   the object's earlier writes are durable. The steady 43–63 ms fits that hold,
   and so does the 45 ms that every Router object command waits. The plan's
   must-not-regress list relies on this hold for the claim: a persisted claim
-  precedes protocol material. The reservation is a different write.
+  precedes protocol material. The reservation is a different write. A
+  [probe](evidence/refactor-155h-write-hold-by-colo.md) confirmed the
+  mechanism and its size: 34 ms per durable write in Hong Kong, 9 ms in
+  Tokyo. Phase 6 holds the consequence.
 - **A slow start of a stateless role Worker in a third of the executions.**
   The slow group uses 76–181 ms of CPU before the object call, against 3–7 ms
   in the fast group. This fits a Worker that the serving machine had not
   loaded. `load_deriver_b_worker` and the wallet-start request load the
   Workers from one machine; a later request can arrive at another.
-- **Every database round trip from a wallet object costs as much as a
-  write.** The cause is not established. The object may run farther from the
-  Hong Kong primary than the stateless Worker does, or a read may wait for
-  an earlier object write.
+- **A database read from a wallet object costs as much as a write.** The
+  cause is not established. Two explanations are ruled out. The objects ran
+  in Hong Kong in the [placement record of October 8](evidence/near-overlapped-target-20261008.json),
+  beside their databases. The five `CREATE TABLE IF NOT EXISTS` statements
+  at the top of each object request hold nothing, by the probe.
 
 Consequences for this phase. Admission and connection at setup remove two
 of Deriver A's round trips, the 50 ms hold before the connection and the
@@ -419,10 +428,11 @@ at execute.
   logs a clock reading after each await of `execute_work` and of Deriver B's
   connection handler, the colo of each wallet object, and one extra database
   read at the start of `execute_work` before any object write. It answers
-  three questions: whether the object runs in Hong Kong, whether a read after
-  an object write waits for that write, and how often a stateless role Worker
-  starts cold. If the object runs outside Hong Kong, a placement fix is worth
-  more than this phase and costs less.
+  three questions: why a database read from an object costs 53–65 ms, what
+  Deriver B's object waits for before it starts the connection, and how often
+  a stateless role Worker starts cold. Decide Phase 6 first: in Tokyo each
+  durable step of this phase costs a quarter of its Hong Kong price, and the
+  estimate of 0.3 s shrinks with it.
 
 ### Phase 1 design sheet
 
@@ -518,6 +528,15 @@ stop if a column is missing.
    no per-key rate limit, stop and ask before adding one. The object refuses a
    second prepare while one is live.
 
+   Checked on October 12: it has none. `enforceRoutePolicy` authenticates and
+   nothing else, and the only rate limits in the Gateway belong to Email OTP
+   (`core/authService/rateLimits.ts`). A text search of Console's wallet
+   placement code found no rate limit for registration setup either; an edge
+   rule in the Cloudflare account was not checked. Phase 1 therefore waits for
+   the user's choice of the
+   limit: its key (publishable key, source address, or both), its window, and
+   where its counter lives.
+
 Acceptance: the chain's admission, connect and B re-read columns read 0 on
 the execute path; new spans `router.prepare_pair_at_setup`,
 `deriver_a.admit_at_setup` and `deriver_b.admit_at_setup` appear before
@@ -527,70 +546,61 @@ respond; the real protocol measures 450 ms or less at p50 on staging;
 abandoned setup, an expired prepared session, an execute after expiry and a
 retry after a lost reply pass.
 
-## Phase 2 — Console claims at execute
+## Phase 2 — The passkey claim ahead of finalization
 
-The passkey claim and the recovery-code route claim need only the ceremony and
-the verified authority, both known when the Gateway forwards execute. Today
-they run inside finalization beside the Router consume, 140–242 ms at the
-group medians, and the slowest one sets the pace.
+Finalization runs three requests side by side: the Router consume, the
+Console passkey claim and the Console route claim of the custody commit. The
+wallet commit waits for the first two. On the 27 measured finalizations of
+October 12 the consume took 92 ms at the median and the route claim 166 ms;
+the passkey claim is the same kind of Console request. The step therefore
+costs the claim, and moving the claim saves the difference from the consume.
 
-- [ ] Fire both claims from the Gateway's execute route when it forwards the
-  request to the Router. Record their outcomes in the batch that already writes
-  the Yao lifecycle record after the Router answers, the `gateway.d1_commit`
-  span. The claims keep their idempotency keys, so an exact retry of execute
-  repeats the same claims.
-- [ ] Finalization reads the recorded outcomes in its initial batch and skips
-  the calls when both are present. When an outcome is missing, finalization
-  issues the claim as today; the fallback keeps the current retry semantics.
-- [ ] Add the claim release. `D1WalletHomeDirectory.complete` refuses
-  cancellation after a claim; with an earlier claim, a Yao execution that fails
-  terminally would strand it. Release the passkey claim when the registration
-  is cancelled definitively and no session exists for it. Keep the refusal for
-  a completed registration. Verify that the competing-wallet refusal still wins
-  when two registrations claim one credential.
-- [ ] Update the custody paragraph of the intended behaviours and the
-  credential-reservation scenario.
+The first design fired both claims from the execute route and added a
+release route. Reading the code and the specification changed three points:
+
+- The route claim needs the client's custody commit, which arrives with
+  finalization. It stays there. The wallet commit does not wait for it.
+- The specification keeps retained claims on purpose and makes their release
+  a hosted release gate. This phase adds no release route.
+- The NEAR-only path never cancels its home after respond, and a failed
+  finalization already leaves its claim behind today. An earlier claim
+  therefore strands nothing new. Mixed registration can cancel its home
+  inside respond, so it keeps the claim in finalization.
+
+- [x] **Respond starts the claim.** `respondEd25519OnlyRegistration` starts
+  the claim from the request's background continuation after its reply, for
+  a newly verified passkey. `claimPasskeyAhead` in
+  `d1WalletRegistrationCommitStore.ts` records a granted claim in
+  `registration_passkey_claims`, a new table of Gateway migration `0078`.
+  A refusal, a failure or an unfinished claim records nothing.
+- [x] **Finalization reads the record.** `readFinalization` reads it in its
+  initial batch, one more statement and no more round trips.
+  `reserveAuthority` skips the Console request only when the record names
+  the same wallet, relying party and credential. The cleanup of a finalized
+  ceremony removes the record. The new span `near_finalize_authority_reserve`
+  measures the step.
+- [x] **Specification and scenarios.** The registration paragraph of
+  `docs/intended-behaviours.md` states the early claim. The public
+  `registration-credential-reservation.e2e.mjs` covers the record, the skip
+  and the mismatch cases. The private `registration-claim.scenario.ts`
+  injected its fault on the first claim request, which is now respond's;
+  classified `valid_test_needs_update`, it now refuses the early claim and
+  then finalization's claim after the consume. The private completion
+  scenario asserts one claim request per registration, before finalization.
+- [ ] Measure on staging with the user's go-ahead. Migration `0078` goes to
+  the four regional Gateway databases first.
 
 Must not regress: the distinct outcomes of a refused ownership claim and a
 rejected custody route claim, exact retry, and the competing-wallet refusal.
 
-Expected gain: 50–150 ms of finalization. The claim runs beside the Router
-consume today, so the step costs the slower of the two: the consume measures
-77–168 ms and the claim 130–250 ms as the Gateway sees it. Moving the claim
-saves the difference, not the claim.
+Expected gain: 50–100 ms of finalization at the median, the difference
+between the claim and the consume. Cost: one Console request and one
+database write per registration move from finalization to the time of the
+Yao execution, and one database write is new.
 
-### Phase 2 design sheet
-
-- The two claims: `D1WalletRegistrationCommitStore.reserveAuthority` at
-  `d1WalletRegistrationCommitStore.ts` line 532, the Console passkey claim,
-  and `reserveRegistrationCustody` in
-  `router/domains/passkeyCustody/registrationCustodyOutcome.ts` line 42, the
-  route claim. Finalize calls both near `d1WalletRegistrationService.ts`
-  lines 5560–5650, beside `consumeActivated`.
-- The execute route lives in `router/domains/ed25519Yao/registration/`
-  (`routerAbEd25519YaoRegistration.ts` and the two-phase runner). After the
-  Router answers it writes the `yao_lifecycle_decisions` row, created by
-  `migrations/d1-signer/0036_r150_yao_lifecycle_decisions.sql`. Fire both
-  claims when the request is forwarded, await them with the Router's answer,
-  and write their outcomes in that same batch.
-- Storage: one additive table in a new `d1-signer` migration,
-  `registration_claim_outcomes (namespace, org_id, project_id, env_id,
-  registration_ceremony_id, claim_kind, outcome_json, recorded_at_ms)`, primary
-  key on the ceremony and the kind. Finalize's initial batch reads both rows.
-  A missing row means: call the claim as today. Never edit an applied
-  migration.
-- Console release: a route beside claim-passkey in
-  `packages/wallet-console-server-ts/src/walletPlacement/`,
-  `/internal/wallet-placement/v1/release-passkey-claim`, body `{ walletId,
-  credentialId, registrationCeremonyId }`. It releases only when the home
-  assignment is terminal without a session and the claim's owner is this
-  wallet. It is idempotent. `D1WalletHomeDirectory.complete` in
-  `walletPlacement/d1.ts` line 270 keeps its refusal for a completed
-  registration.
-- Tests: `node tests/e2e/registration-credential-reservation.e2e.mjs` in
-  `seams-wallet`; the composed registration scenarios in `seams-monorepo`,
-  23 cases; the custody paragraph of `docs/intended-behaviours.md` near
-  lines 540–548.
+Release note: the private round-trip ceilings count database work per
+request. Respond's background write may count against the respond request;
+check the ceiling when the private repository takes the release.
 
 ## Phase 3 — Completion off the response path
 
@@ -803,18 +813,43 @@ Users of the hosted menu do not wait for setup. Direct callers of
 Expected gain: 50–100 ms from the batch and up to 190 ms from the preflight,
 for direct callers only.
 
-## Phase 6 — The distance to the Gateway
+## Phase 6 — Where the APAC home runs
 
 Four exchanges cost about 400 ms from Tokyo and nothing from Hong Kong. This
 phase decides; it implements nothing.
+
+The location also sets the price of every durable write. The
+[probe of October 12](evidence/refactor-155h-write-hold-by-colo.md) measured
+the hold that follows one durable object write: 34 ms in Hong Kong, 32 ms in
+Seoul, 29 ms in San Jose, 14 ms in Ashburn, 13 ms in Sydney, 9 ms in Tokyo
+and London, 2 ms in Singapore. Staging's APAC Gateway, role databases and
+wallet objects are in Hong Kong, the slowest location measured. A
+registration after setup waits for about 13 durable writes in series, an
+estimate from the code: 450–650 ms in Hong Kong against about 130–200 ms at
+Tokyo's hold. With the distance, a Tokyo home is worth about 0.7 s of a
+registration for a user in Tokyo, and about 0.3 s for a user anywhere else
+in the region. No other phase of this plan is worth as much, and this one
+changes no code.
+
+- [x] Measure the hold after a durable write by location. Done; the record
+  holds eight locations.
+- [ ] Confirm that D1 follows the object hold: time one write batch against
+  a D1 database with a Tokyo primary. Production testnet's Derivers already
+  run at `aws:ap-northeast-1` with Tokyo primaries; a read-only look at their
+  write timing needs the user's go-ahead.
 
 - [ ] Count the reads and writes per request from the Phase 0 D1 record.
   Finalization is write-heavy, so D1 read replication near a regional Gateway
   cannot carry it. Record the number.
 - [ ] Cost the Tokyo home: a role database set and a Console lane per home,
   the R155G Phase 1 cutover method per lane, and a hazard list per home.
-- [ ] Decide: accept the 0.4 s for Tokyo users and record it, or open a
-  separate plan for role databases per home.
+- [ ] Decide: keep the APAC home in Hong Kong and record the cost, or move
+  it to Tokyo. The move repeats the October 10 method for the three role
+  databases and the October 11 method for Console, adds the regional Gateway
+  database, and pins the Gateway to `aws:ap-northeast-1`. A D1 primary cannot
+  be placed by city: a database is created until it reports a Tokyo primary.
+  Wallet objects never move, so the move starts with new wallets only, which
+  staging's disposable wallets allow.
 
 ## Phase 7 — Tails
 
