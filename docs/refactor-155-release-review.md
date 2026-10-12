@@ -1,9 +1,44 @@
 # R155 / Wallet 0.9.0 release preparation
 
-Status: **prepared, not published.** The package versions are set to 0.9.0.
-Publication, the merge into `main`, the private consumer update and every
-deployment remain separate, authorized steps.
-Date: October 11, 2026.
+Status: **published October 11, 2026, 17:37 UTC.** No environment runs it yet.
+Every deployment remains a separate, authorized step.
+
+## Publication record
+
+- CI on [pull request 34](https://github.com/seams-tech/seams-wallet/pull/34)
+  passed on `f659b9f6`: the candidate plus one commit that raises the limit of
+  the wallet validation and publish jobs from 60 to 90 minutes. The first run
+  reached the old limit at contract case 13 of 14 with no failure.
+- `main` is at the merge commit `f56d2222`. Its tree equals `f659b9f6`.
+- `release-wallet-packages.yml` run `38156978185` published
+  `@seams/wallet-server@0.9.0` (1,228 files) and `@seams/wallet@0.9.0`
+  (1,994 files) with provenance. Both carry the `latest` tag.
+- The private repository pins 0.9.0 since `0ad9143`. Its server packages
+  type-check against the published release. Two apps, one type fixture and one
+  relayer test still need the adoption work that the private commit lists.
+
+## 0.9.1
+
+Status: **prepared, not published.** Patch release with no wire, schema or
+protocol change. A 0.9.0 deployment and a 0.9.1 deployment work together.
+
+- **Why it is needed.** The private wallet console renders the SDK's own
+  confirmation surfaces and imports their build modules by path. Release 0.9.0
+  no longer emitted two of them, `transaction-display/tree` and
+  `transaction-display/abi/enrichDisplayModelWithAbi`, because only type imports
+  and the lazy confirmation bundle reached them. The private application build
+  fails on 0.9.0. Both modules are explicit build entries again, and the
+  repository example imports them from the build, so `pnpm build:example`
+  guards them.
+- **What else it contains.** A warm-session NEAR transaction sends its sign
+  prepare while the confirmation dialog is open. The joined tenant-root
+  commitment costs two point additions, which lowers the Deriver CPU of one Yao
+  execution by 14% in a local profile. The SDK reference documents the wallet
+  region calls.
+- **Validation.** Full contract suite on the transaction change, 133 of 133
+  with the two debug-only cases on the debug Router build; `threshold-prf`,
+  `router-ab-core` and `router-ab-cloudflare` Rust tests; type checks, the
+  representative sets, the packed-package check and the example build.
 
 ## Why this release is required
 

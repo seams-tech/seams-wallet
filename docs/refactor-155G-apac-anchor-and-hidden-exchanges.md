@@ -201,13 +201,30 @@ Four facts for the next move:
   spends one quota use and expires with its 120 s lease; no release was added.
   The specification and the contract test changed in the same commit. Done for
   NEP-413 messages; the record below holds the design and the measurement.
-- [ ] Extend the early prepare to transactions. A warm-session transaction
-  resolves its confirmed context and reserves its nonce leases after the
-  confirmation (`resolveConfirmedNearTransactionContext`), and the signing
-  digest needs that nonce and block hash. An early prepare therefore moves the
-  nonce reservation ahead of the confirmation and must release the leases on a
-  decline, beside the durable lease recovery and the funding step that the
-  dialog owns. Design that order first; do not bolt the request on.
+- [x] Extend the early prepare to transactions. Implemented for a warm-session
+  transaction of a funded account; the staging measurement is still open. The
+  design below replaces an earlier note that said the nonce reservation follows
+  the confirmation. That is true only for an unfunded implicit account.
+  - The confirmation flow already reserves the NEAR context when the dialog
+    opens (`fetchNearContext` in `handleTransactionSigningFlow`), keeps the
+    leases in the confirm session, and releases them on a decline. A funded
+    account therefore has its nonce and block hash while the dialog is open.
+  - Add one observer to the transaction confirm request. The confirm flow
+    calls it with the `context_ready` readiness as soon as the context is
+    reserved. The request already carries a progress callback and a readiness
+    promise, so this crosses no new boundary.
+  - On that call, a warm-session flow with one transaction builds the unsigned
+    transaction from the reserved context, builds the prepare request with the
+    display digest it expects, and sends it. The signature uses the answer after
+    the confirmation only when the display digest and the signing digest both
+    match the confirmed values. Any difference sends a new prepare, as today.
+  - No early prepare for a step-up signature or for an account that needs
+    funding. The flow signs one transaction per confirmation.
+  - A decline needs no new code: the confirm session releases the leases, and
+    the prepare expires with its lease, as for messages.
+  - The specification states the rule, and the local Yao contract asserts the
+    order `prepare_sent`, `confirmation`, `prepare` for a warm-session
+    transaction, with exactly one `prepare_sent`.
 - [ ] Extend the early prepare to delegate actions. Their signing digest and
   their display digest (`computeUiIntentDigestFromTxs` over the receiver and
   the ordered actions) both exist before the dialog, so the NEP-413 mechanism
@@ -281,9 +298,23 @@ without R155F's later Gateway changes.
   because the wallet-start request loads the Worker a second earlier. The
   Router's execute request measured 1,543 ms against 1,704 ms and registration
   3,599 ms against 3,873 ms at the median, inside overlapping ranges.
-- [ ] Profile each Deriver's CPU for one execution through the local stack's
-  inspector ports. Place the invocation CPU between the circuit, oblivious
-  transfer, sealing, serialization and framing. Record the split.
+- [x] Profile each Deriver's CPU for one execution through the local stack's
+  inspector ports. The [local profile](evidence/refactor-155g-deriver-cpu-local.md)
+  measures 95 ms in Deriver A and 103 ms in Deriver B for a warm execution on a
+  laptop. Curve arithmetic is 35% of that, the AES gate hash 27%, SHA-256 10%,
+  the circuit engine 9% and wire-label zeroize 7%. Sealing, framing and
+  serialization are 4% together.
+- [x] Compute the joined root commitment with two point additions. More than
+  half of the curve arithmetic built and parsed the tenant-root commitments,
+  and `TwoPartyRootShareCommitments::new` used a scalar multiplication for
+  `2A − B`. The warm CPU fell to 86.5 ms and 83.6 ms, 14% less for the two
+  Derivers, and the local execute POST from about 229 ms to about 199 ms.
+- [x] Try the 64-bit curve backend: rejected. On `wasm32` it calls a software
+  128-bit multiplication and raises the warm CPU to 139 ms and 176 ms.
+- [ ] Review moving the base oblivious transfers ahead of execute. After the
+  commitment change they are the largest curve cost, 9 ms and 17 ms, and they
+  may not need the client's input. Establish what binds them to one execution
+  before any change; this is a protocol review, not a build setting.
 - [ ] Review an early Deriver admission, after respond and before execute. The
   admission needs the custody binding and the attempt, which exist after respond.
   Deriver B's preparation also needs the client's input, so only the admission

@@ -56,10 +56,13 @@ import type { WalletIframeSurfaceMeasurement } from '@/SeamsWeb/walletIframe/sha
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import type { TxDisplayModel } from '../interfaces/display';
 import type { SigningOperationInteractionEvent } from '../flows/shared/signingStateMachine';
+import type { NearTransactionContextReady } from '../nonce/nearTransactionReadiness';
 
 export type RequestUserConfirmationOptions = {
   onProgress?: (progress: UserConfirmProgressEvent) => void;
   onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
+  /** Reports the NEAR transaction context as soon as the confirmation reserves it. */
+  onNearTransactionContextReady?: (readiness: NearTransactionContextReady) => void;
 };
 
 export type ExportPrivateKeysWithUiOptions = {

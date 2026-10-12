@@ -202,6 +202,13 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   with its lease, and the use it claimed stays spent. A step-up signature
   sends no prepare before the user confirms.
 
+- A warm-session NEAR transaction sends its prepare while the confirmation
+  dialog is open, as soon as the confirmation has reserved the nonce and block
+  hash. The binding and the expiry rule are those of the message signature. The
+  confirmation releases the reserved nonce on a decline, as before. An account
+  that still needs funding and a step-up signature send no prepare before the
+  user confirms.
+
 - Another tab or device can use a shared session's quota. When prepare then
   refuses the session and asks for step-up, the SDK drops its local observation
   of that session, and that signature continues with step-up. The next plan

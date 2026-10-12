@@ -436,6 +436,11 @@ export async function orchestrateSigningConfirmation(
           onSigningOperationInteractionEvent: params.onSigningOperationInteractionEvent,
         }
       : {}),
+    ...(params.chain === 'near' &&
+    params.kind === 'transaction' &&
+    params.onNearTransactionContextReady
+      ? { onNearTransactionContextReady: params.onNearTransactionContextReady }
+      : {}),
   }).finally(() => {
     clearConfirmationReadiness(sessionId);
   });

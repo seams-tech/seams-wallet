@@ -21,3 +21,8 @@ export type NearTransactionReadiness = ExclusiveUnion<
   | { kind: 'context_ready'; transactionContext: TransactionContext; nonceLeases: NonceLeaseRef[] }
   | { kind: 'funding_required'; request: NearFundingRequest }
 >;
+
+export type NearTransactionContextReady = Extract<
+  NearTransactionReadiness,
+  { kind: 'context_ready' }
+>;

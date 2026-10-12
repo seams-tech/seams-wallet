@@ -606,7 +606,7 @@ type Ed25519PrepareSessionResult = Awaited<ReturnType<typeof prepareRouterAbNorm
  * digest the dialog shows and to the signing digest, so the signature after
  * the confirmation can only use it for the same operation.
  */
-export type RouterAbEd25519SignatureOnlyStartedPrepare = {
+export type RouterAbEd25519StartedPrepare = {
   readonly prepare: RouterAbNormalSigningPrepareRequestV2BuildResult;
   readonly displayDigest: string;
   readonly signingDigestB64u: string;
@@ -810,7 +810,7 @@ type RouterAbEd25519SignatureOnlyNormalSigningArgs = RouterAbEd25519SignatureOnl
         walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
         sessionCoordinator: SigningSessionCoordinator;
         authorization: { kind: 'reusable_wallet_session' };
-        startedPrepare?: RouterAbEd25519SignatureOnlyStartedPrepare;
+        startedPrepare?: RouterAbEd25519StartedPrepare;
       }
     | {
         materialFacts: NearEd25519YaoOperationMaterialFacts;
@@ -1195,7 +1195,7 @@ async function buildRouterAbEd25519SignatureOnlyPrepareRequest(
  */
 export async function startRouterAbEd25519SignatureOnlyPrepare(
   args: RouterAbEd25519SignatureOnlyWarmArgs,
-): Promise<RouterAbEd25519SignatureOnlyStartedPrepare | null> {
+): Promise<RouterAbEd25519StartedPrepare | null> {
   const prepare = await buildRouterAbEd25519SignatureOnlyPrepareRequest(args);
   if (!prepare) return null;
   const ready = requireRouterAbEd25519NormalSigningReadyState({
@@ -1224,7 +1224,7 @@ export async function startRouterAbEd25519SignatureOnlyPrepare(
 
 /** Leaves a started prepare to expire with its lease. */
 export function abandonRouterAbEd25519StartedPrepare(
-  started: RouterAbEd25519SignatureOnlyStartedPrepare,
+  started: RouterAbEd25519StartedPrepare,
 ): void {
   started.response.catch(() => {});
 }
@@ -1329,11 +1329,13 @@ type RouterAbEd25519NearTransactionNormalSigningArgs =
           walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
           sessionCoordinator: SigningSessionCoordinator;
           authorization: { kind: 'reusable_wallet_session' };
+          startedPrepare?: RouterAbEd25519StartedPrepare | null;
         }
       | {
           materialFacts: NearEd25519YaoOperationMaterialFacts;
           walletSessionState?: never;
           sessionCoordinator?: never;
+          startedPrepare?: never;
           authorization: {
             kind: 'operation_step_up';
             prepared: Extract<PreparedNearOperationStepUp, { kind: 'near_transaction' }>;
@@ -1368,6 +1370,129 @@ function routerAbEd25519NormalSigningMaterialFacts(
   };
 }
 
+type UnsignedNearTransaction = {
+  unsignedTransactionBorshB64u: string;
+  signingDigestB64u: string;
+};
+
+type NearTransactionPrepareInputs = Awaited<ReturnType<typeof nearTransactionPrepareInputs>>;
+
+async function nearTransactionPrepareInputs(
+  args: Pick<
+    RouterAbEd25519NearTransactionNormalSigningBase,
+    'ctx' | 'nearAccountId' | 'thresholdKeyMaterial' | 'txSigningRequest'
+  >,
+  unsigned: UnsignedNearTransaction,
+) {
+  const nearNetworkId = normalizeNearNetworkId(args.ctx);
+  const parsedTransaction = parseThresholdEd25519NearTransaction(
+    args.txSigningRequest,
+    'txSigningRequest',
+  );
+  const operationFingerprint = SigningSessionIds.signingOperationFingerprint(
+    await thresholdEd25519NearTransactionOperationFingerprint({
+      nearAccountId: args.nearAccountId,
+      nearNetworkId,
+      relayerKeyId: args.thresholdKeyMaterial.relayerKeyId,
+      signerPublicKey: args.thresholdKeyMaterial.publicKey,
+      transactions: [parsedTransaction],
+      unsignedTransactionBorshB64u: unsigned.unsignedTransactionBorshB64u,
+      signingDigestB64u: unsigned.signingDigestB64u,
+    }),
+  );
+  return { nearNetworkId, parsedTransaction, operationFingerprint };
+}
+
+type RouterAbEd25519NearTransactionWarmPrepareArgs = Pick<
+  RouterAbEd25519NearTransactionNormalSigningBase,
+  'activeClient' | 'walletId' | 'operationId' | 'displayDigest' | 'nearAccountId'
+> & {
+  walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
+};
+
+async function buildRouterAbEd25519NearTransactionWarmPrepare(
+  args: RouterAbEd25519NearTransactionWarmPrepareArgs,
+  unsigned: UnsignedNearTransaction,
+  inputs: NearTransactionPrepareInputs,
+): Promise<RouterAbNormalSigningPrepareRequestV2BuildResult> {
+  const scope = buildRouterAbNormalSigningScope({
+    activeClient: args.activeClient,
+    walletSessionState: args.walletSessionState,
+    walletId: args.walletId,
+    operationId: args.operationId,
+  });
+  if (!scope) {
+    throw new Error('[SigningEngine][near] Router A/B Ed25519 signing scope is missing');
+  }
+  return await buildRouterAbEd25519NearTransactionPrepareRequestV2({
+    scope,
+    expiresAtMs: routerAbNormalSigningExpiresAtMs({
+      walletSessionExpiresAtMs: args.walletSessionState.signingWalletSession.expiresAtMs,
+      requestedTtlMs: ROUTER_AB_NORMAL_SIGNING_REQUEST_TTL_MS,
+    }),
+    operationId: args.operationId,
+    operationFingerprint: inputs.operationFingerprint,
+    displayDigestB64u: args.displayDigest,
+    nearAccountId: args.nearAccountId,
+    nearNetworkId: inputs.nearNetworkId,
+    transactions: [
+      {
+        receiverId: inputs.parsedTransaction.receiverId,
+        actionFingerprint: await routerAbNormalSigningActionFingerprint(
+          inputs.parsedTransaction.actions,
+        ),
+      },
+    ],
+    unsignedTransactionBorshB64u: unsigned.unsignedTransactionBorshB64u,
+    expectedSigningDigestB64u: unsigned.signingDigestB64u,
+  });
+}
+
+/**
+ * Sends the prepare of a warm-session transaction while the confirmation
+ * dialog is open. The transaction context is the one the dialog reserved.
+ */
+export async function startRouterAbEd25519NearTransactionPrepare(
+  args: RouterAbEd25519NearTransactionWarmPrepareArgs &
+    Pick<
+      RouterAbEd25519NearTransactionNormalSigningBase,
+      'ctx' | 'thresholdSessionId' | 'thresholdKeyMaterial' | 'txSigningRequest'
+    > & { transactionContext: TransactionContext },
+): Promise<RouterAbEd25519StartedPrepare> {
+  const unsigned = await buildThresholdEd25519NearTxUnsignedBorshWasm({
+    txSigningRequest: args.txSigningRequest,
+    transactionContext: args.transactionContext,
+    workerCtx: args.ctx,
+  });
+  const prepare = await buildRouterAbEd25519NearTransactionWarmPrepare(
+    args,
+    unsigned,
+    await nearTransactionPrepareInputs(args, unsigned),
+  );
+  const ready = requireRouterAbEd25519NormalSigningReadyState({
+    state: args.walletSessionState,
+    thresholdSessionId: args.thresholdSessionId,
+    nearAccountId: args.nearAccountId,
+    thresholdKeyMaterial: args.thresholdKeyMaterial,
+  });
+  const sentAt = performance.now();
+  const response = prepareRouterAbNormalSigningV2({
+    relayServerUrl: args.walletSessionState.relayerUrl,
+    credential: ready.credential,
+    request: prepare.request,
+  });
+  // A refusal is observed where the signature awaits it; nothing else may
+  // report it as unhandled meanwhile.
+  response.catch(() => {});
+  emitEd25519SigningTiming(String(args.operationId), 'prepare_sent', sentAt);
+  return {
+    prepare,
+    displayDigest: args.displayDigest,
+    signingDigestB64u: unsigned.signingDigestB64u,
+    response,
+  };
+}
+
 export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
   args: RouterAbEd25519NearTransactionNormalSigningArgs,
 ): Promise<RouterAbEd25519NearTransactionNormalSigningResult | null> {
@@ -1398,22 +1523,8 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
     throw new Error('Router A/B normal-signing NEAR payload digest must be 32 bytes');
   }
 
-  const nearNetworkId = normalizeNearNetworkId(args.ctx);
-  const parsedTransaction = parseThresholdEd25519NearTransaction(
-    args.txSigningRequest,
-    'txSigningRequest',
-  );
-  const operationFingerprint = SigningSessionIds.signingOperationFingerprint(
-    await thresholdEd25519NearTransactionOperationFingerprint({
-      nearAccountId: args.nearAccountId,
-      nearNetworkId,
-      relayerKeyId: args.thresholdKeyMaterial.relayerKeyId,
-      signerPublicKey: args.thresholdKeyMaterial.publicKey,
-      transactions: [parsedTransaction],
-      unsignedTransactionBorshB64u: unsigned.unsignedTransactionBorshB64u,
-      signingDigestB64u: unsigned.signingDigestB64u,
-    }),
-  );
+  const prepareInputs = await nearTransactionPrepareInputs(args, unsigned);
+  let started: RouterAbEd25519StartedPrepare | null = null;
   let prepare: RouterAbNormalSigningPrepareRequestV2BuildResult;
   let credential: RouterAbEd25519NormalSigningCredential;
   let issuedAuthorization: NearEd25519OperationStepUpAuthorization | undefined;
@@ -1441,37 +1552,16 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
     }
     issuedAuthorization = issued;
   } else {
-    const scope = buildRouterAbNormalSigningScope({
-      activeClient: args.activeClient,
-      walletSessionState: args.walletSessionState,
-      walletId: args.walletId,
-      operationId: args.operationId,
-    });
-    if (!scope) {
-      throw new Error('[SigningEngine][near] Router A/B Ed25519 signing scope is missing');
-    }
-    prepare = await buildRouterAbEd25519NearTransactionPrepareRequestV2({
-      scope,
-      expiresAtMs: routerAbNormalSigningExpiresAtMs({
-        walletSessionExpiresAtMs: args.walletSessionState.signingWalletSession.expiresAtMs,
-        requestedTtlMs: ROUTER_AB_NORMAL_SIGNING_REQUEST_TTL_MS,
-      }),
-      operationId: args.operationId,
-      operationFingerprint,
-      displayDigestB64u: args.displayDigest,
-      nearAccountId: args.nearAccountId,
-      nearNetworkId,
-      transactions: [
-        {
-          receiverId: parsedTransaction.receiverId,
-          actionFingerprint: await routerAbNormalSigningActionFingerprint(
-            parsedTransaction.actions,
-          ),
-        },
-      ],
-      unsignedTransactionBorshB64u: unsigned.unsignedTransactionBorshB64u,
-      expectedSigningDigestB64u: unsigned.signingDigestB64u,
-    });
+    started =
+      args.startedPrepare &&
+      args.startedPrepare.displayDigest === args.displayDigest &&
+      args.startedPrepare.signingDigestB64u === unsigned.signingDigestB64u
+        ? args.startedPrepare
+        : null;
+    if (args.startedPrepare && !started) abandonRouterAbEd25519StartedPrepare(args.startedPrepare);
+    prepare = started
+      ? started.prepare
+      : await buildRouterAbEd25519NearTransactionWarmPrepare(args, unsigned, prepareInputs);
     credential = requireRouterAbEd25519NormalSigningReadyState({
       state: args.walletSessionState,
       thresholdSessionId: args.thresholdSessionId,
@@ -1507,6 +1597,7 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
         prepare,
         credential,
         authorization: 'reusable_wallet_session',
+        startedResponse: started?.response,
       });
   const finalized = await finalizeThresholdEd25519NearTxFromSignatureWasm({
     unsignedTransactionBorshB64u: unsigned.unsignedTransactionBorshB64u,

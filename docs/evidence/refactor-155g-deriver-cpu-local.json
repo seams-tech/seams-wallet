@@ -1,0 +1,358 @@
+{
+  "date": "2026-10-12",
+  "dateTimezone": "Asia/Tokyo",
+  "environment": "Local Worker stack (wrangler dev, workerd) on one Apple Silicon laptop; release Worker builds; one NEAR-only passkey registration per sample",
+  "source": "seams-wallet 2937ee3e",
+  "method": {
+    "profiler": "V8 CPU profiler through each role's inspector port, sampling interval 100 microseconds",
+    "window": "started before the Yao execute POST, stopped 300 ms after its answer",
+    "samples": "four registrations in one running stack; sample 1 is the first execution of new isolates, the warm value is the mean of samples 2 to 4",
+    "accounting": "the sampler takes samples only while the isolate runs; each sample counts at most 300 microseconds and a longer gap is a wait"
+  },
+  "candidate": {
+    "deriver-a": {
+      "coldTotalMs": 132.8,
+      "warmTotalMs": 95.0,
+      "warmSplitMs": {
+        "AES gate hash": 34.3,
+        "curve arithmetic": 23.5,
+        "SHA-256": 9.9,
+        "circuit engine": 9.4,
+        "zeroize": 7.0,
+        "JavaScript and VM calls": 4.1,
+        "framing and serialization": 2.5,
+        "other Rust": 1.4,
+        "VM": 1.0,
+        "sealing and KDF": 0.8,
+        "memory": 0.5,
+        "runtime glue": 0.5
+      },
+      "coldSplitMs": {
+        "AES gate hash": 35.0,
+        "curve arithmetic": 24.5,
+        "circuit engine": 16.2,
+        "SHA-256": 14.7,
+        "framing and serialization": 10.1,
+        "zeroize": 7.9,
+        "runtime glue": 7.5,
+        "JavaScript and VM calls": 7.0,
+        "other Rust": 6.4,
+        "memory": 1.6,
+        "VM": 1.0,
+        "sealing and KDF": 0.9
+      }
+    },
+    "deriver-b": {
+      "coldTotalMs": 161.8,
+      "warmTotalMs": 103.2,
+      "warmSplitMs": {
+        "curve arithmetic": 46.2,
+        "AES gate hash": 18.4,
+        "SHA-256": 9.8,
+        "circuit engine": 8.5,
+        "zeroize": 5.9,
+        "JavaScript and VM calls": 5.4,
+        "framing and serialization": 4.0,
+        "other Rust": 2.2,
+        "VM": 1.3,
+        "sealing and KDF": 0.6,
+        "memory": 0.5,
+        "runtime glue": 0.4
+      },
+      "coldSplitMs": {
+        "curve arithmetic": 47.5,
+        "framing and serialization": 22.3,
+        "AES gate hash": 19.5,
+        "circuit engine": 17.5,
+        "SHA-256": 14.8,
+        "other Rust": 12.7,
+        "JavaScript and VM calls": 9.0,
+        "runtime glue": 8.9,
+        "zeroize": 6.6,
+        "memory": 1.7,
+        "VM": 0.7,
+        "sealing and KDF": 0.5
+      }
+    },
+    "router": {
+      "coldTotalMs": 43.7,
+      "warmTotalMs": 12.0,
+      "warmSplitMs": {
+        "JavaScript and VM calls": 6.1,
+        "curve arithmetic": 3.1,
+        "other Rust": 0.8,
+        "framing and serialization": 0.7,
+        "VM": 0.7,
+        "memory": 0.4,
+        "runtime glue": 0.3,
+        "SHA-256": 0.1
+      },
+      "coldSplitMs": {
+        "other Rust": 15.7,
+        "JavaScript and VM calls": 10.6,
+        "framing and serialization": 6.4,
+        "runtime glue": 6.0,
+        "curve arithmetic": 3.4,
+        "memory": 1.4,
+        "VM": 0.2
+      }
+    },
+    "signing-worker": {
+      "coldTotalMs": 21.1,
+      "warmTotalMs": 4.2,
+      "warmSplitMs": {
+        "JavaScript and VM calls": 1.7,
+        "curve arithmetic": 1.3,
+        "other Rust": 0.3,
+        "framing and serialization": 0.2,
+        "sealing and KDF": 0.2,
+        "runtime glue": 0.1,
+        "VM": 0.1,
+        "memory": 0.1,
+        "AES gate hash": 0.1,
+        "SHA-256": 0.0
+      },
+      "coldSplitMs": {
+        "runtime glue": 5.6,
+        "curve arithmetic": 3.6,
+        "other Rust": 3.0,
+        "JavaScript and VM calls": 2.3,
+        "framing and serialization": 1.7,
+        "sealing and KDF": 1.6,
+        "memory": 1.1,
+        "VM": 0.7,
+        "circuit engine": 0.5,
+        "AES gate hash": 0.5,
+        "SHA-256": 0.4
+      }
+    }
+  },
+  "candidateExecutePostMs": {
+    "1": 369.6,
+    "2": 226.9,
+    "3": 231.2,
+    "4": 230.4
+  },
+  "curve25519DalekBits64": {
+    "buildFlag": "RUSTFLAGS=--cfg curve25519_dalek_bits=\"64\" for Deriver A and Deriver B",
+    "split": {
+      "deriver-a": {
+        "coldTotalMs": 160.1,
+        "warmTotalMs": 139.0,
+        "warmSplitMs": {
+          "other Rust": 39.5,
+          "AES gate hash": 36.7,
+          "curve arithmetic": 21.4,
+          "circuit engine": 10.9,
+          "SHA-256": 10.8,
+          "zeroize": 9.0,
+          "JavaScript and VM calls": 5.5,
+          "framing and serialization": 2.7,
+          "VM": 1.1,
+          "runtime glue": 0.5,
+          "sealing and KDF": 0.4,
+          "memory": 0.4
+        },
+        "coldSplitMs": {
+          "other Rust": 36.0,
+          "AES gate hash": 31.2,
+          "SHA-256": 25.3,
+          "circuit engine": 16.5,
+          "curve arithmetic": 15.3,
+          "runtime glue": 9.6,
+          "framing and serialization": 9.0,
+          "zeroize": 6.9,
+          "JavaScript and VM calls": 6.8,
+          "memory": 1.8,
+          "sealing and KDF": 1.2,
+          "VM": 0.6
+        }
+      },
+      "deriver-b": {
+        "coldTotalMs": 221.6,
+        "warmTotalMs": 176.1,
+        "warmSplitMs": {
+          "other Rust": 77.3,
+          "curve arithmetic": 43.7,
+          "AES gate hash": 17.7,
+          "SHA-256": 9.7,
+          "circuit engine": 7.7,
+          "JavaScript and VM calls": 6.5,
+          "zeroize": 5.5,
+          "framing and serialization": 4.4,
+          "VM": 1.8,
+          "sealing and KDF": 0.9,
+          "memory": 0.7,
+          "runtime glue": 0.2
+        },
+        "coldSplitMs": {
+          "other Rust": 77.8,
+          "curve arithmetic": 35.0,
+          "framing and serialization": 24.5,
+          "AES gate hash": 21.1,
+          "SHA-256": 13.6,
+          "circuit engine": 13.2,
+          "runtime glue": 10.8,
+          "JavaScript and VM calls": 10.6,
+          "zeroize": 8.2,
+          "memory": 2.9,
+          "VM": 2.1,
+          "sealing and KDF": 1.8
+        }
+      }
+    },
+    "multi3WarmMs": {
+      "deriver-a": 37.4,
+      "deriver-b": 73.4
+    },
+    "note": "The software 128-bit multiplication (__multi3) appears under other Rust. The execute POST times of this run are not comparable: the machine carried other load."
+  },
+  "limitations": [
+    "One laptop. Cloudflare CPU time for the same work is higher by a factor this run does not measure.",
+    "Three warm samples per build.",
+    "The categories come from function names; inlined callees count toward their caller.",
+    "The caller attribution walks each curve sample up to its first caller outside the curve crates; inlining moves some oblivious-transfer work into the Yao handler frame."
+  ],
+  "candidateCurveArithmeticByCallerWarmMs": {
+    "deriver-a": {
+      "tenant-root commitment construction and parsing": 10.8,
+      "Yao handler and oblivious transfer": 9.3,
+      "HPKE": 0.8,
+      "other": 2.6
+    },
+    "deriver-b": {
+      "tenant-root commitment construction and parsing": 24.6,
+      "Yao handler and oblivious transfer": 17.0,
+      "HPKE": 1.1,
+      "other": 3.5
+    }
+  },
+  "jointRootByPointAdditions": {
+    "change": "TwoPartyRootShareCommitments::new computes 2A - B with two point additions and keeps the point, in place of a scalar multiplication and a compress and decompress round trip",
+    "split": {
+      "deriver-a": {
+        "coldTotalMs": 120.2,
+        "warmTotalMs": 86.5,
+        "warmSplitMs": {
+          "AES gate hash": 34.6,
+          "curve arithmetic": 16.3,
+          "SHA-256": 9.4,
+          "zeroize": 8.5,
+          "circuit engine": 8.4,
+          "JavaScript and VM calls": 3.4,
+          "framing and serialization": 2.3,
+          "other Rust": 1.2,
+          "memory": 0.9,
+          "VM": 0.7,
+          "sealing and KDF": 0.5,
+          "runtime glue": 0.3
+        },
+        "coldSplitMs": {
+          "AES gate hash": 35.7,
+          "curve arithmetic": 17.0,
+          "SHA-256": 15.3,
+          "circuit engine": 13.0,
+          "framing and serialization": 9.9,
+          "runtime glue": 8.5,
+          "zeroize": 8.3,
+          "other Rust": 6.1,
+          "JavaScript and VM calls": 4.5,
+          "memory": 1.0,
+          "VM": 0.6,
+          "sealing and KDF": 0.3
+        }
+      },
+      "deriver-b": {
+        "coldTotalMs": 134.4,
+        "warmTotalMs": 83.6,
+        "warmSplitMs": {
+          "curve arithmetic": 28.8,
+          "AES gate hash": 18.9,
+          "SHA-256": 10.5,
+          "circuit engine": 7.8,
+          "zeroize": 5.6,
+          "JavaScript and VM calls": 4.2,
+          "framing and serialization": 3.1,
+          "other Rust": 1.9,
+          "VM": 0.9,
+          "memory": 0.9,
+          "sealing and KDF": 0.7,
+          "runtime glue": 0.4
+        },
+        "coldSplitMs": {
+          "curve arithmetic": 28.3,
+          "framing and serialization": 20.5,
+          "AES gate hash": 19.1,
+          "SHA-256": 15.4,
+          "circuit engine": 13.0,
+          "other Rust": 12.6,
+          "runtime glue": 8.5,
+          "zeroize": 7.7,
+          "JavaScript and VM calls": 6.6,
+          "memory": 1.2,
+          "VM": 1.2,
+          "sealing and KDF": 0.3
+        }
+      },
+      "router": {
+        "coldTotalMs": 39.5,
+        "warmTotalMs": 12.3,
+        "warmSplitMs": {
+          "JavaScript and VM calls": 6.3,
+          "curve arithmetic": 3.0,
+          "VM": 1.0,
+          "other Rust": 0.7,
+          "framing and serialization": 0.6,
+          "memory": 0.3,
+          "runtime glue": 0.3
+        },
+        "coldSplitMs": {
+          "other Rust": 14.1,
+          "JavaScript and VM calls": 7.9,
+          "framing and serialization": 6.3,
+          "runtime glue": 6.2,
+          "curve arithmetic": 2.8,
+          "memory": 1.5,
+          "VM": 0.7
+        }
+      },
+      "signing-worker": {
+        "coldTotalMs": 18.5,
+        "warmTotalMs": 4.0,
+        "warmSplitMs": {
+          "JavaScript and VM calls": 1.6,
+          "curve arithmetic": 1.5,
+          "other Rust": 0.3,
+          "runtime glue": 0.2,
+          "framing and serialization": 0.1,
+          "sealing and KDF": 0.1,
+          "circuit engine": 0.1,
+          "SHA-256": 0.1,
+          "VM": 0.1,
+          "AES gate hash": 0.0,
+          "zeroize": 0.0
+        },
+        "coldSplitMs": {
+          "runtime glue": 5.0,
+          "curve arithmetic": 3.1,
+          "other Rust": 2.5,
+          "JavaScript and VM calls": 2.2,
+          "framing and serialization": 1.8,
+          "sealing and KDF": 1.5,
+          "circuit engine": 0.9,
+          "VM": 0.6,
+          "AES gate hash": 0.3,
+          "memory": 0.3,
+          "SHA-256": 0.2,
+          "zeroize": 0.2
+        }
+      }
+    },
+    "executePostMs": {
+      "1": 318.9,
+      "2": 202.5,
+      "3": 199.4,
+      "4": 195.4
+    }
+  }
+}

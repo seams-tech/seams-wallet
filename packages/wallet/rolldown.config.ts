@@ -536,6 +536,10 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',
+      // The display tree and its ABI enrichment are reached only through type imports
+      // and the lazy confirmation bundle; repository showcases import them by path.
+      'src/core/signingEngine/uiConfirm/ui/transaction-display/tree.ts',
+      'src/core/signingEngine/uiConfirm/ui/transaction-display/abi/enrichDisplayModelWithAbi.ts',
       // React entries share this module tree, so an app that imports both `@seams/wallet`
       // and `@seams/wallet/react` loads each SDK module once.
       'src/react/index.ts',
