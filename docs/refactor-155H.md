@@ -75,6 +75,15 @@ medians of the same run's 24 executions from the private `yao-chain.py`.
 Client work outside the four requests is about 130 ms. The four requests are
 96% of a registration.
 
+The [final R155G comparison](evidence/refactor-155g-final-staging.md) of
+October 12, on release builds against the verified October 12 staging
+deployment, is the current baseline: registration excluding authentication
+3.47–3.64 s at the group medians over six wallets each, setup 513–635 ms,
+respond 210–235 ms, Yao execute 1,739–1,887 ms, finalization 806–842 ms, and
+78–108 ms of Gateway CPU per finalization with the release seal. The per-part
+chain figures above come from the October 11 run; the Phase 0 group refreshes
+them on the same deployment.
+
 Facts that shape the phases:
 
 - The gap between respond and execute is about 30 ms of client work. The only
@@ -115,16 +124,14 @@ Facts that shape the phases:
 - Garbled tables depend on the garbler's seed and the circuit, not on either
   party's input. The oblivious transfer and the evaluation need the client's
   encrypted inputs, which arrive with execute.
-- The seal's hosted cost is a build artifact, not a lever. R155G's Phase 4
-  record shows that every hosted comparison so far bundled a development build
-  of the Shamir module, 654,272 bytes against the 92,823-byte release build.
-  The server lock costs 38.4 ms in that build and 2.1 ms in the release build
-  on a laptop, 1.7 ms after `a4bba328`. Finalization's 202 ms of Gateway CPU
-  on October 11 is therefore mostly gone in a release build, and the next
-  hosted comparison must build with `WASM_SDK_BUILD_MODE=prod`. `num-bigint`
-  already uses a windowed Montgomery ladder with 32-bit limbs on `wasm32`. The
-  only arithmetic lever left is the 2048-bit exponent's length, and it is not
-  needed.
+- The seal is not a lever. Every hosted comparison before October 12 bundled
+  a development build of the Shamir module, 654,272 bytes against the
+  92,823-byte release build, which made the seal look like 160 ms of
+  finalization CPU. R155G's isolated probe of October 12 measured the release
+  seal at **5.4–5.9 ms per operation on a Worker**, and finalization's Gateway
+  CPU fell to 78–108 ms. The seal stays synchronous in the reply. `num-bigint`
+  already uses a windowed Montgomery ladder with 32-bit limbs on `wasm32`; no
+  arithmetic change is needed.
 
 ## Implementation inventory
 
@@ -230,10 +237,14 @@ span baseline. No production change.
   in the run's `lifecycle.json`, and from the role databases' logs
   `bound_root_d1_timing` (`access`, `round_trips`, `batch_ms`,
   `initial_read_and_open_ms`).
-- **The group.** Start a new run folder from `.artifacts/r155g-combined-hosted/`
-  in `seams-monorepo`: copy the scripts, `launch.sh`, `projection.json`,
-  `harness/` and the four `candidate-<role>.json` files; point `build.py` and
-  `prepare.py` at the previous folder; run `preflight.py`, `build.py`,
+- **The group.** Staging serves the verified October 12 deployment. The
+  latest run against it is `.artifacts/r155g-remaining-20261012/` in
+  `seams-monorepo` (`compare.py`, `analyse.py`, `arms.json`,
+  `current-versions.json`, the role tails); start the Phase 0 folder from
+  it, so the frozen versions match today's originals. The chain scripts in
+  `.artifacts/r155f-yao-chain/` read the folder shape of
+  `.artifacts/r155g-combined-hosted/`; keep `analyze.py`'s `tail()` and
+  `path_of()` available in the new folder. Run `preflight.py`, `build.py`,
   `prepare.py`, `freeze.py`, `check-baseline.py`, then `launch.sh`, which
   detaches the driver and restores staging at the end. One arm of nine
   wallets after a warm-up group. Release builds only.
@@ -502,13 +513,11 @@ Expected gain: 150–250 ms of finalization.
   already keeps it independent of Console. Mixed registration and recovery
   continuations that read the home through Console must tolerate a pending
   completion for the outbox's interval, or wait for it.
-- [ ] Confirm the seal's hosted cost on a release build before anything else
-  here. R155G's Phase 4 owns that measurement, and the next hosted comparison
-  builds with `WASM_SDK_BUILD_MODE=prod`. Expect about 10 ms on a Worker. Only
-  if it stays above 50 ms, the lever is a 256–320-bit add exponent under a new
-  key version, with the remove exponent still full-size: a protocol parameter
-  change with a crypto review and vectors. A constant-time ladder stays a
-  side-channel item, not a latency one.
+- [x] Confirm the seal's hosted cost on a release build. Done by R155G's
+  isolated probe of October 12: 5.4–5.9 ms per seal on a Worker, 800 seals
+  with matching outputs. The seal stays synchronous in the reply, and no
+  exponent or arithmetic change follows. A constant-time ladder remains a
+  side-channel item outside this plan.
 - [ ] Update the intended behaviours: completion follows the reply from a
   tracked outbox, and the Gateway no longer acknowledges completion before it
   enables ordinary signing. Update R155B's rule 6 wording for the tracked
@@ -548,9 +557,9 @@ Expected gain: 150–300 ms of finalization.
   6 near `docs/refactor-155B.md` line 204; `passkey.registration.contract.test.ts`;
   `tests/e2e/registration-activation-completion.scenario.mjs`; the private
   composed scenarios for a lost completion reply and mixed registration.
-- Seal check: the tail's `cpuTime` for `/wallets/register/near-provisioning`
-  reads 132–386 ms today with the development module. Expect under 60 ms with
-  a release build.
+- Seal check: closed. The tail's `cpuTime` for
+  `/wallets/register/near-provisioning` read 132–386 ms with the development
+  module and 78–108 ms at the medians of the October 12 release-build run.
 
 ## Phase 4 — Close the Yao execution gap to the July probe
 
@@ -680,9 +689,12 @@ phase decides; it implements nothing.
   `activation-private-output.schedule.bin` 2.68 MB,
   `lane-materialization.schedule.bin` 2.82 MB and
   `export-private-output.schedule.bin` 56 KB; the two test-only schedules are
-  behind `#[cfg(test)]` in `passive/schedule.rs`. Measure a new isolate's
-  start before and after with `isolate-starts.py` on the stripped module
-  first. If the load cost is the schedules, compare a compressed schedule
+  behind `#[cfg(test)]` in `passive/schedule.rs`. R155G's final record shows
+  Cloudflare's upload-time startup metric did not move with the strip, 7 to
+  8 ms for A and 6 ms for B; the open question is the handler-start delay of
+  a new isolate, 91–257 ms in the October 11 runs, which only
+  `isolate-starts.py` on a hosted run measures. Measure that on the stripped
+  module first. If the load cost is the schedules, compare a compressed schedule
   decoded on first use per isolate against today's; the decode is CPU the
   prewarm can absorb.
 - [ ] The Deriver B stall. One preparation took 14.6 s after a version switch,
