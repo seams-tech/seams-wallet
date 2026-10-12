@@ -1,8 +1,8 @@
 # R155G — One APAC anchor, hidden exchanges and custody execution
 
 Status: **in progress.** Phase 1 is done on staging and open for both production
-lanes. Phase 2 is implemented; its last hosted checks are running. Phases 3 and 4
-are complete. The final registration comparison is complete.
+lanes. **All code and staging work is complete (Phases 2–5).** The only open
+checklist items are the two production moves and their deployment windows.
 Date: October 11, 2026.
 
 This plan owns the optimizations that [R155F](refactor-155F-registration-round-trips.md)
@@ -249,7 +249,15 @@ Four facts for the next move:
   the call the hosted latency test measures. The specification also excludes
   an idle prewarm lifecycle for the provider. Report the stages after setup
   beside the full registration metric from here on.
-- [ ] Measure both on staging against the frozen candidate.
+- [x] Measure both on staging against the frozen candidate. Six wallets after
+  three discarded warm-ups produced twelve delegate and twelve funded-transaction
+  signatures. All verified. Delegate signature execution after confirmation
+  measured 541 ms median (384–835 ms), with 92 ms median remaining prepare
+  wait. Transactions held review open until context-dependent preparation
+  started. Their confirmation-to-signature median was 461 ms (334–590 ms),
+  with zero remaining prepare wait. These are hosted costs, not measured
+  before/after savings. See the
+  [hosted evidence](evidence/refactor-155g-early-delegate-transaction-hosted.md).
 
 Expected gain: about 0.33 s on the first signature, and 0.1 to 0.2 s on setup.
 Known cost: a page that opens and closes the confirmation dialog repeatedly spends
