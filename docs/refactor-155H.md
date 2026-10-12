@@ -1,9 +1,9 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
 Status: **in progress.** Phase 0's instrumentation and platform check are
-done; its staging group is open. Phase 4's table-frame yield is implemented
-and waits for its staging comparison. Phases 1 to 3 wait for the decisions
-listed below. Date: October 12, 2026.
+done; its staging group is open. Phase 4's table-frame yield and SIMD build
+are implemented and wait for their staging comparison. Phases 1 to 3 wait for
+the decisions listed below. Date: October 12, 2026.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -615,11 +615,13 @@ work. One item each.
   measured 290–350 ms against 520–640 ms in Tokyo and 455–485 ms against
   620–650 ms in Hong Kong. Commit `6ec1c61d`. The crate's native tests pass,
   and all 14 cases of the local Yao contract pass: 13 on release builds and
-  the fault-injection case on dev builds. On local workerd the yield costs
+  the fault-injection case on dev builds. All 14 cases of
+  `passkey.registration.contract.test.ts` pass. On local workerd the yield costs
   about 3 ms per ceremony. Open: the staging comparison of the production
-  path. Its folder is `.artifacts/r155h-yield-hosted/` in `seams-monorepo`:
-  control and candidate differ in Deriver A only, both run the counter, nine
-  wallets per side after a warm-up group. It waits for the user's go-ahead.
+  path. Its folder is `.artifacts/r155h-yield-hosted/` in `seams-monorepo`,
+  with a README: three sides, control, yield, and yield with SIMD, each with
+  the counter, nine wallets per side after a warm-up group. The five upload
+  bodies are built. It waits for the user's go-ahead.
 - [x] **Frame profile.** Production binds `Activation128KiBDeriverA` and its
   128 KiB siblings in `crates/router-ab-ed25519-yao/src/lib.rs`: 17 table
   frames, the benchmark pair's profile. No change.
@@ -634,14 +636,28 @@ work. One item each.
   gate hash, the circuit engine and the curve code on the server that holds
   the wallet object, during the passkey prompt. Bound its CPU and measure the
   first run again.
-- [ ] **The gate hash.** The platform charges 200–350 ms of CPU for Deriver A
-  and 180–300 ms for Deriver B per ceremony; the gate hash is 27% of the local
-  profile. Build the Derivers with `-C target-feature=+simd128` and replace
-  the bitsliced AES of `crypto.rs` with a fixsliced SIMD implementation, same
-  cipher, same outputs. The formal verification vectors and the
-  cross-language task must pass unchanged. Measure on the benchmark pair
-  first: it needs no staging deployment. Curve arithmetic has no SIMD backend
-  on `wasm32`, and the 64-bit backend is slower.
+- [x] **WebAssembly SIMD for release Workers.** `build-strict-worker.sh` now
+  builds every release Worker with `-C target-feature=+simd128`. No source
+  line changes: the compiler vectorizes the label, block and buffer
+  arithmetic. On the benchmark pair, both with the yield, the ceremony fell
+  from 315–329 ms to 277 ms in two alternating pairs of runs and from 481 ms
+  to 364 ms in a third on a slower machine; Deriver A's CPU fell from
+  203–258 ms to 164–176 ms. Locally 126 ms against 137–141 ms. The
+  constant-time codegen gate found one of three scalar mask sequences in the
+  SIMD module, because the compiler vectorized the sender's conditional XOR.
+  The generated code is still branchless: the optimizer-resistant bit becomes
+  `0 - bit`, is splatted, and is applied with `v128.and` and `v128.xor`.
+  Classified `valid_test_needs_update`. The gate now builds with the release
+  target features, accepts either form after the optimizer-resistant call,
+  counts each selection once, and holds fixtures for the vector form. It
+  passes. On the SIMD builds of all five roles, the 13 release cases of the
+  local Yao contract and the 14 cases of the registration contract pass.
+  Open: the staging comparison, as its third side.
+- [ ] **A wider gate hash.** Only if the staging chain still shows the gate
+  hash on top after SIMD: the `aes` crate's software cipher works on two
+  blocks per call on `wasm32`. A four-block or eight-block bitsliced cipher
+  with the same outputs is crypto engineering with its own vectors and
+  constant-time evidence. Not started.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
   commitment checks and the HPKE seal are product additions the benchmark
   pair does not run. Place them with the local profiler and move what does
@@ -649,8 +665,8 @@ work. One item each.
 - [ ] Record the per-execution CPU of both Derivers and the real protocol
   time after each item, with the counter.
 
-Expected gain: 150–300 ms from the overlap. 100–250 ms on a first run from
-the compute prewarm, if first runs are common. 50–100 ms from the gate hash.
+Expected gain: 150–300 ms from the overlap. 40–100 ms more from SIMD.
+100–250 ms on a first run from the compute prewarm, if first runs are common.
 With Phase 1, the Router's execute span should measure 700–800 ms.
 
 ### Phase 4 notes

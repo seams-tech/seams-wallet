@@ -5,7 +5,9 @@ today, not the 202 ms that the July campaign reported. The July figure is the
 Worker clock, and the Worker clock excludes the invocation's own CPU time. One
 turn of the event loop after each table frame cuts the real time to
 **290–350 ms** in Tokyo and to 455–485 ms in Hong Kong, with identical
-protocol bytes. The pair was deployed for these runs only and is deleted.
+protocol bytes. A build with WebAssembly SIMD enabled cuts it again, to
+about 277 ms, with no source change. The pair was deployed for these runs
+only and is deleted.
 
 ## Fixed inputs
 
@@ -73,6 +75,29 @@ the serving machines does not explain the difference.
   41–50%, and by 140–190 ms in Hong Kong, 22–29%, in three and two alternating
   pairs of runs. The protocol messages, their order and their bytes are
   unchanged.
+
+## A build with WebAssembly SIMD
+
+A third series compares two builds of the yield variant: the default build,
+and the same sources with `RUSTFLAGS="-C target-feature=+simd128"` for both
+roles. No source line differs. Tokyo, no placement, 21 ceremonies per run,
+alternating.
+
+| Run | Client wall p50 / p90 | A wall | A CPU | B CPU |
+| --- | ---: | ---: | ---: | ---: |
+| Local workerd, default build | 137 and 141 | | | |
+| Local workerd, SIMD build | 126 and 126 | | | |
+| Tokyo, default 4 | 329 / 380 | 309 | 225 | 190 |
+| Tokyo, SIMD 1 | 277 / 292 | 260 | 170 | 166 |
+| Tokyo, default 5 | 315 / 328 | 294 | 203 | 179 |
+| Tokyo, SIMD 2 | 277 / 293 | 263 | 176 | 159 |
+| Tokyo, default 6 | 481 / 509 | 455 | 258 | 289 |
+| Tokyo, SIMD 3 | 364 / 392 | 332 | 164 | 241 |
+
+The compiler's vector code alone lowers the ceremony by 12–24% on the
+platform and by 9% locally. Deriver A's CPU falls from 203–258 ms to
+164–176 ms, and Deriver B's by 11–17%. The last pair of runs landed on a
+slower machine; the difference holds there.
 
 ## Limits
 

@@ -2,7 +2,7 @@
  "date": "2026-10-12",
  "dateTimezone": "Asia/Tokyo",
  "subject": "Ed25519 Yao benchmark pair on Cloudflare, activation circuit, 128 KiB frames, same-account Service Binding WebSocket",
- "source": "seams-wallet 67ac0f5d plus the measurement-only yield-after-table-frame feature",
+ "source": "seams-wallet 67ac0f5d plus the measurement-only yield-after-table-frame feature; SIMD runs add RUSTFLAGS -C target-feature=+simd128 to both roles",
  "client": "Node.js fetch from Tokyo, sequential POSTs",
  "workers": {
   "deriverA": "ed25519-yao-ab-benchmark-a",
@@ -194,7 +194,8 @@
      514,
      587
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "tokyo-yield-1",
@@ -343,7 +344,8 @@
      292,
      285
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "tokyo-control-2",
@@ -496,7 +498,8 @@
      520,
      517
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "tokyo-yield-2",
@@ -653,7 +656,8 @@
      258,
      300
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "tokyo-control-3",
@@ -814,7 +818,8 @@
      608,
      646
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "tokyo-yield-3",
@@ -967,7 +972,8 @@
      280,
      309
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "hongkong-control-0",
@@ -1216,7 +1222,8 @@
      418,
      528
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "hongkong-control-1",
@@ -1465,7 +1472,8 @@
      400,
      508
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "hongkong-yield-1",
@@ -1714,7 +1722,8 @@
      507,
      591
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "hongkong-control-2",
@@ -1963,7 +1972,8 @@
      700,
      717
     ]
-   }
+   },
+   "simd128": false
   },
   {
    "name": "hongkong-yield-2",
@@ -2212,7 +2222,8 @@
      451,
      475
     ]
-   }
+   },
+   "simd128": false
   }
  ],
  "limitations": [
@@ -2220,5 +2231,947 @@
   "The Worker clock excludes the invocation own CPU time; client wall and the tail wall time are the real durations.",
   "The Hong Kong runs enter at the Tokyo edge and execute in the placement region; client wall includes that hop.",
   "A benchmark pair has no admission, product checks, sealing or durable record."
- ]
+ ],
+ "simdRuns": [
+  {
+   "name": "tokyo-yield-plain-4",
+   "placementRegion": "none",
+   "yieldAfterTableFrame": true,
+   "simd128": false,
+   "ceremonies": 21,
+   "firstSampleDiscarded": true,
+   "clientWallMs": {
+    "p50": 329,
+    "p90": 380,
+    "min": 288,
+    "max": 423,
+    "samples": 20
+   },
+   "workerClockMs": {
+    "p50": 105,
+    "p90": 114,
+    "min": 84,
+    "max": 123,
+    "samples": 20
+   },
+   "deriverACpuMs": {
+    "p50": 225,
+    "p90": 240,
+    "min": 179,
+    "max": 562,
+    "samples": 14
+   },
+   "deriverAWallMs": {
+    "p50": 309,
+    "p90": 345,
+    "min": 280,
+    "max": 808,
+    "samples": 14
+   },
+   "deriverBCpuMs": {
+    "p50": 190,
+    "p90": 206,
+    "min": 179,
+    "max": 360,
+    "samples": 14
+   },
+   "deriverBWallMs": {
+    "p50": 310,
+    "p90": 346,
+    "min": 278,
+    "max": 702,
+    "samples": 14
+   },
+   "samples": {
+    "clientWallMs": [
+     1012,
+     298,
+     349,
+     315,
+     298,
+     319,
+     343,
+     325,
+     367,
+     308,
+     361,
+     298,
+     335,
+     380,
+     423,
+     326,
+     393,
+     288,
+     361,
+     329,
+     311
+    ],
+    "workerClockMs": [
+     267,
+     109,
+     105,
+     107,
+     92,
+     114,
+     93,
+     89,
+     114,
+     105,
+     112,
+     100,
+     90,
+     104,
+     84,
+     91,
+     113,
+     87,
+     121,
+     102,
+     123
+    ],
+    "deriverACpuMs": [
+     562,
+     179,
+     230,
+     196,
+     194,
+     194,
+     237,
+     225,
+     240,
+     187,
+     237,
+     236,
+     236,
+     214
+    ],
+    "deriverAWallMs": [
+     808,
+     280,
+     329,
+     295,
+     281,
+     299,
+     323,
+     308,
+     345,
+     287,
+     342,
+     316,
+     341,
+     309
+    ],
+    "deriverBCpuMs": [
+     360,
+     187,
+     193,
+     186,
+     179,
+     190,
+     182,
+     181,
+     206,
+     195,
+     196,
+     179,
+     203,
+     202
+    ],
+    "deriverBWallMs": [
+     702,
+     278,
+     329,
+     295,
+     280,
+     296,
+     323,
+     308,
+     346,
+     284,
+     340,
+     315,
+     340,
+     310
+    ]
+   }
+  },
+  {
+   "name": "tokyo-yield-simd-1",
+   "placementRegion": "none",
+   "yieldAfterTableFrame": true,
+   "simd128": true,
+   "ceremonies": 21,
+   "firstSampleDiscarded": true,
+   "clientWallMs": {
+    "p50": 277,
+    "p90": 292,
+    "min": 248,
+    "max": 311,
+    "samples": 20
+   },
+   "workerClockMs": {
+    "p50": 86,
+    "p90": 98,
+    "min": 71,
+    "max": 103,
+    "samples": 20
+   },
+   "deriverACpuMs": {
+    "p50": 170,
+    "p90": 192,
+    "min": 152,
+    "max": 560,
+    "samples": 11
+   },
+   "deriverAWallMs": {
+    "p50": 260,
+    "p90": 275,
+    "min": 235,
+    "max": 767,
+    "samples": 11
+   },
+   "deriverBCpuMs": {
+    "p50": 166,
+    "p90": 174,
+    "min": 157,
+    "max": 304,
+    "samples": 11
+   },
+   "deriverBWallMs": {
+    "p50": 259,
+    "p90": 276,
+    "min": 234,
+    "max": 665,
+    "samples": 11
+   },
+   "samples": {
+    "clientWallMs": [
+     936,
+     287,
+     256,
+     269,
+     263,
+     276,
+     270,
+     272,
+     277,
+     293,
+     283,
+     277,
+     271,
+     286,
+     251,
+     283,
+     292,
+     291,
+     261,
+     248,
+     311
+    ],
+    "workerClockMs": [
+     223,
+     95,
+     85,
+     103,
+     88,
+     101,
+     98,
+     80,
+     96,
+     89,
+     75,
+     72,
+     85,
+     71,
+     86,
+     71,
+     94,
+     98,
+     79,
+     83,
+     79
+    ],
+    "deriverACpuMs": [
+     560,
+     179,
+     155,
+     152,
+     164,
+     165,
+     158,
+     181,
+     170,
+     191,
+     192
+    ],
+    "deriverAWallMs": [
+     767,
+     269,
+     235,
+     247,
+     247,
+     260,
+     251,
+     256,
+     260,
+     275,
+     263
+    ],
+    "deriverBCpuMs": [
+     304,
+     174,
+     160,
+     169,
+     165,
+     166,
+     161,
+     161,
+     168,
+     168,
+     157
+    ],
+    "deriverBWallMs": [
+     665,
+     269,
+     234,
+     246,
+     247,
+     259,
+     251,
+     257,
+     260,
+     276,
+     263
+    ]
+   }
+  },
+  {
+   "name": "tokyo-yield-plain-5",
+   "placementRegion": "none",
+   "yieldAfterTableFrame": true,
+   "simd128": false,
+   "ceremonies": 21,
+   "firstSampleDiscarded": true,
+   "clientWallMs": {
+    "p50": 315,
+    "p90": 328,
+    "min": 273,
+    "max": 350,
+    "samples": 20
+   },
+   "workerClockMs": {
+    "p50": 92,
+    "p90": 119,
+    "min": 77,
+    "max": 126,
+    "samples": 20
+   },
+   "deriverACpuMs": {
+    "p50": 203,
+    "p90": 219,
+    "min": 164,
+    "max": 644,
+    "samples": 11
+   },
+   "deriverAWallMs": {
+    "p50": 294,
+    "p90": 328,
+    "min": 254,
+    "max": 857,
+    "samples": 11
+   },
+   "deriverBCpuMs": {
+    "p50": 179,
+    "p90": 214,
+    "min": 168,
+    "max": 365,
+    "samples": 11
+   },
+   "deriverBWallMs": {
+    "p50": 293,
+    "p90": 328,
+    "min": 252,
+    "max": 762,
+    "samples": 11
+   },
+   "samples": {
+    "clientWallMs": [
+     1033,
+     350,
+     286,
+     315,
+     326,
+     322,
+     273,
+     309,
+     314,
+     276,
+     315,
+     318,
+     314,
+     320,
+     332,
+     328,
+     296,
+     301,
+     316,
+     312,
+     305
+    ],
+    "workerClockMs": [
+     236,
+     119,
+     91,
+     86,
+     126,
+     90,
+     96,
+     98,
+     93,
+     77,
+     99,
+     125,
+     78,
+     83,
+     87,
+     94,
+     100,
+     80,
+     92,
+     90,
+     77
+    ],
+    "deriverACpuMs": [
+     644,
+     217,
+     179,
+     213,
+     185,
+     219,
+     164,
+     184,
+     204,
+     185,
+     203
+    ],
+    "deriverAWallMs": [
+     857,
+     328,
+     265,
+     294,
+     302,
+     303,
+     254,
+     276,
+     291,
+     257,
+     295
+    ],
+    "deriverBCpuMs": [
+     365,
+     214,
+     173,
+     177,
+     191,
+     168,
+     179,
+     189,
+     178,
+     169,
+     192
+    ],
+    "deriverBWallMs": [
+     762,
+     328,
+     266,
+     293,
+     302,
+     303,
+     252,
+     275,
+     291,
+     256,
+     296
+    ]
+   }
+  },
+  {
+   "name": "tokyo-yield-simd-2",
+   "placementRegion": "none",
+   "yieldAfterTableFrame": true,
+   "simd128": true,
+   "ceremonies": 21,
+   "firstSampleDiscarded": true,
+   "clientWallMs": {
+    "p50": 277,
+    "p90": 293,
+    "min": 247,
+    "max": 327,
+    "samples": 20
+   },
+   "workerClockMs": {
+    "p50": 83,
+    "p90": 115,
+    "min": 73,
+    "max": 134,
+    "samples": 20
+   },
+   "deriverACpuMs": {
+    "p50": 176,
+    "p90": 230,
+    "min": 151,
+    "max": 587,
+    "samples": 11
+   },
+   "deriverAWallMs": {
+    "p50": 263,
+    "p90": 305,
+    "min": 229,
+    "max": 784,
+    "samples": 11
+   },
+   "deriverBCpuMs": {
+    "p50": 159,
+    "p90": 166,
+    "min": 148,
+    "max": 312,
+    "samples": 11
+   },
+   "deriverBWallMs": {
+    "p50": 261,
+    "p90": 305,
+    "min": 229,
+    "max": 683,
+    "samples": 11
+   },
+   "samples": {
+    "clientWallMs": [
+     959,
+     327,
+     317,
+     276,
+     292,
+     268,
+     262,
+     292,
+     282,
+     247,
+     256,
+     254,
+     270,
+     286,
+     293,
+     277,
+     290,
+     288,
+     252,
+     254,
+     270
+    ],
+    "workerClockMs": [
+     214,
+     81,
+     87,
+     83,
+     79,
+     78,
+     84,
+     134,
+     77,
+     75,
+     75,
+     83,
+     97,
+     80,
+     83,
+     115,
+     117,
+     87,
+     75,
+     91,
+     73
+    ],
+    "deriverACpuMs": [
+     587,
+     230,
+     213,
+     176,
+     200,
+     176,
+     165,
+     151,
+     190,
+     157,
+     167
+    ],
+    "deriverAWallMs": [
+     784,
+     305,
+     295,
+     254,
+     274,
+     250,
+     245,
+     277,
+     263,
+     229,
+     238
+    ],
+    "deriverBCpuMs": [
+     312,
+     166,
+     148,
+     159,
+     162,
+     149,
+     158,
+     161,
+     158,
+     157,
+     160
+    ],
+    "deriverBWallMs": [
+     683,
+     305,
+     293,
+     254,
+     274,
+     249,
+     245,
+     276,
+     261,
+     229,
+     238
+    ]
+   }
+  },
+  {
+   "name": "tokyo-yield-plain-6",
+   "placementRegion": "none",
+   "yieldAfterTableFrame": true,
+   "simd128": false,
+   "ceremonies": 21,
+   "firstSampleDiscarded": true,
+   "clientWallMs": {
+    "p50": 481,
+    "p90": 509,
+    "min": 419,
+    "max": 512,
+    "samples": 20
+   },
+   "workerClockMs": {
+    "p50": 224,
+    "p90": 249,
+    "min": 174,
+    "max": 265,
+    "samples": 20
+   },
+   "deriverACpuMs": {
+    "p50": 258,
+    "p90": 326,
+    "min": 221,
+    "max": 790,
+    "samples": 15
+   },
+   "deriverAWallMs": {
+    "p50": 455,
+    "p90": 482,
+    "min": 396,
+    "max": 1222,
+    "samples": 15
+   },
+   "deriverBCpuMs": {
+    "p50": 289,
+    "p90": 313,
+    "min": 262,
+    "max": 606,
+    "samples": 15
+   },
+   "deriverBWallMs": {
+    "p50": 452,
+    "p90": 483,
+    "min": 389,
+    "max": 1006,
+    "samples": 15
+   },
+   "samples": {
+    "clientWallMs": [
+     1480,
+     509,
+     472,
+     506,
+     419,
+     489,
+     512,
+     500,
+     477,
+     428,
+     449,
+     496,
+     509,
+     490,
+     481,
+     431,
+     484,
+     458,
+     463,
+     457,
+     471
+    ],
+    "workerClockMs": [
+     501,
+     174,
+     205,
+     235,
+     193,
+     249,
+     221,
+     236,
+     224,
+     190,
+     185,
+     219,
+     248,
+     260,
+     218,
+     197,
+     265,
+     234,
+     246,
+     177,
+     248
+    ],
+    "deriverACpuMs": [
+     790,
+     326,
+     266,
+     272,
+     225,
+     232,
+     272,
+     247,
+     248,
+     224,
+     257,
+     261,
+     265,
+     221,
+     258
+    ],
+    "deriverAWallMs": [
+     1222,
+     482,
+     446,
+     480,
+     397,
+     456,
+     470,
+     460,
+     449,
+     396,
+     422,
+     482,
+     455,
+     431,
+     422
+    ],
+    "deriverBCpuMs": [
+     606,
+     269,
+     298,
+     302,
+     265,
+     289,
+     268,
+     313,
+     293,
+     262,
+     280,
+     307,
+     285,
+     298,
+     283
+    ],
+    "deriverBWallMs": [
+     1006,
+     483,
+     446,
+     475,
+     389,
+     457,
+     452,
+     461,
+     446,
+     396,
+     422,
+     482,
+     455,
+     433,
+     422
+    ]
+   }
+  },
+  {
+   "name": "tokyo-yield-simd-3",
+   "placementRegion": "none",
+   "yieldAfterTableFrame": true,
+   "simd128": true,
+   "ceremonies": 21,
+   "firstSampleDiscarded": true,
+   "clientWallMs": {
+    "p50": 364,
+    "p90": 392,
+    "min": 335,
+    "max": 409,
+    "samples": 20
+   },
+   "workerClockMs": {
+    "p50": 180,
+    "p90": 203,
+    "min": 143,
+    "max": 214,
+    "samples": 20
+   },
+   "deriverACpuMs": {
+    "p50": 164,
+    "p90": 200,
+    "min": 156,
+    "max": 516,
+    "samples": 11
+   },
+   "deriverAWallMs": {
+    "p50": 332,
+    "p90": 375,
+    "min": 310,
+    "max": 1062,
+    "samples": 11
+   },
+   "deriverBCpuMs": {
+    "p50": 241,
+    "p90": 277,
+    "min": 227,
+    "max": 559,
+    "samples": 11
+   },
+   "deriverBWallMs": {
+    "p50": 330,
+    "p90": 375,
+    "min": 309,
+    "max": 808,
+    "samples": 11
+   },
+   "samples": {
+    "clientWallMs": [
+     1312,
+     353,
+     364,
+     400,
+     375,
+     376,
+     348,
+     376,
+     335,
+     409,
+     365,
+     392,
+     351,
+     348,
+     378,
+     348,
+     362,
+     376,
+     353,
+     346,
+     351
+    ],
+    "workerClockMs": [
+     603,
+     161,
+     143,
+     180,
+     180,
+     201,
+     167,
+     209,
+     163,
+     203,
+     186,
+     199,
+     185,
+     153,
+     214,
+     158,
+     197,
+     193,
+     160,
+     159,
+     166
+    ],
+    "deriverACpuMs": [
+     516,
+     180,
+     200,
+     162,
+     181,
+     164,
+     156,
+     159,
+     160,
+     191,
+     160
+    ],
+    "deriverAWallMs": [
+     1062,
+     326,
+     332,
+     327,
+     347,
+     351,
+     310,
+     351,
+     311,
+     375,
+     330
+    ],
+    "deriverBCpuMs": [
+     559,
+     227,
+     228,
+     240,
+     264,
+     257,
+     230,
+     277,
+     228,
+     270,
+     241
+    ],
+    "deriverBWallMs": [
+     808,
+     326,
+     328,
+     326,
+     347,
+     350,
+     309,
+     352,
+     310,
+     375,
+     330
+    ]
+   }
+  }
+ ],
+ "localWorkerdSimd": {
+  "machine": "Apple M4 Pro",
+  "yieldPlainClientWallP50Ms": [
+   137.0,
+   141.0
+  ],
+  "yieldSimdClientWallP50Ms": [
+   126.5,
+   126.0
+  ],
+  "ceremoniesPerRun": 20
+ }
 }
