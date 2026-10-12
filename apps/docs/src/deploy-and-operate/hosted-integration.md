@@ -34,16 +34,16 @@ same compatible release.
 
 ## Upgrading to 0.9.0
 
-Pin the application package and backend package to **0.9.2**, the current patch
+Pin the application package and backend package to **0.9.3**, the current patch
 release of 0.9, and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 
 ```sh
 # Application
-pnpm add @seams/wallet@0.9.2
+pnpm add @seams/wallet@0.9.3
 
 # Backend deployment
-pnpm add @seams/wallet-server@0.9.2
+pnpm add @seams/wallet-server@0.9.3
 ```
 
 This release changes the registration contract and the wallet iframe protocol. The
@@ -70,6 +70,11 @@ backend together.
 Version 0.9.0 requires wallet-object addresses, which wallets registered on 0.8.0 do
 not have. It does not provide a tool to migrate those wallets. Operators with durable
 wallet state must resolve that migration before replacing their deployment.
+
+Version 0.9.3 adds Gateway migration `0078`, which creates the table
+`registration_passkey_claims`. Registration finalization reads that table, so apply the
+migration before a 0.9.3 Gateway serves. The release has no wire or protocol change: a
+0.9.2 application works with a 0.9.3 backend.
 
 ## Regional routing
 
