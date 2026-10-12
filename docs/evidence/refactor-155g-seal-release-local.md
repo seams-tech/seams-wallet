@@ -1,6 +1,8 @@
 # Session sealing: release build comparison
 
-October 12, 2026. Local Node WASM measurement; Cloudflare CPU remains to be measured.
+October 12, 2026. Local Node WASM measurement. The subsequent
+[Cloudflare measurement](refactor-155g-final-staging.md) found about 5–6 ms per
+seal and no demonstrated hosted speed gain.
 
 The candidate changes compilation only: Rust `opt-level = 3` and `wasm-opt -O3`.
 The original release configuration uses `opt-level = "z"` and default wasm-opt.

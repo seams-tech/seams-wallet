@@ -2,7 +2,7 @@
 
 Status: **in progress.** Phase 1 is done on staging and open for both production
 lanes. Phase 2 is implemented; its last hosted checks are running. Phases 3 and 4
-are complete. The final comparison is running.
+are complete. The final registration comparison is complete.
 Date: October 11, 2026.
 
 This plan owns the optimizations that [R155F](refactor-155F-registration-round-trips.md)
@@ -386,7 +386,7 @@ seal is already computed beside home publication. The CPU itself remains.
   packages, before any decision here. A hosted comparison must build its
   candidates with `WASM_SDK_BUILD_MODE=prod`.
 - [x] Choose release compilation for speed. Keep the seal in the response path.
-  Both touch custody. The session must stay bound to its wallet, session and
+  The session stays bound to its wallet, session and
   expiry, and the client must still receive the seal with the finalization reply.
 - [x] Implement `opt-level = 3` and `wasm-opt -O3` in `a4bba328`. The
   [local release comparison](evidence/refactor-155g-seal-release-local.md)
@@ -400,15 +400,15 @@ seal is already computed beside home publication. The CPU itself remains.
 
 ## Phase 5 — Measure and record
 
-- [ ] Run a discarded warm-up group of three wallets before each measured group.
+- [x] Run a discarded warm-up group of three wallets before each measured group.
   A version that was just deployed or switched in starts its Workers in new
   isolates, and the first group after a change is the slowest.
-- [ ] Use at least six wallets per measured group. Three cannot resolve less than
+- [x] Use at least six wallets per measured group. Three cannot resolve less than
   about 0.5 s: two groups on identical versions differed by 1 s on October 11.
-- [ ] Measure the accumulated changes of R155F and this plan in one comparison
+- [x] Measure the accumulated changes of R155F and this plan in one comparison
   on the Hong Kong layout. Record registration, first signature and the combined
   flow with medians, ranges and maxima, and the stage costs.
-- [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
+- [x] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
 
 ### Phase 5 record
 
@@ -435,3 +435,25 @@ Production rollout and publishing 0.9.0 remain separate release work.
 
 Complete the plan when each item has implementation and evidence, or a recorded
 reason. A completed checklist does not establish that the latency target was met.
+
+
+### October 12 final registration comparison
+
+The [final staging evidence](evidence/refactor-155g-final-staging.md) includes
+three discarded warm-ups and six measured wallets for each of control, candidate
+and repeat control. All 27 NEP-413 signatures passed independent verification.
+The candidate contains the accumulated implementation. The control already
+contains R155F and earlier R155G work; this last comparison isolates the
+remaining module-size and seal-build changes.
+
+Candidate registration measured **3.556 s excluding authentication**, and the
+first signature measured **0.429 s excluding confirmation**. The combined flow
+measured **3.978 s**, with a **3.755–5.018 s** range. Including authentication,
+SDK registration measured **4.111 s**. The control combined median was 4.070 s
+and its repeat was 3.967 s. These overlapping results establish no end-to-end
+gain for the last batch. The four-second maximum remains unmet.
+
+Staging returned to the verified October 12 deployment. Reactivation passed
+after two US registration records expired naturally. No wallet records were
+deleted. The temporary CPU probe is no longer serving. Production database
+moves still require the user's deployment windows.
