@@ -1,9 +1,11 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
-Status: **in progress.** Phase 0's instrumentation and platform check are
-done; its staging group is open. Phase 4's table-frame yield and SIMD build
-are implemented, and their staging comparison is running. The decisions for
-Phases 1 to 3 are taken. Date: October 12, 2026.
+Status: **in progress.** Phase 0 is done except the Gateway's finalization
+spans and the D1 cost per call type. Phase 4's table-frame yield and SIMD
+build are implemented and measured on staging: the Router's execute request
+fell from 1,605 ms to 1,300 ms at the median, and registration after setup
+measured 2,600 ms. The decisions for Phases 1 to 3 are taken. Date:
+October 12, 2026.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -196,11 +198,17 @@ stale-test deletions in separate commits.
   protocol time (clock span plus A's CPU) and p50, p90 and maximum per column.
   On the October 11 run it reports the Router's execute at 1,636 / 1,970 /
   2,372 ms and the real protocol at 907 / 1,217 / 1,330 ms.
-- [ ] Run one staging group of at least nine wallets on the current versions,
-  after a discarded warm-up group. Classify the CPU factor. If CPU falls with
-  the counter, warmness is the cause and Phase 4 takes the compute prewarm. If
-  CPU is flat at four times local or more, the core is the cause and Phase 4
-  takes the SIMD path.
+- [x] Run one staging group of at least nine wallets, after a discarded
+  warm-up group, and classify the CPU factor. The
+  [yield and SIMD comparison](evidence/refactor-155h-yield-simd-hosted.md)
+  ran 27 measured wallets with the counter. The counter read zero in every
+  execution, in both roles: each new wallet's objects run the protocol in an
+  isolate that never ran it. Deriver A's CPU on these first runs has two
+  modes, near 300 ms in two thirds of the executions and 450–640 ms in the
+  rest; Deriver B's has 255–290 ms and 360–450 ms. On the benchmark pair's
+  warm isolates the platform's CPU for one build varies 1.4 to 1.6 times
+  between serving machines, so the slow mode is a slower machine, a colder
+  isolate, or both. The staging data cannot separate them.
 - [x] Measure the core ratio directly. Done with the benchmark pair instead
   of a micro-workload in the prewarm handler: the same WebAssembly takes
   139 ms per ceremony on local workerd and 520–640 ms deployed, flat over
@@ -220,10 +228,12 @@ stale-test deletions in separate commits.
   write gate or a response path.
 - [ ] Record the finalization span medians per group from the Gateway's server
   timing beside the browser stages, as the combined run's analysis log already
-  does, so Phases 2 and 3 have a per-span baseline.
+  does, so Phases 2 and 3 have a per-span baseline. Staging's serving Gateway
+  does not expose server timing or D1 counts. Take this with the first
+  comparison that serves a measurement Gateway, which is Phase 2's.
 - [ ] Record the staging D1 cost per call type across the run: reads, single
   writes and batches, with p50 and p90. The chain uses this to separate a slow
-  database from a slow object.
+  database from a slow object. Same condition as the item above.
 
 Acceptance: one record with the CPU classification, the p90 columns and the
 span baseline. No production change.
@@ -607,7 +617,7 @@ plus Deriver A's CPU.
 | Deriver A admission, two D1 round trips | 113 ms | 0 | 0 online | Phase 1 |
 | Pair connection | 196 ms | 0 | 0 online | Phase 1 |
 | Deriver B re-read of the admitted session | 56 ms | 0 | 0 online | Phase 1 |
-| Protocol, real time | ~850 ms | 520–640 ms; 290–350 ms with the yield | 450 ms | this phase |
+| Protocol, real time | ~850 ms; 634 ms with the yield and SIMD | 520–640 ms; 277 ms with the yield and SIMD | 450 ms | this phase |
 | Signing Worker delivery | 88 ms | 0 | ~90 ms | activation receipt; stays |
 | Router finish in its wallet object | 69 ms | 0 | ~70 ms | durable completion; stays |
 
@@ -626,25 +636,30 @@ work. One item each.
   and all 14 cases of the local Yao contract pass: 13 on release builds and
   the fault-injection case on dev builds. All 14 cases of
   `passkey.registration.contract.test.ts` pass. On local workerd the yield costs
-  about 3 ms per ceremony. Open: the staging comparison of the production
-  path. Its folder is `.artifacts/r155h-yield-hosted/` in `seams-monorepo`,
-  with a README: three sides, control, yield, and yield with SIMD, each with
-  the counter, nine wallets per side after a warm-up group. The five upload
-  bodies are built. It waits for the user's go-ahead.
+  about 3 ms per ceremony. On staging, nine wallets per side: the Router's
+  execute request fell from 1,605 ms to 1,340 ms at the median and from
+  1,752 ms to 1,602 ms at the 90th percentile; the real protocol time from
+  821 ms to 686 ms; Deriver A's wait for Deriver B from 435 ms to 240 ms while
+  its CPU stayed at 340 ms. The
+  [record](evidence/refactor-155h-yield-simd-hosted.md) holds the chain.
 - [x] **Frame profile.** Production binds `Activation128KiBDeriverA` and its
   128 KiB siblings in `crates/router-ab-ed25519-yao/src/lib.rs`: 17 table
   frames, the benchmark pair's profile. No change.
 - [x] **Per-message cost and the write gate.** Both closed by the probe: the
   cost was the missing event-loop turn, and the time after the last frame is
   the clock's exclusion of own CPU.
-- [ ] **First run in a new isolate.** Read the isolate counter beside the
-  tail's CPU on the next staging group. If first runs are common and cost
-  200 ms or more of CPU over later runs, make the wallet-start handler run
-  one export ceremony in memory, 1,275 AND gates, garbler and evaluator in
-  the same isolate, when the counter is zero. That compiles and warms the
-  gate hash, the circuit engine and the curve code on the server that holds
-  the wallet object, during the passkey prompt. Bound its CPU and measure the
-  first run again.
+- [ ] **First run in a new isolate.** Every staging execution is one. What a
+  compute prewarm would buy is not established: the fast mode of a first run,
+  near 300 ms for Deriver A, sits 50–70 ms above the warm figure expected
+  from the benchmark pair, and the slow mode, 450–640 ms in a third of the
+  executions, may be the machine. Decide with one experiment before any
+  product code: on the benchmark pair, deploy, load the module with a request
+  that runs no ceremony, wait two seconds, run one ceremony, and repeat the
+  cycle ten times against ten later ceremonies of the same isolates. If the
+  first ceremony costs 150 ms of CPU or more over the later ones, make each
+  Deriver's wallet-start handler run one in-memory ceremony when the counter
+  is zero, bound its CPU, and measure a staging side. If not, close this
+  item with the record.
 - [x] **WebAssembly SIMD for release Workers.** `build-strict-worker.sh` now
   builds every release Worker with `-C target-feature=+simd128`. No source
   line changes: the compiler vectorizes the label, block and buffer
@@ -660,8 +675,11 @@ work. One item each.
   target features, accepts either form after the optimizer-resistant call,
   counts each selection once, and holds fixtures for the vector form. It
   passes. On the SIMD builds of all five roles, the 13 release cases of the
-  local Yao contract and the 14 cases of the registration contract pass.
-  Open: the staging comparison, as its third side.
+  local Yao contract and the 14 cases of the registration contract pass. On
+  staging, as the third side of the same comparison: the Router's execute
+  request at 1,300 ms and 1,464 ms at the 90th percentile, the real protocol
+  time at 634 ms and 647 ms, Deriver B's CPU from 286 ms to 239 ms and
+  Deriver A's from 344 ms to 314 ms. A first run gains less than a warm run.
 - [ ] **A wider gate hash.** Only if the staging chain still shows the gate
   hash on top after SIMD: the `aes` crate's software cipher works on two
   blocks per call on `wasm32`. A four-block or eight-block bitsliced cipher
@@ -674,9 +692,11 @@ work. One item each.
 - [ ] Record the per-execution CPU of both Derivers and the real protocol
   time after each item, with the counter.
 
-Expected gain: 150–300 ms from the overlap. 40–100 ms more from SIMD.
-100–250 ms on a first run from the compute prewarm, if first runs are common.
-With Phase 1, the Router's execute span should measure 700–800 ms.
+Measured gain on staging: 265 ms of the Router's execute request from the
+overlap and 40 ms more from SIMD at the median, 150 ms and 140 ms at the 90th
+percentile. With Phase 1, the Router's execute request should measure about
+1,050 ms: the claim, the delivery and the finish, about 280 ms of durable
+bookkeeping, one D1 round trip per Deriver, and a protocol of about 630 ms.
 
 ### Phase 4 notes
 
