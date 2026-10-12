@@ -316,22 +316,39 @@ without R155F's later Gateway changes.
   Derivers, and the local execute POST from about 229 ms to about 199 ms.
 - [x] Try the 64-bit curve backend: rejected. On `wasm32` it calls a software
   128-bit multiplication and raises the warm CPU to 139 ms and 176 ms.
-- [ ] Review moving the base oblivious transfers ahead of execute. After the
-  commitment change they are the largest curve cost, 9 ms and 17 ms, and they
-  may not need the client's input. Establish what binds them to one execution
-  before any change; this is a protocol review, not a build setting.
-- [ ] Review an early Deriver admission, after respond and before execute. The
-  admission needs the custody binding and the attempt, which exist after respond.
-  Deriver B's preparation also needs the client's input, so only the admission
-  can move. Establish that an early admission cannot be claimed by another
-  execution before implementing it.
+- [x] Review moving the base oblivious transfers ahead of execute: possible in
+  the cryptography, not taken. After the commitment change they are the largest
+  curve cost, 9 ms and 17 ms. Their session is a hash of the ceremony session,
+  the circuit digest and the schedule digest (`ot_session` in
+  `crates/ed25519-yao/src/passive/phase4.rs`), and the base choices are random.
+  The base transfers therefore need neither the client's input nor the root
+  share. Three facts speak against the move. Deriver B's wallet object accepts
+  Deriver A's connection only after its own admitted preparation, and that
+  preparation needs the client's input. The base seeds are secrets that would
+  have to live from respond to execute and serve exactly one extension: a second
+  extension on the same seeds shows the peer the difference of two choice
+  vectors. The transfer module states that it has no reusable base state. The
+  bound of the gain is the base-transfer CPU, 26 ms on a laptop for both roles.
+- [x] Review an early Deriver admission, after respond and before execute: not
+  possible as first described. The admission stores the digest of the custody
+  binding, and the binding's outer transcript digest is the pair digest
+  (`authenticate_for_ed25519_yao_v1`). The pair digest covers the digests of the
+  client's two encrypted inputs. The client builds those inputs from the
+  admission receipt in the respond reply and sends them with execute. The
+  binding therefore does not exist before execute. An admission bound to the
+  session and the epoch alone could run early, but the execution would still
+  record or verify its binding, and the attempt-conflict rule would need a new
+  home. That changes the admission identity for one D1 write per Deriver, about
+  50 ms on staging. Not taken.
 - [ ] Measure the isolate cost of module size. Each Deriver module is 15.6 MB
   with a 1.3 MB name section and 6.2 MB of data. Remove what is not needed at
   run time, then measure a new isolate's start.
-- [ ] Keep the two deliberate checks: the second D1 round trip of each admission,
-  and Deriver B's read of the admitted session before use. Record them as kept.
+- [x] Keep the two deliberate checks: the second D1 round trip of each admission,
+  and Deriver B's read of the admitted session before use. Both are kept.
 
-Expected gain: 0.1 to 0.3 s. The protocol CPU itself stays as it is.
+Expected gain: 0.1 to 0.3 s was the estimate before the two reviews. The prewarm
+and the commitment change are the realized part. The open item changes new
+isolates only. The protocol CPU itself stays as it is.
 
 ## Phase 4 — Finalization sealing CPU
 
@@ -339,7 +356,17 @@ R155F's local profile places 78–80% of finalization's sampled CPU in
 `addSigningSessionSealLock`, modular arithmetic in the Shamir WASM module. The
 seal is already computed beside home publication. The CPU itself remains.
 
-- [ ] Measure the seal's CPU in isolation on a Worker, not a laptop.
+- [ ] Measure the seal's CPU in isolation on a Worker, not a laptop. A bound
+  exists from the staging records of the hosted run of October 11
+  (`.artifacts/r155g-combined-hosted` in `seams-monorepo`): the Gateway used
+  202 ms of CPU at the median for finalization (132–386 ms, 25 invocations),
+  against 10–32 ms for each other registration and signing route. The browser
+  measured 909 ms for the request, and the Gateway's last traced call ended at
+  591 ms. By the local share of 78–80%, the seal is about 160 ms on a Worker.
+  That share is not measured on a Worker. Two facts for the decision: the seal
+  is one modular exponentiation in the 1024-bit group `rfc2409-group2`, and
+  `wasm/shamir3pass_runtime` builds with `opt-level = "z"`. A build for speed
+  computes the same value and is not tested yet.
 - [ ] Decide between a cheaper computation and a seal off the response path.
   Both touch custody. The session must stay bound to its wallet, session and
   expiry, and the client must still receive the seal with the finalization reply.
