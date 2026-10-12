@@ -1014,7 +1014,10 @@ other regions' custody calls cross to Singapore in either case.
 - [ ] Report the pauses to Cloudflare. The user sends it; the draft is
   `.artifacts/r155h-write-stall-probe/cloudflare-support-draft.md` in
   `seams-monorepo`. Ask what the hosts do every 5 s and 30 s, and whether
-  the confirmation can stop waiting for it.
+  the confirmation can stop waiting for it. The D1 team has said in public
+  that storage operations on one machine can starve each other and that the
+  threading is being changed; the record links the threads. Ask whether the
+  pauses are that problem.
 - [ ] Report p90 in every comparison from here on.
 
 ## Phase 8 — Measure and record

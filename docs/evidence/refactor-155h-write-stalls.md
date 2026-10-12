@@ -28,7 +28,9 @@ does, for object storage and for D1, and it gives the cost for a caller.
   request out of the wait.** It exists for the KV-style `put` and `delete`,
   not for SQL.
 - **What the host does during the pause is not known.** No public source
-  describes it, and the open-source runtime has no such timer.
+  describes this pattern, and the open-source runtime has no such timer.
+  Cloudflare's D1 team has described a related one: storage operations of
+  the objects on one machine can starve each other.
 
 Two statements of the earlier record are wrong, and this record replaces
 them. The cycle is not counted from an object's first write: an object stays
@@ -316,11 +318,16 @@ databases, and the count of 13 comes from reading the code.
   pause is in the confirmation path on that machine, because the object's
   code runs and every object there waits. That the cost of a registration is
   a sum of independent draws.
-- **A similarity, not a finding.** Five and thirty seconds are the default
-  intervals at which a Linux kernel wakes its page writeback and expires
-  dirty pages, and five seconds is the default commit interval of an ext4
-  journal. A synchronous write that meets such a flush waits for it. The
-  measurements fit that. Nothing here proves it.
+- **Two candidates, not findings.** First, the D1 team wrote in April 2026
+  that an expensive storage operation of one object can starve the storage
+  operations of the other objects on its machine, and that the threading of
+  storage operations is being changed. A task that runs on each host every
+  five seconds on those threads would give the pauses measured here. Second,
+  five and thirty seconds are the default intervals at which a Linux kernel
+  wakes its page writeback and expires dirty pages, and five seconds is the
+  default commit interval of an ext4 journal; a synchronous write that meets
+  such a flush waits for it. The measurements fit both. Nothing here proves
+  either.
 - **Unknown.** What the host does every five and every thirty seconds.
   Whether the pause is on the object's host or on the followers that confirm
   its log. Why pauses are longer in Singapore, and why they grow within an
@@ -351,11 +358,37 @@ single write, every caller round trip and every D1 row.
 
 ## Public sources
 
-No public source reports a periodic stall of write confirmation. Searched on
-October 12: the Durable Objects and D1 documentation, both changelogs from
-2024, the issues and discussions of `cloudflare/workerd`,
-`cloudflare/workers-sdk` and `cloudflare/cloudflare-docs`, and Hacker News.
-The community forum and the Discord archives could not be searched.
+No public source reports this pattern: a pause of 100–400 ms on a cycle of
+five seconds. Searched on October 12 and 13: the Durable Objects and D1
+documentation, both changelogs from 2024, GitHub issues in all repositories,
+Hacker News, the Cloudflare status history and, with a browser, the
+Cloudflare community forum. The Discord archives could not be searched.
+
+The forum holds reports of the same family for D1, which runs on SQLite
+Durable Objects. They are stalls of seconds, not of a fraction of a second:
+
+- [D1 Timeout Errors on Small Database](https://community.cloudflare.com/t/d1-timeout-errors-on-small-database/923198),
+  April 2026. A member of the D1 team gave the root cause: the database was
+  on a machine with a noisy neighbour, an expensive storage operation of one
+  Durable Object can starve the storage operations of others on that
+  machine, and the threading model of storage operations is being changed.
+  The team moved the database to another machine.
+- [Periodic "D1 DB is overloaded"](https://community.cloudflare.com/t/periodic-d1-db-is-overloaded-requests-queued-for-too-long/931705),
+  June 2026. An idle database stalled for 20–30 s at the same minutes of
+  every hour, while a second database in the same request never did. The
+  poster reports that Cloudflare support confirmed contention on the host,
+  with no date for a fix.
+- [D1 sporadic long-tail latency](https://community.cloudflare.com/t/d1-sporadic-long-tail-latency-20s/956400)
+  and [D1 reads with ~1 ms SQL take 2-4 s](https://community.cloudflare.com/t/d1-reads-with-1-ms-sql-take-2-4-s-overload-errors-at-1-utilisation/962003),
+  September 2026. Wall time of seconds against SQL time near 1 ms. No reply
+  from Cloudflare.
+- A [status incident](https://www.cloudflarestatus.com/incidents/54h1hbfvchlf)
+  of January 25 to 28, 2026: query timeouts for D1 and SQLite-backed Durable
+  Objects, closed with changes to a watchdog and with performance work.
+
+These establish that a host can stall the storage operations of every object
+on it, and that Cloudflare knows it. They do not show a cycle of five
+seconds.
 
 - Cloudflare's [design description](https://blog.cloudflare.com/sqlite-in-durable-objects/)
   gives five followers, a quorum of three, and a batch upload to object
