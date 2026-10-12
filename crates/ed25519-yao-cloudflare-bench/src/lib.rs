@@ -549,7 +549,6 @@ mod adapter {
         "rust-wasm-copy-zeroized-js-view-overwritten-platform-copies-uncontrolled";
 
     /// Same-build profile selected for one Phase 0 benchmark ceremony.
-    #[allow(dead_code)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub(super) enum R120BenchmarkProfile {
         /// Existing Yao benchmark path without the PRF preface.
@@ -559,7 +558,6 @@ mod adapter {
     }
 
     /// Fixed Yao ceremony selected by the Phase 0 benchmark.
-    #[allow(dead_code)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub(super) enum BenchmarkCeremony {
         /// Wallet material activation.
@@ -570,7 +568,6 @@ mod adapter {
         LaneMaterialization,
     }
 
-    #[allow(dead_code)]
     impl BenchmarkCeremony {
         pub(super) const fn as_str(self) -> &'static str {
             match self {
@@ -611,7 +608,6 @@ mod adapter {
         }
     }
 
-    #[allow(dead_code)]
     impl R120BenchmarkProfile {
         pub(super) const fn as_str(self) -> &'static str {
             match self {
@@ -889,7 +885,6 @@ mod adapter {
     ))]
     const CEREMONY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
-    #[allow(dead_code)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub(super) enum AdapterError {
         Role,
