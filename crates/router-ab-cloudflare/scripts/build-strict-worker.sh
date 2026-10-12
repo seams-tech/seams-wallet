@@ -66,6 +66,12 @@ run_worker_build \
   --out-dir "$worker_output" \
   --features "$worker_features"
 
+# worker-build retains the names section even in release mode. Remove that
+# debug metadata after its final rewrite; keep development stack traces intact.
+if [[ "$worker_build_profile" == "release" ]]; then
+  node ./scripts/strip-wasm-debug.mjs "$worker_output/index_bg.wasm"
+fi
+
 # What the private harness checks before it loads this build: its profile,
 # whether it is the wallet-object variant, and when it started, which must
 # follow every change to the sources it compiled. It sits beside `worker/`,
