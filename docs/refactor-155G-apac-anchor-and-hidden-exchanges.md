@@ -363,10 +363,17 @@ seal is already computed beside home publication. The CPU itself remains.
   against 10–32 ms for each other registration and signing route. The browser
   measured 909 ms for the request, and the Gateway's last traced call ended at
   591 ms. By the local share of 78–80%, the seal is about 160 ms on a Worker.
-  That share is not measured on a Worker. Two facts for the decision: the seal
-  is one modular exponentiation in the 1024-bit group `rfc2409-group2`, and
-  `wasm/shamir3pass_runtime` builds with `opt-level = "z"`. A build for speed
-  computes the same value and is not tested yet.
+  That share is not measured on a Worker. **These numbers come from a
+  development build of the Shamir module.** The Gateway bundles and the SDK
+  sites of the hosted comparisons were built from a local tree, whose
+  `shamir3pass_runtime_bg.wasm` is 654,272 bytes. The published 0.9.0 packages
+  hold the release build, 92,823 bytes. The
+  [server-seal investigation](server-seal-release-profile.md) measured the
+  server lock at 38.4 ms in the development build and 2.1 ms in the release
+  build on a laptop. The local profile behind this phase used the development
+  build as well. Measure finalization again after a deployment from published
+  packages, before any decision here. A hosted comparison must build its
+  candidates with `WASM_SDK_BUILD_MODE=prod`.
 - [ ] Decide between a cheaper computation and a seal off the response path.
   Both touch custody. The session must stay bound to its wallet, session and
   expiry, and the client must still receive the seal with the finalization reply.
