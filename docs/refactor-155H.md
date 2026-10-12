@@ -1,7 +1,7 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
-Status: **planned.** Phase 0 can start now. Phases 1 to 3 wait for the
-decisions listed below. Date: October 12, 2026.
+Status: **in progress.** Phase 0 starts on October 12. Phases 1 to 3 wait
+for the decisions listed below. Date: October 12, 2026.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -24,6 +24,14 @@ signature stays a separate metric and stays with R155G. User interaction, test
 automation, funding and blockchain confirmation stay outside the SDK metrics,
 and the inclusive timings are retained.
 
+The Yao execution has its own objective. The online protocol must move from
+about 800 ms toward the July probe's 202 ms, and the Router's execute span
+from 1,624 ms to under 600 ms. The probe never paid the Router's claim, the
+Signing Worker delivery and the Router's finish, about 250 ms of durable
+bookkeeping, so the Router span cannot reach 202 ms. The protocol can approach
+it. Phase 4 owns this objective; Phase 1 removes the admission, the
+connection and the garbling from the online path on its way there.
+
 Decisions this plan needs before Phases 1 to 3 start:
 
 - **Setup may prepare custody before the passkey proves anything.** Setup is
@@ -41,6 +49,13 @@ Decisions this plan needs before Phases 1 to 3 start:
   second.
 - **The distance to the Gateway is accepted or gets its own plan.** Phase 6 is
   a bounded study, not an implementation.
+
+Decided on October 12:
+
+- **The custody tier stays on Cloudflare.** A native custody service on a
+  virtual machine was explored as a hypothesis. The native floor below records
+  what it would have bought, so the comparison is not repeated. Phase 1
+  proceeds on Workers.
 
 ## Measured starting point
 
@@ -79,6 +94,21 @@ Facts that shape the phases:
   Workers are release builds: `build-strict-worker.sh` builds `--release`
   unless `ROUTER_AB_WORKER_BUILD_PROFILE=dev`, so the factor is not a build
   artifact like the seal's.
+- The same ceremony ran in **202 ms p50 on deployed Workers** in the July
+  probe campaign, the same-account Service Binding WebSocket pair of the
+  phase 9b report (`crates/ed25519-yao/docs/phase9b-same-account-report.md`),
+  and in 141 ms on local workerd. The production path runs it in about
+  800 ms. The 4× between the probe and production is product wrapping, the
+  Durable Object write gate after the last frame, or isolate state. It is not
+  the hardware. In this week's candidate-4 timeline Deriver A's handler ended
+  at its clock reading 904 ms and the Router received the reply at 1,246 ms.
+- The native floor, measured on October 12: the raw 64k activation ceremony
+  takes **67 ms** wall on an M4 Pro, both roles over Unix sockets, 33 frames,
+  eight runs with `benchmark_phase5_role`; the native local registration
+  lifecycle through `router-ab-dev` measures 94 ms p50. WASM costs 2–3×
+  native, the deployed platform 1.4× local workerd in July, and production
+  4× the probe. A bigger server core running the same WASM would land near
+  the laptop's WASM figures, not below them.
 - The protocol's 800 ms is close to the sum of both CPU figures plus three
   round trips. The garbler streams its tables after the oblivious transfer, so
   garbling and evaluation overlap little.
@@ -143,6 +173,14 @@ stale-test deletions in separate commits.
   multiplications, and log its CPU with the counter. CPU per unit of work in
   a fresh isolate, in a warm isolate and on the laptop separates the hardware
   from the isolate's state.
+- [ ] Redeploy the phase 9b benchmark pair on today's platform and measure
+  twenty warm ceremonies. About 200 ms means the platform is unchanged and
+  the 4× is ours. 600–800 ms means the platform changed, and Phase 4 starts
+  with Cloudflare before any code.
+- [ ] Attribute the time after Deriver A's last frame. Log a clock reading
+  after the outcome record's storage write settles and one before the reply
+  leaves, so the gap splits into the write and its output gate, the seal, and
+  the response path through the stateless Worker.
 - [ ] Record the finalization span medians per group from the Gateway's server
   timing beside the browser stages, as the combined run's analysis log already
   does, so Phases 2 and 3 have a per-span baseline.
@@ -321,9 +359,44 @@ session binding, expiry and durable commit of the seal.
 
 Expected gain: 150–300 ms of finalization.
 
-## Phase 4 — The Deriver CPU factor
+## Phase 4 — Close the Yao execution gap to the July probe
 
-Phase 0 classifies the cause. Take one branch.
+The Router's execute span, 1,624 ms at the median of 24 executions, against
+what the July probe paid and what each part should cost after this plan:
+
+| Part | Today | July probe | Target | Owner |
+| --- | ---: | ---: | ---: | --- |
+| Router claim in its wallet object | 96 ms | 0 | ~90 ms | durable one-use; slim the 16 KB command bodies |
+| Dispatch to the roles | 26 ms | 0 | ~25 ms | stays |
+| Deriver A admission, two D1 round trips | 113 ms | 0 | 0 online | Phase 1 |
+| Pair connection | 196 ms | 0 | 0 online | Phase 1 |
+| Deriver B re-read of the admitted session | 56 ms | 0 | 0 online | Phase 1 |
+| Protocol, clock-visible and hidden | ~800 ms | 202 ms | 250–350 ms | this phase, with Phase 1's garbling move |
+| Signing Worker delivery | 88 ms | 0 | ~90 ms | activation receipt; stays |
+| Router finish in its wallet object | 69 ms | 0 | ~70 ms | durable completion; stays |
+
+The 800 ms splits into the clock-visible protocol, 434 ms, and the gap from
+Deriver A's last clock reading to the Router's receipt, 373 ms. The probe's
+202 ms covered the same frames and transfers with fixed fixtures, warm
+isolates, no admission, no product checks and no durable record. Phase 0's
+counter, micro-workload, probe redeploy and write-gate attribution say which
+of the three causes carries the gap: the isolate's state, the product work, or
+the Durable Object write and its output gate. Take the branches that apply.
+
+- [ ] **Frame profile.** The probe streamed 17 frames of 128 KiB. Verify which
+  profile the production roles select, from the frame count in B's duplex
+  records. If production streams 33 frames of 64 KiB, measure 128 KiB on
+  staging; the probe already proved its peak buffer inside the isolate bound.
+- [ ] **Per-message cost on the Durable Object path.** The probe's frames
+  flowed between two stateless Workers on one Service Binding. Production
+  frames flow between two wallet objects through B's stateless Worker. Measure
+  B's time per frame from the duplex records. If the per-message cost
+  dominates, fewer and larger frames are the lever, not the engine.
+- [ ] **Product work in the protocol span.** The target-proof exchange, the
+  commitment checks and the HPKE seal are product additions the probe did not
+  run. Place them with the local profiler per the Phase 0 method, and move
+  what does not need the execution's result to the prepared session of
+  Phase 1.
 
 - [ ] **Warmness.** Make the prewarm do compute. The `/internal/prewarm` route
   and the wallet-start handler garble the export circuit once, 1,275 AND
@@ -340,11 +413,19 @@ Phase 0 classifies the cause. Take one branch.
   arithmetic has no SIMD backend on `wasm32`, and the 64-bit backend is
   slower; the lever on curve work is Phase 1's optional transfer
   precomputation, not faster arithmetic.
+- [ ] **The write gate.** If Phase 0 places the time after the last frame in
+  the outcome record's write and its output gate, establish what that record
+  protects before moving it: the claim must stay persisted before protocol
+  material, and a retry after a lost reply must still find one execution. If
+  the Router's finish already makes the outcome durable, the record can
+  settle beside the reply; otherwise record the reason and keep it.
 - [ ] Record the per-execution CPU of both Derivers after the branch, with the
   counter.
 
 Expected gain: 200–400 ms if warmness is the cause. About 100 ms from the AES
-change before Phase 1, about 35 ms after it.
+change before Phase 1, about 35 ms after it. With Phase 1, the online
+protocol should measure 250–350 ms and the Router's execute span
+500–600 ms; both are reported per part in Phase 8.
 
 ## Phase 5 — Setup for direct API callers
 
@@ -424,7 +505,8 @@ family, cache layer, queue or configuration framework. It changes no circuit
 and no cryptographic construction: the garbled circuit, the gate hash's
 cipher, the oblivious transfer and the seal's group and exponent stay what
 they are. Only when and where they run changes.
-One-request signing, a Tokyo home, relocation of existing wallets and the
+One-request signing, a Tokyo home, relocation of existing wallets, a native
+custody tier on virtual machines or Cloudflare Containers, and the
 delegate-action early prepare stay outside it. Production rollout and
 publishing remain separate release work.
 
