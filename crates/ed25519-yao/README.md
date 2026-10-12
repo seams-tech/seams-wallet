@@ -97,8 +97,10 @@ expected action, tag, and exact inner length. Its order, outer envelope, and
 terminal semantics are frozen in
 [`docs/passive-role-relay-v1.md`](docs/passive-role-relay-v1.md). That document
 also describes the fixed-fixture 64, 128, and 256 KiB facades of the Cloudflare
-viability harness, which has been removed. The harness's Phase 9B and R120
-Phase 0 reports remain in [`docs/`](docs/).
+viability harness. The harness lives in `crates/ed25519-yao-cloudflare-bench`,
+restored on October 12, 2026 for the R155H platform check behind the
+`phase9-role-benchmark` feature; it is not part of CI or the pnpm workspace.
+The harness's Phase 9B and R120 Phase 0 reports remain in [`docs/`](docs/).
 
 The non-default `local-protocol` feature reuses that exact move-only engine for
 Phase 9C local composition. It exposes only the fixed 128 KiB activation/export
