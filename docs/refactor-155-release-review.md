@@ -19,9 +19,23 @@ Every deployment remains a separate, authorized step.
 
 ## 0.9.3
 
-Status: **prepared, not published.** Patch release with no wire or protocol
-change and one schema addition. It carries the latency work of R155G and
-R155H. Staging runs the published 0.9.0 until this release is deployed there.
+Status: **published October 12, 2026, 18:04 UTC, and deployed to staging.**
+Patch release with no wire or protocol change and one schema addition. It
+carries the latency work of R155G and R155H. Production does not run it.
+
+- **Publication.** CI on [pull request 37](https://github.com/seams-tech/seams-wallet/pull/37)
+  passed on `0f031858`. `main` is at the merge commit `e4f883f7` with the
+  same tree. `release-wallet-packages.yml` run `38283099821` published
+  `@seams/wallet-server@0.9.3` (1,229 files) and `@seams/wallet@0.9.3`
+  (1,999 files) with provenance.
+- **Private adoption.** The private repository pins 0.9.3 since `5115cd3`.
+  Its check and its build pass, and its repository validation passes for the
+  first time since the 0.9.0 pins: the console and the site both build.
+- **Staging.** Deployed on October 13 with the migrate job first, then the
+  protected activation. Registration after the passkey step measures
+  1,734 ms at the median against 2,332 ms on 0.9.0. The
+  [record](evidence/refactor-155h-release-093-staging.md) holds the
+  measurement.
 
 - **Schema.** Gateway migration `0078_registration_passkey_claims.sql` adds one
   table and one trigger. Finalization reads the table in its first batch, so
