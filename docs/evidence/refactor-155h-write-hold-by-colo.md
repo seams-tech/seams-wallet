@@ -76,6 +76,9 @@ The hold belongs to the location, not to one object.
 
 ## Stalls
 
+The [record of October 13](refactor-155h-write-stalls.md) repeats this
+measurement on a second night and finds the cause of the five-second cycle.
+
 A third probe wrote to three new objects per city for about 50 seconds each,
 56 writes per object.
 
@@ -133,6 +136,15 @@ property of Singapore. The first Singapore run lost Deriver A's tail, and the
 Tokyo tails delivered 9 and 16 of 31 invocations.
 
 ## What triggers a stall
+
+**Corrected on October 13.** The [record of the pauses](refactor-155h-write-stalls.md)
+found the trigger: the machine that hosts an object stops confirming durable
+writes on a cycle of 5,000 ms. Three statements of this section are wrong.
+The cycle does not start with the object's first write; an object stays on
+one host, and the host sets the phase. Staging did not show the same share:
+50 of its 60 slow commands were claims that waited for a new object to
+start. Fewer writes in series are not the only remedy: writes on different
+objects can overlap, and an unconfirmed write does not hold the response.
 
 A fourth probe wrote to new objects with three spacings at once, for about 50
 seconds: three objects every 0.3 s, eight every 3.3 s and eight every 7 s.

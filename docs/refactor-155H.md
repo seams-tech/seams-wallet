@@ -862,12 +862,27 @@ registration after setup: about 0.6 s faster for a user in Singapore or
 Malaysia, and equal to 0.2 s faster for a user in Hong Kong, whose added
 distance uses up most of the saved holds.
 
-Two cautions from the same record. Every city stalls about one write in
-twenty, and Singapore's stalls were the largest on the evening measured:
-five of 168 writes waited 218–633 ms. With about 13 writes in series, one
-registration in three would meet such a stall if that rate holds. Second,
+Two cautions. First, the stalls. The
+[record of October 13](evidence/refactor-155h-write-stalls.md) found what
+triggers them: the machine that hosts an object stops confirming durable
+writes on a cycle of 5,000 ms, and for a shorter time on a second cycle of
+30 s. Every object on the host waits, whatever its age, write rate or
+storage API, and D1 waits the same way. A write, a response or an outgoing
+request that arrives in the pause waits until its end, also for a request
+that wrote nothing. A pause lasted 110–400 ms at the median by city and hour.
+Singapore's pauses were among the longest: 6–9% of its writes stalled,
+against 3–6% in Hong Kong. For 13 writes in series a Singapore home still
+waits less at the median, about 80 ms against 490 ms, and at the mean, 250 ms
+against 520 ms. It waits the same at the 90th percentile and more at the
+99th, 2.6 s against 0.8 s. Staging's own single-write commands of October 7
+to 12 stalled less than the probe: 0.6% waited more than 50 ms over the
+median. Two earlier statements were wrong and are corrected in the records:
+the cycle does not start with an object's first write, and most of staging's
+slow Router commands were claims that waited for a new object to start. What
+the host does in the pause is not known; Phase 7 holds the report for
+Cloudflare. Second,
 the benchmark pair met a new isolate in 20 of 31 ceremonies in Singapore
-against 7 and 10 of 31 in Hong Kong, in one run each. Neither is settled.
+against 7 and 10 of 31 in Hong Kong, in one run each. That one is not settled.
 The measurement seat is a third point: from Tokyo, a Singapore home shows
 about 70 ms of round trip per exchange, so the hosted driver needs a
 Singapore vantage or the server-side totals to show what users get.
@@ -961,6 +976,36 @@ other regions' custody calls cross to Singapore in either case.
   version switch on staging and record the cause. Add no retry without one.
 - [ ] D1 stalls. From the Phase 0 record, report p90 and p99 per call type.
   Keep the two deliberate admission checks, as R155G records.
+- [ ] Pauses of durable writes. The
+  [record](evidence/refactor-155h-write-stalls.md) gives the cause that is
+  visible from outside: each host pauses write confirmation every 5 s for
+  110–400 ms, and a write that arrives then costs the rest of the pause. The
+  application cannot avoid a pause. It can lower how many it meets and what
+  each one costs:
+  - Count the durable commits that a registration and a signature wait for
+    in series, per object and database, from the measurement build of
+    Phase 1. The 13 is an estimate. Put the writes of one object and one
+    step in one commit.
+  - Overlap commits on different objects and databases. Their hosts pause at
+    different times, so overlapped waits do not add.
+  - Keep background writes off an object while it serves the path. A
+    background write that lands in a pause holds every response of that
+    object.
+  - Add no timeout and retry for a stalled write. A retry goes to the same
+    object and waits behind the same gate. The longest pause measured was
+    3.2 s; keep every timeout of a step with a durable write above that.
+  - Ask the user before any write becomes unconfirmed. `allowUnconfirmed`
+    on a KV-style `put` takes the pause and the hold out of the response;
+    that is measured. A write that follows the response should do the same;
+    that is not measured. In both cases the response leaves before the write
+    is durable. The claim must stay confirmed.
+  - Report the share of clean single-write commands more than 20, 50 and
+    100 ms over their median in every hosted comparison. `staging_tails.py`
+    in the private probe folder computes it.
+- [ ] Report the pauses to Cloudflare. The user sends it; the draft is
+  `.artifacts/r155h-write-stall-probe/cloudflare-support-draft.md` in
+  `seams-monorepo`. Ask what the hosts do every 5 s and 30 s, and whether
+  the confirmation can stop waiting for it.
 - [ ] Report p90 in every comparison from here on.
 
 ## Phase 8 — Measure and record
