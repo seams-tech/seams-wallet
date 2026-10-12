@@ -827,9 +827,22 @@ wallet objects are in Hong Kong, the slowest location measured. A
 registration after setup waits for about 13 durable writes in series, an
 estimate from the code: 450–650 ms in Hong Kong against about 130–200 ms at
 Tokyo's hold. With the distance, a Tokyo home is worth about 0.7 s of a
-registration for a user in Tokyo, and about 0.3 s for a user anywhere else
-in the region. No other phase of this plan is worth as much, and this one
-changes no code.
+registration for a user in Tokyo. For a user elsewhere the gain is the 0.3 s
+of holds less the added distance to Tokyo: about zero from Hong Kong or
+Singapore, by typical round-trip times that this plan did not measure. A
+Singapore home would save about 0.4 s of holds and is the central choice for
+users outside Japan. For a user in Japan, no other phase of this plan is
+worth as much, and this one changes no code.
+
+The cause is in the platform's storage design
+([Cloudflare's description](https://blog.cloudflare.com/sqlite-in-durable-objects/)):
+each object's change log goes to five followers in five different data
+centers, and a write is confirmed when three have it. The hold is therefore
+the round trip to the third-nearest follower. Which data centers follow a
+Hong Kong object is not published and was not measured. The same design
+explains why the October 10 move of the role databases to Hong Kong showed
+no gain: it shortened the distance to the Gateway and raised the price of
+each write, since one of the old primaries was in Singapore.
 
 - [x] Measure the hold after a durable write by location. Done; the record
   holds eight locations.
