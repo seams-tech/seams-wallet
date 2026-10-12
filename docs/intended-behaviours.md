@@ -195,12 +195,14 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   next signature plans same-method step-up before the user confirms. That plan
   shows one confirmation and needs no session-status request.
 
-- A warm-session NEP-413 signature sends its prepare when the confirmation
+- A warm-session NEP-413 or delegate-action signature sends its prepare when the confirmation
   dialog opens, bound to the digest the dialog shows and to the signing digest.
   The signature consumes the answer after the confirmation. A declined
   confirmation, a changed digest or a step-up leaves that prepare to expire
   with its lease, and the use it claimed stays spent. A step-up signature
   sends no prepare before the user confirms.
+  A delegate action binds its displayed receiver and ordered actions, plus the
+  complete signing digest, including nonce, expiry and signing key.
 
 - A warm-session NEAR transaction sends its prepare while the confirmation
   dialog is open, as soon as the confirmation has reserved the nonce and block
@@ -533,6 +535,14 @@ throughout the resize. Reduced-motion behavior remains immediate.
   Both requests settle before local wallet persistence. A refused or unavailable
   credential claim prevents local persistence. Exact retries retain the original
   activation consumer and credential owner.
+- A NEAR-only respond that verified a new passkey starts the same credential
+  claim after it replies, while the client runs the Yao execution. A granted
+  claim is recorded in the regional database for that ceremony. Finalization
+  sends no claim request when the record names the same wallet, relying party
+  and credential. A refused, failed or unfinished early claim records nothing,
+  and finalization then claims as before. The record never changes, and the
+  cleanup of a finalized ceremony removes it. The claim itself stays in shared
+  authority, under the rules for claimed passkey homes.
 - Registration finalization starts the recovery-code route claim of its custody
   commit in that interval, for either signer leg. The claim stores no custody
   record, and local wallet persistence does not wait for it. A refused or

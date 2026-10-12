@@ -17,10 +17,46 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.9.3
+
+Status: **prepared, not published.** Patch release with no wire or protocol
+change and one schema addition. It carries the latency work of R155G and
+R155H. Staging runs the published 0.9.0 until this release is deployed there.
+
+- **Schema.** Gateway migration `0078_registration_passkey_claims.sql` adds one
+  table and one trigger. Finalization reads the table in its first batch, so
+  the migration must be applied before a 0.9.3 Gateway serves. No existing
+  table changes.
+- **Gateway.** A NEAR-only respond claims the passkey at the Console in the
+  background and records the claim. Finalization skips its own claim when the
+  record matches the wallet, the relying party and the credential
+  (`e48d200e`). A missing or different record gives the earlier behaviour.
+- **Custody Workers.** Deriver A turns the event loop after each table frame,
+  so Deriver B evaluates while Deriver A garbles (`6ec1c61d`). Release Workers
+  are built with WebAssembly SIMD (`c4080499`) and without debug metadata
+  (`3f3800a4`). A Deriver wallet object runs one in-memory ceremony when it
+  starts, so its first real ceremony does not pay the first-run cost
+  (`f33e071f`). Each ceremony logs its run index in the isolate (`97451f20`).
+- **SDK.** The NEAR delegate is prepared during confirmation (`e9c945e2`). The
+  session seal module is built for speed (`a4bba328`).
+- **Compatibility.** The Yao wire between the Derivers is unchanged, and so
+  are the registration requests and responses. A 0.9.2 application works with
+  a 0.9.3 backend. A rollback of the Gateway to 0.9.2 leaves the new table
+  unused.
+- **Local validation before the pull request.** `pnpm report:bloat --check`
+  and `pnpm check:cargo-locks` pass. The five strict Worker entrypoints
+  compile. The registration reservation scenario, the 14 contract cases and
+  the nine composed cases passed with the early claim. The plan
+  [refactor-155H.md](./refactor-155H.md) holds the measurements.
+
 ## 0.9.2
 
-Status: **prepared, not published.** Patch release with no wire, schema or
-protocol change. It differs from 0.9.1 by one build entry.
+Status: **published October 12, 2026, 07:25 UTC.** Patch release with no wire,
+schema or protocol change. It differs from 0.9.1 by one build entry.
+
+- **Publication.** CI on [pull request 36](https://github.com/seams-tech/seams-wallet/pull/36)
+  passed on `0f13410b`. `main` is at the merge commit `34822aa3`.
+  `release-wallet-packages.yml` run `38214432394` published both packages.
 
 - **Why it is needed.** The private wallet console also imports
   `attachConfirmSurfaceResizeChoreographer` from the build module of

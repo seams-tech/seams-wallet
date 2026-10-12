@@ -240,6 +240,48 @@ fn role_span_started_at_ms() -> u64 {
     cloudflare_yao_now_unix_ms().unwrap_or_default()
 }
 
+/// Protocol runs this isolate has started. A module-level value lives as long
+/// as the isolate, so the first run of a new isolate reports zero.
+static ROLE_ISOLATE_PROTOCOL_RUNS: core::sync::atomic::AtomicU32 =
+    core::sync::atomic::AtomicU32::new(0);
+
+#[derive(Serialize)]
+struct RoleIsolateCounterEventV1 {
+    event: &'static str,
+    role: &'static str,
+    operation: &'static str,
+    execution_index: u32,
+    /// What became of this isolate's prewarm ceremony before this run.
+    prewarm: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trace_id: Option<String>,
+}
+
+/// Starts a protocol span and records how many runs this isolate has served.
+/// The Worker clock does not advance while the isolate computes, so spans
+/// exclude a role's own CPU. The platform's CPU time per invocation, read
+/// beside this index, shows what a first run in a new isolate costs.
+fn begin_role_protocol_v1(
+    trace_id: RoleTraceContextV1,
+    role: &'static str,
+    operation: &'static str,
+) -> u64 {
+    crate::ed25519_yao_prewarm::note_pair_work_arrived_v1();
+    let event = RoleIsolateCounterEventV1 {
+        event: "router_ab_yao_role_isolate_counter_v1",
+        role,
+        operation,
+        execution_index: ROLE_ISOLATE_PROTOCOL_RUNS
+            .fetch_add(1, core::sync::atomic::Ordering::Relaxed),
+        prewarm: crate::ed25519_yao_prewarm::prewarm_state_label_v1(),
+        trace_id: trace_id.map(CloudflareTraceIdV1::as_hex),
+    };
+    if let Ok(serialized) = serde_json::to_string(&event) {
+        worker::console_log!("{serialized}");
+    }
+    role_span_started_at_ms()
+}
+
 /// Pair-bound role state used by the Router-owned lifecycle.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -1492,7 +1534,8 @@ where
                 server_contribution,
             )
             .map_err(map_adapter)?;
-            let protocol_started_at_ms = role_span_started_at_ms();
+            let protocol_started_at_ms =
+                begin_role_protocol_v1(trace_id, "deriver_a", "activation");
             let completion_result =
                 with_yao_ceremony_timeout(run_activation_deriver_a(role, transport)).await;
             emit_role_span_v1(
@@ -1531,7 +1574,8 @@ where
             let (binding, role) =
                 build_product_export_deriver_a_with_server_v1(role_request, server_contribution)
                     .map_err(map_adapter)?;
-            let protocol_started_at_ms = role_span_started_at_ms();
+            let protocol_started_at_ms =
+                begin_role_protocol_v1(trace_id, "deriver_a", "export");
             let completion_result =
                 with_yao_ceremony_timeout(run_export_deriver_a(role, transport)).await;
             emit_role_span_v1(
@@ -1583,7 +1627,8 @@ where
                 )
                 .into());
             }
-            let protocol_started_at_ms = role_span_started_at_ms();
+            let protocol_started_at_ms =
+                begin_role_protocol_v1(trace_id, "deriver_a", "lane_materialization");
             let completion_result =
                 with_yao_ceremony_timeout(run_lane_materialization_deriver_a(role, transport))
                     .await;
@@ -2156,7 +2201,8 @@ async fn execute_deriver_b_role(
                 server_contribution,
             )
             .map_err(map_adapter)?;
-            let protocol_started_at_ms = role_span_started_at_ms();
+            let protocol_started_at_ms =
+                begin_role_protocol_v1(trace_id, "deriver_b", "activation");
             let completion_result =
                 with_yao_ceremony_timeout(run_activation_deriver_b_open(role, transport)).await;
             emit_role_span_v1(
@@ -2188,7 +2234,8 @@ async fn execute_deriver_b_role(
             let (binding, role) =
                 build_product_export_deriver_b_with_server_v1(role_request, server_contribution)
                     .map_err(map_adapter)?;
-            let protocol_started_at_ms = role_span_started_at_ms();
+            let protocol_started_at_ms =
+                begin_role_protocol_v1(trace_id, "deriver_b", "export");
             let completion_result =
                 with_yao_ceremony_timeout(run_export_deriver_b_open(role, transport)).await;
             emit_role_span_v1(
@@ -2271,7 +2318,8 @@ async fn execute_deriver_b_role(
                 &session_check_result,
             );
             session_check_result?;
-            let protocol_started_at_ms = role_span_started_at_ms();
+            let protocol_started_at_ms =
+                begin_role_protocol_v1(trace_id, "deriver_b", "lane_materialization");
             let completion_result =
                 with_yao_ceremony_timeout(run_lane_materialization_deriver_b_open(role, transport))
                     .await;

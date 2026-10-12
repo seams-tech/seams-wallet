@@ -15,6 +15,7 @@ mod metrics;
     test,
     feature = "passive-benchmark",
     feature = "passive-wasm-benchmark",
+    feature = "phase9-role-benchmark",
     feature = "local-protocol"
 ))]
 mod passive;
@@ -37,6 +38,9 @@ pub use passive::phase5_transport::UnixExactEofBodyReader;
 #[cfg(feature = "passive-wasm-benchmark")]
 #[doc(hidden)]
 pub use passive::phase5_wasm_benchmark;
+#[cfg(feature = "phase9-role-benchmark")]
+#[doc(hidden)]
+pub use passive::role_protocol::benchmark as phase9_role_benchmark;
 #[cfg(feature = "local-protocol")]
 /// Fixed 128 KiB local-product protocol surface.
 pub mod local_protocol {

@@ -360,6 +360,30 @@ pub fn build_activation_deriver_b(
     Ok(ActivationDeriverB::with_inputs(session, inputs)?)
 }
 
+/// Session of the prewarm ceremony. It names no wallet and no operation.
+const ACTIVATION_PREWARM_SESSION: [u8; 32] = *b"seams/ed25519-yao/prewarm/v1\0\0\0\0";
+
+/// Builds both activation roles for one in-memory prewarm ceremony.
+///
+/// Every input is a fixed public constant, so the ceremony holds no secret and
+/// its output is discarded. It exists to run the role engines once in an
+/// isolate before that isolate serves a wallet: a first run compiles the
+/// engines and costs several times a later run. This is the only builder that
+/// returns two roles, because nothing here belongs to either Deriver.
+pub fn build_activation_prewarm_pair_v1(
+) -> Result<([u8; 32], ActivationDeriverA, ActivationDeriverB), AdapterError> {
+    // Small canonical scalars; any canonical value serves.
+    let mut tau = [0_u8; 32];
+    tau[0] = 1;
+    let a = YaoActivationDeriverAInputs::new([0x11; 32], [0x22; 32], tau, tau)?;
+    let b = YaoActivationDeriverBInputs::new([0x33; 32], [0x44; 32], tau, tau)?;
+    Ok((
+        ACTIVATION_PREWARM_SESSION,
+        ActivationDeriverA::with_inputs(ACTIVATION_PREWARM_SESSION, a)?,
+        ActivationDeriverB::with_inputs(ACTIVATION_PREWARM_SESSION, b)?,
+    ))
+}
+
 /// Builds only Deriver A's fixed export role from A-owned inputs.
 pub fn build_export_deriver_a(
     binding: &Ed25519YaoCeremonyBindingV1,

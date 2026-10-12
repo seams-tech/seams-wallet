@@ -7,6 +7,11 @@ Status: historical benchmark-only local-workerd evidence recorded with
 canonical 0.8.5 baseline, deployed Cloudflare evidence, or a production
 security/capacity claim.
 
+Note (October 12, 2026): "A Worker elapsed time" is a Worker clock span. On
+local workerd it follows real time. On deployed Cloudflare it excludes the
+Worker's own CPU time; see the
+[October 12 record](../../../docs/evidence/refactor-155h-probe-hosted.md).
+
 ## Configuration
 
 - circuit: activation;

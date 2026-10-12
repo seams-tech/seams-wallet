@@ -1,0 +1,36 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "ed25519-yao-ab-benchmark-a",
+  "main": "build/deriver-a/index.js",
+  "compatibility_date": "2026-07-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "limits": { "cpu_ms": 300 },
+  "workers_dev": true,
+  "vars": {
+    "BENCHMARK_DEPLOYMENT_ID": "0123456789abcdef0123456789abcdef",
+    "BENCHMARK_CLASSIFICATION": "NON_PRODUCTION",
+    "BENCHMARK_TOPOLOGY": "SAME_ACCOUNT_SERVICE_BINDING_WEBSOCKET"
+  },
+  "build": {
+    "command": "worker-build --release --out-dir build/deriver-a --features deriver-a-same-account-websocket",
+    "watch_dir": "src"
+  },
+  "services": [
+    {
+      "binding": "DERIVER_B",
+      "service": "ed25519-yao-ab-benchmark-b"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  }
+}

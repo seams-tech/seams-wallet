@@ -3,6 +3,7 @@ import type { WalletRegistrationHomeAuthority } from '../../../domains/walletReg
 import type { CloudflareD1RegistrationCeremonyIntentStore } from './d1RegistrationCeremonyStore';
 import type { D1WalletExecutionAuthority } from './d1WalletExecutionAuthority';
 import type { D1WalletOperationStore } from './d1WalletOperationStore';
+import type { D1WalletRegistrationCommitStore } from './d1WalletRegistrationCommitStore';
 import type { D1WalletRegistrationNearProvisioningSideEffectRecord } from './d1WalletRegistrationService';
 import type { CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 } from '../ed25519Yao/d1Ed25519YaoLifecycleDecisionStore';
 
@@ -14,6 +15,10 @@ export class D1WalletRegistrationRead {
     readonly operations: D1WalletOperationStore<D1WalletRegistrationNearProvisioningSideEffectRecord>,
     private readonly getCeremonies: () => CloudflareD1RegistrationCeremonyIntentStore,
     private readonly decisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1,
+    private readonly passkeyClaims: Pick<
+      D1WalletRegistrationCommitStore,
+      'prepareHeldPasskeyClaimRead' | 'parseHeldPasskeyClaimRead'
+    >,
   ) {}
 
   async readRespond(home: Parameters<WalletRegistrationHomeAuthority['admitHome']>[0]) {
@@ -59,9 +64,17 @@ export class D1WalletRegistrationRead {
       this.operations.prepareRead(operationKey),
       ceremonies.prepareCeremonyRead(home.ceremonyId),
       this.decisions.prepareRead(home.ceremonyId),
+      this.passkeyClaims.prepareHeldPasskeyClaimRead(home.ceremonyId),
     ]);
-    const [homeRead, operationRead, ceremonyRead, decisionRead] = results;
-    if (results.length !== 4 || !homeRead || !operationRead || !ceremonyRead || !decisionRead) {
+    const [homeRead, operationRead, ceremonyRead, decisionRead, passkeyClaimRead] = results;
+    if (
+      results.length !== 5 ||
+      !homeRead ||
+      !operationRead ||
+      !ceremonyRead ||
+      !decisionRead ||
+      !passkeyClaimRead
+    ) {
       throw new Error('Registration finalization D1 batch returned incomplete results');
     }
     const admission = await this.authority.admitHomeRead(home, homeRead);
@@ -76,6 +89,8 @@ export class D1WalletRegistrationRead {
       // A decision never changes. A competing insert still fails the wallet
       // transaction's decision guard before any companion write can commit.
       decision: this.decisions.parseRead(home.ceremonyId, decisionRead),
+      // A claim that respond already obtained for this ceremony. It never changes.
+      heldPasskeyClaim: this.passkeyClaims.parseHeldPasskeyClaimRead(passkeyClaimRead),
       readCeremony: ceremonies.parseCeremonyRead.bind(ceremonies, home.ceremonyId, ceremonyRead),
     };
   }

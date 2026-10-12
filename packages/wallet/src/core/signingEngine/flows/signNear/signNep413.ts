@@ -34,6 +34,7 @@ import {
   type NearSignatureOnlyOperation,
 } from './shared/signatureOnlySigning';
 import type { ExclusiveUnion } from '@shared/utils/variant';
+import { computeUiIntentDigestFromNep413 } from '@/utils/intentDigest';
 
 /**
  * Sign a NEP-413 message using the active threshold-controlled NEAR key.
@@ -150,6 +151,11 @@ export async function signNep413Message({
     operation,
     stepUp,
     signingSessionCoordinator,
+    await computeUiIntentDigestFromNep413({
+      nearAccountId,
+      recipient: payload.recipient,
+      message: payload.message,
+    }),
   );
   emitEd25519SigningTiming(String(operationId), 'pre_confirmation', preConfirmationStartedAt);
   const confirmationStartedAt = performance.now();

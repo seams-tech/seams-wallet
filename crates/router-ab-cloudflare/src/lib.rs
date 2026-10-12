@@ -28,6 +28,15 @@ mod ed25519_yao_pair_protocol;
 pub use ed25519_yao_pair_protocol::*;
 mod ed25519_yao_router_checks;
 pub use ed25519_yao_router_checks::*;
+// Only the two Deriver Workers run the prewarm ceremony.
+#[cfg_attr(
+    not(any(
+        feature = "strict-worker-deriver-a-entrypoint",
+        feature = "strict-worker-deriver-b-entrypoint"
+    )),
+    allow(dead_code)
+)]
+mod ed25519_yao_prewarm;
 #[cfg(feature = "workers-rs")]
 mod ed25519_yao_websocket;
 #[cfg(feature = "workers-rs")]

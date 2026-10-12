@@ -305,7 +305,10 @@ import {
   registrationSignerBranchesFromPlan,
   startD1RegistrationRouteTiming,
 } from './d1RegistrationSetupSupport';
-import type { D1WalletRegistrationCommitStore } from './d1WalletRegistrationCommitStore';
+import type {
+  D1WalletRegistrationCommitStore,
+  HeldRegistrationPasskeyClaim,
+} from './d1WalletRegistrationCommitStore';
 import {
   commitWalletRegistration,
   type RegistrationInitialSessionPlan,
@@ -1454,12 +1457,15 @@ function assertNeverRegistrationReceiptCommit(value: never): never {
 async function cleanupFinalizedRegistrationCeremony(input: {
   readonly store: CloudflareD1RegistrationCeremonyIntentStore;
   readonly registrationCeremonyId: string;
+  /** Holds the record of a claim that respond obtained early, when given. */
+  readonly passkeyClaims?: Pick<D1WalletRegistrationCommitStore, 'deleteHeldPasskeyClaim'>;
 }): Promise<void> {
-  try {
-    await input.store.deleteCeremony(input.registrationCeremonyId);
-  } catch {
-    // The replay record remains authoritative until the ceremony TTL expires.
-  }
+  // The replay record remains authoritative until the ceremony TTL expires,
+  // and a finalized ceremony never reads its claim record again.
+  await Promise.allSettled([
+    input.store.deleteCeremony(input.registrationCeremonyId),
+    input.passkeyClaims?.deleteHeldPasskeyClaim(input.registrationCeremonyId),
+  ]);
 }
 
 function d1RegistrationRouteDiagnostics(
@@ -3160,6 +3166,7 @@ export class CloudflareD1WalletRegistrationService {
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
     timingSink?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
   ): Promise<WalletRegistrationRespondResponseV2> {
     const serverTiming = timingSink ?? [];
     const totalStartedAtMs = Date.now();
@@ -3257,6 +3264,7 @@ export class CloudflareD1WalletRegistrationService {
           ownershipGeneration: homeAdmission.ownershipGeneration,
           startedDispatchRoot,
           expectedOrigin,
+          waitUntil,
           ...(input.userAgent ? { userAgent: input.userAgent } : {}),
         });
       }
@@ -3780,6 +3788,8 @@ export class CloudflareD1WalletRegistrationService {
       /** The ceremony this request's own preparation read, with the identity it resolved. */
       readonly preparedCeremony: () => StoredWalletRegistrationCeremony | null;
       readonly lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null;
+      /** The passkey claim that respond recorded for this ceremony, when it did. */
+      readonly heldPasskeyClaim: HeldRegistrationPasskeyClaim | null;
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
@@ -3919,6 +3929,7 @@ export class CloudflareD1WalletRegistrationService {
       args.serverTiming,
       initialSessionPlan,
       args.lifecycleDecision,
+      args.heldPasskeyClaim,
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -4254,6 +4265,7 @@ export class CloudflareD1WalletRegistrationService {
           authoritySource: verified.source,
           preparedCeremony: () => preparedCeremony,
           lifecycleDecision: initial.decision,
+          heldPasskeyClaim: initial.heldPasskeyClaim,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4329,6 +4341,7 @@ export class CloudflareD1WalletRegistrationService {
         promise: cleanupFinalizedRegistrationCeremony({
           store: this.getRegistrationCeremonyIntentStore(),
           registrationCeremonyId: input.registrationCeremonyId,
+          passkeyClaims: this.walletRegistrationCommitStore,
         }),
       });
       // The durable receipt and home completion make ceremony deletion optional for readiness.
@@ -4440,6 +4453,7 @@ export class CloudflareD1WalletRegistrationService {
     readonly ownershipGeneration: number;
     readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
     readonly expectedOrigin: string;
+    readonly waitUntil: ((promise: Promise<unknown>) => void) | undefined;
     readonly userAgent?: string;
   }): Promise<WalletRegistrationRespondResponseV2> {
     const ceremony = input.ceremony;
@@ -4543,6 +4557,27 @@ export class CloudflareD1WalletRegistrationService {
         expected: input.snapshot,
         next: authorizedCeremony(admitted.admissionRequest),
       });
+    }
+    /* The credential is verified and the ceremony holds it. Claim it through
+       shared authority while the client runs the Yao execution, so that
+       finalization finds the claim recorded and skips its own request. This
+       path never cancels its home, and a claim is retained in any case. A
+       failure here changes nothing: finalization claims again and reports. */
+    if (!stored && input.waitUntil && verifiedAuthority.kind === 'passkey') {
+      input.waitUntil(
+        this.walletRegistrationCommitStore
+          .claimPasskeyAhead({
+            registrationCeremonyId: ceremony.registrationCeremonyId,
+            authority: verifiedAuthority,
+            nowMs: Date.now(),
+          })
+          .catch((error: unknown) => {
+            console.warn('[wallet-registration] early passkey claim failed', {
+              registrationCeremonyId: ceremony.registrationCeremonyId,
+              reason: errorMessage(error),
+            });
+          }),
+      );
     }
     return {
       ok: true,
@@ -5312,6 +5347,7 @@ export class CloudflareD1WalletRegistrationService {
     serverTiming: Array<readonly [string, number]>,
     initialSessionPlan: RegistrationInitialSessionPlan,
     lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null,
+    heldPasskeyClaim: HeldRegistrationPasskeyClaim | null = null,
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5640,7 +5676,15 @@ export class CloudflareD1WalletRegistrationService {
               consumerBinding: requestFingerprint,
             }),
           }),
-          this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority),
+          recordRegistrationPromiseTiming({
+            sink: serverTiming,
+            name: 'near_finalize_authority_reserve',
+            startedAtMs: Date.now(),
+            promise: this.walletRegistrationCommitStore.reserveAuthority(
+              ceremonyAuthority,
+              heldPasskeyClaim,
+            ),
+          }),
         ]);
         if (activationConsumption.status === 'rejected') throw activationConsumption.reason;
         if (authorityReservation.status === 'rejected') throw authorityReservation.reason;

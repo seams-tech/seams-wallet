@@ -1,0 +1,89 @@
+{
+  "wallets": 6,
+  "workloads": {
+    "delegate": {
+      "verifiedSignatures": 12,
+      "stages": {
+        "confirmation": {
+          "n": 12,
+          "medianMs": 271.4,
+          "minMs": 258.1,
+          "maxMs": 293.2
+        },
+        "prepare": {
+          "n": 12,
+          "medianMs": 91.8,
+          "minMs": 34.3,
+          "maxMs": 279.7
+        },
+        "finalize": {
+          "n": 12,
+          "medianMs": 461.95,
+          "minMs": 294.7,
+          "maxMs": 633.3
+        },
+        "signature_total": {
+          "n": 12,
+          "medianMs": 541.1,
+          "minMs": 383.5,
+          "maxMs": 834.5
+        }
+      },
+      "inclusiveAutomationMs": {
+        "n": 12,
+        "medianMs": 1315.768,
+        "minMs": 1299.889,
+        "maxMs": 1338.63
+      }
+    },
+    "funded_transaction": {
+      "verifiedSignatures": 12,
+      "stages": {
+        "confirmation": {
+          "n": 12,
+          "medianMs": 2104.8,
+          "minMs": 1109.5,
+          "maxMs": 2126.5
+        },
+        "prepare": {
+          "n": 12,
+          "medianMs": 0.0,
+          "minMs": 0,
+          "maxMs": 0
+        },
+        "finalize": {
+          "n": 12,
+          "medianMs": 455.95,
+          "minMs": 327.5,
+          "maxMs": 584.3
+        },
+        "signature_total": {
+          "n": 12,
+          "medianMs": 457.95,
+          "minMs": 331.1,
+          "maxMs": 586.9
+        },
+        "confirmed_to_signed": {
+          "n": 12,
+          "medianMs": 460.7,
+          "minMs": 333.8,
+          "maxMs": 589.9
+        }
+      },
+      "inclusiveAutomationMs": {
+        "n": 12,
+        "medianMs": 3244.736,
+        "minMs": 2233.063,
+        "maxMs": 4039.153
+      }
+    }
+  },
+  "conditions": [
+    "Same production-built candidate SDK and activated baseline staging backend.",
+    "Six measured wallets after three discarded warm-up wallets.",
+    "Transactions hold the review open until context-dependent prepare starts; confirmation duration includes that deliberate wait.",
+    "Delegate confirmation uses the normal automation cadence.",
+    "Node crypto verifies signed bytes against the registered public key and rejects altered digests.",
+    "No before/after SDK comparison; report stage latency, not a claimed saving."
+  ]
+}

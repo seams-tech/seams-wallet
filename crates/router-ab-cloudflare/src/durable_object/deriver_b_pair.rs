@@ -260,8 +260,15 @@ impl RouterAbDeriverBWalletDurableObject {
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
         if path == super::wallet_startup::PATH {
+            // A first protocol run in an isolate costs several times a later
+            // one. Run one in-memory ceremony during the prompt.
+            #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
+            self.state
+                .wait_until(crate::ed25519_yao_prewarm::prewarm_role_isolate_v1("deriver_b"));
             return Response::from_json(&true);
         }
+        // Any other request is real work: a running prewarm stops for it.
+        crate::ed25519_yao_prewarm::note_pair_work_arrived_v1();
         if websocket {
             relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
             let runtime = crate::CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&self.env)

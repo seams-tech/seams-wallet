@@ -406,9 +406,17 @@ impl RouterAbDeriverAWalletDurableObject {
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
         if path == super::wallet_startup::PATH {
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-            self.load_deriver_b_worker();
+            {
+                self.load_deriver_b_worker();
+                // A first protocol run in an isolate costs several times a
+                // later one. Run one in-memory ceremony during the prompt.
+                self.state
+                    .wait_until(crate::ed25519_yao_prewarm::prewarm_role_isolate_v1("deriver_a"));
+            }
             return Response::from_json(&true);
         }
+        // Any other request is real work: a running prewarm stops for it.
+        crate::ed25519_yao_prewarm::note_pair_work_arrived_v1();
         if path == SNAPSHOT_PATH {
             let command: relocation::snapshot::Command<DeriverAWalletOwnerV1> = request.json().await?;
             command.source().validate()?;

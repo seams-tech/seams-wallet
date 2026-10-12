@@ -1,4 +1,7 @@
 import { writeFile } from 'node:fs/promises';
+import { createHash, createPublicKey, verify } from 'node:crypto';
+import { base58Decode } from '@shared/utils/encoders';
+import { ActionType } from '@shared/near/actions';
 import {
   expect,
   type BrowserContext,
@@ -12,6 +15,7 @@ import { isPlainObject, requireNonEmptyString, requireRecord } from '@shared/uti
 import { loadNodeDatabaseSync } from '@server/router/node/nodeSqlite';
 import {
   enableSigningSessionDebugInFrame,
+  autoConfirmWalletIframeUntil,
   intendedTest as test,
   type IntendedBehaviourHarness,
 } from './harness';
@@ -174,6 +178,89 @@ test(
   'NEAR reuses signing observations, enforces exhausted quota, and reloads authority after refresh',
   verifyLocalEd25519YaoRegistration,
 );
+
+type IntendedDelegateInput = Parameters<
+  NonNullable<Window['__seamsIntendedE2ESignDelegate']>
+>[0];
+
+async function invokeDelegateSigning(input: IntendedDelegateInput) {
+  const sign = window.__seamsIntendedE2ESignDelegate;
+  if (!sign) throw new Error('Intended delegate-signing helper is unavailable');
+  return await sign(input);
+}
+
+async function verifyEarlyDelegatePreparation(
+  { harness, context, page }: {
+    harness: IntendedBehaviourHarness;
+    context: BrowserContext;
+    page: Page;
+  },
+  testInfo: TestInfo,
+): Promise<void> {
+  await context.addInitScript(enableSigningSessionDebugInFrame);
+  await harness.registerPasskeyEd25519YaoWallet();
+  const message = await harness.signNearMessage('Identify the delegate signing key');
+  const keyBytes = Buffer.from(base58Decode(message.publicKey.slice('ed25519:'.length)));
+  const publicKey = createPublicKey({
+    key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), keyBytes]),
+    format: 'der',
+    type: 'spki',
+  });
+  const proofs = [];
+  // The message spent the first use. Two delegates exhaust the warm session;
+  // the third must obtain fresh approval without an early prepare.
+  for (const nonce of [1, 2, 3]) {
+    const stages = new NearSigningStages();
+    const recordStages = stages.record.bind(stages);
+    // The annotation keeps `ActionType.Transfer` a literal member type.
+    const delegate: IntendedDelegateInput = {
+      senderId: message.accountId,
+      receiverId: 'receiver.testnet',
+      actions: [{ type: ActionType.Transfer, amount: '1' }],
+      nonce: String(nonce),
+      maxBlockHeight: '999999999',
+      publicKey: message.publicKey,
+    };
+    page.on('console', recordStages);
+    let result;
+    try {
+      result = await autoConfirmWalletIframeUntil(
+        page,
+        page.evaluate(invokeDelegateSigning, delegate),
+      );
+    } finally {
+      page.off('console', recordStages);
+    }
+    if (nonce < 3) {
+      expect(stages.at('prepare_sent')).toBeLessThan(stages.at('confirmation'));
+      expect(stages.at('confirmation')).toBeLessThan(stages.at('prepare'));
+      expect(stages.stages.filter(isPrepareSent)).toHaveLength(1);
+    } else {
+      expect(stages.stages.filter(isPrepareSent)).toHaveLength(0);
+    }
+    const encoded = Buffer.from(result.borshBytes);
+    const signature = encoded.subarray(-64);
+    expect(encoded.at(-65)).toBe(0);
+    const tag = Buffer.alloc(4);
+    tag.writeUInt32LE(2 ** 30 + 366);
+    const digest = createHash('sha256').update(tag).update(encoded.subarray(0, -65)).digest();
+    expect(verify(null, digest, publicKey, signature)).toBe(true);
+    const changedDigest = Buffer.from(digest);
+    changedDigest[0] ^= 1;
+    expect(verify(null, changedDigest, publicKey, signature)).toBe(false);
+    proofs.push({ nonce, ...result, stages: stages.stages, verified: true });
+  }
+  const artifact = testInfo.outputPath('delegate-early-prepare.json');
+  await writeFile(artifact, JSON.stringify({ publicKey: message.publicKey, proofs }, null, 2));
+  await testInfo.attach('delegate-early-prepare', { path: artifact, contentType: 'application/json' });
+}
+
+function isPrepareSent(stage: string): boolean {
+  return stage === 'prepare_sent';
+}
+
+test('NEAR delegates prepare during confirmation and require step-up after quota exhaustion',
+  verifyEarlyDelegatePreparation);
 
 async function verifyLocalEd25519YaoAddSignerAndSigning({
   harness,

@@ -1,7 +1,8 @@
 # R155G — One APAC anchor, hidden exchanges and custody execution
 
 Status: **in progress.** Phase 1 is done on staging and open for both production
-lanes. Phases 2 and 3 are partly implemented. Phase 4 is planned.
+lanes. **All code and staging work is complete (Phases 2–5).** The only open
+checklist items are the two production moves and their deployment windows.
 Date: October 11, 2026.
 
 This plan owns the optimizations that [R155F](refactor-155F-registration-round-trips.md)
@@ -128,6 +129,17 @@ The distance is the price of one APAC anchor. It disappears for Hong Kong users.
 
 ## Phase 1 — One Hong Kong anchor per lane
 
+> **Superseded on October 12: the anchor is Singapore, not Hong Kong.** The
+> user decided it after a measurement: one durable write holds an object's
+> response for 34 ms in Hong Kong and 2–4 ms in Singapore
+> ([record](evidence/refactor-155h-write-hold-by-colo.md)), and most APAC
+> users are expected in Singapore and Malaysia. The rule of this phase stays:
+> one place per lane for the Gateway, Console, the role Workers and all their
+> databases. **Do not run the open production moves below toward Hong Kong.**
+> [R155H Phase 6](refactor-155H.md) holds the current state of every lane and
+> the moves that a Singapore anchor needs. The staging work recorded below was
+> done and stays as history.
+
 The method is the staging role-database move of October 10: create a database
 with the `apac` hint until one lands in Hong Kong, copy under a write freeze,
 compare the dumps, change the deployment target, deploy, verify, and keep the
@@ -230,11 +242,14 @@ Four facts for the next move:
   - The specification states the rule, and the local Yao contract asserts the
     order `prepare_sent`, `confirmation`, `prepare` for a warm-session
     transaction, with exactly one `prepare_sent`.
-- [ ] Extend the early prepare to delegate actions. Their signing digest and
+- [x] Extend the early prepare to delegate actions. Their signing digest and
   their display digest (`computeUiIntentDigestFromTxs` over the receiver and
   the ordered actions) both exist before the dialog, so the NEP-413 mechanism
-  applies unchanged. No browser test signs a delegate action today: add the
-  contract path with the change, not after it.
+  applies unchanged. The browser contract verifies two warm delegate signatures,
+  then a third signature that needs step-up after quota exhaustion. Warm prepares
+  precede confirmation. Step-up sends no early prepare. Node Ed25519 verification
+  accepts the serialized delegates and rejects altered digests. The repeatable
+  artifact is `delegate-early-prepare.json`.
 - [x] Setup preflight at page load: withdrawn. The hosted auth menu already
   runs the whole setup request while the user is still in the menu:
   `prepareHostedPasskeyRegistration` calls `setupThreeRouteRegistration` once
@@ -245,7 +260,15 @@ Four facts for the next move:
   the call the hosted latency test measures. The specification also excludes
   an idle prewarm lifecycle for the provider. Report the stages after setup
   beside the full registration metric from here on.
-- [ ] Measure both on staging against the frozen candidate.
+- [x] Measure both on staging against the frozen candidate. Six wallets after
+  three discarded warm-ups produced twelve delegate and twelve funded-transaction
+  signatures. All verified. Delegate signature execution after confirmation
+  measured 541 ms median (384–835 ms), with 92 ms median remaining prepare
+  wait. Transactions held review open until context-dependent preparation
+  started. Their confirmation-to-signature median was 461 ms (334–590 ms),
+  with zero remaining prepare wait. These are hosted costs, not measured
+  before/after savings. See the
+  [hosted evidence](evidence/refactor-155g-early-delegate-transaction-hosted.md).
 
 Expected gain: about 0.33 s on the first signature, and 0.1 to 0.2 s on setup.
 Known cost: a page that opens and closes the confirmation dialog repeatedly spends
@@ -262,9 +285,9 @@ runs. The confirmation returns the dialog's digest; the signature uses the
 started prepare only when that digest and the signing digest match, and
 consumes its answer in the same `PreparePayload` step as before, so the signing
 state machine keeps its order. A step-up plan sends no early prepare, because
-its prepare needs the step-up proof from the confirmation. Transactions and
-delegate actions keep the late prepare: their dialog computes the display
-digest from the transaction summary, and that merge is a separate step.
+its prepare needs the step-up proof from the confirmation. Transactions now start
+prepare when their reserved context arrives. Delegate actions also start early,
+using the same receiver/action digest as their confirmation dialog.
 
 Facts that fix the design:
 
@@ -316,22 +339,46 @@ without R155F's later Gateway changes.
   Derivers, and the local execute POST from about 229 ms to about 199 ms.
 - [x] Try the 64-bit curve backend: rejected. On `wasm32` it calls a software
   128-bit multiplication and raises the warm CPU to 139 ms and 176 ms.
-- [ ] Review moving the base oblivious transfers ahead of execute. After the
-  commitment change they are the largest curve cost, 9 ms and 17 ms, and they
-  may not need the client's input. Establish what binds them to one execution
-  before any change; this is a protocol review, not a build setting.
-- [ ] Review an early Deriver admission, after respond and before execute. The
-  admission needs the custody binding and the attempt, which exist after respond.
-  Deriver B's preparation also needs the client's input, so only the admission
-  can move. Establish that an early admission cannot be claimed by another
-  execution before implementing it.
-- [ ] Measure the isolate cost of module size. Each Deriver module is 15.6 MB
-  with a 1.3 MB name section and 6.2 MB of data. Remove what is not needed at
-  run time, then measure a new isolate's start.
-- [ ] Keep the two deliberate checks: the second D1 round trip of each admission,
-  and Deriver B's read of the admitted session before use. Record them as kept.
+- [x] Review moving the base oblivious transfers ahead of execute: possible in
+  the cryptography, not taken. After the commitment change they are the largest
+  curve cost, 9 ms and 17 ms. Their session is a hash of the ceremony session,
+  the circuit digest and the schedule digest (`ot_session` in
+  `crates/ed25519-yao/src/passive/phase4.rs`), and the base choices are random.
+  The base transfers therefore need neither the client's input nor the root
+  share. Three facts speak against the move. Deriver B's wallet object accepts
+  Deriver A's connection only after its own admitted preparation, and that
+  preparation needs the client's input. The base seeds are secrets that would
+  have to live from respond to execute and serve exactly one extension: a second
+  extension on the same seeds shows the peer the difference of two choice
+  vectors. The transfer module states that it has no reusable base state. The
+  bound of the gain is the base-transfer CPU, 26 ms on a laptop for both roles.
+  [R155H](refactor-155H.md) Phase 1 holds the precomputation as an optional
+  last step under the same one-use rule.
+- [x] Review an early Deriver admission, after respond and before execute: not
+  possible as first described. The admission stores the digest of the custody
+  binding, and the binding's outer transcript digest is the pair digest
+  (`authenticate_for_ed25519_yao_v1`). The pair digest covers the digests of the
+  client's two encrypted inputs. The client builds those inputs from the
+  admission receipt in the respond reply and sends them with execute. The
+  binding therefore does not exist before execute. An admission bound to the
+  session and the epoch alone could run early, but the execution would still
+  record or verify its binding, and the attempt-conflict rule would need a new
+  home. That changes the admission identity for one D1 write per Deriver, about
+  50 ms on staging. Not taken. [R155H](refactor-155H.md) Phase 1 takes the
+  admission identity change, because the pair preparation and the garbling
+  ride on it.
+- [x] Remove debug metadata from release Worker modules. Commit `3f3800a4`
+  strips only custom `name` and `.debug_*` sections after worker-build. The
+  exact staging modules lost 1,300,897 bytes for A and 1,346,077 bytes for B.
+  Cloudflare reported startup at 7 → 8 ms for A and 6 → 6 ms for B. This
+  establishes smaller modules, with no demonstrated startup latency gain.
+  Runtime data stays intact. Nine candidate registrations and signatures passed.
+- [x] Keep the two deliberate checks: the second D1 round trip of each admission,
+  and Deriver B's read of the admitted session before use. Both are kept.
 
-Expected gain: 0.1 to 0.3 s. The protocol CPU itself stays as it is.
+Expected gain: 0.1 to 0.3 s was the estimate before the two reviews. The prewarm
+and the commitment change are the realized part. The open item changes new
+isolates only. The protocol CPU itself stays as it is.
 
 ## Phase 4 — Finalization sealing CPU
 
@@ -339,23 +386,48 @@ R155F's local profile places 78–80% of finalization's sampled CPU in
 `addSigningSessionSealLock`, modular arithmetic in the Shamir WASM module. The
 seal is already computed beside home publication. The CPU itself remains.
 
-- [ ] Measure the seal's CPU in isolation on a Worker, not a laptop.
-- [ ] Decide between a cheaper computation and a seal off the response path.
-  Both touch custody. The session must stay bound to its wallet, session and
+- [x] Measure the seal's CPU in isolation on a Worker, not a laptop. A bound
+  exists from the staging records of the hosted run of October 11
+  (`.artifacts/r155g-combined-hosted` in `seams-monorepo`): the Gateway used
+  202 ms of CPU at the median for finalization (132–386 ms, 25 invocations),
+  against 10–32 ms for each other registration and signing route. The browser
+  measured 909 ms for the request, and the Gateway's last traced call ended at
+  591 ms. By the local share of 78–80%, the seal is about 160 ms on a Worker.
+  That share is not measured on a Worker. **These numbers come from a
+  development build of the Shamir module.** The Gateway bundles and the SDK
+  sites of the hosted comparisons were built from a local tree, whose
+  `shamir3pass_runtime_bg.wasm` is 654,272 bytes. The published 0.9.0 packages
+  hold the release build, 92,823 bytes. The
+  [server-seal investigation](server-seal-release-profile.md) measured the
+  server lock at 38.4 ms in the development build and 2.1 ms in the release
+  build on a laptop. The local profile behind this phase used the development
+  build as well. Measure finalization again after a deployment from published
+  packages, before any decision here. A hosted comparison must build its
+  candidates with `WASM_SDK_BUILD_MODE=prod`.
+- [x] Choose release compilation for speed. Keep the seal in the response path.
+  The session stays bound to its wallet, session and
   expiry, and the client must still receive the seal with the finalization reply.
-- [ ] Implement the chosen option, or record the concrete reason to keep the cost.
+- [x] Implement `opt-level = 3` and `wasm-opt -O3` in `a4bba328`. The
+  [local release comparison](evidence/refactor-155g-seal-release-local.md)
+  measured 2.062 → 1.728 ms. The isolated Cloudflare probe measured about
+  5.44 ms for published 0.9.0 and 5.86 ms for the candidate, with overlapping
+  batch ranges. No hosted speed gain is established. The earlier 160 ms
+  estimate does not apply to release sealing. Keep the synchronous seal:
+  moving it would change the response contract for a roughly 6 ms cost.
+  The compiler change keeps the same arithmetic and exact output, with a
+  local speed gain and a 26 KB size increase.
 
 ## Phase 5 — Measure and record
 
-- [ ] Run a discarded warm-up group of three wallets before each measured group.
+- [x] Run a discarded warm-up group of three wallets before each measured group.
   A version that was just deployed or switched in starts its Workers in new
   isolates, and the first group after a change is the slowest.
-- [ ] Use at least six wallets per measured group. Three cannot resolve less than
+- [x] Use at least six wallets per measured group. Three cannot resolve less than
   about 0.5 s: two groups on identical versions differed by 1 s on October 11.
-- [ ] Measure the accumulated changes of R155F and this plan in one comparison
+- [x] Measure the accumulated changes of R155F and this plan in one comparison
   on the Hong Kong layout. Record registration, first signature and the combined
   flow with medians, ranges and maxima, and the stage costs.
-- [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
+- [x] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
 
 ### Phase 5 record
 
@@ -382,3 +454,25 @@ Production rollout and publishing 0.9.0 remain separate release work.
 
 Complete the plan when each item has implementation and evidence, or a recorded
 reason. A completed checklist does not establish that the latency target was met.
+
+
+### October 12 final registration comparison
+
+The [final staging evidence](evidence/refactor-155g-final-staging.md) includes
+three discarded warm-ups and six measured wallets for each of control, candidate
+and repeat control. All 27 NEP-413 signatures passed independent verification.
+The candidate contains the accumulated implementation. The control already
+contains R155F and earlier R155G work; this last comparison isolates the
+remaining module-size and seal-build changes.
+
+Candidate registration measured **3.556 s excluding authentication**, and the
+first signature measured **0.429 s excluding confirmation**. The combined flow
+measured **3.978 s**, with a **3.755–5.018 s** range. Including authentication,
+SDK registration measured **4.111 s**. The control combined median was 4.070 s
+and its repeat was 3.967 s. These overlapping results establish no end-to-end
+gain for the last batch. The four-second maximum remains unmet.
+
+Staging returned to the verified October 12 deployment. Reactivation passed
+after two US registration records expired naturally. No wallet records were
+deleted. The temporary CPU probe is no longer serving. Production database
+moves still require the user's deployment windows.

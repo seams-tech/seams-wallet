@@ -219,6 +219,13 @@ codegen script clean-builds the kernel for optimized host code and the
 `router-ab-cloudflare` Deriver A/B Worker WASM, qualifies its matcher with
 safe/vulnerable fixtures, and rejects the former secret IKNP branch. It inspects
 Cargo's WASM output, before `worker-build` runs `wasm-bindgen` and `wasm-opt`.
+It builds the Workers with the target features that
+`crates/router-ab-cloudflare/scripts/build-strict-worker.sh` gives every release
+Worker, so it inspects the code generation that ships. With WebAssembly SIMD the
+compiler vectorizes the conditional XOR, and the gate accepts either form of
+the selection: the scalar `0 - bit` mask, or the same mask splatted over a
+vector and applied with `v128.and` and `v128.xor`. Both forms must follow the
+optimizer-resistant call, and each selection counts once.
 The variable-time generator remains outside constant-time evidence. Production
 native/WASM inspection remains open until Phase 6B selects its exact kernel and
 runtime.

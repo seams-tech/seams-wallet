@@ -224,6 +224,7 @@ try {
   assert.ok(cached.includes(other.walletId));
 
   const overlap = await verifyIndependentCommitReads(database, now);
+  const earlyClaim = await verifyEarlyClaim(database);
   const evidence = {
     refusedClaimLeavesNoWallet: true,
     lostClaimReplyLeavesNoWallet: true,
@@ -238,11 +239,107 @@ try {
     concurrentWalletWriteAttempts: walletWrites.length,
     concurrentCommitTrace: raceCalls,
     independentCommitReads: overlap,
+    earlyClaim,
   };
   await writeFile(resolve(output, 'proof.json'), `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(`Credential reservation evidence: ${resolve(output, 'proof.json')}`);
 } finally {
   await runtime.dispose();
+}
+
+// Respond claims the passkey early. Finalization skips its claim request only
+// for a recorded grant of the exact wallet and credential.
+async function verifyEarlyClaim(database) {
+  const directory = new CredentialDirectory();
+  const store = new api.CloudflareD1WalletRegistrationCommitStore({
+    database,
+    credentialClaims: directory,
+    namespace: 'early-claim',
+    orgId: 'org',
+    projectId: 'project',
+    envId: 'test',
+  });
+  const authority = api.buildPasskeyRegistrationAuthorityFixture('early-claim');
+  const claim = {
+    walletId: authority.walletId,
+    rpId: authority.rpId,
+    credentialIdB64u: authority.credentialIdB64u,
+  };
+  const ceremonyId = 'registration:early-claim';
+  const readHeld = async (id) =>
+    store.parseHeldPasskeyClaimRead(await store.prepareHeldPasskeyClaimRead(id).all());
+  const claimAhead = (id) =>
+    store.claimPasskeyAhead({ registrationCeremonyId: id, authority, nowMs: Date.now() });
+
+  // A refusal and a lost reply record nothing: finalization must claim again.
+  const refused = claimAhead(ceremonyId);
+  directory.answer(false);
+  await refused;
+  assert.equal(await readHeld(ceremonyId), null);
+  const lost = assert.rejects(claimAhead(ceremonyId), /lost credential claim reply/);
+  directory.loseReply();
+  await lost;
+  assert.equal(await readHeld(ceremonyId), null);
+  const unrecorded = store.reserveAuthority(authority, await readHeld(ceremonyId));
+  assert.equal(directory.requests.length, 3, 'finalization claims when nothing is recorded');
+  directory.answer(false);
+  await assert.rejects(unrecorded, /belongs to another wallet/);
+
+  // A grant is recorded once, for its own ceremony only.
+  const granted = claimAhead(ceremonyId);
+  directory.answer(true);
+  await granted;
+  const held = await readHeld(ceremonyId);
+  assert.deepEqual(held, claim);
+  assert.equal(await readHeld('registration:another-ceremony'), null);
+  const repeated = claimAhead(ceremonyId);
+  directory.answer(true);
+  await repeated;
+  assert.deepEqual(await readHeld(ceremonyId), claim);
+
+  // The recorded grant replaces finalization's request.
+  const requestsBefore = directory.requests.length;
+  await store.reserveAuthority(authority, held);
+  assert.equal(directory.requests.length, requestsBefore, 'a recorded grant needs no request');
+
+  // A record for another wallet or credential never replaces the request.
+  for (const mismatch of [
+    { ...held, walletId: 'another-wallet' },
+    { ...held, rpId: 'another.example' },
+    { ...held, credentialIdB64u: 'another-credential' },
+  ]) {
+    const reserved = store.reserveAuthority(authority, mismatch);
+    assert.equal(directory.requests.length, requestsBefore + 1);
+    directory.requests.pop();
+    directory.answer(false);
+    await assert.rejects(reserved, /belongs to another wallet/);
+  }
+
+  // The record cannot change, and cleanup removes it.
+  await assert.rejects(
+    database
+      .prepare("UPDATE registration_passkey_claims SET wallet_id = 'another-wallet'")
+      .run(),
+    /registration_passkey_claims_immutable/,
+  );
+  await store.deleteHeldPasskeyClaim(ceremonyId);
+  assert.equal(await readHeld(ceremonyId), null);
+
+  // An Email OTP authority has no passkey to claim.
+  const emailOtp = { kind: 'email_otp', walletId: authority.walletId };
+  await store.claimPasskeyAhead({
+    registrationCeremonyId: 'registration:email-otp',
+    authority: emailOtp,
+    nowMs: Date.now(),
+  });
+  assert.equal(directory.requests.length, requestsBefore);
+  return {
+    refusedOrLostEarlyClaimRecordsNothing: true,
+    recordedGrantReplacesFinalizationRequest: true,
+    mismatchedRecordNeverReplacesRequest: true,
+    recordIsImmutableAndRemovedAtCleanup: true,
+    directoryCalls: directory.requests.length,
+  };
 }
 
 async function verifyIndependentCommitReads(database, now) {

@@ -77,7 +77,6 @@ import {
   type RouterAbEd25519SignatureOnlyIntentWire,
   type RouterAbEd25519StartedPrepare,
 } from './ed25519YaoNormalSigning';
-import { computeUiIntentDigestFromNep413 } from '@/utils/intentDigest';
 
 // A delegate action or a NEP-413 message is exactly one signature.
 const REQUIRED_SIGNATURE_USES = 1;
@@ -464,7 +463,7 @@ export type NearSignatureOnlyStartedPrepare = {
 };
 
 /**
- * Sends the server prepare of a warm-session NEP-413 signature while the
+ * Sends the server prepare of a warm-session signature while the
  * confirmation dialog is open. The request is bound to the digest the dialog
  * shows and to the signing digest. A confirmation that returns another digest,
  * a declined confirmation or a step-up leaves the prepare to expire with its
@@ -474,11 +473,9 @@ export async function startNearSignatureOnlyPrepare(
   operation: NearSignatureOnlyOperation,
   stepUp: NearSignatureOnlyStepUp,
   signingSessionCoordinator: SigningSessionCoordinator,
+  displayDigest: string,
 ): Promise<NearSignatureOnlyStartedPrepare | null> {
-  if (
-    stepUp.preparedStepUp.kind !== 'warm_session' ||
-    operation.intent.kind !== 'nep413_message_v1'
-  ) {
+  if (stepUp.preparedStepUp.kind !== 'warm_session') {
     return null;
   }
   const resolved = await resolveConfirmedNearEd25519YaoCapability({
@@ -501,11 +498,7 @@ export async function startNearSignatureOnlyPrepare(
     nearAccountId: operation.nearAccountId,
     operationId: operation.signingOperation.operationId,
     operationFingerprint: operation.signingOperation.operationFingerprint!,
-    displayDigest: await computeUiIntentDigestFromNep413({
-      nearAccountId: operation.nearAccountId,
-      recipient: operation.intent.recipient,
-      message: operation.intent.message,
-    }),
+    displayDigest,
     signingDigestB64u: await operation.computeSigningDigestB64u(),
     intent: operation.intent,
   });

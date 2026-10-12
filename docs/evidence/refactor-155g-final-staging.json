@@ -1,0 +1,507 @@
+{
+  "groups": {
+    "control": {
+      "measurement": {
+        "sdkRegistrationMs": {
+          "n": 6,
+          "median": 4149.295,
+          "min": 3727.37,
+          "max": 4348.73
+        },
+        "sdkMessageSigningMs": {
+          "n": 6,
+          "median": 711.335,
+          "min": 682.91,
+          "max": 884.7
+        },
+        "sdkFlowMs": {
+          "n": 6,
+          "median": 4852.227,
+          "min": 4417.325,
+          "max": 5157.35
+        },
+        "webAuthnMs": {
+          "n": 6,
+          "median": 530.85,
+          "min": 415.6,
+          "max": 569.5
+        },
+        "confirmationMs": {
+          "n": 6,
+          "median": 271.25,
+          "min": 266.1,
+          "max": 273.8
+        },
+        "sdkFlowWithoutInteractionMs": {
+          "n": 6,
+          "median": 4069.877,
+          "min": 3735.625,
+          "max": 4315.85
+        },
+        "harnessMs": {
+          "n": 6,
+          "median": 1095.006,
+          "min": 877.724,
+          "max": 1521.696
+        }
+      },
+      "http": {
+        "/router-ab/ed25519/sign": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 344.432,
+            "min": 317.425,
+            "max": 504.566
+          }
+        },
+        "/router-ab/ed25519/sign/prepare": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 341.029,
+            "min": 289.44,
+            "max": 456.697
+          }
+        },
+        "/router-ab/ed25519/yao/registration/execute": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 1886.77,
+            "min": 1563.909,
+            "max": 1979.22
+          }
+        },
+        "/wallets/register/near-provisioning": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 806.022,
+            "min": 753.725,
+            "max": 901.758
+          }
+        },
+        "/wallets/register/respond": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 235.266,
+            "min": 206.571,
+            "max": 287.645
+          }
+        },
+        "/wallets/register/setup": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 512.584,
+            "min": 500.52,
+            "max": 595.253
+          }
+        }
+      },
+      "gatewayFinalizeCpuMs": {
+        "n": 6,
+        "median": 104.5,
+        "min": 90,
+        "max": 121
+      }
+    },
+    "candidate": {
+      "measurement": {
+        "sdkRegistrationMs": {
+          "n": 6,
+          "median": 4110.558,
+          "min": 3589.775,
+          "max": 4468.73
+        },
+        "sdkMessageSigningMs": {
+          "n": 6,
+          "median": 692.413,
+          "min": 627.57,
+          "max": 1160.415
+        },
+        "sdkFlowMs": {
+          "n": 6,
+          "median": 4783.643,
+          "min": 4425.03,
+          "max": 5629.145
+        },
+        "webAuthnMs": {
+          "n": 6,
+          "median": 395.3,
+          "min": 174.1,
+          "max": 563.6
+        },
+        "confirmationMs": {
+          "n": 6,
+          "median": 264.5,
+          "min": 257.4,
+          "max": 270.4
+        },
+        "sdkFlowWithoutInteractionMs": {
+          "n": 6,
+          "median": 3978.395,
+          "min": 3754.63,
+          "max": 5017.945
+        },
+        "harnessMs": {
+          "n": 6,
+          "median": 1128.498,
+          "min": 902.081,
+          "max": 1382.266
+        }
+      },
+      "http": {
+        "/router-ab/ed25519/sign": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 318.373,
+            "min": 291.774,
+            "max": 358.832
+          }
+        },
+        "/router-ab/ed25519/sign/prepare": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 345.388,
+            "min": 294.497,
+            "max": 790.265
+          }
+        },
+        "/router-ab/ed25519/yao/registration/execute": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 1739.118,
+            "min": 1426.414,
+            "max": 2211.023
+          }
+        },
+        "/wallets/register/near-provisioning": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 842.163,
+            "min": 698.003,
+            "max": 1014.759
+          }
+        },
+        "/wallets/register/respond": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 210.226,
+            "min": 189.846,
+            "max": 316.722
+          }
+        },
+        "/wallets/register/setup": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 634.987,
+            "min": 473.715,
+            "max": 830.011
+          }
+        }
+      },
+      "gatewayFinalizeCpuMs": {
+        "n": 6,
+        "median": 107.5,
+        "min": 64,
+        "max": 209
+      }
+    },
+    "repeat": {
+      "measurement": {
+        "sdkRegistrationMs": {
+          "n": 6,
+          "median": 3930.482,
+          "min": 3426.245,
+          "max": 4075.065
+        },
+        "sdkMessageSigningMs": {
+          "n": 6,
+          "median": 786.158,
+          "min": 682.895,
+          "max": 917.595
+        },
+        "sdkFlowMs": {
+          "n": 6,
+          "median": 4706.39,
+          "min": 4281.215,
+          "max": 4989.22
+        },
+        "webAuthnMs": {
+          "n": 6,
+          "median": 463.35,
+          "min": 202,
+          "max": 529.3
+        },
+        "confirmationMs": {
+          "n": 6,
+          "median": 271.45,
+          "min": 262.2,
+          "max": 290.7
+        },
+        "sdkFlowWithoutInteractionMs": {
+          "n": 6,
+          "median": 3966.59,
+          "min": 3525.115,
+          "max": 4319.31
+        },
+        "harnessMs": {
+          "n": 6,
+          "median": 1144.529,
+          "min": 882.73,
+          "max": 1303.543
+        }
+      },
+      "http": {
+        "/router-ab/ed25519/sign": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 391.746,
+            "min": 324.462,
+            "max": 507.748
+          }
+        },
+        "/router-ab/ed25519/sign/prepare": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 328.878,
+            "min": 297.748,
+            "max": 412.176
+          }
+        },
+        "/router-ab/ed25519/yao/registration/execute": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 1633.322,
+            "min": 1420.573,
+            "max": 1824.757
+          }
+        },
+        "/wallets/register/near-provisioning": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 756.881,
+            "min": 639.966,
+            "max": 1013.692
+          }
+        },
+        "/wallets/register/respond": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 251.365,
+            "min": 202.485,
+            "max": 298.597
+          }
+        },
+        "/wallets/register/setup": {
+          "count": 6,
+          "browserElapsedMs": {
+            "n": 6,
+            "median": 557.783,
+            "min": 515.177,
+            "max": 862.312
+          }
+        }
+      },
+      "gatewayFinalizeCpuMs": {
+        "n": 6,
+        "median": 78.0,
+        "min": 65,
+        "max": 190
+      }
+    }
+  },
+  "seal": {
+    "baseline": {
+      "zeroCpuMs": {
+        "n": 3,
+        "median": 7,
+        "min": 2,
+        "max": 10
+      },
+      "batch100CpuMs": {
+        "n": 3,
+        "median": 551,
+        "min": 540,
+        "max": 698
+      },
+      "estimatedPerSealCpuMs": 5.44
+    },
+    "candidate": {
+      "zeroCpuMs": {
+        "n": 3,
+        "median": 2,
+        "min": 1,
+        "max": 5
+      },
+      "batch100CpuMs": {
+        "n": 3,
+        "median": 588,
+        "min": 510,
+        "max": 643
+      },
+      "estimatedPerSealCpuMs": 5.86
+    },
+    "observations": [
+      {
+        "arm": "baseline",
+        "count": 100,
+        "phase": "warmup",
+        "cpuMs": 729,
+        "wallMs": 730,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 100,
+        "phase": "warmup",
+        "cpuMs": 583,
+        "wallMs": 586,
+        "status": 200
+      },
+      {
+        "arm": "baseline",
+        "count": 0,
+        "phase": "measure",
+        "cpuMs": 10,
+        "wallMs": 10,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 0,
+        "phase": "measure",
+        "cpuMs": 5,
+        "wallMs": 6,
+        "status": 200
+      },
+      {
+        "arm": "baseline",
+        "count": 100,
+        "phase": "measure",
+        "cpuMs": 551,
+        "wallMs": 553,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 0,
+        "phase": "measure",
+        "cpuMs": 1,
+        "wallMs": 2,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 100,
+        "phase": "measure",
+        "cpuMs": 643,
+        "wallMs": 643,
+        "status": 200
+      },
+      {
+        "arm": "baseline",
+        "count": 0,
+        "phase": "measure",
+        "cpuMs": 7,
+        "wallMs": 7,
+        "status": 200
+      },
+      {
+        "arm": "baseline",
+        "count": 100,
+        "phase": "measure",
+        "cpuMs": 698,
+        "wallMs": 700,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 100,
+        "phase": "measure",
+        "cpuMs": 510,
+        "wallMs": 512,
+        "status": 200
+      },
+      {
+        "arm": "baseline",
+        "count": 0,
+        "phase": "measure",
+        "cpuMs": 2,
+        "wallMs": 2,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 0,
+        "phase": "measure",
+        "cpuMs": 2,
+        "wallMs": 3,
+        "status": 200
+      },
+      {
+        "arm": "baseline",
+        "count": 100,
+        "phase": "measure",
+        "cpuMs": 540,
+        "wallMs": 544,
+        "status": 200
+      },
+      {
+        "arm": "candidate",
+        "count": 100,
+        "phase": "measure",
+        "cpuMs": 588,
+        "wallMs": 591,
+        "status": 200
+      }
+    ]
+  },
+  "moduleStartup": [
+    {
+      "worker": "router-ab-deriver-a-staging",
+      "baselineStartupMs": 7,
+      "candidateStartupMs": 8,
+      "baselineVersion": "2770ffbf-735f-4851-bed1-ba479f9e9843",
+      "candidateVersion": "b6bf3aac-4bde-46a7-a0fc-068733e53eef"
+    },
+    {
+      "worker": "router-ab-deriver-b-staging",
+      "baselineStartupMs": 6,
+      "candidateStartupMs": 6,
+      "baselineVersion": "89ce26d8-6469-42e6-a9eb-79ee22762d80",
+      "candidateVersion": "c2c9fe52-5b01-4263-a32d-289ff8b6ac01"
+    }
+  ],
+  "proofVerification": {
+    "registrations": 27,
+    "independentVerifier": "Node crypto Ed25519; independent NEP-413 encoding",
+    "tamperRejections": [
+      "message",
+      "recipient",
+      "nonce",
+      "callbackUrl"
+    ]
+  },
+  "sources": {
+    "wallet": "3f3800a4",
+    "privateWorkflow": "bc5a42bce09a753fdae2935a510cc2201a82ccb0",
+    "browserAssets": "same production SDK in every group",
+    "baselineBackend": "verified October 12 coordinated staging deployment",
+    "candidateBackend": "exact baseline Gateway JavaScript plus optimized Shamir WASM; exact Deriver modules minus debug custom sections"
+  }
+}
