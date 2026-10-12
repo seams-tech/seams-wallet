@@ -2,8 +2,8 @@
 
 Status: **in progress.** Phase 0's instrumentation and platform check are
 done; its staging group is open. Phase 4's table-frame yield and SIMD build
-are implemented and wait for their staging comparison. Phases 1 to 3 wait for
-the decisions listed below. Date: October 12, 2026.
+are implemented, and their staging comparison is running. The decisions for
+Phases 1 to 3 are taken. Date: October 12, 2026.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -38,7 +38,8 @@ delivery and the Router's finish, about 250 ms of durable bookkeeping, stay.
 Phase 4 owns this objective; Phase 1 removes the admission and the connection
 from the online path.
 
-Decisions this plan needs before Phases 1 to 3 start:
+Decisions this plan needed before Phases 1 to 3 start. The first three are
+taken; see "Decided on October 12" below.
 
 - **Setup may prepare custody before the passkey proves anything.** Setup is
   authenticated by the publishable key only. A prepared pair session costs two
@@ -58,6 +59,14 @@ Decisions this plan needs before Phases 1 to 3 start:
 
 Decided on October 12:
 
+- **Setup may admit custody before the passkey proves anything: yes.** The
+  admitted session expires with the ceremony, one per wallet object, and the
+  setup route policy must hold a per-key rate limit before Phase 1 ships.
+- **A registration that fails after its passkey claim releases the claim:
+  yes.** The release acts only on a terminal registration without a session.
+- **Console completion from a tracked outbox: yes, and last.** Phase 3 runs
+  after Phases 1, 2 and 4 are measured, and only if registration after setup
+  still needs it.
 - **The custody tier stays on Cloudflare.** A native custody service on a
   virtual machine was explored as a hypothesis. The native floor below records
   what it would have bought, so the comparison is not repeated. Phase 1
