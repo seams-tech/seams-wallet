@@ -909,15 +909,24 @@ relocated or discarded. An unpinned role Worker runs where its caller runs,
 so a role pin is needed only where another region's Gateway must not pull the
 role away from its database; with one set of role databases per lane, the
 other regions' custody calls cross to Singapore in either case.
-- [ ] Staging cutover to Singapore, in a write-freeze window from the user
-  and agreed with the session that owns the staging deployment: copy the five
-  databases, compare the dumps, rebind the serving versions, change the two
-  placements and the `d1PrimaryColo` checks to `SIN`, verify with a
-  registration proof, keep the Hong Kong databases until the versions that
-  bind them are retired.
+- [ ] Staging clean switch to Singapore. The user ruled on October 13: no
+  lane is live, every wallet and all data are discarded, downtime is
+  accepted, and nothing is copied. Done on October 13: eight new empty
+  databases, five in Singapore and three for the other regions; migrations;
+  the target change (private `281e48f`); the Console and backend workflows.
+  All 14 staging Workers serve versions that bind only the new databases,
+  and the APAC components run at `aws:ap-southeast-1`. Open: the owner signs
+  in to the staging dashboard and creates a project, then the protected
+  activation, a registration proof, and the owner's deletion of the old
+  databases. The private record is `docs/singapore-clean-switch-20261013.md`
+  in `seams-monorepo`.
 - [ ] Hosted comparison after the cutover, with server-side totals beside the
   Tokyo client's numbers.
-- [ ] Production testnet, then mainnet, each in its own window.
+- [ ] Production testnet, then mainnet. Empty databases exist for both
+  lanes. The deployment is blocked by more than placement: the lanes run
+  September builds, their regional Workers do not exist, the testnet workflow
+  needs an environment id before its Console exists, and mainnet has no
+  tenant activation path. The private record lists the six blockers.
 
 - [ ] Count the reads and writes per request from the Phase 0 D1 record.
   Finalization is write-heavy, so D1 read replication near a regional Gateway
