@@ -132,6 +132,43 @@ and 10 of 31 in Hong Kong. One run per city pair is too little to call that a
 property of Singapore. The first Singapore run lost Deriver A's tail, and the
 Tokyo tails delivered 9 and 16 of 31 invocations.
 
+## What triggers a stall
+
+A fourth probe wrote to new objects with three spacings at once, for about 50
+seconds: three objects every 0.3 s, eight every 3.3 s and eight every 7 s.
+
+| Object colo | Spacing | Writes | Median | Slow writes | Share | Median stall | Max |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| SIN | 0.3 s | 450 | 3 | 21 | 4.7% | 213 | 772 |
+| SIN | 3.3 s | 112 | 4 | 8 | 7.1% | 189 | 651 |
+| SIN | 7 s | 56 | 3 | 4 | 7.1% | 132 | 271 |
+| HKG | 0.3 s | 450 | 39 | 15 | 3.3% | 114 | 195 |
+| HKG | 3.3 s | 112 | 40 | 2 | 1.8% | 108 | 108 |
+| HKG | 7 s | 49 | 38 | 2 | 4.1% | 102 | 102 |
+
+- **The share does not depend on how often an object is written.** A write
+  that follows seven idle seconds stalls as often as one in a dense stream.
+  The probe's dense writing did not cause the stalls.
+- **Each object stalls on a cycle of about five seconds.** In the dense
+  streams, 15 of 21 slow writes in Singapore fell between 2.0 and 2.5 s of
+  the cycle that starts with the object's first write, and Hong Kong's
+  cluster at 1.2 and 2.9 s. A write that lands in a short window of the cycle
+  waits; the others do not.
+- **Staging shows the same share.** Of the 1,716 Router wallet-object
+  commands of October 7 to 12, 60 waited more than 50 ms over the median,
+  3.5%, with a median wait of 278 ms among them.
+- **The cause inside the platform is not established.** Cloudflare's
+  [description](https://blog.cloudflare.com/sqlite-in-durable-objects/) names
+  one periodic task per object, the upload of batched changes to object
+  storage "over a period of up to 10 seconds", and says a write does not wait
+  for it. The measured cycle is five seconds and a write does wait, so either
+  the upload or another periodic task delays the confirmation. No experiment
+  here separates them.
+
+With about 13 durable writes in series and a share of 3.5–7%, between one
+third and three fifths of all registrations meet at least one stall. A stall is
+a cost of each durable write. Only fewer writes in series reduce it.
+
 ## Limits
 
 - The probe measures object storage. D1 uses the same storage layer, and

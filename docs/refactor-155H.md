@@ -872,28 +872,63 @@ The measurement seat is a third point: from Tokyo, a Singapore home shows
 about 70 ms of round trip per exchange, so the hosted driver needs a
 Singapore vantage or the server-side totals to show what users get.
 
-Production's targets do not match this choice today. The testnet lane has
-its APAC Gateway in Singapore, its Derivers and their databases in Tokyo and
-its Signing Worker in Osaka, so every custody call crosses Singapore and
-Japan. The mainnet lane places its APAC Gateway in Hong Kong.
-- [ ] Go or no-go for Singapore, with the user's go-ahead for one new
-  resource: an empty D1 database with a Singapore primary and a Worker placed
-  at `aws:ap-southeast-1` that writes to it for a day. Read the median, the
-  99th percentile and the stall rate. A Singapore primary came up once in
-  eight creations so far, so the creation repeats until it reports `SIN`.
+**Decided on October 12, by the user:** the APAC components of a lane must
+not be dispersed. The Gateway, Console, the Derivers, the Signing Worker and
+all their databases run in one place, and that place is Singapore. This
+replaces the Hong Kong anchor of R155G Phase 1 for every lane.
+
+Where each lane stands, from `deployment/wallet-system/targets.json` and a
+`SELECT 1` against each database on October 12:
+
+| Component | Staging | Production testnet | Production mainnet |
+| --- | --- | --- | --- |
+| APAC Gateway placement | Hong Kong | Singapore | Hong Kong |
+| APAC Gateway database | HKG | SIN | HKG |
+| Console database | HKG | SIN | SIN |
+| Deriver A placement and database | with its caller, HKG | Tokyo, NRT | with its caller, HKG |
+| Deriver B placement and database | with its caller, HKG | Tokyo, NRT | with its caller, SIN |
+| Signing Worker placement and database | with its caller, HKG | Osaka, KIX | with its caller, SIN |
+
+What moves to reach one Singapore anchor:
+
+- **Staging:** five databases and the Gateway and Console placements. Empty
+  candidates with Singapore primaries are created under
+  `.artifacts/r155h-singapore-anchor/` in `seams-monorepo`; nothing serves
+  them yet.
+- **Production testnet:** three role databases and the three role
+  placements. Its Gateway, its Gateway database and its Console database are
+  in Singapore already.
+- **Production mainnet:** the Gateway placement, the Gateway database and
+  Deriver A's database. The other three databases are in Singapore already.
+
+The Singapore anchor needs five production database moves. The Hong Kong
+anchor needed eight. Each cutover needs a window from the user: writes are
+frozen during the copy. Existing wallet objects never move, so a wallet
+registered before a lane's move keeps objects in the old city until it is
+relocated or discarded. An unpinned role Worker runs where its caller runs,
+so a role pin is needed only where another region's Gateway must not pull the
+role away from its database; with one set of role databases per lane, the
+other regions' custody calls cross to Singapore in either case.
+- [ ] Staging cutover to Singapore, in a write-freeze window from the user
+  and agreed with the session that owns the staging deployment: copy the five
+  databases, compare the dumps, rebind the serving versions, change the two
+  placements and the `d1PrimaryColo` checks to `SIN`, verify with a
+  registration proof, keep the Hong Kong databases until the versions that
+  bind them are retired.
+- [ ] Hosted comparison after the cutover, with server-side totals beside the
+  Tokyo client's numbers.
+- [ ] Production testnet, then mainnet, each in its own window.
 
 - [ ] Count the reads and writes per request from the Phase 0 D1 record.
   Finalization is write-heavy, so D1 read replication near a regional Gateway
   cannot carry it. Record the number.
 - [ ] Cost the Tokyo home: a role database set and a Console lane per home,
   the R155G Phase 1 cutover method per lane, and a hazard list per home.
-- [ ] Decide: keep the APAC home in Hong Kong and record the cost, or move
-  it to Singapore. The move repeats the October 10 method for the three role
-  databases and the October 11 method for Console, adds the regional Gateway
-  database, and pins the Gateway to `aws:ap-southeast-1`. A D1 primary cannot
-  be placed by city: a database is created until it reports the wanted
-  primary. Wallet objects never move, so the move starts with new wallets
-  only, which staging's disposable wallets allow.
+- [x] Decide: Singapore, one place for all components. The move repeats the
+  October 10 method for the three role databases and the October 11 method
+  for Console, adds the regional Gateway database, and pins the Gateway to
+  `aws:ap-southeast-1`. A D1 primary cannot be placed by city: a database is
+  created until it reports the wanted primary.
 
 ## Phase 7 — Tails
 

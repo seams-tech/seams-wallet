@@ -129,6 +129,17 @@ The distance is the price of one APAC anchor. It disappears for Hong Kong users.
 
 ## Phase 1 — One Hong Kong anchor per lane
 
+> **Superseded on October 12: the anchor is Singapore, not Hong Kong.** The
+> user decided it after a measurement: one durable write holds an object's
+> response for 34 ms in Hong Kong and 2–4 ms in Singapore
+> ([record](evidence/refactor-155h-write-hold-by-colo.md)), and most APAC
+> users are expected in Singapore and Malaysia. The rule of this phase stays:
+> one place per lane for the Gateway, Console, the role Workers and all their
+> databases. **Do not run the open production moves below toward Hong Kong.**
+> [R155H Phase 6](refactor-155H.md) holds the current state of every lane and
+> the moves that a Singapore anchor needs. The staging work recorded below was
+> done and stays as history.
+
 The method is the staging role-database move of October 10: create a database
 with the `apac` hint until one lands in Hong Kong, copy under a write freeze,
 compare the dumps, change the deployment target, deploy, verify, and keep the
