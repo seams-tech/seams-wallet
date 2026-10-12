@@ -29,6 +29,9 @@ fault-short-timeout = []
 fault-stall-after-offer = []
 fault-wrong-role-offer-tag = []
 fault-session-mismatch = []
+# Deriver A yields to the event loop after each table frame, so the frame
+# leaves before the next one is garbled. Measurement only.
+yield-after-table-frame = []
 
 [dependencies]
 bytes = "1.10"

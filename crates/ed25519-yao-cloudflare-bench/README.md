@@ -41,6 +41,22 @@ npm run build:a
 the `build` block, so `wrangler dev` and `wrangler deploy` use these bundles
 instead of rebuilding with whatever `worker-build` is on `PATH`.
 
+## The yield variant
+
+`yield-after-table-frame` makes Deriver A await a zero-length `worker::Delay`
+after each table frame. Without it the WebSocket only queues the frames, they
+all leave after the last one is garbled, and Deriver B evaluates afterwards.
+Build it beside the default role and deploy either under the same name:
+
+```sh
+worker-build --release --out-dir build/deriver-a-yield --features deriver-a-same-account-websocket,yield-after-table-frame
+```
+
+The [record of October 12, 2026](../../docs/evidence/refactor-155h-probe-hosted.md)
+measured 290–350 ms against 520–640 ms per ceremony in Tokyo. Production's
+transport in `crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs` holds
+the same yield.
+
 ## Local run
 
 ```sh
@@ -50,8 +66,8 @@ node scripts/run_same_account_benchmark.mjs 6 http://127.0.0.1:8787/benchmark/ac
 
 The driver prints one JSON report. `total_protocol_duration_ms` is Deriver A's
 clock-visible protocol time, from its protocol start to the response EOF. On a
-Worker `Date.now()` advances only at I/O, so the figure excludes CPU after the
-last incoming message. Local workerd on an M4 Pro measured 134 ms on
+Worker `Date.now()` excludes the invocation's own CPU time, so the figure is
+waits only. Client wall and the tail's `wallTime` are the real durations. Local workerd on an M4 Pro measured 134 ms on
 October 12, 2026; the July 2026 local report measured 141 ms.
 
 ## Deployed run

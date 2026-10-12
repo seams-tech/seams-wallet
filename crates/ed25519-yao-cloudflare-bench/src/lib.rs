@@ -3179,6 +3179,10 @@ mod adapter {
             match message_kind {
                 WireMessageKind::TableFrame => {
                     self.timing.mark(TimingEvent::TableFrameAccepted)?;
+                    // The send above only queues the frame. Without a turn of
+                    // the event loop it leaves after every frame is garbled.
+                    #[cfg(feature = "yield-after-table-frame")]
+                    worker::Delay::from(std::time::Duration::from_millis(0)).await;
                 }
                 WireMessageKind::OutputTranslation => {
                     self.timing.mark(TimingEvent::TranslationAccepted)?;
