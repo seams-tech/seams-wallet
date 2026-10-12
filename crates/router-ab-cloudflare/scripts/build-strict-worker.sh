@@ -12,20 +12,26 @@ case "$role" in
 esac
 
 worker_build_profile="${ROUTER_AB_WORKER_BUILD_PROFILE:-release}"
-worker_rustflags=""
+# Target features of every release Worker. With WebAssembly SIMD the compiler
+# vectorizes the label, block and buffer arithmetic of the Yao roles; no source
+# line names a vector instruction. The constant-time codegen gate in
+# crates/ed25519-yao/scripts/check_constant_time_codegen.mjs reads this line
+# and inspects modules built with the same features.
+worker_release_target_features="+simd128"
+worker_rustflags="${RUSTFLAGS:-}"
+if [[ -n "$worker_rustflags" ]]; then
+  worker_rustflags+=" "
+fi
 case "$worker_build_profile" in
   dev)
     worker_output="build/dev/$role"
     worker_build_flags=(--dev --no-opt)
-    worker_rustflags="${RUSTFLAGS:-}"
-    if [[ -n "$worker_rustflags" ]]; then
-      worker_rustflags+=" "
-    fi
     worker_rustflags+="-C link-arg=-zstack-size=4194304"
     ;;
   release)
     worker_output="build/$role"
     worker_build_flags=(--release)
+    worker_rustflags+="-C target-feature=$worker_release_target_features"
     ;;
   *)
     echo "invalid ROUTER_AB_WORKER_BUILD_PROFILE: $worker_build_profile (expected dev or release)" >&2
@@ -34,11 +40,7 @@ case "$worker_build_profile" in
 esac
 
 run_worker_build() {
-  if [[ "$worker_build_profile" == "dev" ]]; then
-    RUSTFLAGS="$worker_rustflags" worker-build "$@"
-  else
-    worker-build "$@"
-  fi
+  RUSTFLAGS="$worker_rustflags" worker-build "$@"
 }
 
 worker_features="strict-worker-$role-entrypoint"
