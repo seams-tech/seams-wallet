@@ -932,8 +932,8 @@ other regions' custody calls cross to Singapore in either case.
   All 14 staging Workers serve versions that bind only the new databases,
   and the APAC components run at `aws:ap-southeast-1`. The owner created a
   new organisation and project, the protected activation passed, and twelve
-  fresh registrations with a first signature each passed, three of them
-  verified independently. Open: the owner's deletion of the old databases.
+  fresh registrations with a first signature each passed, all verified
+  independently. Open: the owner's deletion of the old databases.
   The private record is `docs/singapore-clean-switch-20261013.md` in
   `seams-monorepo`.
 - [x] First measurement on the Singapore lane: nine wallets, client in
