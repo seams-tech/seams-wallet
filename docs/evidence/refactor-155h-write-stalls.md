@@ -132,6 +132,14 @@ resolution. The two objects on host 1026f87 also shared one long pause:
   23 were within 25 ms. The exception is one object, 80–100 ms from its two
   neighbours; its 13 s stream had a single long window. The cycle belongs to
   the host, not to a Worker or its object class.
+- **The length of a pause belongs to the host and the moment.** At one time
+  in one colo the hosts differ: the median pause of twelve Singapore hosts
+  at 00:21 was 74–441 ms, of ten London hosts 59–321 ms, of twelve Hong Kong
+  hosts 129–305 ms. On one host it moves from cycle to cycle, 41–710 ms
+  within three minutes. The probe's own volume does not move it: 142 ms at
+  the median with a 32 KB row forty times a second, 152 ms with one small
+  write per 250 ms. Something on the host that is not the probe sets the
+  length.
 - **The cycle is slightly longer than 5,000 ms.** Host 976f46 in Hong Kong
   was at 628–632 ms at 23:40 and at 787–798 ms at 00:44: 160 ms later after
   64 minutes, or 5,000.2 ms per cycle.
