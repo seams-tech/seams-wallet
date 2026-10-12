@@ -191,6 +191,53 @@ stale-test deletions in separate commits.
 Acceptance: one record with the CPU classification, the p90 columns and the
 span baseline. No production change.
 
+### Phase 0 design sheet
+
+- **Counter.** One `static` atomic per role Worker in
+  `crates/router-ab-cloudflare/src/lib.rs`, incremented once per protocol run
+  in `durable_object/deriver_a_pair.rs` (`execute_work`) and in
+  `durable_object/deriver_b_pair.rs` (the duplex role execution). Log one JSON
+  line beside the existing `emit_role_span_v1(None, "deriver_a.yao_protocol",
+  ...)` call: `{"event":"role_isolate_counter","role":"deriver_a",
+  "execution_index":N,"session":"<hex>","trace_id":"..."}`. The Worker tail
+  delivers it in `logs[].message`; the run's `analyze.py` rows carry
+  `cpuTime`, `wallTime` and `logs`, which `yao-chain.py` joins.
+- **Micro-workload.** Enable the existing `passive-wasm-benchmark` Cargo
+  feature of `ed25519-yao` for the Deriver Worker builds and call its
+  export-circuit run (`passive/phase5_wasm_benchmark.rs`, 1,275 AND gates)
+  from the `/internal/prewarm` handler in `strict_worker/mod.rs` when the
+  counter is zero. Log `{"event":"prewarm_microwork","role":...,
+  "execution_index":N}`. The tail's `cpuTime` on that invocation is the CPU
+  per unit of work. Run the same function once on the laptop through the
+  wasm-bench scripts (`crates/ed25519-yao/wasm-bench/scripts/`) for the
+  local figure.
+- **Probe pair.** The engine benchmark lives in `crates/ed25519-yao/wasm-bench`
+  with `scripts/run_phase5_streaming.mjs`. The deployed July pair, two
+  Workers on one `DERIVER_B` Service Binding WebSocket, is described in
+  `crates/ed25519-yao/docs/phase9b-same-account-report.md`. If no deployable
+  pair exists in the tree, build one from `wasm-bench` under a temporary
+  directory in `tests/` with the Derivers' `apac` placement, one warm-up and
+  twenty ceremonies. Deploying it to the staging account needs the user's
+  go-ahead first.
+- **Write gate.** In `deriver_a_pair.rs`, around the `Complete` command near
+  line 860, log `worker::Date::now()` immediately before the command, after it
+  returns, and before `Ok(outcome)`. The Router's `router.deriver_a_execute.http`
+  span end is the receipt time. `Date.now()` advances only at I/O, so the
+  distance from the last reading to the Router's receipt is the output gate
+  plus the response path; `yao-timeline.py` shows all four readings per
+  execution.
+- **D1 cost per call type.** From each sample's per-request `d1.services` list
+  in the run's `lifecycle.json`, and from the role databases' logs
+  `bound_root_d1_timing` (`access`, `round_trips`, `batch_ms`,
+  `initial_read_and_open_ms`).
+- **The group.** Start a new run folder from `.artifacts/r155g-combined-hosted/`
+  in `seams-monorepo`: copy the scripts, `launch.sh`, `projection.json`,
+  `harness/` and the four `candidate-<role>.json` files; point `build.py` and
+  `prepare.py` at the previous folder; run `preflight.py`, `build.py`,
+  `prepare.py`, `freeze.py`, `check-baseline.py`, then `launch.sh`, which
+  detaches the driver and restores staging at the end. One arm of nine
+  wallets after a warm-up group. Release builds only.
+
 ## Phase 1 — Custody execution at setup
 
 Registration today: setup reserves the home and starts the four wallet
@@ -294,6 +341,88 @@ connection and B's re-read leave the path, and garbling's CPU moves into the
 prompt. The oblivious transfer, the evaluation, the sealing, the delivery and
 the two Router commands stay.
 
+### Phase 1 design sheet
+
+Identities today, and where each is created:
+
+| Identity | Created | Where |
+| --- | --- | --- |
+| Registration ceremony, `registrationCeremonyId`, expiry `ceremony.expiresAtMs` | Setup | `setupWalletRegistration` in `d1WalletRegistrationService.ts` |
+| Yao lifecycle `lifecycle_id` and threshold `session_id` | Respond | `authorizeWalletRegistrationNearAdmission`, `d1WalletRegistrationService.ts` line 3056; stored as `descriptor.lifecycle.thresholdSessionId`, lines 693–758 |
+| Admission request and receipt | Respond | `RouterAbEd25519YaoRegistrationAdmissionRequestV1` in `crates/router-ab-core/src/protocol/ed25519_yao_router.rs`; the SDK receives both in the respond reply |
+| Pair binding, `Ed25519YaoInputPairBindingV1` | Execute | Router, from the client's two `Ed25519YaoEncryptedInputV1` values, `crates/router-ab-cloudflare/src/ed25519_yao_pair_protocol.rs`, `authenticate_for_ed25519_yao_v1` |
+| Execution id, `Ed25519YaoExecutionIdV1` | Execute | Router claim, `claim_registration` in `durable_object/router_wallet.rs` |
+| Deriver admission, attempt kind `ed25519_yao_pair_session` | Execute | `tenant_root_role_d1/bound_share.rs`, two D1 round trips, keyed by the pair session |
+| Wallet objects | Setup | Gateway calls the Router's `/router-ab/router/wallet/allocate` (`walletObjectAddresses.ts`); the Router starts each role through `/router-ab/internal/wallet/start` (`wallet_startup.rs`), grant-free and storage-free |
+
+Requests today: Deriver B `CloudflareEd25519YaoPairPrepareRequestV1 {
+pair_binding, tenant_root, work, input }` and Deriver A
+`CloudflareEd25519YaoPairExecuteRequestV1 { pair_binding, tenant_root, work,
+input, deadline_ms }`, both in `ed25519_yao_pair_protocol.rs`. Deriver A's
+object commands are `DeriverAPairDoCommandV1::{Prepare, Complete, Read, ...}`
+at `deriver_a_pair.rs` line 197.
+
+The change, in order. Names are proposals; keep the `V1` suffix convention.
+
+1. **Setup mints the lifecycle and the session.** Move the mint out of
+   `authorizeWalletRegistrationNearAdmission` into `setupWalletRegistration`
+   and store both with the ceremony. Respond reads them and issues the
+   receipt as today. The admission request shape does not change.
+2. **A prepare route on the Router**, internal and Gateway-authenticated like
+   allocate: `/router-ab/router/ed25519-yao/registration/prepare`, body
+   `{ owner, ownership_generation, session, tenant_root, work, deadline_ms }`
+   with `deadline_ms = ceremony.expiresAtMs`. The Gateway sends it after the
+   setup transaction commits, from the same place that calls allocate. The
+   Router does not claim; it dispatches concurrently a new
+   `CloudflareEd25519YaoPairAdmitRequestV1 { session, tenant_root, work,
+   deadline_ms }` to both Derivers, no `pair_binding` and no `input`.
+3. **Deriver B** admits in D1 as today and holds `Admitted { session,
+   deadline }` in its object. It accepts A's upgrade in that state. Its role
+   engine is not constructed yet: the engine needs the client's input.
+4. **Deriver A** admits, opens the connection to B's object, creates its
+   garbler seed and delta, and garbles the activation circuit into a buffer
+   through `GarblerMachine` in `crates/ed25519-yao/src/passive/runtime.rs`
+   with the production chunk profile. It holds `Prepared { session, garbler,
+   tables, deadline }` in memory. The wire labels derive from the seed, so the
+   tables are the same bytes that today's online garbling produces.
+5. **Execute** arrives as today. The Router claims, builds the pair binding
+   from the client's inputs, chooses the execution id, sends B its input
+   through the existing prepare endpoint, now an attach to the admitted
+   session, and sends A the execute request. A verifies the binding against
+   its prepared session, writes the binding digest into its attempt record
+   (this is the admission identity change R155G costed at one D1 write), then
+   selects its direct input labels with `prepare_labels` from the same garbler
+   (`passive/phase4.rs`), runs the oblivious transfer, streams the buffered
+   tables after `AwaitExtension` in `passive/role_protocol.rs`, and finishes
+   as today: returned labels, translation, seal, `Complete`, reply.
+6. **States and one use.** A: `Prepared → Bound(execution_id) → Running →
+   Completed`; a second execution id against `Bound` or `Running` is refused;
+   `Completed` is the durable record that a retry replays. B: `Admitted →
+   Attached(input) → Running → Completed`. A Durable Object alarm at
+   `deadline_ms` destroys `Prepared` and `Admitted`: zeroize tables, labels,
+   seed and OT state, close the socket, and release the admission. An execute
+   that finds no prepared state runs today's inline path; keep that path.
+7. **Engine entry points.** Add to the passive role protocol a garbler
+   constructor that takes a prebuilt table buffer and the same garbler, and a
+   function that produces that buffer without an input. The transcript bytes
+   do not change, so `stream_kats.rs` and `cargo yao-fv all` pass unchanged.
+   Any change that alters the transcript is step two of the garble item and
+   needs the user's go-ahead.
+8. **Exposure.** `enforceRoutePolicy` in
+   `packages/wallet-server/src/router/framework/enforceRoutePolicy.ts` runs
+   before setup with the publishable-key principal and `sourceIp`. If it has
+   no per-key rate limit, stop and ask before adding one. The object refuses a
+   second prepare while one is live.
+
+Acceptance: the chain's admission, connect and B re-read columns read 0 on
+the execute path; new spans `router.prepare_pair_at_setup`,
+`deriver_a.pregarble` and `deriver_b.admit_at_setup` appear before respond;
+the online protocol measures 350 ms or less at p50 on staging;
+`pnpm test:intended` passes all cases; `cargo yao-fv all` passes; the
+`router-ab-cloudflare` test target passes; composed scenarios for an
+abandoned setup, an expired prepared session, an execute after expiry and a
+retry after a lost reply pass.
+
 ## Phase 2 — Console claims at execute
 
 The passkey claim and the recovery-code route claim need only the ceremony and
@@ -322,6 +451,39 @@ Must not regress: the distinct outcomes of a refused ownership claim and a
 rejected custody route claim, exact retry, and the competing-wallet refusal.
 
 Expected gain: 150–250 ms of finalization.
+
+### Phase 2 design sheet
+
+- The two claims: `D1WalletRegistrationCommitStore.reserveAuthority` at
+  `d1WalletRegistrationCommitStore.ts` line 532, the Console passkey claim,
+  and `reserveRegistrationCustody` in
+  `router/domains/passkeyCustody/registrationCustodyOutcome.ts` line 42, the
+  route claim. Finalize calls both near `d1WalletRegistrationService.ts`
+  lines 5560–5650, beside `consumeActivated`.
+- The execute route lives in `router/domains/ed25519Yao/registration/`
+  (`routerAbEd25519YaoRegistration.ts` and the two-phase runner). After the
+  Router answers it writes the `yao_lifecycle_decisions` row, created by
+  `migrations/d1-signer/0036_r150_yao_lifecycle_decisions.sql`. Fire both
+  claims when the request is forwarded, await them with the Router's answer,
+  and write their outcomes in that same batch.
+- Storage: one additive table in a new `d1-signer` migration,
+  `registration_claim_outcomes (namespace, org_id, project_id, env_id,
+  registration_ceremony_id, claim_kind, outcome_json, recorded_at_ms)`, primary
+  key on the ceremony and the kind. Finalize's initial batch reads both rows.
+  A missing row means: call the claim as today. Never edit an applied
+  migration.
+- Console release: a route beside claim-passkey in
+  `packages/wallet-console-server-ts/src/walletPlacement/`,
+  `/internal/wallet-placement/v1/release-passkey-claim`, body `{ walletId,
+  credentialId, registrationCeremonyId }`. It releases only when the home
+  assignment is terminal without a session and the claim's owner is this
+  wallet. It is idempotent. `D1WalletHomeDirectory.complete` in
+  `walletPlacement/d1.ts` line 270 keeps its refusal for a completed
+  registration.
+- Tests: `node tests/e2e/registration-credential-reservation.e2e.mjs` in
+  `seams-wallet`; the composed registration scenarios in `seams-monorepo`,
+  23 cases; the custody paragraph of `docs/intended-behaviours.md` near
+  lines 540–548.
 
 ## Phase 3 — Completion off the response path
 
@@ -358,6 +520,37 @@ retries preserve later display updates; one completion per registration; the
 session binding, expiry and durable commit of the seal.
 
 Expected gain: 150–300 ms of finalization.
+
+### Phase 3 design sheet
+
+- Completion today: `publishCommittedRegistration(input.homeCompletion,
+  committed)` in `walletRegistrationEstablishedSessionIssuer.ts`, the fresh
+  path near line 649 and the retry path near line 746, through
+  `WalletRegistrationHomeAuthority.publishEstablished` to Console's
+  `/internal/wallet-placement/v1/complete`. The journal completion batch, the
+  last finalization call, waits for the acknowledgement.
+- Outbox: one additive table in a new `d1-signer` migration,
+  `registration_completion_outbox (namespace, org_id, project_id, env_id,
+  wallet_id, registration_ceremony_id, session_digest, request_json, state,
+  attempts, created_at_ms, updated_at_ms, next_attempt_at_ms)` with `state` in
+  `pending`, `done`, `failed`. The session transaction inserts the row as
+  `pending`. The route replies, then sends the Console request from the
+  request's background continuation and marks the row `done`. The `scheduled`
+  handler in `packages/wallet-server/src/hosted-wallet-gateway-worker.ts`,
+  line 16, drains `pending` rows whose `next_attempt_at_ms` has passed, in a
+  bounded batch, with the same idempotent request. A lost reply reconciles
+  with `session_digest` as today.
+- Readers to check for a pending completion: Console
+  `walletPlacement/gatewaySession.ts`, `authenticationDispatch.ts` and
+  `home.ts` in `seams-monorepo`; the Gateway's continuation routing in
+  `walletPlacement/regionalDispatch.ts` and `localSessionRouting.ts`.
+- Spec and tests: `docs/intended-behaviours.md` near lines 553–560; R155B rule
+  6 near `docs/refactor-155B.md` line 204; `passkey.registration.contract.test.ts`;
+  `tests/e2e/registration-activation-completion.scenario.mjs`; the private
+  composed scenarios for a lost completion reply and mixed registration.
+- Seal check: the tail's `cpuTime` for `/wallets/register/near-provisioning`
+  reads 132–386 ms today with the development module. Expect under 60 ms with
+  a release build.
 
 ## Phase 4 — Close the Yao execution gap to the July probe
 
@@ -427,17 +620,33 @@ change before Phase 1, about 35 ms after it. With Phase 1, the online
 protocol should measure 250–350 ms and the Router's execute span
 500–600 ms; both are reported per part in Phase 8.
 
+### Phase 4 notes
+
+- Frame profile: `role_protocol.rs` is generic over `C: FixedChunkProfile`;
+  the production value is bound where `run_activation_deriver_a` in
+  `crates/router-ab-ed25519-yao/src/duplex.rs` reaches `execution.rs`.
+  `Chunk64KiB`, `Chunk128KiB` and `Chunk256KiB` exist in
+  `passive/stream.rs`. The probe used 128 KiB, 17 frames. The frame count of
+  a production run is in B's duplex records.
+- Compute prewarm: the Phase 0 micro-workload function, run when the counter
+  is zero, in `/internal/prewarm` and in the wallet-start handler.
+- Write gate: the `Complete` command near `deriver_a_pair.rs` line 860 is a
+  synchronous SQLite write in the object; the output gate holds the reply
+  until it is durable. The Router's `finish_registration` in
+  `router_wallet.rs` is the second durable write. Before moving anything,
+  establish whether a retry reads A's `Completed` record through
+  `DeriverAPairDoCommandV1::Read`.
+
 ## Phase 5 — Setup for direct API callers
 
 Users of the hosted menu do not wait for setup. Direct callers of
 `registerWallet` do, about 0.7 s from Tokyo.
 
-- [ ] Run the Console registration-setup request beside the Gateway's ceremony
-  inserts. The Gateway generates the ceremony identity, inserts under it, and
-  sends the Console request at the same time; the response waits for both. A
-  refused Console request rolls the ceremony back in one call on that failure
-  path only. Authentication stays inside the Console request and stays before
-  any response.
+- [ ] Batch the Gateway's setup D1 writes into one batch after the Console
+  reply, and keep the admission read first. Do not insert before the Console
+  request answers: that request is also the publishable-key authentication
+  (`resolveWalletRegistrationContext` in `walletRegistrationRoutes.ts` near
+  line 2067), and a write for an unauthenticated caller is an abuse surface.
 - [ ] Move Console's API-key usage update off the request. It records the
   last-used timestamps and consumes no quota, as R155F classified it.
 - [ ] Decide the setup preflight. Two options exist without a new Worker: a
@@ -446,8 +655,8 @@ Users of the hosted menu do not wait for setup. Direct callers of
   setup preflight's share with the hosted test first; it is 125–191 ms serial
   from Tokyo.
 
-Expected gain: 100–150 ms from the overlap and up to 190 ms from the
-preflight, for direct callers only.
+Expected gain: 50–100 ms from the batch and up to 190 ms from the preflight,
+for direct callers only.
 
 ## Phase 6 — The distance to the Gateway
 
@@ -466,10 +675,16 @@ phase decides; it implements nothing.
 
 - [ ] Module size. Each Deriver module was 15.6 MB with a 1.3 MB name section
   and 6.2 MB of data. Commit `3f3800a4` now strips the name and `.debug_`
-  sections after `worker-build` in release builds. Measure what the data
-  holds; the embedded circuit schedules are the candidates. Measure a new
-  isolate's start before and after with `isolate-starts.py`, on the stripped
-  module first.
+  sections after `worker-build` in release builds. The data is the embedded
+  circuit schedules in `crates/ed25519-yao/artifacts/passive-benchmark-v1/`:
+  `activation-private-output.schedule.bin` 2.68 MB,
+  `lane-materialization.schedule.bin` 2.82 MB and
+  `export-private-output.schedule.bin` 56 KB; the two test-only schedules are
+  behind `#[cfg(test)]` in `passive/schedule.rs`. Measure a new isolate's
+  start before and after with `isolate-starts.py` on the stripped module
+  first. If the load cost is the schedules, compare a compressed schedule
+  decoded on first use per isolate against today's; the decode is CPU the
+  prewarm can absorb.
 - [ ] The Deriver B stall. One preparation took 14.6 s after a version switch,
   with a 506 ms D1 read, and refused the pair as not prepared. Reproduce with a
   version switch on staging and record the cause. Add no retry without one.
@@ -496,6 +711,77 @@ phase decides; it implements nothing.
 - [ ] Verify every signature independently, restore staging, and verify the
   restoration, as the R155F and R155G drivers do.
 - [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
+
+## Delegation sheet
+
+This plan is implemented by an agent that did not write it. The rules below
+replace judgment calls that need the authors' context.
+
+Read before starting a phase: `AGENTS.md` of both repositories; this plan;
+R155G's Phase 3 reviews; R155F's serial chain record;
+`docs/router-ab/ed25519-yao.md`; the registration section of
+`docs/intended-behaviours.md`; `tests/e2e/hosted-product/README.md` in
+`seams-monorepo`; the scripts of the latest run folder under `.artifacts/`.
+
+Stop and ask the user before any of these:
+
+- Deploying anything to staging, creating a Cloudflare resource, or starting
+  a comparison driver. Staging is shared; check for a running `experiment.py`
+  and for live versions equal to the known originals first.
+- A migration of a role database or the Gateway D1, beyond the two additive
+  tables this plan names.
+- Any change to the transcript order of the Yao protocol, any regenerated
+  golden or vector, and any change to the admission identity beyond item 5
+  of the Phase 1 design sheet.
+- A new quota, rate limit, environment variable, secret, Worker, route family
+  or configuration framework.
+- Any change to R155B's rules or to the intended behaviours beyond the
+  paragraphs each phase names.
+- A failing test whose classification is unclear after one reading, and any
+  production fix that a lower-authority test asks for.
+- A hosted number that moves the wrong way by more than its spread.
+- Anything that touches production or publishes a package.
+
+Commands, narrowest first:
+
+- Public contracts: `pnpm test:intended` in `seams-wallet`, 133 cases, two of
+  them on debug builds.
+- Yao formal verification and vectors: `cargo yao-fv all`; individual tasks
+  `just ed25519-yao-fv-*`.
+- Rust tests: `cargo test --manifest-path crates/router-ab-cloudflare/Cargo.toml`,
+  whose `bindings.rs` target holds 186 cases; `cargo test --manifest-path
+  crates/ed25519-yao/Cargo.toml`.
+- Storage and lifecycle scenarios: `node tests/e2e/<name>.scenario.mjs` and
+  `node tests/e2e/<name>.e2e.mjs` in `seams-wallet`.
+- Wallet Server: `pnpm -C packages/wallet-server type-check`,
+  `pnpm -C tests type-check:wallet-state`.
+- Private: `pnpm check`, `pnpm test:relayer`, the composed registration
+  scenarios, and the hosted latency test per its README.
+- Builds: `crates/router-ab-cloudflare/scripts/build-strict-worker.sh <role>`
+  for the custody Workers, release by default; `WASM_SDK_BUILD_MODE=prod`
+  for every SDK and server WASM build.
+- Local Deriver CPU profile: `node .artifacts/r155g-deriver-cpu/run.mjs` in
+  `seams-wallet`, then `python3 .artifacts/r155g-deriver-cpu/split.py results --names`.
+- Native floor: build `benchmark_phase5_role` with
+  `--manifest-path crates/ed25519-yao/Cargo.toml --features passive-benchmark`;
+  run role `b` then role `a` from a short working directory with relative
+  socket names, and time the `a` process from one Python process.
+
+Evidence and commits:
+
+- Each hosted or local measurement gets `docs/evidence/refactor-155h-<topic>-<hosted|local>.md`
+  and a sanitized `.json` beside it, in the shape of the R155G evidence
+  files. Private run directories are `.artifacts/r155h-<topic>-hosted/` in
+  `seams-monorepo`.
+- Work on `dev` in the main checkouts of both repositories, own files only,
+  staged by name. Messages follow the existing form: `perf(custody): ...`,
+  `perf(wallet): ...`, `test: ...`, `docs: ...`. Production fixes, valid
+  test updates and stale-test deletions go in separate commits.
+- Every comparison: a discarded warm-up group, at least six wallets per
+  measured group, release builds with recorded build stamps, p50 and p90,
+  independent signature verification, restoration and its verification.
+- Mark each item of this plan done only with its evidence or a recorded
+  reason, in the same commit as the change.
 
 ## Scope limits and completion
 
