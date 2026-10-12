@@ -846,10 +846,41 @@ each write, since one of the old primaries was in Singapore.
 
 - [x] Measure the hold after a durable write by location. Done; the record
   holds eight locations.
-- [ ] Confirm that D1 follows the object hold: time one write batch against
-  a D1 database with a Tokyo primary. Production testnet's Derivers already
-  run at `aws:ap-northeast-1` with Tokyo primaries; a read-only look at their
-  write timing needs the user's go-ahead.
+- [x] Check that the Hong Kong hold is not a variation of one evening. Done:
+  52 staging runs of October 7 to 12 hold 1,662 Router wallet-object
+  commands, and every run's median wait is 39–44 ms. Sixteen new Hong Kong
+  objects measured 33–40 ms each, and sixteen new Singapore objects 2–5 ms.
+- [x] Check that D1 follows the object hold. Done from older tails: Deriver
+  B's write batch measured 62 ms at the median with a Singapore primary and
+  62 ms with a Hong Kong primary, called from Hong Kong both times. The
+  distance to Singapore, about 35 ms, equals the difference of the holds.
+
+**The user's APAC users** (stated October 12): most in Singapore and
+Malaysia, some in Hong Kong and mainland China. That makes Singapore the
+candidate, not Tokyo. Estimates against the Hong Kong home, for a
+registration after setup: about 0.6 s faster for a user in Singapore or
+Malaysia, and equal to 0.2 s faster for a user in Hong Kong, whose added
+distance uses up most of the saved holds.
+
+Two cautions from the same record. Every city stalls about one write in
+twenty, and Singapore's stalls were the largest on the evening measured:
+five of 168 writes waited 218–633 ms. With about 13 writes in series, one
+registration in three would meet such a stall if that rate holds. Second,
+the benchmark pair met a new isolate in 20 of 31 ceremonies in Singapore
+against 7 and 10 of 31 in Hong Kong, in one run each. Neither is settled.
+The measurement seat is a third point: from Tokyo, a Singapore home shows
+about 70 ms of round trip per exchange, so the hosted driver needs a
+Singapore vantage or the server-side totals to show what users get.
+
+Production's targets do not match this choice today. The testnet lane has
+its APAC Gateway in Singapore, its Derivers and their databases in Tokyo and
+its Signing Worker in Osaka, so every custody call crosses Singapore and
+Japan. The mainnet lane places its APAC Gateway in Hong Kong.
+- [ ] Go or no-go for Singapore, with the user's go-ahead for one new
+  resource: an empty D1 database with a Singapore primary and a Worker placed
+  at `aws:ap-southeast-1` that writes to it for a day. Read the median, the
+  99th percentile and the stall rate. A Singapore primary came up once in
+  eight creations so far, so the creation repeats until it reports `SIN`.
 
 - [ ] Count the reads and writes per request from the Phase 0 D1 record.
   Finalization is write-heavy, so D1 read replication near a regional Gateway
@@ -857,12 +888,12 @@ each write, since one of the old primaries was in Singapore.
 - [ ] Cost the Tokyo home: a role database set and a Console lane per home,
   the R155G Phase 1 cutover method per lane, and a hazard list per home.
 - [ ] Decide: keep the APAC home in Hong Kong and record the cost, or move
-  it to Tokyo. The move repeats the October 10 method for the three role
+  it to Singapore. The move repeats the October 10 method for the three role
   databases and the October 11 method for Console, adds the regional Gateway
-  database, and pins the Gateway to `aws:ap-northeast-1`. A D1 primary cannot
-  be placed by city: a database is created until it reports a Tokyo primary.
-  Wallet objects never move, so the move starts with new wallets only, which
-  staging's disposable wallets allow.
+  database, and pins the Gateway to `aws:ap-southeast-1`. A D1 primary cannot
+  be placed by city: a database is created until it reports the wanted
+  primary. Wallet objects never move, so the move starts with new wallets
+  only, which staging's disposable wallets allow.
 
 ## Phase 7 — Tails
 

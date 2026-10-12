@@ -55,6 +55,83 @@ wrote and fetched nothing rose by the same amount in every location.
   of finalization. At 35–50 ms each that is 450–650 ms. At Tokyo's hold, and
   if D1 follows it, the same chain would wait about 130–200 ms.
 
+## Is the Hong Kong hold stable?
+
+Yes. The staging tails kept since October 7 hold 1,662 Router
+wallet-object commands in 52 hosted runs, at all hours of six days. Each
+command writes once, and its wall time less its CPU time is the hold plus a
+few milliseconds. The median of every run is between 39 and 44 ms. The APAC
+Gateway was placed in Hong Kong for the whole period, and the placement
+record of October 8 found the wallet objects there.
+
+A second probe created new objects in each city and measured each one:
+
+| Object colo | Objects | Hold per object, range | Median |
+| --- | ---: | ---: | ---: |
+| SIN | 16 | 2–5 | 3 |
+| HKG | 16 | 33–40 | 37 |
+| NRT and KIX | 8 | 8–25 | 10 |
+
+The hold belongs to the location, not to one object.
+
+## Stalls
+
+A third probe wrote to three new objects per city for about 50 seconds each,
+56 writes per object.
+
+| Object colo | Writes | p50 | p90 | p99 | Max | Slow writes | Their size | Mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| SIN | 168 | 4 | 5 | 527 | 633 | 10 | 26–633 | 19 |
+| HKG | 168 | 38 | 44 | 126 | 320 | 7 | 62–320 | 43 |
+| NRT and KIX | 168 | 11 | 14 | 119 | 179 | 7 | 52–179 | 16 |
+
+A slow write is one more than 20 ms above the city's median. Every city has
+them, about one write in twenty, and most of them fall near multiples of
+five seconds of the object's age. Singapore's were the largest that evening: five of 168
+writes waited 218–633 ms. Singapore still has the lowest median, and its mean
+is close to Tokyo's and less than half of Hong Kong's. The cause of the
+five-second cycle was not investigated. The Cloudflare API returned gateway
+timeouts to two deployments during these runs, so the size of the stalls
+needs a repeat on another day.
+
+Older staging data gives a second view of Singapore. Until the move of
+October 10, Deriver B's role database had a Singapore primary and Deriver A's
+an Osaka primary; both were called from wallet objects in Hong Kong. The
+write batch of each admission, in milliseconds:
+
+| Role | Primary | Period | Writes | p50 | p90 | p99 | Max | More than 100 ms over the median |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Deriver A | HKG | October 11 to 12 | 245 | 59 | 76 | 247 | 388 | 10 |
+| Deriver A | KIX | October 8 to 10 | 240 | 84 | 99 | 142 | 180 | 0 |
+| Deriver B | HKG | October 11 to 12 | 244 | 62 | 72 | 94 | 151 | 0 |
+| Deriver B | SIN | October 8 to 10 | 240 | 62 | 107 | 222 | 315 | 4 |
+
+Deriver B's median did not change with the move: the distance to Singapore
+went away and the Hong Kong hold replaced it. A database write therefore
+follows the object hold of its primary's location. With the Singapore primary,
+four of 240 writes stalled, 222–315 ms.
+
+## The ceremony in three cities
+
+The benchmark pair, yield variant with the SIMD build, 31 ceremonies per run,
+with the Worker placement changed between runs.
+
+| Run | Client wall p50 | A samples | A CPU p10 | A CPU p50 | A over 400 ms | B samples | B CPU p10 | B CPU p50 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Singapore 1 | 946 | 0 |  |  |  | 31 | 153 | 275 |
+| Singapore 2 | 960 | 31 | 184 | 572 | 20 | 31 | 195 | 340 |
+| Hong Kong 1 | 407 | 31 | 168 | 267 | 10 | 30 | 151 | 175 |
+| Hong Kong 2 | 684 | 31 | 184 | 274 | 7 | 31 | 158 | 175 |
+| Tokyo 1 | 545 | 9 | 161 | 662 | 7 | 6 | 234 | 265 |
+| Tokyo 2 | 427 | 16 | 238 | 277 | 1 | 16 | 244 | 260 |
+
+Inconclusive for machine speed. The fastest ceremonies cost about the same
+CPU in all three cities. The medians differ because of first runs in new
+isolates: 20 of 31 ceremonies in the Singapore run with a complete tail, 7
+and 10 of 31 in Hong Kong. One run per city pair is too little to call that a
+property of Singapore. The first Singapore run lost Deriver A's tail, and the
+Tokyo tails delivered 9 and 16 of 31 invocations.
+
 ## Limits
 
 - The probe measures object storage. D1 uses the same storage layer, and
