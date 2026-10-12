@@ -1,7 +1,8 @@
 # R155G — One APAC anchor, hidden exchanges and custody execution
 
 Status: **in progress.** Phase 1 is done on staging and open for both production
-lanes. Phases 2 and 3 are partly implemented. Phase 4 is planned.
+lanes. Phase 2 is implemented; its last hosted checks are running. Phases 3 and 4
+are complete. The final comparison is running.
 Date: October 11, 2026.
 
 This plan owns the optimizations that [R155F](refactor-155F-registration-round-trips.md)
@@ -332,6 +333,8 @@ without R155F's later Gateway changes.
   extension on the same seeds shows the peer the difference of two choice
   vectors. The transfer module states that it has no reusable base state. The
   bound of the gain is the base-transfer CPU, 26 ms on a laptop for both roles.
+  [R155H](refactor-155H.md) Phase 1 holds the precomputation as an optional
+  last step under the same one-use rule.
 - [x] Review an early Deriver admission, after respond and before execute: not
   possible as first described. The admission stores the digest of the custody
   binding, and the binding's outer transcript digest is the pair digest
@@ -342,10 +345,15 @@ without R155F's later Gateway changes.
   session and the epoch alone could run early, but the execution would still
   record or verify its binding, and the attempt-conflict rule would need a new
   home. That changes the admission identity for one D1 write per Deriver, about
-  50 ms on staging. Not taken.
-- [ ] Measure the isolate cost of module size. Each Deriver module is 15.6 MB
-  with a 1.3 MB name section and 6.2 MB of data. Remove what is not needed at
-  run time, then measure a new isolate's start.
+  50 ms on staging. Not taken. [R155H](refactor-155H.md) Phase 1 takes the
+  admission identity change, because the pair preparation and the garbling
+  ride on it.
+- [x] Remove debug metadata from release Worker modules. Commit `3f3800a4`
+  strips only custom `name` and `.debug_*` sections after worker-build. The
+  exact staging modules lost 1,300,897 bytes for A and 1,346,077 bytes for B.
+  Cloudflare reported startup at 7 → 8 ms for A and 6 → 6 ms for B. This
+  establishes smaller modules, with no demonstrated startup latency gain.
+  Runtime data stays intact. Nine candidate registrations and signatures passed.
 - [x] Keep the two deliberate checks: the second D1 round trip of each admission,
   and Deriver B's read of the admitted session before use. Both are kept.
 
@@ -359,7 +367,7 @@ R155F's local profile places 78–80% of finalization's sampled CPU in
 `addSigningSessionSealLock`, modular arithmetic in the Shamir WASM module. The
 seal is already computed beside home publication. The CPU itself remains.
 
-- [ ] Measure the seal's CPU in isolation on a Worker, not a laptop. A bound
+- [x] Measure the seal's CPU in isolation on a Worker, not a laptop. A bound
   exists from the staging records of the hosted run of October 11
   (`.artifacts/r155g-combined-hosted` in `seams-monorepo`): the Gateway used
   202 ms of CPU at the median for finalization (132–386 ms, 25 invocations),
@@ -377,10 +385,18 @@ seal is already computed beside home publication. The CPU itself remains.
   build as well. Measure finalization again after a deployment from published
   packages, before any decision here. A hosted comparison must build its
   candidates with `WASM_SDK_BUILD_MODE=prod`.
-- [ ] Decide between a cheaper computation and a seal off the response path.
+- [x] Choose release compilation for speed. Keep the seal in the response path.
   Both touch custody. The session must stay bound to its wallet, session and
   expiry, and the client must still receive the seal with the finalization reply.
-- [ ] Implement the chosen option, or record the concrete reason to keep the cost.
+- [x] Implement `opt-level = 3` and `wasm-opt -O3` in `a4bba328`. The
+  [local release comparison](evidence/refactor-155g-seal-release-local.md)
+  measured 2.062 → 1.728 ms. The isolated Cloudflare probe measured about
+  5.44 ms for published 0.9.0 and 5.86 ms for the candidate, with overlapping
+  batch ranges. No hosted speed gain is established. The earlier 160 ms
+  estimate does not apply to release sealing. Keep the synchronous seal:
+  moving it would change the response contract for a roughly 6 ms cost.
+  The compiler change keeps the same arithmetic and exact output, with a
+  local speed gain and a 26 KB size increase.
 
 ## Phase 5 — Measure and record
 
