@@ -251,6 +251,8 @@ struct RoleIsolateCounterEventV1 {
     role: &'static str,
     operation: &'static str,
     execution_index: u32,
+    /// What became of this isolate's prewarm ceremony before this run.
+    prewarm: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     trace_id: Option<String>,
 }
@@ -264,12 +266,14 @@ fn begin_role_protocol_v1(
     role: &'static str,
     operation: &'static str,
 ) -> u64 {
+    crate::ed25519_yao_prewarm::note_pair_work_arrived_v1();
     let event = RoleIsolateCounterEventV1 {
         event: "router_ab_yao_role_isolate_counter_v1",
         role,
         operation,
         execution_index: ROLE_ISOLATE_PROTOCOL_RUNS
             .fetch_add(1, core::sync::atomic::Ordering::Relaxed),
+        prewarm: crate::ed25519_yao_prewarm::prewarm_state_label_v1(),
         trace_id: trace_id.map(CloudflareTraceIdV1::as_hex),
     };
     if let Ok(serialized) = serde_json::to_string(&event) {
