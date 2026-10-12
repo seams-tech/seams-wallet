@@ -17,10 +17,38 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
-## 0.9.1
+## 0.9.2
 
 Status: **prepared, not published.** Patch release with no wire, schema or
-protocol change. A 0.9.0 deployment and a 0.9.1 deployment work together.
+protocol change. It differs from 0.9.1 by one build entry.
+
+- **Why it is needed.** The private wallet console also imports
+  `attachConfirmSurfaceResizeChoreographer` from the build module of
+  `confirm-surface-resize` by path. Only the lazy confirmation bundle uses the
+  function inside the SDK, so the module build dropped the export. The private
+  application build fails on 0.9.1 with one missing-export error. Release 0.9.0
+  hid that error behind the two absent modules. The module is an explicit
+  build entry now and keeps every export.
+- **Validation.** The private console builds to completion against the
+  corrected module build, and fails on the published 0.9.1 with that one error.
+  All 13 value imports the console makes by path resolve to an existing export.
+  The second private application builds on 0.9.1. The example build and the
+  packed-package check pass.
+- **Check before a release.** Build the private applications against the
+  candidate module build. The public repository has no consumer of these
+  imports, so its own checks cannot find a dropped export.
+
+## 0.9.1
+
+Status: **published October 12, 2026, 05:02 UTC.** Patch release with no wire,
+schema or protocol change. A 0.9.0 deployment and a 0.9.1 deployment work
+together. It does not repair the private application build: see 0.9.2.
+
+- **Publication.** CI on [pull request 35](https://github.com/seams-tech/seams-wallet/pull/35)
+  passed on `2a939d7e`. `main` is at the merge commit `31f41eb9` with the same
+  tree. `release-wallet-packages.yml` run `38203145428` published
+  `@seams/wallet-server@0.9.1` (1,228 files) and `@seams/wallet@0.9.1`
+  (1,999 files) with provenance. The private repository stays on 0.9.0.
 
 - **Why it is needed.** The private wallet console renders the SDK's own
   confirmation surfaces and imports their build modules by path. Release 0.9.0

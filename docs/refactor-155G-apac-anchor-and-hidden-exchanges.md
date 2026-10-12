@@ -1,6 +1,7 @@
 # R155G — One APAC anchor, hidden exchanges and custody execution
 
-Status: **in progress.** Phase 1 started on staging. Phases 2 to 4 are planned.
+Status: **in progress.** Phase 1 is done on staging and open for both production
+lanes. Phases 2 and 3 are partly implemented. Phase 4 is planned.
 Date: October 11, 2026.
 
 This plan owns the optimizations that [R155F](refactor-155F-registration-round-trips.md)
@@ -132,16 +133,20 @@ with the `apac` hint until one lands in Hong Kong, copy under a write freeze,
 compare the dumps, change the deployment target, deploy, verify, and keep the
 old database until every stored version that binds it is renewed or retired.
 
-- [ ] Staging: a Console database with a Hong Kong primary, the copy, the
+- [x] Staging: a Console database with a Hong Kong primary, the copy, the
   compared dumps, `placementRegion: aws:ap-east-1` and the new database in
-  `deployment/console/targets.json`, and a deploy through `deploy-console-backend.yml`.
-- [ ] Staging: verify. Console invocations report `HKG`, its database query
-  reports `served_by_colo: HKG`, tenant activation passes, one registration and
-  one signature pass through the new layout.
-- [ ] Staging: rebind the comparison Console version `4feb30ae` to the new
-  database with `rebind_exact.py`. Every hosted driver prepared before the move
-  carries the old database id in its `candidate-console.json` and must prepare
-  again. Record the old Console versions beside the earlier hazard list.
+  `deployment/console/targets.json`. The deploy was local, not through
+  `deploy-console-backend.yml`; the record gives the reason.
+- [x] Staging: verify. The serving Console runs in `aws:ap-east-1` and its
+  database primary is `HKG`. Tenant activation passes. The
+  [prewarm comparison](evidence/refactor-155g-yao-prewarm-hosted.md) registered
+  and signed 24 wallets through a Console on the Hong Kong database.
+- [x] Staging: comparison Console versions. Closed without a rebind: Cloudflare's
+  version read failed for TypeScript Workers, so `rebind_exact.py` could not copy
+  `4feb30ae`. A comparison deploys its Console against the new database. Every
+  hosted driver prepared before the move carries the old database id and must
+  prepare again. Console versions `29d08e63`, `d9f32622` and `4feb30ae` bind the
+  Tokyo database and must not serve again.
 - [ ] Mainnet: Console database and pin, Deriver B database, Signing Worker
   database. Add `d1PrimaryColo: HKG` for the three roles and the Console lane.
 - [ ] Production testnet: Gateway pin and database, Console pin and database,

@@ -34,16 +34,16 @@ same compatible release.
 
 ## Upgrading to 0.9.0
 
-Pin the application package and backend package to **0.9.1**, the current patch
+Pin the application package and backend package to **0.9.2**, the current patch
 release of 0.9, and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 
 ```sh
 # Application
-pnpm add @seams/wallet@0.9.1
+pnpm add @seams/wallet@0.9.2
 
 # Backend deployment
-pnpm add @seams/wallet-server@0.9.1
+pnpm add @seams/wallet-server@0.9.2
 ```
 
 This release changes the registration contract and the wallet iframe protocol. The
