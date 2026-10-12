@@ -99,6 +99,44 @@ platform and by 9% locally. Deriver A's CPU falls from 203–258 ms to
 164–176 ms, and Deriver B's by 11–17%. The last pair of runs landed on a
 slower machine; the difference holds there.
 
+## The first ceremony of an isolate
+
+A fourth series measures what a first run costs after the module is loaded.
+Ten cycles, Tokyo, no placement, the yield variant with the SIMD build for
+both roles. Each cycle deploys a new version of both Workers, sends Deriver A
+one request that runs no ceremony, waits two seconds and runs five ceremonies.
+The load request does not reach Deriver B.
+
+| Cycle | Client wall, first | Client wall, later | A CPU, first | A CPU, later | B CPU, first | B CPU, later |
+| ---: | ---: | --- | ---: | --- | ---: | --- |
+| 1 | 924 | 313, 283, 257, 280 | 547 | 197, 152, 163, 154 | 328 | 179, 169, 154, 169 |
+| 2 | 1086 | 457, 341, 462, 401 | 557 | 224, 166, 226, 194 | 265 | 199, 146, 196, 177 |
+| 3 | 1051 | 336, 345, 305, 301 |  |  |  |  |
+| 4 | 889 | 365, 294, 279, 251 | 565 | 211, 185, 183, 160 | 162 | 164, 176, 170, 148 |
+| 5 | 987 | 350, 324, 313, 360 | 647 | 178, 155, 150, 154 | 282 | 148, 144, 134, 139 |
+| 6 | 947 | 269, 255, 303, 284 | 631 | 170, 161, 184, 191 | 301 | 160, 151, 177, 161 |
+| 7 | 927 | 253, 262, 266, 280 | 572 | 152, 155, 150, 188 | 329 | 150, 157, 172, 151 |
+| 8 | 1743 | 579, 463, 582, 576 | 869 | 243, 221, 288, 287 | 466 | 213, 209, 256, 256 |
+| 9 | 1424 | 405, 375, 471, 406 | 1015 | 310, 265, 334, 313 | 263 | 162, 170, 161, 158 |
+| 10 | 915 | 284, 274, 274, 265 | 541 | 180, 170, 189, 167 | 323 | 159, 150, 148, 163 |
+
+All values are milliseconds. The tail delivered no invocation in cycle 3, so
+that cycle has no CPU values. Cycles 8 and 9 ran on slower machines.
+
+| | First ceremony | Later ceremonies |
+| --- | ---: | ---: |
+| Client wall | 889–1,086, two at 1,424 and 1,743 | 251–582, median 313 |
+| Deriver A CPU | 541–647, two at 869 and 1,015 | 150–334, median 184 |
+| Deriver B CPU | 162–466, median 301 | 134–256, median 162 |
+
+A loaded module is not a warm one. The first ceremony costs Deriver A about
+390 ms of CPU over a later ceremony and the client about 670 ms. The likely
+cause is that the platform compiles a function when it first runs; the runs
+do not separate that from other first-use costs. A request that only loads
+the module does not remove the cost. Production's wallet objects start with
+such a request, and every staging execution of October 12 was the first
+protocol run of its isolate.
+
 ## Limits
 
 - A benchmark pair is not production. Production runs the roles in two wallet

@@ -371,6 +371,59 @@ stays. The oblivious transfer, the
 garbling, the evaluation, the sealing, the delivery and the two Router
 commands stay.
 
+### What the October 12 tails add
+
+Read from the tails of the [yield and SIMD comparison](evidence/refactor-155h-yield-simd-hosted.md),
+36 executions with the warm-up groups. No new deployment. The chain table
+of Phase 4 puts these waits under admission, connection and re-read; the
+tails show what they are.
+
+| Wait on the execute path | Measured | Count |
+| --- | ---: | ---: |
+| One database round trip from a Deriver wallet object, read or write | 53–65 ms at the median | 105 |
+| One database read from the stateless Deriver Worker, wall less CPU | 12–20 ms | 15 |
+| Deriver A starts its connection, until Deriver B's stateless Worker starts | 43–63 ms, median 50 | 24 of 25 |
+| Deriver B's stateless Worker starts, until its wallet object starts | 7–142 ms, median 70 | 25 |
+| Stateless Deriver A Worker starts, until its wallet object starts | 4–33 ms in 12, 217–412 ms in 8 | 20 |
+| Stateless Deriver B Worker starts, until its wallet object prepares | 1–75 ms in 26, 166–242 ms in 8 | 34 |
+| One Router wallet-object command, as the Router Worker sees it | 59–74 ms at the median, 3–18 ms of it CPU | 108 |
+| Deriver A's background settle, one database write after its completion write | 119–131 ms | 3 read |
+
+What the code says about them:
+
+- **Fifty milliseconds before the connection leaves Deriver A.** `execute_work`
+  in `deriver_a_pair.rs` writes the prepared record and the reservation to the
+  object's storage, then connects. The platform holds an outgoing request until
+  the object's earlier writes are durable. The steady 43–63 ms fits that hold,
+  and so does the 45 ms that every Router object command waits. The plan's
+  must-not-regress list relies on this hold for the claim: a persisted claim
+  precedes protocol material. The reservation is a different write.
+- **A slow start of a stateless role Worker in a third of the executions.**
+  The slow group uses 76–181 ms of CPU before the object call, against 3–7 ms
+  in the fast group. This fits a Worker that the serving machine had not
+  loaded. `load_deriver_b_worker` and the wallet-start request load the
+  Workers from one machine; a later request can arrive at another.
+- **Every database round trip from a wallet object costs as much as a
+  write.** The cause is not established. The object may run farther from the
+  Hong Kong primary than the stateless Worker does, or a read may wait for
+  an earlier object write.
+
+Consequences for this phase. Admission and connection at setup remove two
+of Deriver A's round trips, the 50 ms hold before the connection and the
+Deriver B Worker's start from the execute path, so the estimate of 0.3 s
+stands. The slow starts and the hold before the first protocol message stay
+at execute.
+
+- [ ] **Place these waits before coding the object states.** One measurement
+  build of the two Deriver Workers on staging, with the user's go-ahead, that
+  logs a clock reading after each await of `execute_work` and of Deriver B's
+  connection handler, the colo of each wallet object, and one extra database
+  read at the start of `execute_work` before any object write. It answers
+  three questions: whether the object runs in Hong Kong, whether a read after
+  an object write waits for that write, and how often a stateless role Worker
+  starts cold. If the object runs outside Hong Kong, a placement fix is worth
+  more than this phase and costs less.
+
 ### Phase 1 design sheet
 
 Identities today, and where each is created:
@@ -648,18 +701,35 @@ work. One item each.
 - [x] **Per-message cost and the write gate.** Both closed by the probe: the
   cost was the missing event-loop turn, and the time after the last frame is
   the clock's exclusion of own CPU.
-- [ ] **First run in a new isolate.** Every staging execution is one. What a
-  compute prewarm would buy is not established: the fast mode of a first run,
-  near 300 ms for Deriver A, sits 50–70 ms above the warm figure expected
-  from the benchmark pair, and the slow mode, 450–640 ms in a third of the
-  executions, may be the machine. Decide with one experiment before any
-  product code: on the benchmark pair, deploy, load the module with a request
-  that runs no ceremony, wait two seconds, run one ceremony, and repeat the
-  cycle ten times against ten later ceremonies of the same isolates. If the
-  first ceremony costs 150 ms of CPU or more over the later ones, make each
-  Deriver's wallet-start handler run one in-memory ceremony when the counter
-  is zero, bound its CPU, and measure a staging side. If not, close this
-  item with the record.
+- [x] **First run in a new isolate: the experiment.** Every staging execution
+  is one. On the benchmark pair, with the yield and SIMD builds, ten cycles of:
+  deploy a new version, load Deriver A's module with a request that runs no
+  ceremony, wait two seconds, run five ceremonies. The first ceremony of an
+  isolate used 541–647 ms of Deriver A's CPU in seven cycles and 869 and
+  1,015 ms in two; the 36 later ceremonies used 150–334 ms, median 184 ms.
+  Deriver B, whose module the load request does not reach, used 162–466 ms
+  first, median 301 ms, against a median of 162 ms later. The client's wall
+  time was 889–1,086 ms first against a median of 313 ms later. A loaded
+  module is therefore not a warm one: the first ceremony costs Deriver A
+  about 390 ms of CPU over a later one, above the 150 ms bar.
+- [ ] **First run in a new isolate: the compute prewarm.** Implemented in
+  commit `f33e071f` and verified locally: 519 native tests of the crate, the
+  13 release cases of the local Yao contract and the 14 cases of the
+  registration contract. The staging side is open. `ed25519_yao_prewarm.rs` in
+  `crates/router-ab-cloudflare` runs one activation ceremony in memory, both
+  roles in one isolate over an in-memory transport, on fixed public inputs
+  from `build_activation_prewarm_pair_v1`. Each Deriver's pair object starts
+  it from its wallet-start request with `wait_until`, once per isolate. It
+  turns the event loop after every message and stops at the next turn when
+  any other request reaches a pair object of the isolate, so it never holds
+  the CPU against real work for more than one message. Its output is
+  discarded, and it reads no storage, no secret and no request data. Each
+  protocol start logs the prewarm state beside the isolate counter, and the
+  prewarm logs `router_ab_yao_role_isolate_prewarm_v1` with its outcome. Open
+  questions for the staging side: how often the prewarm completes inside the
+  prompt, the CPU of both Derivers for an execution after a completed
+  prewarm, and the cost of a setup that nobody finishes, about one ceremony of
+  CPU per Deriver isolate.
 - [x] **WebAssembly SIMD for release Workers.** `build-strict-worker.sh` now
   builds every release Worker with `-C target-feature=+simd128`. No source
   line changes: the compiler vectorizes the label, block and buffer
@@ -707,10 +777,10 @@ bookkeeping, one D1 round trip per Deriver, and a protocol of about 630 ms.
   holds the same yield as production's transport.
 - A Worker clock span plus the tail's CPU time for the same invocation is
   the real duration. Never compare a clock span with a client-side wall time.
-- Compute prewarm: `durable_object/wallet_startup.rs` holds the start
-  handler; `passive/phase5_wasm_benchmark.rs` behind the
-  `passive-wasm-benchmark` feature holds an in-memory session for the export
-  circuit.
+- Compute prewarm: `ed25519_yao_prewarm.rs` holds it, and the two pair
+  objects start it on `wallet_startup::PATH`. A staging execution reads its
+  state in the `prewarm` field of `router_ab_yao_role_isolate_counter_v1`:
+  `completed`, `running`, `stopped`, `failed` or `none`.
 
 ## Phase 5 — Setup for direct API callers
 
