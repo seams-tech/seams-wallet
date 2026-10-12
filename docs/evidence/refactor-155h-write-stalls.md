@@ -67,6 +67,7 @@ in Tokyo.
 | Second | October 13, 00:08–00:12 | HKG, SIN | 300 new objects used like wallet objects, three streams of three minutes, the tail of the probe Worker |
 | D1 | October 13, 00:13–00:20 | KIX | One throwaway database, six streams from a Worker in the same colo |
 | Hourly | October 13, from 00:21 | The six cities | Twelve streams and 240 wallet-shaped objects per city and round |
+| Hosts | October 13, 00:43–00:45 | SIN, HKG | 60 streams of 13 s under each of the two Worker names at once |
 
 ## The cycle
 
@@ -123,6 +124,15 @@ resolution. The two objects on host 1026f87 also shared one long pause:
 
 - **Two objects on one host share the phase.** Nine pairs of nine. By
   chance, about one pair in fifty would be within 45 ms.
+- **Objects of two Workers share it too.** The hosts run put 240 objects on
+  198 hosts. 22 pairs of objects of different Worker names were on one host;
+  21 of them paused within 20 ms of each other. Of 24 pairs under one name,
+  23 were within 25 ms. The exception is one object, 80–100 ms from its two
+  neighbours; its 13 s stream had a single long window. The cycle belongs to
+  the host, not to a Worker or its object class.
+- **The cycle is slightly longer than 5,000 ms.** Host 976f46 in Hong Kong
+  was at 628–632 ms at 23:40 and at 787–798 ms at 00:44: 160 ms later after
+  64 minutes, or 5,000.2 ms per cycle.
 - **Hosts differ.** The phases of the 209 hosts cover the whole cycle. The
   cycle is not a wall-clock event and not an event of the colo.
 - **The object's start does not set the phase.** The time from an object's
@@ -325,8 +335,8 @@ databases, and the count of 13 comes from reading the code.
 - The probe objects are new and small. Staging's objects stalled less in
   their week; the record cannot say whether the hour, the day or the objects
   make the difference.
-- No host carried objects of both Worker names, so the probe did not test
-  whether two Workers on one host share the phase.
+- Both Worker names are on one account. The probe did not test whether the
+  objects of another account on the same host pause with them.
 - D1 was measured on one database in one colo.
 - A window needs a wait 20 ms above the median. A pause shorter than that is
   not counted, so the share of cycles with a pause is a lower bound.
