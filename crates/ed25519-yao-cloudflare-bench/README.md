@@ -67,8 +67,9 @@ node scripts/run_same_account_benchmark.mjs 6 http://127.0.0.1:8787/benchmark/ac
 The driver prints one JSON report. `total_protocol_duration_ms` is Deriver A's
 clock-visible protocol time, from its protocol start to the response EOF. On a
 Worker `Date.now()` excludes the invocation's own CPU time, so the figure is
-waits only. Client wall and the tail's `wallTime` are the real durations. Local workerd on an M4 Pro measured 134 ms on
-October 12, 2026; the July 2026 local report measured 141 ms.
+waits only. Client wall and the tail's `wallTime` are the real durations.
+Local workerd on an M4 Pro measured 134 ms on October 12, 2026; the July 2026
+local report measured 141 ms.
 
 ## Deployed run
 

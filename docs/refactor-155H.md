@@ -1,7 +1,9 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
-Status: **in progress.** Phase 0 starts on October 12. Phases 1 to 3 wait
-for the decisions listed below. Date: October 12, 2026.
+Status: **in progress.** Phase 0's instrumentation and platform check are
+done; its staging group is open. Phase 4's table-frame yield is implemented
+and waits for its staging comparison. Phases 1 to 3 wait for the decisions
+listed below. Date: October 12, 2026.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -24,13 +26,17 @@ signature stays a separate metric and stays with R155G. User interaction, test
 automation, funding and blockchain confirmation stay outside the SDK metrics,
 and the inclusive timings are retained.
 
-The Yao execution has its own objective. The online protocol must move from
-about 800 ms toward the July probe's 202 ms, and the Router's execute span
-from 1,624 ms to under 600 ms. The probe never paid the Router's claim, the
-Signing Worker delivery and the Router's finish, about 250 ms of durable
-bookkeeping, so the Router span cannot reach 202 ms. The protocol can approach
-it. Phase 4 owns this objective; Phase 1 removes the admission, the
-connection and the garbling from the online path on its way there.
+The Yao execution has its own objective. The protocol's real time must move
+from about 850 ms to 450 ms or less, and the Router's execute span from
+1,624 ms to under 800 ms. The July probe's 202 ms is not a real duration: the
+Worker clock excludes an invocation's own CPU, and the same pair takes
+520–640 ms of real time today
+([probe record](evidence/refactor-155h-probe-hosted.md)). With one event-loop
+turn per table frame the pair takes 290–350 ms, and that is the reference the
+production protocol can approach. The Router's claim, the Signing Worker
+delivery and the Router's finish, about 250 ms of durable bookkeeping, stay.
+Phase 4 owns this objective; Phase 1 removes the admission and the connection
+from the online path.
 
 Decisions this plan needs before Phases 1 to 3 start:
 
@@ -94,33 +100,42 @@ Facts that shape the phases:
 - Deriver A used 340–746 ms of CPU per execution, median about 400 ms, and
   Deriver B 295–543 ms, median about 330 ms. The
   [local warm profile](evidence/refactor-155g-deriver-cpu-local.md) measured
-  86 and 84 ms for the same work. The hosted factor is 4–8 and varies twofold
-  between wallets on one version. Public single-core benchmarks put a loaded
-  server core at roughly a third to a quarter of an M4 core, so the hardware
-  explains about 2.5–4 of the factor. The rest, and the variance, come from
-  the isolate's state or its neighbours. Isolate starts do not explain it:
-  Deriver A's execution met a new isolate in 2 of 24 executions. The Deriver
-  Workers are release builds: `build-strict-worker.sh` builds `--release`
-  unless `ROUTER_AB_WORKER_BUILD_PROFILE=dev`, so the factor is not a build
-  artifact like the seal's.
-- The same ceremony ran in **202 ms p50 on deployed Workers** in the July
-  probe campaign, the same-account Service Binding WebSocket pair of the
-  phase 9b report (`crates/ed25519-yao/docs/phase9b-same-account-report.md`),
-  and in 141 ms on local workerd. The production path runs it in about
-  800 ms. The 4× between the probe and production is product wrapping, the
-  Durable Object write gate after the last frame, or isolate state. It is not
-  the hardware. In this week's candidate-4 timeline Deriver A's handler ended
-  at its clock reading 904 ms and the Router received the reply at 1,246 ms.
+  86 and 84 ms for the same work. The Deriver Workers are release builds:
+  `build-strict-worker.sh` builds `--release` unless
+  `ROUTER_AB_WORKER_BUILD_PROFILE=dev`, so the factor is not a build artifact
+  like the seal's.
+- **The platform costs about four times the laptop, steadily.** The
+  [probe record](evidence/refactor-155h-probe-hosted.md) of October 12 ran
+  the bare benchmark pair on Cloudflare: 139 ms per ceremony on local
+  workerd, 520–640 ms deployed. CPU per ceremony was 200–350 ms for A and
+  180–300 ms for B. It varies by serving machine and does not fall over
+  twenty warm repetitions, so tier-up is not the cause.
+- **A new isolate costs 400–1,000 ms of CPU once.** The first ceremony of an
+  isolate used 600–1,370 ms of CPU in Deriver A. With a placement region, 6
+  to 8 of 31 probe ceremonies met a new isolate. Production's Deriver A CPU is
+  bimodal, near 350 ms and near 600 ms; the isolate counter of Phase 0 says
+  how many production executions are a first run.
+- **The Worker clock excludes an invocation's own CPU.** A clock span
+  measures waits only. The July probe's 202 ms p50, the production
+  `deriver_a.yao_protocol` span and R155F's "CPU work that the clock does not
+  show" are this one effect. The same probe pair reads 250–400 ms by its clock
+  today and takes 520–640 ms. No delay follows Deriver A's last frame: the
+  373 ms between its last clock reading and the Router's receipt is its own
+  CPU. Real protocol time in production is the clock span plus A's CPU, about
+  850–900 ms at the median of the October 11 run.
+- **Garbling and evaluation ran one after the other.** The WebSocket
+  transport's `send` queues a message and returns without a turn of the event
+  loop. Deriver A garbled and queued all 17 table frames before it first
+  waited, so Deriver B started evaluating after the last frame was garbled,
+  and real time was the sum of both roles' CPU. One zero-length timer after
+  each table frame restores the overlap: 290–350 ms against 520–640 ms in
+  Tokyo, 455–485 ms against 620–650 ms in Hong Kong, alternating runs, same
+  protocol bytes. The production transport has the same `send`.
 - The native floor, measured on October 12: the raw 64k activation ceremony
   takes **67 ms** wall on an M4 Pro, both roles over Unix sockets, 33 frames,
   eight runs with `benchmark_phase5_role`; the native local registration
-  lifecycle through `router-ab-dev` measures 94 ms p50. WASM costs 2–3×
-  native, the deployed platform 1.4× local workerd in July, and production
-  4× the probe. A bigger server core running the same WASM would land near
-  the laptop's WASM figures, not below them.
-- The protocol's 800 ms is close to the sum of both CPU figures plus three
-  round trips. The garbler streams its tables after the oblivious transfer, so
-  garbling and evaluation overlap little.
+  lifecycle through `router-ab-dev` measures 94 ms p50. WASM costs about 2×
+  native on the laptop, and the deployed platform about 4× local workerd.
 - Garbled tables depend on the garbler's seed and the circuit, not on either
   party's input. The oblivious transfer and the evaluation need the client's
   encrypted inputs, which arrive with execute.
@@ -162,32 +177,38 @@ stale-test deletions in separate commits.
 
 ## Phase 0 — Measurement contract and the CPU factor
 
-- [ ] Add an isolate-local execution counter to Deriver A and Deriver B, a
-  module-level atomic incremented per protocol run, and log it in the
-  existing `deriver_a.yao_protocol` and `deriver_b.yao_protocol` span records.
-  The Worker tail already reports CPU per invocation; `yao-chain.py` joins
-  both.
-- [ ] Extend `yao-chain.py` with the counter and with p50, p90 and maximum per
-  column. Extend the comparison analysis with p90 for registration,
-  registration after setup and each stage.
+- [x] Add an isolate-local execution counter to Deriver A and Deriver B, a
+  module-level atomic incremented per protocol run. Both roles log
+  `router_ab_yao_role_isolate_counter_v1` with `execution_index` when a
+  protocol run starts (`begin_role_protocol_v1` in
+  `ed25519_yao_lifecycle.rs`). The Worker tail reports CPU per invocation;
+  `yao-chain.py` joins both.
+- [x] Extend `yao-chain.py` with the counter, both roles' CPU, the real
+  protocol time (clock span plus A's CPU) and p50, p90 and maximum per column.
+  On the October 11 run it reports the Router's execute at 1,636 / 1,970 /
+  2,372 ms and the real protocol at 907 / 1,217 / 1,330 ms.
 - [ ] Run one staging group of at least nine wallets on the current versions,
   after a discarded warm-up group. Classify the CPU factor. If CPU falls with
   the counter, warmness is the cause and Phase 4 takes the compute prewarm. If
   CPU is flat at four times local or more, the core is the cause and Phase 4
   takes the SIMD path.
-- [ ] Measure the core ratio directly. Add a fixed micro-workload to the
-  prewarm handler, a few thousand gate hashes and a hundred field
-  multiplications, and log its CPU with the counter. CPU per unit of work in
-  a fresh isolate, in a warm isolate and on the laptop separates the hardware
-  from the isolate's state.
-- [ ] Redeploy the phase 9b benchmark pair on today's platform and measure
-  twenty warm ceremonies. About 200 ms means the platform is unchanged and
-  the 4× is ours. 600–800 ms means the platform changed, and Phase 4 starts
-  with Cloudflare before any code.
-- [ ] Attribute the time after Deriver A's last frame. Log a clock reading
-  after the outcome record's storage write settles and one before the reply
-  leaves, so the gap splits into the write and its output gate, the seal, and
-  the response path through the stateless Worker.
+- [x] Measure the core ratio directly. Done with the benchmark pair instead
+  of a micro-workload in the prewarm handler: the same WebAssembly takes
+  139 ms per ceremony on local workerd and 520–640 ms deployed, flat over
+  twenty warm repetitions, and a first ceremony in a new isolate costs
+  400–1,000 ms of CPU more. The compute prewarm of Phase 4 reuses this
+  finding; no micro-workload ships.
+- [x] Redeploy the phase 9b benchmark pair on today's platform. The
+  [probe record](evidence/refactor-155h-probe-hosted.md) holds eleven runs.
+  By the July metric the pair reads 250–400 ms today against 202 ms then. The
+  metric is the Worker clock, which excludes own CPU; the real time is
+  520–640 ms. The platform is not the cause of a fourfold gap, because the
+  gap was a comparison of a clock span with a real duration. The pair is
+  deleted.
+- [x] Attribute the time after Deriver A's last frame. Closed without new
+  logging: the probe shows the same gap with no durable write and no object,
+  equal to Deriver A's CPU. It is the clock's exclusion of own CPU, not a
+  write gate or a response path.
 - [ ] Record the finalization span medians per group from the Gateway's server
   timing beside the browser stages, as the combined run's analysis log already
   does, so Phases 2 and 3 have a per-span baseline.
@@ -209,30 +230,13 @@ span baseline. No production change.
   "execution_index":N,"session":"<hex>","trace_id":"..."}`. The Worker tail
   delivers it in `logs[].message`; the run's `analyze.py` rows carry
   `cpuTime`, `wallTime` and `logs`, which `yao-chain.py` joins.
-- **Micro-workload.** Enable the existing `passive-wasm-benchmark` Cargo
-  feature of `ed25519-yao` for the Deriver Worker builds and call its
-  export-circuit run (`passive/phase5_wasm_benchmark.rs`, 1,275 AND gates)
-  from the `/internal/prewarm` handler in `strict_worker/mod.rs` when the
-  counter is zero. Log `{"event":"prewarm_microwork","role":...,
-  "execution_index":N}`. The tail's `cpuTime` on that invocation is the CPU
-  per unit of work. Run the same function once on the laptop through the
-  wasm-bench scripts (`crates/ed25519-yao/wasm-bench/scripts/`) for the
-  local figure.
-- **Probe pair.** The engine benchmark lives in `crates/ed25519-yao/wasm-bench`
-  with `scripts/run_phase5_streaming.mjs`. The deployed July pair, two
-  Workers on one `DERIVER_B` Service Binding WebSocket, is described in
-  `crates/ed25519-yao/docs/phase9b-same-account-report.md`. If no deployable
-  pair exists in the tree, build one from `wasm-bench` under a temporary
-  directory in `tests/` with the Derivers' `apac` placement, one warm-up and
-  twenty ceremonies. Deploying it to the staging account needs the user's
-  go-ahead first.
-- **Write gate.** In `deriver_a_pair.rs`, around the `Complete` command near
-  line 860, log `worker::Date::now()` immediately before the command, after it
-  returns, and before `Ok(outcome)`. The Router's `router.deriver_a_execute.http`
-  span end is the receipt time. `Date.now()` advances only at I/O, so the
-  distance from the last reading to the Router's receipt is the output gate
-  plus the response path; `yao-timeline.py` shows all four readings per
-  execution.
+- **Benchmark pair.** `crates/ed25519-yao-cloudflare-bench`, restored in
+  `67ac0f5d`; its README holds the toolchain, the local run and the deployed
+  run. The record of October 12 is
+  `docs/evidence/refactor-155h-probe-hosted.md`.
+- **Clock.** `Date.now()` in a Worker excludes the invocation's own CPU.
+  Read a span as waits only, and add the tail's `cpuTime` for a real
+  duration. `yao-chain.py` prints `protocol_real` this way.
 - **D1 cost per call type.** From each sample's per-request `d1.services` list
   in the run's `lifecycle.json`, and from the role databases' logs
   `bound_root_d1_timing` (`access`, `round_trips`, `batch_ms`,
@@ -256,9 +260,18 @@ objects; respond verifies the credential, mints the Yao session and issues the
 admission receipt; execute admits both Derivers, connects them, runs the
 oblivious transfer, garbles, evaluates, seals and delivers. The passkey prompt
 sits between setup and respond, and nothing of the custody path uses it. This
-phase moves the session mint to setup and the pair preparation into the
-prompt. It leaves at execute only what needs the client's inputs or the
-verified credential.
+phase moves the session mint to setup and the pair's admission and connection
+into the prompt. It leaves at execute what needs the client's inputs or the
+verified credential: the oblivious transfer, the garbling, the evaluation and
+the durable bookkeeping.
+
+The table-frame yield of Phase 4 changes this phase's scope. Garbling ahead of
+execute was planned because garbling and evaluation ran one after the other.
+With the yield they overlap, and the bound of garbling ahead is the difference
+between A's garbling time and B's evaluation time, 50–150 ms on the platform.
+That does not pay for a 2.1 MB table buffer in an object, a second engine
+entry point and a one-use rule for buffered tables. Garbling ahead is
+therefore a deferred option, not a step.
 
 R155G reviewed two smaller versions of this move and declined both. The
 admission stores the digest of the custody binding, whose pair digest covers
@@ -267,11 +280,10 @@ respond reply; an admission bound to the session and the epoch alone would
 change the admission identity for about 50 ms per Deriver. Deriver B's object
 accepts A's connection only after its own admitted preparation, which carries
 the client's input today. The base transfer seeds must serve exactly one
-extension. This phase takes the admission identity change because the pair
-preparation and the garbling ride on it, worth ten times the admission alone.
-It splits B's preparation into a setup-time admission and an execute-time
-input, so the connection is accepted at setup. The one-use rule for seeds and
-tables is stated below.
+extension. This phase takes the admission identity change because both
+admissions, the connection and B's re-read ride on it, about 370 ms at the
+median. It splits B's preparation into a setup-time admission and an
+execute-time input, so the connection is accepted at setup.
 
 - [ ] **Mint the Yao session at setup.** `setupWalletRegistration` creates the
   lifecycle and threshold session identity that
@@ -289,24 +301,14 @@ tables is stated below.
   their wallet objects until the deadline. The wallet-start request stays
   grant-free and storage-free; the prepare is a separate command because it
   writes admissions.
-- [ ] **Garble before execute.** Deriver A garbles the activation circuit into
-  its table buffer during the prompt. Step one keeps the wire order: at
-  execute, A streams the buffered tables after the oblivious transfer, as
-  today. This removes A's garbling CPU from the online path without a wire
-  change. Step two, only if the Phase 8 chain shows the 2.1 MB transfer on the
-  critical path, moves the manifest and the table frames ahead of the
-  oblivious transfer and lets Deriver B buffer them in its wallet object. Step
-  two changes the transcript order, so it changes the stream KATs, the
-  specification's online ceremony and the formal verification tasks
-  (`cargo yao-fv all`, including `ed25519-yao-fv-passive-security`).
-  Regenerate the goldens only with that intended change.
-- [ ] **Precompute the base oblivious transfers, optionally.** With the pair
-  prepared during the prompt, A and B can also run the base transfers and the
-  extension on random choices before execute, and derandomize them against
-  the real inputs at execute. This is the standard precomputed-transfer
-  construction. It changes the transcript, so it needs the same formal
-  verification path as step two. Take it only if the Phase 8 chain shows the
-  transfer rounds and B's curve work, 17 ms local, still on the critical path.
+- [ ] **Garble before execute: deferred.** Take it only if the Phase 8 chain,
+  with the yield and the setup-time admission in place, shows Deriver A's
+  garbling ahead of Deriver B's evaluation by more than 150 ms at the median.
+  Step one would keep the wire order and stream a buffer built during the
+  prompt. Moving table frames ahead of the oblivious transfer, or
+  precomputing the transfers on random choices, changes the transcript and
+  needs the stream KATs, the specification's online ceremony and
+  `cargo yao-fv all` with it.
 - [ ] **Execute binds, then runs the online part.** The execute request carries
   the client's encrypted inputs and the admission receipt as today. The
   Router's claim verifies the receipt against the session minted at setup and
@@ -316,21 +318,18 @@ tables is stated below.
   The Router sends B its
   input through the existing preparation endpoint, which now attaches the
   input to the admitted session instead of creating it. A and B continue from
-  the oblivious transfer. A prepared session that no execute claims expires
-  with the deadline, and both objects destroy the labels, the buffer and the
-  garbling state. An execute after expiry prepares inline, as today.
-- [ ] **One session, one use.** The buffered tables bind to the session and the
-  execution id. A second claim, a retry after a lost reply, or a relocation
-  fence must find the prepared state consumed or destroyed, never reused.
-  Reuse of a garbled circuit with a second set of input labels breaks the
-  construction. The one-use rule is a protocol invariant, not a performance
-  detail.
+  the oblivious transfer. An admitted session that no execute claims expires
+  with the deadline, and both objects close the connection and release the
+  admission. An execute after expiry prepares inline, as today.
+- [ ] **One session, one use.** The admitted session binds to one execution
+  id at execute. A second claim, a retry after a lost reply, or a relocation
+  fence must find it bound or released, never open for a second execution.
 - [ ] **Bound the exposure at setup.** Setup already starts objects and reserves
   a home for any caller with the publishable key. The prepare adds two D1
-  admissions and 300–600 ms of Deriver CPU per setup. Enforce the existing
-  setup route policy per publishable key and source IP before the prepare, and
-  cap prepared sessions per wallet to one. Record the measured cost of an
-  abandoned setup.
+  admissions and one held connection per setup, and no protocol CPU. Enforce
+  the existing setup route policy per publishable key and source IP before
+  the prepare, and cap admitted sessions per wallet to one. Record the
+  measured cost of an abandoned setup.
 - [ ] **Keep the other families online.** Recovery, export and lane
   materialization keep the online path; only fresh registration activation
   prepares at setup. Mixed NEAR and ECDSA registration keeps the same NEAR
@@ -347,10 +346,10 @@ claim precede protocol material, role secret separation (A never carries B's
 input), ownership fences and relocation, and cancellation of a registration
 that never executed.
 
-Expected gain: 0.5–0.7 s of the execute request at the median. Admission,
-connection and B's re-read leave the path, and garbling's CPU moves into the
-prompt. The oblivious transfer, the evaluation, the sealing, the delivery and
-the two Router commands stay.
+Expected gain: about 0.35 s of the execute request at the median. Admission,
+connection and B's re-read leave the path. The oblivious transfer, the
+garbling, the evaluation, the sealing, the delivery and the two Router
+commands stay.
 
 ### Phase 1 design sheet
 
@@ -390,35 +389,28 @@ The change, in order. Names are proposals; keep the `V1` suffix convention.
 3. **Deriver B** admits in D1 as today and holds `Admitted { session,
    deadline }` in its object. It accepts A's upgrade in that state. Its role
    engine is not constructed yet: the engine needs the client's input.
-4. **Deriver A** admits, opens the connection to B's object, creates its
-   garbler seed and delta, and garbles the activation circuit into a buffer
-   through `GarblerMachine` in `crates/ed25519-yao/src/passive/runtime.rs`
-   with the production chunk profile. It holds `Prepared { session, garbler,
-   tables, deadline }` in memory. The wire labels derive from the seed, so the
-   tables are the same bytes that today's online garbling produces.
+4. **Deriver A** admits and opens the connection to B's object. It holds
+   `Admitted { session, socket, deadline }` in memory. It creates no garbler
+   and no protocol material before execute.
 5. **Execute** arrives as today. The Router claims, builds the pair binding
    from the client's inputs, chooses the execution id, sends B its input
    through the existing prepare endpoint, now an attach to the admitted
    session, and sends A the execute request. A verifies the binding against
-   its prepared session, writes the binding digest into its attempt record
+   its admitted session, writes the binding digest into its attempt record
    (this is the admission identity change R155G costed at one D1 write), then
-   selects its direct input labels with `prepare_labels` from the same garbler
-   (`passive/phase4.rs`), runs the oblivious transfer, streams the buffered
-   tables after `AwaitExtension` in `passive/role_protocol.rs`, and finishes
-   as today: returned labels, translation, seal, `Complete`, reply.
-6. **States and one use.** A: `Prepared → Bound(execution_id) → Running →
+   runs today's protocol unchanged on the held connection: target proofs,
+   oblivious transfer, garbling with the table-frame yield, returned labels,
+   translation, seal, `Complete`, reply.
+6. **States and one use.** A: `Admitted → Bound(execution_id) → Running →
    Completed`; a second execution id against `Bound` or `Running` is refused;
    `Completed` is the durable record that a retry replays. B: `Admitted →
    Attached(input) → Running → Completed`. A Durable Object alarm at
-   `deadline_ms` destroys `Prepared` and `Admitted`: zeroize tables, labels,
-   seed and OT state, close the socket, and release the admission. An execute
-   that finds no prepared state runs today's inline path; keep that path.
-7. **Engine entry points.** Add to the passive role protocol a garbler
-   constructor that takes a prebuilt table buffer and the same garbler, and a
-   function that produces that buffer without an input. The transcript bytes
-   do not change, so `stream_kats.rs` and `cargo yao-fv all` pass unchanged.
-   Any change that alters the transcript is step two of the garble item and
-   needs the user's go-ahead.
+   `deadline_ms` releases `Admitted`: close the socket and release the
+   admission. An execute that finds no admitted session runs today's inline
+   path; keep that path.
+7. **No engine change.** The role engines, the transcript, `stream_kats.rs`
+   and `cargo yao-fv all` stay as they are. Any change that alters the
+   transcript needs the user's go-ahead.
 8. **Exposure.** `enforceRoutePolicy` in
    `packages/wallet-server/src/router/framework/enforceRoutePolicy.ts` runs
    before setup with the publishable-key principal and `sourceIp`. If it has
@@ -427,8 +419,8 @@ The change, in order. Names are proposals; keep the `V1` suffix convention.
 
 Acceptance: the chain's admission, connect and B re-read columns read 0 on
 the execute path; new spans `router.prepare_pair_at_setup`,
-`deriver_a.pregarble` and `deriver_b.admit_at_setup` appear before respond;
-the online protocol measures 350 ms or less at p50 on staging;
+`deriver_a.admit_at_setup` and `deriver_b.admit_at_setup` appear before
+respond; the real protocol measures 450 ms or less at p50 on staging;
 `pnpm test:intended` passes all cases; `cargo yao-fv all` passes; the
 `router-ab-cloudflare` test target passes; composed scenarios for an
 abandoned setup, an expired prepared session, an execute after expiry and a
@@ -461,7 +453,10 @@ group medians, and the slowest one sets the pace.
 Must not regress: the distinct outcomes of a refused ownership claim and a
 rejected custody route claim, exact retry, and the competing-wallet refusal.
 
-Expected gain: 150–250 ms of finalization.
+Expected gain: 50–150 ms of finalization. The claim runs beside the Router
+consume today, so the step costs the slower of the two: the consume measures
+77–168 ms and the claim 130–250 ms as the Gateway sees it. Moving the claim
+saves the difference, not the claim.
 
 ### Phase 2 design sheet
 
@@ -561,90 +556,87 @@ Expected gain: 150–300 ms of finalization.
   `/wallets/register/near-provisioning` read 132–386 ms with the development
   module and 78–108 ms at the medians of the October 12 release-build run.
 
-## Phase 4 — Close the Yao execution gap to the July probe
+## Phase 4 — Close the Yao execution gap
 
-The Router's execute span, 1,624 ms at the median of 24 executions, against
-what the July probe paid and what each part should cost after this plan:
+The Router's execute span, 1,624 ms at the median of 24 executions, by part.
+Clock spans exclude a role's own CPU, so the protocol row is the clock span
+plus Deriver A's CPU.
 
-| Part | Today | July probe | Target | Owner |
+| Part | Today | Benchmark pair | Target | Owner |
 | --- | ---: | ---: | ---: | --- |
-| Router claim in its wallet object | 96 ms | 0 | ~90 ms | durable one-use; slim the 16 KB command bodies |
+| Router claim in its wallet object | 96 ms | 0 | ~90 ms | durable one-use; stays |
 | Dispatch to the roles | 26 ms | 0 | ~25 ms | stays |
 | Deriver A admission, two D1 round trips | 113 ms | 0 | 0 online | Phase 1 |
 | Pair connection | 196 ms | 0 | 0 online | Phase 1 |
 | Deriver B re-read of the admitted session | 56 ms | 0 | 0 online | Phase 1 |
-| Protocol, clock-visible and hidden | ~800 ms | 202 ms | 250–350 ms | this phase, with Phase 1's garbling move |
+| Protocol, real time | ~850 ms | 520–640 ms; 290–350 ms with the yield | 450 ms | this phase |
 | Signing Worker delivery | 88 ms | 0 | ~90 ms | activation receipt; stays |
 | Router finish in its wallet object | 69 ms | 0 | ~70 ms | durable completion; stays |
 
-The 800 ms splits into the clock-visible protocol, 434 ms, and the gap from
-Deriver A's last clock reading to the Router's receipt, 373 ms. The probe's
-202 ms covered the same frames and transfers with fixed fixtures, warm
-isolates, no admission, no product checks and no durable record. Phase 0's
-counter, micro-workload, probe redeploy and write-gate attribution say which
-of the three causes carries the gap: the isolate's state, the product work, or
-the Durable Object write and its output gate. Take the branches that apply.
+The [probe record](evidence/refactor-155h-probe-hosted.md) names three costs
+inside the protocol row: garbling and evaluation in series, a first run in a
+new isolate, and the platform's CPU price for the gate hash and the curve
+work. One item each.
 
-- [ ] **Frame profile.** The probe streamed 17 frames of 128 KiB. Verify which
-  profile the production roles select, from the frame count in B's duplex
-  records. If production streams 33 frames of 64 KiB, measure 128 KiB on
-  staging; the probe already proved its peak buffer inside the isolate bound.
-- [ ] **Per-message cost on the Durable Object path.** The probe's frames
-  flowed between two stateless Workers on one Service Binding. Production
-  frames flow between two wallet objects through B's stateless Worker. Measure
-  B's time per frame from the duplex records. If the per-message cost
-  dominates, fewer and larger frames are the lever, not the engine.
+- [x] **Overlap garbling and evaluation.** `send` in
+  `crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs` now awaits a
+  zero-length `worker::Delay` after each table frame, so the frame is written
+  before the next one is garbled. The messages, their order and their bytes
+  are unchanged; every family that streams tables gains. The benchmark pair
+  measured 290–350 ms against 520–640 ms in Tokyo and 455–485 ms against
+  620–650 ms in Hong Kong. Commit `6ec1c61d`. The crate's native tests pass,
+  and all 14 cases of the local Yao contract pass: 13 on release builds and
+  the fault-injection case on dev builds. On local workerd the yield costs
+  about 3 ms per ceremony. Open: the staging comparison of the production
+  path. Its folder is `.artifacts/r155h-yield-hosted/` in `seams-monorepo`:
+  control and candidate differ in Deriver A only, both run the counter, nine
+  wallets per side after a warm-up group. It waits for the user's go-ahead.
+- [x] **Frame profile.** Production binds `Activation128KiBDeriverA` and its
+  128 KiB siblings in `crates/router-ab-ed25519-yao/src/lib.rs`: 17 table
+  frames, the benchmark pair's profile. No change.
+- [x] **Per-message cost and the write gate.** Both closed by the probe: the
+  cost was the missing event-loop turn, and the time after the last frame is
+  the clock's exclusion of own CPU.
+- [ ] **First run in a new isolate.** Read the isolate counter beside the
+  tail's CPU on the next staging group. If first runs are common and cost
+  200 ms or more of CPU over later runs, make the wallet-start handler run
+  one export ceremony in memory, 1,275 AND gates, garbler and evaluator in
+  the same isolate, when the counter is zero. That compiles and warms the
+  gate hash, the circuit engine and the curve code on the server that holds
+  the wallet object, during the passkey prompt. Bound its CPU and measure the
+  first run again.
+- [ ] **The gate hash.** The platform charges 200–350 ms of CPU for Deriver A
+  and 180–300 ms for Deriver B per ceremony; the gate hash is 27% of the local
+  profile. Build the Derivers with `-C target-feature=+simd128` and replace
+  the bitsliced AES of `crypto.rs` with a fixsliced SIMD implementation, same
+  cipher, same outputs. The formal verification vectors and the
+  cross-language task must pass unchanged. Measure on the benchmark pair
+  first: it needs no staging deployment. Curve arithmetic has no SIMD backend
+  on `wasm32`, and the 64-bit backend is slower.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
-  commitment checks and the HPKE seal are product additions the probe did not
-  run. Place them with the local profiler per the Phase 0 method, and move
-  what does not need the execution's result to the prepared session of
-  Phase 1.
+  commitment checks and the HPKE seal are product additions the benchmark
+  pair does not run. Place them with the local profiler and move what does
+  not need the execution's result to the admitted session of Phase 1.
+- [ ] Record the per-execution CPU of both Derivers and the real protocol
+  time after each item, with the counter.
 
-- [ ] **Warmness.** Make the prewarm do compute. The `/internal/prewarm` route
-  and the wallet-start handler garble the export circuit once, 1,275 AND
-  gates, so the gate hash and the field arithmetic tier up on the server that
-  will run the object. Bound the prewarm's CPU and skip it when the isolate's
-  counter is above zero. With Phase 1, the prepare at setup warms the same
-  server anyway; measure whether the prewarm still matters afterwards.
-- [ ] **The core.** Only if Phase 1 has not landed: build the Derivers with
-  `-C target-feature=+simd128` and replace the gate hash's AES with a
-  fixsliced SIMD implementation in `crypto.rs`, same cipher, same outputs. The
-  formal verification vectors and the cross-language task must pass
-  unchanged. After Phase 1 the online hash work is the evaluator's two hashes
-  per gate, about 70 ms hosted, so the change is worth about 35 ms then. Curve
-  arithmetic has no SIMD backend on `wasm32`, and the 64-bit backend is
-  slower; the lever on curve work is Phase 1's optional transfer
-  precomputation, not faster arithmetic.
-- [ ] **The write gate.** If Phase 0 places the time after the last frame in
-  the outcome record's write and its output gate, establish what that record
-  protects before moving it: the claim must stay persisted before protocol
-  material, and a retry after a lost reply must still find one execution. If
-  the Router's finish already makes the outcome durable, the record can
-  settle beside the reply; otherwise record the reason and keep it.
-- [ ] Record the per-execution CPU of both Derivers after the branch, with the
-  counter.
-
-Expected gain: 200–400 ms if warmness is the cause. About 100 ms from the AES
-change before Phase 1, about 35 ms after it. With Phase 1, the online
-protocol should measure 250–350 ms and the Router's execute span
-500–600 ms; both are reported per part in Phase 8.
+Expected gain: 150–300 ms from the overlap. 100–250 ms on a first run from
+the compute prewarm, if first runs are common. 50–100 ms from the gate hash.
+With Phase 1, the Router's execute span should measure 700–800 ms.
 
 ### Phase 4 notes
 
-- Frame profile: `role_protocol.rs` is generic over `C: FixedChunkProfile`;
-  the production value is bound where `run_activation_deriver_a` in
-  `crates/router-ab-ed25519-yao/src/duplex.rs` reaches `execution.rs`.
-  `Chunk64KiB`, `Chunk128KiB` and `Chunk256KiB` exist in
-  `passive/stream.rs`. The probe used 128 KiB, 17 frames. The frame count of
-  a production run is in B's duplex records.
-- Compute prewarm: the Phase 0 micro-workload function, run when the counter
-  is zero, in `/internal/prewarm` and in the wallet-start handler.
-- Write gate: the `Complete` command near `deriver_a_pair.rs` line 860 is a
-  synchronous SQLite write in the object; the output gate holds the reply
-  until it is durable. The Router's `finish_registration` in
-  `router_wallet.rs` is the second durable write. Before moving anything,
-  establish whether a retry reads A's `Completed` record through
-  `DeriverAPairDoCommandV1::Read`.
+- The benchmark pair is the fast loop for this phase: build both roles with
+  `worker-build` 0.8.5, deploy B then A, drive, tail, delete. A run costs
+  about a minute and needs the user's go-ahead for the two benchmark Workers
+  only. The measurement-only feature `yield-after-table-frame` of the crate
+  holds the same yield as production's transport.
+- A Worker clock span plus the tail's CPU time for the same invocation is
+  the real duration. Never compare a clock span with a client-side wall time.
+- Compute prewarm: `durable_object/wallet_startup.rs` holds the start
+  handler; `passive/phase5_wasm_benchmark.rs` behind the
+  `passive-wasm-benchmark` feature holds an in-memory session for the export
+  circuit.
 
 ## Phase 5 — Setup for direct API callers
 
@@ -716,8 +708,9 @@ phase decides; it implements nothing.
 - [ ] Measure the accumulated changes on the Hong Kong layout from Tokyo.
   Report registration, registration after setup and the first signature with
   p50, p90, minimum and maximum; the four stages; the chain columns with the
-  new spans (`router.prepare_pair_at_setup`, `deriver_a.pregarble`,
-  `deriver_b.table_buffer`); and the finalization spans.
+  new spans (`router.prepare_pair_at_setup`, `deriver_a.admit_at_setup`,
+  `deriver_b.admit_at_setup`), the real protocol time and the isolate
+  counter; and the finalization spans.
 - [ ] Prepare the hosted driver against the current database ids. Drivers
   prepared before the Console move carry the old id.
 - [ ] Verify every signature independently, restore staging, and verify the
