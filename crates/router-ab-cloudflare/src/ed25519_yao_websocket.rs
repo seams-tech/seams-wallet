@@ -4,7 +4,7 @@ use futures::StreamExt;
 use router_ab_ed25519_yao::duplex::{YaoDuplexTransport, YaoInboundEvent, YaoTransportCompletion};
 use router_ab_ed25519_yao::relay::{
     DirectionalEofEvidence, DirectionalWireDecoder, DirectionalWireEncoder, WireDirection,
-    WireMessage,
+    WireMessage, WireMessageKind,
 };
 use worker::{Env, EventStream, Method, Request, WebSocket, WebsocketEvent};
 use zeroize::Zeroizing;
@@ -18,6 +18,9 @@ use router_ab_core::{
 use serde::{Deserialize, Serialize};
 
 pub(crate) const DERIVER_B_BINDING: &str = "DERIVER_B";
+/// One turn of the event loop after a table frame, so the frame is written
+/// before the next one is garbled.
+const TABLE_FRAME_FLUSH_YIELD: core::time::Duration = core::time::Duration::from_millis(0);
 const DERIVER_B_WEBSOCKET_URL: &str =
     "https://deriver-b.internal/router-ab/deriver-b/ed25519-yao/duplex";
 const PAIR_WEBSOCKET_PROTOCOL_PREFIX: &str = "seams-ed25519-yao-p1-v1";
@@ -529,6 +532,7 @@ impl YaoDuplexTransport for CloudflareEd25519YaoWebSocketTransportV1<'_> {
 
     async fn send(&mut self, message: WireMessage) -> Result<Option<YaoInboundEvent>, Self::Error> {
         self.require_target_preface()?;
+        let table_frame = message.kind() == WireMessageKind::TableFrame;
         let envelope = Zeroizing::new(
             self.encoder
                 .as_mut()
@@ -539,6 +543,13 @@ impl YaoDuplexTransport for CloudflareEd25519YaoWebSocketTransportV1<'_> {
         self.socket
             .send_with_bytes(&envelope)
             .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::WebSocketEvent)?;
+        // The socket only queues a message until the event loop turns. The
+        // garbler sends every table frame without waiting for the evaluator,
+        // so without this turn all frames leave after the last one is
+        // garbled, and garbling and evaluation run one after the other.
+        if table_frame {
+            worker::Delay::from(TABLE_FRAME_FLUSH_YIELD).await;
+        }
         Ok(None)
     }
 
