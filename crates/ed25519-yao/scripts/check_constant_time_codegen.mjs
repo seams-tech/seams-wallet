@@ -21,6 +21,10 @@ const CORE_MANIFEST = join(REPOSITORY_ROOT, 'crates/ed25519-yao/Cargo.toml');
 const WORKER_MANIFEST = join(REPOSITORY_ROOT, 'crates/router-ab-cloudflare/Cargo.toml');
 const CORE_SOURCE = join(REPOSITORY_ROOT, 'crates/ed25519-yao/src/passive.rs');
 const OT_SOURCE = join(REPOSITORY_ROOT, 'crates/ed25519-yao/src/passive/ot.rs');
+const WORKER_BUILD_SCRIPT = join(
+  REPOSITORY_ROOT,
+  'crates/router-ab-cloudflare/scripts/build-strict-worker.sh',
+);
 const WASM_TARGET = 'wasm32-unknown-unknown';
 const WORKER_WASM = 'router_ab_cloudflare.wasm';
 const SENDER_ACCEPT_SYMBOLS = Object.freeze([
@@ -48,6 +52,15 @@ const SECRET_BIT_BRANCH = new RegExp(
 );
 const SECRET_BIT_MASK = new RegExp(
   `${SECRET_BIT_PREFIX}[\\s\\S]{0,120}?call[\\s\\S]{0,80}?i32\\.sub`,
+  'g',
+);
+// The same selection once the compiler vectorizes the conditional XOR: the
+// optimizer-resistant bit becomes `0 - bit`, is splatted over a vector, and is
+// applied with AND and XOR. The loads of the two operands may sit between the
+// call and the subtraction.
+const SECRET_BIT_VECTOR_MASK = new RegExp(
+  `${SECRET_BIT_PREFIX}[\\s\\S]{0,120}?call[\\s\\S]{0,600}?i32\\.sub[\\s\\S]{0,60}?` +
+    String.raw`i8x16\.splat[\s\S]{0,120}?v128\.and[\s\S]{0,160}?v128\.xor`,
   'g',
 );
 
@@ -337,7 +350,22 @@ function buildAndInspectHost(targetDirectory) {
   assertNativeSensitiveLine(assemblyLines, 'src/passive/ot.rs', otLine, 'IKNP row conditional XOR');
 }
 
+// Release Workers are built with the target features that the build script
+// names. The gate must inspect that code generation, not the default one.
+function releaseTargetFeatures() {
+  const matches = [
+    ...readFileSync(WORKER_BUILD_SCRIPT, 'utf8').matchAll(
+      /^worker_release_target_features="([+\-a-z0-9,]*)"$/gmu,
+    ),
+  ];
+  if (matches.length !== 1) {
+    fail(`expected one worker_release_target_features line in ${WORKER_BUILD_SCRIPT}`);
+  }
+  return matches[0][1];
+}
+
 function buildWorker(targetDirectory, feature) {
+  const targetFeatures = releaseTargetFeatures();
   runInherited(
     'cargo',
     [
@@ -352,7 +380,10 @@ function buildWorker(targetDirectory, feature) {
       '--features',
       feature,
     ],
-    { CARGO_TARGET_DIR: targetDirectory },
+    {
+      CARGO_TARGET_DIR: targetDirectory,
+      ...(targetFeatures.length > 0 ? { RUSTFLAGS: `-C target-feature=${targetFeatures}` } : {}),
+    },
   );
   const wasm = join(targetDirectory, WASM_TARGET, 'release', WORKER_WASM);
   accessSync(wasm, constants.R_OK);
@@ -436,6 +467,59 @@ function qualifyWasmPatterns() {
   if (countMatches(safe, SECRET_BIT_MASK) !== 1) {
     fail('the WASM mask matcher did not accept its branchless qualification fixture');
   }
+  const safeVector = [
+    'i32.load8_u 0',
+    'local.get 5',
+    'i32.const 7',
+    'i32.and',
+    'i32.shr_u',
+    'i32.const 1',
+    'i32.and',
+    'call 9917',
+    'local.set 13',
+    'local.get 2',
+    'local.get 2',
+    'v128.load 0:p2align=0',
+    'local.get 1',
+    'v128.load 0:p2align=0',
+    'i32.const 0',
+    'local.get 13',
+    'i32.sub',
+    'i8x16.splat',
+    'local.tee 10',
+    'v128.and',
+    'v128.xor',
+    'v128.store 0:p2align=0',
+  ].join('\n');
+  // A vector mask with no optimizer-resistant call is not the audited form.
+  const unprotectedVector = safeVector.replace('call 9917\n', '');
+  if (countMatches(safeVector, SECRET_BIT_BRANCH) !== 0) {
+    fail('the WASM regression matcher rejected its vector qualification fixture');
+  }
+  if (countMatches(safeVector, SECRET_BIT_VECTOR_MASK) !== 1) {
+    fail('the WASM vector mask matcher did not accept its qualification fixture');
+  }
+  if (countMatches(unprotectedVector, SECRET_BIT_VECTOR_MASK) !== 0) {
+    fail('the WASM vector mask matcher accepted a mask without the optimizer-resistant call');
+  }
+  if (countMatches(vulnerable, SECRET_BIT_VECTOR_MASK) !== 0) {
+    fail('the WASM vector mask matcher accepted its vulnerable qualification fixture');
+  }
+}
+
+// Counts each selection once. The scalar pattern ends at the subtraction, and
+// the vector pattern is that subtraction followed by the splat, so a scalar
+// match that runs into a splat is the vector form.
+function countSecretBitMasks(text) {
+  let scalar = 0;
+  SECRET_BIT_MASK.lastIndex = 0;
+  for (const match of text.matchAll(SECRET_BIT_MASK)) {
+    const end = match.index + match[0].length;
+    if (!/^[\s\S]{0,60}?i8x16\.splat/u.test(text.slice(end, end + 80))) {
+      scalar += 1;
+    }
+  }
+  return scalar + countMatches(text, SECRET_BIT_VECTOR_MASK);
 }
 
 function assertNoSecretBitBranch(disassembly, label) {
@@ -452,7 +536,7 @@ function inspectWorkerWasm(llvmObjdump, wasm, feature, requireSender) {
 
   const senderSymbols = senderAcceptSymbols(symbolTable, feature, requireSender);
   if (requireSender && senderSymbols.length === 0) {
-    const maskCount = countMatches(disassembly, SECRET_BIT_MASK);
+    const maskCount = countSecretBitMasks(disassembly);
     if (maskCount < OPTIMIZED_SENDER_FAMILY_SYMBOLS.length) {
       fail(
         `${feature} optimized Worker WASM must retain at least ${String(OPTIMIZED_SENDER_FAMILY_SYMBOLS.length)} secret-bit mask sequences, found ${String(maskCount)}`,
@@ -462,7 +546,7 @@ function inspectWorkerWasm(llvmObjdump, wasm, feature, requireSender) {
   for (const senderSymbol of senderSymbols) {
     const sender = runCaptured(llvmObjdump, [`--disassemble-symbols=${senderSymbol}`, wasm]);
     assertNoSecretBitBranch(sender, `${feature} IKNP sender`);
-    const maskCount = countMatches(sender, SECRET_BIT_MASK);
+    const maskCount = countSecretBitMasks(sender);
     if (maskCount !== 1) {
       fail(
         `${feature} IKNP sender must contain exactly one optimizer-resistant secret-bit mask sequence, found ${maskCount}`,
