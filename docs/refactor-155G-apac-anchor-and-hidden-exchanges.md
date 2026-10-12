@@ -230,11 +230,14 @@ Four facts for the next move:
   - The specification states the rule, and the local Yao contract asserts the
     order `prepare_sent`, `confirmation`, `prepare` for a warm-session
     transaction, with exactly one `prepare_sent`.
-- [ ] Extend the early prepare to delegate actions. Their signing digest and
+- [x] Extend the early prepare to delegate actions. Their signing digest and
   their display digest (`computeUiIntentDigestFromTxs` over the receiver and
   the ordered actions) both exist before the dialog, so the NEP-413 mechanism
-  applies unchanged. No browser test signs a delegate action today: add the
-  contract path with the change, not after it.
+  applies unchanged. The browser contract verifies two warm delegate signatures,
+  then a third signature that needs step-up after quota exhaustion. Warm prepares
+  precede confirmation. Step-up sends no early prepare. Node Ed25519 verification
+  accepts the serialized delegates and rejects altered digests. The repeatable
+  artifact is `delegate-early-prepare.json`.
 - [x] Setup preflight at page load: withdrawn. The hosted auth menu already
   runs the whole setup request while the user is still in the menu:
   `prepareHostedPasskeyRegistration` calls `setupThreeRouteRegistration` once
@@ -262,9 +265,9 @@ runs. The confirmation returns the dialog's digest; the signature uses the
 started prepare only when that digest and the signing digest match, and
 consumes its answer in the same `PreparePayload` step as before, so the signing
 state machine keeps its order. A step-up plan sends no early prepare, because
-its prepare needs the step-up proof from the confirmation. Transactions and
-delegate actions keep the late prepare: their dialog computes the display
-digest from the transaction summary, and that merge is a separate step.
+its prepare needs the step-up proof from the confirmation. Transactions now start
+prepare when their reserved context arrives. Delegate actions also start early,
+using the same receiver/action digest as their confirmation dialog.
 
 Facts that fix the design:
 

@@ -195,12 +195,14 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   next signature plans same-method step-up before the user confirms. That plan
   shows one confirmation and needs no session-status request.
 
-- A warm-session NEP-413 signature sends its prepare when the confirmation
+- A warm-session NEP-413 or delegate-action signature sends its prepare when the confirmation
   dialog opens, bound to the digest the dialog shows and to the signing digest.
   The signature consumes the answer after the confirmation. A declined
   confirmation, a changed digest or a step-up leaves that prepare to expire
   with its lease, and the use it claimed stays spent. A step-up signature
   sends no prepare before the user confirms.
+  A delegate action binds its displayed receiver and ordered actions, plus the
+  complete signing digest, including nonce, expiry and signing key.
 
 - A warm-session NEAR transaction sends its prepare while the confirmation
   dialog is open, as soon as the confirmation has reserved the nonce and block

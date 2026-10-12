@@ -49,8 +49,11 @@ import {
   resolveNearSignatureOnlySigningPlans,
   runNearSignatureOnlySignCommand,
   signNearSignatureOnlyOperation,
+  startNearSignatureOnlyPrepare,
   type NearSignatureOnlyOperation,
 } from './shared/signatureOnlySigning';
+import { computeUiIntentDigestFromTxs, orderActionForDigest } from '@/utils/intentDigest';
+import { emitEd25519SigningTiming } from '../../session/operationState/trace';
 
 function emitNearSigningEvent(
   onEvent: ((event: SigningFlowEvent) => void) | undefined,
@@ -226,6 +229,18 @@ export async function runNearDelegateActionSigning({
       },
     });
   }
+  const startedPrepare = await startNearSignatureOnlyPrepare(
+    operation,
+    stepUp,
+    signingSessionCoordinator,
+    await computeUiIntentDigestFromTxs([
+      {
+        receiverId: delegateSigningPayloads.confirmationDelegate.receiverId,
+        actions: delegateSigningPayloads.confirmationDelegate.actions.map(orderActionForDigest),
+      },
+    ]),
+  );
+  const confirmationStartedAt = performance.now();
   emitNearSigningEvent(onEvent, nearAccountId, {
     phase: SigningEventPhase.STEP_05_CONFIRMATION_DISPLAYED,
     status: 'waiting_for_user',
@@ -246,6 +261,7 @@ export async function runNearDelegateActionSigning({
       rpcCall: resolvedRpcCall,
     },
   });
+  emitEd25519SigningTiming(String(operationId), 'confirmation', confirmationStartedAt);
   emitNearSigningEvent(onEvent, nearAccountId, {
     phase: SigningEventPhase.STEP_05_CONFIRMATION_APPROVED,
     status: 'succeeded',
@@ -263,7 +279,11 @@ export async function runNearDelegateActionSigning({
         message: 'Preparing NEAR signer',
         interaction: { kind: 'none', overlay: 'none' },
       });
-      const material = await resolveNearSignatureOnlySigningMaterial(operation, authorization);
+      const material = await resolveNearSignatureOnlySigningMaterial(
+        operation,
+        authorization,
+        startedPrepare,
+      );
       emitNearSigningEvent(onEvent, nearAccountId, {
         phase: SigningEventPhase.STEP_07_AUTHENTICATION_COMPLETE,
         status: 'succeeded',

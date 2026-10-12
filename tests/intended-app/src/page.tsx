@@ -8,8 +8,6 @@ import type {
   WalletSession,
   WalletMoveStatusResult,
   WalletMoveRequest,
-  SignNEP413MessageParams,
-  SignNEP413MessageResult,
 } from '@seams/wallet';
 import {
   parseWalletMoveId,
@@ -36,6 +34,7 @@ import {
 } from '@seams/wallet/advanced';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
 import { ReviewedSigning } from './ReviewedSigning';
+import { IntendedNearSigningHelpers, type IntendedNearSigningContext } from './nearSigningHelpers';
 
 type IntendedActionName =
   | 'registerPasskeyWallet'
@@ -615,10 +614,6 @@ declare global {
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
     __seamsIntendedE2EMoveWallet?: (request: WalletMoveRequest) => Promise<WalletMoveStatusResult>;
     __seamsIntendedE2EReadWalletMove?: (moveId: string) => Promise<WalletMoveStatusResult>;
-    __seamsIntendedE2ESignMessage?: (input: {
-      nearAccountId: string;
-      params: SignNEP413MessageParams;
-    }) => Promise<SignNEP413MessageResult>;
     __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: WalletSession['authentication']['kind'];
@@ -1210,19 +1205,13 @@ class IntendedPageController {
     };
   };
 
-  async signMessageForIntendedTest(input: {
-    nearAccountId: string;
-    params: SignNEP413MessageParams;
-  }): Promise<SignNEP413MessageResult> {
-    const signingStartedAt = performance.now();
-    const result = await this.seams.near.signMessage({
+  readNearSigningContext(): IntendedNearSigningContext {
+    return {
+      near: this.seams.near,
       walletSession: this.walletId,
-      nearAccount: requireNearAccountId(input.nearAccountId),
-      params: input.params,
-      options: { signerSlot: this.nearSignerSlot, onEvent: this.recordLifecycleEvent },
-    });
-    recordNearBenchmarkDuration('near_sdk_message_signing_timing', signingStartedAt);
-    return result;
+      signerSlot: this.nearSignerSlot,
+      onEvent: this.recordLifecycleEvent,
+    };
   }
 
   moveWalletForIntendedTest = async (
@@ -3826,7 +3815,7 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   window.__seamsIntendedE2ELockWallet = controller.lockWalletForIntendedTest;
   window.__seamsIntendedE2EMoveWallet = controller.moveWalletForIntendedTest;
   window.__seamsIntendedE2EReadWalletMove = controller.readWalletMoveForIntendedTest;
-  window.__seamsIntendedE2ESignMessage = controller.signMessageForIntendedTest.bind(controller);
+  new IntendedNearSigningHelpers(controller.readNearSigningContext.bind(controller)).install();
   window.__seamsIntendedE2ECancelDeviceLink = controller.cancelDeviceLinkForIntendedTest;
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;
   window.__seamsIntendedE2EReadAuthenticationMethods =
