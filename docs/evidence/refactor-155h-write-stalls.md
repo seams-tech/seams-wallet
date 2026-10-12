@@ -70,6 +70,7 @@ in Tokyo.
 | D1 | October 13, 00:13–00:20 | KIX | One throwaway database, six streams from a Worker in the same colo |
 | Hourly | October 13, from 00:21 | The six cities | Twelve streams and 240 wallet-shaped objects per city and round |
 | Hosts | October 13, 00:43–00:45 | SIN, HKG | 60 streams of 13 s under each of the two Worker names at once |
+| Heavy and light | October 13, 01:29–01:31 | SIN, HKG | Five objects per city: cycles of 13 MB and cycles of 40 KB in turn, aligned to the host's pause |
 
 ## The cycle
 
@@ -156,6 +157,29 @@ resolution. The two objects on host 1026f87 also shared one long pause:
   least one full cycle, and sent one write 15 ms after the predicted start of
   a pause. 46 of 57 such writes stalled, by 84 ms at the median and 747 ms
   at most. Of 38 control writes half a cycle away, none stalled.
+
+## What the pause is not
+
+- **Not a flush of the data written before it.** Five objects per city
+  learned their host's phase, then wrote in turn one heavy cycle, 64 KB per
+  25 ms tick, 13 MB in the five seconds before the next pause, and one light
+  cycle, 200 bytes per tick, with the same number of commits. The pause after
+  a heavy cycle was 138 ms at the median and the pause after a light cycle
+  173 ms; in 166 adjacent pairs on one host the difference was −8 ms at the
+  median, 78 pairs positive and 88 negative. A flush of 13 MB on a data
+  centre SSD takes about 10 ms, which this test cannot see; a pause that
+  grew with the data would have shown. The timers of the heavy writers were
+  never late, so 2.6 MB/s met no backpressure.
+- **Not a freeze of the host.** An object that never wrote sent 3,804
+  outgoing fetches at 1–3 ms from seven hosts, four of them slow by 34–75 ms
+  on one Tokyo host and none on the others. The timers of every stream fired
+  on time. Requests to an object with no pending write were answered in
+  normal time.
+- **Not the followers alone.** Hosts in one colo pause at different
+  instants, and two objects on one host at the same instant. A pause at
+  the followers would need three of five to stop together, in step with
+  each leader host's own clock. The leader host is the simpler reading;
+  that is an inference.
 
 ## Events on many hosts at once
 
