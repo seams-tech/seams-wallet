@@ -1,0 +1,57 @@
+{
+  "scope": "Node WASM, not Cloudflare CPU",
+  "identicalSeals": true,
+  "roundTripsVerified": true,
+  "report": {
+    "baseline": {
+      "samples": [
+        2.1469999999999985,
+        2.125,
+        2.141083000000002,
+        2.007916999999999,
+        2.1813330000000093,
+        2.0431250000000034,
+        2.168040999999988,
+        2.0403749999999974,
+        2.0332500000000095,
+        2.0388749999999902,
+        2.05066699999999,
+        2.072917000000004
+      ],
+      "medianMs": 2.061791999999997,
+      "minMs": 2.007916999999999,
+      "maxMs": 2.1813330000000093
+    },
+    "candidate": {
+      "samples": [
+        1.7944999999999993,
+        1.6618749999999949,
+        1.7325419999999951,
+        1.776457999999991,
+        1.7290830000000028,
+        1.7047090000000082,
+        1.7709159999999997,
+        1.7265829999999767,
+        1.7992920000000083,
+        1.7177499999999952,
+        1.723208999999997,
+        1.6692500000000052
+      ],
+      "medianMs": 1.7278329999999897,
+      "minMs": 1.6618749999999949,
+      "maxMs": 1.7992920000000083
+    }
+  },
+  "baseline": "Fresh release build: opt-level=z, default wasm-opt",
+  "candidate": "Fresh release build: opt-level=3, wasm-opt=-O3",
+  "input": "128-byte synthetic group element; deterministic synthetic root; 3 warmups then 12 measured add-lock calls per build",
+  "discardedObservation": "The pre-existing pkg was 654272 bytes and ran much slower. It was not used for the release comparison.",
+  "baselineWasm": {
+    "bytes": 93119,
+    "sha256": "457177744a3617be2ce0d07c0a5a618e584740247eeea928f0b38acc16e9a39e"
+  },
+  "candidateWasm": {
+    "bytes": 118841,
+    "sha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9"
+  }
+}
