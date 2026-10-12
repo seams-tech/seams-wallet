@@ -179,9 +179,11 @@ test(
   verifyLocalEd25519YaoRegistration,
 );
 
-async function invokeDelegateSigning(
-  input: Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0],
-) {
+type IntendedDelegateInput = Parameters<
+  NonNullable<Window['__seamsIntendedE2ESignDelegate']>
+>[0];
+
+async function invokeDelegateSigning(input: IntendedDelegateInput) {
   const sign = window.__seamsIntendedE2ESignDelegate;
   if (!sign) throw new Error('Intended delegate-signing helper is unavailable');
   return await sign(input);
@@ -210,17 +212,22 @@ async function verifyEarlyDelegatePreparation(
   for (const nonce of [1, 2, 3]) {
     const stages = new NearSigningStages();
     const recordStages = stages.record.bind(stages);
+    // The annotation keeps `ActionType.Transfer` a literal member type.
+    const delegate: IntendedDelegateInput = {
+      senderId: message.accountId,
+      receiverId: 'receiver.testnet',
+      actions: [{ type: ActionType.Transfer, amount: '1' }],
+      nonce: String(nonce),
+      maxBlockHeight: '999999999',
+      publicKey: message.publicKey,
+    };
     page.on('console', recordStages);
     let result;
     try {
-      result = await autoConfirmWalletIframeUntil(page, page.evaluate(invokeDelegateSigning, {
-        senderId: message.accountId,
-        receiverId: 'receiver.testnet',
-        actions: [{ type: ActionType.Transfer, amount: '1' }],
-        nonce: String(nonce),
-        maxBlockHeight: '999999999',
-        publicKey: message.publicKey,
-      }));
+      result = await autoConfirmWalletIframeUntil(
+        page,
+        page.evaluate(invokeDelegateSigning, delegate),
+      );
     } finally {
       page.off('console', recordStages);
     }
