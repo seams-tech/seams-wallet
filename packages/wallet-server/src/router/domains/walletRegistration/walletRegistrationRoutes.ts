@@ -2147,6 +2147,7 @@ export async function handleRouterApiWalletRegistrationRespond(
     },
     traceContext.value ?? undefined,
     serverTiming,
+    input.waitUntil,
   );
   return routeJson(result.ok ? 200 : 400, result, {
     headers: ecdsaGatewayServerTimingHeaders(serverTiming),

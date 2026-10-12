@@ -92,10 +92,38 @@ type D1WalletRegistrationCommitInput =
       readonly emailOtp: D1EmailOtpRegistrationCommitPlan;
     });
 
+/** A passkey claim that shared authority granted for one ceremony before its finalization. */
+export type HeldRegistrationPasskeyClaim = {
+  readonly walletId: string;
+  readonly rpId: string;
+  readonly credentialIdB64u: string;
+};
+
 export interface D1WalletRegistrationCommitStore {
+  /**
+   * Claims the authority's passkey through shared authority, unless `held`
+   * records that the same claim was already granted for this ceremony.
+   */
   reserveAuthority(
     authority: RegistrationAuthority,
+    held?: HeldRegistrationPasskeyClaim | null,
   ): Promise<ReservedWalletRegistrationCommit>;
+  /**
+   * Claims a verified passkey before finalization and records a granted
+   * claim. A refusal records nothing, so finalization claims again and
+   * reports it.
+   */
+  claimPasskeyAhead(input: {
+    readonly registrationCeremonyId: string;
+    readonly authority: RegistrationAuthority;
+    readonly nowMs: number;
+  }): Promise<void>;
+  prepareHeldPasskeyClaimRead(registrationCeremonyId: string): D1PreparedStatementLike;
+  parseHeldPasskeyClaimRead(
+    result: D1ResultLike<Record<string, unknown>>,
+  ): HeldRegistrationPasskeyClaim | null;
+  /** Removes the record of a finalized ceremony. Shared authority keeps the claim. */
+  deleteHeldPasskeyClaim(registrationCeremonyId: string): Promise<void>;
 }
 
 type D1WalletRegistrationCommitScope = D1WalletStoreScope &
@@ -509,6 +537,18 @@ function emailOtpCommitStatements(
   }
 }
 
+function heldClaimCovers(
+  held: HeldRegistrationPasskeyClaim | null,
+  authority: Extract<RegistrationAuthority, { kind: 'passkey' }>,
+): boolean {
+  return (
+    held !== null &&
+    held.walletId === authority.walletId &&
+    held.rpId === authority.rpId &&
+    held.credentialIdB64u === authority.credentialIdB64u
+  );
+}
+
 export class CloudflareD1WalletRegistrationCommitStore
   implements D1WalletRegistrationCommitStore
 {
@@ -531,8 +571,11 @@ export class CloudflareD1WalletRegistrationCommitStore
 
   async reserveAuthority(
     authority: RegistrationAuthority,
+    held: HeldRegistrationPasskeyClaim | null = null,
   ): Promise<ReservedWalletRegistrationCommit> {
-    if (authority.kind === 'passkey') {
+    // Shared authority never reassigns a claim, so a recorded grant for this
+    // exact wallet and credential still holds.
+    if (authority.kind === 'passkey' && !heldClaimCovers(held, authority)) {
       await reservePasskeyCredential(this.credentialClaims, {
         walletId: authority.walletId,
         rpId: authority.rpId,
@@ -540,6 +583,100 @@ export class CloudflareD1WalletRegistrationCommitStore
       });
     }
     return this.commit.bind(this, authority);
+  }
+
+  async claimPasskeyAhead(input: {
+    readonly registrationCeremonyId: string;
+    readonly authority: RegistrationAuthority;
+    readonly nowMs: number;
+  }): Promise<void> {
+    const { authority } = input;
+    if (authority.kind !== 'passkey' || !this.credentialClaims) return;
+    const granted = await this.credentialClaims.claim({
+      walletId: authority.walletId,
+      rpId: authority.rpId,
+      credentialIdB64u: authority.credentialIdB64u,
+    });
+    if (!granted) return;
+    await this.database
+      .prepare(
+        `INSERT OR IGNORE INTO registration_passkey_claims (
+           namespace, org_id, project_id, env_id, registration_ceremony_id,
+           wallet_id, rp_id, credential_id_b64u, claimed_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        input.registrationCeremonyId,
+        authority.walletId,
+        authority.rpId,
+        authority.credentialIdB64u,
+        input.nowMs,
+      )
+      .run();
+  }
+
+  prepareHeldPasskeyClaimRead(registrationCeremonyId: string): D1PreparedStatementLike {
+    return this.database
+      .prepare(
+        `SELECT wallet_id, rp_id, credential_id_b64u
+           FROM registration_passkey_claims
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND registration_ceremony_id = ?5`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        registrationCeremonyId,
+      );
+  }
+
+  parseHeldPasskeyClaimRead(
+    result: D1ResultLike<Record<string, unknown>>,
+  ): HeldRegistrationPasskeyClaim | null {
+    if (!result.success) throw new Error('Registration passkey claim read failed');
+    const row = result.results?.[0];
+    if (!row) return null;
+    if (
+      typeof row.wallet_id !== 'string' ||
+      typeof row.rp_id !== 'string' ||
+      typeof row.credential_id_b64u !== 'string'
+    ) {
+      throw new Error('Stored registration passkey claim is invalid');
+    }
+    return {
+      walletId: row.wallet_id,
+      rpId: row.rp_id,
+      credentialIdB64u: row.credential_id_b64u,
+    };
+  }
+
+  async deleteHeldPasskeyClaim(registrationCeremonyId: string): Promise<void> {
+    await this.database
+      .prepare(
+        `DELETE FROM registration_passkey_claims
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND registration_ceremony_id = ?5`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        registrationCeremonyId,
+      )
+      .run();
   }
 
   private async commit(

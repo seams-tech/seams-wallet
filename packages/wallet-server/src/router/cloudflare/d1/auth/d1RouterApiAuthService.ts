@@ -1388,6 +1388,7 @@ function createCloudflareD1RouterApiAuthAssembly(
       walletRegistrationNearProvisioningSideEffectStore(options),
       getRegistrationCeremonyIntentStore,
       yaoLifecycleDecisions,
+      walletRegistrationCommitStore,
     ),
     walletRegistrationCommitStore,
     walletCustodyCommitStore,

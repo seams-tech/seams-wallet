@@ -535,6 +535,14 @@ throughout the resize. Reduced-motion behavior remains immediate.
   Both requests settle before local wallet persistence. A refused or unavailable
   credential claim prevents local persistence. Exact retries retain the original
   activation consumer and credential owner.
+- A NEAR-only respond that verified a new passkey starts the same credential
+  claim after it replies, while the client runs the Yao execution. A granted
+  claim is recorded in the regional database for that ceremony. Finalization
+  sends no claim request when the record names the same wallet, relying party
+  and credential. A refused, failed or unfinished early claim records nothing,
+  and finalization then claims as before. The record never changes, and the
+  cleanup of a finalized ceremony removes it. The claim itself stays in shared
+  authority, under the rules for claimed passkey homes.
 - Registration finalization starts the recovery-code route claim of its custody
   commit in that interval, for either signer leg. The claim stores no custody
   record, and local wallet persistence does not wait for it. A refused or
