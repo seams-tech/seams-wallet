@@ -930,11 +930,20 @@ other regions' custody calls cross to Singapore in either case.
   databases, five in Singapore and three for the other regions; migrations;
   the target change (private `281e48f`); the Console and backend workflows.
   All 14 staging Workers serve versions that bind only the new databases,
-  and the APAC components run at `aws:ap-southeast-1`. Open: the owner signs
-  in to the staging dashboard and creates a project, then the protected
-  activation, a registration proof, and the owner's deletion of the old
-  databases. The private record is `docs/singapore-clean-switch-20261013.md`
-  in `seams-monorepo`.
+  and the APAC components run at `aws:ap-southeast-1`. The owner created a
+  new organisation and project, the protected activation passed, and twelve
+  fresh registrations with a first signature each passed, three of them
+  verified independently. Open: the owner's deletion of the old databases.
+  The private record is `docs/singapore-clean-switch-20261013.md` in
+  `seams-monorepo`.
+- [x] First measurement on the Singapore lane: nine wallets, client in
+  Tokyo, published 0.9.0 code, no control arm. Finalization's server total
+  measures 265 ms at the median against 602 ms in Hong Kong: wallet commit
+  63 against 187 ms, custody commit 19 against 61 ms, session issue 28
+  against 68 ms. Registration after the passkey step measures 2,671 ms
+  against 2,988 ms. The 90th percentiles are wide, setup 1,193 ms and Yao
+  execute 2,596 ms, and need a larger run. The yield, the SIMD build, the
+  prewarm and Phase 2 are not in 0.9.0 and are not in these figures.
 - [ ] Hosted comparison after the cutover, with server-side totals beside the
   Tokyo client's numbers.
 - [ ] Production testnet, then mainnet. Empty databases exist for both
