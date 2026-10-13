@@ -154,11 +154,14 @@ the successful control. The user sends it to Cloudflare unless separately author
   the 30-attempt hosted check. No hosted failure-path or p99 gain is established.
   The original slow startup and first-signature HTTP 503 also remain unresolved.
 
-- [ ] Review commit `b8de6715` against the current setup lifecycle. Reuse its bounded
-  retry implementation and error mapping. Confirm whether it is already released.
-- [ ] Exercise a transient D1 failure, an ambiguous write result, and a lost setup reply.
-  Verify one registration identity, one winning address set, and no duplicate reservation.
-- [ ] Verify exhausted transient failures return a recoverable server response.
+- [x] Review commit `b8de6715` against the current setup lifecycle. Reuse its bounded
+  retry implementation and error mapping. Published 0.9.3 resolves to `e4f883f7`,
+  which does not contain this fix.
+- [x] Exercise a transient D1 failure, an ambiguous write result, and a lost setup reply.
+  The assembled setup service passes request loss, committed-batch reply loss,
+  exhausted retries, and exact setup replay with stable identity and addresses.
+  [Recovery evidence](evidence/refactor-155j-slow-startup.md#setup-recovery-verification).
+- [x] Verify exhausted transient failures return a recoverable server response.
   Keep database driver text out of the public response.
 - [ ] Resolve R155H's setup cost control before moving more work before authentication.
   Reuse an existing applicable policy. If none exists, present concrete limits

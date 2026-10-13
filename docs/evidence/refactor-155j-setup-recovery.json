@@ -1,0 +1,69 @@
+{
+  "command": "node tests/e2e/registration-setup-startup.e2e.mjs",
+  "environment": "local Miniflare D1, assembled registration service",
+  "scope": "Gateway ceremony batch faults; reachable reservation authority; service replay, not browser transport fault",
+  "results": {
+    "setupRecovery": [
+      {
+        "kind": "lost_request",
+        "attempts": 2,
+        "status": 200,
+        "stableIdentityAndAddresses": true,
+        "ceremonyRecords": 2,
+        "homeRecords": 1,
+        "reservationRecords": 1
+      },
+      {
+        "kind": "lost_reply",
+        "attempts": 2,
+        "status": 200,
+        "stableIdentityAndAddresses": true,
+        "ceremonyRecords": 2,
+        "homeRecords": 1,
+        "reservationRecords": 1
+      },
+      {
+        "kind": "exhausted",
+        "attempts": 3,
+        "status": 503,
+        "stableIdentityAndAddresses": true,
+        "ceremonyRecords": 2,
+        "homeRecords": 1,
+        "reservationRecords": 1
+      },
+      {
+        "kind": "exhausted_reply",
+        "attempts": 3,
+        "status": 503,
+        "stableIdentityAndAddresses": true,
+        "ceremonyRecords": 2,
+        "homeRecords": 1,
+        "reservationRecords": 1
+      }
+    ],
+    "replayUsesStoredAddresses": true,
+    "independentWallets": true,
+    "lostAllocationReplyRecovered": true,
+    "concurrentAllocations": 8,
+    "persistedWinners": 1,
+    "distinctDestinationGeneration": true,
+    "forwardedStoredAddresses": true,
+    "exactSnapshotAvoidsRead": true,
+    "changedGenerationReadsDestination": true,
+    "forgedAddressesReplaced": true,
+    "missingGenerationRefused": true,
+    "wrongTenantRefused": true,
+    "immutableAddresses": true,
+    "hostWithoutStarterCompletes": true,
+    "ceremonyWritesPerSetup": 1,
+    "allocationOverlapsCeremonyRead": true,
+    "allocationBesideCeremonyWrite": true,
+    "ceremonySettledBeforeAllocationFailureReply": true,
+    "setupCommitsRegistrationHome": true,
+    "continuationDirectoryReads": 0,
+    "unknownCeremonyRefusedLocally": true,
+    "homeFailureRollsBackCeremony": true,
+    "cancelledSetupCannotReopen": true,
+    "cancellationSurvivesUnavailableDirectory": true
+  }
+}

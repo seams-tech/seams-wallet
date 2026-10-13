@@ -58,6 +58,7 @@ class RegistrationAddresses {
 // Counts the ceremony writes that reach the database and can hold one until a signal.
 class ObservedDatabase {
   ceremonyWrites = 0;
+  writeFault = { kind: 'none', remaining: 0 };
   addressReads = 0;
   holdCeremonyRead = null;
   holdCeremonyWrite = null;
@@ -68,8 +69,20 @@ class ObservedDatabase {
     return new ObservedStatement(this, this.database.prepare(sql), sql);
   }
   async batch(statements) {
-    await this.observe(statements.map(statementSql).join('\n'));
-    return this.database.batch(statements.map(originalStatement));
+    const sql = statements.map(statementSql).join('\n');
+    await this.observe(sql);
+    const fault = this.writeFault;
+    const inject =
+      sql.includes('INSERT OR IGNORE INTO registration_ceremony_records') && fault.remaining > 0;
+    if (inject) fault.remaining -= 1;
+    if (inject && fault.kind === 'lost_request') {
+      throw new Error('D1_ERROR: Network connection lost.');
+    }
+    const result = await this.database.batch(statements.map(originalStatement));
+    if (inject && fault.kind === 'lost_reply') {
+      throw new Error('D1_ERROR: Network connection lost.');
+    }
+    return result;
   }
   exec(sql) {
     return this.database.exec(sql);
@@ -469,10 +482,13 @@ try {
     /immutable/,
   );
 
+  const setupRecovery = await verifySetupRecovery(database, options, starter, addresses, input);
+
   await writeFile(
     resolve(output, 'result.json'),
     `${JSON.stringify(
       {
+        setupRecovery,
         replayUsesStoredAddresses: true,
         independentWallets: true,
         lostAllocationReplyRecovered: true,
@@ -545,4 +561,83 @@ async function migrate(database) {
 
 function isSql(name) {
   return name.endsWith('.sql');
+}
+
+// Fault only the Gateway ceremony batch. The reservation authority stays reachable.
+async function verifySetupRecovery(database, options, starter, addresses, input) {
+  const evidence = [];
+  for (const kind of ['lost_request', 'lost_reply', 'exhausted', 'exhausted_reply']) {
+    const observed = new ObservedDatabase(database);
+    const exhausted = kind === 'exhausted' || kind === 'exhausted_reply';
+    observed.writeFault = {
+      kind: kind === 'lost_reply' || kind === 'exhausted_reply' ? 'lost_reply' : 'lost_request',
+      remaining: exhausted ? 3 : 1,
+    };
+    const registration = api.createCloudflareD1RouterApiAuthService({
+      ...options,
+      database: observed,
+      startRegistrationWallets: starter.initialize.bind(starter),
+    }).walletRegistration;
+    const request = {
+      ...input,
+      request: {
+        ...input.request,
+        registrationOperationId: api.createRegistrationSetupOperationId(),
+      },
+    };
+    const response = await registration.setupWalletRegistration(request);
+    const reservation = options.registrationAuthority.reservation;
+    assert.ok(reservation);
+    const attempts = observed.ceremonyWrites;
+    assert.equal(attempts, exhausted ? 3 : 2);
+    if (exhausted) {
+      assert.equal(response.status, 503);
+      assert.deepEqual(response.body, {
+        ok: false,
+        code: 'storage_unavailable',
+        message: 'Wallet registration setup is temporarily unavailable. Try again.',
+      });
+    } else {
+      assert.equal(response.status, 200, JSON.stringify(response.body));
+      assert.equal(response.body.walletId, reservation.walletId);
+    }
+    // Retry the original request, including when the successful setup reply was lost.
+    const before = await addresses.read(api.walletObjectIdentity(reservation.walletId, 1, scope));
+    const recovered = await setup(registration, request);
+    assert.equal(recovered.walletId, reservation.walletId);
+    assert.equal(recovered.registrationCeremonyId, reservation.ceremonyId);
+    const saved = await addresses.read(api.walletObjectIdentity(recovered.walletId, 1, scope));
+    assert.ok(saved);
+    assert.deepEqual(saved, before, 'Recovery must retain the first persisted address set');
+    const records = await database.prepare(`SELECT record_scope, count(*) AS count
+      FROM registration_ceremony_records
+      WHERE json_extract(record_json, '$.registrationCeremonyId') = ?
+      GROUP BY record_scope`).bind(reservation.ceremonyId).all();
+    const ceremonies = records.results.filter(isCeremonyRecord);
+    assert.equal(ceremonies.length, 2);
+    for (const record of ceremonies) assert.equal(record.count, 1);
+    const homes = await database
+      .prepare('SELECT count(*) AS count FROM wallet_execution_generations WHERE wallet_id = ?')
+      .bind(reservation.walletId)
+      .first();
+    assert.equal(homes.count, 1);
+    const reservations = await database.prepare(`SELECT count(*) AS count FROM registration_ceremony_records
+      WHERE record_scope = 'setup-reservation'
+        AND json_extract(record_json, '$.reservation.walletId') = ?`).bind(reservation.walletId).first();
+    assert.equal(reservations.count, 1);
+    evidence.push({
+      kind,
+      attempts,
+      status: response.status,
+      stableIdentityAndAddresses: true,
+      ceremonyRecords: ceremonies.length,
+      homeRecords: homes.count,
+      reservationRecords: reservations.count,
+    });
+  }
+  return evidence;
+}
+
+function isCeremonyRecord(record) {
+  return record.record_scope === 'ceremony' || record.record_scope === 'setup-ceremony';
 }

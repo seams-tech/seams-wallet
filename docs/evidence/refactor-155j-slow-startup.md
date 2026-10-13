@@ -282,3 +282,44 @@ asynchronous handler after caller cancellation. The initial diagnostic change
 passed Wallet Server type-check and Wasm-target Router/Deriver A checks.
 After removing the temporary diagnostics, Wallet Server type-check and the public
 bloat check passed. All 87 completed hosted signatures passed independent checks.
+
+
+## Setup recovery verification
+
+The existing bounded retry implementation passes through the assembled registration
+service and a real local Miniflare D1 database. No production code changed.
+The test injects a transport exception before a ceremony batch, or after its
+successful commit. It preserves the actual SQL, transaction, and replay paths.
+The reservation authority remains reachable throughout these cases.
+
+Run from the public repository:
+
+```sh
+node tests/e2e/registration-setup-startup.e2e.mjs
+```
+
+| Injected condition | Initial batch attempts | Initial response | Exact request replay |
+| --- | ---: | ---: | --- |
+| One lost batch request | 2 | 200 | Same wallet, ceremony, and object addresses |
+| One lost committed batch reply | 2 | 200 | Same wallet, ceremony, and object addresses |
+| Three lost batch requests | 3 | 503 | Recovers with the original reservation and addresses |
+| Three lost committed batch replies | 3 | 503 | Recovers the committed ceremony with the original addresses |
+
+Each recovered case retains two ceremony records, one home record, and one
+reservation. The two ceremony records are the setup snapshot and current ceremony.
+The 503 response contains `storage_unavailable` and a fixed message. It contains
+no database driver text. The existing allocation-loss, cancellation, concurrent
+allocation, wrong-tenant, and generation checks also pass in the same run.
+
+Exact setup replay models recovery after a successful response does not reach its
+caller. This check does not inject browser transport loss or test SDK automatic
+retry. It also does not inject a Console reservation failure or hosted D1 failure.
+No hosted latency saving is inferred from this local correctness check.
+
+The repeatable artifact is `.artifacts/registration-setup-startup/result.json`.
+The sanitized copy is [setup recovery evidence](refactor-155j-setup-recovery.json).
+
+Release status: npm reports `@seams/wallet-server@0.9.3` source revision
+`e4f883f7a4429dcb517f7a9dfb48d95ae3e62de0`. That revision does not contain
+`storage/d1Retry.ts`. Commit `b8de6715` remains part of the next candidate.
+This check made no live changes.
