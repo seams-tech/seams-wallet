@@ -473,5 +473,12 @@
     "Tail captures include unrelated regional traffic; APAC home filter separates role startup observations.",
     "No peer execution completion record observed for the failed streamed delivery; absence does not prove execution never began.",
     "No statistical p99 claim from this sample."
-  ]
+  ],
+  "restoration": {
+    "all14ServingVersionsMatchSnapshot": true,
+    "tenantActivationRunId": 38345363529,
+    "activationConclusion": "success",
+    "temporaryDiagnosticsRemovedInCommit": "3d60ebca",
+    "historicalUploadedVersions": "Inactive in Cloudflare version history"
+  }
 }

@@ -156,11 +156,12 @@ Private raw artifacts, frozen sources, signatures, activation records and guards
 The independent verification report is
 `.artifacts/proof-verification-r155j-hosted-startup-20261013.json`.
 
-The script selected the original serving versions after each stop. Tenant
-reactivation must also pass before restoration is complete. Unfinished ceremonies
-can temporarily block readiness; they are allowed to expire without deleting
-lifecycle records. See the private `restored.json` and activation records for the
-final readiness result.
+All 14 serving versions match the original snapshot. Final tenant activation and
+readiness passed in GitHub run `38345363529`. Unfinished ceremonies temporarily
+blocked reactivation; they expired without deleting lifecycle records. The private
+`restored.json` records the final check. Temporary diagnostics were removed from
+source in `3d60ebca`. Uploaded diagnostic versions remain inactive in Cloudflare
+version history; none serves traffic.
 
 ## Next action
 
