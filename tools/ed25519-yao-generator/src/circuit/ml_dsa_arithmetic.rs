@@ -34,9 +34,10 @@ pub(super) fn add_bits(
         let parity = builder.xor(left_bit, right_bit);
         output.push(builder.xor(parity, carry));
         if bit + 1 < width {
-            let both = builder.and(left_bit, right_bit);
-            let carried = builder.and(parity, carry);
-            carry = builder.xor(both, carried);
+            // Majority(a, b, c) = a XOR ((a XOR b) AND (a XOR c)).
+            let carry_difference = builder.xor(left_bit, carry);
+            let selected_difference = builder.and(parity, carry_difference);
+            carry = builder.xor(left_bit, selected_difference);
         }
     }
     output
@@ -53,11 +54,11 @@ pub(super) fn subtract_bits(
     for (left_bit, right_bit) in left.iter().copied().zip(right.iter().copied()) {
         let parity = builder.xor(left_bit, right_bit);
         output.push(builder.xor(parity, borrow));
-        let inverted_left = builder.inv(left_bit);
-        let direct_borrow = builder.and(inverted_left, right_bit);
         let equal = builder.inv(parity);
-        let carried_borrow = builder.and(equal, borrow);
-        borrow = builder.xor(direct_borrow, carried_borrow);
+        // Equal operands propagate the borrow. Unequal operands select b.
+        let borrow_difference = builder.xor(right_bit, borrow);
+        let selected_difference = builder.and(equal, borrow_difference);
+        borrow = builder.xor(right_bit, selected_difference);
     }
     (output, borrow)
 }

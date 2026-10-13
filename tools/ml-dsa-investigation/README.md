@@ -22,7 +22,7 @@ From the repository directory:
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
   --samples 100 --garbled-samples 3 \
-  --output docs/evidence/ml-dsa-65-threshold-host-shared-core-20261013.json
+  --output docs/evidence/ml-dsa-65-threshold-host-one-and-20261013.json
 ```
 
 The tool fails when any reference comparison or rejection check fails.

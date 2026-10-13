@@ -1,0 +1,174 @@
+{
+  "schema": "seams.ml-dsa-engine-structural-screen.v1",
+  "created_at": "2026-10-13T12:08:38.577920+00:00",
+  "scope": "Topology and communication models for the current optimized schedules. No GMW, ABY2.0, or three-halves engine executes in this artifact.",
+  "schedule_measurements": {
+    "aggregate-check": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/aggregate-check.bin",
+      "schedule_sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b",
+      "gate_counts": {
+        "xor": 10712,
+        "and": 3077,
+        "not": 16
+      },
+      "maximum_and_depth": 14,
+      "reusable_slots": 3328
+    },
+    "commitment-hash": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-hash.bin",
+      "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361",
+      "gate_counts": {
+        "xor": 814784,
+        "and": 267584,
+        "not": 268192
+      },
+      "maximum_and_depth": 168,
+      "reusable_slots": 12800
+    },
+    "commitment-high": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-high.bin",
+      "schedule_sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6",
+      "gate_counts": {
+        "xor": 65024,
+        "and": 28160,
+        "not": 16384
+      },
+      "maximum_and_depth": 57,
+      "reusable_slots": 12803
+    },
+    "response-check": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/response-check.bin",
+      "schedule_sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506",
+      "gate_counts": {
+        "xor": 40449,
+        "and": 28415,
+        "not": 46592
+      },
+      "maximum_and_depth": 55,
+      "reusable_slots": 11778
+    },
+    "rounding": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/rounding.bin",
+      "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+      "gate_counts": {
+        "xor": 125696,
+        "and": 43008,
+        "not": 25856
+      },
+      "maximum_and_depth": 93,
+      "reusable_slots": 17667
+    },
+    "row-check": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/row-check.bin",
+      "schedule_sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7",
+      "gate_counts": {
+        "xor": 209153,
+        "and": 106239,
+        "not": 109312
+      },
+      "maximum_and_depth": 101,
+      "reusable_slots": 23812
+    },
+    "sampling": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/sampling.bin",
+      "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+      "gate_counts": {
+        "xor": 706669,
+        "and": 292180,
+        "not": 161072
+      },
+      "maximum_and_depth": 199,
+      "reusable_slots": 11136
+    },
+    "seed": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/seed.bin",
+      "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+      "gate_counts": {
+        "xor": 112448,
+        "and": 37824,
+        "not": 37939
+      },
+      "maximum_and_depth": 24,
+      "reusable_slots": 2752
+    },
+    "signing-mask": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/signing-mask.bin",
+      "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+      "gate_counts": {
+        "xor": 647072,
+        "and": 212928,
+        "not": 202874
+      },
+      "maximum_and_depth": 185,
+      "reusable_slots": 12224
+    },
+    "signing-seed": {
+      "schedule_path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/signing-seed.bin",
+      "schedule_sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41",
+      "gate_counts": {
+        "xor": 113024,
+        "and": 37312,
+        "not": 37410
+      },
+      "maximum_and_depth": 24,
+      "reusable_slots": 2496
+    }
+  },
+  "operation_forecasts": {
+    "key_generation": {
+      "calls": {
+        "seed": 1,
+        "sampling": 11,
+        "rounding": 6
+      },
+      "and_gates": 3509852,
+      "serial_circuit_and_depth_sum": 2771,
+      "current_half_gate_table_bytes": 112315264,
+      "three_halves_table_bits_128_bit_labels": 691440844,
+      "three_halves_table_bytes_ideal_bit_packing": 86430106,
+      "gmw_online_bits_only": 14039408,
+      "aby2_online_bits_only": 7019704,
+      "setup_and_conversion_bytes": "Unmeasured and excluded. These online figures are not complete protocol totals."
+    },
+    "signing_candidate": {
+      "calls": {
+        "signing-mask": 5,
+        "commitment-high": 6,
+        "commitment-hash": 1,
+        "response-check": 5,
+        "row-check": 6,
+        "aggregate-check": 1
+      },
+      "and_gates": 2283770,
+      "serial_circuit_and_depth_sum": 2330,
+      "current_half_gate_table_bytes": 73080640,
+      "three_halves_table_bits_128_bit_labels": 449902690,
+      "three_halves_table_bytes_ideal_bit_packing": 56237837,
+      "gmw_online_bits_only": 9135080,
+      "aby2_online_bits_only": 4567540,
+      "setup_and_conversion_bytes": "Unmeasured and excluded. These online figures are not complete protocol totals."
+    }
+  },
+  "method": "Read big-endian header and slot indices from every canonical schedule gate in order. Propagate the maximum parent AND depth, adding one only at an AND. Reused slots overwrite their prior depth. Match every counted AND to the independent exported resource record.",
+  "limits": [
+    "Serial circuit depth follows the current core sequence. A new backend may batch independent polynomials.",
+    "GMW and ABY2.0 require private two-party preprocessing and all share conversions. Those costs remain unmeasured.",
+    "Three-halves adds computation and uses a different garbling assumption/implementation that needs review.",
+    "No round latency, CPU cost, Worker portability, signature latency, or production ranking follows from these formulas."
+  ],
+  "sources": [
+    {
+      "url": "https://eprint.iacr.org/2021/749",
+      "model": "1.5*kappa+5 bits per AND. kappa=128 gives 197 bits."
+    },
+    {
+      "url": "https://encrypto.de/papers/PSSY21.pdf",
+      "model": "Table1 with one-bit Boolean ring: ABY2.0 uses 2 online bits per AND. Ordinary GMW triple openings use 4 online bits per AND."
+    },
+    {
+      "url": "https://github.com/encryptogroup/SEEC/tree/24bcbd57f7176ffd706f6d797d013948c55cf7dd",
+      "reference_commit": "24bcbd57f7176ffd706f6d797d013948c55cf7dd",
+      "readme_sha256": "1972339d9f8c2b549667b186ea7934cd8aa91369cdbba8e064a70bddf032efcf"
+    }
+  ]
+}

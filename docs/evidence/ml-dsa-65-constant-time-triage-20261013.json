@@ -1,0 +1,212 @@
+{
+  "schema": "seams.ml-dsa-constant-time-triage.v1",
+  "created_at": "2026-10-13T12:04:06.749787+00:00",
+  "result": "needs-target-qualification",
+  "scope": "Read-only compilation and manual data-flow triage of local ML-DSA arithmetic. This is not a constant-time certificate.",
+  "source": {
+    "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
+    "sha256": "4698ac5204e38c7b01fa8c54926316aae4c491b3e30da0f9cdd1a4f442201db7"
+  },
+  "assembly": {
+    "path": "crates/ed25519-yao/target/wasm32-unknown-unknown/release/deps/ed25519_yao-eb95ba9496192b2c.s",
+    "sha256": "b4b322ddd04496fd94c4dad1fa0bae5b4060c53751e9fd0d1f9e570905877767"
+  },
+  "compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+  "reproduce_argv": [
+    "cargo",
+    "rustc",
+    "--locked",
+    "--release",
+    "--manifest-path",
+    "crates/ed25519-yao/Cargo.toml",
+    "--lib",
+    "--features",
+    "ml-dsa-runtime-benchmark",
+    "--target",
+    "wasm32-unknown-unknown",
+    "--",
+    "--emit=asm"
+  ],
+  "findings": [
+    {
+      "symbol": "_RINvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic8shake256Kj40_EB8_",
+      "instructions": [
+        {
+          "assembly_line": 17488,
+          "opcode": "i32.div_u",
+          "excerpt": ".LBB40_9:\n\tend_block\n\tlocal.get\t2\n\tlocal.get\t2\n\ti32.const\t136\n\ti32.div_u\n\tlocal.tee\t8\n\ti32.const\t136"
+        }
+      ],
+      "input_classification": "public",
+      "manual_data_flow": "The division by 136 computes a SHAKE input block count from public byte lengths, not from hashed bytes.",
+      "disposition": "public-input false positive"
+    },
+    {
+      "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic11inverse_ntt",
+      "instructions": [
+        {
+          "assembly_line": 114677,
+          "opcode": "i32.rem_u",
+          "excerpt": "\tlocal.get\t15\n\ti32.load\t0\n\tlocal.tee\t18\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t16"
+        },
+        {
+          "assembly_line": 114686,
+          "opcode": "i32.rem_u",
+          "excerpt": "\tlocal.get\t17\n\ti32.sub \n\ti32.const\t8380417\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti64.extend_i32_u\n\tlocal.get\t13"
+        },
+        {
+          "assembly_line": 114691,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.rem_u\n\ti64.extend_i32_u\n\tlocal.get\t13\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti64.store32\t0\n\tlocal.get\t15"
+        },
+        {
+          "assembly_line": 114758,
+          "opcode": "i64.rem_u",
+          "excerpt": "\tlocal.get\t14\n\ti64.load32_u\t0\n\ti64.const\t8347681\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti64.store32\t0\n\tlocal.get\t14"
+        },
+        {
+          "assembly_line": 114769,
+          "opcode": "i64.rem_u",
+          "excerpt": "\tlocal.get\t14\n\ti64.load32_u\t0\n\ti64.const\t8347681\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti64.store32\t0\n\tlocal.get\t15"
+        }
+      ],
+      "input_classification": "secret",
+      "manual_data_flow": "Private transformed polynomial coefficients multiply public twiddles and inverse scaling.",
+      "disposition": "target-dependent timing risk requires qualification"
+    },
+    {
+      "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic12ntt_twiddles",
+      "instructions": [
+        {
+          "assembly_line": 114821,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.add \n\tlocal.get\t3\n\ti64.const\t1753\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\tlocal.tee\t3\n\ti64.store32\t0"
+        },
+        {
+          "assembly_line": 114831,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.add \n\tlocal.get\t3\n\ti64.const\t1753\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\tlocal.tee\t3\n\ti64.store32\t0"
+        },
+        {
+          "assembly_line": 114841,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.add \n\tlocal.get\t3\n\ti64.const\t1753\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\tlocal.tee\t3\n\ti64.store32\t0"
+        }
+      ],
+      "input_classification": "public",
+      "manual_data_flow": "The fixed root of unity and every exponent are public.",
+      "disposition": "public-input false positive"
+    },
+    {
+      "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic25matrix_product_plus_error",
+      "instructions": [
+        {
+          "assembly_line": 115464,
+          "opcode": "i64.rem_u",
+          "excerpt": "\tlocal.get\t10\n\ti32.add \n\ti64.load32_u\t0\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add "
+        },
+        {
+          "assembly_line": 115468,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t10"
+        },
+        {
+          "assembly_line": 115502,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.const\t1024\n\ti32.add \n\ti64.load32_u\t0\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add "
+        },
+        {
+          "assembly_line": 115506,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t10"
+        },
+        {
+          "assembly_line": 115540,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.const\t2048\n\ti32.add \n\ti64.load32_u\t0\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add "
+        },
+        {
+          "assembly_line": 115544,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t10"
+        },
+        {
+          "assembly_line": 115578,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.const\t3072\n\ti32.add \n\ti64.load32_u\t0\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add "
+        },
+        {
+          "assembly_line": 115582,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t10"
+        },
+        {
+          "assembly_line": 115616,
+          "opcode": "i64.rem_u",
+          "excerpt": "\ti32.const\t4096\n\ti32.add \n\ti64.load32_u\t0\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add "
+        },
+        {
+          "assembly_line": 115620,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t10"
+        },
+        {
+          "assembly_line": 115662,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti32.add \n\tlocal.tee\t13\n\ti32.load\t0\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t11"
+        },
+        {
+          "assembly_line": 115677,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti32.const\t4\n\ti32.add \n\ti32.load\t0\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t10"
+        }
+      ],
+      "input_classification": "secret",
+      "manual_data_flow": "Public matrix coefficients multiply this role's private transformed polynomial shares.",
+      "disposition": "target-dependent timing risk requires qualification"
+    },
+    {
+      "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic3ntt",
+      "instructions": [
+        {
+          "assembly_line": 115803,
+          "opcode": "i64.rem_u",
+          "excerpt": "\tlocal.tee\t16\n\ti64.load32_u\t0\n\tlocal.get\t12\n\ti64.mul \n\ti64.const\t8380417\n\ti64.rem_u\n\ti32.wrap_i64\n\tlocal.tee\t17"
+        },
+        {
+          "assembly_line": 115808,
+          "opcode": "i32.rem_u",
+          "excerpt": "\ti64.rem_u\n\ti32.wrap_i64\n\tlocal.tee\t17\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t16"
+        },
+        {
+          "assembly_line": 115817,
+          "opcode": "i32.rem_u",
+          "excerpt": "\tlocal.get\t17\n\ti32.sub \n\ti32.const\t8380417\n\ti32.add \n\ti32.const\t8380417\n\ti32.rem_u\n\ti32.store\t0\n\tlocal.get\t14"
+        }
+      ],
+      "input_classification": "secret",
+      "manual_data_flow": "Public twiddles multiply this role's private polynomial coefficients.",
+      "disposition": "target-dependent timing risk requires qualification"
+    },
+    {
+      "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic8expand_a",
+      "instructions": [
+        {
+          "assembly_line": 115890,
+          "opcode": "i32.rem_u",
+          "excerpt": "\tmemory.fill\t0\n\tlocal.get\t1\n\tlocal.get\t2\n\tlocal.get\t2\n\ti32.const\t168\n\ti32.rem_u\n\tlocal.tee\t4\n\ti32.sub "
+        }
+      ],
+      "input_classification": "public",
+      "manual_data_flow": "Matrix expansion consumes public rho and public SHAKE stream positions.",
+      "disposition": "public-input false positive"
+    }
+  ],
+  "limits": [
+    "The release core probe is not the final optimized Worker module or its native JIT output.",
+    "Wasm remainder instructions do not by themselves prove a timing leak on deployed Cloudflare hardware.",
+    "The audit does not qualify gate hashing, OT, memory erasure, allocator behavior, or speculative execution.",
+    "The existing source already declares no target-specific constant-time guarantee."
+  ],
+  "next_action": "Evaluate bounded division-free reduction for modulus 8380417 as a separate change. Verify reduced-residue arithmetic and complete canonical key generation, signing, and recovery before inspecting the final deployed target."
+}

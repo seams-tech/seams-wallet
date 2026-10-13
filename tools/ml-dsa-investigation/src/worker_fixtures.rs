@@ -4,6 +4,7 @@ use crate::{
     InvestigationResult, circuit_evidence, digest, garbled_execution, private_signing, reference,
     require,
 };
+use ed25519_yao::ml_dsa_runtime::TrustedMlDsaSchedule;
 use ed25519_yao::ml_dsa_signing::{SigningKernel, keygen::KeygenKernel};
 use ed25519_yao_generator::{
     compile_ml_dsa_eta4_sampling_circuit_v1, compile_ml_dsa_power2round_circuit_v1,
@@ -12,6 +13,7 @@ use ed25519_yao_generator::{
 };
 use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde_json::{Map, Value, json};
+use sha2::{Digest, Sha256};
 use std::{fs, path::Path};
 
 const MODULUS: u32 = 8_380_417;
@@ -170,9 +172,10 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         .chain(SigningKernel::ALL.iter().map(|kernel| kernel.name()))
     {
         let bytes = fs::read(directory.join(format!("{name}.bin")))?;
+        let schedule = TrustedMlDsaSchedule::parse(&bytes, Sha256::digest(&bytes).into())?;
         schedules.insert(
             name.into(),
-            json!({"sha256": digest(&bytes), "bytes": bytes.len()}),
+            json!({"sha256": digest(&bytes), "bytes": bytes.len(), "and_gates": schedule.and_gate_count(), "table_bytes": schedule.and_gate_count() * 32}),
         );
     }
     let key = SigningKey::<MlDsa65>::from_seed(&[0; 32].into());
