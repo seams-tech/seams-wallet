@@ -3,7 +3,7 @@ use crate::encoders::{
     base64_url_decode, base64_url_encode, encode_delegate_action, hash_delegate_action,
 };
 use crate::transaction::{build_actions_from_params, build_transaction_with_actions};
-use crate::transaction::{calculate_transaction_hash, sign_transaction};
+use crate::transaction::{calculate_transaction_hash, encode_signed_transaction};
 use crate::types::wasm_to_json::{WasmSignedDelegate, WasmSignedTransaction};
 use crate::types::{AccountId, DelegateAction, PublicKey, Signature, SignedDelegate, Transaction};
 use borsh;
@@ -100,7 +100,7 @@ fn build_near_transactions_from_payload(
                 tx.receiver_id.trim(),
                 nonce,
                 &block_hash_bytes,
-                &near_public_key_bytes,
+                PublicKey::Ed25519(near_public_key_bytes),
                 actions,
             )
             .map_err(|e| JsValue::from_str(&format!("Failed to build transaction: {e}")))?,
@@ -210,9 +210,7 @@ fn decode_and_validate_near_transaction(
     }
     let expected_public_key_bytes =
         parse_near_public_key_to_bytes(args.expected_signer_public_key.trim())?;
-    if transaction.public_key.key_type != 0
-        || transaction.public_key.key_data != expected_public_key_bytes
-    {
+    if transaction.public_key != PublicKey::Ed25519(expected_public_key_bytes) {
         return Err(JsValue::from_str(
             "unsignedTransactionBorshB64u signer public key does not match expectedSignerPublicKey",
         ));
@@ -242,7 +240,7 @@ pub fn threshold_ed25519_finalize_near_tx_from_signature(
     let mut signature64 = [0u8; 64];
     signature64.copy_from_slice(signature_bytes.as_slice());
     let transaction_hash = calculate_transaction_hash(&transaction);
-    let signed_bytes = sign_transaction(transaction, &signature64)
+    let signed_bytes = encode_signed_transaction(transaction, Signature::Ed25519(signature64))
         .map_err(|e| JsValue::from_str(&format!("Failed to build signed transaction: {e}")))?;
     let output = FinalizeNearTransactionFromSignatureOutput {
         signed_transaction_borsh_b64u: base64_url_encode(signed_bytes.as_slice()),
@@ -270,7 +268,7 @@ pub fn threshold_ed25519_decode_signed_near_tx_borsh(args: JsValue) -> Result<Js
         .map_err(|e| JsValue::from_str(&format!("Invalid signed NEAR transaction borsh: {e}")))?;
     let output = DecodeSignedNearTransactionBorshOutput {
         signed_transaction: WasmSignedTransaction::from(&signed_tx),
-        transaction_hash: calculate_transaction_hash(&signed_tx.transaction),
+        transaction_hash: calculate_transaction_hash(signed_tx.transaction()),
     };
     serde_wasm_bindgen::to_value(&output).map_err(|e| {
         JsValue::from_str(&format!(
@@ -330,7 +328,7 @@ fn delegate_action_from_payload(payload: DelegatePayload) -> Result<DelegateActi
         .map_err(|e| JsValue::from_str(&format!("Invalid delegate.maxBlockHeight: {e}")))?;
 
     let pk_bytes = parse_near_public_key_to_bytes(payload.public_key.trim())?;
-    let public_key = PublicKey::from_ed25519_bytes(&pk_bytes);
+    let public_key = PublicKey::Ed25519(pk_bytes);
 
     Ok(DelegateAction {
         sender_id,
@@ -423,7 +421,7 @@ pub fn threshold_ed25519_finalize_delegate_from_signature(
     signature64.copy_from_slice(signature_bytes.as_slice());
     let signed_delegate = SignedDelegate {
         delegate_action,
-        signature: Signature::from_ed25519_bytes(&signature64),
+        signature: Signature::Ed25519(signature64),
     };
     serde_wasm_bindgen::to_value(&WasmSignedDelegate::from(&signed_delegate)).map_err(|e| {
         JsValue::from_str(&format!(

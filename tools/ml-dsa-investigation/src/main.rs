@@ -3,6 +3,7 @@ mod boolean_engine_evidence;
 mod circuit_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
+mod near_transaction_evidence;
 mod private_execution;
 mod private_keygen;
 mod private_signing;
@@ -235,6 +236,7 @@ fn generate_report(
         "src/sampler_evidence.rs",
         "src/garbled_execution.rs",
         "src/hybrid_keygen.rs",
+        "src/near_transaction_evidence.rs",
         "src/private_execution.rs",
         "src/private_keygen.rs",
         "src/private_signing.rs",
@@ -269,13 +271,23 @@ fn generate_report(
         "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
         "crates/ed25519-yao/Cargo.toml",
         "crates/ed25519-yao/Cargo.lock",
+        "wasm/near_signer/Cargo.toml",
+        "wasm/near_signer/Cargo.lock",
+        "wasm/near_signer/src/types/near_keys.rs",
+        "wasm/near_signer/src/types/near.rs",
+        "wasm/near_signer/src/types/deserializers.rs",
+        "wasm/near_signer/src/types/wasm_to_json.rs",
+        "wasm/near_signer/src/lib.rs",
+        "wasm/near_signer/src/threshold/threshold_digests.rs",
+        "wasm/near_signer/src/actions.rs",
+        "wasm/near_signer/src/transaction.rs",
     ] {
         sources.push(
             json!({"repository_path": path, "sha256": digest(&fs::read(repository.join(path))?)}),
         );
     }
     Ok(json!({
-        "schema": "seams.ml-dsa-investigation.v7",
+        "schema": "seams.ml-dsa-investigation.v8",
         "benchmark_only": true,
         "production_eligible": false,
         "created_at_unix_ms": SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis(),
@@ -289,7 +301,7 @@ fn generate_report(
         ],
         "source": {"revision": revision, "working_tree_dirty": dirty, "files": sources},
         "environment": {"compiler": compiler, "host": host, "profile": "release", "architecture": env::consts::ARCH, "operating_system": env::consts::OS},
-        "dependencies": {"ml-dsa": "=0.1.1", "sha2": "=0.10.9", "sha3": "=0.10.8", "keccak": "=0.1.6", "remaining_versions": "Cargo.lock"},
+        "dependencies": {"ml-dsa": "=0.1.1", "sha2": "=0.10.9", "sha3": "=0.10.8", "keccak": "=0.1.6", "aws-lc-rs": "=1.18.1", "remaining_versions": "Cargo.lock"},
         "reproduce_argv": ["cargo", "run", "--release", "--locked", "--manifest-path", "tools/ml-dsa-investigation/Cargo.toml", "--", "--samples", samples.to_string(), "--garbled-samples", garbled_samples.to_string(), "--output", output.display().to_string()],
         "reference": reference::run(samples)?,
         "hash_circuits": circuit_evidence::run()?,

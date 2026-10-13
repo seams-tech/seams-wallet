@@ -44,9 +44,8 @@ It compares deterministic signatures with empty and nonempty FIPS contexts.
 Each implementation verifies the other implementation's signature.
 Both implementations must reject a changed message, context, signature, and public key.
 
-The message is a fixed 32-byte SHA-256 digest. Its length matches the NEAR
-transaction digest interface. This tool does not encode a NEAR transaction or
-invoke a NEAR verifier.
+Reference messages use a fixed 32-byte SHA-256 digest.
+The separate offline SDK scenario below encodes and threshold-signs a complete NEAR transaction.
 
 A separate reference recipient process reconstructs the public seed from fixed XOR shares.
 It must reproduce the same complete signing key, public key, and signatures:
@@ -220,6 +219,32 @@ It compares exact private outputs with the independent generated fixtures and ch
 Every execution begins without prepared correlations. It destroys its correlations after use.
 These experiments provide no complete alternative signer, persistent pool, or Cloudflare performance claim.
 The [engine report](../../docs/router-ab/ml-dsa-65-engine-comparison.md) records the costs and remaining comparisons.
+
+## Offline SDK and NEAR transaction contract
+
+The complete report now uses the SDK's Rust transaction encoder with an ML-DSA-65 public key.
+Two separate roles sign its exact SHA-256 transaction digest before authorized recovery.
+The scenario uses an empty FIPS context, as required by the pinned NEAR verifier.
+The ordinary RustCrypto and OpenSSL checks still pass.
+The exact AWS-LC algorithm used by the pinned nearcore source also accepts the signature.
+
+The scenario compares unsigned and signed transaction bytes with a separate encoder of the pinned V0 field schema.
+It checks AddKey and DeleteKey action bytes, full-key text and JSON round trips, and unchanged Ed25519 key encoding.
+It rejects altered transaction nonces and signatures, hashed identifiers in full-key fields, incorrect key lengths, and mismatched signature schemes.
+JSON and Borsh signed-transaction decoders must enforce the same scheme invariant as the checked builder.
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  --samples 100 --garbled-samples 3 \
+  --output docs/evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json
+```
+
+The artifact contains the complete public transaction, signature, digest, hashed access-key identifier, and source identities.
+It uses placeholder testnet accounts and a synthetic block hash.
+It broadcasts no transaction and provides no chain receipt.
+It invokes nearcore's pinned signature algorithm through `aws-lc-rs =1.18.1`.
+It does not execute the complete nearcore transaction validator or state transition.
+Wallet admission, frontend signing orchestration, and deployed transaction verification remain open.
 Classical OT does not establish post-quantum transcript confidentiality.
 
 The [signing options](../../docs/router-ab/ml-dsa-65-signing-options.md) distinguish commitment `w1` from challenge hash `c_tilde`.

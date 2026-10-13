@@ -4,9 +4,9 @@ use ed25519_dalek::SigningKey;
 use crate::actions::ActionParams;
 use crate::transaction::{
     build_actions_from_params, build_transaction_with_actions, calculate_transaction_hash,
-    sign_transaction,
+    encode_signed_transaction,
 };
-use crate::types::{NearAction, Transaction};
+use crate::types::{NearAction, PublicKey, Signature, Transaction};
 
 /// Build a simple transaction with a single transfer action and sign it end-to-end.
 #[test]
@@ -30,7 +30,7 @@ fn build_and_sign_transaction_round_trip() {
         "bob.near",
         1,
         &block_hash_bytes,
-        &public_key_bytes,
+        PublicKey::Ed25519(public_key_bytes),
         actions,
     )
     .expect("transaction should build");
@@ -41,7 +41,8 @@ fn build_and_sign_transaction_round_trip() {
     let signature_bytes = signing_key.sign(&tx_hash_to_sign.0).to_bytes();
     let expected_hash = bs58::encode(tx_hash_to_sign.0).into_string();
     let transaction_hash = calculate_transaction_hash(&tx);
-    let signed_bytes = sign_transaction(tx, &signature_bytes).expect("signing should succeed");
+    let signed_bytes = encode_signed_transaction(tx, Signature::Ed25519(signature_bytes))
+        .expect("signing should succeed");
     assert!(!signed_bytes.is_empty());
     assert_eq!(transaction_hash, expected_hash);
 
@@ -49,7 +50,7 @@ fn build_and_sign_transaction_round_trip() {
     let signed: crate::types::SignedTransaction =
         borsh::from_slice(&signed_bytes).expect("signed tx should be valid Borsh");
     assert_eq!(
-        calculate_transaction_hash(&signed.transaction),
+        calculate_transaction_hash(signed.transaction()),
         expected_hash
     );
 }
@@ -73,7 +74,7 @@ fn build_transaction_rejects_invalid_block_hash_size() {
         "bob.near",
         1,
         &bad_block_hash,
-        &public_key_bytes,
+        PublicKey::Ed25519(public_key_bytes),
         actions,
     )
     .unwrap_err();

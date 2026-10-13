@@ -691,6 +691,8 @@ State remaining opportunities that could change that ranking.
    The complete proof, final Worker qualification, and independent review remain open.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
+   The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
+   The public Wallet signing route, RPC full-key/handle behavior, and deployed transaction receipt remain open.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
    The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now covers mid-mask interruption, cross-session OT replay, restart, and four concurrent signatures.
    Router admission, durable replay control, refresh, protected restore, and deployed lifecycle scenarios remain open.
