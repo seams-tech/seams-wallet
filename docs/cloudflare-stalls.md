@@ -69,9 +69,11 @@ the wallet, on more than 570 hosts in 14 colos:
   Staging's own single-write commands stalled less in the week of October 7:
   0.6% waited more than 50 ms over the median. The staging logs of that week
   name no host, so its stalls could not be matched to the cycle.
-- **Whether load lengthens it.** In Singapore and Sydney the pause grew from
-  about 150 ms to about 400 ms while the probe ran, in three rounds of seven.
-  The probe's own load is the likely cause and is not proven.
+- **What makes it longer.** In Singapore and Sydney the pause grew from
+  about 150 ms to about 400 ms while the probe ran, in three rounds of eight,
+  all between 15:00 and 18:30 UTC. A test at 02:00 UTC added the same load
+  beside three light streams and found no effect. So the probe's load does
+  not lengthen the pause at that hour, and the rise is unexplained.
 
 ## What we can do
 
@@ -110,8 +112,9 @@ the user decides it. A claim must stay confirmed.
 - **Do not measure with a loop that waits for each write.** It shows one
   slow sample per pause and hides the window. The probe writes on a timer
   and reads `ctx.storage.sync()` for each write.
-- **Keep the probe light.** A heavy probe may lengthen the pause that it
-  measures.
+- **Keep the probe light, and keep a control.** Run a few light streams
+  first and add load at a known time, so that a change during the run can be
+  told from the probe's own effect.
 - The probe, its drivers and every raw response are in the private folder
   `.artifacts/r155h-write-stall-probe/` of `seams-monorepo`. Its README
   lists the scripts and the rules.
@@ -124,8 +127,9 @@ the user decides it. A claim must stay confirmed.
   the D1 team described, and whether the confirmation can stop waiting.
 - [ ] Deploy the `wallet_do_host` log line and group the stalled commands of
   a hosted run by host. This gives the size of the problem in the product.
-- [ ] Find whether the probe's own load lengthens the pause: light streams
-  alone in one region, then load from a second deployment at a known time.
+- [ ] Repeat the load test between 15:00 and 18:30 UTC: light streams alone
+  in one region, then load from a second deployment at a known time. At
+  02:00 UTC it showed no effect.
 - [ ] Count the durable commits that a registration and a signature wait for
   in series. The estimate of 13 comes from reading the code.
 

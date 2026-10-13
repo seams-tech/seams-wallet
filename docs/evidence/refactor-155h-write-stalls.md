@@ -22,8 +22,9 @@ does, for object storage and for D1, and it gives the cost for a caller.
   wrote nothing.
 - **A pause lasts 70–400 ms at the median.** Between 1% and 9% of writes
   meet it. The longest pauses, in Singapore and Sydney, grew while the probe
-  ran. They may be the probe's own doing, and they are not shown to be a
-  property of those cities.
+  ran, in three rounds of eight. A load step ten hours later did not
+  reproduce the rise, so its cause is open. The long pauses are not shown to
+  be a property of those cities.
 - **D1 pauses the same way.**
 - **`allowUnconfirmed` is the only storage option that takes an outgoing
   request out of the wait.** It exists for the KV-style `put` and `delete`,
@@ -80,7 +81,8 @@ in Tokyo.
 | First | October 12, 23:40–23:58 | SIN, HKG, NRT, KIX, LHR, AMS, IAD, EWR, ATL, ORD, MIA, SYD, MEL, BNE | Per city: 46 streams on 36 objects, 240 new objects with three single writes, one caller loop |
 | Second | October 13, 00:08–00:12 | HKG, SIN | 300 new objects used like wallet objects, three streams of three minutes, the tail of the probe Worker |
 | D1 | October 13, 00:13–00:20 | KIX | One throwaway database, six streams from a Worker in the same colo |
-| Hourly | October 13, 00:21–09:35 | The six cities | Seven rounds: twelve streams and 240 wallet-shaped objects per city and round |
+| Hourly | October 13, 00:21–11:03 | The six cities | Eight rounds: twelve streams and 240 wallet-shaped objects per city and round |
+| Load step | October 13, 11:04–11:25 | SIN, SYD | Three light streams for nine minutes under one Worker name; load from the second name at known times |
 | Hosts | October 13, 00:43–00:45 | SIN, HKG | 60 streams of 13 s under each of the two Worker names at once |
 | Heavy and light | October 13, 01:29–01:31 | SIN, HKG | Five objects per city: cycles of 13 MB and cycles of 40 KB in turn, aligned to the host's pause |
 | One layer down | October 13, 09:45–09:50 | SIN, HKG | Six objects per city: ticks with no write, with an unconfirmed `put` and with an `INSERT`; each tick reads the storage bookmark and sends a fetch. Three objects for the check of the outside clock |
@@ -295,7 +297,7 @@ deleted after the run.
 
 ## Stability by hour
 
-Seven rounds, 90 minutes apart, on October 13. Each cell is twelve streams of
+Eight rounds, 90 minutes apart, on October 13. Each cell is twelve streams of
 45 s on new objects: the share of writes stalled over 20 ms, and the median
 pause in milliseconds.
 
@@ -308,6 +310,7 @@ pause in milliseconds.
 | 5 | 06:21 | 21:21 | 4.2%, 181 | 2.2%, 136 | 2.7%, 124 | 5.7%, 249 | 4.1%, 91 | 2.3%, 128 |
 | 6 | 07:51 | 22:51 | 4.1%, 164 | 3.9%, 133 | 2.7%, 121 | 3.1%, 159 | 2.7%, 110 | 2.0%, 107 |
 | 7 | 09:21 | 00:21 | 4.0%, 183 | 3.1%, 173 | 2.1%, 119 | 3.3%, 151 | 2.9%, 137 | 1.0%, 69 |
+| 8 | 10:51 | 01:51 | 3.5%, 137 | 2.9%, 137 | 1.8%, 92 | 4.0%, 189 | 2.6%, 109 | 2.5%, 123 |
 
 Mean stall per write, in milliseconds:
 
@@ -320,12 +323,13 @@ Mean stall per write, in milliseconds:
 | 5 | 7.4 | 1.9 | 4.4 | 11.2 | 16.4 | 2.4 |
 | 6 | 8.8 | 6.6 | 3.1 | 3.9 | 3.7 | 1.8 |
 | 7 | 6.0 | 3.3 | 2.0 | 4.3 | 3.3 | 0.9 |
+| 8 | 4.9 | 2.6 | 1.6 | 6.2 | 4.0 | 2.4 |
 
-- **The pause is there in every round and every city.** 3,980 of 4,460
+- **The pause is there in every round and every city.** 4,541 of 5,108
   cycle ticks had one, 89%.
 - **The table cannot be read as an effect of the hour.** In Singapore and
   Sydney the pause was short when each round began and grew while the probe
-  ran, in rounds 1 to 3 and not in rounds 4 to 7. Median pause in
+  ran, in rounds 1 to 3 and not in rounds 4 to 8. Median pause in
   milliseconds by seconds since the round began:
 
   | Round | SIN 0–12 s | 12–25 s | 25–45 s | SYD 0–12 s | 12–25 s | 25–45 s |
@@ -337,16 +341,32 @@ Mean stall per write, in milliseconds:
   | 5 | 180 | 201 | 184 | 44 | 109 | 137 |
   | 6 | 160 | 149 | 184 | 90 | 73 | 112 |
   | 7 | 183 | 190 | 183 | 51 | 76 | 69 |
+  | 8 | 157 | 131 | 144 | 101 | 166 | 122 |
 
   The other four cities show no such rise. Either the probe's own load
   lengthened the pause in those two regions at those hours, or the region
-  changed by itself three times in step with the probe. The first is more
-  likely and is not proven. A round creates 240 objects and writes 480
-  times a second in one region.
+  changed by itself three times in step with the probe. A round creates 240
+  objects and writes 480 times a second in one region.
+- **A load step did not reproduce the rise.** At 02:00 UTC three light
+  streams ran for nine minutes under one Worker name, on three hosts. The
+  second Worker name added twelve dense streams in the same region for two
+  minutes, and later the creation of 240 objects for two minutes. Median
+  pause of the three streams, in milliseconds:
+
+  | Region | Alone | With dense streams | Alone | With object creation | Alone |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | SIN | 135 | 208 | 181 | 181 | 153 |
+  | SYD, MEL | 81 | 66 | 86 | 83 | 100 |
+
+  Sydney did not move. Singapore was 208 ms with the dense streams against
+  157 ms over the three phases alone, inside the drift between those phases.
+  So the probe's load does not lengthen the pause at that hour. The rise of
+  rounds 1 to 3, at 15:00 to 18:30 UTC, stays unexplained: the same load step
+  was not run at those hours.
 - **At the start of a round**, before that rise, the median pause was
-  97–183 ms in Singapore in six of seven rounds, 44–213 ms in Sydney,
-  142–222 ms in Hong Kong and 126–156 ms in Tokyo.
-- **Singapore had the highest mean stall per write in five of seven
+  97–183 ms in Singapore in seven of eight rounds, 44–213 ms in Sydney,
+  137–222 ms in Hong Kong and 126–156 ms in Tokyo.
+- **Singapore had the highest mean stall per write in five of eight
   rounds.** That ranking includes the rise.
 - Three more hosts carried objects of both Worker names in these rounds.
   Their phases differed by 2, 4 and 10 ms.
@@ -561,9 +581,9 @@ corrections:
 
 Facts that nobody has gathered and that would remove a candidate:
 
-- Streams on twenty hosts in two cities for ten minutes with no other probe
-  load, and then a load step from a second deployment at a known time. This
-  separates the probe's load from the region's own changes.
+- The load step of "Stability by hour", repeated between 15:00 and 18:30
+  UTC, when the rise within a round appeared. At 02:00 UTC it showed no
+  effect of the probe's load.
 - An object of a second account on a host that carries a probe object.
 - Ticks of 5 ms. The start of a pause is known only to the tick of 25 ms.
 - The cause of the stalls that are off both cycles: 7–22% of the stalled
@@ -571,8 +591,8 @@ Facts that nobody has gathered and that would remove a candidate:
 
 ## What stays unknown
 
-What the step does and what it waits for. Whether the probe's own load
-lengthens the pause. Whether the objects of another account on the host
+What the step does and what it waits for. What made the pause grow within
+rounds 1 to 3. Whether the objects of another account on the host
 pause too. Which part of staging's stalls is the pause. Whether Cloudflare
 intends the behaviour.
 
@@ -580,8 +600,8 @@ intends the behaviour.
 
 - The runs cover ten hours of one night and morning, from 23:40 to 09:30
   JST. The hours from 01:00 to 14:00 UTC are not measured.
-- The probe may lengthen what it measures. No run measured a region with a
-  single light stream and no other probe load.
+- The probe may lengthen what it measures at some hours. One load step, at
+  02:00 UTC, showed no effect; none was run at the hours of the rise.
 - The probe objects are new and small. Staging's objects stalled less in
   their week; the record cannot say whether the hour, the day, the objects
   or the probe's own load make the difference.

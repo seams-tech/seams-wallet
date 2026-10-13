@@ -902,8 +902,9 @@ storage API, and D1 waits the same way. A write, a response or an outgoing
 request that arrives in the pause waits until its end, also for a request
 that wrote nothing. A pause lasted 70–400 ms at the median. The longest
 ones, in Singapore and Sydney, grew while the probe ran, from about 150 ms
-to about 400 ms within 30 s in three rounds of seven; the probe's own load
-is the likely cause, so they are not shown to be a property of those cities.
+to about 400 ms within 30 s in three rounds of eight; a load test ten hours
+later did not reproduce it, so the cause is open and the long pauses are
+not shown to be a property of those cities.
 At the start of a round Singapore's median pause was 97–183 ms, like Hong
 Kong's and Tokyo's. For 13 writes in series a Singapore home waits less than
 a Hong Kong home at the median and the mean in every reading of the data;
@@ -1063,9 +1064,9 @@ other regions' custody calls cross to Singapore in either case.
     fold the stalled commands of each host on 5,000 ms. Until then the
     share of a registration's tail that the pause explains is the probe's
     estimate.
-  - Before another probe round, measure one region with a single light
-    stream and then add load from a second deployment at a known time. The
-    probe's own load may lengthen the pause that it measures.
+  - A load test at 02:00 UTC found no effect of the probe's own load on
+    the pause. Repeat it between 15:00 and 18:30 UTC, when the pause grew
+    within three probe rounds in Singapore and Sydney.
   - Do not measure lateness with the object's clock. `Date.now()` in a
     timer callback is the scheduled time, and the clock leaves out the
     object's own CPU time. Use the caller's round trip or a request that is
