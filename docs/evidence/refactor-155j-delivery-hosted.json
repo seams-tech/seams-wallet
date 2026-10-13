@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-13",
+  "purpose": "bounded post-deployment registration and signing check",
+  "fixCommit": "4f360155",
+  "previousRouterVersion": "286463e7-df21-4052-9fc1-1ab86dbe7c6a",
+  "candidateRouterVersion": "5651a97c-80b7-47b3-8a6c-1b8d1f91d99a",
+  "onlyServingWorkerChanged": "router-ab-mpc-router-staging",
+  "candidateRetained": true,
+  "moduleSha256": "281f56216fb6d1d8bde61364029cc26bedb23527f150a0b58548dd13c255b829",
+  "moduleBytes": 8119849,
+  "newResources": 0,
+  "temporaryCodeDiagnosticsAdded": false,
+  "sdkSite": "private .artifacts/r155h-singapore-anchor/site",
+  "sdkSiteUnchangedDuringRun": true,
+  "independentProofsVerified": 30,
+  "distinctSigningKeys": 30,
+  "signedFieldTamperingRejected": [
+    "message",
+    "recipient",
+    "nonce",
+    "callbackUrl"
+  ],
+  "summary": {
+    "attempts": 30,
+    "succeeded": 30,
+    "statistics": {
+      "registrationNoPasskey": {
+        "n": 30,
+        "p50": 2745,
+        "p90": 3767,
+        "min": 2109,
+        "max": 5476,
+        "mean": 2936
+      },
+      "afterPasskey": {
+        "n": 30,
+        "p50": 1892,
+        "p90": 3021,
+        "min": 1559,
+        "max": 4222,
+        "mean": 2110
+      },
+      "signature": {
+        "n": 30,
+        "p50": 568,
+        "p90": 1166,
+        "min": 256,
+        "max": 2252,
+        "mean": 707
+      },
+      "combinedNoInteraction": {
+        "n": 30,
+        "p50": 3481,
+        "p90": 4562,
+        "min": 2467,
+        "max": 7734,
+        "mean": 3676
+      }
+    },
+    "perGroup": {
+      "group-01": {
+        "n": 3,
+        "p50": 4435,
+        "p90": 5268,
+        "min": 3406,
+        "max": 5476,
+        "mean": 4439
+      },
+      "group-02": {
+        "n": 3,
+        "p50": 3717,
+        "p90": 3954,
+        "min": 2792,
+        "max": 4014,
+        "mean": 3508
+      },
+      "group-03": {
+        "n": 3,
+        "p50": 2853,
+        "p90": 3287,
+        "min": 2808,
+        "max": 3395,
+        "mean": 3019
+      },
+      "group-04": {
+        "n": 3,
+        "p50": 3498,
+        "p90": 3590,
+        "min": 2364,
+        "max": 3613,
+        "mean": 3158
+      },
+      "group-05": {
+        "n": 3,
+        "p50": 2387,
+        "p90": 3047,
+        "min": 2154,
+        "max": 3212,
+        "mean": 2584
+      },
+      "group-06": {
+        "n": 3,
+        "p50": 2697,
+        "p90": 3532,
+        "min": 2246,
+        "max": 3740,
+        "mean": 2894
+      },
+      "group-07": {
+        "n": 3,
+        "p50": 2974,
+        "p90": 3229,
+        "min": 2396,
+        "max": 3293,
+        "mean": 2888
+      },
+      "group-08": {
+        "n": 3,
+        "p50": 2295,
+        "p90": 2499,
+        "min": 2109,
+        "max": 2550,
+        "mean": 2318
+      },
+      "group-09": {
+        "n": 3,
+        "p50": 2288,
+        "p90": 2384,
+        "min": 2230,
+        "max": 2408,
+        "mean": 2309
+      },
+      "group-10": {
+        "n": 3,
+        "p50": 2228,
+        "p90": 2285,
+        "min": 2203,
+        "max": 2299,
+        "mean": 2243
+      }
+    },
+    "slowInvocations": 0,
+    "sdkSiteUnchanged": true,
+    "roleMaxWallMs": {
+      "deriver-a": 1121,
+      "deriver-b": 948,
+      "gateway": 2126,
+      "router": 1491,
+      "runtime": 482,
+      "signer": 1421
+    }
+  },
+  "limits": [
+    "30 attempts cannot establish p99 acceptance",
+    "no contemporary control and no hosted speedup claim",
+    "original startup and producer stalls did not recur; causes remain unresolved",
+    "native fault tests establish propagation behavior; hosted successful requests do not exercise that failure"
+  ],
+  "privateArtifacts": ".artifacts/r155j-delivery-hosted-20261013"
+}

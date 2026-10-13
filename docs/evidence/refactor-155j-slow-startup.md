@@ -161,7 +161,8 @@ are not signature evidence. Original raw artifacts remain unchanged.
 The independent verification report is
 `.artifacts/proof-verification-r155j-hosted-startup-20261013.json`.
 
-All 14 serving versions match the original snapshot. Final tenant activation and
+At the end of the first capture, all 14 serving versions matched its snapshot.
+Final tenant activation and
 readiness passed in GitHub run `38345363529`. Unfinished ceremonies temporarily
 blocked reactivation; they expired without deleting lifecycle records. The private
 `restored.json` records the final check. Temporary diagnostics were removed from
@@ -222,9 +223,50 @@ harness timings, not hosted speedups. The [sanitized result](refactor-155j-deliv
 records the population and limits. The raw repeatable artifact stays under
 `.artifacts/delivery-timeout/source/.artifacts/package-delivery-failure/`.
 
+## Hosted check of the delivery fix
+
+On October 13, Router version `5651a97c-80b7-47b3-8a6c-1b8d1f91d99a`
+replaced `286463e7-df21-4052-9fc1-1ab86dbe7c6a` on staging. Its release build
+contains `4f360155`. The other 13 serving Workers were preserved, including
+Claude's `wallet_do_host` logging. Bindings, runtime settings, placement, classes
+and migration metadata matched the fresh serving snapshot. No resources or
+additional temporary code diagnostics were created.
+
+All 30 registration attempts succeeded across ten groups of three. All 30 first
+NEP-413 signatures passed independent verification, using 30 distinct keys.
+Changes to signed fields failed verification. The existing tenant verification
+accepted the updated Router; an additional activation was unnecessary. The verified
+candidate remains on staging. All tail processes stopped after capture.
+
+| Workload | Median | Maximum |
+| --- | ---: | ---: |
+| Registration, excluding the passkey step | 2.745 s | 5.476 s |
+| Registration after the passkey step | 1.892 s | 4.222 s |
+| First signature | 0.568 s | 2.252 s |
+| Registration and first signature, excluding interaction | 3.481 s | 7.734 s |
+
+This is an immediate post-deployment diagnostic sample. The first group's median
+registration was 4.435 s; the last group's was 2.228 s. Keep every group. This
+variation and the absence of a contemporary control prevent a speedup claim.
+These 30 attempts do not establish p99 acceptance. The SDK site matches the saved
+`release-093` client, and its file hashes stayed unchanged during the run.
+
+The collected tails contain no invocation at or above 2.5 seconds. All 351
+Router trace records identify the candidate version; none returned HTTP 500 or
+higher. Neither the original three-second startup stall nor the 30-second delivery
+failure recurred. Successful hosted requests do not exercise the failure path:
+the native Worker fault tests above provide that evidence. The producer's original
+stall remains unexplained.
+
+[Sanitized hosted result](refactor-155j-delivery-hosted.json) includes all group
+summaries. Private artifacts are under `.artifacts/r155j-delivery-hosted-20261013/`.
+The independent proof report is `.artifacts/proof-verification-r155j-delivery-hosted-20261013.json`.
+The benchmark writer now labels failed samples accurately (`seams-monorepo`
+`2310116`); saved earlier raw samples remain untouched.
+
 ## Next action
 
-Deploy the failure-propagation fix in the next coordinated staging candidate.
+The failure-propagation fix is deployed and passed the bounded hosted check.
 Continue tracing the captured streamed-delivery producer stall.
 Keep the original startup cause marked unresolved. A future coordinated capture
 can target it; this bounded run provides no causal fix for that stall and no p99

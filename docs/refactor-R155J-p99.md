@@ -145,9 +145,13 @@ the successful control. The user sends it to Cloudflare unless separately author
 - [x] Propagate package-delivery failures without waiting for a stalled ceremony.
   Preserve terminal supersession and exact replay. Five actual-Worker E2E cases
   passed; the parent Router remained pending in the native-binding control.
+  Staging now serves the fix in Router `5651a97c`; 30 registrations and their
+  first signatures passed independent verification.
+  [Hosted check](evidence/refactor-155j-slow-startup.md#hosted-check-of-the-delivery-fix).
   [Failure-propagation evidence](evidence/refactor-155j-slow-startup.md#delivery-failure-propagation).
 - [ ] Diagnose the producer stall behind the captured 30-second package-delivery
-  failure. The local fix addresses propagation; its hosted effect remains unmeasured.
+  failure. The deployed fix addresses propagation; the failure did not recur in
+  the 30-attempt hosted check. No hosted failure-path or p99 gain is established.
   The original slow startup and first-signature HTTP 503 also remain unresolved.
 
 - [ ] Review commit `b8de6715` against the current setup lifecycle. Reuse its bounded
