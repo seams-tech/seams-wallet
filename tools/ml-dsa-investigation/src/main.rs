@@ -1,3 +1,4 @@
+mod arithmetic_audit;
 mod circuit_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
@@ -18,6 +19,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    InspectArithmetic {
+        output: PathBuf,
+    },
     ExportWorkerFixtures {
         directory: PathBuf,
     },
@@ -52,6 +56,7 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::InspectArithmetic { output } => arithmetic_audit::run(&output)?,
         Invocation::ExportWorkerFixtures { directory } => {
             println!(
                 "{}",
@@ -85,6 +90,14 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "inspect-arithmetic" {
+            let output = PathBuf::from(args.next().ok_or("An audit output path is required.")?);
+            require(
+                args.next().is_none(),
+                "Unexpected arithmetic audit argument.",
+            )?;
+            return Ok(Invocation::InspectArithmetic { output });
+        }
         if first == "export-worker-fixtures" {
             let directory = PathBuf::from(
                 args.next()
@@ -195,6 +208,7 @@ fn generate_report(
         "Cargo.toml",
         "Cargo.lock",
         "src/main.rs",
+        "src/arithmetic_audit.rs",
         "src/reference.rs",
         "src/circuit_evidence.rs",
         "src/sampler_evidence.rs",
