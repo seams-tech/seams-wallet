@@ -834,8 +834,10 @@ Users of the hosted menu do not wait for setup. Direct callers of
   runtime initializes. Reuse the existing browser preflight helper. Same-origin
   and signing-only clients skip it. This overlaps the exchange with initialization;
   immediate registration may still wait for an unfinished preflight.
-- [ ] Measure the setup preflight change on staging. The earlier serial exchange
-  took 125–191 ms from Tokyo; that is an upper bound, not a measured saving.
+- [x] Measure the setup preflight change on staging. Eighteen wallets per arm:
+  setup median 545.50 → 522.85 ms, SDK completion 56.91 → 54.88 ms. The combined
+  registration-plus-signature median increased, so no reliable overall gain is
+  established. Explicit OPTIONS starts only about 30 ms ahead of POST.
   Local implementation and SDK completion evidence are recorded in
   [setup and SDK completion](evidence/refactor-155h-setup-sdk-completion.md).
 

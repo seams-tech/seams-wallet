@@ -36,6 +36,12 @@ Keep that failure in the attempt count, outside successful-request percentiles.
 The earlier 6.458-second maximum used 165 baseline wallets. The complete
 198-wallet baseline has a 6.918-second maximum. Keep these populations distinct.
 
+Later evidence: the [setup/SDK comparison](evidence/refactor-155h-setup-sdk-completion.md#hosted-comparison)
+recorded a successful 7.353 s registration with 5.809 s in custody/Yao. It used
+unchanged staging backends and 18 samples per SDK arm. Keep it separate from the
+release baseline; it has no role trace and cannot establish p99. That record also
+documents the correction to the historical after-passkey timing calculation.
+
 Working targets for the same client and lane:
 
 - Registration p99 below four seconds, with fewer than 1% above four seconds.
