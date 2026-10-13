@@ -1,11 +1,17 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
-Status: **in progress.** Phase 0 is done except the Gateway's finalization
-spans and the D1 cost per call type. Phase 4's table-frame yield and SIMD
-build are implemented and measured on staging: the Router's execute request
-fell from 1,605 ms to 1,300 ms at the median, and registration after setup
-measured 2,600 ms. The decisions for Phases 1 to 3 are taken. Date:
-October 12, 2026.
+Status: **in progress; the target is reached on staging.** Release 0.9.3
+carries Phase 2 and Phase 4's yield, SIMD build and start-up ceremony. On the
+Singapore staging lane, registration after the passkey step measures
+1,734 ms at the median and 2,221 ms at the 90th percentile, against 2,332 ms
+and 3,044 ms on 0.9.0: 164 and 198 wallets, client in Tokyo. 80% of the
+wallets finish in less than 2.0 s after the passkey step. The
+[record](evidence/refactor-155h-release-093-staging.md) holds the chain.
+Phases 1 and 3 are decided and not implemented. Date: October 13, 2026.
+
+[R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
+outliers and the combined p99 comparison. It reuses this plan's Phase 1 design
+and keeps Phase 3 conditional on measured need.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -587,8 +593,15 @@ release route. Reading the code and the specification changed three points:
   classified `valid_test_needs_update`, it now refuses the early claim and
   then finalization's claim after the consume. The private completion
   scenario asserts one claim request per registration, before finalization.
-- [ ] Measure on staging with the user's go-ahead. Migration `0078` goes to
-  the four regional Gateway databases first.
+- [x] Measured on staging with release 0.9.3 on October 13. Migration `0078`
+  went to the four regional Gateway databases in the deployment's migrate
+  job. All 164 finalizations found the early claim:
+  `near_finalize_authority_reserve` measured 0 ms in each. In the run of 98
+  wallets the Console received 98 claims, each before the execute request
+  started and 968 ms before finalization at the median. The Gateway's
+  finalization total fell from 306 ms to 228 ms at the median and from
+  595 ms to 434 ms at the 90th percentile. No claim record stayed behind,
+  and no early claim failed.
 
 Must not regress: the distinct outcomes of a refused ownership claim and a
 rejected custody route claim, exact retry, and the competing-wallet refusal.
@@ -722,10 +735,11 @@ work. One item each.
   time was 889–1,086 ms first against a median of 313 ms later. A loaded
   module is therefore not a warm one: the first ceremony costs Deriver A
   about 390 ms of CPU over a later one, above the 150 ms bar.
-- [ ] **First run in a new isolate: the compute prewarm.** Implemented in
+- [x] **First run in a new isolate: the compute prewarm.** Implemented in
   commit `f33e071f` and verified locally: 519 native tests of the crate, the
   13 release cases of the local Yao contract and the 14 cases of the
-  registration contract. The staging side is open. `ed25519_yao_prewarm.rs` in
+  registration contract. Released in 0.9.3 and measured on staging; the
+  answers follow this item. `ed25519_yao_prewarm.rs` in
   `crates/router-ab-cloudflare` runs one activation ceremony in memory, both
   roles in one isolate over an in-memory transport, on fixed public inputs
   from `build_activation_prewarm_pair_v1`. Each Deriver's pair object starts
@@ -735,11 +749,19 @@ work. One item each.
   the CPU against real work for more than one message. Its output is
   discarded, and it reads no storage, no secret and no request data. Each
   protocol start logs the prewarm state beside the isolate counter, and the
-  prewarm logs `router_ab_yao_role_isolate_prewarm_v1` with its outcome. Open
-  questions for the staging side: how often the prewarm completes inside the
-  prompt, the CPU of both Derivers for an execution after a completed
-  prewarm, and the cost of a setup that nobody finishes, about one ceremony of
-  CPU per Deriver isolate.
+  prewarm logs `router_ab_yao_role_isolate_prewarm_v1` with its outcome.
+  Staging, October 13, with a virtual authenticator that answers in about
+  0.5 s: the prewarm completed before the execution in 144 of 147 Deriver A
+  starts and 148 of 151 Deriver B starts, and arriving work stopped it 2 and
+  3 times. A first execution after a completed prewarm used 217 ms of
+  Deriver A's CPU and 182 ms of Deriver B's, against 332 ms and 286 ms on
+  0.9.0 without it and SIMD. A later execution in the same isolate used
+  160 ms and 151 ms, so a first run still costs about 55 ms and 30 ms more.
+  A real passkey prompt takes longer than the virtual one, so the prewarm
+  has more time there. The cost: each Deriver's wallet-start invocation rose
+  from about 20 ms to about 300 ms of CPU, so a setup that nobody finishes
+  costs about 0.6 s of Deriver CPU. That raises the weight of the setup rate
+  limit gap recorded under Phase 1.
 - [x] **WebAssembly SIMD for release Workers.** `build-strict-worker.sh` now
   builds every release Worker with `-C target-feature=+simd128`. No source
   line changes: the compiler vectorizes the label, block and buffer
@@ -760,17 +782,30 @@ work. One item each.
   request at 1,300 ms and 1,464 ms at the 90th percentile, the real protocol
   time at 634 ms and 647 ms, Deriver B's CPU from 286 ms to 239 ms and
   Deriver A's from 344 ms to 314 ms. A first run gains less than a warm run.
-- [ ] **A wider gate hash.** Only if the staging chain still shows the gate
-  hash on top after SIMD: the `aes` crate's software cipher works on two
-  blocks per call on `wasm32`. A four-block or eight-block bitsliced cipher
-  with the same outputs is crypto engineering with its own vectors and
-  constant-time evidence. Not started.
+- [x] **Label wipes and a four-block gate hash.** Implemented on October 13,
+  not released. The gate hash was not the largest cost: the wipe of dropped
+  labels was. The derived wipe of a 16-byte array writes and fences each
+  byte, and a ceremony drops several million labels. A label is now a value
+  that one volatile write wipes, and the garbler hashes its four blocks in
+  one pass of a 64-bit fixslice kept in `passive/gate_aes.rs`. In the engine
+  benchmark garbling fell from 60 ms to 30 ms and evaluation from 39 ms to
+  25 ms. On Cloudflare the benchmark pair's ceremony fell from 262 ms to
+  210 ms on warm isolates, Deriver A's CPU from 166 ms to 121 ms and Deriver
+  B's from 146 ms to 123 ms. The transcript is unchanged, and the frozen
+  known answers pass. The [record](evidence/refactor-155h-label-wipe-gate-hash.md)
+  holds the measurements and the verification. The Yao and registration
+  contracts pass on release Workers. Open: a release and the staging
+  measurement.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
   commitment checks and the HPKE seal are product additions the benchmark
   pair does not run. Place them with the local profiler and move what does
   not need the execution's result to the admitted session of Phase 1.
-- [ ] Record the per-execution CPU of both Derivers and the real protocol
-  time after each item, with the counter.
+- [x] Per-execution CPU of both Derivers with the counter, release 0.9.3 on
+  staging: Deriver A 216 ms and Deriver B 178 ms at the median, 263 ms and
+  222 ms at the 90th percentile. The Router's execute request measures
+  669 ms at the median and 1,113 ms at the 90th percentile, against 1,100 ms
+  and 1,625 ms on 0.9.0. The release holds the yield, SIMD and the prewarm
+  together; the run does not separate them.
 
 Measured gain on staging: 265 ms of the Router's execute request from the
 overlap and 40 ms more from SIMD at the median, 150 ms and 140 ms at the 90th
@@ -797,21 +832,41 @@ bookkeeping, one D1 round trip per Deriver, and a protocol of about 630 ms.
 Users of the hosted menu do not wait for setup. Direct callers of
 `registerWallet` do, about 0.7 s from Tokyo.
 
-- [ ] Batch the Gateway's setup D1 writes into one batch after the Console
+- [x] Batch the Gateway's setup D1 writes into one batch after the Console
   reply, and keep the admission read first. Do not insert before the Console
   request answers: that request is also the publishable-key authentication
   (`resolveWalletRegistrationContext` in `walletRegistrationRoutes.ts` near
   line 2067), and a write for an unauthenticated caller is an abuse surface.
-- [ ] Move Console's API-key usage update off the request. It records the
+- [x] Move Console's API-key usage update off the request. It records the
   last-used timestamps and consumes no quota, as R155F classified it.
-- [ ] Decide the setup preflight. Two options exist without a new Worker: a
-  route on the wallet origin, so the Gateway API is same-origin from the wallet
-  iframe, or an edge answer to `OPTIONS` before the pinned Worker. Measure the
-  setup preflight's share with the hosted test first; it is 125–191 ms serial
-  from Tokyo.
+- [x] Start setup's best-effort preflight when a registration-configured wallet
+  runtime initializes. Reuse the existing browser preflight helper. Same-origin
+  and signing-only clients skip it. This overlaps the exchange with initialization;
+  immediate registration may still wait for an unfinished preflight.
+- [x] Measure the setup preflight change on staging. Eighteen wallets per arm:
+  setup median 545.50 → 522.85 ms, SDK completion 56.91 → 54.88 ms. The combined
+  registration-plus-signature median increased, so no reliable overall gain is
+  established. Explicit OPTIONS starts only about 30 ms ahead of POST.
+  Local implementation and SDK completion evidence are recorded in
+  [setup and SDK completion](evidence/refactor-155h-setup-sdk-completion.md).
 
-Expected gain: 50–100 ms from the batch and up to 190 ms from the preflight,
-for direct callers only.
+Implementation follow-up, October 13:
+- The Gateway already persists the setup snapshot, ceremony and home reservation
+  in one batch after Console authorization. No additional batching change is needed.
+- Setup warm-up now starts at validated iframe configuration, before lazy runtime
+  loading. The old constructor warm-up is removed. Appearance changes do not repeat it.
+- Console publishable-key authentication schedules its usage timestamp write through
+  the request's `waitUntil`. Authorization still completes before success. Delayed
+  writes cannot move timestamps backwards, and Worker logs retain write failures.
+- Successful NEAR-only hydration already consumes the temporary seal. Its redundant
+  discard request remains removed; failure cleanup still runs.
+- Combined staging comparison complete: 18 wallets per build, all signatures
+  verified. Setup 542.70 → 551.15 ms; SDK completion 55.80 → 53.07 ms; combined
+  flow 3.537 → 3.356 s. Variation prevents attributing the full difference to this
+  batch. See the [combined evidence](evidence/refactor-155h-setup-sdk-completion.md#combined-sdk-and-console-staging-comparison--october-13).
+
+Remaining savings from earlier preflight and deferred usage telemetry are
+unmeasured. The existing Gateway batch is already part of the measured baseline.
 
 ## Phase 6 — Where the APAC home runs
 
@@ -869,17 +924,24 @@ writes on a cycle of 5,000 ms, and for a shorter time on a second cycle of
 30 s. Every object on the host waits, whatever its age, write rate or
 storage API, and D1 waits the same way. A write, a response or an outgoing
 request that arrives in the pause waits until its end, also for a request
-that wrote nothing. A pause lasted 110–400 ms at the median by city and hour.
-Singapore's pauses were among the longest: 6–9% of its writes stalled,
-against 3–6% in Hong Kong. For 13 writes in series a Singapore home still
-waits less at the median, about 80 ms against 490 ms, and at the mean, 250 ms
-against 520 ms. It waits the same at the 90th percentile and more at the
-99th, 2.6 s against 0.8 s. Staging's own single-write commands of October 7
-to 12 stalled less than the probe: 0.6% waited more than 50 ms over the
-median. Two earlier statements were wrong and are corrected in the records:
-the cycle does not start with an object's first write, and most of staging's
-slow Router commands were claims that waited for a new object to start. What
-the host does in the pause is not known; Phase 7 holds the report for
+that wrote nothing. A pause lasted 70–400 ms at the median. The longest
+ones, in Singapore and Sydney, grew while the probe ran, from about 150 ms
+to about 400 ms within 30 s in three rounds of nine; a load test ten hours
+later did not reproduce it, so the cause is open and the long pauses are
+not shown to be a property of those cities.
+At the start of a round Singapore's median pause was 97–183 ms, like Hong
+Kong's and Tokyo's. For 13 writes in series a Singapore home waits less than
+a Hong Kong home at the median and the mean in every reading of the data;
+the tail of the Singapore estimate is an upper bound, and half of it is one
+event of seven seconds. Staging's own single-write commands of October 7 to
+12 stalled less than the probe: 0.6% waited more than 50 ms over the median.
+Two earlier statements were wrong and are corrected in the records: the
+cycle does not start with an object's first write, and most of staging's
+slow Router commands were claims that waited for a new object to start. The
+probe is a reproduction, and its match with staging is not established: the
+tails name no host. The facts leave one kind of cause, a step that each host
+starts on its own timer and that probably waits for something the hosts of
+a region share; what it is, is not known, and Phase 7 holds the report for
 Cloudflare. Second,
 the benchmark pair met a new isolate in 20 of 31 ceremonies in Singapore
 against 7 and 10 of 31 in Hong Kong, in one run each. That one is not settled.
@@ -924,7 +986,7 @@ relocated or discarded. An unpinned role Worker runs where its caller runs,
 so a role pin is needed only where another region's Gateway must not pull the
 role away from its database; with one set of role databases per lane, the
 other regions' custody calls cross to Singapore in either case.
-- [ ] Staging clean switch to Singapore. The user ruled on October 13: no
+- [x] Staging clean switch to Singapore. The user ruled on October 13: no
   lane is live, every wallet and all data are discarded, downtime is
   accepted, and nothing is copied. Done on October 13: eight new empty
   databases, five in Singapore and three for the other regions; migrations;
@@ -933,7 +995,7 @@ other regions' custody calls cross to Singapore in either case.
   and the APAC components run at `aws:ap-southeast-1`. The owner created a
   new organisation and project, the protected activation passed, and twelve
   fresh registrations with a first signature each passed, all verified
-  independently. Open: the owner's deletion of the old databases.
+  independently. The owner deleted the old staging databases on October 13.
   The private record is `docs/singapore-clean-switch-20261013.md` in
   `seams-monorepo`.
 - [x] First measurement on the Singapore lane: nine wallets, client in
@@ -944,8 +1006,14 @@ other regions' custody calls cross to Singapore in either case.
   against 2,988 ms. The 90th percentiles are wide, setup 1,193 ms and Yao
   execute 2,596 ms, and need a larger run. The yield, the SIMD build, the
   prewarm and Phase 2 are not in 0.9.0 and are not in these figures.
-- [ ] Hosted comparison after the cutover, with server-side totals beside the
-  Tokyo client's numbers.
+- [x] Larger measurement on the Singapore lane, with server-side totals
+  beside the Tokyo client's numbers: 198 wallets on 0.9.0 and 164 on 0.9.3
+  on October 13. On 0.9.0 the lane measures 2,332 ms after the passkey step
+  at the median and 3,044 ms at the 90th percentile; the first nine-wallet
+  figure of 2,671 ms was high. Run medians of 33 wallets on one release
+  differ by up to 213 ms, so a claim under 150 ms needs about 100 wallets
+  per side. The [record](evidence/refactor-155h-release-093-staging.md)
+  holds both sides.
 - [ ] Production testnet, then mainnet. Empty databases exist for both
   lanes. The deployment is blocked by more than placement: the lanes run
   September builds, their regional Workers do not exist, the testnet workflow
@@ -985,7 +1053,8 @@ other regions' custody calls cross to Singapore in either case.
   version switch on staging and record the cause. Add no retry without one.
 - [ ] D1 stalls. From the Phase 0 record, report p90 and p99 per call type.
   Keep the two deliberate admission checks, as R155G records.
-- [ ] Pauses of durable writes. The
+- [ ] Pauses of durable writes. The standing note is
+  [cloudflare-stalls.md](cloudflare-stalls.md). The
   [record](evidence/refactor-155h-write-stalls.md) gives the cause that is
   visible from outside: each host pauses write confirmation every 5 s for
   110–400 ms, and a write that arrives then costs the rest of the pause. The
@@ -1011,6 +1080,24 @@ other regions' custody calls cross to Singapore in either case.
   - Report the share of clean single-write commands more than 20, 50 and
     100 ms over their median in every hosted comparison. `staging_tails.py`
     in the private probe folder computes it.
+  - Make the pause visible in the product's own logs. Done, and on
+    staging since October 13: each wallet object logs `wallet_do_host` with its role, object
+    id, colo and host once per instance, beside its first command and off
+    the response. The host is the `fl` value of
+    `https://cloudflare.com/cdn-cgi/trace`. Four interleaved staging
+    rounds with 48 wallets on each side showed no cost. Open: the objects
+    of a hosted run spread over many hosts, 295 objects on 210 hosts, so the
+    stalled commands of one run cannot give the phase of a host. Run the
+    probe's light streams beside a hosted run to learn the phases, then
+    check each stalled command against its host. Until then the share of a
+    registration's tail that the pause explains is the probe's estimate.
+  - A load test at 02:00 UTC found no effect of the probe's own load on
+    the pause. Repeat it between 15:00 and 18:30 UTC, when the pause grew
+    within three probe rounds in Singapore and Sydney.
+  - Do not measure lateness with the object's clock. `Date.now()` in a
+    timer callback is the scheduled time, and the clock leaves out the
+    object's own CPU time. Use the caller's round trip or a request that is
+    not gated.
 - [ ] Report the pauses to Cloudflare. The user sends it; the draft is
   `.artifacts/r155h-write-stall-probe/cloudflare-support-draft.md` in
   `seams-monorepo`. Ask what the hosts do every 5 s and 30 s, and whether
@@ -1029,17 +1116,108 @@ other regions' custody calls cross to Singapore in either case.
   Worker profile. Record the build stamps and the module sizes in the run's
   frozen inputs. Every hosted comparison before October 12 carried a
   development build of the seal module.
-- [ ] Measure the accumulated changes on the Hong Kong layout from Tokyo.
-  Report registration, registration after setup and the first signature with
-  p50, p90, minimum and maximum; the four stages; the chain columns with the
-  new spans (`router.prepare_pair_at_setup`, `deriver_a.admit_at_setup`,
-  `deriver_b.admit_at_setup`), the real protocol time and the isolate
-  counter; and the finalization spans.
+- [x] The accumulated changes of release 0.9.3, measured on the Singapore
+  layout from Tokyo on October 13: registration after the passkey step,
+  registration without the passkey step and the first signature with p50,
+  p90, minimum and maximum; the stages; the Worker chain with wall and CPU
+  time and the isolate counter; and the finalization spans. One lane serves
+  one release, so the sides ran one after the other, with six runs before
+  and three after to show the noise. The
+  [record](evidence/refactor-155h-release-093-staging.md) holds it. The
+  spans of Phase 1 do not exist yet.
 - [ ] Prepare the hosted driver against the current database ids. Drivers
   prepared before the Console move carry the old id.
 - [ ] Verify every signature independently, restore staging, and verify the
   restoration, as the R155F and R155G drivers do.
 - [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
+
+## Phase 9 — Finalization on the Singapore lane
+
+Read on October 13 from the 0.9.3 run, two probes and local profiles. No code
+is changed by this phase yet.
+
+What a finalization costs at the Gateway, about 380 ms at the median:
+
+| Part | Size | Source |
+| --- | ---: | --- |
+| Serial waits: eight database round trips, the consume beside the route claim, Console completion | 228 ms | `near_finalize_total` |
+| Gateway CPU | 96 ms at the median, 37–236 ms | tail `cpuTime` |
+| Entry and reply | about 50 ms | remainder |
+
+- **The CPU is cold code.** A warm local finalization uses 5–7 ms outside the
+  seal. Staging uses 100 ms because a finalization rarely meets an isolate
+  that ran one before. A probe Worker with a Singapore placement served 160
+  requests from 17 isolates, and consecutive requests of one connection
+  reached different isolates: the finalize isolate equalled the execute
+  isolate in 1 of 40 sequences. A warm-up that an earlier request of the same
+  registration starts therefore does not reach the isolate that finalizes.
+- **The seal costs 19 ms more when cold.** The first seal in an isolate used
+  26 ms of CPU at the median and a later one 7 ms, on the published 0.9.3
+  module.
+- **One shared record is read, checked and rewritten by every
+  finalization.** `router-ab-yao:router-ab-ed25519-yao:shared` holds the last
+  32 capabilities of an environment and measures 580 KB on staging, 17.7 KB
+  per capability. `commitRouterAbEd25519YaoRegistrationCapability` loads it,
+  validates it, installs the new capability and writes all of it back under
+  one version check, in the wallet commit's batch. Over 40 local profiles its
+  CPU rose from 1.7 ms to 4.1 ms as the cache filled, the largest part
+  outside the seal. Every unlock, recovery or export of a wallet that is not
+  among the last 32 rewrites the same record when it rehydrates. All wallets
+  of an environment share its version check, so concurrent registrations
+  contend, and a second lost attempt fails the request.
+- **The wallet commit span is two round trips.** The founding rows and the
+  shared record are read side by side, then the batch commits.
+
+Items:
+
+- [ ] Decide what the shared capability record holds. Either registration
+  stops installing into it and the first use rehydrates from the signer row,
+  which the code already does for an evicted wallet, or capabilities move to
+  one record per wallet. Recovery, export and unlock read this record, so the
+  owner decides. Expected: 40–60 ms of finalization and no contention
+  between registrations.
+- [ ] Read the Yao registration record in finalization's initial batch
+  instead of in the consume. One round trip, about 13 ms.
+- [ ] Warm the seal once per isolate from the first request's background
+  continuation. Up to 19 ms, less when the isolate sealed before.
+- Phase 3 stays deferred. On Singapore its part is the Console completion and
+  the write after it, about 40 ms.
+
+## Phase 10 — One request fewer after the passkey step
+
+Respond and execute are two round trips today. Read on October 13:
+
+- Nothing in the respond reply depends on the credential. The admission
+  request and receipt hold setup-time values and two values minted at
+  respond: `session_id` and the four `material_activation` ids.
+- The client needs the receipt's binding and the Gateway keyset to seal its
+  two inputs. It needs nothing else from respond.
+- Nobody signs the receipt. The Gateway stores it and compares the execute
+  request's binding with it. The Router never sees it.
+
+With the session minted at setup, the setup reply can carry the admission
+request. The client then seals its inputs during the prompt and sends the
+passkey proof and the inputs in one request. The Gateway verifies the proof,
+admits, and executes.
+
+- [ ] Depends on Phase 1's first item, the session mint at setup. R155J owns
+  that implementation; build this on it, once.
+- [ ] A new setup reply field and a merged route change the registration
+  wire. The client parsers accept exact keys, so the wallet-management
+  protocol moves to 4.
+- [ ] Keep exact replay of the merged request, the refusal of another
+  credential, and the separate routes for mixed registration, Email OTP and
+  add-signer until they move too.
+- [ ] Update the registration paragraphs of `docs/intended-behaviours.md` and
+  the contract cases that pin the request order.
+
+Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
+about half of that for a user in Singapore. The client's input preparation,
+about 30 ms, also leaves the path.
+
+Garbling ahead of execute needs the same mint: the gate hash's tweak domain
+is derived from the session id. After the label wipe and four-block cipher
+change its bound is smaller, because garbling costs half of what it did.
 
 ## Delegation sheet
 

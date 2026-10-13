@@ -9,13 +9,13 @@ pub(super) enum Delivery {
     Ready,
     Pending {
         body: oneshot::Sender<CloudflareScopedEd25519YaoPackagePairDeliveryV1>,
-        receipt: oneshot::Receiver<RouterAbProtocolResult<SigningWorkerReceiptV1>>,
+        receipt: oneshot::Receiver<SigningWorkerReceiptV1>,
     },
 }
 
 pub(super) struct Exchange {
     body: oneshot::Receiver<CloudflareScopedEd25519YaoPackagePairDeliveryV1>,
-    receipt: oneshot::Sender<RouterAbProtocolResult<SigningWorkerReceiptV1>>,
+    receipt: oneshot::Sender<SigningWorkerReceiptV1>,
 }
 
 pub(super) fn channel() -> (Delivery, Exchange) {
@@ -46,7 +46,7 @@ impl Delivery {
                 })?;
                 receipt
                     .await
-                    .map_err(|_| delivery_error("SigningWorker delivery receipt was lost"))?
+                    .map_err(|_| delivery_error("SigningWorker delivery receipt was lost"))
             }
             Self::Ready => {
                 let address = DeliveryAddress::from_delivery(&delivery);
@@ -64,10 +64,11 @@ impl Exchange {
         runtime: &CloudflareRouterWorkerRuntimeV1,
         address: DeliveryAddress,
         trace_id: Option<crate::CloudflareTraceIdV1>,
-    ) {
-        let response = send_stream(env, runtime, address, self.body, trace_id).await;
-        // A failed ceremony drops the receipt receiver and cancels its body.
-        let _ = self.receipt.send(response);
+    ) -> RouterAbProtocolResult<()> {
+        let receipt = send_stream(env, runtime, address, self.body, trace_id).await?;
+        // The coordinator observes delivery failures even before packages are ready.
+        let _ = self.receipt.send(receipt);
+        Ok(())
     }
 }
 
@@ -153,4 +154,18 @@ fn delivery_error(message: &str) -> RouterAbProtocolError {
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
         message,
     )
+}
+
+/// A superseded attempt ends terminally, including an early delivery refusal.
+pub(super) fn failure_outcome(
+    error: RouterAbProtocolError,
+) -> RouterAbProtocolResult<RouterCeremonyOutcomeV1> {
+    if error.code() == RouterAbProtocolErrorCode::SupersededAttempt {
+        return Ok(RouterCeremonyOutcomeV1::Standard(
+            RouterEd25519YaoExecuteResultV1::rejected(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+            ),
+        ));
+    }
+    Err(error)
 }

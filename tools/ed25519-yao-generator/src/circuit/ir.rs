@@ -154,6 +154,28 @@ impl CircuitBuilder {
         )
     }
 
+    pub(super) fn finish_ml_dsa_hash_component(
+        self,
+        outputs: Vec<BuilderBit>,
+        component: u8,
+        input_schema: &[u8],
+        output_schema: &[u8],
+    ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
+        let (expected_inputs, expected_outputs) = match component {
+            0x82 => (1_600, 1_600),
+            0x83 => (512, 1_024),
+            0x84 => (512, 3_848),
+            _ => return Err(CircuitBuildError::InputSchemaWireCountMismatch),
+        };
+        if self.input_count != expected_inputs {
+            return Err(CircuitBuildError::InputSchemaWireCountMismatch);
+        }
+        if outputs.len() != expected_outputs {
+            return Err(CircuitBuildError::OutputSchemaWireCountMismatch);
+        }
+        self.finish_with_schema(outputs, component, input_schema, output_schema)
+    }
+
     pub(super) fn finish_provisional_activation_core(
         self,
         outputs: Vec<BuilderBit>,

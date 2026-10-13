@@ -1377,7 +1377,7 @@ async function startRegistrationRouter(
     await response.arrayBuffer();
     if (response.ok) outcome = 'success';
   } catch {
-    // Startup has no authority or durable effects. Execution still claims the wallet normally.
+    // A failed warm-up grants no authority. Execution still claims the wallet normally.
   }
   console.log(JSON.stringify({
     event: 'registration_router_startup',

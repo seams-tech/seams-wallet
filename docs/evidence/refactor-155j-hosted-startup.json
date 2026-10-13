@@ -1,0 +1,484 @@
+{
+  "kind": "r155j_staging_startup_capture_v1",
+  "publicSource": "dee249c54f86c27c5aca2f3e3e919b5cf3a00c97",
+  "privateSource": "bbc0f03",
+  "attempts": 89,
+  "verifiedSignatures": 87,
+  "failedAttempts": 2,
+  "plannedButNotRun": 1,
+  "startupAbortEvents": 0,
+  "targetThreeSecondStartupReproduced": false,
+  "apacForwardObservations": {
+    "deriver_a": {
+      "maxCompletedForwardMs": 489,
+      "scope": "All APAC startup forwards observed in the diagnostic tail; not a benchmark-only population"
+    },
+    "deriver_b": {
+      "maxCompletedForwardMs": 673,
+      "scope": "All APAC startup forwards observed in the diagnostic tail; not a benchmark-only population"
+    }
+  },
+  "failures": [
+    {
+      "sample": "group-11/registration-3.json",
+      "boundary": "First signature",
+      "httpStatus": 503,
+      "message": "Wallet Session status is unavailable",
+      "cause": "unresolved; Runtime and signer tails were not yet enabled"
+    },
+    {
+      "sample": "group-30/registration-2.json",
+      "boundary": "Signer activation request body",
+      "handlerMs": 30000,
+      "cpuMs": 2,
+      "httpStatus": 500,
+      "startupSucceeded": true,
+      "browserOutcome": "120-second registration action timeout; request aborted by harness",
+      "cause": "30-second body timeout strongly inferred from duration and missing body_wait completion; response body absent; upstream reason unresolved"
+    }
+  ],
+  "slowFailureTimeline": [
+    {
+      "role": "gateway",
+      "timestamp": 1791864143409,
+      "wallMs": 569,
+      "cpuMs": 22,
+      "outcome": "ok",
+      "executionModel": "stateless",
+      "url": "https://staging.api.wallet.seams.sh/wallets/register/setup",
+      "events": [
+        {
+          "loggedAt": 1791864143948,
+          "event": "registration_router_startup",
+          "wallet_id": "fair-brook-b4hvqs",
+          "ownership_generation": 1,
+          "started_ms": 1791864143595,
+          "outcome": "success",
+          "duration_ms": 353
+        }
+      ]
+    },
+    {
+      "role": "router",
+      "timestamp": 1791864143650,
+      "wallMs": 322,
+      "cpuMs": 11,
+      "outcome": "ok",
+      "executionModel": "stateless",
+      "url": "https://mpc-router.router-ab.internal/router-ab/router/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143650,
+          "event": "wallet_do_placement_requested",
+          "location_hint": "apac",
+          "object_id": "20331ca1522be07255896ee5ab69e34c4356b602b094db956fcb95a094213e1c",
+          "object_name": "router-wallet-2273074a63cf7eea1bb8020a2edf1a83b4ee00090ca3c0cc9a343599b64f6f11",
+          "role": "router",
+          "wallet_home": "APAC"
+        },
+        {
+          "loggedAt": 1791864143763,
+          "duration_ms": 113,
+          "event": "wallet_startup_forward",
+          "object_name": "router-wallet-2273074a63cf7eea1bb8020a2edf1a83b4ee00090ca3c0cc9a343599b64f6f11",
+          "role": "router",
+          "started_ms": 1791864143650,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "role": "deriver-a",
+      "timestamp": 1791864143671,
+      "wallMs": 182,
+      "cpuMs": 3,
+      "outcome": "ok",
+      "executionModel": "stateless",
+      "url": "https://router-ab-startup.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143671,
+          "event": "wallet_do_placement_requested",
+          "location_hint": "apac",
+          "object_id": "69eb31d78a5240fbe181fc019005ad6c30a1fd85a67e7b62a38fd86257af32ff",
+          "object_name": "deriver-a-wallet-272309ceac51f9e902b88db306a40b64e36d2a934e94febb3960843be462973d",
+          "role": "deriver_a",
+          "wallet_home": "APAC"
+        },
+        {
+          "loggedAt": 1791864143850,
+          "duration_ms": 179,
+          "event": "wallet_startup_forward",
+          "object_name": "deriver-a-wallet-272309ceac51f9e902b88db306a40b64e36d2a934e94febb3960843be462973d",
+          "role": "deriver_a",
+          "started_ms": 1791864143671,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "role": "signer",
+      "timestamp": 1791864143673,
+      "wallMs": 125,
+      "cpuMs": 4,
+      "outcome": "ok",
+      "executionModel": "stateless",
+      "url": "https://router-ab-startup.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143673,
+          "event": "wallet_do_placement_requested",
+          "location_hint": "apac",
+          "object_id": "95ae79e2ab61da4867fc0dad3bd4a045cddff6553ff805c015f4d5ea6316407f",
+          "object_name": "signing-worker-wallet-50393f25c6e5f0970759e598240401f81ee35c056fadcfa9fcc3bca65a2454a9",
+          "role": "signing_worker",
+          "wallet_home": "APAC"
+        }
+      ]
+    },
+    {
+      "role": "deriver-b",
+      "timestamp": 1791864143676,
+      "wallMs": 272,
+      "cpuMs": 5,
+      "outcome": "ok",
+      "executionModel": "stateless",
+      "url": "https://router-ab-startup.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143676,
+          "event": "wallet_do_placement_requested",
+          "location_hint": "apac",
+          "object_id": "15eb0a3a44f8787dbb54c111e2a9a22e9a4a51cd06da82f1116c36ec72293819",
+          "object_name": "deriver-b-wallet-cbcae7f05b0679dc12f88065dc93ed7b31494d98f2af0c295da2c7ef3a6c4893",
+          "role": "deriver_b",
+          "wallet_home": "APAC"
+        },
+        {
+          "loggedAt": 1791864143944,
+          "duration_ms": 268,
+          "event": "wallet_startup_forward",
+          "object_name": "deriver-b-wallet-cbcae7f05b0679dc12f88065dc93ed7b31494d98f2af0c295da2c7ef3a6c4893",
+          "role": "deriver_b",
+          "started_ms": 1791864143676,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "role": "router",
+      "timestamp": 1791864143760,
+      "wallMs": 13,
+      "cpuMs": 9,
+      "outcome": "ok",
+      "executionModel": "durableObject",
+      "url": "https://router-ab-do.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143762,
+          "event": "wallet_do_command_timing",
+          "first_command_after_constructor": true,
+          "handler_ms": 0,
+          "instance_command": 1,
+          "object_id": "20331ca1522be07255896ee5ab69e34c4356b602b094db956fcb95a094213e1c",
+          "path": "/router-ab/internal/wallet/start",
+          "role": "router",
+          "since_previous_start_ms": null,
+          "started_ms": 1791864143762,
+          "status": 200
+        },
+        {
+          "loggedAt": 1791864143764,
+          "colo": "SIN",
+          "event": "wallet_do_host",
+          "host": "998f111",
+          "object_id": "20331ca1522be07255896ee5ab69e34c4356b602b094db956fcb95a094213e1c",
+          "role": "router"
+        }
+      ]
+    },
+    {
+      "role": "signer",
+      "timestamp": 1791864143772,
+      "wallMs": 23,
+      "cpuMs": 15,
+      "outcome": "ok",
+      "executionModel": "durableObject",
+      "url": "https://router-ab-do.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143773,
+          "event": "wallet_do_command_timing",
+          "first_command_after_constructor": true,
+          "handler_ms": 0,
+          "instance_command": 1,
+          "object_id": "95ae79e2ab61da4867fc0dad3bd4a045cddff6553ff805c015f4d5ea6316407f",
+          "path": "/router-ab/internal/wallet/start",
+          "role": "signing_worker",
+          "since_previous_start_ms": null,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "role": "deriver-a",
+      "timestamp": 1791864143790,
+      "wallMs": 352,
+      "cpuMs": 294,
+      "outcome": "ok",
+      "executionModel": "durableObject",
+      "url": "https://router-ab-do.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143791,
+          "event": "wallet_do_command_timing",
+          "first_command_after_constructor": true,
+          "handler_ms": 0,
+          "instance_command": 1,
+          "object_id": "69eb31d78a5240fbe181fc019005ad6c30a1fd85a67e7b62a38fd86257af32ff",
+          "path": "/router-ab/internal/wallet/start",
+          "role": "deriver_a",
+          "since_previous_start_ms": null,
+          "started_ms": 1791864143791,
+          "status": 200
+        },
+        {
+          "loggedAt": 1791864143791,
+          "colo": "SIN",
+          "event": "wallet_do_host",
+          "host": "1244f111",
+          "object_id": "69eb31d78a5240fbe181fc019005ad6c30a1fd85a67e7b62a38fd86257af32ff",
+          "role": "deriver_a"
+        },
+        {
+          "loggedAt": 1791864143791,
+          "event": "router_ab_yao_role_isolate_prewarm_v1",
+          "outcome": "completed",
+          "role": "deriver_a"
+        }
+      ]
+    },
+    {
+      "role": "deriver-b",
+      "timestamp": 1791864143846,
+      "wallMs": 534,
+      "cpuMs": 518,
+      "outcome": "ok",
+      "executionModel": "durableObject",
+      "url": "https://router-ab-do.internal/router-ab/internal/wallet/start",
+      "events": [
+        {
+          "loggedAt": 1791864143847,
+          "event": "wallet_do_command_timing",
+          "first_command_after_constructor": true,
+          "handler_ms": 0,
+          "instance_command": 1,
+          "object_id": "15eb0a3a44f8787dbb54c111e2a9a22e9a4a51cd06da82f1116c36ec72293819",
+          "path": "/router-ab/internal/wallet/start",
+          "role": "deriver_b",
+          "since_previous_start_ms": null,
+          "started_ms": 1791864143847,
+          "status": 200
+        },
+        {
+          "loggedAt": 1791864143847,
+          "colo": "SIN",
+          "event": "wallet_do_host",
+          "host": "998f43",
+          "object_id": "15eb0a3a44f8787dbb54c111e2a9a22e9a4a51cd06da82f1116c36ec72293819",
+          "role": "deriver_b"
+        },
+        {
+          "loggedAt": 1791864143847,
+          "event": "router_ab_yao_role_isolate_prewarm_v1",
+          "outcome": "completed",
+          "role": "deriver_b"
+        }
+      ]
+    },
+    {
+      "role": "router",
+      "timestamp": 1791864144721,
+      "wallMs": 23,
+      "cpuMs": 20,
+      "outcome": "ok",
+      "executionModel": "durableObject",
+      "url": "https://router-wallet.internal/router-wallet/v1/command",
+      "events": [
+        {
+          "loggedAt": 1791864144721,
+          "event": "wallet_do_command_timing",
+          "first_command_after_constructor": false,
+          "handler_ms": 0,
+          "instance_command": 2,
+          "object_id": "20331ca1522be07255896ee5ab69e34c4356b602b094db956fcb95a094213e1c",
+          "path": "/router-wallet/v1/command",
+          "role": "router",
+          "since_previous_start_ms": 959,
+          "started_ms": 1791864144721,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "role": "signer",
+      "timestamp": 1791864144801,
+      "wallMs": 30011,
+      "cpuMs": 2,
+      "outcome": "ok",
+      "executionModel": "stateless",
+      "url": "https://router-ab-signing-worker.internal/router-ab/signing-worker/ed25519-yao/activation/packages",
+      "events": [
+        {
+          "loggedAt": 1791864144801,
+          "event": "wallet_do_placement_requested",
+          "location_hint": "apac",
+          "object_id": "95ae79e2ab61da4867fc0dad3bd4a045cddff6553ff805c015f4d5ea6316407f",
+          "object_name": "signing-worker-wallet-50393f25c6e5f0970759e598240401f81ee35c056fadcfa9fcc3bca65a2454a9",
+          "role": "signing_worker",
+          "wallet_home": "APAC"
+        }
+      ]
+    },
+    {
+      "role": "signer",
+      "timestamp": 1791864144807,
+      "wallMs": 29995,
+      "cpuMs": 2,
+      "outcome": "ok",
+      "executionModel": "durableObject",
+      "url": "https://router-ab-signing-worker.internal/router-ab/signing-worker/ed25519-yao/activation/packages",
+      "events": [
+        {
+          "loggedAt": 1791864174807,
+          "event": "wallet_do_command_timing",
+          "first_command_after_constructor": false,
+          "handler_ms": 30000,
+          "instance_command": 2,
+          "object_id": "95ae79e2ab61da4867fc0dad3bd4a045cddff6553ff805c015f4d5ea6316407f",
+          "path": "/router-ab/signing-worker/ed25519-yao/activation/packages",
+          "role": "signing_worker",
+          "since_previous_start_ms": 1034,
+          "status": 500
+        }
+      ]
+    }
+  ],
+  "originalVersions": {
+    "router-ab-deriver-a-staging": [
+      {
+        "version_id": "926ae3ff-46ca-406e-a0cf-e544abb6742c",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-b-staging": [
+      {
+        "version_id": "1976e8d6-180d-427c-b075-f6a94a44340c",
+        "percentage": 100
+      }
+    ],
+    "router-ab-mpc-router-staging": [
+      {
+        "version_id": "6340e066-0dd3-4522-b58d-e9c529721203",
+        "percentage": 100
+      }
+    ],
+    "router-ab-signing-worker-staging": [
+      {
+        "version_id": "a6b7ab21-5589-476b-be68-067a6f3cc766",
+        "percentage": 100
+      }
+    ],
+    "router-ab-tenant-root-control-plane-staging": [
+      {
+        "version_id": "9f1b619c-db60-4091-b1d2-9a7857f134f0",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-console-staging": [
+      {
+        "version_id": "51a67111-dfff-4719-97a4-9f21f8fdef99",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging": [
+      {
+        "version_id": "80edac16-6111-40d9-bc82-ba898c828327",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging-oc": [
+      {
+        "version_id": "22b90cc2-9b5e-4279-ae65-9edcf2057983",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging-us": [
+      {
+        "version_id": "78ef5e2d-6ec6-4193-a548-3787c7d3c249",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging-weur": [
+      {
+        "version_id": "6d91c2d4-de4e-40ab-8bb7-ce311f7b8417",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging": [
+      {
+        "version_id": "0ec9fd1b-d713-409b-84dc-112b9196a6b1",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging-oc": [
+      {
+        "version_id": "8d42e824-e0c9-4b61-9c5d-5ef8dba2cf39",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging-us": [
+      {
+        "version_id": "2c236908-06dc-4868-b74e-755cd3a59e24",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging-weur": [
+      {
+        "version_id": "72016eb4-27df-4054-b208-793a51ce2187",
+        "percentage": 100
+      }
+    ]
+  },
+  "candidateVersions": {
+    "router": {
+      "worker": "router-ab-mpc-router-staging",
+      "version_id": "ca914fec-5699-4876-acd3-0f70fe9a7795"
+    },
+    "deriver-a": {
+      "worker": "router-ab-deriver-a-staging",
+      "version_id": "2797a6b3-5e98-49d3-a5b8-12d1fab59e65"
+    },
+    "deriver-b": {
+      "worker": "router-ab-deriver-b-staging",
+      "version_id": "e2324fbe-837c-495a-946c-cdf853b5f37c"
+    },
+    "gateway": {
+      "worker": "seams-sdk-d1-gateway-staging",
+      "version_id": "3fb3506a-9c6e-4c17-8def-73ddc4d15be3"
+    }
+  },
+  "limitations": [
+    "Frozen diagnostic build; not a controlled release latency comparison.",
+    "Tail captures include unrelated regional traffic; APAC home filter separates role startup observations.",
+    "No peer execution completion record observed for the failed streamed delivery; absence does not prove execution never began.",
+    "No statistical p99 claim from this sample."
+  ],
+  "restoration": {
+    "all14ServingVersionsMatchSnapshot": true,
+    "tenantActivationRunId": 38345363529,
+    "activationConclusion": "success",
+    "temporaryDiagnosticsRemovedInCommit": "3d60ebca",
+    "historicalUploadedVersions": "Inactive in Cloudflare version history"
+  }
+}

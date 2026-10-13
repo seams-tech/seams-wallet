@@ -1,0 +1,74 @@
+{
+  "kind": "router_delivery_failure_evidence_v1",
+  "date": "2026-10-13",
+  "parent": "e53e3c3e",
+  "profile": "dev",
+  "environment": "local workerd with actual Rust Workers, SQLite wallet objects and native service-binding fault replies",
+  "parentControl": {
+    "changedWorker": "router",
+    "otherWorkers": "same candidate builds",
+    "scenario": "delivery-fails",
+    "result": "still pending at five-second harness deadline"
+  },
+  "candidate": [
+    {
+      "scenario": "delivery-fails",
+      "elapsedMs": 205,
+      "httpStatus": 500,
+      "outcome": "protocol_error",
+      "roleExecutionCalls": 1,
+      "heldPeerReleasedOnlyDuringCleanup": true,
+      "packagesReceived": false
+    },
+    {
+      "scenario": "ceremony-fails",
+      "elapsedMs": 201,
+      "httpStatus": 200,
+      "outcome": "recoverable_failure",
+      "roleExecutionCalls": 1,
+      "heldPeerReleasedOnlyDuringCleanup": true,
+      "packagesReceived": false
+    },
+    {
+      "scenario": "superseded",
+      "elapsedMs": 199,
+      "httpStatus": 200,
+      "outcome": "rejected",
+      "roleExecutionCalls": 1,
+      "heldPeerReleasedOnlyDuringCleanup": true,
+      "packagesReceived": false
+    },
+    {
+      "scenario": "delivery-after-execution",
+      "elapsedMs": 4303,
+      "httpStatus": 500,
+      "outcome": "protocol_error",
+      "roleExecutionCalls": 1,
+      "heldPeerReleasedOnlyDuringCleanup": false,
+      "packagesReceived": true
+    },
+    {
+      "scenario": "success",
+      "elapsedMs": 4233,
+      "httpStatus": 200,
+      "outcome": "succeeded",
+      "roleExecutionCalls": 1,
+      "heldPeerReleasedOnlyDuringCleanup": false,
+      "packagesReceived": false
+    }
+  ],
+  "checks": [
+    "recoverable ceremony result returns while delivery is held",
+    "superseded refusal is terminal and replays unchanged",
+    "uncertain delivery after execution does not execute the protocol again on retry",
+    "successful registration replays the committed result"
+  ],
+  "limits": [
+    "not a hosted latency benchmark",
+    "does not establish remote cancellation",
+    "does not identify the hosted producer stall"
+  ],
+  "artifact": ".artifacts/delivery-timeout/source/.artifacts/package-delivery-failure/evidence.json",
+  "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/package-delivery-failure-evidence.mjs",
+  "candidateCommit": "4f360155"
+}

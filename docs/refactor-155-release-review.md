@@ -17,11 +17,49 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.9.4
+
+Status: **prepared, not published.** Patch release with no wire, schema or
+protocol change. It carries the work on public `dev` since 0.9.3.
+
+- **Custody Workers.** A wire label is wiped with one volatile write, and the
+  garbler hashes its four blocks in one cipher pass (`ab91d575`): garbling
+  takes half the time and evaluation two thirds, with the same protocol
+  bytes. A failed package delivery reaches the Router promptly (`4f360155`).
+  Each wallet object logs its host once (`df5b5566`).
+- **Gateway.** Registration setup retries a transient database fault and
+  answers a server error without the driver's text (`b8de6715`).
+- **SDK.** The setup preflight starts when a registration-configured runtime
+  starts (`8a7d8f75`, `4ae974a8`). The React entry gains a voice assistant
+  card (`21503882`).
+- **Compatibility.** No request or response of registration changes. A 0.9.3
+  application works with a 0.9.4 backend, and each role Worker works with
+  its 0.9.3 peers.
+- **Local validation before the pull request.** On the candidate tree: the
+  bloat check, the lock check, the type check, the Rust tests of the three
+  Router crates and the five strict Worker entrypoints. The Yao and
+  registration contracts pass on release Workers with the engine change. The
+  private console builds against the candidate module build.
+
 ## 0.9.3
 
-Status: **prepared, not published.** Patch release with no wire or protocol
-change and one schema addition. It carries the latency work of R155G and
-R155H. Staging runs the published 0.9.0 until this release is deployed there.
+Status: **published October 12, 2026, 18:04 UTC, and deployed to staging.**
+Patch release with no wire or protocol change and one schema addition. It
+carries the latency work of R155G and R155H. Production does not run it.
+
+- **Publication.** CI on [pull request 37](https://github.com/seams-tech/seams-wallet/pull/37)
+  passed on `0f031858`. `main` is at the merge commit `e4f883f7` with the
+  same tree. `release-wallet-packages.yml` run `38283099821` published
+  `@seams/wallet-server@0.9.3` (1,229 files) and `@seams/wallet@0.9.3`
+  (1,999 files) with provenance.
+- **Private adoption.** The private repository pins 0.9.3 since `5115cd3`.
+  Its check and its build pass, and its repository validation passes for the
+  first time since the 0.9.0 pins: the console and the site both build.
+- **Staging.** Deployed on October 13 with the migrate job first, then the
+  protected activation. Registration after the passkey step measures
+  1,734 ms at the median against 2,332 ms on 0.9.0. The
+  [record](evidence/refactor-155h-release-093-staging.md) holds the
+  measurement.
 
 - **Schema.** Gateway migration `0078_registration_passkey_claims.sql` adds one
   table and one trigger. Finalization reads the table in its first batch, so

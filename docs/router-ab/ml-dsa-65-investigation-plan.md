@@ -1,14 +1,45 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: planned. Source and research review: 2026-10-05.
+Status: local reference and circuit implementation in progress, 2026-10-13.
+Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
 Select the fastest measured complete protocol that preserves the security and recovery contract.
 Use current research to find candidates. Publication date does not determine the winner.
 The investigation must cover key generation, signing, recovery, export, and deployment.
-This document plans that work. It does not report a completed implementation or benchmark.
+The [experiment contract](ml-dsa-65-experiment-contract.md) defines the first executable slice.
+The [host harness](../../tools/ml-dsa-investigation/README.md) checks public reference fixtures and hashing circuits.
+Complete threshold signing and deployed measurements remain open.
 
-Review scope: repository sources at `seams-wallet` commit `7dc2a5cd`, installed Wallet Server 0.8.0 artifacts, and the primary references below.
+## First local evidence — October 13, 2026
+
+The [reference and circuit harness](../../tools/ml-dsa-investigation/README.md) passed.
+Its [generated report](../evidence/ml-dsa-65-foundation-20261013.json) contains commands, source digests, public fixtures, and raw samples.
+RustCrypto ML-DSA 0.1.1 and OpenSSL 3.6.3 agree on four public keys and eight deterministic signatures.
+Both implementations reject changed messages, contexts, signatures, and public keys.
+A separate public-fixture recipient reproduces the same keys and signatures from reconstructed seeds.
+This verifies reference reproducibility. It does not implement confidential export or threshold execution.
+
+| Compiled hashing kernel | AND gates | Reusable slots | Estimated half-gate table bytes |
+| --- | ---: | ---: | ---: |
+| Full Keccak-f[1600] control | 38,400 | 1,984 | 1,228,800 |
+| Canonical seed expansion from XOR shares | 37,824 | 1,984 | 1,210,368 |
+| One 481-byte polynomial prefix | 152,584 | 5,248 | 4,882,688 |
+| Seed expansion plus eleven polynomial prefixes | 1,716,248 | Separate kernel schedules | 54,919,936 |
+
+The hashing sum excludes the control circuit.
+Each kernel matches its independent hash implementation on public fixtures.
+The report includes all eleven polynomial nonces and all sixteen seed-share pattern pairs.
+Half-gate bytes remain an estimate from compiled gates, rather than measured network traffic.
+Sampling, private outputs, arithmetic, conversions, OT, framing, and actual garbling remain additional work.
+
+Compiler simplification reduces the earlier 55.296 MB hashing estimate by about 0.7 percent.
+It does not materially reduce the bandwidth requirement.
+Next, measure the deployed transport and actual half-gate execution, then add oblivious coefficient selection and share conversion.
+Compare GMW with complete preprocessing costs before choosing a smaller-traffic engine.
+
+The starting review covered repository sources at `seams-wallet` commit `7dc2a5cd`, installed Wallet Server 0.8.0 artifacts, and the primary references below.
+The generated report records the later experiment's source revision and file identities separately.
 Live Cloudflare versions, placement, and target-network activation remain unverified.
 Pin those deployment facts before recording performance results.
 
@@ -81,6 +112,7 @@ Record that distinction in the final library documentation.
 Canonical key recovery is a requirement. Identical signature bytes across different signing executions are unnecessary.
 Use [FIPS 204 and its current errata](https://csrc.nist.gov/pubs/fips/204/final) as the algorithm reference.
 The checked publication remains the August 2024 edition, with a July 2026 planning note for potential corrections.
+The experiment contract records the reviewed spreadsheet identity and applicable interpretations.
 Record which corrections apply instead of treating a planning note as a new standard edition.
 Standard verifier compatibility does not establish FIPS module validation.
 
@@ -253,8 +285,9 @@ Do not budget compression savings for pseudorandom garbled tables.
 - [ ] Pin paper revisions, source commits, dependency versions, implementation licenses, and parameter sets for each candidate.
 - [ ] Record proof assumptions, prototype limits, security losses, and required external parties.
 - [ ] Confirm support for canonical existing keys without plaintext key import at either server.
-- [ ] Pin an independent ML-DSA-65 implementation as the reference for public test seeds and signature verification.
+- [x] Pin an independent ML-DSA-65 implementation as the reference for public test seeds and signature verification.
 - [ ] Specify the exact share format that the first signing prototype consumes from key generation.
+  The experiment contract defines a provisional uniformly masked format. Signing compatibility remains to be demonstrated.
 - [ ] Specify the admitted key-generation, signing, refresh, recovery, and export operations.
 - [ ] Define each role's inputs, outputs, persistent secrets, permitted disclosures, and abort behavior.
 - [ ] Specify seed creation and retention, key identity checks, and recovery after permanent participant loss.
@@ -437,7 +470,7 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-1. Pin the independent reference, canonical-key contract, and first compatible signing-share format.
+1. Validate the pinned reference, canonical-key contract, and provisional uniformly masked share format through the host harness.
 2. Measure raw transport through the actual Cloudflare compute path.
 3. Benchmark secret expansion, sampling, and share conversion with half-gates and GMW.
 4. Complete canonical key generation and authorized recovery using public test fixtures.

@@ -1,0 +1,151 @@
+{
+  "scope": "Local workerd transport reproduction; artificial initialization/handler delays, no cryptographic protocol or hosted placement claim.",
+  "cases": [
+    {
+      "scenario": "initialization",
+      "abort": true,
+      "startupOutcome": "failure",
+      "startupMs": 3009,
+      "executeMs": 3501,
+      "handlerEvents": [
+        {
+          "event": "constructor",
+          "path": null,
+          "offsetMs": 9
+        },
+        {
+          "event": "initialized",
+          "path": null,
+          "offsetMs": 4511
+        },
+        {
+          "event": "entry",
+          "path": "/execute",
+          "offsetMs": 4511
+        },
+        {
+          "event": "entry",
+          "path": "/observe",
+          "offsetMs": 5508
+        }
+      ]
+    },
+    {
+      "scenario": "initialization",
+      "abort": false,
+      "startupOutcome": "response",
+      "startupMs": 4502,
+      "executeMs": 3496,
+      "handlerEvents": [
+        {
+          "event": "constructor",
+          "path": null,
+          "offsetMs": 4
+        },
+        {
+          "event": "initialized",
+          "path": null,
+          "offsetMs": 4504
+        },
+        {
+          "event": "entry",
+          "path": "/start",
+          "offsetMs": 4505
+        },
+        {
+          "event": "entry",
+          "path": "/execute",
+          "offsetMs": 4505
+        },
+        {
+          "event": "startup_completed",
+          "path": null,
+          "offsetMs": 4505
+        },
+        {
+          "event": "entry",
+          "path": "/observe",
+          "offsetMs": 5503
+        }
+      ]
+    },
+    {
+      "scenario": "entered-handler",
+      "abort": true,
+      "startupOutcome": "failure",
+      "startupMs": 3002,
+      "executeMs": 0,
+      "handlerEvents": [
+        {
+          "event": "constructor",
+          "path": null,
+          "offsetMs": 4
+        },
+        {
+          "event": "initialized",
+          "path": null,
+          "offsetMs": 4
+        },
+        {
+          "event": "entry",
+          "path": "/start",
+          "offsetMs": 4
+        },
+        {
+          "event": "entry",
+          "path": "/execute",
+          "offsetMs": 1004
+        },
+        {
+          "event": "startup_completed",
+          "path": null,
+          "offsetMs": 4504
+        },
+        {
+          "event": "entry",
+          "path": "/observe",
+          "offsetMs": 5502
+        }
+      ]
+    },
+    {
+      "scenario": "entered-handler",
+      "abort": false,
+      "startupOutcome": "response",
+      "startupMs": 4502,
+      "executeMs": 0,
+      "handlerEvents": [
+        {
+          "event": "constructor",
+          "path": null,
+          "offsetMs": 4
+        },
+        {
+          "event": "initialized",
+          "path": null,
+          "offsetMs": 4
+        },
+        {
+          "event": "entry",
+          "path": "/start",
+          "offsetMs": 4
+        },
+        {
+          "event": "entry",
+          "path": "/execute",
+          "offsetMs": 1005
+        },
+        {
+          "event": "startup_completed",
+          "path": null,
+          "offsetMs": 4504
+        },
+        {
+          "event": "entry",
+          "path": "/observe",
+          "offsetMs": 5502
+        }
+      ]
+    }
+  ]
+}

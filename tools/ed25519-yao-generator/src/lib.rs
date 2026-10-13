@@ -173,6 +173,10 @@ pub use circuit::{
     PROVISIONAL_ACTIVATION_CORE_INPUT_SCHEMA_V1, PROVISIONAL_ACTIVATION_CORE_OUTPUT_SCHEMA_V1,
     PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1, PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1,
 };
+pub use circuit::{
+    compile_ml_dsa_hash_circuit_v1, MlDsaHashCircuitV1, MlDsaHashFixtureErrorV1,
+    MlDsaHashWorkloadV1,
+};
 pub use context::{
     ApplicationBindingDigest, NormalizedParticipantIds, ParticipantPosition,
     StableKeyDerivationContext, StableKeyDerivationContextBindingDigest,

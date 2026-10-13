@@ -6,6 +6,17 @@ export interface WalletRegistrationSetupDispatcher {
   dispatch(input: WalletRegistrationSetupInput): Promise<RouteResponse | null>;
 }
 
+/** A transient storage fault outlived its retries. The same request can succeed later. */
+const SETUP_STORAGE_UNAVAILABLE = {
+  status: 503,
+  message: 'Wallet registration setup is temporarily unavailable. Try again.',
+} as const;
+
+const SETUP_INTERNAL_FAILURE = {
+  status: 500,
+  message: 'Wallet registration setup failed',
+} as const;
+
 export async function dispatchWalletRegistrationSetup(
   context: {
     readonly dispatcher: WalletRegistrationSetupDispatcher | null;
@@ -20,5 +31,21 @@ export async function dispatchWalletRegistrationSetup(
   const forwarded = await context.dispatcher?.dispatch(input);
   if (forwarded) return forwarded;
   const result = await context.local.setupWalletRegistration(input);
-  return { status: result.ok ? 200 : 400, body: result };
+  if (result.ok) return { status: 200, body: result };
+  const serverFailure =
+    result.code === 'storage_unavailable'
+      ? SETUP_STORAGE_UNAVAILABLE
+      : result.code === 'internal'
+        ? SETUP_INTERNAL_FAILURE
+        : null;
+  if (!serverFailure) return { status: 400, body: result };
+  // The cause stays on the server. It can carry the storage driver's text.
+  console.error('[wallet-registration] setup failed', {
+    code: result.code,
+    reason: result.message,
+  });
+  return {
+    status: serverFailure.status,
+    body: { ok: false, code: result.code, message: serverFailure.message },
+  };
 }

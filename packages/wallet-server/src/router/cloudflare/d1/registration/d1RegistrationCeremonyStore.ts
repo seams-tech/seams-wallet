@@ -13,6 +13,7 @@ import {
   type TerminalRegistrationCeremonyCancellationResult,
 } from '../../../../core/RegistrationCeremonyStore';
 import type { WalletId } from '../../../../core/registrationContracts';
+import { retryTransientD1 } from '../../../../storage/d1Retry';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import {
   parseD1StoredAddAuthMethodIntent,
@@ -73,31 +74,39 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
   }
 
   async getSetupCeremony(ceremonyId: string): Promise<StoredWalletRegistrationCeremony | null> {
-    const stored = await this.storage.get('setup-ceremony', ceremonyId);
+    const stored = await retryTransientD1(() => this.storage.get('setup-ceremony', ceremonyId));
     if (!stored) return null;
     const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
     if (!ceremony) throw new Error('Registration setup snapshot is invalid');
     return ceremony;
   }
 
-  /** One batch stores the setup snapshot, ceremony, and authenticated execution identity. */
+  /**
+   * One batch stores the setup snapshot, ceremony, and authenticated execution identity.
+   *
+   * The batch is safe to repeat after a transient fault. Its inserts ignore an
+   * existing row, its reads return the stored winner, and the home reservation
+   * accepts its own earlier row. A repeat after a lost commit is an exact retry.
+   */
   async reserveSetupCeremony(
     proposed: StoredWalletRegistrationCeremony,
     ownershipGeneration: number,
   ): Promise<StoredWalletRegistrationCeremony> {
-    const stored = await this.storage.insertOrReadWithCopy(
-      {
-        scope: 'setup-ceremony',
-        id: proposed.registrationCeremonyId,
-        value: encodeRecord(proposed),
-        expiresAtMs: proposed.expiresAtMs,
-      },
-      'ceremony',
-      prepareD1RegistrationHomeReservation(this.input.database, this.input.scope, {
-        walletId: proposed.intent.walletId,
-        ceremonyId: proposed.registrationCeremonyId,
-        ownershipGeneration,
-      }),
+    const stored = await retryTransientD1(() =>
+      this.storage.insertOrReadWithCopy(
+        {
+          scope: 'setup-ceremony',
+          id: proposed.registrationCeremonyId,
+          value: encodeRecord(proposed),
+          expiresAtMs: proposed.expiresAtMs,
+        },
+        'ceremony',
+        prepareD1RegistrationHomeReservation(this.input.database, this.input.scope, {
+          walletId: proposed.intent.walletId,
+          ceremonyId: proposed.registrationCeremonyId,
+          ownershipGeneration,
+        }),
+      ),
     );
     const ceremony = parseD1StoredWalletRegistrationCeremony(stored.record.value);
     if (!ceremony || !sameSetupReservation(ceremony, proposed)) {

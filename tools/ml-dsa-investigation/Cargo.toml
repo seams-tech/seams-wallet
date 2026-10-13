@@ -1,0 +1,18 @@
+[package]
+name = "ml-dsa-investigation"
+version = "0.1.0"
+edition = "2024"
+description = "Host-only ML-DSA-65 investigation with public synthetic fixtures"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+ml-dsa = "=0.1.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "=0.10.9"
+sha3 = "=0.10.8"
+keccak = "=0.1.6"
+hex = "0.4"
+tempfile = "3"
+ed25519-yao-generator = { path = "../ed25519-yao-generator" }
