@@ -471,7 +471,7 @@ throughout the resize. Reduced-motion behavior remains immediate.
 
 ### Wallet-management protocol
 
-- Wallet-management requests send `X-Seams-Wallet-Protocol: 3`. This wire
+- Wallet-management requests send `X-Seams-Wallet-Protocol: 4`. This wire
   contract covers registration, signer setup and inventory, auth-method
   management, and implicit NEAR funding through the wallet-management routes.
 - Missing or unsupported values return HTTP 409 with code
@@ -554,7 +554,7 @@ throughout the resize. Reduced-motion behavior remains immediate.
   credential claim prevents local persistence. Exact retries retain the original
   activation consumer and credential owner.
 - A NEAR-only respond that verified a new passkey starts the same credential
-  claim after it replies, while the client runs the Yao execution. A granted
+  claim after its admission, while the Yao execution runs. A granted
   claim is recorded in the regional database for that ceremony. Finalization
   sends no claim request when the record names the same wallet, relying party
   and credential. A refused, failed or unfinished early claim records nothing,
@@ -686,6 +686,21 @@ Expected behaviour:
   wallet without a signer. The same rule applies to Email OTP registration.
   Its authenticated response includes the admitted Yao request and receipt.
   An exact response retry retains the same admission and execution identity.
+- Setup mints the Yao identity of a NEAR branch and stores it with the
+  ceremony. A setup retry keeps that identity. The identity binds no authority
+  and admits nothing. For a NEAR-only passkey registration, the setup reply
+  also describes the Yao admission that respond will issue over it. The client
+  prepares its execute request from that description while the user answers
+  the passkey prompt, and sends it with the proof. Respond verifies the
+  proof, stores the admission and runs the execution in that one request. Its
+  reply then includes the activation result. No admission exists before the
+  proof is verified, and an execute request without that admission is refused.
+- An exact retry of that respond replays the admission and the recorded
+  execution. When the execution does not complete inside respond, the reply
+  includes the admission alone, and the client sends the same execute request
+  to the execute route. Email OTP registration and mixed registration receive
+  no description: their respond issues the admission, and the execute route
+  runs the execution.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
   Authorized NEAR admission overlaps ECDSA respond. Yao execution starts only

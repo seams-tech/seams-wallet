@@ -10,7 +10,10 @@ wallets finish in less than 2.0 s after the passkey step. The
 Release 0.9.4 carries the engine change of Phase 4 and serves on staging
 since October 13: the Yao execution is about 60 ms shorter, see its
 [record](evidence/refactor-155h-release-094-staging.md).
-Phases 1 and 3 are decided and not implemented. Date: October 13, 2026.
+Of Phase 1, the session mint at setup is implemented, and Phase 10 builds
+the one-request registration on it; both are on `dev` for release 0.10.0.
+The rest of Phase 1 and Phase 3 are decided and not implemented. Date:
+October 13, 2026.
 
 [R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
 outliers and the combined p99 comparison. It reuses this plan's Phase 1 design
@@ -1224,16 +1227,39 @@ request. The client then seals its inputs during the prompt and sends the
 passkey proof and the inputs in one request. The Gateway verifies the proof,
 admits, and executes.
 
-- [ ] Depends on Phase 1's first item, the session mint at setup. R155J owns
-  that implementation; build this on it, once.
-- [ ] A new setup reply field and a merged route change the registration
-  wire. The client parsers accept exact keys, so the wallet-management
-  protocol moves to 4.
-- [ ] Keep exact replay of the merged request, the refusal of another
-  credential, and the separate routes for mixed registration, Email OTP and
-  add-signer until they move too.
-- [ ] Update the registration paragraphs of `docs/intended-behaviours.md` and
-  the contract cases that pin the request order.
+- [x] Phase 1's first item, the session mint at setup, is done.
+- [x] Setup describes the admission of a NEAR-only passkey plan: the request
+  and the receipt over the minted session (`ed25519.status = described`).
+  The description stores nothing and admits nothing. Email OTP gets
+  `after_proof`, because its scope holds the verified provider subject.
+- [x] The SDK starts the custody run when setup returns. The run prepares the
+  execute request during the prompt. Its Router round waits for the proof and
+  sends both in the respond request (`ed25519Execution`). The custody driver
+  takes the passkey factor after the round, because the seed is sealed at
+  the end of the run. No Rust or WASM change was necessary.
+- [x] Respond verifies the proof, stores the admission and then runs the
+  execution with the checks of the execute route: the binding, the credential
+  digest and the expiry. Its reply has `status = executed` and the activation
+  result. When the execution does not complete, the reply has
+  `status = admitted`, and the SDK sends the same request to the execute
+  route. A reply whose admission differs from the description fails the
+  registration.
+- [x] The wallet-management protocol is 4: the setup reply has a new field
+  and the client parsers accept exact keys.
+- [x] Exact replay of the merged request, the refusal of another credential,
+  and the separate routes for mixed registration, Email OTP and add-signer
+  are kept. The local fault injection reaches an execution inside respond.
+- [x] `docs/intended-behaviours.md` and the contract case that pins the
+  respond replay are updated.
+- [x] The contract suite passes on the change: 132 of 134 cases on release
+  Workers and the two debug-build cases on the debug Router. The
+  [record](evidence/refactor-155h-one-request-registration.md) holds the
+  checks.
+- [ ] Not released and not measured on staging. A release with protocol 4
+  refuses every earlier SDK. The user decided on October 13 that it is
+  release 0.10.0, and that Codex releases and deploys it together with
+  Phase 1. The private Console sends the protocol header as a literal in two
+  places; the [release review](refactor-155-release-review.md) lists them.
 
 Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
 about half of that for a user in Singapore. The client's input preparation,
