@@ -68,10 +68,11 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
     )?;
     let mut sampling_a = garbled_execution::bytes_to_bits(&rho_share_a);
     append_residues(&mut sampling_a, &masks, 23);
+    sampling_a.extend(garbled_execution::bytes_to_bits(&0_u16.to_le_bytes()));
     let mut sampling_output_b = vec![true];
     append_residues(&mut sampling_output_b, &sampled.deriver_b_shares, 23);
     drop(sampling_oracle);
-    let sampling_circuit = compile_ml_dsa_private_sampling_circuit_v1(0);
+    let sampling_circuit = compile_ml_dsa_private_sampling_circuit_v1();
     save_kernel(
         directory,
         "sampling-0",
@@ -133,10 +134,12 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
     for index in 0..64 {
         mask_seed_b[index] = index as u8 ^ mask_seed_a[index];
     }
-    let mask_circuit = compile_ml_dsa_private_signing_mask_circuit_v1(0);
-    let mask_output = mask_circuit.evaluate_public_fixture(&mask_seed_a, &mask_seed_b, &masks)?;
+    let mask_circuit = compile_ml_dsa_private_signing_mask_circuit_v1();
+    let mask_output =
+        mask_circuit.evaluate_public_fixture(&mask_seed_a, &mask_seed_b, &masks, 0)?;
     let mut mask_a = garbled_execution::bytes_to_bits(&mask_seed_a);
     append_residues(&mut mask_a, &masks, 23);
+    mask_a.extend(garbled_execution::bytes_to_bits(&0_u16.to_le_bytes()));
     let mut mask_output_b = Vec::new();
     append_residues(&mut mask_output_b, &mask_output.deriver_b_shares, 23);
     save_kernel(

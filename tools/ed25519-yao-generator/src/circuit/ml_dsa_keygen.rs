@@ -12,11 +12,11 @@ const SEED_BITS: usize = 256;
 const RHO_PRIME_BITS: usize = 512;
 const POLYNOMIAL_RESIDUE_BITS: usize = 256 * 23;
 const SEED_A_INPUT_BITS: usize = SEED_BITS + RHO_PRIME_BITS + SEED_BITS;
-const SAMPLING_A_INPUT_BITS: usize = RHO_PRIME_BITS + POLYNOMIAL_RESIDUE_BITS;
+const SAMPLING_A_INPUT_BITS: usize = RHO_PRIME_BITS + POLYNOMIAL_RESIDUE_BITS + 16;
 
 const SEED_INPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-seed/input/v1:A:xi-share[32],rho-prime-mask[64],K-mask[32];B:xi-share[32]:byte-major-lsb0";
 const SEED_OUTPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-seed/output/v1:public:rho[32];B:rho-prime-share[64],K-share[32]:byte-major-lsb0";
-const SAMPLING_INPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-sampling/input/v1:A:rho-prime-share[64]:byte-major-lsb0,mask[256]:residue23-lsb0;B:rho-prime-share[64]:byte-major-lsb0:nonce-public-le16";
+const SAMPLING_INPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-sampling/input/v1:A:rho-prime-share[64]:byte-major-lsb0,mask[256]:residue23-lsb0,public-nonce[16]:le-lsb0;B:rho-prime-share[64]:byte-major-lsb0";
 const SAMPLING_OUTPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-sampling/output/v1:public:success[1];B:s-share[256]:residue23-lsb0:zero-on-failure";
 const ROUNDING_INPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-rounding/input/v1:A:t-share[256],t0-mask[256];B:t-share[256]:residue23-lsb0";
 const ROUNDING_OUTPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-rounding/output/v1:public:t1[256]:unsigned10-lsb0;B:t0-share[256]:residue23-lsb0";
@@ -97,14 +97,14 @@ pub fn compile_ml_dsa_private_seed_circuit_v1() -> MlDsaPrivateKeygenCircuitV1 {
 
 /// Compiles secret polynomial expansion and eta=4 sampling as one circuit.
 ///
-/// A's first 6,400 input bits contain its 64-byte rho-prime XOR share and 256
-/// independent mask residues below q. B's final 512 bits contain its rho-prime
+/// A's first 6,416 input bits contain its 64-byte rho-prime XOR share, 256
+/// independent mask residues below q, and one public 16-bit nonce. B's final 512 bits contain its rho-prime
 /// XOR share. Each residue uses 23 least-significant-bit-first bits.
 /// The circuit samples the first 256 accepted nibbles from 481 SHAKE256 bytes.
 /// It outputs public success followed by B's additive coefficient shares.
 /// It never outputs rho-prime or the SHAKE stream. On failure, B's shares are
 /// zero. Both parties must discard polynomial shares and retain the same seed.
-pub fn compile_ml_dsa_private_sampling_circuit_v1(nonce: u16) -> MlDsaPrivateKeygenCircuitV1 {
+pub fn compile_ml_dsa_private_sampling_circuit_v1() -> MlDsaPrivateKeygenCircuitV1 {
     let mut builder = CircuitBuilder::new((SAMPLING_A_INPUT_BITS + RHO_PRIME_BITS) as u32)
         .expect("fixed private sampling circuit has inputs");
     let inputs = builder.input_bits();
@@ -112,14 +112,12 @@ pub fn compile_ml_dsa_private_sampling_circuit_v1(nonce: u16) -> MlDsaPrivateKey
     for bit in 0..RHO_PRIME_BITS {
         message.push(builder.xor(inputs[bit], inputs[SAMPLING_A_INPUT_BITS + bit]));
     }
-    for byte in nonce.to_le_bytes() {
-        append_constant_byte(&mut message, byte);
-    }
+    message.extend_from_slice(&inputs[SAMPLING_A_INPUT_BITS - 16..SAMPLING_A_INPUT_BITS]);
     let candidates = shake256(&mut builder, &message, 481);
     let outputs = sampling_bits(
         &mut builder,
         &candidates,
-        &inputs[RHO_PRIME_BITS..SAMPLING_A_INPUT_BITS],
+        &inputs[RHO_PRIME_BITS..SAMPLING_A_INPUT_BITS - 16],
     );
     finish_private_circuit(
         builder,

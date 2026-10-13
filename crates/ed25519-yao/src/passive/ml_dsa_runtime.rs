@@ -10,8 +10,9 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 use super::ot::{
-    BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaRoundingOtFamily,
-    MlDsaSamplingOtFamily, MlDsaSeedOtFamily, OtError, OtSessionId, ReceiverAwaitBaseChoices,
+    BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaCommitmentOtFamily,
+    MlDsaDecisionOtFamily, MlDsaRoundingOtFamily, MlDsaSamplingOtFamily, MlDsaSeedOtFamily,
+    MlDsaSigningRowOtFamily, OtError, OtSessionId, ReceiverAwaitBaseChoices,
     ReceiverAwaitMaskedPayloads, ReceiverChoices, ReceiverStart, SenderAwaitExtension,
     SenderPayloads, SenderStart,
 };
@@ -27,7 +28,7 @@ const STREAM_MAGIC: &[u8; 8] = b"MLDSAP01";
 /// Maximum AND-table payload, excluding its eight-byte length/ordinal envelope.
 pub const TABLE_PAYLOAD_BYTES: usize = 65_536;
 /// Largest exact control message among the admitted investigation workloads.
-pub const MAX_MESSAGE_BYTES: usize = 188_464;
+pub const MAX_MESSAGE_BYTES: usize = 376_880;
 
 /// Recoverable failures at the fixed runtime boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,12 +75,24 @@ enum Workload {
     Sampling,
     Rounding,
     ExpandMask,
+    SigningSeed,
+    CommitmentHighBits,
+    CommitmentHash,
+    ResponseCheck,
+    RowCheckAndHints,
+    AggregateCheck,
 }
 impl Workload {
     const fn a_inputs(self) -> usize {
         match self {
             Self::Seed => 1024,
-            Self::Sampling | Self::ExpandMask => 6400,
+            Self::Sampling | Self::ExpandMask => 6416,
+            Self::SigningSeed => 1536,
+            Self::CommitmentHighBits => 6912,
+            Self::CommitmentHash => 6656,
+            Self::ResponseCheck => 5889,
+            Self::RowCheckAndHints => 12033,
+            Self::AggregateCheck => 1664,
             Self::Rounding => 11776,
         }
     }
@@ -87,22 +100,37 @@ impl Workload {
         match self {
             Self::Seed => 256,
             Self::Sampling | Self::ExpandMask => 512,
-            Self::Rounding => 5888,
+            Self::Rounding | Self::CommitmentHighBits | Self::ResponseCheck => 5888,
+            Self::SigningSeed => 512,
+            Self::CommitmentHash => 6144,
+            Self::RowCheckAndHints => 11776,
+            Self::AggregateCheck => 1664,
         }
     }
     const fn public_bytes(self) -> usize {
         match self {
             Self::Seed => 32,
-            Self::Sampling => 1,
+            Self::Sampling | Self::AggregateCheck => 1,
             Self::Rounding => 320,
-            Self::ExpandMask => 0,
+            Self::CommitmentHash => 48,
+            Self::ExpandMask
+            | Self::SigningSeed
+            | Self::CommitmentHighBits
+            | Self::ResponseCheck
+            | Self::RowCheckAndHints => 0,
         }
     }
     fn public_output(self, output: &[u8]) -> Zeroizing<Vec<u8>> {
         Zeroizing::new(match self {
-            Self::Sampling => vec![output[0] & 1],
-            Self::Seed | Self::Rounding => output[..self.public_bytes()].to_vec(),
-            Self::ExpandMask => Vec::new(),
+            Self::Sampling | Self::AggregateCheck => vec![output[0] & 1],
+            Self::Seed | Self::Rounding | Self::CommitmentHash => {
+                output[..self.public_bytes()].to_vec()
+            }
+            Self::ExpandMask
+            | Self::SigningSeed
+            | Self::CommitmentHighBits
+            | Self::ResponseCheck
+            | Self::RowCheckAndHints => Vec::new(),
         })
     }
 }
@@ -137,9 +165,15 @@ impl<'a> TrustedMlDsaSchedule<'a> {
         let slots = read_u32(&bytes[54..58]);
         let workload = match (bytes[8], inputs, outputs) {
             (0x87, 1280, 1024) => Workload::Seed,
-            (0x88, 6912, 5889) => Workload::Sampling,
+            (0x88, 6928, 5889) => Workload::Sampling,
             (0x89, 17664, 8448) => Workload::Rounding,
-            (0x8a, 6912, 5888) => Workload::ExpandMask,
+            (0x8a, 6928, 5888) => Workload::ExpandMask,
+            (0x8b, 2048, 512) => Workload::SigningSeed,
+            (0x8c, 12800, 1024) => Workload::CommitmentHighBits,
+            (0x8d, 12800, 384) => Workload::CommitmentHash,
+            (0x8e, 11777, 1) => Workload::ResponseCheck,
+            (0x8f, 23809, 257) => Workload::RowCheckAndHints,
+            (0x90, 3328, 1) => Workload::AggregateCheck,
             _ => return Err(RuntimeError::ScheduleShape),
         };
         check(
@@ -465,7 +499,10 @@ impl<'a> ReceiveStep<'a> {
             }
             ReceiveNext::GarblerPublic(mut common) => {
                 common.received(self.kind, bytes.len());
-                if matches!(common.schedule.workload, Workload::Sampling) {
+                if matches!(
+                    common.schedule.workload,
+                    Workload::Sampling | Workload::AggregateCheck
+                ) {
                     check(bytes[0] <= 1, RuntimeError::PublicOutput)?;
                 }
                 complete(common, Zeroizing::new(bytes.to_vec()))
@@ -916,16 +953,25 @@ enum Sender {
     Seed(SenderAwaitExtension<MlDsaSeedOtFamily>),
     Medium(SenderAwaitExtension<MlDsaSamplingOtFamily>),
     Rounding(SenderAwaitExtension<MlDsaRoundingOtFamily>),
+    Commitment(SenderAwaitExtension<MlDsaCommitmentOtFamily>),
+    SigningRow(SenderAwaitExtension<MlDsaSigningRowOtFamily>),
+    Decision(SenderAwaitExtension<MlDsaDecisionOtFamily>),
 }
 enum ReceiverBase {
     Seed(ReceiverAwaitBaseChoices<MlDsaSeedOtFamily>),
     Medium(ReceiverAwaitBaseChoices<MlDsaSamplingOtFamily>),
     Rounding(ReceiverAwaitBaseChoices<MlDsaRoundingOtFamily>),
+    Commitment(ReceiverAwaitBaseChoices<MlDsaCommitmentOtFamily>),
+    SigningRow(ReceiverAwaitBaseChoices<MlDsaSigningRowOtFamily>),
+    Decision(ReceiverAwaitBaseChoices<MlDsaDecisionOtFamily>),
 }
 enum ReceiverMasked {
     Seed(ReceiverAwaitMaskedPayloads<MlDsaSeedOtFamily>),
     Medium(ReceiverAwaitMaskedPayloads<MlDsaSamplingOtFamily>),
     Rounding(ReceiverAwaitMaskedPayloads<MlDsaRoundingOtFamily>),
+    Commitment(ReceiverAwaitMaskedPayloads<MlDsaCommitmentOtFamily>),
+    SigningRow(ReceiverAwaitMaskedPayloads<MlDsaSigningRowOtFamily>),
+    Decision(ReceiverAwaitMaskedPayloads<MlDsaDecisionOtFamily>),
 }
 fn sender_begin(
     workload: Workload,
@@ -954,8 +1000,15 @@ fn sender_begin(
     }
     match workload {
         Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
-        Workload::Sampling | Workload::ExpandMask => begin!(MlDsaSamplingOtFamily, Medium),
-        Workload::Rounding => begin!(MlDsaRoundingOtFamily, Rounding),
+        Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
+            begin!(MlDsaSamplingOtFamily, Medium)
+        }
+        Workload::Rounding | Workload::CommitmentHighBits | Workload::ResponseCheck => {
+            begin!(MlDsaRoundingOtFamily, Rounding)
+        }
+        Workload::CommitmentHash => begin!(MlDsaCommitmentOtFamily, Commitment),
+        Workload::RowCheckAndHints => begin!(MlDsaSigningRowOtFamily, SigningRow),
+        Workload::AggregateCheck => begin!(MlDsaDecisionOtFamily, Decision),
     }
 }
 fn sender_accept(sender: Sender, bytes: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
@@ -971,6 +1024,9 @@ fn sender_accept(sender: Sender, bytes: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
         Sender::Seed(s) => accept!(s, MlDsaSeedOtFamily),
         Sender::Medium(s) => accept!(s, MlDsaSamplingOtFamily),
         Sender::Rounding(s) => accept!(s, MlDsaRoundingOtFamily),
+        Sender::Commitment(s) => accept!(s, MlDsaCommitmentOtFamily),
+        Sender::SigningRow(s) => accept!(s, MlDsaSigningRowOtFamily),
+        Sender::Decision(s) => accept!(s, MlDsaDecisionOtFamily),
     }
 }
 fn receiver_begin(
@@ -994,8 +1050,15 @@ fn receiver_begin(
     }
     match workload {
         Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
-        Workload::Sampling | Workload::ExpandMask => begin!(MlDsaSamplingOtFamily, Medium),
-        Workload::Rounding => begin!(MlDsaRoundingOtFamily, Rounding),
+        Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
+            begin!(MlDsaSamplingOtFamily, Medium)
+        }
+        Workload::Rounding | Workload::CommitmentHighBits | Workload::ResponseCheck => {
+            begin!(MlDsaRoundingOtFamily, Rounding)
+        }
+        Workload::CommitmentHash => begin!(MlDsaCommitmentOtFamily, Commitment),
+        Workload::RowCheckAndHints => begin!(MlDsaSigningRowOtFamily, SigningRow),
+        Workload::AggregateCheck => begin!(MlDsaDecisionOtFamily, Decision),
     }
 }
 fn receiver_accept_choices(
@@ -1016,6 +1079,9 @@ fn receiver_accept_choices(
         ReceiverBase::Seed(r) => accept!(r, MlDsaSeedOtFamily, Seed),
         ReceiverBase::Medium(r) => accept!(r, MlDsaSamplingOtFamily, Medium),
         ReceiverBase::Rounding(r) => accept!(r, MlDsaRoundingOtFamily, Rounding),
+        ReceiverBase::Commitment(r) => accept!(r, MlDsaCommitmentOtFamily, Commitment),
+        ReceiverBase::SigningRow(r) => accept!(r, MlDsaSigningRowOtFamily, SigningRow),
+        ReceiverBase::Decision(r) => accept!(r, MlDsaDecisionOtFamily, Decision),
     }
 }
 fn receiver_accept_masked(
@@ -1037,6 +1103,9 @@ fn receiver_accept_masked(
         ReceiverMasked::Seed(r) => accept!(r, MlDsaSeedOtFamily),
         ReceiverMasked::Medium(r) => accept!(r, MlDsaSamplingOtFamily),
         ReceiverMasked::Rounding(r) => accept!(r, MlDsaRoundingOtFamily),
+        ReceiverMasked::Commitment(r) => accept!(r, MlDsaCommitmentOtFamily),
+        ReceiverMasked::SigningRow(r) => accept!(r, MlDsaSigningRowOtFamily),
+        ReceiverMasked::Decision(r) => accept!(r, MlDsaDecisionOtFamily),
     }
 }
 fn ot_matrix_bytes(workload: Workload) -> usize {

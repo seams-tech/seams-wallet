@@ -2,7 +2,7 @@
 
 This host tool measures canonical ML-DSA-65 key generation and recovery.
 It also measures reference operations and individual Boolean circuits.
-It is a benchmark tool. It has no threshold signer or production signing route.
+It includes an experimental threshold signer. It has no production signing route.
 
 The tool uses four fixed public seeds and one disposable key created jointly by two role processes.
 The disposable seed becomes public only after the separate test recipient reconstructs it.
@@ -22,7 +22,7 @@ From the repository directory:
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
   --samples 100 --garbled-samples 3 \
-  --output docs/evidence/ml-dsa-65-resumable-20261013.json
+  --output docs/evidence/ml-dsa-65-threshold-host-20261013.json
 ```
 
 The tool fails when any reference comparison or rejection check fails.
@@ -112,7 +112,8 @@ Both roles perform public matrix expansion and linear arithmetic locally.
 Four cases split the fixed public seeds with fresh random XOR masks.
 In the fifth case, each role independently generates its own random 32-byte seed share.
 The parent receives only public results during that case's key generation.
-It starts a separate test recipient after both role processes finish.
+It starts separate signing roles with their own material files.
+After threshold signing passes, it starts the separate authorized test recipient.
 
 Each role writes 17,472 bytes of private test material into its own temporary file with mode `0600`:
 
@@ -127,7 +128,8 @@ Shared-host files and process separation provide no operating-system isolation o
 The separate test recipient reconstructs the seed and private components from both files.
 It verifies the canonical public key and compares all 4,032 expanded private-key bytes with OpenSSL.
 It then signs with the recovered ordinary key and verifies that signature.
-These are ordinary recovery signatures. The role processes do not produce threshold signatures.
+The role processes produce threshold signatures before recovery.
+The recipient checks exact deterministic signature bytes against its recovered ordinary key.
 The artifact publishes every test seed, including the disposable joint-random seed.
 
 Each sampler reads a fixed 481-byte prefix and aborts if fewer than 256 coefficients qualify.
@@ -141,7 +143,7 @@ with genuine OT. It compares all coefficients with an independent SHAKE oracle.
 A receives no decoded output. Five polynomials require 35,584,000 table bytes
 per signing attempt. Six further signing circuits now pass independent cleartext fixtures.
 They check hashing, high bits, norms, hints, and aggregate acceptance.
-Private signing composition and a complete threshold signature remain open.
+The complete private signing composition produces standard signatures in separate role processes.
 
 Cleartext Boolean evaluation provides no privacy or constant-time guarantee.
 Private kernels use the existing passive protocol. Their complete composition still requires review.
@@ -150,10 +152,10 @@ The tool does not implement production admission, transport authentication, dura
 The test recipient's authorization is an explicit harness action.
 It does not establish an authenticated export flow.
 
-This tool does not execute a complete threshold signing protocol.
+This tool executes an experimental complete threshold signing protocol.
 The separate Worker adapter executes four private kernels with the same resumable cryptographic runtime.
 The [hosted report](../../docs/evidence/ml-dsa-65-worker-kernels-hosted-20261013.json) records those measurements.
-It does not measure complete key generation or signing on Cloudflare.
+It does not yet measure complete key generation or signing on Cloudflare.
 Host timing does not establish Worker CPU time, bandwidth, latency, or cost.
 Cross-implementation agreement does not establish FIPS module validation.
 Classical OT does not establish post-quantum transcript confidentiality.

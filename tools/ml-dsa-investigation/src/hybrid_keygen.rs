@@ -13,10 +13,6 @@ use ed25519_yao_generator::{
 };
 use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde_json::{Value, json};
-use sha3::{
-    Shake128,
-    digest::{ExtendableOutput, Update, XofReader},
-};
 use std::{fs, time::Instant};
 
 const MODULUS: u32 = 8_380_417;
@@ -27,9 +23,10 @@ const COLUMNS: usize = 5;
 const PREFIX_BYTES: usize = 481;
 const FIXTURE_NAMES: [&str; 4] = ["zero", "incrementing", "all-ff", "alternating"];
 
-pub(super) type Polynomial = [u32; COEFFICIENTS];
-pub(super) type SecretVector = [Polynomial; SECRET_POLYNOMIALS];
-pub(super) type PublicMatrix = [[Polynomial; COLUMNS]; ROWS];
+pub(super) use ed25519_yao::ml_dsa_signing::arithmetic::{
+    Polynomial, SecretVector, add_mod, expand_a, matrix_product_plus_error, ntt_twiddles,
+    subtract_mod,
+};
 
 struct PublicFixture {
     name: &'static str,
@@ -303,132 +300,6 @@ fn fixture_masks(polynomial: usize, fixture: usize) -> Polynomial {
         };
     }
     masks
-}
-
-pub(super) fn expand_a(rho: &[u8]) -> (PublicMatrix, usize) {
-    let mut matrix = [[[0; COEFFICIENTS]; COLUMNS]; ROWS];
-    let mut rejected = 0;
-    for (row, polynomials) in matrix.iter_mut().enumerate() {
-        for (column, polynomial) in polynomials.iter_mut().enumerate() {
-            let mut hash = Shake128::default();
-            hash.update(rho);
-            hash.update(&[column as u8, row as u8]);
-            let mut reader = hash.finalize_xof();
-            let mut count = 0;
-            while count < COEFFICIENTS {
-                let mut bytes = [0; 3];
-                reader.read(&mut bytes);
-                let candidate = u32::from(bytes[0])
-                    | (u32::from(bytes[1]) << 8)
-                    | (u32::from(bytes[2] & 0x7f) << 16);
-                if candidate < MODULUS {
-                    polynomial[count] = candidate;
-                    count += 1;
-                } else {
-                    rejected += 1;
-                }
-            }
-        }
-    }
-    (matrix, rejected)
-}
-
-/// Applies the linear lattice operations separately to one role's residues.
-///
-/// The NTT uses fixed loop bounds and public indices. Modular divisors are
-/// constant q. This benchmark helper has no native constant-time guarantee.
-pub(super) fn matrix_product_plus_error(
-    matrix: &PublicMatrix,
-    samples: &SecretVector,
-    twiddles: &Polynomial,
-) -> [Polynomial; ROWS] {
-    let mut s1_ntt = [[0; COEFFICIENTS]; COLUMNS];
-    for column in 0..COLUMNS {
-        s1_ntt[column] = ntt(samples[column], twiddles);
-    }
-    let mut output = [[0; COEFFICIENTS]; ROWS];
-    for row in 0..ROWS {
-        let mut product_ntt = [0; COEFFICIENTS];
-        for (column, s1_polynomial) in s1_ntt.iter().enumerate() {
-            for coefficient in 0..COEFFICIENTS {
-                product_ntt[coefficient] = add_mod(
-                    product_ntt[coefficient],
-                    multiply_mod(matrix[row][column][coefficient], s1_polynomial[coefficient]),
-                );
-            }
-        }
-        let product = inverse_ntt(product_ntt, twiddles);
-        for coefficient in 0..COEFFICIENTS {
-            output[row][coefficient] =
-                add_mod(product[coefficient], samples[COLUMNS + row][coefficient]);
-        }
-    }
-    output
-}
-
-pub(super) fn ntt_twiddles() -> Polynomial {
-    let mut powers = [0; COEFFICIENTS];
-    powers[0] = 1;
-    for index in 1..COEFFICIENTS {
-        powers[index] = multiply_mod(powers[index - 1], 1753);
-    }
-    let mut twiddles = [0; COEFFICIENTS];
-    for (index, twiddle) in twiddles.iter_mut().enumerate().skip(1) {
-        *twiddle = powers[usize::from((index as u8).reverse_bits())];
-    }
-    twiddles
-}
-
-fn ntt(mut polynomial: Polynomial, twiddles: &Polynomial) -> Polynomial {
-    let mut twiddle_index = 0;
-    let mut length = COEFFICIENTS / 2;
-    while length > 0 {
-        for start in (0..COEFFICIENTS).step_by(2 * length) {
-            twiddle_index += 1;
-            let twiddle = twiddles[twiddle_index];
-            for index in start..start + length {
-                let product = multiply_mod(twiddle, polynomial[index + length]);
-                polynomial[index + length] = subtract_mod(polynomial[index], product);
-                polynomial[index] = add_mod(polynomial[index], product);
-            }
-        }
-        length /= 2;
-    }
-    polynomial
-}
-
-fn inverse_ntt(mut polynomial: Polynomial, twiddles: &Polynomial) -> Polynomial {
-    let mut twiddle_index = COEFFICIENTS;
-    let mut length = 1;
-    while length < COEFFICIENTS {
-        for start in (0..COEFFICIENTS).step_by(2 * length) {
-            twiddle_index -= 1;
-            let twiddle = MODULUS - twiddles[twiddle_index];
-            for index in start..start + length {
-                let lower = polynomial[index];
-                polynomial[index] = add_mod(lower, polynomial[index + length]);
-                polynomial[index + length] =
-                    multiply_mod(twiddle, subtract_mod(lower, polynomial[index + length]));
-            }
-        }
-        length *= 2;
-    }
-    for coefficient in &mut polynomial {
-        *coefficient = multiply_mod(*coefficient, 8_347_681);
-    }
-    polynomial
-}
-
-fn add_mod(left: u32, right: u32) -> u32 {
-    (left + right) % MODULUS
-}
-
-fn subtract_mod(left: u32, right: u32) -> u32 {
-    (left + MODULUS - right) % MODULUS
-}
-
-fn multiply_mod(left: u32, right: u32) -> u32 {
-    (u64::from(left) * u64::from(right) % u64::from(MODULUS)) as u32
 }
 
 pub(super) fn reconstruct_vector(a: &[Polynomial], b: &[Polynomial]) -> Vec<Polynomial> {

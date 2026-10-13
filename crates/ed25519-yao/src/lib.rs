@@ -92,3 +92,7 @@ pub use manifest::{
 pub use metrics::{
     CircuitMetrics, GateMetrics, ScheduleMetrics, PASSIVE_HALF_GATES_TABLE_BYTES_PER_AND_GATE,
 };
+
+#[doc(hidden)]
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
+pub use passive::ml_dsa_signing;

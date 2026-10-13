@@ -2,7 +2,8 @@
 
 Reviewed October 13, 2026. This assessment selects no production protocol.
 Continue with the uniformly masked key format in the [experiment contract](ml-dsa-65-experiment-contract.md).
-Measure a private commitment-hash kernel before choosing the complete signing composition.
+The complete public-challenge baseline now passes the separate-role host harness.
+Measure its full Worker execution before choosing the production signing composition.
 
 Every candidate must preserve the canonical public key from the hidden 32-byte FIPS seed `xi`.
 Neither server may reconstruct `xi` or the complete private key during generation, import, conversion, or signing.
@@ -37,7 +38,7 @@ Do not infer permission to disclose `w1`, signing masks, rejected responses, or 
 
 ## Exact-algorithm baseline
 
-The following proposed stages follow [FIPS 204, Algorithm 7](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf):
+The implemented host baseline follows [FIPS 204, Algorithm 7](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf):
 
 1. Compute public `mu` from the exact formatted message and public-key hash.
 2. Compute secret `rho_double_prime = H(K || rnd || mu)` using XOR-shared `K` and fresh joint randomness.
@@ -57,7 +58,7 @@ Any preprocessing comparison must include its generation, storage, conversions, 
 | Boundary | Consequence | Current decision |
 | --- | --- | --- |
 | All intermediates and acceptance remain private | Requires secret products and private selection of the first valid candidate. | Conservative resource baseline. |
-| Only `c_tilde` and one aggregate acceptance result become public | Challenge products become local. Secure hashing and all rejected responses remain private. | Promising source-backed direction. Composition review remains required. |
+| Only `c_tilde` and one aggregate acceptance result become public | Challenge products become local. Secure hashing and all rejected responses remain private. | Complete host signatures pass. Composition review remains required. |
 | Rejected `w1` becomes public | Hashing becomes local. Ordinary ML-DSA analysis does not establish this disclosure. | Require a proven compatible protocol change. |
 
 The first row needs a fixed public execution schedule to hide the successful attempt's position.
@@ -72,6 +73,12 @@ At 38,400 AND gates per permutation and 32 table bytes per AND, hashing alone is
 This estimate excludes compiler simplification, products, selection, hints, OT, and framing.
 It establishes a resource comparison, not measured latency or an impossibility result.
 Public challenge sampling removes its private circuit cost after review justifies the second boundary.
+
+The [host evidence](../evidence/ml-dsa-65-threshold-host-20261013.json) now executes the second boundary with genuine OT.
+It produces standard signatures before any authorized reconstruction of the seed or ordinary private key.
+Deterministic outputs match the ordinary reference exactly. Jointly randomized outputs verify independently.
+Its 81,345,984 garbled table bytes per candidate and 91,498,125 total candidate bytes define the measured comparison baseline.
+Correctness does not complete the share-composition proof or establish production eligibility.
 
 ## Mithril with canonical existing keys
 
@@ -114,13 +121,13 @@ The reported provider-assisted timings do not predict the replacement's cost.
 
 ## Next measurements
 
-1. Compile private `ExpandMask`, `HighBits`, commitment hashing, aggregate checks, and hint encoding against independent public fixtures.
-2. Measure one candidate with fresh private outputs before allocating a complete fixed schedule.
+1. Repeat the complete, verified host signing state machine on separate Cloudflare Workers.
+2. Measure every candidate, fresh OT, memory, transport, and complete operation latency.
 3. Specify and review the exact challenge/count disclosure functionality and its share-composition argument.
 4. Measure the conservative private-product path and the justified public-challenge path with identical accounting.
 5. Screen the Quorus algorithm change with two-party kernels separately from its honest-majority implementation.
 6. Complete candidate revision, preprocessing, import, and lifecycle reviews before implementing Mithril or Trilithium conversions.
-7. Produce a separate-role signature, check it independently, and then repeat on Cloudflare with complete resource records.
+7. Compare complete deployed candidates under the same security, recovery, and accounting contract.
 
 Successful verification establishes correctness and interoperability.
 It does not establish privacy for an added disclosure or select the fastest candidate.

@@ -1,7 +1,7 @@
 use core::fmt;
 
 use super::ir::{BuilderBit, CanonicalBooleanCircuitV1, CircuitBuilder};
-use super::keccak::{append_constant_byte, shake256};
+use super::keccak::shake256;
 use super::ml_dsa_arithmetic::{add_conditional_modulus, subtract_bits, MODULUS, RESIDUE_BITS};
 use super::schedule::CanonicalLivenessScheduleV1;
 use super::{
@@ -16,9 +16,9 @@ const ENCODED_COEFFICIENT_BITS: usize = 20;
 const STREAM_BYTES: usize = COEFFICIENTS * ENCODED_COEFFICIENT_BITS / 8;
 const GAMMA1: u32 = 1 << 19;
 const MASK_BITS: usize = COEFFICIENTS * RESIDUE_BITS;
-const A_INPUT_BITS: usize = SEED_BITS + MASK_BITS;
+const A_INPUT_BITS: usize = SEED_BITS + MASK_BITS + 16;
 
-const INPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-signing-mask/input/v1:A:rho-double-prime-share[64]:byte-major-lsb0,mask[256]:residue23-lsb0;B:rho-double-prime-share[64]:byte-major-lsb0:nonce-public-le16";
+const INPUT_SCHEMA: &[u8] = b"seams/ml-dsa-investigation/private-signing-mask/input/v1:A:rho-double-prime-share[64]:byte-major-lsb0,mask[256]:residue23-lsb0,public-nonce[16]:le-lsb0;B:rho-double-prime-share[64]:byte-major-lsb0";
 const OUTPUT_SCHEMA: &[u8] =
     b"seams/ml-dsa-investigation/private-signing-mask/output/v1:B:y-share[256]:residue23-lsb0";
 
@@ -67,15 +67,9 @@ pub struct MlDsaSigningMaskFixtureOutputV1 {
 pub struct MlDsaPrivateSigningMaskCircuitV1 {
     circuit: CanonicalBooleanCircuitV1,
     schedule: CanonicalLivenessScheduleV1,
-    nonce: u16,
 }
 
 impl MlDsaPrivateSigningMaskCircuitV1 {
-    /// Returns the public polynomial nonce compiled into this circuit.
-    pub const fn nonce(&self) -> u16 {
-        self.nonce
-    }
-
     /// Returns counts measured from the finalized Boolean circuit.
     pub const fn metrics(&self) -> BooleanCircuitMetricsV1 {
         self.circuit.metrics()
@@ -117,6 +111,7 @@ impl MlDsaPrivateSigningMaskCircuitV1 {
         rho_double_prime_a: &[u8; SEED_BYTES],
         rho_double_prime_b: &[u8; SEED_BYTES],
         a_masks: &[u32; COEFFICIENTS],
+        nonce: u16,
     ) -> Result<MlDsaSigningMaskFixtureOutputV1, MlDsaSigningMaskFixtureErrorV1> {
         let mut inputs = Vec::with_capacity(A_INPUT_BITS + SEED_BITS);
         append_fixture_bytes(&mut inputs, rho_double_prime_a);
@@ -129,6 +124,11 @@ impl MlDsaPrivateSigningMaskCircuitV1 {
             }
             for bit in 0..RESIDUE_BITS {
                 inputs.push(mask_value >> bit & 1 == 1);
+            }
+        }
+        for byte in nonce.to_le_bytes() {
+            for bit in 0..8 {
+                inputs.push(byte >> bit & 1 == 1);
             }
         }
         append_fixture_bytes(&mut inputs, rho_double_prime_b);
@@ -146,14 +146,12 @@ impl MlDsaPrivateSigningMaskCircuitV1 {
     }
 }
 
-/// Compiles one FIPS 204 ExpandMask polynomial for a fixed public nonce.
+/// Compiles FIPS 204 ExpandMask with a public polynomial nonce input.
 ///
-/// A's first 6,400 bits contain its 64-byte rho-double-prime XOR share and 256
-/// independent mask residues below q. B's final 512 bits contain its XOR share.
+/// A's first 6,416 bits contain its 64-byte rho-double-prime XOR share, 256
+/// independent mask residues below q, and a public 16-bit nonce. B's final 512 bits contain its XOR share.
 /// Only B receives the 5,888 output bits. No seed or SHAKE stream is an output.
-pub fn compile_ml_dsa_private_signing_mask_circuit_v1(
-    nonce: u16,
-) -> MlDsaPrivateSigningMaskCircuitV1 {
+pub fn compile_ml_dsa_private_signing_mask_circuit_v1() -> MlDsaPrivateSigningMaskCircuitV1 {
     let mut builder = CircuitBuilder::new((A_INPUT_BITS + SEED_BITS) as u32)
         .expect("fixed private ExpandMask circuit has inputs");
     let inputs = builder.input_bits();
@@ -161,20 +159,14 @@ pub fn compile_ml_dsa_private_signing_mask_circuit_v1(
     for bit in 0..SEED_BITS {
         message.push(builder.xor(inputs[bit], inputs[A_INPUT_BITS + bit]));
     }
-    for byte in nonce.to_le_bytes() {
-        append_constant_byte(&mut message, byte);
-    }
+    message.extend_from_slice(&inputs[A_INPUT_BITS - 16..A_INPUT_BITS]);
     let stream = shake256(&mut builder, &message, STREAM_BYTES);
-    let outputs = signing_mask_bits(&mut builder, &stream, &inputs[SEED_BITS..A_INPUT_BITS]);
+    let outputs = signing_mask_bits(&mut builder, &stream, &inputs[SEED_BITS..A_INPUT_BITS - 16]);
     let circuit = builder
         .finish_ml_dsa_private_signing_mask_component(outputs, INPUT_SCHEMA, OUTPUT_SCHEMA)
         .expect("fixed private ExpandMask topology is canonical");
     let schedule = CanonicalLivenessScheduleV1::derive(&circuit);
-    MlDsaPrivateSigningMaskCircuitV1 {
-        circuit,
-        schedule,
-        nonce,
-    }
+    MlDsaPrivateSigningMaskCircuitV1 { circuit, schedule }
 }
 
 fn signing_mask_bits(

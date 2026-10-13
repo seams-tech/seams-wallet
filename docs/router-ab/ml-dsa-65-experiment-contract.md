@@ -1,6 +1,6 @@
 # ML-DSA-65 experiment contract
 
-Status: local reference, private key-generation, and recovery experiments. Reviewed October 13, 2026.
+Status: private host key generation, threshold signing, authorized recovery, and deployed private kernels. Reviewed October 13, 2026.
 This contract defines the current implementation boundaries in the
 [investigation plan](ml-dsa-65-investigation-plan.md).
 It defines experiment boundaries. It does not select a production protocol.
@@ -55,6 +55,7 @@ These are experiment dependencies, with no production approval implied.
 The reference process holds complete fixed public seeds and private keys.
 Separate A and B processes also execute private key generation for four fixed seeds and one disposable joint-random seed.
 Each role in that pipeline receives only its own secret inputs and outputs.
+The roles produce standard threshold signatures before the authorized test recipient starts.
 The parent does not receive the joint-random seed before the separate test recipient reconstructs it.
 The artifact publishes that disposable seed after recovery.
 The tool must never process wallet secrets.

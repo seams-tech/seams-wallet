@@ -8,6 +8,8 @@ use zeroize::{DefaultIsZeroes, Zeroize, ZeroizeOnDrop};
 mod gate_aes;
 #[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
 pub mod ml_dsa_runtime;
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
+pub mod ml_dsa_signing;
 mod ot;
 mod packages;
 #[cfg(test)]

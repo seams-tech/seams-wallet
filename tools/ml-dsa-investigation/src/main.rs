@@ -3,6 +3,7 @@ mod garbled_execution;
 mod hybrid_keygen;
 mod private_execution;
 mod private_keygen;
+mod private_signing;
 mod reference;
 mod rounding_evidence;
 mod sampler_evidence;
@@ -38,6 +39,9 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if private_signing::try_run_child()? {
+        return Ok(());
+    }
     if signing_mask_evidence::try_run_child()? {
         return Ok(());
     }
@@ -198,6 +202,7 @@ fn generate_report(
         "src/hybrid_keygen.rs",
         "src/private_execution.rs",
         "src/private_keygen.rs",
+        "src/private_signing.rs",
         "src/rounding_evidence.rs",
         "src/signing_mask_evidence.rs",
         "src/worker_fixtures.rs",
@@ -222,17 +227,21 @@ fn generate_report(
         "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_kernel.rs",
         "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_private.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
+        "crates/ed25519-yao/Cargo.toml",
+        "crates/ed25519-yao/Cargo.lock",
     ] {
         sources.push(
             json!({"repository_path": path, "sha256": digest(&fs::read(repository.join(path))?)}),
         );
     }
     Ok(json!({
-        "schema": "seams.ml-dsa-investigation.v4",
+        "schema": "seams.ml-dsa-investigation.v5",
         "benchmark_only": true,
         "production_eligible": false,
         "created_at_unix_ms": SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis(),
-        "scope": "Host reference interoperability, public Boolean kernel benchmarks, and private 18-kernel two-process key generation with authorized test export. No complete threshold signer exists in this tool.",
+        "scope": "Host reference interoperability, public Boolean circuits, private two-process canonical key generation, complete threshold signatures, and subsequent authorized disposable-test export.",
         "security_limits": [
             "This tool uses fixed public fixtures and one disposable joint-random key that becomes public only after authorized test export. It must never process wallet secrets.",
             "Reference and authorized recipient processes materialize complete private keys. Normal private key-generation roles receive only their own inputs and outputs.",
