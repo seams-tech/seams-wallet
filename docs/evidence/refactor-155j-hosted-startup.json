@@ -34,7 +34,7 @@
       "httpStatus": 500,
       "startupSucceeded": true,
       "browserOutcome": "120-second registration action timeout; request aborted by harness",
-      "cause": "body did not finish before existing timeout; upstream reason unresolved"
+      "cause": "30-second body timeout strongly inferred from duration and missing body_wait completion; response body absent; upstream reason unresolved"
     }
   ],
   "slowFailureTimeline": [

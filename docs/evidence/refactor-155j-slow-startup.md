@@ -132,8 +132,9 @@ Its startup had already succeeded, and both Derivers recorded completed prewarm.
 The Signing Worker has an existing 30-second timeout around decoding the streamed
 package body in `durable_object/signing_worker_wallet/package_delivery.rs`.
 The captured command hit that duration and has no completed `body_wait` record.
-This identifies the request-body wait boundary. It does not identify why the
-Router's producer did not complete the body. The failed attempt has no observed
+This strongly suggests a request-body timeout. The response body and an explicit
+timeout event were not captured, so the timeout cause remains an inference.
+The trace does not identify why the Router's producer did not complete the body. The failed attempt has no observed
 A/B execution completion record. Missing tail records do not prove that execution
 never began.
 
@@ -153,6 +154,10 @@ that failure, so they cannot explain it retrospectively.
 [Sanitized invocation timeline and version IDs](refactor-155j-hosted-startup.json).
 Private raw artifacts, frozen sources, signatures, activation records and guards:
 `.artifacts/r155j-hosted-startup-20261013/` in `seams-monorepo`.
+Failed raw samples contain an unconditional success note from the benchmark
+writer. Their failed outcome and missing measurement take precedence; those notes
+are not signature evidence. Original raw artifacts remain unchanged.
+
 The independent verification report is
 `.artifacts/proof-verification-r155j-hosted-startup-20261013.json`.
 
@@ -163,9 +168,64 @@ blocked reactivation; they expired without deleting lifecycle records. The priva
 source in `3d60ebca`. Uploaded diagnostic versions remain inactive in Cloudflare
 version history; none serves traffic.
 
+## Delivery failure propagation
+
+The hosted trace prompted a separate Router code review. The old coordinator
+joined the ceremony and streamed delivery until both finished. Delivery errors
+were placed in a channel that the ceremony read only after role execution.
+An early delivery error could therefore remain unseen while role execution waited.
+A completed ceremony failure also waited for the delivery exchange.
+
+Commit `4f360155` changes the coordinator to observe both futures. A ceremony outcome ends the joined
+wait. A delivery error ends it through the existing failure mapping. A successful
+delivery still waits for ceremony finalization. A superseded attempt retains its
+terminal rejection and exact-replay behavior. Durable claims remain unchanged.
+
+This fixes failure propagation. It does not establish the cause of the hosted
+producer stall, prove remote cancellation, or claim a registration latency gain.
+
+| Candidate cause | Evidence | Conclusion |
+| --- | --- | --- |
+| Startup delay caused this failed sample | Startup completed successfully before execution | Does not explain this sample |
+| Pending upload always prevents an error reply | Local service-binding probe returned HTTP 500 before the body was supplied | Universal claim contradicted; hosted transport parity remains unproved |
+| Router waits after one side has failed | Existing join and delayed receipt read | Concrete failure-propagation gap; targeted Worker check below |
+| Producer stalled for a known reason | No completed producer trace or explicit timeout response | Still unknown |
+
+### Worker E2E verification
+
+Run from the public repository after building all five strict Workers with the
+`dev` profile:
+
+```sh
+ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/package-delivery-failure-evidence.mjs
+```
+
+The test uses the actual Rust Router, role Workers, Signing Worker and SQLite
+wallet objects. It allocates namespace-issued object IDs. Fault replies use native
+Worker service bindings. A first Node HTTP bridge injector added a separate wait
+while reading the error body; that injector was replaced before the comparison.
+
+Only the Router differs in the parent control. With parent `e53e3c3e`, the native
+binding delivery-failure case remained pending at the five-second test deadline.
+The candidate answered that case in 205 ms. All five candidate cases passed:
+
+| Scenario | Verified behavior |
+| --- | --- |
+| Delivery fails while A is held | Router returns HTTP 500 before A is released |
+| Recoverable ceremony failure while delivery is held | Router returns the recoverable result before delivery is released |
+| Superseded attempt while A is held | Terminal rejection persists and exact retry returns it |
+| Delivery fails after packages are produced | Retry reports uncertain delivery without executing the protocol again |
+| Successful registration | Exact retry returns the committed result |
+
+The first three local fault responses took 199–205 ms. These are development
+harness timings, not hosted speedups. The [sanitized result](refactor-155j-delivery-failure.json)
+records the population and limits. The raw repeatable artifact stays under
+`.artifacts/delivery-timeout/source/.artifacts/package-delivery-failure/`.
+
 ## Next action
 
-Investigate the captured streamed-delivery failure and prompt failure propagation.
+Deploy the failure-propagation fix in the next coordinated staging candidate.
+Continue tracing the captured streamed-delivery producer stall.
 Keep the original startup cause marked unresolved. A future coordinated capture
 can target it; this bounded run provides no causal fix for that stall and no p99
 acceptance claim. The 500-attempt acceptance run and setup cost controls remain

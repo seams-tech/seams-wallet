@@ -85,7 +85,8 @@ wait. Diagnostics now distinguish abort initiation, forwarding completion and
 handler start. A bounded staging capture ran 89 attempts: 87 signatures verified,
 two attempts failed. The three-second startup stall did not recur. Temporary
 diagnostics were removed from source after capture. The platform cause remains unresolved.
-The capture found a separate 30-second streamed-package body timeout; see the evidence.
+The capture found a separate 30-second package-delivery failure. A body timeout
+is strongly inferred; the producer cause remains unresolved. See the evidence.
 
 
 The slowest 0.9.3 registration spent 4.166 seconds in custody execution.
@@ -141,11 +142,13 @@ the successful control. The user sends it to Cloudflare unless separately author
 
 ## Phase 3 — Remove additional waits and close setup recovery
 
-- [ ] Diagnose the captured Signing Worker package-body timeout. Trace the Router
-  producer and propagate delivery failure promptly to the caller. The October 13
-  sample spent 30 seconds in the body wait, then remained pending in the browser.
-  Preserve durable claims and exact retry behavior. See
-  [the correlated capture](evidence/refactor-155j-slow-startup.md).
+- [x] Propagate package-delivery failures without waiting for a stalled ceremony.
+  Preserve terminal supersession and exact replay. Five actual-Worker E2E cases
+  passed; the parent Router remained pending in the native-binding control.
+  [Failure-propagation evidence](evidence/refactor-155j-slow-startup.md#delivery-failure-propagation).
+- [ ] Diagnose the producer stall behind the captured 30-second package-delivery
+  failure. The local fix addresses propagation; its hosted effect remains unmeasured.
+  The original slow startup and first-signature HTTP 503 also remain unresolved.
 
 - [ ] Review commit `b8de6715` against the current setup lifecycle. Reuse its bounded
   retry implementation and error mapping. Confirm whether it is already released.
