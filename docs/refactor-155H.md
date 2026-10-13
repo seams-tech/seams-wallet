@@ -315,13 +315,23 @@ admissions, the connection and B's re-read ride on it, about 370 ms at the
 median. It splits B's preparation into a setup-time admission and an
 execute-time input, so the connection is accepted at setup.
 
-- [ ] **Mint the Yao session at setup.** `setupWalletRegistration` creates the
-  lifecycle and threshold session identity that
-  `authorizeWalletRegistrationNearAdmission` creates at respond today, and
-  stores it with the ceremony. Respond keeps verifying the credential and keeps
-  issuing the admission receipt, now over the session minted at setup. The
-  SDK's respond response keeps its shape; the setup response carries nothing
-  new to the client.
+- [x] **Mint the Yao session at setup.** The lifecycle id and the threshold
+  session id were the ceremony id already. Two values were minted at respond:
+  the four ids of the material activation and the 32-byte session id of the
+  admission receipt. Setup now mints both for a plan with a NEAR branch and
+  stores them in the ceremony record (`ed25519YaoMint`), in the setup
+  snapshot and in its copy. A setup retry reads the stored record back, so
+  the identity is minted once. Respond builds the admission request over the
+  stored material activation, and the NEAR-only admission passes the stored
+  session id to the backend, which issues the receipt over it. The minted
+  identity binds no authority and admits nothing: the admission still
+  follows the verified proof. Setup of a NEAR plan now fails with
+  `not_configured` when no SigningWorker is configured; respond failed there
+  before. Mixed registration takes the stored material activation and keeps
+  the session mint of its later admission route. No wire changes. A ceremony
+  record of a NEAR plan without the identity does not parse, so a
+  registration that is between setup and respond during a deployment starts
+  again.
 - [ ] **Prepare the pair during the prompt.** After the setup transaction
   commits, the Gateway sends one prepare request to the Router with the
   session identity and the run's deadline, through the path that sends the
