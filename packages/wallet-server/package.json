@@ -19,11 +19,6 @@
       "import": "./dist/esm/index.js",
       "default": "./dist/esm/index.js"
     },
-    "./router/express": {
-      "types": "./dist/types/wallet-server/src/router/express-adaptor.d.ts",
-      "import": "./dist/esm/router/express.js",
-      "default": "./dist/esm/router/express.js"
-    },
     "./router/cloudflare": {
       "types": "./dist/types/wallet-server/src/router/cloudflare-adaptor.d.ts",
       "import": "./dist/esm/router/cloudflare.js",
@@ -120,12 +115,10 @@
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
-    "bs58": "^6.0.0",
-    "express": "^4.21.2"
+    "bs58": "^6.0.0"
   },
   "devDependencies": {
     "@near-js/types": "^2.4.0",
-    "@types/express": "^4.17.21",
     "@types/node": "^20.19.9",
     "rolldown": "^1.0.0-beta.27",
     "typescript": "^5.8.3"

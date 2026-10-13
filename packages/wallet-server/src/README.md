@@ -76,7 +76,7 @@ Use fresh wallets when measuring this change.
 It does not authorize wallet ownership.
 
 ```ts
-import { createRouterApiRouter } from '@seams/wallet-server/router/express';
+import { createCloudflareRouter } from '@seams/wallet-server/router/cloudflare';
 import { createSigningSessionSealOptions } from '@seams/wallet-server';
 
 const signingSessionSeal = createSigningSessionSealOptions({
@@ -85,10 +85,12 @@ const signingSessionSeal = createSigningSessionSealOptions({
   acceptedWarmKeyVersions: ['signing-session-seal-production-r2'],
 });
 
-app.use('/', createRouterApiRouter(service, {
+const fetch = createCloudflareRouter(service, {
   threshold,
   signingSessionSeal,
-}));
+});
+
+export default { fetch };
 ```
 
 Store the random 32-byte root secret in a secrets manager. Retain accepted old

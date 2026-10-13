@@ -21,7 +21,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "baseUrl": ".",
-    "types": ["node", "express"],
+    "types": ["node"],
     "typeRoots": [
       "./node_modules/@types",
       "../node_modules/@types",
@@ -36,7 +36,6 @@
       "@shared/*": ["../shared-ts/src/*"],
       "@server": ["src/index.ts"],
       "@server/*": ["src/*"],
-      "express": ["./node_modules/@types/express/index.d.ts"],
       "*": ["./node_modules/*", "../node_modules/*", "../../node_modules/*"]
     }
   },

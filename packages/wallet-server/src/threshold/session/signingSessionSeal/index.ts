@@ -54,7 +54,10 @@ export type {
   CreateRedisTcpSigningSessionSealIdempotencyStoreOptions,
   CreateUpstashSigningSessionSealIdempotencyStoreOptions,
 } from './idempotencyBackends';
-export { signingSessionSealAuthorizeStatusCode, signingSessionSealStatusCode } from './transport/shared';
+export {
+  signingSessionSealAuthorizeStatusCode,
+  signingSessionSealStatusCode,
+} from './transport/shared';
 export {
   buildSigningSessionSealApplyPath,
   buildSigningSessionSealRemovePath,
@@ -89,5 +92,4 @@ export {
   resolveSigningSessionSealIdempotencyFromEnv,
 } from './idempotencyBackends';
 export { composeSigningSessionSealGuards } from './guards';
-export { registerSigningSessionSealRoutes } from './transport/express';
 export { handleSigningSessionSealRoutes } from './transport/fetch';

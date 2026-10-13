@@ -171,7 +171,6 @@ export {
 export {
   extractBearerCredential,
   extractRouterApiEnvironmentId,
-  resolveSourceIpFromExpressRequest,
   resolveSourceIpFromFetchHeaders,
 } from './auth/routerApiKeyAuth';
 export { createCloudflareRouter } from './cloudflare/runtime/createCloudflareRouter';

@@ -187,16 +187,10 @@ importers:
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
-      express:
-        specifier: ^4.21.2
-        version: 4.21.2
     devDependencies:
       '@near-js/types':
         specifier: ^2.4.0
         version: 2.4.0
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.23
       '@types/node':
         specifier: ^20.19.9
         version: 20.19.13
