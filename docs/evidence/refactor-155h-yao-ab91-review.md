@@ -89,7 +89,8 @@ conditional result. It does not strengthen it into a full security proof.
 
 The unavailable Aeneas track extracts the reference generator's
 `wrapping_add_le_256` and `clamp_rfc8032`. Neither function changed here.
-This review did not claim or rerun the complete formal-verification suite.
+The initial review did not rerun the complete formal-verification suite.
+The follow-up below records the subsequent run of every standard track.
 
 ## Reproduction
 
@@ -98,3 +99,35 @@ Local raw evidence and scripts: `.artifacts/yao-ab91-review/` in `seams-wallet`.
 the compiled cipher. The folder retains generated IR, disassembly, logs, and
 upstream diffs. [Sanitized results](refactor-155h-yao-ab91-review.json) record the
 commit, commands, outcome, and WebAssembly digest.
+
+
+## Follow-up: full formal-verification suite
+
+The October 13 follow-up invoked `cargo yao-fv all` against the same archived
+commit. The runner stopped at its clean-checkout check. Every remaining standard
+track then ran individually, with no change to the expected results or source.
+
+**12 of 14 standard tracks passed. Two tracks remain blocked by the environment.**
+No protocol mismatch or failed proof obligation was reported.
+
+- Lean verified 169 theorems.
+- Verus verified 27 obligations with the pinned release.
+- Parity passed with 83 production tests and 407 generator tests.
+- Reference specifications, vectors, cross-language verification, reconciliation,
+  exit-evidence readiness, manifest reproducibility, anti-drift, runtime
+  conformance, and public message shapes passed.
+- The additional passive-security and constant-time tooling qualification checks passed.
+
+The Phase 2B review-subject track passed its 12 builder tests, then rejected the
+checkout state. A frozen archive cannot satisfy its clean Git checkout requirement.
+The Aeneas track rejected the absence of its pinned Aeneas tool checkout. The main
+repository also lacks the configured tool checkout. These are environment failures.
+Neither track is marked as passed.
+
+The aggregate command returned exit code 1. Thus the full suite is **not green**.
+Its completion still needs the clean-checkout review and the pinned extraction
+toolchain. The existing conditional-security limits above continue to apply.
+
+[Full results](refactor-155h-yao-formal-suite.json) record all 16 attempted tracks,
+including the two additional checks. Raw logs and the remaining-track runner are
+in `.artifacts/yao-ab91-review/full-suite/`. No live resources changed.

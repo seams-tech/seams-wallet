@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-13",
+  "reviewedCommit": "ab91d575d46a13be28deccb95660d6517c9164f3",
+  "command": "cargo yao-fv all",
+  "commandExitCode": 1,
+  "runnerBehavior": "Stops at first error; remaining tracks executed individually without changing source or expected results",
+  "standardTracks": {
+    "total": 14,
+    "passed": 12,
+    "blocked": 2
+  },
+  "additionalTracks": {
+    "total": 2,
+    "passed": 2
+  },
+  "protocolOrProofFailures": 0,
+  "results": [
+    {
+      "track": "reference-spec-check",
+      "status": "passed",
+      "source": "all.log"
+    },
+    {
+      "track": "vectors-check",
+      "status": "passed",
+      "source": "all.log"
+    },
+    {
+      "track": "cross-language-check",
+      "status": "passed",
+      "source": "all.log"
+    },
+    {
+      "track": "phase2b-reconciliation-check",
+      "status": "passed",
+      "source": "all.log"
+    },
+    {
+      "track": "phase2b-exit-evidence-readiness-check",
+      "status": "passed",
+      "source": "all.log"
+    },
+    {
+      "track": "phase2b-review-subject-check",
+      "status": "blocked",
+      "exitCode": 1,
+      "source": "phase2b-review-subject-check.log",
+      "classification": "environment_or_infrastructure_failure: requires a clean Git checkout; frozen archive does not satisfy the Git checkout check; 12 builder tests passed"
+    },
+    {
+      "track": "benchmark-manifest-reproducibility",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "benchmark-manifest-reproducibility.log"
+    },
+    {
+      "track": "parity",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "parity.log"
+    },
+    {
+      "track": "anti-drift",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "anti-drift.log"
+    },
+    {
+      "track": "runtime-conformance-check",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "runtime-conformance-check.log"
+    },
+    {
+      "track": "passive-public-shape-check",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "passive-public-shape-check.log"
+    },
+    {
+      "track": "aeneas-check",
+      "status": "blocked",
+      "exitCode": 1,
+      "source": "aeneas-check.log",
+      "classification": "environment_or_infrastructure_failure: pinned Aeneas and Charon tool checkouts are absent"
+    },
+    {
+      "track": "lean-check",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "lean-check.log"
+    },
+    {
+      "track": "verus-check",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "verus-check.log"
+    },
+    {
+      "track": "passive-security-check",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "passive-security-check.log"
+    },
+    {
+      "track": "constant-time-qualification",
+      "status": "passed",
+      "exitCode": 0,
+      "source": "constant-time-qualification.log"
+    }
+  ],
+  "counts": {
+    "leanTheorems": 169,
+    "verusObligations": 27,
+    "productionParityTests": 83,
+    "generatorParityTests": 407
+  },
+  "limits": "The complete suite is not green. Passing conditional models does not establish full production cryptographic security. Concurrent uncommitted changes were excluded.",
+  "rawEvidence": ".artifacts/yao-ab91-review/full-suite/"
+}
