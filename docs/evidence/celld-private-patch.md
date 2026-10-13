@@ -33,7 +33,7 @@ It invokes the original runtime directly. It does not rebuild the deployment wit
 - [Wrong-owner rejection](celld-private-patch/wrong-owner.txt).
 - [Missing-owner rejection](celld-private-patch/missing-owner.txt).
 
-The private deployment repository owns `deployment/celld/cross-script-objects.patch` and its build instructions.
+The original object-only patch is retained in Git history. The private deployment repository now owns the combined `deployment/celld/workers-runtime.patch` and its build instructions.
 The patch is based on celld source `90b43017241f81189453d326d05948f388b34652`.
 It applies to a clean copy of that revision. All ten patched files match the source used for this build.
 Access to that private patch is necessary to reproduce the candidate executable.
@@ -64,3 +64,12 @@ The complete Wallet graph, release WASM, signing, recovery, live reload, relocat
 Linux, AWS, Google Cloud, and Confidential VMs remain unverified.
 Separate A/B backup-bucket isolation is still an open design and validation gate.
 The existing hosting implementations remain in place.
+
+## Physical bucket extension
+
+The later private `0.6.2-seams.2` build also passes this object-binding scenario.
+Its storage scenario is `tests/e2e/celld-storage.e2e.mjs` and uses a pinned Moto 5.1.14 S3 emulator.
+It checks separate A/B physical buckets, concurrent 9 MiB streams, multipart uploads, conditional writes,
+restart, direct storage reads, configuration refusals, and failed writes after bucket removal.
+The private deployment repository retains generated build, storage, and packaged Worker graph records under `deployment/celld/evidence/`.
+Cloud permissions, distributed durability, and complete Wallet lifecycle acceptance remain open.
