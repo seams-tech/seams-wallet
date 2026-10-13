@@ -135,6 +135,22 @@ class CapturedCustodyCall {
   }
 }
 
+// The Yao identity in each stored record of one ceremony: its setup snapshot and its copy.
+async function readEd25519YaoMints(database, ceremonyId) {
+  const { results } = await database
+    .prepare(
+      `SELECT record_json FROM registration_ceremony_records
+        WHERE record_scope IN ('setup-ceremony', 'ceremony') ORDER BY record_scope`,
+    )
+    .all();
+  const mints = [];
+  for (const row of results) {
+    const record = JSON.parse(row.record_json);
+    if (record.registrationCeremonyId === ceremonyId) mints.push(record.ed25519YaoMint);
+  }
+  return mints;
+}
+
 async function insertCandidate(store, identity, candidate) {
   const { WalletObjectAddresses } = await import(pathToFileURL(bundlePath));
   return store.insert(identity, WalletObjectAddresses.parse(candidate));
@@ -163,6 +179,8 @@ const bundle = await build({
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
       export { implicitNearAccountProvisioning, REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION } from './packages/shared-ts/src/utils/registrationSignerPlan';
       export { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from './packages/shared-ts/src/threshold/participants';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
     `,
   },
 });
@@ -221,6 +239,16 @@ try {
     database,
     ...scope,
     registrationAuthority: new ObservedRegistrationAuthority(database, scope),
+    // Setup mints the Yao identity of a NEAR branch for this SigningWorker.
+    ed25519YaoProductRegistration:
+      api.createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1({
+        signingWorkerId: 'worker',
+        store: api.createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
+          database,
+          scope,
+        }),
+        registrationBackend: {},
+      }),
   };
   const registration = api.createCloudflareD1RouterApiAuthService({
     ...options,
@@ -279,12 +307,25 @@ try {
   const identity = api.walletObjectIdentity(first.walletId, 1, scope);
   const saved = await addresses.read(identity);
   assert.ok(saved);
+  // Setup minted the Yao identity of the NEAR branch, in the snapshot and in its copy.
+  const minted = await readEd25519YaoMints(database, first.registrationCeremonyId);
+  assert.equal(minted.length, 2);
+  assert.deepEqual(minted[0], minted[1]);
+  assert.equal(minted[0].materialActivation.material_owner, first.walletId);
+  assert.equal(minted[0].materialActivation.signing_worker, 'worker');
+  assert.equal(minted[0].sessionId.length, 32);
+  assert.ok(minted[0].sessionId.some(Boolean));
 
   const replay = await setup(registration, input);
   assert.equal(replay.ok, true, JSON.stringify(replay));
   assert.equal(replay.registrationCeremonyId, first.registrationCeremonyId);
   assert.equal(allocator.calls, 1, 'A replayed setup must use its saved addresses');
   assert.deepEqual(await addresses.read(identity), saved);
+  assert.deepEqual(
+    await readEd25519YaoMints(database, first.registrationCeremonyId),
+    minted,
+    'A replayed setup must keep its minted Yao identity',
+  );
 
   const other = await setup(registration, {
     ...input,
@@ -295,6 +336,12 @@ try {
   });
   assert.equal(other.ok, true, JSON.stringify(other));
   assert.notEqual(other.walletId, first.walletId);
+  const otherMinted = await readEd25519YaoMints(database, other.registrationCeremonyId);
+  assert.notDeepEqual(otherMinted[0].sessionId, minted[0].sessionId);
+  assert.notEqual(
+    otherMinted[0].materialActivation.activation_id,
+    minted[0].materialActivation.activation_id,
+  );
   assert.equal(allocator.calls, 2);
   assert.notDeepEqual(
     await addresses.read(api.walletObjectIdentity(other.walletId, 1, scope)),

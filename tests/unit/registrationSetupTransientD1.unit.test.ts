@@ -111,6 +111,7 @@ function setupHarness(faultForCall: (call: number) => BatchFault) {
     }),
     // A NEAR-only plan prepares no ECDSA branch.
     ecdsaStrictRegistration: {} as RouterAbEcdsaStrictRegistrationPort,
+    ed25519YaoSigningWorkerId: 'worker',
     startRegistrationWallets: null,
   };
   const count = (sql: string) => Number(sqlite.prepare(sql).get()?.rows);
