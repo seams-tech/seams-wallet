@@ -11,9 +11,12 @@ import {
 import {
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
+import type { RouterAbEd25519YaoTimedRegistrationExecutionResultV1 } from '../registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import {
   routerAbMpcMaterialActivationRefToWire,
   type RouterAbMpcMaterialActivationRefWire,
@@ -148,6 +151,29 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
         startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
         mintedSessionId: RouterAbEd25519YaoBytes32V1,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
+      /**
+       * The receipt of the admission that a registration gets for `request`
+       * over the session that its setup minted. Nothing is stored and nothing
+       * is admitted: the client may prepare its inputs before the proof, and
+       * the admission still follows the proof.
+       */
+      describeRegistrationAdmission(
+        request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+        mintedSessionId: RouterAbEd25519YaoBytes32V1,
+      ): Promise<
+        RouterAbEd25519YaoRegistrationServiceResult<
+          RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>
+        >
+      >;
+      /**
+       * Runs an admitted registration for the holder of `credential`, as the
+       * execute route does for its bearer.
+       */
+      executeAdmittedRegistration(input: {
+        readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
+        readonly credential: string;
+        readonly trace: RouterAbTraceContextV1;
+      }): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1>;
       bindVerifiedIntent(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
       ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
@@ -586,6 +612,37 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
       value: admitted.value,
       // This runtime keeps its state in memory and shares no batch.
       companionWrite: 'not_committed',
+    };
+  }
+
+  /** This runtime issues a receipt at its admission only. */
+  async describeRegistrationAdmission(): Promise<
+    Extract<RouterAbEd25519YaoRegistrationServiceResult<never>, { readonly ok: false }>
+  > {
+    return {
+      ok: false,
+      status: 503,
+      code: 'admission_failed',
+      message: 'This runtime describes no admission before its proof',
+    };
+  }
+
+  /** This runtime executes through its registration route only. */
+  async executeAdmittedRegistration(): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
+    return {
+      result: {
+        ok: false,
+        status: 503,
+        code: 'execution_failed',
+        message: 'This runtime executes a registration through its execute route',
+      },
+      timing: {
+        credentialDigestMs: 0,
+        d1AdmissionReadMs: 0,
+        routerExecutionMs: 0,
+        routerServerTiming: null,
+        resultReconstructionMs: 0,
+      },
     };
   }
 

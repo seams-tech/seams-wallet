@@ -78,7 +78,10 @@ import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
+  parseRouterAbEd25519YaoRegistrationActivationResultV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  type RouterAbEd25519YaoActivationExecuteRequestV1,
+  type RouterAbEd25519YaoActivationResultV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type {
@@ -642,14 +645,36 @@ type WalletRegistrationSetupSuccessBase = {
   signedSetup: string;
 };
 
+/**
+ * What setup says about the Yao admission of an Ed25519-only plan.
+ *
+ * `described` holds the admission that respond will issue. Nothing is
+ * admitted yet: the client only prepares its protocol inputs from it while
+ * the user answers the passkey prompt, and sends them with the proof.
+ * `after_proof` means that respond is the first to state the admission.
+ */
+export type WalletRegistrationSetupEd25519Admission =
+  | {
+      readonly status: 'described';
+      readonly admissionRequest: WalletRegistrationEd25519YaoStart['admissionRequest'];
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+    }
+  | {
+      readonly status: 'after_proof';
+      readonly admissionRequest?: never;
+      readonly admissionReceipt?: never;
+    };
+
 export type WalletRegistrationSetupSuccessV2 =
   | (WalletRegistrationSetupSuccessBase & {
       kind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa';
       ecdsa: WalletRegistrationSetupEcdsaPreparePayload;
+      ed25519?: never;
     })
   | (WalletRegistrationSetupSuccessBase & {
       kind: 'near_ed25519';
       ecdsa?: never;
+      ed25519: WalletRegistrationSetupEd25519Admission;
     });
 
 export type WalletRegistrationSetupResponseV2 =
@@ -2341,7 +2366,7 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
       'signedSetup',
       'home',
       'kind',
-      ...(carriesEcdsa ? ['ecdsa'] : []),
+      carriesEcdsa ? 'ecdsa' : 'ed25519',
     ],
     responseName,
   );
@@ -2398,6 +2423,10 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
       signedSetup,
       home,
       kind: 'near_ed25519',
+      ed25519: parseWalletRegistrationSetupEd25519Admission(
+        readWalletRegistrationResponseField(response, 'ed25519', responseName),
+        { registrationCeremonyId, walletId: walletId.value },
+      ),
     };
   }
   const ecdsa = parseWalletRegistrationEcdsaPrepare(
@@ -2424,6 +2453,52 @@ function parseWalletRegistrationSetupResponseV2(value: unknown): WalletRegistrat
     home,
     kind,
     ecdsa,
+  };
+}
+
+/**
+ * The described admission must be the one of this ceremony and this wallet.
+ * The client seals its inputs to it before any proof exists.
+ */
+function parseWalletRegistrationSetupEd25519Admission(
+  value: unknown,
+  expected: { readonly registrationCeremonyId: string; readonly walletId: WalletId },
+): WalletRegistrationSetupEd25519Admission {
+  const responseName = 'Wallet registration setup ed25519';
+  const record = requireWalletRegistrationResponseObject({ responseName, field: 'ed25519', value });
+  const status = readWalletRegistrationResponseField(record, 'status', responseName);
+  if (status === 'after_proof') {
+    assertWalletRegistrationResponseKeys(record, ['status'], responseName);
+    return { status: 'after_proof' };
+  }
+  if (status !== 'described') throw new Error(`${responseName} status is invalid`);
+  assertWalletRegistrationResponseKeys(
+    record,
+    ['status', 'admissionRequest', 'admissionReceipt'],
+    responseName,
+  );
+  const request = parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
+    readWalletRegistrationResponseField(record, 'admissionRequest', responseName),
+  );
+  const receipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
+    readWalletRegistrationResponseField(record, 'admissionReceipt', responseName),
+  );
+  if (!request.ok || !receipt.ok) {
+    throw new Error(`${responseName} request or receipt is invalid`);
+  }
+  if (
+    request.value.scope.lifecycle_id !== expected.registrationCeremonyId ||
+    request.value.scope.account_id !== expected.walletId ||
+    request.value.application_binding.wallet_id !== expected.walletId ||
+    receipt.value.binding.lifecycle.lifecycle_id !== expected.registrationCeremonyId ||
+    receipt.value.binding.lifecycle.account_id !== expected.walletId
+  ) {
+    throw new Error(`${responseName} admission does not belong to this registration`);
+  }
+  return {
+    status: 'described',
+    admissionRequest: request.value,
+    admissionReceipt: receipt.value,
   };
 }
 
@@ -3323,11 +3398,27 @@ export type WalletRegistrationRespondResponseV2 =
       registrationCeremonyId: string;
       kind: 'near_ed25519';
       ecdsa?: never;
-      ed25519: {
-        readonly status: 'admitted';
-        readonly admissionRequest: WalletRegistrationEd25519YaoStart['admissionRequest'];
-        readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
-      };
+      ed25519: WalletRegistrationRespondEd25519Admission;
+    };
+
+/**
+ * `executed` answers a respond that carried the execute request: the Gateway
+ * admitted, ran the execution and returns what the execute route returns.
+ * `admitted` answers every other respond and one whose execution did not
+ * complete: the client then runs the execution through the execute route.
+ */
+export type WalletRegistrationRespondEd25519Admission =
+  | {
+      readonly status: 'admitted';
+      readonly admissionRequest: WalletRegistrationEd25519YaoStart['admissionRequest'];
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      readonly activationResult?: never;
+    }
+  | {
+      readonly status: 'executed';
+      readonly admissionRequest: WalletRegistrationEd25519YaoStart['admissionRequest'];
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      readonly activationResult: RouterAbEd25519YaoActivationResultV1<'registration'>;
     };
 
 export type WalletRegistrationNearAdmissionResponseV2 = {
@@ -3438,17 +3529,23 @@ function parseWalletRegistrationRespondResponseV2(
 
 function parseWalletRegistrationRespondEd25519Admission(
   value: unknown,
-): Extract<WalletRegistrationRespondResponseV2, { kind: 'near_ed25519' }>['ed25519'] {
+): WalletRegistrationRespondEd25519Admission {
   const responseName = 'Wallet registration respond ed25519 admission';
   const record = requireWalletRegistrationResponseObject({ responseName, field: 'ed25519', value });
-  assertWalletRegistrationResponseKeys(
-    record,
-    ['status', 'admissionRequest', 'admissionReceipt'],
-    responseName,
-  );
-  if (readWalletRegistrationResponseField(record, 'status', responseName) !== 'admitted') {
+  const status = readWalletRegistrationResponseField(record, 'status', responseName);
+  if (status !== 'admitted' && status !== 'executed') {
     throw new Error(`${responseName} status is invalid`);
   }
+  assertWalletRegistrationResponseKeys(
+    record,
+    [
+      'status',
+      'admissionRequest',
+      'admissionReceipt',
+      ...(status === 'executed' ? ['activationResult'] : []),
+    ],
+    responseName,
+  );
   const request = parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
     readWalletRegistrationResponseField(record, 'admissionRequest', responseName),
   );
@@ -3458,7 +3555,19 @@ function parseWalletRegistrationRespondEd25519Admission(
   if (!request.ok || !receipt.ok) {
     throw new Error(`${responseName} request or receipt is invalid`);
   }
-  return { status: 'admitted', admissionRequest: request.value, admissionReceipt: receipt.value };
+  if (status === 'admitted') {
+    return { status: 'admitted', admissionRequest: request.value, admissionReceipt: receipt.value };
+  }
+  const result = parseRouterAbEd25519YaoRegistrationActivationResultV1(
+    readWalletRegistrationResponseField(record, 'activationResult', responseName),
+  );
+  if (!result.ok) throw new Error(`${responseName} activationResult is invalid`);
+  return {
+    status: 'executed',
+    admissionRequest: request.value,
+    admissionReceipt: receipt.value,
+    activationResult: result.value,
+  };
 }
 
 function parseWalletRegistrationRespondEd25519DeferredWork(
@@ -3506,10 +3615,16 @@ type RespondWalletRegistrationArgs =
   | (RespondWalletRegistrationArgsBase & {
       signerPlanKind: 'near_ed25519';
       ecdsa?: never;
+      /**
+       * The execute request that the client prepared from the admission that
+       * setup described. The Gateway admits, then runs it in this request.
+       */
+      ed25519Execution?: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
     })
   | (RespondWalletRegistrationArgsBase & {
       signerPlanKind: Exclude<WalletRegistrationSignerPlanKind, 'near_ed25519'>;
       ecdsa: WalletRegistrationRespondEcdsaRequest;
+      ed25519Execution?: never;
     });
 
 function walletRegistrationRespondBody(
@@ -3529,6 +3644,7 @@ function walletRegistrationRespondBody(
       break;
   }
   body.ecdsa = args.ecdsa;
+  if (args.ed25519Execution !== undefined) body.ed25519Execution = args.ed25519Execution;
   return body;
 }
 

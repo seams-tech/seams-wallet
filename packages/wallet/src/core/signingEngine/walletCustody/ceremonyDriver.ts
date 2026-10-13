@@ -58,6 +58,21 @@ type WalletCustodyCeremonyCustodyInput =
       readonly recoveryCodesJson: string;
     }
   | {
+      /**
+       * Establishes custody for a NEAR key set whose factor exists only after
+       * the protocol round: a passkey that the user creates while this run
+       * prepares its inputs. The seed is sealed at the end of the run, so the
+       * run begins without the factor and asks for it once, after the round.
+       */
+      readonly origin: 'establish_factor_after_round';
+      readonly walletId: string;
+      readonly recoveryCodesJson: string;
+      readonly factor: () => Promise<{
+        readonly factorJson: string;
+        readonly factorSecret: ArrayBuffer;
+      }>;
+    }
+  | {
       readonly origin: 'join';
       /** `JoinCustodyWireV1`: the envelope binding and its sealed seed. */
       readonly custodyJson: string;
@@ -187,6 +202,7 @@ type NearBeginCustody = Extract<
 function buildNearBeginCustody(custody: WalletCustodyCeremonyCustodyInput): NearBeginCustody {
   switch (custody.origin) {
     case 'establish':
+    case 'establish_factor_after_round':
       return { origin: 'establish', walletId: custody.walletId };
     case 'join':
       return {
@@ -215,7 +231,9 @@ function buildNearBeginCustody(custody: WalletCustodyCeremonyCustodyInput): Near
 
 type FinishCustody = CeremonyOperationMap['finishWalletCustodyKeySetRun']['payload']['finish'];
 
-function buildFinishCustody(custody: WalletCustodyCeremonyCustodyInput): FinishCustody {
+async function buildFinishCustody(
+  custody: WalletCustodyCeremonyCustodyInput,
+): Promise<FinishCustody> {
   switch (custody.origin) {
     case 'establish':
       return {
@@ -224,6 +242,15 @@ function buildFinishCustody(custody: WalletCustodyCeremonyCustodyInput): FinishC
         factorSecret: custody.factorSecret,
         recoveryCodesJson: custody.recoveryCodesJson,
       };
+    case 'establish_factor_after_round': {
+      const factor = await custody.factor();
+      return {
+        kind: 'establish',
+        factorJson: factor.factorJson,
+        factorSecret: factor.factorSecret,
+        recoveryCodesJson: custody.recoveryCodesJson,
+      };
+    }
     case 'join':
     case 'recover':
       return { kind: 'existing' };
@@ -343,12 +370,15 @@ export async function runWalletCustodyKeySetCeremony(
       stageStartedAt = performance.now();
       const finished = await input.runStep('finishWalletCustodyKeySetRun', {
         ceremonyId,
-        finish: buildFinishCustody(custody),
+        finish: await buildFinishCustody(custody),
       });
       recordWalletCustodyTiming(ceremonyId, 'finish', stageStartedAt);
       return finished;
     }
 
+    if (custody.origin === 'establish_factor_after_round') {
+      throw new Error('An EVM custody run seals under its factor before the relayer round');
+    }
     const begunResult = await input.runStep('beginWalletCustodyKeySetRun', {
       ceremonyId,
       keySet: 'evm_family_ecdsa_v1',

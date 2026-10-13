@@ -9,12 +9,19 @@ import {
   type StoredWalletRegistrationSignerBranch,
 } from '../../../../core/RegistrationCeremonyStore';
 import { registrationPreparationIdFromString } from '../../../../core/registrationContracts';
-import type { WalletRegistrationSetupResponseV2 } from '../../../../core/threeRouteRegistrationContracts';
+import type {
+  WalletRegistrationSetupEd25519AdmissionV2,
+  WalletRegistrationSetupResponseV2,
+} from '../../../../core/threeRouteRegistrationContracts';
 import {
   routerAbEcdsaStrictRegistrationFactsBindingJson,
   type RouterAbEcdsaStrictRegistrationPort,
 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
-import { mintRouterAbEd25519YaoRegistrationIdentityV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
+import {
+  buildRouterAbEd25519YaoProductAdmissionRequestV1,
+  mintRouterAbEd25519YaoRegistrationIdentityV1,
+  type RouterAbEd25519YaoProductRegistrationRuntimeV1,
+} from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import { isTransientD1Error } from '../../../../storage/d1Retry';
 import type { WalletRegistrationSetupInput } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import type {
@@ -31,6 +38,7 @@ import { CloudflareD1RegistrationCeremonyIntentStore } from './d1RegistrationCer
 import {
   errorMessage,
   registrationIntentSignerBranches,
+  type registrationSignerBranchesFromPlan,
   registrationPreparedContextEcdsaChainTargets,
   resolveRegistrationPreparedContextFromPlan,
 } from './d1RegistrationSetupSupport';
@@ -47,8 +55,11 @@ type WalletRegistrationSetupDependencies = {
   readonly reservation: Pick<WalletRegistrationReservationAuthority, 'reserve'> | null;
   readonly store: CloudflareD1RegistrationCeremonyIntentStore;
   readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
-  /** The SigningWorker of Ed25519 Yao registrations, or `null` when none is configured. */
-  readonly ed25519YaoSigningWorkerId: string | null;
+  /** The runtime of Ed25519 Yao registrations, or `null` when none is configured. */
+  readonly ed25519Yao: Pick<
+    RouterAbEd25519YaoProductRegistrationRuntimeV1,
+    'signingWorkerId' | 'describeRegistrationAdmission'
+  > | null;
   readonly startRegistrationWallets: RegistrationWalletStarter | null;
 };
 
@@ -107,7 +118,7 @@ async function completeReservedRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: Pick<
     WalletRegistrationSetupDependencies,
-    'home' | 'store' | 'ecdsaStrictRegistration' | 'ed25519YaoSigningWorkerId'
+    'home' | 'store' | 'ecdsaStrictRegistration' | 'ed25519Yao'
   >,
   admitted: Variant<WalletRegistrationSetupReservationResult, 'ok', true>,
   normalized: Variant<ReturnType<typeof normalizeWalletRegistrationSetupRequest>, 'ok', true>,
@@ -170,7 +181,7 @@ async function completeReservedRegistrationSetup(
     if (admitted.lifecycle === 'reserved') {
       await dependencies.store.reserveSetupCeremony(existing, admitted.ownershipGeneration);
     }
-    return await setupResponseFromCeremony(input, dependencies.home, existing);
+    return await setupResponseFromCeremony(input, dependencies, existing);
   }
   if (admitted.lifecycle === 'established')
     return walletRegistrationSetupError(
@@ -182,7 +193,7 @@ async function completeReservedRegistrationSetup(
   if (!ecdsaBranch && !nearEd25519Branch) {
     return walletRegistrationSetupError('invalid_body', 'registration signer branch is required');
   }
-  if (nearEd25519Branch && !dependencies.ed25519YaoSigningWorkerId) {
+  if (nearEd25519Branch && !dependencies.ed25519Yao) {
     return walletRegistrationSetupError(
       'not_configured',
       'Ed25519 Yao registration is unavailable',
@@ -270,10 +281,10 @@ async function completeReservedRegistrationSetup(
     /* The proof does not exist yet; respond binds it. */
     authorityState: { kind: 'awaiting_proof', authMethod: normalized.authMethod },
     ed25519YaoMint:
-      nearEd25519Branch && dependencies.ed25519YaoSigningWorkerId
+      nearEd25519Branch && dependencies.ed25519Yao
         ? mintRouterAbEd25519YaoRegistrationIdentityV1({
             walletId: wallet.walletId,
-            signingWorkerId: dependencies.ed25519YaoSigningWorkerId,
+            signingWorkerId: dependencies.ed25519Yao.signingWorkerId,
           })
         : null,
     signerState: { kind: 'signer_set_registration', branches: storedBranches },
@@ -282,14 +293,61 @@ async function completeReservedRegistrationSetup(
     ceremony,
     admitted.ownershipGeneration,
   );
-  return await setupResponseFromCeremony(input, dependencies.home, stored);
+  return await setupResponseFromCeremony(input, dependencies, stored);
+}
+
+/**
+ * The admission that respond will issue for an Ed25519-only passkey plan.
+ * It follows from the stored ceremony alone, so a setup retry describes the
+ * same admission. A failure to describe it withholds the description and
+ * nothing else: respond then issues the admission as its first word on it.
+ */
+async function describeSetupEd25519Admission(
+  ed25519Yao: WalletRegistrationSetupDependencies['ed25519Yao'],
+  ceremony: StoredWalletRegistrationCeremony,
+  branch: NonNullable<ReturnType<typeof registrationSignerBranchesFromPlan>['nearEd25519']>,
+): Promise<WalletRegistrationSetupEd25519AdmissionV2> {
+  const authMethod = ceremony.intent.authMethod;
+  const mint = ceremony.ed25519YaoMint;
+  const signingRootId = toOptionalTrimmedString(ceremony.signingRootId);
+  const signingRootVersion = toOptionalTrimmedString(ceremony.signingRootVersion);
+  if (
+    authMethod.kind !== 'passkey' ||
+    !ed25519Yao ||
+    !mint ||
+    !signingRootId ||
+    !signingRootVersion
+  ) {
+    return { status: 'after_proof' };
+  }
+  const admissionRequest = await buildRouterAbEd25519YaoProductAdmissionRequestV1({
+    registrationCeremonyId: ceremony.registrationCeremonyId,
+    walletId: ceremony.intent.walletId,
+    signingRootId,
+    signingRootVersion,
+    authorityScope: { kind: 'passkey', rpId: authMethod.rpId },
+    branch,
+    signingWorkerId: ed25519Yao.signingWorkerId,
+    materialActivation: mint.materialActivation,
+  });
+  const described = await ed25519Yao
+    .describeRegistrationAdmission(admissionRequest, mint.sessionId)
+    .catch(withholdEd25519AdmissionDescription);
+  return described?.ok
+    ? { status: 'described', admissionRequest, admissionReceipt: described.value }
+    : { status: 'after_proof' };
+}
+
+function withholdEd25519AdmissionDescription(): null {
+  return null;
 }
 
 async function setupResponseFromCeremony(
   input: WalletRegistrationSetupInput,
-  home: WalletSessionHome,
+  dependencies: Pick<WalletRegistrationSetupDependencies, 'home' | 'ed25519Yao'>,
   ceremony: StoredWalletRegistrationCeremony,
 ): Promise<WalletRegistrationSetupResponseV2> {
+  const home = dependencies.home;
   const { signedSetup } = await buildWalletRegistrationSetupSignature({
     signer: input.signer,
     ceremony,
@@ -307,7 +365,19 @@ async function setupResponseFromCeremony(
     intent: ceremony.intent,
     signedSetup,
   };
-  if (!branches.value.evmFamilyEcdsa) return { ...success, kind: 'near_ed25519' };
+  if (!branches.value.evmFamilyEcdsa) {
+    if (!branches.value.nearEd25519)
+      return walletRegistrationSetupError('invalid_state', 'Registration setup has no signer');
+    return {
+      ...success,
+      kind: 'near_ed25519',
+      ed25519: await describeSetupEd25519Admission(
+        dependencies.ed25519Yao,
+        ceremony,
+        branches.value.nearEd25519,
+      ),
+    };
+  }
   if (ceremony.signerState.kind !== 'signer_set_registration')
     return walletRegistrationSetupError(
       'invalid_state',

@@ -88,6 +88,7 @@ import {
   type WalletCustodySealedEd25519MaterialV1,
 } from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
 import type {
+  EstablishWalletCustodyNearEd25519KeySetArgs,
   EstablishedWalletCustodyEvmFamilyKeySetV1,
   EstablishedWalletCustodyNearEd25519KeySetV1,
   JoinedWalletCustodyNearEd25519KeySetV1,
@@ -2726,21 +2727,9 @@ export class BrowserSigningSurface {
    * PRF-derived path used, so the execute request goes to the same endpoint
    * with the same trace context — only the root behind it changed.
    */
-  async establishWalletCustodyNearEd25519KeySet(args: {
-    readonly home: WalletSessionHome;
-    walletId: string;
-    factorJson: string;
-    factorSecret: ArrayBuffer;
-    nearEd25519SigningKeyId: string;
-    registrationCeremonyId: string;
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-    admissionReceipt: unknown;
-    participantIds: readonly [number, number];
-    routerOrigin: string;
-    /** The signed setup: the Router authorizes the execute round against it. */
-    authorization: string;
-    traceContext?: RouterAbTraceContextV1;
-  }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1> {
+  async establishWalletCustodyNearEd25519KeySet(
+    args: EstablishWalletCustodyNearEd25519KeySetArgs,
+  ): Promise<EstablishedWalletCustodyNearEd25519KeySetV1> {
     const transport = new RouterAbEd25519YaoHttpActivationTransportV1({
       routerOrigin: args.routerOrigin,
       routing: args.home,
@@ -2753,14 +2742,20 @@ export class BrowserSigningSurface {
     const established = await establishNearEd25519CustodyV1({
       runStep: walletCustodyCeremonyStepRunner(this.walletCustodyCeremonyTransportV1()),
       walletId: args.walletId,
-      factorJson: args.factorJson,
-      factorSecret: args.factorSecret,
+      ...args.factor,
       nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,
       registrationCeremonyId: args.registrationCeremonyId,
       yaoAdmission: args.admissionReceipt,
       yaoApplication: args.admissionRequest.application_binding,
       participantIds: args.participantIds,
       runRouterRound: async (yaoExecuteRequestJson: string) => {
+        const executedWithProof = args.executeWithProof
+          ? await args.executeWithProof(yaoExecuteRequestJson)
+          : null;
+        if (executedWithProof !== null) {
+          activationResultJson = executedWithProof;
+          return activationResultJson;
+        }
         const response = await transport.send({
           kind: 'execute',
           path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,

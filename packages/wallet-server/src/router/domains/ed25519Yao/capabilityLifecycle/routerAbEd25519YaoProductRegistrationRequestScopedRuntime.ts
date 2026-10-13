@@ -1,12 +1,27 @@
-import type { RouterAbEd25519YaoBytes32V1 } from '@shared/utils/routerAbEd25519Yao';
+import type {
+  RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  RouterAbEd25519YaoActivationExecuteRequestV1,
+  RouterAbEd25519YaoBytes32V1,
+  RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+} from '@shared/utils/routerAbEd25519Yao';
+import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
 import {
+  describeRouterAbEd25519YaoRegistrationAdmissionV1,
   InMemoryRouterAbEd25519YaoRegistrationService,
   type RouterAbEd25519YaoActivationConsumptionRequestV1,
   type RouterAbEd25519YaoActivationConsumptionResultV1,
   type RouterAbEd25519YaoRegistrationBackendResult,
+  type RouterAbEd25519YaoRegistrationServiceResult,
 } from '../registration/routerAbEd25519YaoRegistration';
-import { InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter } from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
+  routerAbEd25519YaoCredentialDigestSha256HexV1,
+} from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  executeRouterAbEd25519YaoAdmittedRegistrationV1,
+  type RouterAbEd25519YaoTimedRegistrationExecutionResultV1,
+} from '../registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import type {
   RouterAbEd25519YaoRegistrationIntentBindingResult,
   RouterAbEd25519YaoVerifiedActivationIntentV1,
@@ -125,6 +140,38 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
       mintedSessionId,
       store: this.input.store,
       backend: this.input.registrationBackend,
+    });
+  }
+
+  async describeRegistrationAdmission(
+    request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    mintedSessionId: RouterAbEd25519YaoBytes32V1,
+  ): Promise<
+    RouterAbEd25519YaoRegistrationServiceResult<
+      RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>
+    >
+  > {
+    return await describeRouterAbEd25519YaoRegistrationAdmissionV1({
+      backend: this.input.registrationBackend,
+      request,
+      mintedSessionId,
+    });
+  }
+
+  async executeAdmittedRegistration(input: {
+    readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
+    readonly credential: string;
+    readonly trace: RouterAbTraceContextV1;
+  }): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
+    return await executeRouterAbEd25519YaoAdmittedRegistrationV1({
+      store: this.input.store,
+      backend: this.input.registrationBackend,
+      request: input.request,
+      credentialDigestSha256Hex: await routerAbEd25519YaoCredentialDigestSha256HexV1(
+        input.credential,
+      ),
+      credentialDigestMs: 0,
+      trace: input.trace,
     });
   }
 

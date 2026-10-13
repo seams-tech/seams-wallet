@@ -28,13 +28,36 @@ import {
  * without its codes leaves a wallet whose owner holds nothing.
  */
 
-type EstablishNearEd25519CustodyInput = {
+/**
+ * The factor that seals the new custody. A passkey that the user creates
+ * while the run prepares its inputs exists only after the Router round, so
+ * the run can take it then instead of at its start.
+ */
+export type EstablishNearEd25519CustodyFactor =
+  | {
+      /** The passkey or Email OTP factor, as the envelope will name it. */
+      readonly factorJson: string;
+      /** `PRF.first` or the Email OTP factor key. Owned by the caller. */
+      readonly factorSecret: ArrayBuffer;
+      readonly factorAfterRouterRound?: never;
+    }
+  | {
+      readonly factorJson?: never;
+      readonly factorSecret?: never;
+      /** Asked once, after the Router round returned. The caller owns the secret. */
+      readonly factorAfterRouterRound: () => Promise<{
+        readonly factorJson: string;
+        readonly factorSecret: ArrayBuffer;
+      }>;
+    };
+
+type EstablishNearEd25519CustodyInput = EstablishNearEd25519CustodyFactor &
+  NearEd25519CustodyRunInput;
+
+/** What every NEAR custody run takes, whichever factor reaches its seed. */
+type NearEd25519CustodyRunInput = {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
-  /** The passkey or Email OTP factor, as the envelope will name it. */
-  readonly factorJson: string;
-  /** `PRF.first` or the Email OTP factor key. Owned by the caller. */
-  readonly factorSecret: ArrayBuffer;
   readonly nearEd25519SigningKeyId: string;
   /** The Yao lifecycle this run registers under, and route 4's own scope. */
   readonly registrationCeremonyId: string;
@@ -87,20 +110,28 @@ export async function establishNearEd25519CustodyV1(
   let issued: IssuedWalletRecoveryCodes | null = issueWalletRecoveryCodes();
   let activationSessionId: readonly number[] | null = null;
   try {
+    /* Bytes only. The ceremony derives each code's id from the wallet and
+       these bytes as it seals, so no id crosses the boundary and the sealer
+       and a later reader cannot disagree about what an id is. */
+    const recoveryCodesJson = JSON.stringify(
+      issued.codeBytes.map((bytes) => ({ codeBytesB64u: base64UrlEncode(bytes) })),
+    );
     const payload = await runWalletCustodyKeySetCeremony({
       runStep: input.runStep,
-      custody: {
-        origin: 'establish',
-        walletId: input.walletId,
-        factorJson: input.factorJson,
-        factorSecret: input.factorSecret,
-        /* Bytes only. The ceremony derives each code's id from the wallet and
-           these bytes as it seals, so no id crosses the boundary and the
-           sealer and a later reader cannot disagree about what an id is. */
-        recoveryCodesJson: JSON.stringify(
-          issued.codeBytes.map((bytes) => ({ codeBytesB64u: base64UrlEncode(bytes) })),
-        ),
-      },
+      custody: input.factorAfterRouterRound
+        ? {
+            origin: 'establish_factor_after_round',
+            walletId: input.walletId,
+            recoveryCodesJson,
+            factor: input.factorAfterRouterRound,
+          }
+        : {
+            origin: 'establish',
+            walletId: input.walletId,
+            factorJson: input.factorJson,
+            factorSecret: input.factorSecret,
+            recoveryCodesJson,
+          },
       keySetRun: {
         keySet: 'near_ed25519_v1',
         protocolInputsJson: JSON.stringify({
@@ -661,10 +692,9 @@ function activationSessionIdFromResult(resultJson: string): readonly number[] {
  * *establish* a key set — registering a second, different key for a wallet
  * that already has one, which no later check would undo.
  */
-type RejoinNearEd25519CustodyInput = Omit<
-  EstablishNearEd25519CustodyInput,
-  'factorJson' | 'registrationCeremonyId'
-> & {
+type RejoinNearEd25519CustodyInput = Omit<NearEd25519CustodyRunInput, 'registrationCeremonyId'> & {
+  /** Opens the stored envelope. Owned by the caller. */
+  readonly factorSecret: ArrayBuffer;
   /** `JoinCustodyWireV1`: the stored envelope binding and its sealed seed. */
   readonly custodyJson: string;
   readonly recoveryLifecycleId: string;
@@ -688,9 +718,11 @@ type RejoinedNearEd25519Custody = JoinedNearEd25519CustodyBase & {
 };
 
 type JoinNearEd25519CustodyInput = Omit<
-  EstablishNearEd25519CustodyInput,
-  'walletId' | 'factorJson' | 'continuityRegisteredPublicKeyB64u'
+  NearEd25519CustodyRunInput,
+  'walletId' | 'continuityRegisteredPublicKeyB64u'
 > & {
+  /** Opens the envelope that another key set established. Owned by the caller. */
+  readonly factorSecret: ArrayBuffer;
   readonly preparation: { readonly kind: 'fresh' } | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
   readonly beforeRouterRound?: (checkpointJson: string) => Promise<void>;
   /** `JoinCustodyWireV1`: the envelope established by another key set. */

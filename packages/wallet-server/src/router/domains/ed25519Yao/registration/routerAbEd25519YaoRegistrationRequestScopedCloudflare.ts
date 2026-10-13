@@ -97,10 +97,14 @@ type RegistrationExecutionTimingV1 = {
   readonly resultReconstructionMs: number;
 };
 
-type TimedRegistrationExecutionResultV1 = {
-  readonly result: RegistrationServiceResponse;
+export type RouterAbEd25519YaoTimedRegistrationExecutionResultV1 = {
+  readonly result:
+    | RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationResultV1>
+    | AuthorizationFailure;
   readonly timing: RegistrationExecutionTimingV1;
 };
+
+type TimedRegistrationExecutionResultV1 = RouterAbEd25519YaoTimedRegistrationExecutionResultV1;
 
 export async function handleRouterAbEd25519YaoRegistrationRequestScopedCloudflareV1(
   input: RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1,
@@ -298,18 +302,51 @@ async function runExecutionRequest(
   request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
   trace: RouterAbTraceContextV1,
 ): Promise<TimedRegistrationExecutionResultV1> {
-  const lifecycleId = request.binding.lifecycle.lifecycle_id;
   const credentialStartedAt = performance.now();
   const credential = await routerAbEd25519YaoBearerCredentialDigestV1(input.request);
   const credentialDigestMs = elapsedMs(credentialStartedAt);
-  const timing = {
+  if (!credential.ok) {
+    return timedExecutionResult(credential.result, {
+      credentialDigestMs,
+      d1AdmissionReadMs: 0,
+      routerExecutionMs: 0,
+      routerServerTiming: null,
+      resultReconstructionMs: 0,
+    });
+  }
+  return await executeRouterAbEd25519YaoAdmittedRegistrationV1({
+    store: input.store,
+    backend: input.backend,
+    request,
+    credentialDigestSha256Hex: credential.digestSha256Hex,
     credentialDigestMs,
+    trace,
+  });
+}
+
+/**
+ * Runs one admitted registration for the holder of its credential. The
+ * execute route takes the credential from its bearer. A respond that carries
+ * the execute request takes it from the signed setup that it just verified.
+ */
+export async function executeRouterAbEd25519YaoAdmittedRegistrationV1(
+  input: Pick<RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1, 'store' | 'backend'> & {
+    readonly request: RouterAbEd25519YaoRegistrationExecuteRequestV1;
+    readonly credentialDigestSha256Hex: string;
+    readonly credentialDigestMs: number;
+    readonly trace: RouterAbTraceContextV1;
+  },
+): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
+  const { request, trace } = input;
+  const credential = { digestSha256Hex: input.credentialDigestSha256Hex };
+  const lifecycleId = request.binding.lifecycle.lifecycle_id;
+  const timing = {
+    credentialDigestMs: input.credentialDigestMs,
     d1AdmissionReadMs: 0,
     routerExecutionMs: 0,
     routerServerTiming: null,
     resultReconstructionMs: 0,
   };
-  if (!credential.ok) return timedExecutionResult(credential.result, timing);
   const admissionStartedAt = performance.now();
   const loaded = await input.store.loadRegistration(lifecycleId);
   const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
@@ -405,7 +442,7 @@ function elapsedMs(startedAt: number): number {
 }
 
 function timedExecutionResult(
-  result: RegistrationServiceResponse,
+  result: TimedRegistrationExecutionResultV1['result'],
   timing: RegistrationExecutionTimingV1,
 ): TimedRegistrationExecutionResultV1 {
   return { result, timing };
@@ -527,6 +564,25 @@ function registrationResultResponse(
     response.headers.set('Timing-Allow-Origin', '*');
   }
   return response;
+}
+
+/**
+ * The timing of one execution as Server-Timing entries, for a route that
+ * reports them in its own header: a respond that ran the execution.
+ */
+export function routerAbEd25519YaoRegistrationExecutionTimingEntriesV1(
+  timing: RouterAbEd25519YaoTimedRegistrationExecutionResultV1['timing'],
+): Array<readonly [string, number]> {
+  const entries: Array<readonly [string, number]> = [
+    ['yao_d1_admission_read', timing.d1AdmissionReadMs],
+    ['yao_router_execution', timing.routerExecutionMs],
+    ['yao_result_reconstruction', timing.resultReconstructionMs],
+  ];
+  for (const metric of (timing.routerServerTiming ?? '').split(',')) {
+    const parsed = /^\s*([A-Za-z0-9_]+);dur=([0-9.]+)\s*$/u.exec(metric);
+    if (parsed?.[1] && parsed[2]) entries.push([parsed[1], Number(parsed[2])]);
+  }
+  return entries;
 }
 
 function registrationExecutionServerTiming(timing: RegistrationExecutionTimingV1): string {

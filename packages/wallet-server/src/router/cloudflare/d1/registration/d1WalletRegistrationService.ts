@@ -108,6 +108,7 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
   sameRouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoExportAuthorizationIdentityV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { deriveRouterAbEd25519YaoRuntimePolicyBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
@@ -117,7 +118,10 @@ import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
+import {
+  createRouterAbTraceContextV1,
+  type RouterAbTraceContextV1,
+} from '@shared/utils/routerAbTraceContext';
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import { deriveThresholdEcdsaKeyHandle } from '@shared/utils/thresholdEcdsaKeyHandle';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -221,6 +225,7 @@ import {
   type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
 } from '../../../domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 import type { VerifiedNearRegistrationContinuationV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import { routerAbEd25519YaoRegistrationExecutionTimingEntriesV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import {
   runRouterAbEd25519YaoRegistrationSideEffectV2,
   throwIfRouterAbEd25519YaoRetryableSideEffectFailureV1,
@@ -391,6 +396,10 @@ async function buildRespondEd25519AdmissionRequest(input: {
     signingWorkerId: input.signingWorkerId,
     materialActivation: mint.materialActivation,
   });
+}
+
+function ignoreRespondExecutionFailure(): null {
+  return null;
 }
 
 function requireRegistrationEd25519YaoMint(
@@ -2998,7 +3007,7 @@ export class CloudflareD1WalletRegistrationService {
       reservation: this.registrationAuthority,
       store: this.getRegistrationCeremonyIntentStore(),
       ecdsaStrictRegistration: this.ecdsaStrictRegistration,
-      ed25519YaoSigningWorkerId: this.getEd25519YaoProductRegistration()?.signingWorkerId ?? null,
+      ed25519Yao: this.getEd25519YaoProductRegistration(),
       startRegistrationWallets: this.startRegistrationWallets,
     });
   }
@@ -3209,8 +3218,18 @@ export class CloudflareD1WalletRegistrationService {
           startedDispatchRoot,
           expectedOrigin,
           waitUntil,
+          ed25519Execution: input.ed25519Execution ?? null,
+          traceContext: traceContext ?? null,
+          serverTiming,
           ...(input.userAgent ? { userAgent: input.userAgent } : {}),
         });
+      }
+      if (input.ed25519Execution) {
+        return {
+          ok: false,
+          code: 'invalid_body',
+          message: 'only an Ed25519-only respond carries its Yao execution',
+        };
       }
       if (!ecdsaBranch) {
         return { ok: false, code: 'invalid_state', message: 'ECDSA branch is required' };
@@ -4398,6 +4417,9 @@ export class CloudflareD1WalletRegistrationService {
     readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
     readonly expectedOrigin: string;
     readonly waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+    readonly ed25519Execution: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'> | null;
+    readonly traceContext: RouterAbTraceContextV1 | null;
+    readonly serverTiming: Array<readonly [string, number]>;
     readonly userAgent?: string;
   }): Promise<WalletRegistrationRespondResponseV2> {
     const ceremony = input.ceremony;
@@ -4524,15 +4546,37 @@ export class CloudflareD1WalletRegistrationService {
           }),
       );
     }
+    const admission = {
+      admissionRequest: admitted.admissionRequest,
+      admissionReceipt: admitted.value,
+    };
+    /* The client prepared its execute request from the admission that setup
+       described, so the proof and the execution arrive together. The
+       admission above is stored either way. An execution that does not
+       complete here is not an error of respond: the client runs it again
+       through the execute route, which reports it or replays it. */
+    const execution = input.ed25519Execution
+      ? await runtime
+          .executeAdmittedRegistration({
+            request: input.ed25519Execution,
+            credential: input.registrationBearerToken,
+            trace: input.traceContext ?? createRouterAbTraceContextV1(),
+          })
+          .catch(ignoreRespondExecutionFailure)
+      : null;
+    if (execution) {
+      input.serverTiming.push(
+        ...routerAbEd25519YaoRegistrationExecutionTimingEntriesV1(execution.timing),
+      );
+    }
+    const executed = execution?.result ?? null;
     return {
       ok: true,
       registrationCeremonyId: ceremony.registrationCeremonyId,
       kind: 'near_ed25519',
-      ed25519: {
-        status: 'admitted',
-        admissionRequest: admitted.admissionRequest,
-        admissionReceipt: admitted.value,
-      },
+      ed25519: executed?.ok
+        ? { status: 'executed', ...admission, activationResult: executed.value }
+        : { status: 'admitted', ...admission },
     };
   }
 

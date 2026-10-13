@@ -109,6 +109,7 @@ import type { EcdsaBootstrapRequest } from '@/core/signingEngine/session/passkey
 import type { ConnectEd25519SessionArgs } from '@/core/signingEngine/session/passkey/public';
 import type { HydrateWarmSigningSessionInput } from '@/core/signingEngine/session/passkey/warmSessionHydration';
 import type { LoginWithEmailOtpWalletCustodyEd25519Args } from '@/core/signingEngine/walletCustody/ed25519Login';
+import type { EstablishNearEd25519CustodyFactor } from '@/core/signingEngine/walletCustody/registrationCeremony';
 import type { EmailOtpEd25519YaoRecoveryBootstrapV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { RouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
@@ -405,21 +406,9 @@ export interface WalletCustodyCeremonySurface {
     relayUrl: string;
   }): Promise<RecoveredWalletCustodyManifestV1>;
 
-  establishWalletCustodyNearEd25519KeySet(args: {
-    readonly home: WalletSessionHome;
-    walletId: string;
-    factorJson: string;
-    factorSecret: ArrayBuffer;
-    nearEd25519SigningKeyId: string;
-    registrationCeremonyId: string;
-    admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-    admissionReceipt: unknown;
-    participantIds: readonly [number, number];
-    routerOrigin: string;
-    /** The signed setup: the Router authorizes the execute round against it. */
-    authorization: string;
-    traceContext?: RouterAbTraceContextV1;
-  }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1>;
+  establishWalletCustodyNearEd25519KeySet(
+    args: EstablishWalletCustodyNearEd25519KeySetArgs,
+  ): Promise<EstablishedWalletCustodyNearEd25519KeySetV1>;
 
   joinWalletCustodyNearEd25519KeySet(args: {
     readonly routing: WalletSessionHome | { readonly kind: 'discovery' };
@@ -988,3 +977,26 @@ export type DeviceLinkingSigningSurface = LocalLoginStateSurface &
   Pick<EcdsaRegistrationSurface, 'storeWalletEcdsaSignerRecords'>;
 
 export type DeviceLinkingWebContext = SeamsWebBaseContext<DeviceLinkingSigningSurface>;
+
+export type EstablishWalletCustodyNearEd25519KeySetArgs = {
+  readonly home: WalletSessionHome;
+  walletId: string;
+  /** The factor that seals the custody: at hand, or asked for after the Router round. */
+  factor: EstablishNearEd25519CustodyFactor;
+  /**
+   * Sends the execute request together with the registration proof. It
+   * returns the activation result, or `null` when the Gateway admitted the
+   * registration and did not complete the execution: the run then sends the
+   * same request to the execute route.
+   */
+  executeWithProof?: (yaoExecuteRequestJson: string) => Promise<string | null>;
+  nearEd25519SigningKeyId: string;
+  registrationCeremonyId: string;
+  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+  admissionReceipt: unknown;
+  participantIds: readonly [number, number];
+  routerOrigin: string;
+  /** The signed setup: the Router authorizes the execute round against it. */
+  authorization: string;
+  traceContext?: RouterAbTraceContextV1;
+};
