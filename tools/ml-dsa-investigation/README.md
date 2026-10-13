@@ -22,7 +22,7 @@ From the repository directory:
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
   --samples 100 --garbled-samples 3 \
-  --output docs/evidence/ml-dsa-65-kernels-20261013.json
+  --output docs/evidence/ml-dsa-65-resumable-20261013.json
 ```
 
 The tool fails when any reference comparison or rejection check fails.
@@ -139,8 +139,9 @@ Secure continuation for the same seed remains unimplemented.
 The private `ExpandMask` benchmark checks five nonce values through separate roles
 with genuine OT. It compares all coefficients with an independent SHAKE oracle.
 A receives no decoded output. Five polynomials require 35,584,000 table bytes
-per signing attempt. Commitment hashing, checks, hints, and a complete threshold
-signature remain open.
+per signing attempt. Six further signing circuits now pass independent cleartext fixtures.
+They check hashing, high bits, norms, hints, and aggregate acceptance.
+Private signing composition and a complete threshold signature remain open.
 
 Cleartext Boolean evaluation provides no privacy or constant-time guarantee.
 Private kernels use the existing passive protocol. Their complete composition still requires review.
@@ -149,8 +150,10 @@ The tool does not implement production admission, transport authentication, dura
 The test recipient's authorization is an explicit harness action.
 It does not establish an authenticated export flow.
 
-This tool does not execute a threshold signing protocol or Cloudflare cryptography.
-Cloudflare transport measurements remain separate from these local process measurements.
+This tool does not execute a complete threshold signing protocol.
+The separate Worker adapter executes four private kernels with the same resumable cryptographic runtime.
+The [hosted report](../../docs/evidence/ml-dsa-65-worker-kernels-hosted-20261013.json) records those measurements.
+It does not measure complete key generation or signing on Cloudflare.
 Host timing does not establish Worker CPU time, bandwidth, latency, or cost.
 Cross-implementation agreement does not establish FIPS module validation.
 Classical OT does not establish post-quantum transcript confidentiality.

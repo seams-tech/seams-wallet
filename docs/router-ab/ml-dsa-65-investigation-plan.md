@@ -1,6 +1,6 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: private host key generation verified. Deployed transport measured. Signing investigation in progress, 2026-10-13.
+Status: private host key generation and deployed private kernels verified. Complete signing in progress, 2026-10-13.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -9,7 +9,7 @@ Use current research to find candidates. Publication date does not determine the
 The investigation must cover key generation, signing, recovery, export, and deployment.
 The [experiment contract](ml-dsa-65-experiment-contract.md) defines the first executable slice.
 The [host harness](../../tools/ml-dsa-investigation/README.md) checks references, private key generation, and authorized test export.
-Complete threshold signing and deployed cryptographic execution remain open.
+Complete threshold signing remains open. Four private kernels now execute on deployed Workers.
 
 ## Current implementation evidence — October 13, 2026
 
@@ -75,27 +75,56 @@ Keep rejected `w1` private. Investigate private commitment hashing followed by a
 That possible disclosure needs a complete composition argument before selection.
 Mithril's short-share privacy loss and Trilithium's replacement preprocessing remain unresolved.
 
-## Worker execution gap
+## Resumable execution and deployed private kernels
 
-The private executor compiles for `wasm32-unknown-unknown`.
-It still uses blocking host I/O and `std::time::Instant`.
-Neither operation provides the required asynchronous Worker execution path.
-Compilation therefore establishes type compatibility, rather than executable Cloudflare cryptography.
+The [resumable host report](../evidence/ml-dsa-65-resumable-20261013.json) uses one cryptographic runtime for host and Worker execution.
+The [runtime](../../crates/ed25519-yao/src/passive/ml_dsa_runtime.rs) has no blocking I/O or clock.
+It validates a trusted schedule digest and advances through consuming send, receive, and complete states.
+Host and Worker adapters drive the same OT and half-gate implementation.
+B retains private decoded outputs. A receives only each circuit's declared public outputs.
+Fresh session nonces bind OT flights to the complete schedule digest and gate domain.
+The repeated host key-generation and authorized recovery checks pass for all five keys.
 
-Reuse the existing resumable OT, gate execution, and asynchronous transport patterns.
-The [stream runtime](../../crates/ed25519-yao/src/passive/stream_runtime.rs) already advances one frame at a time.
-The [role protocol](../../crates/ed25519-yao/src/passive/role_protocol.rs) separates cryptographic transitions from transport events.
-The [Worker benchmark adapter](../../crates/ed25519-yao-cloudflare-bench/src/lib.rs) supplies HTTP, WebSocket, timeout, and copy-accounting patterns.
-Extract a resumable ML-DSA executor and make both host and Worker adapters drive that same implementation.
-Keep clocks outside cryptographic state. Preserve B-only private outputs and explicit boundaries between circuits.
+The [hosted kernel campaign](../evidence/ml-dsa-65-worker-kernels-hosted-20261013.json) executes four private kernels through a Service Binding and binary WebSocket.
+Each kernel has five measured samples after one excluded warm-up.
+Both Workers check only their own public fixture inputs and expected outputs.
+The report checks equal execution bindings, exact runtime byte counts, and separate completion reports.
 
-The thirteen unique key-generation schedules occupy 91,254,494 encoded bytes.
-These are public circuit descriptions, separate from the garbled tables.
-Load one digest-pinned schedule at a time before measuring peak memory.
-Investigate a public nonce input to reuse one sampling schedule across eleven polynomials.
-This can reduce stored descriptions. It does not remove the eleven private SHAKE computations.
-The current parser checks shape and topology. Deployed admission also needs an expected trusted schedule digest.
-Use bounded transport credit and measure queued memory before composing the eighteen-circuit Worker pipeline.
+| Private kernel | Hosted client median | Garbled table bytes |
+| --- | ---: | ---: |
+| Seed expansion | 264.2 ms | 1,210,368 |
+| One sampling polynomial | 1,122.5 ms | 9,619,968 |
+| One rounding polynomial | 350.7 ms | 1,949,696 |
+| One signing-mask polynomial | 906.3 ms | 7,116,800 |
+
+These are individual kernel measurements. Summing their medians does not establish complete pipeline latency.
+The entry request reported NRT. This does not establish both Workers' physical location.
+The adapter permits eight outstanding messages and limits each table message to 65,544 bytes, including its envelope.
+The largest admitted control message has 188,464 bytes.
+Observed Wasm linear memory stayed between approximately 19.5 and 20.7 MB across this campaign.
+That value is an isolate-wide high-water mark. It excludes JavaScript buffers and total Worker memory.
+
+The [CPU evidence](../evidence/ml-dsa-65-worker-kernels-cpu-20261013.json) records Cloudflare's microsecond analytics buckets.
+It includes genuine OT and garbling, unlike the earlier synthetic transport report.
+Bucket quantiles and asynchronous WebSocket attribution still prevent a precise per-signature cost claim.
+An initial B teardown error occurred after successful output checks.
+Explicit server-side closure removed the error in all 24 repeated sessions.
+The [diagnosis record](../evidence/ml-dsa-65-worker-close-20261013.json) retains the before-and-after evidence.
+
+Each deployed bundle embeds four public schedules, totaling 18,014,670 uncompressed schedule bytes.
+The deployed bundles are approximately 19 MB each and started in 10–12 ms.
+Cloudflare currently permits 64 MiB of uncompressed Worker code and 128 MB of isolate memory.
+See the [Worker limits](https://developers.cloudflare.com/workers/platform/limits/#worker-size).
+The thirteen unique key-generation schedules still occupy 91,254,494 encoded bytes.
+A public nonce input can replace eleven sampling descriptions with one description.
+This reduces stored descriptions. It does not remove any private SHAKE computation or table traffic.
+
+Six further signing circuits pass independent cleartext fixtures in the resumable host report.
+They cover signing-seed expansion, commitment high bits, commitment hashing, response norms, row norms and hints, and aggregate acceptance.
+The reciprocal HighBits formula agrees with FIPS Decompose for every residue below `q`.
+The hash fixture checks the corrected `mu || w1` order across multiple SHAKE input blocks.
+Strict norm boundaries and the 55-hint limit pass.
+These checks establish circuit arithmetic. Private composition and complete signature production remain open.
 
 ## Foundation evidence — October 13, 2026
 
