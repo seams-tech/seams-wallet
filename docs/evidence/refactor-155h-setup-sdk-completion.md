@@ -168,5 +168,64 @@ Checks passed:
   wrong origin and wrong environment remain enforced; telemetry failure is observable.
 - Public bloat check and focused private lint.
 
-The previous staging numbers remain the baseline. This batch has no new hosted
-latency result. Measure the complete SDK and Console candidate together next.
+At this implementation checkpoint, the previous staging numbers remained the
+baseline. The following comparison measures the complete SDK and Console candidate.
+
+
+## Combined SDK and Console staging comparison — October 13
+
+The complete batch was measured on existing Singapore staging from Tokyo.
+Public control: `9e8a85875c7a6c3886cab5928c2f9d2cb590562e`.
+Public candidate: `4ae974a8`.
+Private control: `50a8bd5`; private candidate: `bbc0f03`.
+Both Console builds consumed the same installed 0.9.3 server dependency.
+The SDK builds used identical production WASM. Only Console serving code changed;
+Gateway, Runtime, custody, databases, placement and secrets stayed fixed.
+
+There were 18 fresh wallets per build, in six alternating blocks of six:
+control, candidate, candidate, control, control, candidate. Each block used two
+browser groups. All 36 attempts succeeded. Independent Node.js Ed25519 verification
+accepted every NEP-413 signature and rejected changes to signed fields.
+
+| Measurement | Control median | Candidate median | Control maximum | Candidate maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Setup | 542.70 ms | 551.15 ms | 1,988.40 ms | 1,082.30 ms |
+| Finalize response to SDK completion | 55.80 ms | 53.07 ms | 62.27 ms | 200.29 ms |
+| Registration, excluding passkey interaction | 2.923 s | 2.876 s | 5.631 s | 3.785 s |
+| First signature, excluding confirmation | 547.96 ms | 446.88 ms | 1,186.56 ms | 848.37 ms |
+| Registration plus first signature, excluding interaction | 3.537 s | 3.356 s | 6.818 s | 4.332 s |
+
+The combined median fell by 181 ms, about 5.1%. This observation does not establish
+an attributable gain from the batch. Setup's median increased by 8 ms. Completion's
+median decreased by 3 ms. Signing and finalization also varied despite no direct
+change to those server paths. Control group medians for the combined flow ranged
+from 2.777 to 5.795 s; candidate group medians ranged from 2.948 to 4.164 s.
+The first post-deployment control group was especially slow. All samples remain
+in the primary population. Coldness was not independently established.
+
+Candidate OPTIONS started a median 70.71 ms before setup POST, with a range of
+26.98–110.83 ms. None finished before POST. All 18 candidate samples recorded one
+explicit warm-up. Control recorded none. The early warm-up still overlaps only a
+small part of the exchange for immediate callers. Every sample made six Gateway
+POST requests. Internal D1 counts and per-request telemetry completion were not
+instrumented in this comparison; the local composition scenario verifies the
+background-write behavior.
+
+The candidate's lower observed maximum is insufficient evidence of a p99 gain.
+R155J retains the larger tail investigation. Keep the structural changes for their
+removed dependency and earlier start, with savings still uncertain.
+
+Private repeatable artifacts: `.artifacts/setup-sdk-combined-20261013/` contains
+frozen sources, build logs, binding checks, serving snapshots, exact deployment
+restore evidence, sample JSON, independent signature verification and analysis.
+The public [summary JSON](refactor-155h-setup-sdk-combined-staging.json) retains
+per-group results. No schema migration, new resource, package publication or
+production deployment was performed.
+
+Restoration: all 14 original serving versions were restored. A follow-up attempt
+to make Console's original code the latest upload failed twice with Cloudflare
+HTTP 500 on the read-only version/modules endpoint, before any copy was created.
+Console therefore serves its original version while the latest upload is the
+inactive candidate. This does not affect traffic, but `wrangler secret put` can
+refuse until the latest-upload mismatch is resolved. See `restore-copy*.log` and
+`final-restoration.json` in the private run folder. No role secrets were changed.

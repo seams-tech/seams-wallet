@@ -851,7 +851,10 @@ Implementation follow-up, October 13:
   writes cannot move timestamps backwards, and Worker logs retain write failures.
 - Successful NEAR-only hydration already consumes the temporary seal. Its redundant
   discard request remains removed; failure cleanup still runs.
-- These changes require one combined staging comparison. No new savings are claimed.
+- Combined staging comparison complete: 18 wallets per build, all signatures
+  verified. Setup 542.70 → 551.15 ms; SDK completion 55.80 → 53.07 ms; combined
+  flow 3.537 → 3.356 s. Variation prevents attributing the full difference to this
+  batch. See the [combined evidence](evidence/refactor-155h-setup-sdk-completion.md#combined-sdk-and-console-staging-comparison--october-13).
 
 Remaining savings from earlier preflight and deferred usage telemetry are
 unmeasured. The existing Gateway batch is already part of the measured baseline.
