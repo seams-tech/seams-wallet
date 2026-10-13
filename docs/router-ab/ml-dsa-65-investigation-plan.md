@@ -683,6 +683,8 @@ State remaining opportunities that could change that ranking.
 1. Reduce exact arithmetic-circuit costs. Use one-AND carry and borrow identities, then repeat canonical key generation, signing, and recovery checks.
 2. Measure the revised complete host and Worker flows. Preserve the earlier reports and compare gate counts, bytes, retries, and elapsed time.
 3. Compare GMW, ABY2.0, and smaller garbling with complete preprocessing and conversion costs. Prioritize the largest measured sampling and signing costs.
+   The [engine comparison](ml-dsa-65-engine-comparison.md) now measures four GMW and ABY2.0 kernels with genuine two-party preprocessing and exact conversion traffic.
+   Complete alternative pipelines, prepared pools, deployed batching, and smaller-garbling execution remain open.
 4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production integration.
    The [source review](ml-dsa-65-privacy-review.md) records these boundaries.
    Division-free local arithmetic passes complete host interoperability and compiled core checks.

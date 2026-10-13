@@ -108,5 +108,7 @@ The [composition review](ml-dsa-65-privacy-review.md) records the reduction boun
 
 Repeat complete cloud key generation and signing after token approval.
 Then compare alternative engines with all setup and conversion costs.
+The [first executed GMW and ABY2.0 comparison](ml-dsa-65-engine-comparison.md) now includes four kernels and their complete private preprocessing costs.
+It also records the rebuilt local Worker checks and the pinned smaller-garbling source review.
 Keep composition review, role-private persistence, Router admission, SDK/NEAR integration, and lifecycle E2E scenarios in the remaining queue.
 The [investigation plan](ml-dsa-65-investigation-plan.md#immediate-work-queue) records that order.
