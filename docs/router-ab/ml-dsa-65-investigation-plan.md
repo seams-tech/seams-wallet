@@ -15,9 +15,13 @@ Complete host and Worker threshold signing now pass. Independent verifiers accep
 The [preliminary key-generation report](ml-dsa-65-preliminary-keygen-report.md) now measures the complete deployed key-generation flow.
 Five fresh joint keys took 12.44 seconds at the median, with an observed range of 11.79–12.53 seconds.
 These results exceed the provisional five-second generation target.
-The current shared-core native harness records a 1.87-second median across its five key-generation cases.
+That baseline's shared-core native harness records a 1.87-second median across its five key-generation cases.
 The earlier checkpoints below retain their original artifact measurements.
 The [arithmetic optimization report](ml-dsa-65-optimization-report.md) records the next implementation and its remaining measurement limits.
+The [engine comparison](ml-dsa-65-engine-comparison.md) now records executed GMW and ABY2.0 kernels with complete private preprocessing.
+The hardened half-gates implementation records a 3.28-second local Worker key-generation median across five fresh joint keys.
+Its hosted rerun remains pending token approval.
+The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) also verifies a serialized threshold-signed NEAR transaction before authorized recovery.
 
 ## Current implementation evidence — October 13, 2026
 
@@ -680,7 +684,7 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-1. Reduce exact arithmetic-circuit costs. Use one-AND carry and borrow identities, then repeat canonical key generation, signing, and recovery checks.
+1. Completed: reduce exact arithmetic-circuit costs with one-AND carry and borrow identities. Canonical key generation, signing, and recovery checks pass.
 2. Measure the revised complete host and Worker flows. Preserve the earlier reports and compare gate counts, bytes, retries, and elapsed time.
 3. Compare GMW, ABY2.0, and smaller garbling with complete preprocessing and conversion costs. Prioritize the largest measured sampling and signing costs.
    The [engine comparison](ml-dsa-65-engine-comparison.md) now measures four GMW and ABY2.0 kernels with genuine two-party preprocessing and exact conversion traffic.
@@ -690,6 +694,7 @@ State remaining opportunities that could change that ranking.
    Division-free local arithmetic passes complete host interoperability and compiled core checks.
    The complete proof, final Worker qualification, and independent review remain open.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
+   Production integration awaits the custody-model choice: an independent joint seed with protected recovery records, or private derivation from the wallet custody seed.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
    The public Wallet signing route, RPC full-key/handle behavior, and deployed transaction receipt remain open.
