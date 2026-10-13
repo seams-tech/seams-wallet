@@ -49,7 +49,7 @@ node tests/e2e/celld-bindings.e2e.mjs \
 The generated result records the Wallet revision and harness hashes alongside both binary hashes.
 No cloud credentials or real Wallet data are used.
 
-## Scope limits
+## Scope of the original object-only proof
 
 The patch retains celld's requirement that each application Durable Object class name has one owner in a fleet.
 Our current role classes have distinct names. Two independent owners declaring the same class remain unsupported.
@@ -59,10 +59,10 @@ An independent reviewer checked the patch, harness, and initial successful run.
 The review requested direct upgrade and downgrade evidence. The final run adds both checks.
 No blocking owner-resolution defect was found under the unique-class constraint.
 
-The test uses macOS ARM64 and a debug build. It does not establish production performance or distributed durability.
+That original test uses macOS ARM64 and a debug build. It does not establish production performance or distributed durability.
 The complete Wallet graph, release WASM, signing, recovery, live reload, relocation, managed upload paths,
 Linux, AWS, Google Cloud, and Confidential VMs remain unverified.
-Separate A/B backup-bucket isolation is still an open design and validation gate.
+Separate A/B backup-bucket isolation was open at that checkpoint. The later storage extension verifies physical separation locally.
 The existing hosting implementations remain in place.
 
 ## Physical bucket extension
@@ -73,3 +73,28 @@ It checks separate A/B physical buckets, concurrent 9 MiB streams, multipart upl
 restart, direct storage reads, configuration refusals, and failed writes after bucket removal.
 The private deployment repository retains generated build, storage, and packaged Worker graph records under `deployment/celld/evidence/`.
 Cloud permissions, distributed durability, and complete Wallet lifecycle acceptance remain open.
+
+## Current runtime and Wallet checkpoint
+
+Private `0.6.2-seams.4` passes the expanded binding scenario and the physical-storage scenario.
+The build adds workers-rs binding identities and unread streaming response cloning to the prior object and physical-bucket patch.
+The stream control fails on `.3` with the same error as real browser signing. The `.4` build preserves both readable copies.
+It rejects cloning a locked, consumed, or disturbed body.
+The recorded workerd reference permits cloning after a partial read and reader release.
+That difference remains explicit; the checks do not claim complete API parity.
+
+- [Current pristine-source build identity](celld-private-patch/current-runtime-build.json).
+- [Current binding and stream results](celld-private-patch/current-bindings.json).
+
+The private deployment repository also retains the exact Wallet Server and SDK 0.9.3 lifecycle run.
+All six unchanged browser contracts pass: mixed registration/signing, lost-response retry, quota contention,
+Router signature replay, unlock/export/shared-budget signing, and recovery after response loss.
+Its harness requires all six named tests to pass without skips. A separate forced-node-kill check recovers the same tenant-root result.
+The browser recovery contract resets the browser runtime; it does not kill celld during recovery.
+VM-only direct SigningWorker ledger checks remain unmeasured on this Workers branch.
+
+The Linux ARM64 release builds with locked dependencies and Clippy warnings denied.
+A focused container scenario verifies the shared object/stream fixtures and persisted state after restart.
+The six browser lifecycle contracts have been run on macOS ARM64 debug, not that Linux release.
+AWS, Google Cloud, Confidential VMs, distributed failures, the remaining lifecycle matrix, and cutover qualification remain open.
+The existing Node/Express and native VM hosts remain in place until those gates pass.
