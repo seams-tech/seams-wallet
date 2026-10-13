@@ -1,4 +1,9 @@
-import { isLocalIntendedYaoFaultTokenV1 } from './localIntendedYaoFault';
+import { isPlainObject } from '@shared/utils/validation';
+import type { D1RegistrationCeremonyRecordStore } from './router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+import {
+  isLocalIntendedYaoFaultTokenV1,
+  parseLocalIntendedKeptRouterRequestV1,
+} from './localIntendedYaoFault';
 
 export const LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1 = 'x-seams-intended-yao-recovery-fault-v1';
 export const LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1 =
@@ -39,15 +44,9 @@ type LocalIntendedYaoRecoveryFaultOutcomeV1 =
         | 'router_recovery_execute_not_observed';
     };
 
-type KeptRecoveryExecuteV1 = {
-  readonly url: string;
-  readonly headers: readonly (readonly [string, string])[];
-  readonly body: string;
-};
-
-/* Kept in the Gateway process, so the service credential on the execution
-   never leaves it; a release finds its execution by the fault token. */
-const keptRecoveryExecutes = new Map<string, KeptRecoveryExecuteV1>();
+// The local Gateway's D1 store retains the credential across Worker instances.
+const KEPT_RECOVERY_SCOPE = 'recovery-execute';
+const KEPT_RECOVERY_TTL_MS = 10 * 60 * 1000;
 
 export function parseLocalIntendedYaoRecoveryFaultModeV1(
   value: string | null,
@@ -76,6 +75,7 @@ export class LocalIntendedYaoRecoveryFaultControllerV1 {
     private readonly baseFetch: typeof globalThis.fetch,
     private readonly mode: 'lose_router_recovery_replies' | 'withhold_router_recovery_execute',
     private readonly token: string,
+    private readonly storage: D1RegistrationCeremonyRecordStore,
   ) {}
 
   async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -88,13 +88,16 @@ export class LocalIntendedYaoRecoveryFaultControllerV1 {
     }
     if (this.mode === 'withhold_router_recovery_execute') {
       // The first is kept; the Gateway's replay of it is withheld as well.
-      if (!keptRecoveryExecutes.has(this.token)) {
-        keptRecoveryExecutes.set(this.token, {
+      await this.storage.insertOrRead({
+        scope: KEPT_RECOVERY_SCOPE,
+        id: this.token,
+        value: {
           url: request.url,
           headers: [...request.headers],
           body: await request.clone().text(),
-        });
-      }
+        },
+        expiresAtMs: Date.now() + KEPT_RECOVERY_TTL_MS,
+      });
       this.kept = true;
       throw new Error('Local intended Yao recovery fault withheld the Router execution');
     }
@@ -105,9 +108,8 @@ export class LocalIntendedYaoRecoveryFaultControllerV1 {
       .catch(() => null);
     if (
       response.ok &&
-      typeof answer === 'object' &&
-      answer !== null &&
-      (answer as { readonly status?: unknown }).status === 'succeeded'
+      isPlainObject(answer) &&
+      answer.status === 'succeeded'
     ) {
       this.executed = true;
     } else {
@@ -132,19 +134,13 @@ export class LocalIntendedYaoRecoveryFaultControllerV1 {
 export async function releaseLocalIntendedYaoRecoveryExecuteV1(
   router: { fetch(request: Request): Promise<Response> },
   token: string,
+  storage: D1RegistrationCeremonyRecordStore,
 ): Promise<Response> {
-  const kept = keptRecoveryExecutes.get(token);
+  const kept = await storage.take(KEPT_RECOVERY_SCOPE, token);
   if (!kept) {
     return Response.json({ code: 'intended_recovery_execute_missing' }, { status: 404 });
   }
-  keptRecoveryExecutes.delete(token);
-  const reply = await router.fetch(
-    new Request(kept.url, {
-      method: 'POST',
-      headers: kept.headers.map(([name, value]) => [name, value] as [string, string]),
-      body: kept.body,
-    }),
-  );
+  const reply = await router.fetch(parseLocalIntendedKeptRouterRequestV1(kept));
   return Response.json({ status: reply.status, body: await reply.text() });
 }
 

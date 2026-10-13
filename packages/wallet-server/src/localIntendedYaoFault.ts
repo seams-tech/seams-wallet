@@ -1,3 +1,4 @@
+import { assertString, requireArray, requireRecord } from '@shared/utils/validation';
 import { ROUTER_AB_TRACE_ID_HEADER_V1 } from '@shared/utils/routerAbTraceContext';
 
 export const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
@@ -110,6 +111,22 @@ export function parseLocalIntendedYaoFaultTokenV1(
 
 export function isLocalIntendedYaoFaultTokenV1(value: string | null): value is string {
   return !!value && LOCAL_INTENDED_YAO_FAULT_TOKEN_PATTERN_V1.test(value);
+}
+
+/** Reconstructs a local fault request from its persisted boundary value. */
+export function parseLocalIntendedKeptRouterRequestV1(value: unknown): Request {
+  const record = requireRecord(value, 'Kept Router request');
+  const headers = new Headers();
+  for (const value of requireArray(record.headers, 'Kept Router headers')) {
+    const pair = requireArray(value, 'Kept Router header');
+    if (pair.length !== 2) throw new Error('Kept Router header must contain a name and value');
+    headers.append(assertString(pair[0], 'header name'), assertString(pair[1], 'header value'));
+  }
+  return new Request(assertString(record.url, 'Kept Router URL'), {
+    method: 'POST',
+    headers,
+    body: assertString(record.body, 'Kept Router body'),
+  });
 }
 
 export class LocalIntendedYaoFaultControllerV1 {
