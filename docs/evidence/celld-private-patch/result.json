@@ -1,0 +1,111 @@
+{
+  "recordedAt": "2026-10-13T04:36:13.483Z",
+  "sourceCommit": "a60b4c63dbbc940d5492ad40bacd96c752d0a087",
+  "node": "v26.4.0",
+  "platform": "darwin-arm64",
+  "celld": "celld 0.6.2-seams.1 (debug)",
+  "celldSha256": "a7d2ec0f68f1bd6a762f4a300612d548de77ce5c9964eba9b9f6589cae1293fa",
+  "baselineCelld": "celld 0.6.2",
+  "baselineSha256": "92ededd2bcfebeb1e78cc2d97219f00214a79eb6606f0eef48208fca3f98c15a",
+  "miniflare": "4.20260710.0",
+  "workerd": "1.20260710.1",
+  "harnessSha256": "78f860fed8aa095fd8e794c0c4cd4b2a1a4776aab822953e220db320780d255c",
+  "fixtureHashes": {
+    "owner": "0180ec88d9e5ec14de6e5769536c183466858704af4af6eb14d3bd9cb9639cae",
+    "caller": "5f7b2d71754fbda46497eeb8feb7e36debe3ddfe98e2fb714dddc7fcd2dfa0c7"
+  },
+  "status": "passed",
+  "stage": "celld-downgrade-refusal",
+  "reference": {
+    "throughService": {
+      "owner": "router",
+      "count": 1,
+      "id": "ea558518439bd5b15db12420e768dfc8f2a9fef1e811bcc165debce7383adb9f"
+    },
+    "throughObject": {
+      "owner": "router",
+      "count": 2,
+      "id": "ea558518439bd5b15db12420e768dfc8f2a9fef1e811bcc165debce7383adb9f"
+    },
+    "readThroughService": {
+      "owner": "router",
+      "count": 2,
+      "id": "ea558518439bd5b15db12420e768dfc8f2a9fef1e811bcc165debce7383adb9f"
+    }
+  },
+  "owner": [
+    {
+      "owner": "router",
+      "count": 1,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "serviceControl": [
+    {
+      "owner": "router",
+      "count": 2,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    },
+    {
+      "owner": "router",
+      "count": 2,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "crossScript": [
+    {
+      "owner": "router",
+      "count": 3,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    },
+    {
+      "owner": "router",
+      "count": 3,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    },
+    {
+      "owner": "router",
+      "count": 3,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "restart": [
+    {
+      "owner": "router",
+      "count": 3,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "objectOnly": [
+    {
+      "owner": "router",
+      "count": 3,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "routerCycle": [
+    {
+      "owner": "router",
+      "count": 4,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    },
+    {
+      "owner": "router",
+      "count": 4,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "wrongOwner": "Error: celld exited before readiness: <jemalloc>: option background_thread currently supports pthread only\n2026-10-13T04:36:17.052722Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\ncelld dev\n  Project  /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-qyAKvW/wrong-owner.json\n  State    /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-qyAKvW/.celld/dev\n  Watch    disabled\n  ● opening the local storage\n  ● building the application\n celld 0.6.2-seams.1\n───────────────────────────────────────────────\nTotal Upload: 0.48 KiB / gzip: 0.27 KiB\nYour Worker has access to the following bindings:\nBinding                           Resource\nenv.TENANT_ROOT (TenantRoot)      Durable Object\nenv.ROUTER (Service)              owner\nenv.OWNER_LABEL (Text)            Environment Variable\nBundled caller (0.00 sec)\n<jemalloc>: option background_thread currently supports pthread only\n2026-10-13T04:36:17.073918Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\n2026-10-13T04:36:17.073968Z  INFO celld: host runtime initialized event=\"host_runtime\" worker_count=14\nError: object binding TENANT_ROOT targets class TenantRoot not owned by script other\nError: the local node exited before it announced its operator listener\n",
+  "missingOwner": "Error: celld exited before readiness: <jemalloc>: option background_thread currently supports pthread only\n2026-10-13T04:36:17.157749Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\ncelld dev\n  Project  /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-qyAKvW/missing-owner.json\n  State    /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-qyAKvW/.celld/dev\n  Watch    disabled\n  ● opening the local storage\n  ● building the application\n celld 0.6.2-seams.1\n───────────────────────────────────────────────\nTotal Upload: 0.48 KiB / gzip: 0.27 KiB\nYour Worker has access to the following bindings:\nBinding                           Resource\nenv.TENANT_ROOT (TenantRoot)      Durable Object\nenv.ROUTER (Service)              owner\nenv.OWNER_LABEL (Text)            Environment Variable\nBundled caller (0.00 sec)\n<jemalloc>: option background_thread currently supports pthread only\n2026-10-13T04:36:17.179305Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\n2026-10-13T04:36:17.179345Z  INFO celld: host runtime initialized event=\"host_runtime\" worker_count=14\nError: load Worker binding target missing\n\nCaused by:\n    read dev:///Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-qyAKvW/.celld/dev/objects.sqlite3/deploy/missing/current.json: no such key\nError: the local node exited before it announced its operator listener\n",
+  "recovery": [
+    {
+      "owner": "router",
+      "count": 4,
+      "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+    }
+  ],
+  "downgradeRefusal": {
+    "exitCode": 1,
+    "output": "2026-10-13T04:36:17.716526Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\n2026-10-13T04:36:17.716557Z  INFO celld: host runtime initialized event=\"host_runtime\" worker_count=14\n<jemalloc>: option background_thread currently supports pthread only\nError: deployment requires feature \"external-durable-objects-v1\" this celld build does not support; upgrade celld\n"
+  }
+}

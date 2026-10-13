@@ -1,7 +1,8 @@
 # Celld cross-script Durable Object compatibility
 
 Celld 0.6.2 fails the cross-script object gate required by our current Worker topology.
-Keep the existing hosting implementations. Runtime consolidation remains blocked.
+A subsequent [private runtime proof](celld-private-patch.md) passes the local binding check.
+Keep the existing hosting implementations until the remaining consolidation gates pass.
 
 This is an `environment_or_infrastructure_failure`: the proposed runtime cannot load a required binding graph.
 It is not evidence of a Wallet production regression. Do not change Wallet authorization or state ownership to satisfy this probe.
@@ -92,7 +93,9 @@ gh attestation verify .artifacts/celld-runtime/celld-aarch64-apple-darwin.gz \
   --repo denoland/celld
 gzip -dc .artifacts/celld-runtime/celld-aarch64-apple-darwin.gz > .artifacts/celld-runtime/celld
 chmod +x .artifacts/celld-runtime/celld
-node tests/e2e/celld-bindings.e2e.mjs "$PWD/.artifacts/celld-runtime/celld"
+node tests/e2e/celld-bindings.e2e.mjs \
+  "$PWD/.artifacts/celld-runtime/celld" \
+  "$PWD/.artifacts/celld-runtime/celld"
 ```
 
 Use the matching release asset on another platform. Recheck its attestation and record its hash.
@@ -101,7 +104,8 @@ It uses loopback listeners and local celld storage. It requires no cloud credent
 
 ## Next acceptance condition
 
-A compatible celld release must pass this unchanged capability contract before application migration starts.
+A candidate runtime must pass the object-ownership contract before application migration starts.
+The private build now passes an expanded version of this check.
 Then prove the complete role graph, exact release artifacts, storage isolation, and the remaining lifecycle gates.
-A runtime fork, new HTTP object adapter, or changed custody boundary requires a separate design decision.
+The user selected a private runtime proof. Production adoption, a new HTTP object adapter, or a changed custody boundary still needs its own design decision.
 No upstream issue, pull request, or maintainer contact was made.

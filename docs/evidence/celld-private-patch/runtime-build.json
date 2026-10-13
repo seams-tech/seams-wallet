@@ -1,0 +1,13 @@
+{
+  "upstreamRepository": "https://github.com/denoland/celld.git",
+  "upstreamCommit": "90b43017241f81189453d326d05948f388b34652",
+  "patchSha256": "6c42d06498ffdc42cef489aaef17dee52a0dbe67c543cc0bd30b035122e3f4a0",
+  "version": "0.6.2-seams.1",
+  "binarySha256": "a7d2ec0f68f1bd6a762f4a300612d548de77ce5c9964eba9b9f6589cae1293fa",
+  "buildCommand": "cargo build --locked -p celld --bin celld --offline",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+  "profile": "dev",
+  "platform": "darwin-arm64",
+  "patchLocation": "seams-monorepo/deployment/celld/cross-script-objects.patch"
+}
