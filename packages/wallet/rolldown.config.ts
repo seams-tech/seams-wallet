@@ -116,6 +116,7 @@ const external = [
   'react',
   'react-dom',
   'react/jsx-runtime',
+  'voice-glow',
   /^preact(?:\/.*)?$/,
 
   // All @near-js packages

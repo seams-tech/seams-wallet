@@ -141,6 +141,9 @@ importers:
       viem:
         specifier: ^2.38.6
         version: 2.46.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.22.3)
+      voice-glow:
+        specifier: 0.2.1
+        version: 0.2.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
     devDependencies:
       '@simplewebauthn/server':
         specifier: ^13.2.2
@@ -3000,6 +3003,12 @@ packages:
       postcss:
         optional: true
 
+  voice-glow@0.2.1:
+    resolution: {integrity: sha512-Lpc+Ppd788kCDC88p9Hr8u3eFQh0X/hdISX76hqx1/x4BZiidrmCuQRLOE+jGOIkqB1BdaFBJ7F2rg1GsST6tw==}
+    peerDependencies:
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+
   vscode-jsonrpc@8.2.0:
     resolution: {integrity: sha512-C+r0eKJUIfiDIfwJhria30+TYWPtuHJXHtI7J0YlOmKAo7ogxP20T0zxB7HZQIFhIyvoBPwWskjxrvAtfjyZfA==}
     engines: {node: '>=14.0.0'}
@@ -5808,6 +5817,11 @@ snapshots:
       - terser
       - typescript
       - universal-cookie
+
+  voice-glow@0.2.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+    dependencies:
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
 
   vscode-jsonrpc@8.2.0: {}
 

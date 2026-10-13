@@ -4,7 +4,7 @@
  * This package provides React components and hooks for integrating Web3Authn Passkey
  * functionality into React applications.
  *
- * **Important:** All React components and hooks must be used inside a SeamsWeb context.
+ * **Important:** Wallet hooks and account components require a SeamsWeb context.
  * Wrap your app with SeamsWebProvider to provide the required context.
  *
  * @example
@@ -174,6 +174,14 @@ export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';
 export { ShowQRCode } from './components/ShowQRCode';
 export type { ShowQRCodeProps } from './components/ShowQRCode';
+export { VoiceAssistantCard } from './components/VoiceAssistantCard';
+export type {
+  VoiceAssistantCardProps,
+  VoiceAssistantInput,
+  VoiceAssistantState,
+} from './components/VoiceAssistantCard';
+export { VoiceBeam } from 'voice-glow';
+export type { VoiceBeamLevel, VoiceBeamProps } from 'voice-glow';
 export { HostedSeamsAuthMenu, SeamsAuthMenuMock } from './components/HostedSeamsAuthMenu/public';
 export type {
   HostedAuthMenuCopy,
