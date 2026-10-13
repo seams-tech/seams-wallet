@@ -9,6 +9,10 @@ wallets finish in less than 2.0 s after the passkey step. The
 [record](evidence/refactor-155h-release-093-staging.md) holds the chain.
 Phases 1 and 3 are decided and not implemented. Date: October 13, 2026.
 
+[R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
+outliers and the combined p99 comparison. It reuses this plan's Phase 1 design
+and keeps Phase 3 conditional on measured need.
+
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
 window between setup and respond, the two Console exchanges inside
