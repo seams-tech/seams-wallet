@@ -495,7 +495,7 @@ fn labels_equal(left: &super::WireLabel, right: &super::WireLabel) -> super::Cho
     let mut difference = 0_u8;
     let mut index = 0_usize;
     while index < super::LABEL_BYTES {
-        difference |= left.0[index] ^ right.0[index];
+        difference |= left.bytes()[index] ^ right.bytes()[index];
         index += 1;
     }
     let nonzero = (difference | difference.wrapping_neg()) >> 7;

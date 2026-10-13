@@ -3,8 +3,9 @@ use core::fmt;
 use aes::cipher::{Block, BlockEncrypt, KeyInit};
 use aes::Aes128;
 use subtle::{Choice, ConditionallySelectable};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{DefaultIsZeroes, Zeroize, ZeroizeOnDrop};
 
+mod gate_aes;
 mod ot;
 mod packages;
 #[cfg(test)]
@@ -74,26 +75,51 @@ impl ChoiceBit {
     }
 }
 
+/// Sixteen secret bytes that one volatile write wipes.
+///
+/// The derived wipe of a byte array writes and fences each byte on its own.
+/// A ceremony drops millions of labels, and on WebAssembly that wipe took
+/// about a third of garbling and of evaluation. `DefaultIsZeroes` selects the
+/// same volatile write for the whole value at once, as for an integer.
+#[derive(Clone, Copy, Default)]
+struct SecretBlock([u8; LABEL_BYTES]);
+
+impl DefaultIsZeroes for SecretBlock {}
+
+impl SecretBlock {
+    fn conditional_xor(&mut self, other: &Self, choice: Choice) {
+        let mut index = 0_usize;
+        while index < LABEL_BYTES {
+            self.0[index] ^= u8::conditional_select(&0, &other.0[index], choice);
+            index += 1;
+        }
+    }
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(crate) struct WireLabel([u8; LABEL_BYTES]);
+pub(crate) struct WireLabel(SecretBlock);
 
 impl WireLabel {
     const fn from_secret_bytes(bytes: [u8; LABEL_BYTES]) -> Self {
-        Self(bytes)
+        Self(SecretBlock(bytes))
+    }
+
+    const fn bytes(&self) -> &[u8; LABEL_BYTES] {
+        &self.0 .0
     }
 
     const fn selection_bit(&self) -> ChoiceBit {
-        ChoiceBit(self.0[LABEL_BYTES - 1] & 1)
+        ChoiceBit(self.bytes()[LABEL_BYTES - 1] & 1)
     }
 
     fn xor(&self, other: &Self) -> Self {
         let mut output = [0_u8; LABEL_BYTES];
         let mut index = 0_usize;
         while index < LABEL_BYTES {
-            output[index] = self.0[index] ^ other.0[index];
+            output[index] = self.bytes()[index] ^ other.bytes()[index];
             index += 1;
         }
-        Self(output)
+        Self::from_secret_bytes(output)
     }
 
     fn duplicate(&self) -> Self {
@@ -101,22 +127,17 @@ impl WireLabel {
     }
 
     fn conditional_xor(&mut self, other: &Self, choice: ChoiceBit) {
-        let choice = Choice::from(choice.0);
-        let mut index = 0_usize;
-        while index < LABEL_BYTES {
-            self.0[index] ^= u8::conditional_select(&0, &other.0[index], choice);
-            index += 1;
-        }
+        self.0.conditional_xor(&other.0, Choice::from(choice.0));
     }
 
     #[cfg(test)]
     const fn test_bytes(&self) -> &[u8; LABEL_BYTES] {
-        &self.0
+        self.bytes()
     }
 
     #[cfg(test)]
     const fn from_test_bytes(bytes: [u8; LABEL_BYTES]) -> Self {
-        Self(bytes)
+        Self::from_secret_bytes(bytes)
     }
 }
 
@@ -217,18 +238,33 @@ impl GateTweak {
     }
 }
 
-struct FixedAesGarblingHash(Aes128);
+/// The fixed-key hash of both half gates. The evaluator hashes two labels per
+/// AND gate through the `aes` crate. The garbler hashes four, in one pass of
+/// the four-block cipher.
+struct FixedAesGarblingHash {
+    cipher: Aes128,
+    four_blocks: gate_aes::FourBlockAes128,
+}
+
+/// Two cipher blocks that one volatile write wipes.
+#[derive(Clone, Copy, Default)]
+struct TwoCipherBlocks([Block<Aes128>; 2]);
+
+impl DefaultIsZeroes for TwoCipherBlocks {}
 
 impl FixedAesGarblingHash {
     fn new() -> Self {
-        Self(Aes128::new(&FIXED_AES_KEY.into()))
+        Self {
+            cipher: Aes128::new(&FIXED_AES_KEY.into()),
+            four_blocks: gate_aes::FourBlockAes128::new(&FIXED_AES_KEY),
+        }
     }
 
     #[cfg(test)]
     fn hash(&self, label: &WireLabel, tweak: GateTweak) -> WireLabel {
-        let (mut input, mut block) = prepare_hash_block(label, tweak);
-        self.0.encrypt_block(&mut block);
-        finish_hash_block(&mut input, &mut block)
+        let [output, mut unused] = self.hash_two(label, tweak, label, tweak);
+        unused.zeroize();
+        output
     }
 
     fn hash_two(
@@ -238,53 +274,63 @@ impl FixedAesGarblingHash {
         second_label: &WireLabel,
         second_tweak: GateTweak,
     ) -> [WireLabel; 2] {
-        let (mut first_input, first_block) = prepare_hash_block(first_label, first_tweak);
-        let (mut second_input, second_block) = prepare_hash_block(second_label, second_tweak);
-        let mut blocks = [first_block, second_block];
-        self.0.encrypt_blocks(&mut blocks);
-        [
-            finish_hash_block(&mut first_input, &mut blocks[0]),
-            finish_hash_block(&mut second_input, &mut blocks[1]),
-        ]
+        let mut inputs = [
+            prepare_hash_input(first_label, first_tweak),
+            prepare_hash_input(second_label, second_tweak),
+        ];
+        let mut blocks = TwoCipherBlocks([inputs[0].0.into(), inputs[1].0.into()]);
+        self.cipher.encrypt_blocks(&mut blocks.0);
+        let outputs = [
+            finish_hash_output(&inputs[0], blocks.0[0].as_ref()),
+            finish_hash_output(&inputs[1], blocks.0[1].as_ref()),
+        ];
+        inputs.zeroize();
+        blocks.zeroize();
+        outputs
     }
 
     fn hash_four(&self, labels: [&WireLabel; 4], tweaks: [GateTweak; 4]) -> [WireLabel; 4] {
-        let (mut input_zero, block_zero) = prepare_hash_block(labels[0], tweaks[0]);
-        let (mut input_one, block_one) = prepare_hash_block(labels[1], tweaks[1]);
-        let (mut input_two, block_two) = prepare_hash_block(labels[2], tweaks[2]);
-        let (mut input_three, block_three) = prepare_hash_block(labels[3], tweaks[3]);
-        let mut blocks = [block_zero, block_one, block_two, block_three];
-        self.0.encrypt_blocks(&mut blocks);
-        [
-            finish_hash_block(&mut input_zero, &mut blocks[0]),
-            finish_hash_block(&mut input_one, &mut blocks[1]),
-            finish_hash_block(&mut input_two, &mut blocks[2]),
-            finish_hash_block(&mut input_three, &mut blocks[3]),
-        ]
+        let mut inputs = [
+            prepare_hash_input(labels[0], tweaks[0]),
+            prepare_hash_input(labels[1], tweaks[1]),
+            prepare_hash_input(labels[2], tweaks[2]),
+            prepare_hash_input(labels[3], tweaks[3]),
+        ];
+        let mut blocks = gate_aes::FourBlocks([inputs[0].0, inputs[1].0, inputs[2].0, inputs[3].0]);
+        self.four_blocks.encrypt_four(&mut blocks);
+        let outputs = [
+            finish_hash_output(&inputs[0], &blocks.0[0]),
+            finish_hash_output(&inputs[1], &blocks.0[1]),
+            finish_hash_output(&inputs[2], &blocks.0[2]),
+            finish_hash_output(&inputs[3], &blocks.0[3]),
+        ];
+        inputs.zeroize();
+        blocks.zeroize();
+        outputs
     }
 }
 
-fn prepare_hash_block(label: &WireLabel, tweak: GateTweak) -> ([u8; LABEL_BYTES], Block<Aes128>) {
-    let mut doubled = double_gf128(&label.0);
-    let mut input = [0_u8; LABEL_BYTES];
+/// The cipher input of one label: its double in GF(2^128), offset by the tweak.
+fn prepare_hash_input(label: &WireLabel, tweak: GateTweak) -> SecretBlock {
+    let mut doubled = SecretBlock(double_gf128(label.bytes()));
+    let mut input = SecretBlock::default();
     let mut index = 0_usize;
     while index < LABEL_BYTES {
-        input[index] = doubled[index] ^ tweak.0[index];
+        input.0[index] = doubled.0[index] ^ tweak.0[index];
         index += 1;
     }
     doubled.zeroize();
-    (input, input.into())
+    input
 }
 
-fn finish_hash_block(input: &mut [u8; LABEL_BYTES], block: &mut Block<Aes128>) -> WireLabel {
+/// The hash output of one encrypted block. The caller wipes both arguments.
+fn finish_hash_output(input: &SecretBlock, block: &[u8; LABEL_BYTES]) -> WireLabel {
     let mut output = [0_u8; LABEL_BYTES];
     let mut index = 0_usize;
     while index < LABEL_BYTES {
-        output[index] = block[index] ^ input[index];
+        output[index] = block[index] ^ input.0[index];
         index += 1;
     }
-    input.zeroize();
-    block.as_mut_slice().zeroize();
     WireLabel::from_secret_bytes(output)
 }
 
@@ -354,7 +400,7 @@ impl EvaluatorWire {
     }
 
     pub(super) fn append_secret_bytes(&self, output: &mut Vec<u8>) {
-        output.extend_from_slice(&self.active.0);
+        output.extend_from_slice(self.active.bytes());
     }
 }
 
@@ -368,14 +414,14 @@ impl GarbledAndGate {
     #[cfg(test)]
     pub(crate) fn encode(&self) -> [u8; AND_GATE_BYTES] {
         let mut encoded = [0_u8; AND_GATE_BYTES];
-        encoded[..LABEL_BYTES].copy_from_slice(&self.garbler_half.0);
-        encoded[LABEL_BYTES..].copy_from_slice(&self.evaluator_half.0);
+        encoded[..LABEL_BYTES].copy_from_slice(self.garbler_half.bytes());
+        encoded[LABEL_BYTES..].copy_from_slice(self.evaluator_half.bytes());
         encoded
     }
 
     pub(super) fn append_encoded(&self, encoded: &mut Vec<u8>) {
-        encoded.extend_from_slice(&self.garbler_half.0);
-        encoded.extend_from_slice(&self.evaluator_half.0);
+        encoded.extend_from_slice(self.garbler_half.bytes());
+        encoded.extend_from_slice(self.evaluator_half.bytes());
     }
 
     pub(crate) fn decode(encoded: &[u8; AND_GATE_BYTES]) -> Self {
@@ -414,8 +460,8 @@ impl Garbler {
         wire: &GarblerWire,
     ) -> ([u8; LABEL_BYTES], [u8; LABEL_BYTES]) {
         (
-            wire.active_label(&self.delta, WireValue::ZERO).0,
-            wire.active_label(&self.delta, WireValue::ONE).0,
+            *wire.active_label(&self.delta, WireValue::ZERO).bytes(),
+            *wire.active_label(&self.delta, WireValue::ONE).bytes(),
         )
     }
 

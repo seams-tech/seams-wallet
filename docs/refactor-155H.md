@@ -782,11 +782,19 @@ work. One item each.
   request at 1,300 ms and 1,464 ms at the 90th percentile, the real protocol
   time at 634 ms and 647 ms, Deriver B's CPU from 286 ms to 239 ms and
   Deriver A's from 344 ms to 314 ms. A first run gains less than a warm run.
-- [ ] **A wider gate hash.** Only if the staging chain still shows the gate
-  hash on top after SIMD: the `aes` crate's software cipher works on two
-  blocks per call on `wasm32`. A four-block or eight-block bitsliced cipher
-  with the same outputs is crypto engineering with its own vectors and
-  constant-time evidence. Not started.
+- [x] **Label wipes and a four-block gate hash.** Implemented on October 13,
+  not released. The gate hash was not the largest cost: the wipe of dropped
+  labels was. The derived wipe of a 16-byte array writes and fences each
+  byte, and a ceremony drops several million labels. A label is now a value
+  that one volatile write wipes, and the garbler hashes its four blocks in
+  one pass of a 64-bit fixslice kept in `passive/gate_aes.rs`. In the engine
+  benchmark garbling fell from 60 ms to 30 ms and evaluation from 39 ms to
+  25 ms. On Cloudflare the benchmark pair's ceremony fell from 262 ms to
+  210 ms on warm isolates, Deriver A's CPU from 166 ms to 121 ms and Deriver
+  B's from 146 ms to 123 ms. The transcript is unchanged, and the frozen
+  known answers pass. The [record](evidence/refactor-155h-label-wipe-gate-hash.md)
+  holds the measurements and the verification. Open: the contract suites on
+  release Workers, a release and the staging measurement.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
   commitment checks and the HPKE seal are product additions the benchmark
   pair does not run. Place them with the local profiler and move what does
