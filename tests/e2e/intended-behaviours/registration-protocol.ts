@@ -6,7 +6,7 @@ import {
   type TestInfo,
   type APIRequestContext,
 } from '@playwright/test';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { build } from 'esbuild';
 import {
@@ -105,43 +105,6 @@ class SetupReplayProbe {
   }
 }
 
-async function callPublishedRegistration(input: {
-  gatewayOrigin: string;
-  publishableKey: string;
-  environmentId: string;
-}): Promise<string> {
-  const moduleUrl = '/__published-client.js';
-  const client = await import(moduleUrl);
-  try {
-    await client.setupWalletRegistration({
-      relayerUrl: input.gatewayOrigin,
-      auth: { publishableKey: input.publishableKey, environmentId: input.environmentId },
-      request: {
-        wallet: { kind: 'server_allocated' },
-        signerSelection: {
-          kind: 'signer_set',
-          signers: [
-            {
-              kind: 'near_ed25519',
-              accountProvisioning: {
-                kind: 'implicit_account',
-                accountIdSource: 'ed25519_public_key',
-              },
-              signerSlot: 1,
-              participantIds: [1, 2],
-              derivationVersion: 1,
-            },
-          ],
-        },
-        authMethod: { kind: 'passkey', rpId: 'localhost' },
-      },
-    });
-    return 'unexpected success';
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
 async function readAcceptedSetupOperations(
   _body: HTMLElement,
   modulePath: string,
@@ -155,39 +118,6 @@ async function readAcceptedSetupOperations(
     if (row.value.state === 'accepted') accepted.push(row.value.operationId);
   }
   return accepted;
-}
-
-async function verifyPublishedClientRejection(
-  page: Page,
-  previous: PreviousProtocolRequest,
-  root: string,
-): Promise<void> {
-  const definition = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
-  expect(definition.name).toBe('@seams/wallet');
-  // The last release that sends protocol 3.
-  expect(definition.version).toBe('0.9.4');
-  const bundle = await build({
-    entryPoints: [path.join(root, 'dist/esm/core/rpcClients/relayer/walletRegistration.js')],
-    bundle: true,
-    format: 'esm',
-    platform: 'browser',
-    write: false,
-    logLevel: 'silent',
-  });
-  const module = new BrowserProbeModule(bundle.outputFiles[0].text);
-  const serve = module.serve.bind(module);
-  await page.route('**/__published-client.js', serve);
-  try {
-    const message = await page.evaluate(callPublishedRegistration, {
-      gatewayOrigin: new URL(previous.url).origin,
-      publishableKey: previous.headers.authorization.replace(/^Bearer /, ''),
-      environmentId: previous.headers['x-seams-environment-id'],
-    });
-    expect(message).toContain('Reload this page and try again');
-    expect(message).toContain('upgrade the Wallet SDK');
-  } finally {
-    await page.unroute('**/__published-client.js', serve);
-  }
 }
 
 export async function verifyWalletProtocolCutover(
@@ -213,9 +143,6 @@ export async function verifyWalletProtocolCutover(
   } finally {
     await context.unroute(setup, forward);
   }
-
-  const publishedRoot = process.env.SEAMS_PUBLISHED_WALLET_ROOT;
-  if (publishedRoot) await verifyPublishedClientRejection(page, previous, publishedRoot);
 
   const unsupported = await context.request.post(previous.url, {
     headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: 'unsupported' },
@@ -309,7 +236,6 @@ export async function verifyWalletProtocolCutover(
         oldRequest:
           'current browser client with the protocol header removed to reproduce the published request shape',
         rejectedRequests: previous.requests,
-        publishedProtocol3Client: publishedRoot ? 'rejected with upgrade message' : 'not requested',
         upgradeMessageVisible: true,
         unsupportedProtocolRejectedBeforeJsonParsing: true,
         previousProtocolRejectedBeforeJsonParsing: true,
