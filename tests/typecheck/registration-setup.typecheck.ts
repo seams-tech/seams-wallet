@@ -3,6 +3,8 @@ import type { WalletId } from '../../packages/shared-ts/src/utils/domainIds';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 import type {
   WalletRegistrationSetupReservation,
+  RegistrationWalletStartup,
+  RegistrationPairStartup,
   WalletRegistrationSetupReservationResult,
 } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 
@@ -208,3 +210,12 @@ const inactiveRegistrationContext: WalletRegistrationContextResult = {
   environment: { ...registrationContext.environment, status: 'DISABLED' },
 };
 void [incompleteRegistrationContext, failedRegistrationContext, inactiveRegistrationContext];
+
+declare const preparedPair: RegistrationPairStartup;
+// @ts-expect-error Pair preparation requires its admission description and deadline.
+const incompletePair: RegistrationWalletStartup = { kind: 'pair', walletId, ownershipGeneration: 1 };
+// @ts-expect-error Object startup cannot retain a pair's admission through a spread.
+const objectWithAdmission: RegistrationWalletStartup = { ...preparedPair, kind: 'objects' };
+// @ts-expect-error Every prepared pair must identify its ownership generation.
+const missingGeneration: RegistrationWalletStartup = { kind: 'objects', walletId };
+void [incompletePair, objectWithAdmission, missingGeneration];

@@ -1,3 +1,4 @@
+import type { RegistrationWalletStartup, RegistrationPairStartup } from './router/domains/walletRegistration/walletRegistrationReservation';
 import type { WalletRegistrationContextResolver } from './router/framework/apiCredentialPorts';
 import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
 import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTITY_HEADER, WALLET_OBJECT_ADDRESSES_HEADER, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
@@ -75,7 +76,6 @@ import {
   ROUTER_AB_SIGNING_WORKER_ORIGIN,
   type RouterAbServiceBindingEnv,
 } from './cloud-host';
-import type { WalletId } from '@shared/utils/registrationIntent';
 import { handleRouterAbEd25519YaoRegistrationRequestScopedCloudflareV1 } from './cloud-host';
 import { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './cloud-host';
 import { RouterAbEd25519YaoRecoveryWalletSessionAuthorizationAdapter } from './cloud-host';
@@ -1331,15 +1331,34 @@ function createStagingYaoRequestScopedRuntime(
 }
 
 async function scheduleRegistrationRouterStartup(
-  env: CloudflareD1GatewayBaseEnv,
+  env: CloudflareD1GatewayEnv,
   background: CfExecutionContext,
-  registration: { readonly walletId: WalletId; readonly ownershipGeneration: number },
+  registration: RegistrationWalletStartup,
 ): Promise<void> {
   const tenant = stagingTenantScope(env);
   const identity = walletObjectIdentity(registration.walletId, registration.ownershipGeneration, tenant);
+  if (registration.kind === 'pair') {
+    background.waitUntil(prepareRegistrationRouterPair(env, identity, registration));
+    return;
+  }
   const addresses = new D1WalletObjectAddresses(env.SIGNER_DB, tenant);
   await addresses.initialize(identity, env.MPC_ROUTER, requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'));
   background.waitUntil(startRegistrationRouter(env, identity));
+}
+
+async function prepareRegistrationRouterPair(
+  env: CloudflareD1GatewayEnv,
+  identity: WalletObjectIdentity,
+  registration: RegistrationPairStartup,
+): Promise<void> {
+  try {
+    const scope = stagingTenantScope(env);
+    const lineage = createStagingTenantRootCustodyLineage(createWalletConsoleOpsClient(env.WALLET_CONSOLE));
+    const backend = createStagingEd25519YaoBackend(env, createStagingRegistrationTenantRootResolver(scope, lineage));
+    await backend.prepareRegistrationPair(identity, registration.admissionRequest, registration.admissionReceipt, registration.expiresAtMs);
+  } catch {
+    console.log(JSON.stringify({ event: 'registration_pair_preparation', outcome: 'failure' }));
+  }
 }
 
 async function startRegistrationRouter(

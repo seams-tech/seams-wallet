@@ -1,4 +1,5 @@
 import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
+import { consumeRegistrationSetupRateLimit } from '../d1/registration/d1RegistrationSetupRateLimit';
 import { ensureLeadingSlash } from '@shared/utils/validation';
 import {
   createCloudflareD1RouterAbNormalSigningAdmissionStore,
@@ -153,6 +154,7 @@ type WalletGatewayManagedRouterOption =
   | 'apiKeyAuth'
   | 'publishableKeyAuth'
   | 'registrationContext'
+  | 'registrationSetupRateLimit'
   | 'apiKeyUsageMeter'
   | 'orgProjectEnv'
   | 'routerAbNormalSigningAdmission'
@@ -181,6 +183,9 @@ export function createCloudflareWalletGatewayRouterV1(
     apiKeyAuth: consoleOps.apiKeyAuth,
     publishableKeyAuth: consoleOps.publishableKeyAuth,
     registrationContext: input.registrationContext ?? consoleOps.registrationContext,
+    registrationSetupRateLimit: consumeRegistrationSetupRateLimit.bind(
+      undefined, input.signerDatabase, input.signerStorageNamespace,
+    ),
     apiKeyUsageMeter: consoleOps.usageMeter,
     orgProjectEnv: consoleOps.projectEnvironments,
     routerAbNormalSigningAdmission: createRouterAbNormalSigningAdmissionAdapter(admissionStore),

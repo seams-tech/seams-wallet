@@ -4615,14 +4615,19 @@ export class CloudflareD1WalletRegistrationService {
       authority: input.authority,
       signingWorkerId: yaoRuntime.signingWorkerId,
     });
-    const admitted = await yaoRuntime.bindVerifiedIntent({
-      kind: 'verified_registration_intent',
-      ownershipGeneration: input.ownershipGeneration,
-      registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
-      intent: input.ceremony.intent,
-      admissionRequest,
-      expiresAtMs: input.ceremony.expiresAtMs,
-    });
+    const admitted = await yaoRuntime.bindAndAdmitVerifiedRegistration(
+      {
+        kind: 'verified_registration_intent',
+        ownershipGeneration: input.ownershipGeneration,
+        registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
+        intent: input.ceremony.intent,
+        admissionRequest,
+        expiresAtMs: input.ceremony.expiresAtMs,
+      },
+      null,
+      null,
+      requireRegistrationEd25519YaoMint(input.ceremony).sessionId,
+    );
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     return {
       ok: true,

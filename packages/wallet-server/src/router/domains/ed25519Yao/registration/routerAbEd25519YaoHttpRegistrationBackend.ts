@@ -5,6 +5,7 @@ import {
   parseRouterAbEd25519YaoActivationResultV1,
   parseRouterAbEd25519YaoExportResultV1,
   type RouterAbEd25519YaoBytes32V1,
+  type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoActivationKeysetV1,
   type RouterAbEd25519YaoRecoveryActivationRequestV1,
@@ -797,6 +798,26 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     return timing;
   }
 
+  async prepareRegistrationPair(
+    identity: WalletObjectIdentity,
+    request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    receipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>,
+    expiresAtMs: number,
+  ): Promise<void> {
+    const tenantRoot = await this.resolveRegistrationDispatchRoot(
+      routerAbEd25519YaoRegistrationSigningRootIdV1(request),
+    );
+    const response = await this.post('/router-ab/router/ed25519-yao/registration/prepare', identity, {
+      tenant_root: tenantRoot,
+      application: request.application_binding,
+      participant_ids: request.participant_ids,
+      binding: receipt.binding,
+      ownership_generation: identity.ownershipGeneration,
+      expires_at_ms: expiresAtMs,
+    }, createRouterAbTraceContextV1().value, 'exact');
+    if (!response.ok) throw new Error('Registration pair preparation failed');
+  }
+
   async admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     _traceContext?: RouterAbTraceContextV1,
@@ -1261,9 +1282,7 @@ export function createRouterAbEd25519YaoHttpRegistrationBackendFromEnv(input: {
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1;
   onSpan?: (span: RouterAbEd25519YaoGatewaySpanV1) => void;
   fetch: typeof fetch;
-}): RouterAbEd25519YaoPinnedRegistrationBackend &
-  RouterAbEd25519YaoRecoveryBackend &
-  RouterAbEd25519YaoExportBackend {
+}): RouterAbEd25519YaoHttpRegistrationBackend {
   const env = input.env;
   return new RouterAbEd25519YaoHttpRegistrationBackend({
     routerUrl: requireNonEmpty(

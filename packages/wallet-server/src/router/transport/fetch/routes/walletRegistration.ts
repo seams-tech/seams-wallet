@@ -113,6 +113,7 @@ export async function handleWalletRegistration(
       session: ctx.opts.session,
       publishableKeyAuth: ctx.opts.publishableKeyAuth,
       registrationContext: ctx.opts.registrationContext,
+      registrationSetupRateLimit: ctx.opts.registrationSetupRateLimit,
     },
     sourceIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
     signingSessionSeal: ctx.opts.signingSessionSeal,

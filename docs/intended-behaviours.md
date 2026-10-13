@@ -487,6 +487,17 @@ throughout the resize. Reduced-motion behavior remains immediate.
 
 ### Registration setup delivery
 
+- Hosted setup admits at most 30 attempts per minute per publishable key and
+  source IP in each regional Gateway database. It returns 429 when exhausted.
+  A counter failure returns 503 before reservation or custody startup.
+- Passkey setup can prepare the NEAR branch's two custody admissions and peer
+  connection, including in mixed registration. The session is fixed at setup.
+  Each wallet holds one input-free preparation for at most 30 seconds. Setup
+  grants no execution authority. Verified execution binds the encrypted inputs
+  and claims both roles before Yao protocol material flows. Expired preparation
+  falls back to online admission. Abandoned preparations release their admissions;
+  cancellation and relocation fences cannot be bypassed by a prepared connection.
+
 - Setup requires fresh publishable-key validation and the exact active application
   environment. Revoked keys, forbidden origins, and mismatched environments fail.
   Missing or inactive environments also fail before setup issues a signed response.

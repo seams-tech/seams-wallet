@@ -38,7 +38,7 @@ import { CloudflareD1RegistrationCeremonyIntentStore } from './d1RegistrationCer
 import {
   errorMessage,
   registrationIntentSignerBranches,
-  type registrationSignerBranchesFromPlan,
+  registrationSignerBranchesFromPlan,
   registrationPreparedContextEcdsaChainTargets,
   resolveRegistrationPreparedContextFromPlan,
 } from './d1RegistrationSetupSupport';
@@ -96,6 +96,7 @@ export async function executeD1WalletRegistrationSetup(
     // can overlap the ceremony read and write; neither grants signing authority.
     const [startup, setup] = await Promise.allSettled([
       dependencies.startRegistrationWallets?.({
+        kind: 'objects',
         walletId: wallet.walletId,
         ownershipGeneration: admitted.ownershipGeneration,
       }),
@@ -104,6 +105,24 @@ export async function executeD1WalletRegistrationSetup(
     if (setup.status === 'rejected') throw setup.reason;
     if (!setup.value.ok) return setup.value;
     if (startup.status === 'rejected') throw startup.reason;
+    if (dependencies.startRegistrationWallets) {
+      try {
+        const preparation = await describeCommittedSetupPair(setup.value, dependencies);
+        if (preparation.status === 'described') {
+          await dependencies.startRegistrationWallets({
+            kind: 'pair',
+            walletId: wallet.walletId,
+            ownershipGeneration: admitted.ownershipGeneration,
+            admissionRequest: preparation.admissionRequest,
+            admissionReceipt: preparation.admissionReceipt,
+            expiresAtMs,
+          });
+        }
+      } catch {
+        // The committed setup can execute through ordinary online admission.
+        console.warn('[wallet-registration] pair preparation unavailable');
+      }
+    }
     return setup.value;
   } catch (error: unknown) {
     // The route layer maps both codes to a 5xx status and withholds this message.
@@ -112,6 +131,31 @@ export async function executeD1WalletRegistrationSetup(
       errorMessage(error) || 'Failed to set up wallet registration',
     );
   }
+}
+
+async function describeCommittedSetupPair(
+  response: Variant<WalletRegistrationSetupResponseV2, 'ok', true>,
+  dependencies: Pick<WalletRegistrationSetupDependencies, 'store' | 'ed25519Yao'>,
+): Promise<WalletRegistrationSetupEd25519AdmissionV2> {
+  switch (response.kind) {
+    case 'near_ed25519':
+      return response.ed25519;
+    case 'evm_family_ecdsa':
+      return { status: 'after_proof' };
+    case 'near_ed25519_and_evm_family_ecdsa': {
+      const ceremony = await dependencies.store.getSetupCeremony(response.registrationCeremonyId);
+      if (!ceremony) throw new Error('Committed mixed registration ceremony is missing');
+      const branches = registrationSignerBranchesFromPlan(ceremony.signerPlan);
+      if (!branches.nearEd25519) throw new Error('Mixed registration has no NEAR branch');
+      return describeSetupEd25519Admission(dependencies.ed25519Yao, ceremony, branches.nearEd25519);
+    }
+    default:
+      return assertNeverSetupResponse(response);
+  }
+}
+
+function assertNeverSetupResponse(value: never): never {
+  throw new Error(`Unexpected registration setup response: ${String(value)}`);
 }
 
 async function completeReservedRegistrationSetup(
@@ -297,7 +341,7 @@ async function completeReservedRegistrationSetup(
 }
 
 /**
- * The admission that respond will issue for an Ed25519-only passkey plan.
+ * The admission that respond will issue for a passkey plan with a NEAR branch.
  * It follows from the stored ceremony alone, so a setup retry describes the
  * same admission. A failure to describe it withholds the description and
  * nothing else: respond then issues the admission as its first word on it.

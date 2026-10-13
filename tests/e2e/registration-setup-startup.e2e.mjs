@@ -40,12 +40,19 @@ class AddressAllocator {
 }
 
 class RegistrationAddresses {
+  preparations = [];
+  failPreparation = false;
   constructor(api, store, allocator) {
     this.api = api;
     this.store = store;
     this.allocator = allocator;
   }
   async initialize(registration) {
+    if (registration.kind === 'pair') {
+      if (this.failPreparation) throw new Error('Preparation service unavailable');
+      this.preparations.push(registration);
+      return;
+    }
     const identity = this.api.walletObjectIdentity(
       registration.walletId,
       registration.ownershipGeneration,
@@ -185,6 +192,7 @@ const bundle = await build({
       export { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from './packages/shared-ts/src/threshold/participants';
       export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { consumeRegistrationSetupRateLimit } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationSetupRateLimit';
       export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
     `,
   },
@@ -232,6 +240,7 @@ const runtime = new Miniflare({
 try {
   const database = await runtime.getD1Database('SIGNER_DB');
   await migrate(database);
+  const rateLimitEvidence = await verifySetupRateLimit(database);
   const allocator = new AddressAllocator(
     await runtime.getDurableObjectNamespace('ROUTER'),
     await runtime.getDurableObjectNamespace('A'),
@@ -319,6 +328,9 @@ try {
   assert.equal(options.registrationAuthority.continuationReads, 0);
   // The local authority never relocates a wallet, so the reserved generation is the first.
   assert.equal(allocator.calls, 1);
+  assert.equal(starter.preparations.length, 1);
+  assert.deepEqual(starter.preparations[0].admissionReceipt, first.ed25519.admissionReceipt);
+  assert.equal(starter.preparations[0].walletId, first.walletId);
   const identity = api.walletObjectIdentity(first.walletId, 1, scope);
   const saved = await addresses.read(identity);
   assert.ok(saved);
@@ -560,6 +572,14 @@ try {
     /immutable/,
   );
 
+  starter.failPreparation = true;
+  const withoutPreparation = await setup(registration, {
+    ...input,
+    request: { ...input.request, registrationOperationId: api.createRegistrationSetupOperationId() },
+  });
+  assert.equal(withoutPreparation.ok, true, 'A failed early preparation must preserve the committed setup');
+  starter.failPreparation = false;
+
   const setupRecovery = await verifySetupRecovery(database, options, starter, addresses, input);
 
   await writeFile(
@@ -567,6 +587,8 @@ try {
     `${JSON.stringify(
       {
         setupRecovery,
+        unavailablePreparationPreservesSetup: true,
+        rateLimitEvidence,
         replayUsesStoredAddresses: true,
         independentWallets: true,
         lostAllocationReplyRecovered: true,
@@ -718,4 +740,34 @@ async function verifySetupRecovery(database, options, starter, addresses, input)
 
 function isCeremonyRecord(record) {
   return record.record_scope === 'ceremony' || record.record_scope === 'setup-ceremony';
+}
+
+async function verifySetupRateLimit(database) {
+  const input = { ...scope, apiKeyId: 'public-key', sourceIp: '192.0.2.1' };
+  const consume = api.consumeRegistrationSetupRateLimit.bind(null, database, scope.namespace, input);
+  const attempts = await Promise.all(Array.from({ length: 42 }, consume));
+  const accepted = attempts.filter(isAllowed).length;
+  assert.equal(accepted, 30, 'Concurrent setup must admit exactly thirty requests');
+  for (const other of [
+    { ...input, apiKeyId: 'another-key' },
+    { ...input, sourceIp: '192.0.2.2' },
+  ]) {
+    assert.equal((await api.consumeRegistrationSetupRateLimit(database, scope.namespace, other)).allowed, true);
+  }
+  await database.prepare('UPDATE registration_setup_rate_limits SET reset_at_ms = 0').run();
+  assert.equal((await consume()).allowed, true, 'Expired windows allow setup again');
+  await database.prepare('DROP TABLE registration_setup_rate_limits').run();
+  await assert.rejects(consume, /registration_setup_rate_limits/);
+  await database.batch(unstable_splitSqlQuery(await readFile(
+    'packages/wallet-server/migrations/d1-signer/0080_registration_setup_rate_limits.sql', 'utf8',
+  )).map(prepareStatement.bind(null, database)));
+  return { attempts: attempts.length, accepted, keyAndIpIsolation: true, expiredWindow: true, storageFailureRefused: true };
+}
+
+function isAllowed(result) {
+  return result.allowed;
+}
+
+function prepareStatement(database, query) {
+  return database.prepare(query);
 }

@@ -167,6 +167,7 @@ type RouterApiWalletRegistrationServices = {
   session?: SessionAdapter | null;
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
   registrationContext?: WalletRegistrationContextResolver | null;
+  registrationSetupRateLimit?: import('../../framework/registrationSetupRateLimit').RegistrationSetupRateLimit;
 };
 
 type ParsedRegistrationSignerSet = {
@@ -2098,6 +2099,27 @@ export async function handleRouterApiWalletRegistrationSetup(
   });
   if (!resolved.ok) return routeJson(resolved.status, resolved.body);
   const principal = context.principal;
+  if (input.services.registrationSetupRateLimit) {
+    try {
+      const limit = await input.services.registrationSetupRateLimit({
+        apiKeyId: principal.apiKeyId,
+        orgId: principal.orgId,
+        projectId: context.environment.projectId,
+        envId: context.environment.key,
+        sourceIp: input.sourceIp || 'unknown',
+      });
+      if (!limit.allowed) {
+        return routeJson(429, {
+          ok: false,
+          code: 'rate_limited',
+          message: 'Too many registration attempts. Wait one minute and try again.',
+          retryAfterMs: 60_000,
+        });
+      }
+    } catch {
+      return routeError(503, 'internal', 'Registration setup rate limit is unavailable');
+    }
+  }
   const runtimePolicyScope = {
     orgId: principal.orgId,
     projectId: context.environment.projectId,
