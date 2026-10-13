@@ -15,9 +15,9 @@ use ed25519_yao::ml_dsa_runtime::begin_garbler;
 use ed25519_yao::ml_dsa_runtime::{RuntimeMetrics, Step, TrustedMlDsaSchedule, MAX_MESSAGE_BYTES};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
+use wasm_bindgen::JsCast;
 use worker::{Env, EventStream, WebSocket, WebsocketEvent};
 use zeroize::Zeroizing;
-use wasm_bindgen::JsCast;
 
 const CREDIT_WINDOW: u32 = 8;
 const MAX_COMPLETION_BYTES: usize = 16_384;

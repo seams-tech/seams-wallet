@@ -1,12 +1,15 @@
 use crate::{InvestigationResult, command_text, digest, require};
-use ml_dsa::{EncodedSignature, Keypair, MlDsa65, Seed, Signature, SigningKey};
+use ml_dsa::{
+    EncodedSignature, EncodedVerifyingKey, Keypair, MlDsa65, Seed, Signature, SigningKey,
+    VerifyingKey,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, hint::black_box, path::Path, process::Command, time::Instant};
 
 const PUBLIC_FIXTURE_NAMES: [&str; 4] = ["zero", "incrementing", "all-ff", "alternating"];
-const CONTEXTS: [&[u8]; 2] = [b"", b"seams.ml-dsa-investigation.v1"];
+pub(super) const CONTEXTS: [&[u8]; 2] = [b"", b"seams.ml-dsa-investigation.v1"];
 // DER AlgorithmIdentifier for ML-DSA-65, OID 2.16.840.1.101.3.4.3.18.
 const ALGORITHM_IDENTIFIER: [u8; 13] = [
     0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12,
@@ -45,9 +48,90 @@ pub(super) fn fixture_bytes(name: &str, length: usize) -> InvestigationResult<Ve
     Ok(bytes)
 }
 
-fn public_message() -> [u8; 32] {
+pub(super) fn public_message() -> [u8; 32] {
     Sha256::digest(b"Public synthetic transaction-shaped input for the ML-DSA-65 investigation v1")
         .into()
+}
+
+pub(super) fn verify_signature_rustcrypto(
+    public_key: &[u8],
+    message: &[u8],
+    context: &[u8],
+    signature: &[u8],
+) -> InvestigationResult<bool> {
+    let encoded_key: EncodedVerifyingKey<MlDsa65> = public_key.try_into()?;
+    let encoded_signature: EncodedSignature<MlDsa65> = signature.try_into()?;
+    let Some(decoded) = Signature::<MlDsa65>::decode(&encoded_signature) else {
+        return Ok(false);
+    };
+    Ok(VerifyingKey::<MlDsa65>::decode(&encoded_key)
+        .verify_with_context(message, context, &decoded))
+}
+
+pub(super) fn verify_threshold_signature(
+    public_key: &[u8],
+    message: &[u8],
+    context: &[u8],
+    signature: &[u8],
+) -> InvestigationResult<Value> {
+    require(
+        verify_signature_rustcrypto(public_key, message, context, signature)?,
+        "RustCrypto rejected the threshold signature.",
+    )?;
+    let scratch = tempfile::tempdir()?;
+    let directory = scratch.path();
+    fs::write(directory.join("public.der"), public_key_der(public_key))?;
+    fs::write(directory.join("message.bin"), message)?;
+    fs::write(directory.join("threshold.sig"), signature)?;
+    require(
+        openssl_verify(directory, "message.bin", "threshold.sig", context)?,
+        "OpenSSL rejected the threshold signature.",
+    )?;
+    let mut changed_message = message.to_vec();
+    changed_message.push(0x01);
+    let mut changed_signature = signature.to_vec();
+    changed_signature[0] ^= 1;
+    let mut changed_key = public_key.to_vec();
+    changed_key[0] ^= 1;
+    let changed_context = b"seams.changed-context";
+    fs::write(directory.join("changed-message.bin"), &changed_message)?;
+    fs::write(directory.join("changed.sig"), &changed_signature)?;
+    fs::write(
+        directory.join("wrong-public.der"),
+        public_key_der(&changed_key),
+    )?;
+    for (key, input, ctx, sig) in [
+        (public_key, changed_message.as_slice(), context, signature),
+        (public_key, message, changed_context.as_slice(), signature),
+        (public_key, message, context, changed_signature.as_slice()),
+        (changed_key.as_slice(), message, context, signature),
+    ] {
+        require(
+            !verify_signature_rustcrypto(key, input, ctx, sig)?,
+            "RustCrypto accepted a modified threshold signature fixture.",
+        )?;
+    }
+    require(
+        !openssl_verify(directory, "changed-message.bin", "threshold.sig", context)?
+            && !openssl_verify(directory, "message.bin", "threshold.sig", changed_context)?
+            && !openssl_verify(directory, "message.bin", "changed.sig", context)?
+            && !openssl_verify_with_key(
+                directory,
+                "message.bin",
+                "threshold.sig",
+                context,
+                "wrong-public.der",
+            )?,
+        "OpenSSL accepted a modified threshold signature fixture.",
+    )?;
+    Ok(json!({
+        "rustcrypto_verified": true,
+        "openssl_verified": true,
+        "changed_message_rejected_by_both": true,
+        "changed_context_rejected_by_both": true,
+        "changed_signature_rejected_by_both": true,
+        "changed_public_key_rejected_by_both": true,
+    }))
 }
 
 fn public_seed(name: &str) -> InvestigationResult<Seed> {

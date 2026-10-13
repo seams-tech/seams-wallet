@@ -190,6 +190,33 @@ impl OtFamily for MlDsaRoundingOtFamily {
     const OT_COUNT: usize = 5_888;
 }
 
+/// Fixed evaluator input shape for an investigation signing component.
+#[derive(Debug)]
+pub(super) struct MlDsaCommitmentOtFamily;
+impl sealed::Sealed for MlDsaCommitmentOtFamily {}
+impl OtFamily for MlDsaCommitmentOtFamily {
+    const CODE: u8 = 7;
+    const OT_COUNT: usize = 6_144;
+}
+
+/// Fixed evaluator input shape for an investigation signing component.
+#[derive(Debug)]
+pub(super) struct MlDsaSigningRowOtFamily;
+impl sealed::Sealed for MlDsaSigningRowOtFamily {}
+impl OtFamily for MlDsaSigningRowOtFamily {
+    const CODE: u8 = 8;
+    const OT_COUNT: usize = 11_776;
+}
+
+/// Fixed evaluator input shape for an investigation signing component.
+#[derive(Debug)]
+pub(super) struct MlDsaDecisionOtFamily;
+impl sealed::Sealed for MlDsaDecisionOtFamily {}
+impl OtFamily for MlDsaDecisionOtFamily {
+    const CODE: u8 = 9;
+    const OT_COUNT: usize = 1_664;
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct PayloadPair {
     zero: [u8; LABEL_BYTES],

@@ -7,7 +7,7 @@
 
 use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, hybrid_keygen,
-    private_execution, reference, require,
+    private_execution, private_signing, reference, require,
 };
 use ed25519_yao::phase5_benchmark::ml_dsa_private::{
     PrivateKernelEvaluation, PrivateKernelSchedule, evaluate_private_fixture,
@@ -102,14 +102,15 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         }
         "private-keygen-authorized-test-recipient" => {
             require(
-                arguments.len() == 5,
-                "Test recipient needs two material paths, a public key path, and a public result path.",
+                arguments.len() == 6,
+                "Test recipient needs two material paths, a public key, a public signing report, and a public result path.",
             )?;
             run_authorized_recipient(
                 Path::new(&arguments[1]),
                 Path::new(&arguments[2]),
                 Path::new(&arguments[3]),
                 Path::new(&arguments[4]),
+                Path::new(&arguments[5]),
             )?;
         }
         _ => return Ok(false),
@@ -122,6 +123,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
     let schedules = tempfile::tempdir()?;
     let compile_started = Instant::now();
     let identities = compile_schedules(schedules.path())?;
+    let signing_identities = private_signing::compile_schedules(schedules.path())?;
     let compile_wall_ns = compile_started.elapsed().as_nanos();
     let mut cases = Vec::with_capacity(FIXTURE_NAMES.len() + 1);
     for name in FIXTURE_NAMES {
@@ -134,7 +136,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
         "security_limits": [
             "This is a shared-host benchmark. File permissions and process separation provide no operating-system isolation claim.",
             "The parent passes each role only public schedule paths, its own seed input path, and its public result path. The normal parent never reads private material files.",
-            "An explicitly separate authorized test recipient reconstructs the seed after key generation and then creates the ordinary private key. Every test seed becomes public in this artifact.",
+            "An explicitly separate authorized test recipient reconstructs the seed after threshold signing and then creates the ordinary private key. Every test seed becomes public in this artifact.",
             "The kernels use genuine passive OT and fresh execution domains. Composition privacy remains subject to review.",
             "Local arithmetic has no native constant-time guarantee. Transport authentication, production admission, durable storage, and recipient authorization remain unimplemented.",
             "A bounded sampler failure stops both roles on the same public success bit. Temporary outputs are destroyed. The investigation never changes the canonical seed or retries a different seed.",
@@ -142,9 +144,10 @@ pub(super) fn run() -> InvestigationResult<Value> {
         ],
         "implementation_source_sha256": digest(&fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/src/private_keygen.rs"))?),
         "schedule_compile_wall_ns": compile_wall_ns,
-        "compiled_unique_schedules": 13,
+        "compiled_unique_schedules": 3,
         "executed_kernels_per_case": 18,
         "schedule_identities": identities,
+        "signing_schedule_identities": signing_identities,
         "material_shape_per_role": {"bytes": MATERIAL_BYTES, "seed_xor_share_bytes": 32, "k_xor_share_bytes": 32, "s1_s2_additive_residues": SECRET_POLYNOMIALS * COEFFICIENTS, "t0_additive_residues": ROWS * COEFFICIENTS, "residue_encoding": "u32 little-endian, reduced modulo 8380417", "persistence": "Ephemeral role-local file with mode 0600, deleted with the case temporary directory."},
         "cases": cases,
         "total_wall_ns_including_compile_processes_and_authorized_recovery": started.elapsed().as_nanos(),
@@ -152,7 +155,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
 }
 
 fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Value>> {
-    let mut identities = Vec::with_capacity(13);
+    let mut identities = Vec::with_capacity(3);
     let started = Instant::now();
     let seed = compile_ml_dsa_private_seed_circuit_v1();
     identities.push(save_schedule(
@@ -163,17 +166,16 @@ fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Value>> {
         started,
     )?);
     drop(seed);
-    for nonce in 0..SECRET_POLYNOMIALS as u16 {
-        let started = Instant::now();
-        let sampling = compile_ml_dsa_private_sampling_circuit_v1(nonce);
-        identities.push(save_schedule(
-            directory,
-            &sampling_filename(nonce),
-            "expand-s-and-sampling",
-            &sampling,
-            started,
-        )?);
-    }
+    let started = Instant::now();
+    let sampling = compile_ml_dsa_private_sampling_circuit_v1();
+    identities.push(save_schedule(
+        directory,
+        "sampling.bin",
+        "expand-s-and-sampling",
+        &sampling,
+        started,
+    )?);
+    drop(sampling);
     let started = Instant::now();
     let rounding = compile_ml_dsa_private_rounding_circuit_v1();
     identities.push(save_schedule(
@@ -206,10 +208,6 @@ fn save_schedule(
         "schedule_sha256": hex::encode(circuit.benchmark_schedule_digest().expose_public_bytes()),
         "compile_parse_and_cache_wall_ns": started.elapsed().as_nanos(),
     }))
-}
-
-fn sampling_filename(nonce: u16) -> String {
-    format!("sampling-{nonce}.bin")
 }
 
 fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Value> {
@@ -251,6 +249,20 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
     let public_key = hex::decode(a["public_key_hex"].as_str().ok_or("Missing public key.")?)?;
     let public_path = case.path().join("public-key.bin");
     fs::write(&public_path, &public_key)?;
+    let threshold_signing = private_signing::run_case(
+        schedules,
+        &role_a.join(MATERIAL_FILENAME),
+        &role_b.join(MATERIAL_FILENAME),
+        &public_path,
+        fixture.unwrap_or("joint-random-disposable-key"),
+    )?;
+    let signing_path = case.path().join("public-threshold-signing.json");
+    fs::write(&signing_path, serde_json::to_vec(&threshold_signing)?)?;
+    eprintln!(
+        "Verified threshold signature for {} in {} attempts.",
+        fixture.unwrap_or("joint-random-disposable-key"),
+        threshold_signing["role_a"]["attempts"]
+    );
     let recipient_result = case.path().join("authorized-test-recipient-result.json");
     let started = Instant::now();
     let recipient = Command::new(env::current_exe()?)
@@ -258,6 +270,7 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         .arg(role_a.join(MATERIAL_FILENAME))
         .arg(role_b.join(MATERIAL_FILENAME))
         .arg(&public_path)
+        .arg(&signing_path)
         .arg(&recipient_result)
         .output()?;
     require(
@@ -284,6 +297,7 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         "authorized_recipient_process_wall_ns": recipient_process_wall_ns,
         "role_a": a,
         "role_b": b,
+        "threshold_signing": threshold_signing,
         "authorized_test_recipient": recovered,
     }))
 }
@@ -385,10 +399,11 @@ fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> Invest
         if let Role::A = role {
             fill_uniform_residues(&mut samples[nonce])?;
             append_residue_bits(&mut bits, &samples[nonce]);
+            bits.extend(bytes_to_bits(&(nonce as u16).to_le_bytes()).iter().copied());
         }
         let evaluation = execute_kernel(
             role,
-            &schedules.join(sampling_filename(nonce as u16)),
+            &schedules.join("sampling.bin"),
             &bits,
             &mut reader,
             &mut writer,
@@ -615,6 +630,7 @@ fn run_authorized_recipient(
     a: &Path,
     b: &Path,
     public: &Path,
+    public_signing_report: &Path,
     result: &Path,
 ) -> InvestigationResult<()> {
     let started = Instant::now();
@@ -631,6 +647,9 @@ fn run_authorized_recipient(
         "Authorized seed recovery differs from the private pipeline public key.",
     )?;
     verify_authorized_private_material(&seed, public_key.as_slice(), &share_a, &share_b)?;
+    let threshold_report: Value = serde_json::from_slice(&fs::read(public_signing_report)?)?;
+    let threshold_reference =
+        private_signing::compare_authorized_reference(&key, &threshold_report)?;
     let message = [0x5a; 32];
     let context = b"seams.ml-dsa-authorized-test-export.v1";
     let signature = key.expanded_key().sign_deterministic(&message, context)?;
@@ -654,7 +673,7 @@ fn run_authorized_recipient(
             "message_hex": hex::encode(message),
             "context_hex": hex::encode(context),
             "recipient_wall_ns": started.elapsed().as_nanos(),
-            "threshold_signing_exercised": false,
+            "threshold_signature_before_export": threshold_reference,
         }))?,
     )?;
     Ok(())

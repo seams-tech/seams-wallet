@@ -31,7 +31,7 @@ use zeroize::Zeroizing;
 const MODULUS: u32 = 8_380_417;
 const COEFFICIENTS: usize = 256;
 const SEED_SHARE_BYTES: usize = 64;
-const A_INPUT_BYTES: usize = SEED_SHARE_BYTES + COEFFICIENTS * 4;
+const A_INPUT_BYTES: usize = SEED_SHARE_BYTES + COEFFICIENTS * 4 + 2;
 const OUTPUT_BITS: usize = COEFFICIENTS * 23;
 const OUTPUT_BYTES: usize = OUTPUT_BITS / 8;
 const MASK_BYTES: usize = 640;
@@ -114,7 +114,7 @@ pub(super) fn run(samples: usize) -> InvestigationResult<Value> {
             "signed_coefficient": "524288 minus the decoded integer",
             "signed_range_inclusive": [-524287, 524288],
             "share_modulus": MODULUS,
-            "a_input_bits": 6400,
+            "a_input_bits": 6416,
             "b_input_bits": 512,
             "b_output_bits": OUTPUT_BITS,
             "a_public_output_bytes": 0,
@@ -135,19 +135,19 @@ fn run_case(
     bindings: &mut HashSet<String>,
 ) -> InvestigationResult<Value> {
     let compile_started = Instant::now();
-    let circuit = compile_ml_dsa_private_signing_mask_circuit_v1(nonce);
+    let circuit = compile_ml_dsa_private_signing_mask_circuit_v1();
     let schedule_bytes = circuit.canonical_schedule_encoding();
     let schedule = PrivateKernelSchedule::parse(schedule_bytes)?;
     require(
-        schedule.garbler_input_bits() == 6_400
+        schedule.garbler_input_bits() == 6_416
             && schedule.evaluator_input_bits() == 512
             && schedule.evaluator_output_bits() == OUTPUT_BITS,
         "Private mask circuit dimensions differ from their role schema.",
     )?;
     let compile_parse_wall_ns = compile_started.elapsed().as_nanos();
-    let invalid_masks = check_invalid_masks(&circuit)?;
+    let invalid_masks = check_invalid_masks(&circuit, nonce)?;
     let expected = reference_coefficients(rho_double_prime, nonce);
-    check_mask_boundaries(&circuit, rho_double_prime, &expected)?;
+    check_mask_boundaries(&circuit, rho_double_prime, &expected, nonce)?;
     let directory = tempfile::tempdir()?;
     let schedule_path = directory.path().join("private-mask-schedule.bin");
     fs::write(&schedule_path, schedule_bytes)?;
@@ -156,9 +156,12 @@ fn run_case(
         executions.push(run_sample(
             directory.path(),
             &schedule_path,
-            &circuit,
-            rho_double_prime,
-            &expected,
+            &MaskFixture {
+                circuit: &circuit,
+                seed: rho_double_prime,
+                expected: &expected,
+                nonce,
+            },
             sample,
             bindings,
         )?);
@@ -182,14 +185,17 @@ fn run_case(
     }))
 }
 
-fn check_invalid_masks(circuit: &MlDsaPrivateSigningMaskCircuitV1) -> InvestigationResult<Value> {
+fn check_invalid_masks(
+    circuit: &MlDsaPrivateSigningMaskCircuitV1,
+    nonce: u16,
+) -> InvestigationResult<Value> {
     let a = [0; SEED_SHARE_BYTES];
     let b = [0; SEED_SHARE_BYTES];
     for (index, value) in [(0, u32::MAX), (COEFFICIENTS - 1, MODULUS)] {
         let mut masks = [0; COEFFICIENTS];
         masks[index] = value;
         let error = circuit
-            .evaluate_public_fixture(&a, &b, &masks)
+            .evaluate_public_fixture(&a, &b, &masks, nonce)
             .err()
             .ok_or("Private mask clear fixture accepted an invalid residue.")?;
         require(
@@ -206,25 +212,37 @@ fn check_mask_boundaries(
     circuit: &MlDsaPrivateSigningMaskCircuitV1,
     seed: &[u8; SEED_SHARE_BYTES],
     expected: &[u32; COEFFICIENTS],
+    nonce: u16,
 ) -> InvestigationResult<()> {
     let a = [0; SEED_SHARE_BYTES];
     for mask in [0, MODULUS - 1] {
         let masks = [mask; COEFFICIENTS];
-        let output = circuit.evaluate_public_fixture(&a, seed, &masks)?;
+        let output = circuit.evaluate_public_fixture(&a, seed, &masks, nonce)?;
         check_shares(&masks, &output.deriver_b_shares, expected)?;
     }
     Ok(())
 }
 
+struct MaskFixture<'a> {
+    circuit: &'a MlDsaPrivateSigningMaskCircuitV1,
+    seed: &'a [u8; SEED_SHARE_BYTES],
+    expected: &'a [u32; COEFFICIENTS],
+    nonce: u16,
+}
+
 fn run_sample(
     directory: &Path,
     schedule: &Path,
-    circuit: &MlDsaPrivateSigningMaskCircuitV1,
-    rho_double_prime: &[u8; SEED_SHARE_BYTES],
-    expected: &[u32; COEFFICIENTS],
+    fixture: &MaskFixture<'_>,
     sample: usize,
     bindings: &mut HashSet<String>,
 ) -> InvestigationResult<Value> {
+    let MaskFixture {
+        circuit,
+        seed: rho_double_prime,
+        expected,
+        nonce,
+    } = *fixture;
     let mut a_share = Zeroizing::new([0; SEED_SHARE_BYTES]);
     getrandom::getrandom(a_share.as_mut())?;
     let mut b_share = Zeroizing::new([0; SEED_SHARE_BYTES]);
@@ -233,7 +251,7 @@ fn run_sample(
     }
     let masks = uniform_masks()?;
     let clear_started = Instant::now();
-    let clear = circuit.evaluate_public_fixture(&a_share, &b_share, &masks)?;
+    let clear = circuit.evaluate_public_fixture(&a_share, &b_share, &masks, nonce)?;
     check_shares(&masks, &clear.deriver_b_shares, expected)?;
     let clear_fixture_wall_ns = clear_started.elapsed().as_nanos();
     let input_a = directory.join(format!("sample-{sample}-a-input.bin"));
@@ -245,6 +263,7 @@ fn run_sample(
     for mask in masks.iter() {
         a_bytes.extend_from_slice(&mask.to_le_bytes());
     }
+    a_bytes.extend_from_slice(&nonce.to_le_bytes());
     write_private_file(&input_a, &a_bytes)?;
     write_private_file(&input_b, b_share.as_slice())?;
     let started = Instant::now();
@@ -377,7 +396,7 @@ fn role_input_bits(role: Role, bytes: &[u8]) -> InvestigationResult<Zeroizing<Ve
         "Private mask role input has the wrong length.",
     )?;
     let mut bits = Zeroizing::new(Vec::with_capacity(match role {
-        Role::A => 6_400,
+        Role::A => 6_416,
         Role::B => 512,
     }));
     for byte in &bytes[..SEED_SHARE_BYTES] {
@@ -386,7 +405,7 @@ fn role_input_bits(role: Role, bytes: &[u8]) -> InvestigationResult<Zeroizing<Ve
         }
     }
     if let Role::A = role {
-        for chunk in bytes[SEED_SHARE_BYTES..].chunks_exact(4) {
+        for chunk in bytes[SEED_SHARE_BYTES..A_INPUT_BYTES - 2].chunks_exact(4) {
             let residue = u32::from_le_bytes(chunk.try_into()?);
             require(
                 residue < MODULUS,
@@ -394,6 +413,11 @@ fn role_input_bits(role: Role, bytes: &[u8]) -> InvestigationResult<Zeroizing<Ve
             )?;
             for bit in 0..23 {
                 bits.push((residue >> bit) & 1 != 0);
+            }
+        }
+        for byte in &bytes[A_INPUT_BYTES - 2..] {
+            for bit in 0..8 {
+                bits.push(byte >> bit & 1 == 1);
             }
         }
     }

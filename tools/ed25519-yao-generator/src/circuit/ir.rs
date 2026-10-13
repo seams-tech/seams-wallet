@@ -185,7 +185,7 @@ impl CircuitBuilder {
     ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
         let (expected_inputs, expected_outputs) = match component {
             0x87 => (1_280, 1_024),
-            0x88 => (6_912, 5_889),
+            0x88 => (6_928, 5_889),
             0x89 => (17_664, 8_448),
             _ => return Err(CircuitBuildError::InputSchemaWireCountMismatch),
         };
@@ -204,7 +204,7 @@ impl CircuitBuilder {
         input_schema: &[u8],
         output_schema: &[u8],
     ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
-        if self.input_count != 6_912 {
+        if self.input_count != 6_928 {
             return Err(CircuitBuildError::InputSchemaWireCountMismatch);
         }
         if outputs.len() != 5_888 {

@@ -1,6 +1,6 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: private host key generation and deployed private kernels verified. Complete signing in progress, 2026-10-13.
+Status: complete host threshold signing and deployed private kernels verified. Complete Worker signing in progress, 2026-10-13.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -9,7 +9,7 @@ Use current research to find candidates. Publication date does not determine the
 The investigation must cover key generation, signing, recovery, export, and deployment.
 The [experiment contract](ml-dsa-65-experiment-contract.md) defines the first executable slice.
 The [host harness](../../tools/ml-dsa-investigation/README.md) checks references, private key generation, and authorized test export.
-Complete threshold signing remains open. Four private kernels now execute on deployed Workers.
+Complete host threshold signing now passes. Four private kernels also execute on deployed Workers.
 
 ## Current implementation evidence — October 13, 2026
 
@@ -124,7 +124,46 @@ They cover signing-seed expansion, commitment high bits, commitment hashing, res
 The reciprocal HighBits formula agrees with FIPS Decompose for every residue below `q`.
 The hash fixture checks the corrected `mu || w1` order across multiple SHAKE input blocks.
 Strict norm boundaries and the 55-hint limit pass.
-These checks establish circuit arithmetic. Private composition and complete signature production remain open.
+These checks establish circuit arithmetic. The complete host composition below now produces standard signatures.
+A complete security argument and independent review remain open.
+
+## Complete host threshold signing
+
+The [complete host report](../evidence/ml-dsa-65-threshold-host-20261013.json) produces signatures before authorized test recovery.
+A shared, resumable [signing state machine](../../crates/ed25519-yao/src/passive/ml_dsa_signing.rs) controls both roles.
+The host adapter supplies schedules and byte transport. It adds no second cryptographic implementation.
+Each role reads only its own 17,472-byte material file.
+
+The five key-generation cases now each produce a standard 3,309-byte threshold signature.
+They include deterministic and jointly randomized signing, with empty and nonempty FIPS contexts.
+RustCrypto and OpenSSL accept each signature and reject altered messages, contexts, keys, and signatures.
+After signing, the authorized recipient reconstructs the ordinary key and checks exact deterministic signature bytes.
+Running either role without its peer fails without producing a signature.
+
+The signer keeps rejected masks, commitments, responses, hints, and individual validity checks private.
+It opens challenge hashes and one aggregate acceptance bit per candidate.
+It exchanges accepted response and hint shares only after that bit permits release.
+The circuit loop supports up to 821 candidates and destroys rejected candidate shares before continuing.
+This implements the proposed public-challenge boundary. Its complete composition proof still needs independent review.
+
+| Baseline signing resource | Exact measured bytes |
+| --- | ---: |
+| Garbled tables for signing-seed setup | 1,193,984 |
+| Garbled tables per candidate | 81,345,984 |
+| Both directions per candidate, including fresh OT and frames | 91,498,125 |
+| Accepted-share exchange | 5,312 |
+| Standard signature return | 3,309 |
+
+The deterministic zero and incrementing fixtures each require five candidates.
+Their complete host operations each take approximately eight seconds on the recorded machine.
+Different keys and attempt counts do not establish a signing latency distribution or p95.
+The baseline is a correctness and resource comparison. It does not meet the speed objective by itself.
+
+A public nonce input now reuses one sampling schedule and one signing-mask schedule.
+The complete three-key-generation and seven-signing circuit set occupies 33,076,075 encoded bytes.
+All five private mask nonce checks use the same schedule digest and match their independent oracle.
+The nonce change reduces packaged descriptions. It leaves per-candidate table traffic unchanged.
+Complete Worker execution, production admission, persistence, SDK integration, and protocol selection remain open.
 
 ## Foundation evidence — October 13, 2026
 
