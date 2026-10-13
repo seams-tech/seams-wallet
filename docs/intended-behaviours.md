@@ -1796,6 +1796,15 @@ deployment delivers each row to its usage count and then deletes it. A host may
 refuse new signatures for a project through the normal-signing project policy
 (`project_policy_rejected`); recovery and key export do not read that policy.
 
+The NEAR encoder represents public keys and signatures with exact algorithm variants.
+Ed25519 uses tag 0. Secp256k1 uses tag 1. ML-DSA-65 uses tag 2.
+A full ML-DSA-65 public key contains 1,952 bytes. Its signature contains 3,309 bytes.
+Hashed ML-DSA access-key identifiers belong to the separate tag-3 identifier format.
+Transaction and action fields that require full public keys reject hashed identifiers and incorrect lengths.
+The signed-transaction builder and its JSON and Borsh decoders require matching key and signature schemes.
+The [offline encoder contract](evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) verifies these rules through a threshold-signed transaction and independent verification.
+The ML-DSA threshold signer remains experimental. Public Wallet signing uses the admitted Ed25519 flow.
+
 NEAR nonce recovery reads current chain state once per exact wallet/key lane in
 each recovery pass. It shares that observation across saved nonce reservations.
 A later pass reads the chain again. A failed read retains unexpired reservations.

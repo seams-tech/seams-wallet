@@ -1,4 +1,5 @@
-use super::deserializers::{serde_array_32, serde_array_64};
+use super::deserializers::serde_array_32;
+pub use super::near_keys::{PublicKey, Signature};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -23,50 +24,6 @@ impl std::str::FromStr for AccountId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         AccountId::new(s.to_string())
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PublicKey {
-    pub key_type: u8, // 0 for ED25519
-    #[serde(with = "serde_array_32")]
-    pub key_data: [u8; 32], // Fixed: back to [u8; 32] for proper borsh serialization
-}
-
-impl PublicKey {
-    pub fn from_ed25519_bytes(bytes: &[u8; 32]) -> Self {
-        PublicKey {
-            key_type: 0, // ED25519
-            key_data: *bytes,
-        }
-    }
-
-    // WASM-friendly getter that returns Vec<u8>
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.key_data.to_vec()
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Signature {
-    pub key_type: u8, // 0 for ED25519
-    #[serde(with = "serde_array_64")]
-    pub signature_data: [u8; 64], // [u8; 64] for proper borsh serialization
-}
-
-impl Signature {
-    pub fn from_ed25519_bytes(bytes: &[u8; 64]) -> Self {
-        Signature {
-            key_type: 0, // ED25519
-            signature_data: *bytes,
-        }
-    }
-
-    // WASM-friendly getter that returns Vec<u8>
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.signature_data.to_vec()
     }
 }
 
@@ -364,24 +321,69 @@ impl Transaction {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(BorshSerialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "SignedTransactionWire", into = "SignedTransactionWire")]
 pub struct SignedTransaction {
-    pub transaction: Transaction,
-    pub signature: Signature,
+    transaction: Transaction,
+    signature: Signature,
 }
 
 impl SignedTransaction {
-    pub fn new(signature: Signature, transaction: Transaction) -> Self {
-        SignedTransaction {
+    pub fn new(signature: Signature, transaction: Transaction) -> Result<Self, String> {
+        if signature.key_type() != transaction.public_key.key_type() {
+            return Err(
+                "The NEAR signature scheme does not match the transaction public key.".into(),
+            );
+        }
+        Ok(SignedTransaction {
             transaction,
             signature,
-        }
+        })
+    }
+
+    pub fn transaction(&self) -> &Transaction {
+        &self.transaction
+    }
+
+    pub fn signature(&self) -> &Signature {
+        &self.signature
     }
 
     /// Convert to borsh bytes for transmission
     pub fn to_borsh_bytes(&self) -> Result<Vec<u8>, String> {
         borsh::to_vec(self).map_err(|e| format!("Failed to serialize to borsh: {}", e))
+    }
+}
+
+#[derive(BorshDeserialize, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SignedTransactionWire {
+    transaction: Transaction,
+    signature: Signature,
+}
+
+impl TryFrom<SignedTransactionWire> for SignedTransaction {
+    type Error = String;
+
+    fn try_from(wire: SignedTransactionWire) -> Result<Self, Self::Error> {
+        Self::new(wire.signature, wire.transaction)
+    }
+}
+
+impl From<SignedTransaction> for SignedTransactionWire {
+    fn from(signed: SignedTransaction) -> Self {
+        Self {
+            transaction: signed.transaction,
+            signature: signed.signature,
+        }
+    }
+}
+
+impl BorshDeserialize for SignedTransaction {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        SignedTransactionWire::deserialize_reader(reader)?
+            .try_into()
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
     }
 }
 

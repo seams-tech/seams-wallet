@@ -270,6 +270,15 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         )?,
         _ => serde_json::Value::Null,
     };
+    let near_transaction = match fixture {
+        Some("zero") => crate::near_transaction_evidence::run(
+            schedules,
+            &role_a.join(MATERIAL_FILENAME),
+            &role_b.join(MATERIAL_FILENAME),
+            &public_path,
+        )?,
+        _ => serde_json::Value::Null,
+    };
     let signing_path = case.path().join("public-threshold-signing.json");
     fs::write(&signing_path, serde_json::to_vec(&threshold_signing)?)?;
     eprintln!(
@@ -313,6 +322,7 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         "role_b": b,
         "threshold_signing": threshold_signing,
         "host_signing_lifecycle": lifecycle,
+        "offline_sdk_near_transaction": near_transaction,
         "authorized_test_recipient": recovered,
     }))
 }

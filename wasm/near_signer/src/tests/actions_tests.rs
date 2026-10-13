@@ -18,8 +18,8 @@ fn test_add_key_action_handler() {
         } => {
             // Verify the action was built correctly
             // Just verify the action built successfully - string comparison is complex for PublicKey
-            assert_eq!(public_key.key_type, 0); // ED25519
-            assert_eq!(public_key.key_data.len(), 32);
+            assert_eq!(public_key.key_type(), 0); // ED25519
+            assert_eq!(public_key.as_bytes().len(), 32);
             // Note: access_key structure validation is complex, but the action built successfully
         }
         _ => panic!("Expected AddKey action"),
@@ -86,8 +86,8 @@ fn test_delete_key_action_handler() {
     match action {
         NearAction::DeleteKey { public_key } => {
             // Verify the public key was parsed correctly
-            assert_eq!(public_key.key_type, 0); // ED25519
-            assert_eq!(public_key.key_data.len(), 32);
+            assert_eq!(public_key.key_type(), 0); // ED25519
+            assert_eq!(public_key.as_bytes().len(), 32);
         }
         _ => panic!("Expected DeleteKey action"),
     }
@@ -160,8 +160,8 @@ fn test_stake_action_handler() {
     match action {
         NearAction::Stake { stake, public_key } => {
             assert!(stake > 0);
-            assert_eq!(public_key.key_type, 0);
-            assert_eq!(public_key.key_data.len(), 32);
+            assert_eq!(public_key.key_type(), 0);
+            assert_eq!(public_key.as_bytes().len(), 32);
         }
         _ => panic!("Expected Stake action"),
     }

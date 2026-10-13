@@ -1,5 +1,4 @@
 use crate::types::*;
-use bs58;
 use serde::{Deserialize, Serialize};
 
 // === ACTION TYPES AND HANDLERS ===
@@ -113,29 +112,7 @@ impl ActionParams {
                     .parse::<Balance>()
                     .map_err(|_| "Invalid stake amount".to_string())?;
 
-                if public_key.is_empty() {
-                    return Err("Public key cannot be empty".to_string());
-                }
-                if !public_key.starts_with("ed25519:") && public_key.len() < 32 {
-                    return Err("Invalid public key format".to_string());
-                }
-
-                let parsed_public_key = if public_key.starts_with("ed25519:") {
-                    let key_str = &public_key[8..];
-                    let key_bytes = bs58::decode(key_str)
-                        .into_vec()
-                        .map_err(|e| format!("Failed to decode public key: {}", e))?;
-
-                    if key_bytes.len() != 32 {
-                        return Err("Public key must be 32 bytes".to_string());
-                    }
-
-                    let mut key_array = [0u8; 32];
-                    key_array.copy_from_slice(&key_bytes);
-                    crate::types::PublicKey::from_ed25519_bytes(&key_array)
-                } else {
-                    return Err("Public key must start with 'ed25519:'".to_string());
-                };
+                let parsed_public_key = public_key.parse::<crate::types::PublicKey>()?;
 
                 Ok(NearAction::Stake {
                     stake: stake_amount,
@@ -147,33 +124,10 @@ impl ActionParams {
                 public_key,
                 access_key,
             } => {
-                if public_key.is_empty() {
-                    return Err("Public key cannot be empty".to_string());
-                }
-
-                if !public_key.starts_with("ed25519:") && public_key.len() < 32 {
-                    return Err("Invalid public key format".to_string());
-                }
-
-                let parsed_public_key = if public_key.starts_with("ed25519:") {
-                    let key_str = &public_key[8..];
-                    let key_bytes = bs58::decode(key_str)
-                        .into_vec()
-                        .map_err(|e| format!("Failed to decode public key: {}", e))?;
-
-                    if key_bytes.len() != 32 {
-                        return Err("Public key must be 32 bytes".to_string());
-                    }
-
-                    let mut key_array = [0u8; 32];
-                    key_array.copy_from_slice(&key_bytes);
-                    crate::types::PublicKey::from_ed25519_bytes(&key_array)
-                } else {
-                    return Err("Public key must start with 'ed25519:'".to_string());
-                };
+                let parsed_public_key = public_key.parse::<crate::types::PublicKey>()?;
 
                 // Parse access_key using helper (handles WASM vs Native)
-                let parsed_access_key = parse_access_key_from_json(&access_key)?;
+                let parsed_access_key = parse_access_key_from_json(access_key)?;
 
                 Ok(NearAction::AddKey {
                     public_key: parsed_public_key,
@@ -182,32 +136,7 @@ impl ActionParams {
             }
 
             ActionParams::DeleteKey { public_key } => {
-                if public_key.is_empty() {
-                    return Err("Public key cannot be empty".to_string());
-                }
-
-                // Validate public key format (should be "ed25519:..." or raw base58)
-                if !public_key.starts_with("ed25519:") && public_key.len() < 32 {
-                    return Err("Invalid public key format".to_string());
-                }
-
-                // Parse the public key
-                let parsed_public_key = if public_key.starts_with("ed25519:") {
-                    let key_str = &public_key[8..]; // Remove "ed25519:" prefix
-                    let key_bytes = bs58::decode(key_str)
-                        .into_vec()
-                        .map_err(|e| format!("Failed to decode public key: {}", e))?;
-
-                    if key_bytes.len() != 32 {
-                        return Err("Public key must be 32 bytes".to_string());
-                    }
-
-                    let mut key_array = [0u8; 32];
-                    key_array.copy_from_slice(&key_bytes);
-                    crate::types::PublicKey::from_ed25519_bytes(&key_array)
-                } else {
-                    return Err("Public key must start with 'ed25519:'".to_string());
-                };
+                let parsed_public_key = public_key.parse::<crate::types::PublicKey>()?;
 
                 Ok(NearAction::DeleteKey {
                     public_key: parsed_public_key,
@@ -244,8 +173,10 @@ impl ActionParams {
                 if delegate_action.nonce == 0 {
                     return Err("delegate_action.nonce must be non-zero".to_string());
                 }
-                if signature.signature_data.len() != 64 {
-                    return Err("delegate signature must be 64 bytes".to_string());
+                if signature.key_type() != delegate_action.public_key.key_type() {
+                    return Err(
+                        "The delegate signature scheme does not match its public key.".into(),
+                    );
                 }
 
                 let signed = SignedDelegate {
@@ -366,10 +297,10 @@ fn parse_access_key_json_minimal(json_str: &str) -> Result<crate::types::AccessK
         } else if perm_section.starts_with("{\"FunctionCall\"") {
             let fc_obj = extract_object_value(perm_section, "FunctionCall")?;
 
-            let receiver_id = extract_string_field_any(&fc_obj, &["receiverId", "receiver_id"])?;
+            let receiver_id = extract_string_field_any(fc_obj, &["receiverId", "receiver_id"])?;
             let method_names =
-                extract_string_array_field_any(&fc_obj, &["methodNames", "method_names"])?;
-            let allowance = match extract_optional_field_value_start(&fc_obj, "allowance")? {
+                extract_string_array_field_any(fc_obj, &["methodNames", "method_names"])?;
+            let allowance = match extract_optional_field_value_start(fc_obj, "allowance")? {
                 None => None,
                 Some(v) if v.starts_with("null") => None,
                 Some(v) if v.starts_with('"') => {
@@ -456,7 +387,7 @@ fn extract_optional_field_value_start<'a>(
 fn extract_number_field<'a>(json: &'a str, key: &str) -> Result<&'a str, String> {
     let after = extract_field_value_start(json, key)?;
     let end = after
-        .find(|c: char| c == ',' || c == '}')
+        .find([',', '}'])
         .ok_or_else(|| format!("Unterminated '{}' number field", key))?;
     Ok(&after[..end])
 }
@@ -594,9 +525,7 @@ fn parse_json_string_array(input: &str) -> Result<Vec<String>, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn take_number_prefix(input: &str) -> Option<&str> {
-    let end = input
-        .find(|c: char| c == ',' || c == '}' || c == ']')
-        .unwrap_or(input.len());
+    let end = input.find([',', '}', ']']).unwrap_or(input.len());
     let prefix = &input[..end];
     if prefix.is_empty() {
         None

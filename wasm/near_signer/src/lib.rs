@@ -9,11 +9,16 @@ mod threshold;
 mod transaction;
 mod types;
 
+pub use actions::ActionParams;
 use wasm_bindgen::prelude::*;
 
 // Re-export NEAR types for TypeScript usage
+pub use transaction::{
+    build_transaction_with_actions, calculate_transaction_hash, encode_signed_transaction,
+};
 pub use types::near::{
-    DelegateAction, PublicKey, Signature, SignedDelegate, SignedTransaction, Transaction,
+    DelegateAction, NearAction, PublicKey, Signature, SignedDelegate, SignedTransaction,
+    Transaction,
 };
 // Re-export WASM-friendly wrapper types for TypeScript usage
 pub use types::wasm_to_json::{

@@ -13,8 +13,8 @@ pub struct WasmPublicKey {
 impl From<&crate::types::PublicKey> for WasmPublicKey {
     fn from(pk: &crate::types::PublicKey) -> Self {
         WasmPublicKey {
-            key_type: pk.key_type,
-            key_data: pk.to_vec(),
+            key_type: pk.key_type(),
+            key_data: pk.as_bytes().to_vec(),
         }
     }
 }
@@ -29,8 +29,8 @@ pub struct WasmSignature {
 impl From<&crate::types::Signature> for WasmSignature {
     fn from(sig: &crate::types::Signature) -> Self {
         WasmSignature {
-            key_type: sig.key_type,
-            signature_data: sig.to_vec(),
+            key_type: sig.key_type(),
+            signature_data: sig.as_bytes().to_vec(),
         }
     }
 }
@@ -74,8 +74,8 @@ impl From<&crate::types::SignedTransaction> for WasmSignedTransaction {
     fn from(signed_tx: &crate::types::SignedTransaction) -> Self {
         let borsh_bytes = signed_tx.to_borsh_bytes().unwrap_or_default();
         WasmSignedTransaction {
-            transaction: WasmTransaction::from(&signed_tx.transaction),
-            signature: WasmSignature::from(&signed_tx.signature),
+            transaction: WasmTransaction::from(signed_tx.transaction()),
+            signature: WasmSignature::from(signed_tx.signature()),
             borsh_bytes,
         }
     }

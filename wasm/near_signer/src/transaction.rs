@@ -1,5 +1,3 @@
-use borsh;
-
 use crate::actions::ActionParams;
 use crate::types::*;
 
@@ -9,7 +7,7 @@ pub fn build_transaction_with_actions(
     receiver_account_id: &str,
     nonce: u64,
     block_hash_bytes: &[u8],
-    public_key_bytes: &[u8; 32],
+    public_key: PublicKey,
     actions: Vec<NearAction>,
 ) -> Result<Transaction, String> {
     // Parse account IDs
@@ -27,9 +25,6 @@ pub fn build_transaction_with_actions(
     let mut block_hash_array = [0u8; 32];
     block_hash_array.copy_from_slice(block_hash_bytes);
     let block_hash = CryptoHash::from_bytes(block_hash_array);
-
-    // Create PublicKey from ed25519 verifying key bytes
-    let public_key = PublicKey::from_ed25519_bytes(public_key_bytes);
 
     // Build transaction
     Ok(Transaction {
@@ -56,16 +51,13 @@ pub fn build_actions_from_params(
     Ok(actions)
 }
 
-/// Low-level transaction signing function
-/// Takes an already-built Transaction and SigningKey, signs it, and returns serialized bytes
-pub fn sign_transaction(
+/// Encodes a signed transaction after checking that both signature schemes match.
+pub fn encode_signed_transaction(
     transaction: Transaction,
-    signature_bytes: &[u8; 64],
+    signature: Signature,
 ) -> Result<Vec<u8>, String> {
-    let signature = Signature::from_ed25519_bytes(signature_bytes);
-
     // Create SignedTransaction
-    let signed_transaction = SignedTransaction::new(signature, transaction);
+    let signed_transaction = SignedTransaction::new(signature, transaction)?;
 
     // Serialize to Borsh
     borsh::to_vec(&signed_transaction)
