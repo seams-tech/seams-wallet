@@ -167,14 +167,14 @@ const ADMIT_ROOT_USE_SQL: &str = "INSERT INTO tenant_root_root_use_admissions \
     (tenant_identity_digest_hex, custody_lineage_b64u, role, attempt_kind, attempt_key_hex, \
     tenant_root_share_epoch, activation_receipt_digest_hex, attempt_digest_hex, \
     first_binding_digest_hex, issued_at_ms, expires_at_ms, status, admitted_at_ms, \
-    pair_object_id) \
-    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'admitted', ?12, ?13 \
+    pair_object_id, preparation_digest_hex) \
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'admitted', ?12, ?13, ?14 \
     WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND tenant_root_share_epoch = ?6 AND role = ?3 AND lifecycle = 'active') \
     ON CONFLICT DO NOTHING";
 const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
-    activation_receipt_digest_hex, attempt_digest_hex, status, pair_object_id \
+    activation_receipt_digest_hex, attempt_digest_hex, status, pair_object_id, preparation_digest_hex \
     FROM tenant_root_root_use_admissions \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?3 \
     AND attempt_kind = ?4 AND attempt_key_hex = ?5";
@@ -186,7 +186,7 @@ const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
 pub const TENANT_ROOT_CLAIM_ROOT_USE_ADMISSION_SQL_V1: &str =
     "UPDATE tenant_root_root_use_admissions \
     SET status = 'claimed' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
-    AND status = 'admitted'";
+    AND status = 'admitted' AND preparation_digest_hex IS NULL";
 /// Settles one attempt's admission when its pair completes here. A cancelled
 /// row does not move, so the pair store, which requires one change, refuses
 /// to complete a cancelled attempt. Parameters as for the claim.
@@ -17050,6 +17050,7 @@ struct TenantRootRootUseAdmissionRowV1 {
     attempt_digest_hex: String,
     status: String,
     pair_object_id: Option<String>,
+    preparation_digest_hex: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

@@ -715,3 +715,13 @@ Repeatable raw artifacts remain in public `.artifacts/r155c` and private
 - **Peer-signing keys.** Removed from the code and its configuration after this
   refactor. The private deployment keeps the Secrets and vars until the
   deployment follow-up in Phase 3 completes.
+
+## Registration preparation follow-up
+
+R155H now permits passkey registration to open the same authenticated peer
+connection during the prompt. Execution still sends each encrypted input directly
+from the Router to its role. B claims before acknowledging Start on the held
+socket, and A claims before protocol material. The online connection remains the
+path for absent or expired preparation and other custody operations. This adds
+no peer signatures and changes no Yao protocol frames. See
+[R155H Phase 1](refactor-155H.md#phase-1--custody-execution-at-setup).

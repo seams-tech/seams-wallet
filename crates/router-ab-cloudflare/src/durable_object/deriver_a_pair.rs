@@ -15,16 +15,16 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State};
 
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+use crate::tenant_root_role_d1::{
+    TenantRootWalletPairReconcileRequestV1, TenantRootWalletPairReconciliationV1,
+};
 use crate::{
     ed25519_yao_lifecycle::role_d1::{
         encode_hex, encode_hex_slice, RolePairCipherV1, RolePairRecordScopeV1,
     },
     CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairWorkV1,
     CloudflareEd25519YaoTenantRootContextV2,
-};
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-use crate::tenant_root_role_d1::{
-    TenantRootWalletPairReconcileRequestV1, TenantRootWalletPairReconciliationV1,
 };
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 use crate::{
@@ -356,6 +356,9 @@ pub struct RouterAbDeriverAWalletDurableObject {
     storage: worker::Storage,
     env: Env,
     timing: super::command_timing::WalletCommandTiming,
+    prepared_peer:
+        std::cell::RefCell<Option<crate::registration_pair_connection::PreparedConnection>>,
+    connecting_peer: std::cell::Cell<bool>,
 }
 
 impl DurableObject for RouterAbDeriverAWalletDurableObject {
@@ -366,6 +369,8 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
             storage: state.storage(),
             state,
             env,
+            prepared_peer: std::cell::RefCell::new(None),
+            connecting_peer: std::cell::Cell::new(false),
         }
     }
 
@@ -393,6 +398,11 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         };
         observation.finish(result)
     }
+
+    async fn alarm(&self) -> worker::Result<Response> {
+        self.prepared_peer.borrow_mut().take();
+        super::registration_preparation::expire(&self.state, &self.sql, &self.env).await
+    }
 }
 
 impl RouterAbDeriverAWalletDurableObject {
@@ -406,6 +416,50 @@ impl RouterAbDeriverAWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
+        self.sql
+            .exec(super::registration_preparation::SCHEMA, None)?;
+        #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+        if path == crate::registration_pair_preparation::ROLE_PATH {
+            relocation::require_open::<DeriverAWalletOwnerV1>(&self.sql)?;
+            let preparation: crate::registration_pair_preparation::RegistrationPreparation =
+                request.json().await?;
+            let owner = DeriverAWalletOwnerV1::from_root_identity(
+                &preparation.request.tenant_root.identity,
+                &preparation.request.binding.lifecycle.account_id,
+            )?;
+            if preparation.wallet_route.addresses.deriver_a.as_str() != self.state.id().to_string()
+            {
+                return Response::error(
+                    "Registration preparation addresses another wallet object",
+                    409,
+                );
+            }
+            self.check_owner(&owner, true)?;
+            let preparation = super::registration_preparation::admit(
+                &self.state,
+                &self.sql,
+                &self.env,
+                preparation,
+            )
+            .await?;
+            if self.prepared_peer.borrow().is_none() && !self.connecting_peer.replace(true) {
+                let _attempt = RegistrationConnectionAttempt(&self.connecting_peer);
+                let connection =
+                    crate::registration_pair_connection::connect(&self.env, preparation).await;
+                if let Ok(connection) = connection {
+                    super::registration_preparation::require_unfenced(
+                        &self.sql,
+                        &connection.preparation,
+                    )?;
+                    if connection.preparation.custody_binding.expires_at_ms
+                        > worker::Date::now().as_millis()
+                    {
+                        *self.prepared_peer.borrow_mut() = Some(connection);
+                    }
+                }
+            }
+            return Response::from_json(&true);
+        }
         if path == super::wallet_startup::PATH {
             #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
             {
@@ -518,7 +572,9 @@ impl RouterAbDeriverAWalletDurableObject {
             Some(pair) if pair.lifecycle == "completed" => {
                 TenantRootWalletPairReconciliationV1::Completed
             }
-            _ if self.pair_fenced(&request.session_hex)? => TenantRootWalletPairReconciliationV1::Fenced,
+            _ if self.pair_fenced(&request.session_hex)? => {
+                TenantRootWalletPairReconciliationV1::Fenced
+            }
             Some(pair) if pair.claimed == 1 => TenantRootWalletPairReconciliationV1::Claimed,
             _ => TenantRootWalletPairReconciliationV1::Open,
         })
@@ -658,10 +714,22 @@ impl RouterAbDeriverAWalletDurableObject {
         // The admission names this object. Refuse another wallet's request
         // before it is written.
         self.check_owner(&owner, true)?;
-        let (preparation, target) =
-            prepare_deriver_a_pair_for_wallet_do_v1(&self.env, &request, self.state.id().to_string())
-                .await
-                .map_err(|error| pair_error(error.to_string()))?;
+        let access = super::registration_preparation::access_for_execution(
+            &self.state.id().to_string(),
+            &self.sql,
+            &self.env,
+            &request.tenant_root,
+            pair,
+        )
+        .await?;
+        let (preparation, target) = prepare_deriver_a_pair_for_wallet_do_v1(
+            &self.env,
+            &request,
+            self.state.id().to_string(),
+            access,
+        )
+        .await
+        .map_err(|error| pair_error(error.to_string()))?;
         let DeriverAPairPreparationV1 {
             root_metadata_digest,
             prepared_at_ms,
@@ -786,6 +854,11 @@ impl RouterAbDeriverAWalletDurableObject {
             execution_id,
             deadline_ms: request.deadline_ms,
         };
+        let prepared_peer = self.prepared_peer.borrow_mut().take().filter(|peer| {
+            peer.preparation
+                .matches_execution(&request.tenant_root, pair)
+                && peer.preparation.custody_binding.expires_at_ms > worker::Date::now().as_millis()
+        });
         let role_result = execute_deriver_a_role(
             &self.env,
             &runtime,
@@ -793,6 +866,7 @@ impl RouterAbDeriverAWalletDurableObject {
             None,
             pair_execution,
             target_source,
+            prepared_peer,
             || self.claim_work(&owner, &cipher, pair, execution_id),
         )
         .await;
@@ -1511,17 +1585,46 @@ impl relocation::WalletOwner for DeriverAWalletOwnerV1 {
 }
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, PREPARATION_PATH).await
+    relocation::call_preparation::<DeriverAWalletOwnerV1>(
+        request,
+        env,
+        PAIR_DO_BINDING,
+        PREPARATION_PATH,
+    )
+    .await
 }
 
-pub(crate) async fn read_relocation_context(request: Request, env: &Env) -> worker::Result<Response> {
+pub(crate) async fn read_relocation_context(
+    request: Request,
+    env: &Env,
+) -> worker::Result<Response> {
     relocation::read_context::<DeriverAWalletOwnerV1>(request, env).await
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SOURCE_FENCE_PATH).await
+    relocation::call_preparation::<DeriverAWalletOwnerV1>(
+        request,
+        env,
+        PAIR_DO_BINDING,
+        SOURCE_FENCE_PATH,
+    )
+    .await
 }
 
 pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::snapshot::forward::<DeriverAWalletOwnerV1>(request, env, PAIR_DO_BINDING, SNAPSHOT_PATH).await
+    relocation::snapshot::forward::<DeriverAWalletOwnerV1>(
+        request,
+        env,
+        PAIR_DO_BINDING,
+        SNAPSHOT_PATH,
+    )
+    .await
+}
+
+struct RegistrationConnectionAttempt<'a>(&'a std::cell::Cell<bool>);
+
+impl Drop for RegistrationConnectionAttempt<'_> {
+    fn drop(&mut self) {
+        self.0.set(false);
+    }
 }

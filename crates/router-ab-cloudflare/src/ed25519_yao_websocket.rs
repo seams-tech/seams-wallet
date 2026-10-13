@@ -319,6 +319,43 @@ enum CloudflareEd25519YaoWebSocketPhaseV1 {
 }
 
 impl<'socket> CloudflareEd25519YaoWebSocketTransportV1<'socket> {
+    pub(crate) async fn start_prepared_registration(
+        &mut self,
+        execution_id: Ed25519YaoExecutionIdV1,
+        start: &CloudflareDeriverBPairStartScopeV1,
+    ) -> Result<(), CloudflareEd25519YaoPairStartErrorV1> {
+        use crate::registration_pair_connection::{Reply, Start};
+        let message = serde_json::to_string(&Start {
+            execution_id,
+            scope: start.clone(),
+        })
+        .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::InvalidProtocol)?;
+        self.socket
+            .send_with_str(&message)
+            .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::WebSocketEvent)?;
+        let reply: Reply =
+            crate::registration_pair_connection::read_control(&mut self.events, start.deadline_ms)
+                .await
+                .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::WebSocketEvent)?;
+        match reply {
+            Reply::Started {
+                session,
+                pair_digest,
+                execution_id: claimed,
+            } if session == start.scope.pair_binding.session()
+                && pair_digest == start.scope.pair_binding.pair_digest().bytes
+                && claimed == execution_id =>
+            {
+                Ok(())
+            }
+            Reply::Refused { refusal }
+                if refusal.answers(&start.scope.pair_binding, execution_id) =>
+            {
+                Err(CloudflareEd25519YaoPairStartErrorV1::Refused(refusal))
+            }
+            _ => Err(CloudflareEd25519YaoWebSocketErrorV1::InvalidProtocol.into()),
+        }
+    }
     /// Creates the Deriver A side of the fixed duplex channel.
     pub fn deriver_a(
         socket: &'socket WebSocket,

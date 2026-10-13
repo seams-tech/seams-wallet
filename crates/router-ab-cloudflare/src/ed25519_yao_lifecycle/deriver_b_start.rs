@@ -147,7 +147,7 @@ impl DeriverBYaoSessionD1V1 {
 /// so the connection can arrive first. B then waits for its own preparation
 /// of the same run, until the run ends or that preparation fails here. The
 /// answer is the started pair, or why B refuses while holding no claim.
-async fn claim_prepared_pair(
+pub(super) async fn claim_prepared_pair(
     env: &Env,
     execution_host: &DeriverBExecutionHostV1,
     start: &CloudflareDeriverBPairStartScopeV1,
@@ -342,6 +342,7 @@ pub(super) async fn handle_pair_bound_deriver_b_websocket(
             *pair_binding,
             *tenant_root,
             work,
+            None,
         )
         .await;
         match &result {
