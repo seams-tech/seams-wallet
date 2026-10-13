@@ -1131,6 +1131,94 @@ other regions' custody calls cross to Singapore in either case.
   restoration, as the R155F and R155G drivers do.
 - [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
 
+## Phase 9 — Finalization on the Singapore lane
+
+Read on October 13 from the 0.9.3 run, two probes and local profiles. No code
+is changed by this phase yet.
+
+What a finalization costs at the Gateway, about 380 ms at the median:
+
+| Part | Size | Source |
+| --- | ---: | --- |
+| Serial waits: eight database round trips, the consume beside the route claim, Console completion | 228 ms | `near_finalize_total` |
+| Gateway CPU | 96 ms at the median, 37–236 ms | tail `cpuTime` |
+| Entry and reply | about 50 ms | remainder |
+
+- **The CPU is cold code.** A warm local finalization uses 5–7 ms outside the
+  seal. Staging uses 100 ms because a finalization rarely meets an isolate
+  that ran one before. A probe Worker with a Singapore placement served 160
+  requests from 17 isolates, and consecutive requests of one connection
+  reached different isolates: the finalize isolate equalled the execute
+  isolate in 1 of 40 sequences. A warm-up that an earlier request of the same
+  registration starts therefore does not reach the isolate that finalizes.
+- **The seal costs 19 ms more when cold.** The first seal in an isolate used
+  26 ms of CPU at the median and a later one 7 ms, on the published 0.9.3
+  module.
+- **One shared record is read, checked and rewritten by every
+  finalization.** `router-ab-yao:router-ab-ed25519-yao:shared` holds the last
+  32 capabilities of an environment and measures 580 KB on staging, 17.7 KB
+  per capability. `commitRouterAbEd25519YaoRegistrationCapability` loads it,
+  validates it, installs the new capability and writes all of it back under
+  one version check, in the wallet commit's batch. Over 40 local profiles its
+  CPU rose from 1.7 ms to 4.1 ms as the cache filled, the largest part
+  outside the seal. Every unlock, recovery or export of a wallet that is not
+  among the last 32 rewrites the same record when it rehydrates. All wallets
+  of an environment share its version check, so concurrent registrations
+  contend, and a second lost attempt fails the request.
+- **The wallet commit span is two round trips.** The founding rows and the
+  shared record are read side by side, then the batch commits.
+
+Items:
+
+- [ ] Decide what the shared capability record holds. Either registration
+  stops installing into it and the first use rehydrates from the signer row,
+  which the code already does for an evicted wallet, or capabilities move to
+  one record per wallet. Recovery, export and unlock read this record, so the
+  owner decides. Expected: 40–60 ms of finalization and no contention
+  between registrations.
+- [ ] Read the Yao registration record in finalization's initial batch
+  instead of in the consume. One round trip, about 13 ms.
+- [ ] Warm the seal once per isolate from the first request's background
+  continuation. Up to 19 ms, less when the isolate sealed before.
+- Phase 3 stays deferred. On Singapore its part is the Console completion and
+  the write after it, about 40 ms.
+
+## Phase 10 — One request fewer after the passkey step
+
+Respond and execute are two round trips today. Read on October 13:
+
+- Nothing in the respond reply depends on the credential. The admission
+  request and receipt hold setup-time values and two values minted at
+  respond: `session_id` and the four `material_activation` ids.
+- The client needs the receipt's binding and the Gateway keyset to seal its
+  two inputs. It needs nothing else from respond.
+- Nobody signs the receipt. The Gateway stores it and compares the execute
+  request's binding with it. The Router never sees it.
+
+With the session minted at setup, the setup reply can carry the admission
+request. The client then seals its inputs during the prompt and sends the
+passkey proof and the inputs in one request. The Gateway verifies the proof,
+admits, and executes.
+
+- [ ] Depends on Phase 1's first item, the session mint at setup. R155J owns
+  that implementation; build this on it, once.
+- [ ] A new setup reply field and a merged route change the registration
+  wire. The client parsers accept exact keys, so the wallet-management
+  protocol moves to 4.
+- [ ] Keep exact replay of the merged request, the refusal of another
+  credential, and the separate routes for mixed registration, Email OTP and
+  add-signer until they move too.
+- [ ] Update the registration paragraphs of `docs/intended-behaviours.md` and
+  the contract cases that pin the request order.
+
+Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
+about half of that for a user in Singapore. The client's input preparation,
+about 30 ms, also leaves the path.
+
+Garbling ahead of execute needs the same mint: the gate hash's tweak domain
+is derived from the session id. After the label wipe and four-block cipher
+change its bound is smaller, because garbling costs half of what it did.
+
 ## Delegation sheet
 
 This plan is implemented by an agent that did not write it. The rules below
