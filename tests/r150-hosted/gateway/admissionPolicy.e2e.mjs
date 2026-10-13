@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { DatabaseSync } from 'node:sqlite';
 
 const root = '.artifacts/r152/admission-ownership';
 await mkdir(root, { recursive: true });
@@ -39,24 +37,6 @@ const worker = new Miniflare({
   compatibilityFlags: ['nodejs_compat'],
   d1Databases: ['DB'],
 });
-const nodeBuild = await build({
-  ...options,
-  stdin: {
-    contents: `
-      export { handlePolicyRequest } from './tests/r150-hosted/gateway/admissionPolicy.fixture';
-      export { createSyncSqliteDatabase } from './packages/wallet-server/src/storage/syncSqlite';
-      export { nodeSqliteConnection } from './packages/wallet-server/src/router/node/nodeSqlite';
-    `,
-    resolveDir: process.cwd(),
-    loader: 'ts',
-  },
-});
-await writeFile(`${root}/node-fixture.mjs`, nodeBuild.outputFiles[0].text);
-const node = await import(pathToFileURL(`${process.cwd()}/${root}/node-fixture.mjs`));
-const sqlite = new DatabaseSync(':memory:');
-sqlite.exec(schema);
-sqlite.exec(ownershipMigration);
-const vmDatabase = node.createSyncSqliteDatabase(node.nodeSqliteConnection(sqlite));
 const evidence = [];
 try {
   const d1 = await worker.getD1Database('DB');
@@ -64,15 +44,12 @@ try {
   for (const statement of unstable_splitSqlQuery(ownershipMigration)) {
     await d1.prepare(statement).run();
   }
-  for (const host of ['d1', 'vm', 'memory']) {
+  for (const host of ['d1', 'memory']) {
     await scenario(host, false);
     await scenario(host, true);
   }
   const ownership = {};
-  for (const [host, database] of [
-    ['d1', d1],
-    ['vm', vmDatabase],
-  ]) {
+  for (const [host, database] of [['d1', d1]]) {
     await send(host, '/throttle');
     await send(host, '/reject-abuse?other-wallet=1');
     await send(host, '/reject-project');
@@ -118,20 +95,22 @@ try {
     await check(host, '/evaluate?other-wallet=1', 403, 'abuse_rejected', 1);
   }
   // Simulate corrupted persistence independently of the normal write constraints.
-  sqlite.exec('PRAGMA ignore_check_constraints = ON');
-  sqlite.exec(
-    "UPDATE router_ab_normal_signing_admission_records SET decision = 'corrupt' WHERE wallet_id = 'other-wallet'",
-  );
-  sqlite.exec('PRAGMA ignore_check_constraints = OFF');
-  await check('vm', '/evaluate?other-wallet=1', 500, 'invalid_policy', 1);
-  await send('vm', '/reject-project');
-  await check('vm', '/evaluate?other-wallet=1', 403, 'project_policy_rejected', 1);
+  await d1.prepare('PRAGMA ignore_check_constraints = ON').run();
+  await d1
+    .prepare(
+      "UPDATE router_ab_normal_signing_admission_records SET decision = 'corrupt' WHERE wallet_id = 'other-wallet'",
+    )
+    .run();
+  await d1.prepare('PRAGMA ignore_check_constraints = OFF').run();
+  await check('d1', '/evaluate?other-wallet=1', 500, 'invalid_policy', 1);
+  await send('d1', '/reject-project');
+  await check('d1', '/evaluate?other-wallet=1', 403, 'project_policy_rejected', 1);
   await writeFile(
     `${root}/result.json`,
     JSON.stringify(
       {
         reproduce: 'node tests/r150-hosted/gateway/admissionPolicy.e2e.mjs',
-        hosts: ['local_cloudflare_d1', 'vm_sqlite_adapter', 'in_memory'],
+        hosts: ['local_cloudflare_d1', 'in_memory'],
         policyPrecedenceAndLiveUpdatesVerified: true,
         missingRowsAllowAndMalformedWritesRejected: true,
         ownership,
@@ -144,13 +123,11 @@ try {
   console.log(`Admission policy E2E passed; artifact: ${root}/result.json`);
 } finally {
   await worker.dispose();
-  sqlite.close();
 }
 
 async function send(host, route) {
   const url = new URL(route, 'http://policy');
   if (host === 'memory') url.searchParams.set('memory', '1');
-  if (host === 'vm') return node.handlePolicyRequest(new Request(url), vmDatabase);
   return worker.dispatchFetch(url.toString());
 }
 

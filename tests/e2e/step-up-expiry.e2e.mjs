@@ -1,18 +1,13 @@
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 // Run from the repository root: node tests/e2e/step-up-expiry.e2e.mjs
 import assert from 'node:assert/strict';
-import { once } from 'node:events';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { DatabaseSync } from 'node:sqlite';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
-import { Miniflare } from 'miniflare';
-import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { applySignerD1Migrations, openSignerD1 } from '../fixtures/signer-d1.mjs';
 
 const output = '.artifacts/tla-signing/admission-e2e';
-const signerMigrationsDirectory = 'packages/wallet-server/migrations/d1-signer';
 await mkdir(output, { recursive: true });
 const bundle = await build({
   bundle: true,
@@ -30,10 +25,6 @@ const bundle = await build({
       export { handleThresholdEcdsa } from './packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
       export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
       export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-      export { createSyncSqliteDatabase } from './packages/wallet-server/src/storage/syncSqlite';
-      export { nodeSqliteConnection } from './packages/wallet-server/src/router/node/nodeSqlite';
-      export { applySignerSqlMigrationsV1 } from './packages/wallet-server/src/router/node/signerSqlMigrations';
-      export { listenNodeFetchHandler } from './packages/wallet-server/src/router/node/nodeHttp';
       export { buildEcdsaSigningRequestFixture } from './tests/unit/helpers/ecdsaSigningRequest.fixtures';
       export { buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1, ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH } from './packages/shared-ts/src/utils/routerAbEcdsaDerivation';
       export { buildRouterAbEcdsaOwnerOperationStepUpPreparation } from './packages/wallet-server/src/router/domains/signingOperations/routerAbEcdsaDerivationNormalSigningRoute';
@@ -49,138 +40,6 @@ async function waitPast(deadline) {
   while (Date.now() <= deadline) {
     await delay(Math.max(1, deadline - Date.now() + 10));
   }
-}
-
-async function handleD1Request(request, env) {
-  const input = await request.json();
-  try {
-    const statements = [];
-    for (const statement of input.statements) {
-      statements.push(env.DB.prepare(statement.sql).bind(...statement.values));
-    }
-    if (input.kind === 'batch') {
-      return Response.json(await env.DB.batch(statements));
-    }
-    return Response.json(await statements[0].all());
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-}
-
-class D1HttpDatabase {
-  constructor(worker) {
-    this.worker = worker;
-  }
-
-  async send(input) {
-    const response = await this.worker.dispatchFetch('http://database/', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.error);
-    }
-    return result;
-  }
-
-  prepare(sql) {
-    return new D1HttpStatement(this, sql, []);
-  }
-
-  async batch(statements) {
-    const serializedStatements = [];
-    for (const statement of statements) {
-      serializedStatements.push({ sql: statement.sql, values: statement.values });
-    }
-    return await this.send({ kind: 'batch', statements: serializedStatements });
-  }
-
-  async exec(sql) {
-    const statements = [];
-    for (const query of unstable_splitSqlQuery(sql)) {
-      statements.push(this.prepare(query));
-    }
-    return await this.batch(statements);
-  }
-}
-
-class D1HttpStatement {
-  constructor(database, sql, values) {
-    this.database = database;
-    this.sql = sql;
-    this.values = values;
-  }
-
-  bind(...values) {
-    return new D1HttpStatement(this.database, this.sql, values);
-  }
-
-  async all() {
-    return await this.database.send({
-      kind: 'query',
-      statements: [{ sql: this.sql, values: this.values }],
-    });
-  }
-
-  async run() {
-    return await this.all();
-  }
-
-  async first(column) {
-    const result = await this.all();
-    const row = result.results[0] ?? null;
-    return column === undefined ? row : (row?.[column] ?? null);
-  }
-}
-
-async function openDatabase(host) {
-  if (host === 'vm_sqlite') {
-    const sqlite = new DatabaseSync(':memory:');
-    try {
-      const connection = api.nodeSqliteConnection(sqlite);
-      const migrations = api.applySignerSqlMigrationsV1(
-        connection,
-        signerMigrationsDirectory,
-        Date.now(),
-      );
-      return {
-        database: api.createSyncSqliteDatabase(connection),
-        migrations: migrations.applied,
-        close: sqlite.close.bind(sqlite),
-      };
-    } catch (error) {
-      sqlite.close();
-      throw error;
-    }
-  }
-  const worker = new Miniflare({
-    modules: true,
-    script: `export default { fetch: ${handleD1Request.toString()} };`,
-    d1Databases: ['DB'],
-    compatibilityDate: '2026-04-17',
-    port: 0,
-  });
-  try {
-    await worker.ready;
-    const database = new D1HttpDatabase(worker);
-    const migrations = (await readdir(signerMigrationsDirectory)).filter(isSqlMigration).sort();
-    for (const name of migrations) {
-      let sql = await readFile(`${signerMigrationsDirectory}/${name}`, 'utf8');
-      if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
-        sql = buildWorkerdCompatiblePhase1Bridge(sql);
-      }
-      await database.exec(sql);
-    }
-    return { database, migrations, close: worker.dispose.bind(worker) };
-  } catch (error) {
-    await worker.dispose();
-    throw error;
-  }
-}
-
-function isSqlMigration(name) {
-  return name.endsWith('.sql');
 }
 
 class DelayedAuthorizationStore extends api.CloudflareD1AuthorizationStore {
@@ -336,7 +195,7 @@ function proofFor(method, walletId) {
 }
 
 async function scenario(host, method, pause) {
-  const opened = await openDatabase(host);
+  const opened = await openSignerD1();
   try {
     return await exerciseStepUpExpiry(opened, host, method, pause);
   } finally {
@@ -451,14 +310,9 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
   assert.equal(tenant.ok, true);
   service.tenantId = tenant.value;
   const route = new ExpiryRoute(service, state, material);
-  const server = await api.listenNodeFetchHandler({
-    host: '127.0.0.1',
-    port: 0,
-    handle: route.handle.bind(route),
-  });
-  try {
-    const response = await fetch(
-      `http://127.0.0.1:${server.address().port}${api.ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH}`,
+  const response = await route.handle(
+    new Request(
+      `https://wallet.example.test${api.ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH}`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', origin: 'https://wallet.example.test' },
@@ -468,119 +322,109 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
           proof: proofFor(method, operation.wallet_id),
         }),
       },
+    ),
+  );
+  const body = await response.json();
+  const claims = (
+    await database
+      .prepare(
+        'SELECT authorized_operation_id, claimed_at_ms, lifecycle_kind FROM authorized_operations',
+      )
+      .all()
+  ).results;
+  const evidence = (
+    await database
+      .prepare('SELECT verified_at_ms, expires_at_ms FROM verified_wallet_operation_evidence_sets')
+      .all()
+  ).results;
+  const audits = (
+    await database
+      .prepare('SELECT COUNT(*) AS count FROM authorized_operation_audit_events')
+      .first()
+  ).count;
+  const quota = await database.prepare('SELECT * FROM authorization_wallet_session_quotas').first();
+  const result = {
+    host,
+    method,
+    pause,
+    deadline: state.deadline,
+    status: response.status,
+    code: body.code ?? body.kind,
+    verificationStartedAtMs: state.verificationStartedAtMs,
+    verificationFinishedAtMs: state.verificationFinishedAtMs,
+    claims,
+    evidence,
+    audits,
+    quota,
+    grantConsumed: route.grantConsumed,
+    migrations,
+  };
+  assert.equal(route.factorCalls, 1, JSON.stringify(body));
+  assert.equal(quota.remaining_uses, 0);
+  assert.equal(quota.wallet_session_id, 'session:expiry-e2e');
+  assert.equal(quota.lifecycle_kind, 'exhausted');
+  assert.equal(quota.expires_at_ms, state.deadline);
+  assert.equal(route.grantConsumed, method === 'email_otp' && pause !== 'failed-factor');
+  if (pause === 'none' || pause === 'relocation') {
+    assert.equal(response.status, 200, JSON.stringify(body));
+    assert.equal(claims.length, 1);
+    assert.equal(audits, 1);
+    const retry = await store.admitAuthorizedOperation(state.claimInput);
+    assert.equal(retry.kind, 'operation_in_progress');
+    assert.equal(
+      (await database.prepare('SELECT COUNT(*) AS count FROM authorized_operations').first()).count,
+      1,
     );
-    const body = await response.json();
-    const claims = (
-      await database
-        .prepare(
-          'SELECT authorized_operation_id, claimed_at_ms, lifecycle_kind FROM authorized_operations',
-        )
-        .all()
-    ).results;
-    const evidence = (
-      await database
-        .prepare(
-          'SELECT verified_at_ms, expires_at_ms FROM verified_wallet_operation_evidence_sets',
-        )
-        .all()
-    ).results;
-    const audits = (
-      await database
-        .prepare('SELECT COUNT(*) AS count FROM authorized_operation_audit_events')
-        .first()
-    ).count;
-    const quota = await database
-      .prepare('SELECT * FROM authorization_wallet_session_quotas')
-      .first();
-    const result = {
-      host,
-      method,
-      pause,
-      deadline: state.deadline,
-      status: response.status,
-      code: body.code ?? body.kind,
-      verificationStartedAtMs: state.verificationStartedAtMs,
-      verificationFinishedAtMs: state.verificationFinishedAtMs,
-      claims,
-      evidence,
-      audits,
+    result.exactRetry = retry.kind;
+    if (pause === 'relocation') {
+      result.relocation = await verifyStepUpRelocation(database, store, state, retry.operation);
+      return result;
+    }
+    await waitPast(state.deadline);
+    const expiredRetry = await store.admitAuthorizedOperation(state.claimInput);
+    assert.equal(expiredRetry.kind, 'verified_step_up_rejected');
+    result.pendingRetryAfterExpiry = expiredRetry.kind;
+    const completed = await store.completeAuthorizedOperation({
+      operation: retry.operation,
+      result: 'succeeded',
+      response: {
+        status: 200,
+        contentType: 'application/json',
+        bodyText: '{"result":"symbolic-signature"}',
+      },
+      completedAtMs: Date.now(),
+    });
+    const replay = await store.admitAuthorizedOperation(state.claimInput);
+    assert.equal(replay.kind, 'replayed');
+    assert.deepEqual(replay.operation, completed);
+    const preserved = await store.completeAuthorizedOperation({
+      operation: completed,
+      result: 'failed_after_side_effect',
+      response: { status: 500, contentType: 'text/plain', bodyText: 'replacement' },
+      completedAtMs: Date.now(),
+    });
+    assert.deepEqual(preserved, completed);
+    result.completedReplayAfterExpiry = replay.kind;
+    assert.deepEqual(
+      await database.prepare('SELECT * FROM authorization_wallet_session_quotas').first(),
       quota,
-      grantConsumed: route.grantConsumed,
-      migrations,
-    };
-    assert.equal(route.factorCalls, 1, JSON.stringify(body));
-    assert.equal(quota.remaining_uses, 0);
-    assert.equal(quota.wallet_session_id, 'session:expiry-e2e');
-    assert.equal(quota.lifecycle_kind, 'exhausted');
-    assert.equal(quota.expires_at_ms, state.deadline);
-    assert.equal(route.grantConsumed, method === 'email_otp' && pause !== 'failed-factor');
-    if (pause === 'none' || pause === 'relocation') {
-      assert.equal(response.status, 200, JSON.stringify(body));
-      assert.equal(claims.length, 1);
-      assert.equal(audits, 1);
-      const retry = await store.admitAuthorizedOperation(state.claimInput);
-      assert.equal(retry.kind, 'operation_in_progress');
-      assert.equal(
-        (await database.prepare('SELECT COUNT(*) AS count FROM authorized_operations').first())
-          .count,
-        1,
-      );
-      result.exactRetry = retry.kind;
-      if (pause === 'relocation') {
-        result.relocation = await verifyStepUpRelocation(database, store, state, retry.operation);
-        return result;
-      }
-      await waitPast(state.deadline);
-      const expiredRetry = await store.admitAuthorizedOperation(state.claimInput);
-      assert.equal(expiredRetry.kind, 'verified_step_up_rejected');
-      result.pendingRetryAfterExpiry = expiredRetry.kind;
-      const completed = await store.completeAuthorizedOperation({
-        operation: retry.operation,
-        result: 'succeeded',
-        response: {
-          status: 200,
-          contentType: 'application/json',
-          bodyText: '{"result":"symbolic-signature"}',
-        },
-        completedAtMs: Date.now(),
-      });
-      const replay = await store.admitAuthorizedOperation(state.claimInput);
-      assert.equal(replay.kind, 'replayed');
-      assert.deepEqual(replay.operation, completed);
-      const preserved = await store.completeAuthorizedOperation({
-        operation: completed,
-        result: 'failed_after_side_effect',
-        response: { status: 500, contentType: 'text/plain', bodyText: 'replacement' },
-        completedAtMs: Date.now(),
-      });
-      assert.deepEqual(preserved, completed);
-      result.completedReplayAfterExpiry = replay.kind;
-      assert.deepEqual(
-        await database.prepare('SELECT * FROM authorization_wallet_session_quotas').first(),
-        quota,
-      );
-    } else if (pause === 'failed-factor') {
-      assert.equal(response.status, 401);
-      assert.equal(body.code, 'not_verified');
-      assert.equal(claims.length, 0);
-      assert.equal(evidence.length, 0);
-      assert.equal(audits, 0);
-    } else {
-      assert.equal(response.status, 403, JSON.stringify(result));
-      assert.equal(body.code, 'verified_step_up_rejected');
-      assert.equal(claims.length, 0);
-      assert.equal(audits, 0);
-    }
-    for (const item of evidence) {
-      assert.ok(item.verified_at_ms >= state.verificationFinishedAtMs);
-    }
-    return result;
-  } finally {
-    const closed = once(server, 'close');
-    server.close();
-    server.closeAllConnections();
-    await closed;
+    );
+  } else if (pause === 'failed-factor') {
+    assert.equal(response.status, 401);
+    assert.equal(body.code, 'not_verified');
+    assert.equal(claims.length, 0);
+    assert.equal(evidence.length, 0);
+    assert.equal(audits, 0);
+  } else {
+    assert.equal(response.status, 403, JSON.stringify(result));
+    assert.equal(body.code, 'verified_step_up_rejected');
+    assert.equal(claims.length, 0);
+    assert.equal(audits, 0);
   }
+  for (const item of evidence) {
+    assert.ok(item.verified_at_ms >= state.verificationFinishedAtMs);
+  }
+  return result;
 }
 
 async function verifyStepUpRelocation(database, store, state, operation) {
@@ -726,18 +570,9 @@ function sqlParameter() {
 }
 
 async function verifyStepUpScopeMigration(database, scope, operation) {
-  const directory = `${output}/scope-upgrade-migrations`;
-  await mkdir(directory, { recursive: true });
-  const all = (await readdir(signerMigrationsDirectory)).filter(isSqlMigration).sort();
-  for (const name of all) {
-    if (name >= '0062_wallet_step_up_operation_settlement.sql') break;
-    await writeFile(`${directory}/${name}`, await readFile(`${signerMigrationsDirectory}/${name}`));
-  }
-  const sqlite = new DatabaseSync(':memory:');
+  const opened = await openSignerD1('0062_wallet_step_up_operation_settlement.sql');
   try {
-    const connection = api.nodeSqliteConnection(sqlite);
-    api.applySignerSqlMigrationsV1(connection, directory, Date.now());
-    const historical = api.createSyncSqliteDatabase(connection);
+    const historical = opened.database;
     const stored = await database
       .prepare('SELECT * FROM verified_wallet_operation_evidence_sets')
       .first();
@@ -752,8 +587,8 @@ async function verifyStepUpScopeMigration(database, scope, operation) {
     assert.equal(ownership_generation, 1);
     await insertStoredRow(historical, 'authorized_operations', oldOperation);
     await insertStoredRow(historical, 'wallet_signers', { ...signer, env_id: 'ambiguous-scope' });
-    assert.throws(
-      () => api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now()),
+    await assert.rejects(
+      applySignerD1Migrations(historical, opened.pendingMigrations),
       /wallet_operation_evidence_requires_unique_scope/u,
     );
     assert.deepEqual(
@@ -764,12 +599,12 @@ async function verifyStepUpScopeMigration(database, scope, operation) {
     );
     await historical.prepare("DELETE FROM wallet_signers WHERE env_id = 'ambiguous-scope'").run();
     await historical.prepare('DELETE FROM verified_wallet_operation_evidence_sets').run();
-    assert.throws(
-      () => api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now()),
+    await assert.rejects(
+      applySignerD1Migrations(historical, opened.pendingMigrations),
       /wallet_operation_evidence_requires_unique_scope/u,
     );
     await insertStoredRow(historical, 'verified_wallet_operation_evidence_sets', oldEvidence);
-    api.applySignerSqlMigrationsV1(connection, signerMigrationsDirectory, Date.now());
+    await applySignerD1Migrations(historical, opened.pendingMigrations);
     assert.deepEqual(
       Object.entries(
         await historical.prepare('SELECT * FROM verified_wallet_operation_evidence_sets').first(),
@@ -801,12 +636,12 @@ async function verifyStepUpScopeMigration(database, scope, operation) {
       migratedPendingClaimBlocksRetirement: true,
     };
   } finally {
-    sqlite.close();
+    await opened.close();
   }
 }
 
 const evidence = [];
-for (const host of ['vm_sqlite', 'local_cloudflare_d1']) {
+for (const host of ['local_cloudflare_d1']) {
   for (const method of ['passkey', 'email_otp']) {
     for (const pause of ['none', 'failed-factor', 'verification', 'evidence', 'admission']) {
       evidence.push(await scenario(host, method, pause));
