@@ -1,0 +1,92 @@
+{
+  "schema": "seams.ml-dsa-near-network-review.v1",
+  "observed_at": "2026-10-13T05:14:42.778950+00:00",
+  "source_feature_pin": {
+    "nearcore_commit": "a45238b883d23673e7eac94549126bbb6f0d9307",
+    "feature": "PostQuantumSignatures",
+    "protocol_version": 85
+  },
+  "queries": [
+    {
+      "method": "status",
+      "params": []
+    },
+    {
+      "method": "EXPERIMENTAL_protocol_config",
+      "params": {
+        "finality": "final"
+      }
+    }
+  ],
+  "limits": [
+    "Read-only configuration observations do not execute a signature verifier or submit an ML-DSA transaction.",
+    "A protocol-version comparison against the pinned source does not independently test deployed binary feature settings.",
+    "The eventual enrollment target remains a separate deployment choice."
+  ],
+  "networks": [
+    {
+      "network": "testnet",
+      "endpoint": "https://rpc.testnet.near.org",
+      "status": {
+        "chain_id": "testnet",
+        "protocol_version": 87,
+        "latest_protocol_version": 87,
+        "version": {
+          "build": "2.14.0-rc.2",
+          "commit": "21ec809d1530c73f68b61509263e0c7c0f6dbb06",
+          "rustc_version": "1.95.0",
+          "version": "2.14.0-rc.2"
+        },
+        "sync_info": {
+          "earliest_block_hash": "ETfKbbZQGiXxVyaXUtoLyQK2mjCc2csHnqnr1yTevp6L",
+          "earliest_block_height": 272634055,
+          "earliest_block_time": "2026-10-11T20:02:50.745899704Z",
+          "epoch_id": "EDd3BuMhn3Ew5QH4yY4VgqSzyh4HppXqkjGiFp3NXNLv",
+          "epoch_start_height": 272806855,
+          "latest_block_hash": "7T8DDekikeap48ZJnGgKogrWu7G4tJ7836zU9JToQDir",
+          "latest_block_height": 272839564,
+          "latest_block_time": "2026-10-13T05:14:31.733020234Z",
+          "latest_state_root": "6p3AHZaMucJdhLTonpYLCNsgDnFhe67t1DqF7kYQZapJ",
+          "syncing": false
+        }
+      },
+      "final_protocol_configuration": {
+        "protocol_version": 87,
+        "chain_id": "testnet",
+        "genesis_height": 42376888
+      }
+    },
+    {
+      "network": "mainnet",
+      "endpoint": "https://rpc.mainnet.near.org",
+      "status": {
+        "chain_id": "mainnet",
+        "protocol_version": 86,
+        "latest_protocol_version": 86,
+        "version": {
+          "build": "2.13.4",
+          "commit": "44f7ae6cd7ef08bab604e20a473bf77e35d4c993",
+          "rustc_version": "1.93.0",
+          "version": "2.13.4"
+        },
+        "sync_info": {
+          "earliest_block_hash": "FinQtzhNuLKjKNuGCvM6MWFk2sPYoZn9ANMNGj7vChVw",
+          "earliest_block_height": 219642951,
+          "earliest_block_time": "2026-10-12T07:56:29.436041254Z",
+          "epoch_id": "6VVRP2ijEe5hpHwb1FV3u6y2NDZNJpDCLmze2m5RTzTC",
+          "epoch_start_height": 219772334,
+          "latest_block_hash": "J9M6swA99adksrFf7TTGSsudnfcFpnG6MXrePTQTVqdB",
+          "latest_block_height": 219772429,
+          "latest_block_time": "2026-10-13T05:14:38.444841124Z",
+          "latest_state_root": "8i3RYJEGMambrL2TEFESTLcTtcae1MaRW2RLdTM96sra",
+          "syncing": false
+        }
+      },
+      "final_protocol_configuration": {
+        "protocol_version": 86,
+        "chain_id": "mainnet",
+        "genesis_height": 9820210
+      }
+    }
+  ]
+}

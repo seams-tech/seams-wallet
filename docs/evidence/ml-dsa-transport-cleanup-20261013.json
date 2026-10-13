@@ -1,0 +1,49 @@
+{
+  "schema": "seams.ml-dsa-transport-cleanup.v1",
+  "verified_at": "2026-10-13T05:06:45.006082+00:00",
+  "scope": "Deletion of only the two temporary ML-DSA transport Workers and verification that their Durable Object namespaces no longer appear.",
+  "delete_argv": [
+    [
+      "pnpm",
+      "exec",
+      "wrangler",
+      "delete",
+      "--config",
+      "crates/ed25519-yao-cloudflare-bench/wrangler.transport.a.jsonc",
+      "--force"
+    ],
+    [
+      "pnpm",
+      "exec",
+      "wrangler",
+      "delete",
+      "--config",
+      "crates/ed25519-yao-cloudflare-bench/wrangler.transport.b.jsonc",
+      "--force"
+    ]
+  ],
+  "workers": [
+    {
+      "worker": "ml-dsa-probe-20261013-a",
+      "method": "GET /accounts/<account>/workers/scripts/<worker>/settings",
+      "http_status": 404,
+      "error_codes": [
+        10007
+      ],
+      "worker_absent": true
+    },
+    {
+      "worker": "ml-dsa-probe-20261013-b",
+      "method": "GET /accounts/<account>/workers/scripts/<worker>/settings",
+      "http_status": 404,
+      "error_codes": [
+        10007
+      ],
+      "worker_absent": true
+    }
+  ],
+  "temporary_durable_object_namespaces_remaining": [],
+  "namespace_query_http_status": 200,
+  "ephemeral_probe_token_file_removed": true,
+  "production_resources_modified": false
+}

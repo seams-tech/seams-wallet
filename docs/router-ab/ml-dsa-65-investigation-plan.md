@@ -1,6 +1,6 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: local reference and circuit implementation in progress, 2026-10-13.
+Status: private host key generation verified. Deployed transport measured. Signing investigation in progress, 2026-10-13.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -8,10 +8,96 @@ Select the fastest measured complete protocol that preserves the security and re
 Use current research to find candidates. Publication date does not determine the winner.
 The investigation must cover key generation, signing, recovery, export, and deployment.
 The [experiment contract](ml-dsa-65-experiment-contract.md) defines the first executable slice.
-The [host harness](../../tools/ml-dsa-investigation/README.md) checks public reference fixtures and hashing circuits.
-Complete threshold signing and deployed measurements remain open.
+The [host harness](../../tools/ml-dsa-investigation/README.md) checks references, private key generation, and authorized test export.
+Complete threshold signing and deployed cryptographic execution remain open.
 
-## First local evidence — October 13, 2026
+## Current implementation evidence — October 13, 2026
+
+The [kernel and private key-generation report](../evidence/ml-dsa-65-kernels-20261013.json) extends the foundation evidence below.
+Two persistent processes execute eighteen circuits with genuine oblivious transfer, or OT.
+OT delivers each private input label without revealing the input to its peer.
+The circuits expand the hidden seed, sample eleven secret polynomials, and round six shared public-key polynomials.
+Each process computes public matrix expansion and linear arithmetic on its own shares.
+Neither normal role receives the complete seed, private stream, or expanded key.
+
+Four reference seeds and one jointly generated disposable seed pass the complete host flow.
+After generation, a separate authorized test recipient reconstructs the seed and every private-key field.
+Its full 4,032-byte expanded encoding matches OpenSSL independently for all five keys.
+Each participant retains 17,472 bytes of disposable seed, `K`, and polynomial shares.
+The recipient's ordinary signatures verify. These are recovery checks. Threshold signing remains unimplemented.
+
+| Complete private host key generation | Measured bytes |
+| --- | ---: |
+| Garbled AND tables | 118,728,192 |
+| A to B, including OT, input labels, frames, and output translations | 122,426,379 |
+| B to A, including OT and public results | 736,875 |
+| Both directions | 123,163,254 |
+| OT, already included in those directions | 2,129,280 |
+
+The five observed key-generation runs took approximately 2.5–2.8 seconds each on the recorded native host.
+They include fresh OT for every circuit, process startup, and schedule loading.
+They exclude compilation, authorized recovery, Cloudflare execution, production admission, and persistence.
+Five different keys do not establish a latency distribution or a production p95.
+Shared-host process separation provides no operating-system isolation claim.
+Local native arithmetic still needs a constant-time review and target-runtime measurements.
+
+The [hosted transport report](../evidence/ml-dsa-transport-hosted-20261013.json) measures synthetic 8, 32, and 64 MB transfers.
+It compares HTTP and WebSocket transfer through direct Service Bindings and a pair of probe wallet Durable Objects.
+The 128 KiB frame results at 64 MB show these medians:
+
+| Probe path | HTTP | WebSocket |
+| --- | ---: | ---: |
+| Direct Worker to Worker | 0.726 seconds | 0.341 seconds |
+| Through both probe wallet Durable Objects | 0.973 seconds | 1.134 seconds |
+
+Each transfer group contains five measured samples after one excluded warm-up.
+Concurrency groups use 1, 4, and 16 simultaneous 8 MB HTTP transfers to the same wallet.
+Authentication rejection, truncated payloads, and a delayed receiver also pass.
+The report records source hashes, tool identities, frame counts, checksums, raw samples, and reproduction commands.
+The sender limits application buffers. Runtime peak memory and copy counts remain unmeasured.
+These probes do not guarantee same-region execution or reveal physical Durable Object placement.
+They use no D1 and do not measure the production Router admission or storage path.
+
+The [CPU report](../evidence/ml-dsa-transport-cpu-20261013.json) contains Cloudflare's aggregate transport CPU and wall-time buckets.
+The schema identifies their units as microseconds.
+Buckets can combine several workloads. They cannot establish per-key CPU, cryptographic cost, or a campaign percentile.
+The [cleanup record](../evidence/ml-dsa-transport-cleanup-20261013.json) verifies deletion of both temporary Workers and their Durable Object namespaces.
+
+The [signing assessment](ml-dsa-65-signing-options.md) defines the next protocol questions.
+The host report also measures private `ExpandMask`, which generates the five signing-mask polynomials for one attempt.
+Each polynomial uses 222,400 AND gates and 7,116,800 table bytes.
+Five polynomials therefore require 35,584,000 table bytes before commitment hashing, checks, hints, or final encoding.
+Five nonce cases match an independent SHAKE implementation through genuine OT execution.
+A receives no decoded mask output. Each participant retains only its own additive mask share.
+The measured host kernel pairs take approximately 0.15–0.18 seconds each, including fresh OT and process startup.
+These measurements establish one signing component. They do not establish complete signing latency.
+Keep rejected `w1` private. Investigate private commitment hashing followed by a public challenge hash separately.
+That possible disclosure needs a complete composition argument before selection.
+Mithril's short-share privacy loss and Trilithium's replacement preprocessing remain unresolved.
+
+## Worker execution gap
+
+The private executor compiles for `wasm32-unknown-unknown`.
+It still uses blocking host I/O and `std::time::Instant`.
+Neither operation provides the required asynchronous Worker execution path.
+Compilation therefore establishes type compatibility, rather than executable Cloudflare cryptography.
+
+Reuse the existing resumable OT, gate execution, and asynchronous transport patterns.
+The [stream runtime](../../crates/ed25519-yao/src/passive/stream_runtime.rs) already advances one frame at a time.
+The [role protocol](../../crates/ed25519-yao/src/passive/role_protocol.rs) separates cryptographic transitions from transport events.
+The [Worker benchmark adapter](../../crates/ed25519-yao-cloudflare-bench/src/lib.rs) supplies HTTP, WebSocket, timeout, and copy-accounting patterns.
+Extract a resumable ML-DSA executor and make both host and Worker adapters drive that same implementation.
+Keep clocks outside cryptographic state. Preserve B-only private outputs and explicit boundaries between circuits.
+
+The thirteen unique key-generation schedules occupy 91,254,494 encoded bytes.
+These are public circuit descriptions, separate from the garbled tables.
+Load one digest-pinned schedule at a time before measuring peak memory.
+Investigate a public nonce input to reuse one sampling schedule across eleven polynomials.
+This can reduce stored descriptions. It does not remove the eleven private SHAKE computations.
+The current parser checks shape and topology. Deployed admission also needs an expected trusted schedule digest.
+Use bounded transport credit and measure queued memory before composing the eighteen-circuit Worker pipeline.
+
+## Foundation evidence — October 13, 2026
 
 The [reference and circuit harness](../../tools/ml-dsa-investigation/README.md) passed.
 Its [generated report](../evidence/ml-dsa-65-foundation-20261013.json) contains commands, source digests, public fixtures, and raw samples.
@@ -30,18 +116,18 @@ This verifies reference reproducibility. It does not implement confidential expo
 The hashing sum excludes the control circuit.
 Each kernel matches its independent hash implementation on public fixtures.
 The report includes all eleven polynomial nonces and all sixteen seed-share pattern pairs.
-Half-gate bytes remain an estimate from compiled gates, rather than measured network traffic.
-Sampling, private outputs, arithmetic, conversions, OT, framing, and actual garbling remain additional work.
+At this foundation checkpoint, half-gate bytes were estimates from compiled gates.
+The later report above measures sampling, private outputs, arithmetic, conversions, OT, framing, and actual garbling.
 
 Compiler simplification reduces the earlier 55.296 MB hashing estimate by about 0.7 percent.
 It does not materially reduce the bandwidth requirement.
-Next, measure the deployed transport and actual half-gate execution, then add oblivious coefficient selection and share conversion.
+The next implementation supplied deployed transport probes, actual half-gates, oblivious coefficient selection, and share conversion.
 Compare GMW with complete preprocessing costs before choosing a smaller-traffic engine.
 
 The starting review covered repository sources at `seams-wallet` commit `7dc2a5cd`, installed Wallet Server 0.8.0 artifacts, and the primary references below.
 The generated report records the later experiment's source revision and file identities separately.
-Live Cloudflare versions, placement, and target-network activation remain unverified.
-Pin those deployment facts before recording performance results.
+The transport report pins its disposable Cloudflare artifacts.
+Production role versions, physical placement, and target-network activation remain unverified.
 
 ## First milestone: deployed feasibility and speed
 
@@ -175,6 +261,11 @@ Those representations require explicit ML-DSA variants before Wallet transaction
 Include key parsing, Borsh encoding, access-key lookup, message/context handling, and transaction-size accounting in the integration scope.
 NEAR transaction-signature support does not establish support for ML-DSA implicit-account identifiers.
 
+The [read-only network observations](../evidence/ml-dsa-near-network-20261013.json) record final protocol versions on October 13, 2026.
+Mainnet reports version 86. Testnet reports version 87.
+Both exceed the pinned source's version-85 feature gate.
+This supports investigating current network integration. It does not execute the deployed verifier or prove a transaction succeeds.
+
 ## Options to investigate
 
 Secure two-party computation, abbreviated 2PC, lets both participants compute over secrets without revealing those secrets.
@@ -301,12 +392,12 @@ Refresh the research survey before the final protocol decision.
 
 ### 2 Measure the deployed Cloudflare transport
 
-- [ ] Extend the existing separate-role benchmark transport.
+- [x] Extend the existing separate-role benchmark transport with isolated synthetic probes.
 - [ ] Record the actual Worker and Durable Object path. Record Container configuration separately if the verified deployment uses Containers.
-- [ ] Stream synthetic binary payloads of 8, 32, and 64 MB without cryptographic evaluation.
+- [x] Stream synthetic binary payloads of 8, 32, and 64 MB without cryptographic evaluation.
 - [ ] Measure the deployed path first. Compare WebSocket, HTTP streaming, and RPC streaming where their runtime boundaries support them.
 - [ ] Record actual compute placement and both D1 primary locations separately.
-- [ ] Measure setup, first byte, last byte, receiver completion, acknowledgments, and bounded-buffer behavior.
+- [x] Measure setup, first byte, last byte, receiver completion, acknowledgments, and application buffer bounds on the probe paths.
 - [ ] Measure CPU, memory, copied bytes, frame counts, and concurrency effects.
 - [ ] Repeat with controlled delay to establish sensitivity to communication depth.
 
@@ -321,13 +412,13 @@ See [Service Bindings](https://developers.cloudflare.com/workers/runtime-apis/bi
 
 ### 3 Benchmark the secret computation
 
-- [ ] Use the existing half-gates engine for the first executable measurements.
+- [x] Use the existing half-gates engine for the first executable measurements.
 - [ ] Run A and B in separate processes before repeating the workload in the selected Cloudflare runtime.
-- [ ] Measure one Keccak permutation, complete seed expansion, and all secret polynomial streams.
-- [ ] Include secret sampling, coefficient selection, share conversion, and private outputs.
+- [x] Measure one Keccak permutation, complete seed expansion, and all secret polynomial streams on the native host.
+- [x] Include secret sampling, coefficient selection, share conversion, and private outputs in the host pipeline.
 - [ ] Record generated gate counts, live-wire counts, peak memory, directional bytes, CPU, and latency for each stage.
-- [ ] Verify exact coefficient values and order against the independent reference using public synthetic fixtures.
-- [ ] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
+- [x] Verify exact coefficient values and order against the independent reference using public synthetic fixtures.
+- [x] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
 - [ ] Compare GMW on the same workload, including two-party preprocessing generation and all share conversions.
 
 Output: executable kernel measurements and a stage-by-stage resource breakdown.
@@ -337,13 +428,13 @@ Gate counts alone do not establish CPU cost or elapsed time.
 
 ### 4 Complete canonical key generation
 
-- [ ] Combine the measured secret computation with local arithmetic on shares.
-- [ ] Include local matrix expansion, arithmetic, rounding, and public-key encoding.
+- [x] Combine the measured secret computation with local arithmetic on shares on the native host.
+- [x] Include local matrix expansion, arithmetic, rounding, and public-key encoding in the host pipeline.
 - [ ] Compare full Yao estimates with the measured hybrid implementations.
 - [ ] Include preprocessing generation and every conversion between computation methods.
 - [ ] Include the real transport and role-private persistence path in complete operation timings.
-- [ ] Compare regenerated public keys across independent standard implementations.
-- [ ] Reconstruct the test seed only at the authorized export recipient and reproduce the exact ordinary keypair.
+- [x] Compare regenerated public keys across independent standard implementations.
+- [x] Reconstruct the test seed only at the authorized export recipient and compare the complete ordinary expanded keypair.
 - [ ] Verify that each participant retains only its own seed and signing material.
 - [ ] Record separate timings for first use and repeated use of public matrix data.
 
@@ -470,11 +561,11 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-1. Validate the pinned reference, canonical-key contract, and provisional uniformly masked share format through the host harness.
-2. Measure raw transport through the actual Cloudflare compute path.
-3. Benchmark secret expansion, sampling, and share conversion with half-gates and GMW.
-4. Complete canonical key generation and authorized recovery using public test fixtures.
-5. Produce a standard threshold signature and publish the complete feasibility and speed report.
+1. Adapt the validated private kernels to the existing resumable Worker transport. Measure CPU and memory with genuine OT.
+2. Build on the validated signing-mask kernel. Compile private commitment hashing, aggregate checks, and hint encoding next.
+3. Review the exact challenge/count disclosure and compare it with the fully private baseline.
+4. Compare GMW and smaller garbling with complete preprocessing and conversion costs.
+5. Produce a standard threshold signature, verify it independently and against NEAR, then publish the complete feasibility report.
 
 Use that report to prioritize protocol optimization and the remaining lifecycle work.
 Keep implementation and benchmark reports linked from this document as the investigation proceeds.
