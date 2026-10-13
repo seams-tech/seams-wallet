@@ -31,8 +31,8 @@ pause comes every 30 s.
   machine, costs seconds; those are different problems.
 
 Each wallet object logs `wallet_do_host` once per instance, with its colo and
-host. The stalled commands of a hosted run can be grouped by that host and
-checked against the cycle.
+host. Staging has this log line since October 13. A stalled command can be
+checked against the cycle of its host, when the phase of that host is known.
 
 ## What is established
 
@@ -125,8 +125,20 @@ the user decides it. A claim must stay confirmed.
   `cloudflare-support-draft.md` in the private probe folder. Ask what the
   hosts do every 5 s and 30 s, whether it is the storage-thread problem that
   the D1 team described, and whether the confirmation can stop waiting.
-- [ ] Deploy the `wallet_do_host` log line and group the stalled commands of
-  a hosted run by host. This gives the size of the problem in the product.
+- [x] Deploy the `wallet_do_host` log line. Staging serves it on the four
+  role Workers since October 13, 13:17 JST: builds of the release 0.9.3 role
+  sources plus the log line, selected by a direct version switch. 138
+  registrations with a signature each passed. Four interleaved rounds with
+  48 wallets on each side showed no cost: 1,872 ms after the passkey step
+  on the 0.9.3 versions and 1,918 ms with the log line, and the rounds
+  differ in both directions. The next release carries the same commit.
+- [ ] Find the share of a registration's tail that the pause explains. The
+  wallet objects of a hosted run spread over many hosts: 295 objects of 78
+  wallets ran on 210 hosts, all in Singapore. So one run gives too few
+  stalled commands per host to find the phase of a host. Run the probe's
+  light streams in the same region at the same time; they give the phase
+  of each host that they reach. Then check each stalled command of a wallet
+  object against the phase of its host.
 - [ ] Repeat the load test between 15:00 and 18:30 UTC: light streams alone
   in one region, then load from a second deployment at a known time. At
   02:00 UTC it showed no effect.

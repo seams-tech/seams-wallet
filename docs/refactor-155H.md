@@ -1071,14 +1071,17 @@ other regions' custody calls cross to Singapore in either case.
   - Report the share of clean single-write commands more than 20, 50 and
     100 ms over their median in every hosted comparison. `staging_tails.py`
     in the private probe folder computes it.
-  - Make the pause visible in the product's own logs. Done in code, not
-    deployed: each wallet object logs `wallet_do_host` with its role, object
+  - Make the pause visible in the product's own logs. Done, and on
+    staging since October 13: each wallet object logs `wallet_do_host` with its role, object
     id, colo and host once per instance, beside its first command and off
     the response. The host is the `fl` value of
-    `https://cloudflare.com/cdn-cgi/trace`. Open: in the next hosted run,
-    fold the stalled commands of each host on 5,000 ms. Until then the
-    share of a registration's tail that the pause explains is the probe's
-    estimate.
+    `https://cloudflare.com/cdn-cgi/trace`. Four interleaved staging
+    rounds with 48 wallets on each side showed no cost. Open: the objects
+    of a hosted run spread over many hosts, 295 objects on 210 hosts, so the
+    stalled commands of one run cannot give the phase of a host. Run the
+    probe's light streams beside a hosted run to learn the phases, then
+    check each stalled command against its host. Until then the share of a
+    registration's tail that the pause explains is the probe's estimate.
   - A load test at 02:00 UTC found no effect of the probe's own load on
     the pause. Repeat it between 15:00 and 18:30 UTC, when the pause grew
     within three probe rounds in Singapore and Sydney.
