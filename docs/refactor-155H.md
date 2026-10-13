@@ -7,14 +7,16 @@ Singapore staging lane, registration after the passkey step measures
 and 3,044 ms on 0.9.0: 164 and 198 wallets, client in Tokyo. 80% of the
 wallets finish in less than 2.0 s after the passkey step. The
 [record](evidence/refactor-155h-release-093-staging.md) holds the chain.
-Release 0.9.4 carries the engine change of Phase 4 and serves on staging
-since October 13: the Yao execution is about 60 ms shorter, see its
+Release 0.9.4 carries the engine change of Phase 4: the Yao execution is
+about 60 ms shorter, see its
 [record](evidence/refactor-155h-release-094-staging.md).
-Of Phase 1, the session mint at setup is implemented, and Phase 10 builds
-the one-request registration on it; both are on `dev` for release 0.10.0.
-Phase 1 pair preparation and its setup limit are implemented locally; hosted
-validation remains. Phase 3 is decided and not implemented. Date:
-October 13, 2026.
+Release 0.10.0 serves on staging since October 14. It carries the session
+mint and the pair preparation of Phase 1, the capability record change of
+Phase 9 and the one-request registration of Phase 10. Registration after the
+passkey step measures 1,747 ms at the median against 2,096 ms on 0.9.4 in
+the hour before; see its
+[record](evidence/refactor-155h-release-0100-staging.md).
+Phase 3 is decided and not implemented. Date: October 14, 2026.
 
 [R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
 outliers and the combined p99 comparison. It reuses this plan's Phase 1 design
@@ -312,6 +314,17 @@ abandoned admission cleanup, and cancellation. Gateway D1 tests verify the
 30-request concurrent limit, key/IP separation, window expiry, and failure
 refusal. [Evidence](evidence/refactor-155h-prompt-preparation.md) records commands
 and limits. No deployment or latency saving is claimed for this change.
+
+Hosted measurement, October 14 (release 0.10.0 on staging): the Router's
+preparation request takes 699 ms at the median, in the background of the
+prompt, and the browser's setup stage did not change. The Router's execute
+request fell from 787 ms to 721 ms and Deriver A's execute work from 602 ms
+to 441 ms. The execute request still holds a pair preparation span of
+142 ms. The Derivers' start-up ceremony now runs in the preparation request,
+and arriving work stopped it in 11% of the cases, against 2% on 0.9.4. The
+hosted cost of an abandoned setup is not measured yet. The
+[staging record](evidence/refactor-155h-release-0100-staging.md) holds the
+runs.
 
 A binds and rereads its role state in one D1 batch. B binds during its existing
 input preparation and retains its fresh read before running. Removing B's last
@@ -1230,9 +1243,11 @@ Items:
   record keeps every suspended capability and the four newest others, so it
   stays small. Two registrations no longer share a version check. The
   [record](evidence/refactor-155h-capability-from-signer-row.md) holds the
-  guards and the database calls. Not released and not measured on staging:
-  expected 40–60 ms of finalization, and less CPU in each signing admission
-  and unlock.
+  guards and the database calls. Released in 0.10.0 and measured on staging
+  on October 14: the wallet commit span fell from 175 ms to 56 ms at the
+  median, the finalization total from 372 ms to 261 ms, and the Gateway's
+  CPU per finalization from 146 ms to 48 ms. The first signature fell from
+  532 ms to 362 ms, because a signing admission no longer reads the record.
 - [ ] Read the Yao registration record in finalization's initial batch
   instead of in the consume. One round trip, about 13 ms.
 - [ ] Warm the seal once per isolate from the first request's background
@@ -1285,11 +1300,15 @@ admits, and executes.
   Workers and the two debug-build cases on the debug Router. The
   [record](evidence/refactor-155h-one-request-registration.md) holds the
   checks.
-- [ ] Not released and not measured on staging. A release with protocol 4
-  refuses every earlier SDK. The user decided on October 13 that it is
-  release 0.10.0, and that Codex releases and deploys it together with
-  Phase 1. The private Console sends the protocol header as a literal in two
-  places; the [release review](refactor-155-release-review.md) lists them.
+- [x] Released in 0.10.0 and measured on staging on October 14: the proof
+  and the execution take 1,065 ms at the median against 1,331 ms as two
+  requests on 0.9.4, and the Gateway's time for both fell from 1,073 ms to
+  936 ms. The [staging record](evidence/refactor-155h-release-0100-staging.md)
+  holds the runs. Protocol 4 refuses every earlier SDK; the private Console
+  canary and one private test now send 4.
+- [ ] Respond does not retry a transient database fault, and it returns the
+  driver's text with HTTP 400. One sample of 198 failed that way. With the
+  execution inside respond, this request carries more of the registration.
 
 Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
 about half of that for a user in Singapore. The client's input preparation,

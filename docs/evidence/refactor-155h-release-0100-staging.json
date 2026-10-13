@@ -1,0 +1,1568 @@
+{
+ "schema": "refactor_155h_release_0100_staging_v1",
+ "date": "2026-10-14",
+ "lane": "staging-testnet, APAC home in Singapore",
+ "client": "Chromium with a virtual authenticator on a laptop in Tokyo; every request of these runs entered Cloudflare in Tokyo",
+ "sample": "fresh NEAR implicit registration and a first NEP-413 signature per wallet",
+ "stageNote": "On 0.10.0 the respond stage holds the Yao execution and the custody stage is client work only; compare proofAndExecution.",
+ "before": {
+  "packageVersion": "0.9.4",
+  "wallets": 99,
+  "runs": [
+   {
+    "label": "pre0100-094-c",
+    "release": "0.9.4",
+    "client": "published 0.9.4",
+    "startJst": "23:42",
+    "endJst": "23:53",
+    "groupsPassed": 33,
+    "groups": 33,
+    "wallets": 99,
+    "p50Ms": 2096,
+    "p90Ms": 2764
+   }
+  ],
+  "afterPasskeyDistribution": {
+   "wallets": 99,
+   "minMs": 1543,
+   "p10Ms": 1750,
+   "p50Ms": 2096,
+   "p90Ms": 2764,
+   "p95Ms": 3206,
+   "maxMs": 7513,
+   "lessThan2000MsPercent": 40,
+   "lessThan2500MsPercent": 83,
+   "atLeast3000MsPercent": 6,
+   "proofAndExecutionP50Ms": 1331,
+   "proofAndExecutionP90Ms": 1640
+  },
+  "browserStagesMs": {
+   "setup": {
+    "n": 99,
+    "p50": 578,
+    "p90": 1198,
+    "min": 390,
+    "max": 3447,
+    "mean": 750
+   },
+   "passkey": {
+    "n": 99,
+    "p50": 485,
+    "p90": 627,
+    "min": 76,
+    "max": 803,
+    "mean": 477
+   },
+   "respond": {
+    "n": 99,
+    "p50": 253,
+    "p90": 444,
+    "min": 160,
+    "max": 819,
+    "mean": 297
+   },
+   "custody": {
+    "n": 99,
+    "p50": 1047,
+    "p90": 1339,
+    "min": 685,
+    "max": 6162,
+    "mean": 1119
+   },
+   "finalize": {
+    "n": 99,
+    "p50": 680,
+    "p90": 1157,
+    "min": 420,
+    "max": 2080,
+    "mean": 772
+   },
+   "clientRest": {
+    "n": 99,
+    "p50": 55,
+    "p90": 59,
+    "min": 37,
+    "max": 64,
+    "mean": 53
+   },
+   "afterPasskey": {
+    "n": 99,
+    "p50": 2096,
+    "p90": 2764,
+    "min": 1543,
+    "max": 7513,
+    "mean": 2245
+   },
+   "registrationNoPasskey": {
+    "n": 99,
+    "p50": 2855,
+    "p90": 3712,
+    "min": 2158,
+    "max": 9628,
+    "mean": 3084
+   },
+   "signPrepare": {
+    "n": 99,
+    "p50": 117,
+    "p90": 552,
+    "min": 0,
+    "max": 1467,
+    "mean": 185
+   },
+   "signFinalize": {
+    "n": 99,
+    "p50": 368,
+    "p90": 638,
+    "min": 220,
+    "max": 1210,
+    "mean": 424
+   },
+   "signature": {
+    "n": 99,
+    "p50": 532,
+    "p90": 1027,
+    "min": 241,
+    "max": 1867,
+    "mean": 614
+   },
+   "combinedNoInteraction": {
+    "n": 99,
+    "p50": 3504,
+    "p90": 5017,
+    "min": 2504,
+    "max": 10682,
+    "mean": 3738
+   }
+  },
+  "finalizeServerSpansMs": {
+   "near_finalize_authority": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_authority_reserve": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_custody_commit": {
+    "n": 99,
+    "p50": 29,
+    "p90": 49,
+    "min": 15,
+    "max": 235,
+    "mean": 37
+   },
+   "near_finalize_custody_reserve": {
+    "n": 99,
+    "p50": 130,
+    "p90": 331,
+    "min": 65,
+    "max": 1328,
+    "mean": 195
+   },
+   "near_finalize_fingerprint": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_initial_read": {
+    "n": 99,
+    "p50": 16,
+    "p90": 38,
+    "min": 2,
+    "max": 149,
+    "mean": 23
+   },
+   "near_finalize_router_consume": {
+    "n": 99,
+    "p50": 53,
+    "p90": 116,
+    "min": 23,
+    "max": 391,
+    "mean": 74
+   },
+   "near_finalize_session_issue": {
+    "n": 99,
+    "p50": 38,
+    "p90": 190,
+    "min": 18,
+    "max": 563,
+    "mean": 77
+   },
+   "near_finalize_session_seal": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_side_effect": {
+    "n": 99,
+    "p50": 349,
+    "p90": 753,
+    "min": 196,
+    "max": 1816,
+    "mean": 452
+   },
+   "near_finalize_source": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_total": {
+    "n": 99,
+    "p50": 372,
+    "p90": 781,
+    "min": 208,
+    "max": 1855,
+    "mean": 475
+   },
+   "near_finalize_wallet_commit": {
+    "n": 99,
+    "p50": 175,
+    "p90": 330,
+    "min": 84,
+    "max": 1403,
+    "mean": 221
+   }
+  },
+  "respondServerSpansMs": {
+   "ecdsa_respond_d1_load": {
+    "n": 99,
+    "p50": 15,
+    "p90": 34,
+    "min": 8,
+    "max": 126,
+    "mean": 19
+   }
+  },
+  "workerInvocations": {
+   "a.execute_pair": {
+    "wall": {
+     "n": 33,
+     "p50": 598,
+     "p90": 808,
+     "min": 388,
+     "max": 2246,
+     "mean": 654
+    },
+    "cpu": {
+     "n": 33,
+     "p50": 7,
+     "p90": 14,
+     "min": 3,
+     "max": 87,
+     "mean": 14
+    }
+   },
+   "a.execute_work.do": {
+    "wall": {
+     "n": 34,
+     "p50": 602,
+     "p90": 760,
+     "min": 381,
+     "max": 2230,
+     "mean": 635
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 210,
+     "p90": 284,
+     "min": 137,
+     "max": 315,
+     "mean": 215
+    }
+   },
+   "a.wallet_start.do": {
+    "wall": {
+     "n": 34,
+     "p50": 406,
+     "p90": 572,
+     "min": 106,
+     "max": 777,
+     "mean": 417
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 310,
+     "p90": 471,
+     "min": 2,
+     "max": 554,
+     "mean": 315
+    }
+   },
+   "b.duplex.do": {
+    "wall": {
+     "n": 34,
+     "p50": 343,
+     "p90": 580,
+     "min": 228,
+     "max": 2040,
+     "mean": 425
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 193,
+     "p90": 257,
+     "min": 25,
+     "max": 336,
+     "mean": 196
+    }
+   },
+   "b.prepare_pair": {
+    "wall": {
+     "n": 33,
+     "p50": 148,
+     "p90": 355,
+     "min": 72,
+     "max": 1846,
+     "mean": 235
+    },
+    "cpu": {
+     "n": 33,
+     "p50": 7,
+     "p90": 56,
+     "min": 3,
+     "max": 169,
+     "mean": 19
+    }
+   },
+   "b.wallet_pair.do": {
+    "wall": {
+     "n": 34,
+     "p50": 111,
+     "p90": 427,
+     "min": 55,
+     "max": 1809,
+     "mean": 205
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 64,
+     "p90": 83,
+     "min": 23,
+     "max": 324,
+     "mean": 71
+    }
+   },
+   "b.wallet_start.do": {
+    "wall": {
+     "n": 34,
+     "p50": 309,
+     "p90": 539,
+     "min": 103,
+     "max": 665,
+     "mean": 364
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 278,
+     "p90": 455,
+     "min": 2,
+     "max": 501,
+     "mean": 307
+    }
+   },
+   "console.claim-passkey": {
+    "wall": {
+     "n": 33,
+     "p50": 22,
+     "p90": 45,
+     "min": 13,
+     "max": 410,
+     "mean": 38
+    },
+    "cpu": {
+     "n": 33,
+     "p50": 1,
+     "p90": 3,
+     "min": 0,
+     "max": 8,
+     "mean": 1
+    }
+   },
+   "console.complete": {
+    "wall": {
+     "n": 34,
+     "p50": 26,
+     "p90": 165,
+     "min": 15,
+     "max": 459,
+     "mean": 61
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 2,
+     "p90": 4,
+     "min": 1,
+     "max": 10,
+     "mean": 3
+    }
+   },
+   "console.publish-routes": {
+    "wall": {
+     "n": 34,
+     "p50": 151,
+     "p90": 217,
+     "min": 131,
+     "max": 883,
+     "mean": 202
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 2,
+     "p90": 7,
+     "min": 0,
+     "max": 18,
+     "mean": 3
+    }
+   },
+   "console.registration-setup": {
+    "wall": {
+     "n": 34,
+     "p50": 100,
+     "p90": 182,
+     "min": 47,
+     "max": 590,
+     "mean": 127
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 18,
+     "p90": 49,
+     "min": 5,
+     "max": 170,
+     "mean": 29
+    }
+   },
+   "gw.finalize": {
+    "wall": {
+     "n": 34,
+     "p50": 616,
+     "p90": 1270,
+     "min": 388,
+     "max": 1609,
+     "mean": 745
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 146,
+     "p90": 277,
+     "min": 56,
+     "max": 313,
+     "mean": 155
+    }
+   },
+   "gw.respond": {
+    "wall": {
+     "n": 33,
+     "p50": 173,
+     "p90": 410,
+     "min": 114,
+     "max": 674,
+     "mean": 248
+    },
+    "cpu": {
+     "n": 33,
+     "p50": 16,
+     "p90": 37,
+     "min": 9,
+     "max": 49,
+     "mean": 22
+    }
+   },
+   "gw.setup": {
+    "wall": {
+     "n": 34,
+     "p50": 802,
+     "p90": 1356,
+     "min": 442,
+     "max": 2727,
+     "mean": 908
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 18,
+     "p90": 32,
+     "min": 7,
+     "max": 136,
+     "mean": 25
+    }
+   },
+   "gw.sign": {
+    "wall": {
+     "n": 35,
+     "p50": 283,
+     "p90": 702,
+     "min": 137,
+     "max": 1022,
+     "mean": 344
+    },
+    "cpu": {
+     "n": 35,
+     "p50": 33,
+     "p90": 74,
+     "min": 17,
+     "max": 93,
+     "mean": 41
+    }
+   },
+   "gw.sign_prepare": {
+    "wall": {
+     "n": 35,
+     "p50": 357,
+     "p90": 717,
+     "min": 162,
+     "max": 1399,
+     "mean": 398
+    },
+    "cpu": {
+     "n": 35,
+     "p50": 47,
+     "p90": 84,
+     "min": 17,
+     "max": 156,
+     "mean": 51
+    }
+   },
+   "gw.yao_execute": {
+    "wall": {
+     "n": 33,
+     "p50": 900,
+     "p90": 1211,
+     "min": 545,
+     "max": 2592,
+     "mean": 985
+    },
+    "cpu": {
+     "n": 33,
+     "p50": 12,
+     "p90": 27,
+     "min": 6,
+     "max": 76,
+     "mean": 16
+    }
+   },
+   "router.command.do": {
+    "wall": {
+     "n": 96,
+     "p50": 11,
+     "p90": 26,
+     "min": 3,
+     "max": 307,
+     "mean": 23
+    },
+    "cpu": {
+     "n": 96,
+     "p50": 8,
+     "p90": 15,
+     "min": 1,
+     "max": 28,
+     "mean": 9
+    }
+   },
+   "router.consume": {
+    "wall": {
+     "n": 34,
+     "p50": 33,
+     "p90": 116,
+     "min": 20,
+     "max": 346,
+     "mean": 57
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 4,
+     "p90": 12,
+     "min": 1,
+     "max": 99,
+     "mean": 10
+    }
+   },
+   "router.execute": {
+    "wall": {
+     "n": 33,
+     "p50": 787,
+     "p90": 1064,
+     "min": 494,
+     "max": 2483,
+     "mean": 896
+    },
+    "cpu": {
+     "n": 33,
+     "p50": 29,
+     "p90": 112,
+     "min": 12,
+     "max": 212,
+     "mean": 43
+    }
+   },
+   "router.sign": {
+    "wall": {
+     "n": 35,
+     "p50": 83,
+     "p90": 376,
+     "min": 40,
+     "max": 613,
+     "mean": 134
+    },
+    "cpu": {
+     "n": 35,
+     "p50": 5,
+     "p90": 56,
+     "min": 2,
+     "max": 158,
+     "mean": 18
+    }
+   },
+   "router.sign_prepare": {
+    "wall": {
+     "n": 34,
+     "p50": 82,
+     "p90": 355,
+     "min": 45,
+     "max": 1182,
+     "mean": 154
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 6,
+     "p90": 14,
+     "min": 2,
+     "max": 176,
+     "mean": 16
+    }
+   },
+   "sw.activation.do": {
+    "wall": {
+     "n": 34,
+     "p50": 631,
+     "p90": 878,
+     "min": 414,
+     "max": 2278,
+     "mean": 700
+    },
+    "cpu": {
+     "n": 34,
+     "p50": 32,
+     "p90": 40,
+     "min": 25,
+     "max": 63,
+     "mean": 34
+    }
+   },
+   "sw.wallet.do": {
+    "wall": {
+     "n": 68,
+     "p50": 32,
+     "p90": 58,
+     "min": 19,
+     "max": 589,
+     "mean": 49
+    },
+    "cpu": {
+     "n": 68,
+     "p50": 27,
+     "p90": 44,
+     "min": 17,
+     "max": 56,
+     "mean": 30
+    }
+   }
+  },
+  "prewarmOutcomes": {
+   "deriver_a": {
+    "completed": 32
+   },
+   "deriver_b": {
+    "completed": 33
+   }
+  },
+  "servingVersions": {
+   "deriver-a": [
+    "6931f8e9-0fa1-41f6-8422-20c2c1b54151"
+   ],
+   "deriver-b": [
+    "63c5a32f-d490-4a65-a349-a757abc345bd"
+   ],
+   "router": [
+    "3d805b67-9bd3-4509-b47f-4ca8cb2095d7"
+   ],
+   "signing-worker": [
+    "810d5831-610b-4ef9-b167-44ccf9c3f51c"
+   ],
+   "console": [
+    "607a3d66-18f4-46a3-b490-035bde05634a",
+    "d3e6f3f8-5944-4fa9-8a6c-d3d071507be9"
+   ],
+   "gateway": [
+    "17d4c639-7e6a-4d63-8c21-26d239121d28"
+   ]
+  }
+ },
+ "after": {
+  "packageVersion": "0.10.0",
+  "wallets": 197,
+  "runs": [
+   {
+    "label": "post0100-a",
+    "release": "0.10.0",
+    "client": "SDK build of the release commit",
+    "startJst": "00:25",
+    "endJst": "00:34",
+    "groupsPassed": 32,
+    "groups": 33,
+    "wallets": 98,
+    "p50Ms": 1722,
+    "p90Ms": 2682
+   },
+   {
+    "label": "post0100-b",
+    "release": "0.10.0",
+    "client": "SDK build of the release commit",
+    "startJst": "00:35",
+    "endJst": "00:45",
+    "groupsPassed": 33,
+    "groups": 33,
+    "wallets": 99,
+    "p50Ms": 1758,
+    "p90Ms": 2255
+   }
+  ],
+  "afterPasskeyDistribution": {
+   "wallets": 197,
+   "minMs": 1198,
+   "p10Ms": 1403,
+   "p50Ms": 1747,
+   "p90Ms": 2494,
+   "p95Ms": 2824,
+   "maxMs": 5762,
+   "lessThan2000MsPercent": 73,
+   "lessThan2500MsPercent": 90,
+   "atLeast3000MsPercent": 3,
+   "proofAndExecutionP50Ms": 1065,
+   "proofAndExecutionP90Ms": 1601
+  },
+  "browserStagesMs": {
+   "setup": {
+    "n": 197,
+    "p50": 583,
+    "p90": 1103,
+    "min": 395,
+    "max": 2415,
+    "mean": 689
+   },
+   "passkey": {
+    "n": 197,
+    "p50": 466,
+    "p90": 620,
+    "min": 76,
+    "max": 812,
+    "mean": 462
+   },
+   "respond": {
+    "n": 197,
+    "p50": 1056,
+    "p90": 1586,
+    "min": 664,
+    "max": 2669,
+    "mean": 1154
+   },
+   "custody": {
+    "n": 197,
+    "p50": 13,
+    "p90": 15,
+    "min": 6,
+    "max": 17,
+    "mean": 13
+   },
+   "finalize": {
+    "n": 197,
+    "p50": 502,
+    "p90": 905,
+    "min": 358,
+    "max": 4755,
+    "mean": 597
+   },
+   "clientRest": {
+    "n": 197,
+    "p50": 96,
+    "p90": 99,
+    "min": 78,
+    "max": 103,
+    "mean": 95
+   },
+   "afterPasskey": {
+    "n": 197,
+    "p50": 1747,
+    "p90": 2494,
+    "min": 1198,
+    "max": 5762,
+    "mean": 1862
+   },
+   "registrationNoPasskey": {
+    "n": 197,
+    "p50": 2479,
+    "p90": 3484,
+    "min": 1778,
+    "max": 7020,
+    "mean": 2640
+   },
+   "signPrepare": {
+    "n": 197,
+    "p50": 36,
+    "p90": 175,
+    "min": 0,
+    "max": 745,
+    "mean": 75
+   },
+   "signFinalize": {
+    "n": 197,
+    "p50": 313,
+    "p90": 501,
+    "min": 198,
+    "max": 1772,
+    "mean": 352
+   },
+   "signature": {
+    "n": 197,
+    "p50": 362,
+    "p90": 677,
+    "min": 220,
+    "max": 1977,
+    "mean": 432
+   },
+   "combinedNoInteraction": {
+    "n": 197,
+    "p50": 2920,
+    "p90": 4056,
+    "min": 2238,
+    "max": 7534,
+    "mean": 3111
+   }
+  },
+  "finalizeServerSpansMs": {
+   "near_finalize_authority": {
+    "n": 197,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_authority_reserve": {
+    "n": 197,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 643,
+    "mean": 6
+   },
+   "near_finalize_custody_commit": {
+    "n": 197,
+    "p50": 26,
+    "p90": 51,
+    "min": 15,
+    "max": 1233,
+    "mean": 44
+   },
+   "near_finalize_custody_reserve": {
+    "n": 197,
+    "p50": 169,
+    "p90": 322,
+    "min": 107,
+    "max": 1240,
+    "mean": 211
+   },
+   "near_finalize_fingerprint": {
+    "n": 197,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_initial_read": {
+    "n": 197,
+    "p50": 16,
+    "p90": 28,
+    "min": 5,
+    "max": 64,
+    "mean": 18
+   },
+   "near_finalize_router_consume": {
+    "n": 197,
+    "p50": 57,
+    "p90": 108,
+    "min": 22,
+    "max": 706,
+    "mean": 77
+   },
+   "near_finalize_session_issue": {
+    "n": 197,
+    "p50": 59,
+    "p90": 194,
+    "min": 19,
+    "max": 1123,
+    "mean": 100
+   },
+   "near_finalize_session_seal": {
+    "n": 197,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_side_effect": {
+    "n": 197,
+    "p50": 246,
+    "p90": 610,
+    "min": 167,
+    "max": 4457,
+    "mean": 365
+   },
+   "near_finalize_source": {
+    "n": 197,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_total": {
+    "n": 197,
+    "p50": 261,
+    "p90": 627,
+    "min": 181,
+    "max": 4482,
+    "mean": 383
+   },
+   "near_finalize_wallet_commit": {
+    "n": 197,
+    "p50": 56,
+    "p90": 105,
+    "min": 36,
+    "max": 710,
+    "mean": 76
+   }
+  },
+  "respondServerSpansMs": {
+   "ecdsa_respond_d1_load": {
+    "n": 197,
+    "p50": 15,
+    "p90": 27,
+    "min": 7,
+    "max": 91,
+    "mean": 17
+   },
+   "yao_d1_admission_read": {
+    "n": 197,
+    "p50": 14,
+    "p90": 25,
+    "min": 6,
+    "max": 87,
+    "mean": 16
+   },
+   "yao_result_reconstruction": {
+    "n": 197,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "yao_router_execution": {
+    "n": 197,
+    "p50": 763,
+    "p90": 1234,
+    "min": 441,
+    "max": 2447,
+    "mean": 856
+   },
+   "yao_router_prepare_pair": {
+    "n": 197,
+    "p50": 142,
+    "p90": 508,
+    "min": 52,
+    "max": 1477,
+    "mean": 224
+   },
+   "yao_router_role_execution": {
+    "n": 197,
+    "p50": 503,
+    "p90": 964,
+    "min": 310,
+    "max": 1896,
+    "mean": 614
+   },
+   "yao_router_signing_worker_delivery": {
+    "n": 197,
+    "p50": 52,
+    "p90": 95,
+    "min": 19,
+    "max": 1010,
+    "mean": 73
+   }
+  },
+  "workerInvocations": {
+   "a.execute_pair": {
+    "wall": {
+     "n": 197,
+     "p50": 469,
+     "p90": 905,
+     "min": 299,
+     "max": 1790,
+     "mean": 570
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 6,
+     "p90": 40,
+     "min": 2,
+     "max": 314,
+     "mean": 17
+    }
+   },
+   "a.execute_work.do": {
+    "wall": {
+     "n": 195,
+     "p50": 441,
+     "p90": 899,
+     "min": 284,
+     "max": 1708,
+     "mean": 548
+    },
+    "cpu": {
+     "n": 195,
+     "p50": 186,
+     "p90": 249,
+     "min": 110,
+     "max": 468,
+     "mean": 195
+    }
+   },
+   "a.prepare.do": {
+    "wall": {
+     "n": 197,
+     "p50": 528,
+     "p90": 835,
+     "min": 306,
+     "max": 2005,
+     "mean": 585
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 317,
+     "p90": 394,
+     "min": 0,
+     "max": 654,
+     "mean": 309
+    }
+   },
+   "a.wallet_start.do": {
+    "wall": {
+     "n": 197,
+     "p50": 104,
+     "p90": 207,
+     "min": 75,
+     "max": 538,
+     "mean": 128
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 0,
+     "p90": 0,
+     "min": 0,
+     "max": 276,
+     "mean": 6
+    }
+   },
+   "b.duplex.do": {
+    "wall": {
+     "n": 46,
+     "p50": 10373,
+     "p90": 10764,
+     "min": 466,
+     "max": 11348,
+     "mean": 10245
+    },
+    "cpu": {
+     "n": 46,
+     "p50": 194,
+     "p90": 326,
+     "min": 0,
+     "max": 497,
+     "mean": 213
+    }
+   },
+   "b.prepare.do": {
+    "wall": {
+     "n": 191,
+     "p50": 350,
+     "p90": 646,
+     "min": 52,
+     "max": 1949,
+     "mean": 414
+    },
+    "cpu": {
+     "n": 191,
+     "p50": 299,
+     "p90": 394,
+     "min": 0,
+     "max": 609,
+     "mean": 280
+    }
+   },
+   "b.prepare_pair": {
+    "wall": {
+     "n": 196,
+     "p50": 120,
+     "p90": 461,
+     "min": 48,
+     "max": 1386,
+     "mean": 198
+    },
+    "cpu": {
+     "n": 196,
+     "p50": 7,
+     "p90": 18,
+     "min": 2,
+     "max": 137,
+     "mean": 12
+    }
+   },
+   "b.wallet_pair.do": {
+    "wall": {
+     "n": 174,
+     "p50": 399,
+     "p90": 849,
+     "min": 35,
+     "max": 1597,
+     "mean": 438
+    },
+    "cpu": {
+     "n": 174,
+     "p50": 206,
+     "p90": 284,
+     "min": 0,
+     "max": 370,
+     "mean": 177
+    }
+   },
+   "b.wallet_start.do": {
+    "wall": {
+     "n": 197,
+     "p50": 95,
+     "p90": 216,
+     "min": 55,
+     "max": 1570,
+     "mean": 134
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 0,
+     "p90": 0,
+     "min": 0,
+     "max": 250,
+     "mean": 4
+    }
+   },
+   "console.claim-passkey": {
+    "wall": {
+     "n": 199,
+     "p50": 22,
+     "p90": 46,
+     "min": 11,
+     "max": 1528,
+     "mean": 69
+    },
+    "cpu": {
+     "n": 199,
+     "p50": 1,
+     "p90": 2,
+     "min": 0,
+     "max": 7,
+     "mean": 1
+    }
+   },
+   "console.complete": {
+    "wall": {
+     "n": 197,
+     "p50": 41,
+     "p90": 177,
+     "min": 17,
+     "max": 1092,
+     "mean": 83
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 2,
+     "p90": 4,
+     "min": 0,
+     "max": 9,
+     "mean": 2
+    }
+   },
+   "console.publish-routes": {
+    "wall": {
+     "n": 197,
+     "p50": 178,
+     "p90": 237,
+     "min": 140,
+     "max": 1224,
+     "mean": 213
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 2,
+     "p90": 4,
+     "min": 0,
+     "max": 7,
+     "mean": 2
+    }
+   },
+   "console.registration-setup": {
+    "wall": {
+     "n": 197,
+     "p50": 91,
+     "p90": 180,
+     "min": 46,
+     "max": 1318,
+     "mean": 130
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 16,
+     "p90": 39,
+     "min": 5,
+     "max": 122,
+     "mean": 21
+    }
+   },
+   "gw.finalize": {
+    "wall": {
+     "n": 197,
+     "p50": 427,
+     "p90": 856,
+     "min": 261,
+     "max": 4696,
+     "mean": 534
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 48,
+     "p90": 83,
+     "min": 20,
+     "max": 215,
+     "mean": 52
+    }
+   },
+   "gw.respond": {
+    "wall": {
+     "n": 198,
+     "p50": 936,
+     "p90": 1512,
+     "min": 302,
+     "max": 2546,
+     "mean": 1037
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 26,
+     "p90": 46,
+     "min": 9,
+     "max": 149,
+     "mean": 30
+    }
+   },
+   "gw.setup": {
+    "wall": {
+     "n": 196,
+     "p50": 1102,
+     "p90": 1646,
+     "min": 693,
+     "max": 2577,
+     "mean": 1198
+    },
+    "cpu": {
+     "n": 196,
+     "p50": 21,
+     "p90": 36,
+     "min": 8,
+     "max": 144,
+     "mean": 24
+    }
+   },
+   "gw.sign": {
+    "wall": {
+     "n": 196,
+     "p50": 193,
+     "p90": 370,
+     "min": 97,
+     "max": 951,
+     "mean": 232
+    },
+    "cpu": {
+     "n": 196,
+     "p50": 18,
+     "p90": 31,
+     "min": 5,
+     "max": 72,
+     "mean": 19
+    }
+   },
+   "gw.sign_prepare": {
+    "wall": {
+     "n": 197,
+     "p50": 194,
+     "p90": 332,
+     "min": 106,
+     "max": 900,
+     "mean": 220
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 17,
+     "p90": 31,
+     "min": 6,
+     "max": 70,
+     "mean": 19
+    }
+   },
+   "router.command.do": {
+    "wall": {
+     "n": 539,
+     "p50": 12,
+     "p90": 27,
+     "min": 3,
+     "max": 1114,
+     "mean": 27
+    },
+    "cpu": {
+     "n": 539,
+     "p50": 8,
+     "p90": 17,
+     "min": 1,
+     "max": 60,
+     "mean": 9
+    }
+   },
+   "router.consume": {
+    "wall": {
+     "n": 197,
+     "p50": 33,
+     "p90": 55,
+     "min": 13,
+     "max": 674,
+     "mean": 46
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 3,
+     "p90": 7,
+     "min": 1,
+     "max": 166,
+     "mean": 6
+    }
+   },
+   "router.execute": {
+    "wall": {
+     "n": 197,
+     "p50": 721,
+     "p90": 1216,
+     "min": 432,
+     "max": 2416,
+     "mean": 825
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 26,
+     "p90": 51,
+     "min": 9,
+     "max": 296,
+     "mean": 36
+    }
+   },
+   "router.prepare": {
+    "wall": {
+     "n": 191,
+     "p50": 699,
+     "p90": 1044,
+     "min": 369,
+     "max": 2145,
+     "mean": 746
+    },
+    "cpu": {
+     "n": 191,
+     "p50": 8,
+     "p90": 16,
+     "min": 3,
+     "max": 174,
+     "mean": 10
+    }
+   },
+   "router.sign": {
+    "wall": {
+     "n": 196,
+     "p50": 76,
+     "p90": 142,
+     "min": 23,
+     "max": 775,
+     "mean": 102
+    },
+    "cpu": {
+     "n": 196,
+     "p50": 4,
+     "p90": 10,
+     "min": 1,
+     "max": 173,
+     "mean": 9
+    }
+   },
+   "router.sign_prepare": {
+    "wall": {
+     "n": 195,
+     "p50": 73,
+     "p90": 146,
+     "min": 27,
+     "max": 581,
+     "mean": 94
+    },
+    "cpu": {
+     "n": 195,
+     "p50": 4,
+     "p90": 18,
+     "min": 1,
+     "max": 124,
+     "mean": 8
+    }
+   },
+   "sw.activation.do": {
+    "wall": {
+     "n": 196,
+     "p50": 524,
+     "p90": 975,
+     "min": 331,
+     "max": 2305,
+     "mean": 642
+    },
+    "cpu": {
+     "n": 196,
+     "p50": 30,
+     "p90": 42,
+     "min": 5,
+     "max": 98,
+     "mean": 33
+    }
+   },
+   "sw.wallet.do": {
+    "wall": {
+     "n": 393,
+     "p50": 29,
+     "p90": 54,
+     "min": 7,
+     "max": 746,
+     "mean": 46
+    },
+    "cpu": {
+     "n": 393,
+     "p50": 25,
+     "p90": 41,
+     "min": 5,
+     "max": 67,
+     "mean": 27
+    }
+   }
+  },
+  "prewarmOutcomes": {
+   "deriver_a": {
+    "completed": 168,
+    "stopped": 20
+   },
+   "deriver_b": {
+    "completed": 156,
+    "stopped": 21
+   }
+  },
+  "servingVersions": {
+   "deriver-a": [
+    "72a79d24-6ba9-4512-be66-f65fa9971cda"
+   ],
+   "deriver-b": [
+    "99770079-a234-4c61-857e-49d01d3bacee"
+   ],
+   "router": [
+    "4761add6-f990-40b9-96f0-96ce50beddf4"
+   ],
+   "signing-worker": [
+    "e9d74d4b-380a-454e-a566-aab0ae6a340e"
+   ],
+   "console": [
+    "b1043dca-fb4a-469c-91c6-4f20618af168"
+   ],
+   "gateway": [
+    "f4ab5e0f-fd17-4afa-a1c2-5c0ab18058b1"
+   ]
+  }
+ },
+ "signaturesVerifiedIndependently": {
+  "after": 197,
+  "distinctKeys": 197
+ },
+ "failedSamples": {
+  "before": 0,
+  "after": 1,
+  "afterDetail": "respond answered HTTP 400 with D1_ERROR: Network connection lost."
+ },
+ "servingVersionsAfterActivation": {
+  "router-ab-deriver-a-staging": "72a79d24-6ba9-4512-be66-f65fa9971cda",
+  "router-ab-deriver-b-staging": "99770079-a234-4c61-857e-49d01d3bacee",
+  "router-ab-mpc-router-staging": "4761add6-f990-40b9-96f0-96ce50beddf4",
+  "router-ab-signing-worker-staging": "e9d74d4b-380a-454e-a566-aab0ae6a340e",
+  "router-ab-tenant-root-control-plane-staging": "07f81576-74b1-49c0-bb4a-2157f6d44fa0",
+  "seams-sdk-d1-console-staging": "283cb682-ed02-466d-ac0e-362705df59ec",
+  "seams-sdk-d1-gateway-staging": "f4ab5e0f-fd17-4afa-a1c2-5c0ab18058b1",
+  "seams-sdk-d1-gateway-staging-oc": "7e4cf38f-626b-4317-89c6-47b226989de0",
+  "seams-sdk-d1-gateway-staging-us": "40529ab0-35fa-47b8-a4b9-d292a053ab96",
+  "seams-sdk-d1-gateway-staging-weur": "6572444d-1d81-4f8a-9732-e288f4684f34",
+  "seams-sdk-d1-wallet-runtime-staging": "06fd2c11-f57a-42d9-9e22-4b1e0f424471",
+  "seams-sdk-d1-wallet-runtime-staging-oc": "78230c56-c7d6-42c1-961c-5ffe2f1dd246",
+  "seams-sdk-d1-wallet-runtime-staging-us": "a44f383c-36f2-4c17-991f-28c0c9164e24",
+  "seams-sdk-d1-wallet-runtime-staging-weur": "ee96c5e5-7b77-4020-ae9b-869f14b62b30"
+ },
+ "deployment": {
+  "publicMain": "96cf6d85",
+  "publishRun": 38406958758,
+  "privatePins": [
+   "c245e0a7",
+   "ade5e075",
+   "c7ec1df3"
+  ],
+  "consoleRuns": [
+   38417792320,
+   38425041847
+  ],
+  "backendRun": 38418189153,
+  "activationRunsFailed": [
+   38419908767,
+   38420261237,
+   38420676853
+  ],
+  "activationRun": 38425377639
+ }
+}
