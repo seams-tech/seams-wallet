@@ -93,6 +93,27 @@ pub fn ntt_twiddles() -> Polynomial {
     twiddles
 }
 
+/// Encodes public rho and six 10-bit high polynomials in the standard key format.
+pub fn encode_public_key(
+    rho: &[u8; 32],
+    high: &[Polynomial; ROWS],
+) -> Result<[u8; super::PUBLIC_KEY_BYTES], &'static str> {
+    let mut encoded = [0; super::PUBLIC_KEY_BYTES];
+    encoded[..32].copy_from_slice(rho);
+    for (row, polynomial) in high.iter().enumerate() {
+        for (index, coefficient) in polynomial.iter().copied().enumerate() {
+            if coefficient >= 1024 {
+                return Err("ML-DSA public high coefficient exceeds ten bits.");
+            }
+            for bit in 0..10 {
+                let position = (row * N + index) * 10 + bit;
+                encoded[32 + position / 8] |= ((coefficient >> bit) as u8 & 1) << (position % 8);
+            }
+        }
+    }
+    Ok(encoded)
+}
+
 pub(super) fn ntt(mut polynomial: Polynomial, twiddles: &Polynomial) -> Polynomial {
     let mut twiddle_index = 0;
     let mut length = N / 2;

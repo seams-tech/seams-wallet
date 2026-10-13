@@ -4,7 +4,10 @@
 //! its output locally and sends only the check result and public measurements.
 //! The runtime supplies genuine input OT. This adapter supplies a shared probe
 //! credential and bounded WebSocket delivery. It supplies no wallet admission,
-//! durable shares, authenticated production peers, or threshold signatures.
+//! durable shares or authenticated production peers. The complete pipeline
+//! remains a disposable investigation with no production eligibility claim.
+
+mod pipeline;
 
 use std::collections::VecDeque;
 
@@ -12,7 +15,9 @@ use std::collections::VecDeque;
 use ed25519_yao::ml_dsa_runtime::begin_evaluator;
 #[cfg(feature = "ml-dsa-a")]
 use ed25519_yao::ml_dsa_runtime::begin_garbler;
-use ed25519_yao::ml_dsa_runtime::{RuntimeMetrics, Step, TrustedMlDsaSchedule, MAX_MESSAGE_BYTES};
+use ed25519_yao::ml_dsa_runtime::{
+    RuntimeMetrics, RuntimeOutput, Step, TrustedMlDsaSchedule, MAX_MESSAGE_BYTES,
+};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
 use wasm_bindgen::JsCast;
@@ -20,11 +25,15 @@ use worker::{Env, EventStream, WebSocket, WebsocketEvent};
 use zeroize::Zeroizing;
 
 const CREDIT_WINDOW: u32 = 8;
-const MAX_COMPLETION_BYTES: usize = 16_384;
+const MAX_COMPLETION_BYTES: usize = 262_144;
 const DATA: u8 = 0;
 const ACK: u8 = 1;
 const COMPLETE: u8 = 2;
 const SCHEMA: &str = "seams.ml-dsa-worker-kernel.v1";
+static SEED_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/seed.bin");
+static SAMPLING_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/sampling.bin");
+static ROUNDING_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/rounding.bin");
+static MASK_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/signing-mask.bin");
 
 #[cfg(feature = "ml-dsa-a")]
 const ROLE: &str = "a";
@@ -47,9 +56,9 @@ impl Kernel {
     fn parse(name: &str) -> worker::Result<Self> {
         match name {
             "seed" => Ok(Self::Seed),
-            "sampling-0" => Ok(Self::Sampling),
+            "sampling" => Ok(Self::Sampling),
             "rounding" => Ok(Self::Rounding),
-            "mask-0" => Ok(Self::ExpandMask),
+            "signing-mask" => Ok(Self::ExpandMask),
             _ => Err(failure("Unknown ML-DSA kernel.")),
         }
     }
@@ -57,18 +66,44 @@ impl Kernel {
     const fn name(self) -> &'static str {
         match self {
             Self::Seed => "seed",
-            Self::Sampling => "sampling-0",
+            Self::Sampling => "sampling",
             Self::Rounding => "rounding",
-            Self::ExpandMask => "mask-0",
+            Self::ExpandMask => "signing-mask",
         }
     }
 
-    const fn schedule(self) -> &'static [u8] {
+    fn schedule(self) -> &'static [u8] {
         match self {
-            Self::Seed => include_bytes!("ml_dsa_schedules/seed.bin"),
-            Self::Sampling => include_bytes!("ml_dsa_schedules/sampling-0.bin"),
-            Self::Rounding => include_bytes!("ml_dsa_schedules/rounding.bin"),
-            Self::ExpandMask => include_bytes!("ml_dsa_schedules/mask-0.bin"),
+            Self::Seed => SEED_SCHEDULE,
+            Self::Sampling => SAMPLING_SCHEDULE,
+            Self::Rounding => ROUNDING_SCHEDULE,
+            Self::ExpandMask => MASK_SCHEDULE,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ProbeOperation {
+    Kernel(Kernel),
+    Pipeline(pipeline::Operation),
+}
+
+impl ProbeOperation {
+    fn parse(value: &str) -> worker::Result<Self> {
+        match value {
+            "keygen-fixture" => Ok(Self::Pipeline(pipeline::Operation::Keygen(
+                pipeline::ThresholdMode::Fixture,
+            ))),
+            "keygen-joint" => Ok(Self::Pipeline(pipeline::Operation::Keygen(
+                pipeline::ThresholdMode::Joint,
+            ))),
+            "threshold-fixture" => Ok(Self::Pipeline(pipeline::Operation::Threshold(
+                pipeline::ThresholdMode::Fixture,
+            ))),
+            "threshold-joint" => Ok(Self::Pipeline(pipeline::Operation::Threshold(
+                pipeline::ThresholdMode::Joint,
+            ))),
+            name => Ok(Self::Kernel(Kernel::parse(name)?)),
         }
     }
 }
@@ -187,11 +222,11 @@ fn clock_ms() -> f64 {
 struct DeliveryMetrics {
     sent_messages: u32,
     received_messages: u32,
-    sent_runtime_bytes: usize,
-    received_runtime_bytes: usize,
-    sent_ack_bytes: usize,
-    received_ack_bytes: usize,
-    received_completion_bytes: usize,
+    sent_runtime_bytes: u64,
+    received_runtime_bytes: u64,
+    sent_ack_bytes: u64,
+    received_ack_bytes: u64,
+    received_completion_bytes: u64,
     first_send_ms: Option<f64>,
     last_send_ms: Option<f64>,
     first_receive_ms: Option<f64>,
@@ -248,7 +283,7 @@ impl<'a> Duplex<'a> {
         }
         self.metrics.last_send_ms = Some(observed);
         self.metrics.sent_messages += 1;
-        self.metrics.sent_runtime_bytes += bytes.len();
+        self.metrics.sent_runtime_bytes += bytes.len() as u64;
         self.metrics.largest_runtime_message_bytes =
             self.metrics.largest_runtime_message_bytes.max(bytes.len());
         Ok(())
@@ -301,14 +336,14 @@ impl<'a> Duplex<'a> {
         let mut acknowledgement = [ACK; 5];
         acknowledgement[1..].copy_from_slice(&self.next_received.to_le_bytes());
         self.socket.send_with_bytes(acknowledgement)?;
-        self.metrics.sent_ack_bytes += acknowledgement.len();
+        self.metrics.sent_ack_bytes += acknowledgement.len() as u64;
         let observed = clock_ms() - self.started_ms;
         if self.metrics.first_receive_ms.is_none() {
             self.metrics.first_receive_ms = Some(observed);
         }
         self.metrics.last_receive_ms = Some(observed);
         self.metrics.received_messages += 1;
-        self.metrics.received_runtime_bytes += envelope.len() - 5;
+        self.metrics.received_runtime_bytes += (envelope.len() - 5) as u64;
         self.metrics.largest_runtime_message_bytes = self
             .metrics
             .largest_runtime_message_bytes
@@ -331,7 +366,7 @@ impl<'a> Duplex<'a> {
             ));
         }
         self.acknowledged = acknowledged;
-        self.metrics.received_ack_bytes += envelope.len();
+        self.metrics.received_ack_bytes += envelope.len() as u64;
         Ok(())
     }
 
@@ -339,7 +374,7 @@ impl<'a> Duplex<'a> {
         if envelope.len() > MAX_COMPLETION_BYTES || self.completion.is_some() {
             return Err(failure("The peer completion is duplicated or too large."));
         }
-        self.metrics.received_completion_bytes += envelope.len();
+        self.metrics.received_completion_bytes += envelope.len() as u64;
         self.completion = Some(serde_json::from_slice(&envelope[1..]).map_err(runtime_failure)?);
         Ok(())
     }
@@ -413,6 +448,18 @@ async fn drive(
     transport: &mut Duplex<'_>,
     expected: &[u8],
 ) -> worker::Result<(bool, RuntimeMetrics)> {
+    let output = drive_runtime(step, transport).await?;
+    let matched = output.output.as_slice() == expected;
+    if !matched {
+        return Err(failure("The role fixture output check failed."));
+    }
+    Ok((matched, output.metrics))
+}
+
+async fn drive_runtime(
+    step: Step<'_>,
+    transport: &mut Duplex<'_>,
+) -> worker::Result<RuntimeOutput> {
     let mut current = step;
     loop {
         current = match current {
@@ -424,13 +471,7 @@ async fn drive(
                 let message = Zeroizing::new(transport.receive(receive.expected_bytes()).await?);
                 receive.accept(&message).map_err(runtime_failure)?
             }
-            Step::Complete(output) => {
-                let matched = output.output.as_slice() == expected;
-                if !matched {
-                    return Err(failure("The role fixture output check failed."));
-                }
-                return Ok((matched, output.metrics));
-            }
+            Step::Complete(output) => return Ok(output),
         };
     }
 }
@@ -522,7 +563,7 @@ fn authenticated(request: &worker::web_sys::Request, env: &Env) -> worker::Resul
 fn request_parameters(
     request: &worker::web_sys::Request,
     path: &str,
-) -> worker::Result<(Kernel, String, Option<String>)> {
+) -> worker::Result<(ProbeOperation, String, Option<String>)> {
     let url = url::Url::parse(&request.url()).map_err(runtime_failure)?;
     if request.method() != "GET" || url.path() != path {
         return Err(failure("The ML-DSA benchmark endpoint is unknown."));
@@ -531,7 +572,7 @@ fn request_parameters(
     let mut run_id = None;
     for (name, value) in url.query_pairs() {
         match name.as_ref() {
-            "kernel" if kernel.is_none() => kernel = Some(Kernel::parse(&value)?),
+            "kernel" if kernel.is_none() => kernel = Some(ProbeOperation::parse(&value)?),
             "run_id" if run_id.is_none() => run_id = Some(value.into_owned()),
             _ => return Err(failure("The benchmark query is invalid.")),
         }
@@ -565,13 +606,12 @@ fn json_response(value: &Value, status: u16) -> worker::Result<worker::Response>
 }
 
 #[cfg(feature = "ml-dsa-a")]
-async fn connect_b(env: &Env, kernel: Kernel, run_id: &str) -> worker::Result<WebSocket> {
+async fn connect_b(env: &Env, operation: &str, run_id: &str) -> worker::Result<WebSocket> {
     let token = Zeroizing::new(env.secret("PROBE_TOKEN")?.to_string());
     let request = http::Request::builder()
         .method("GET")
         .uri(format!(
-            "https://ml-dsa-b.internal/peer?kernel={}&run_id={run_id}",
-            kernel.name()
+            "https://ml-dsa-b.internal/peer?kernel={operation}&run_id={run_id}"
         ))
         .header("upgrade", "websocket")
         .header("authorization", format!("Bearer {}", token.as_str()))
@@ -600,7 +640,7 @@ async fn run_a(
         TrustedMlDsaSchedule::parse(kernel.schedule(), fixture.digest).map_err(runtime_failure)?;
     own_inputs_match(&schedule, &fixture)?;
     let schedule_prepared_ms = clock_ms() - started_ms;
-    let socket = connect_b(env, kernel, run_id).await?;
+    let socket = connect_b(env, kernel.name(), run_id).await?;
     let result = run_a_session(&socket, kernel, run_id, colo, &fixture, &schedule).await;
     let close_code = if result.is_ok() { 1000 } else { 1011 };
     let closed = socket.close(Some(close_code), Some("session ended"));
@@ -706,8 +746,14 @@ pub async fn main(
     #[cfg(feature = "ml-dsa-a")]
     {
         let _ = context;
-        let (kernel, run_id, colo) = request_parameters(&request, "/benchmark")?;
-        match run_a(&env, kernel, &run_id, colo).await {
+        let (operation, run_id, colo) = request_parameters(&request, "/benchmark")?;
+        let result = match operation {
+            ProbeOperation::Kernel(kernel) => run_a(&env, kernel, &run_id, colo).await,
+            ProbeOperation::Pipeline(operation) => {
+                pipeline::run_a(&env, operation, &run_id, colo).await
+            }
+        };
+        match result {
             Ok(report) => json_response(&report, 200),
             Err(error) => json_response(
                 &json!({"ok": false, "error": error.to_string(), "run_id": run_id}),
@@ -717,7 +763,7 @@ pub async fn main(
     }
     #[cfg(feature = "ml-dsa-b")]
     {
-        let (kernel, run_id, colo) = request_parameters(&request, "/peer")?;
+        let (operation, run_id, colo) = request_parameters(&request, "/peer")?;
         if request.headers().get("upgrade")?.as_deref() != Some("websocket") {
             return json_response(
                 &json!({"ok": false, "error": "WebSocket upgrade required."}),
@@ -728,9 +774,15 @@ pub async fn main(
         let server = pair.server;
         let for_error = server.clone();
         context.wait_until(async move {
-            if let Err(error) = run_b(server, kernel, run_id, colo).await {
-                worker::console_error!("ML-DSA kernel failed: {}", error);
-                let _ = for_error.close(Some(1011), Some("kernel failed"));
+            let result = match operation {
+                ProbeOperation::Kernel(kernel) => run_b(server, kernel, run_id, colo).await,
+                ProbeOperation::Pipeline(operation) => {
+                    pipeline::run_b(server, operation, run_id, colo).await
+                }
+            };
+            if let Err(error) = result {
+                worker::console_error!("ML-DSA probe failed: {}", error);
+                let _ = for_error.close(Some(1011), Some("probe failed"));
             }
         });
         let headers = worker::Headers::new();

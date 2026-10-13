@@ -9,9 +9,13 @@ use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, hybrid_keygen,
     private_execution, private_signing, reference, require,
 };
-use ed25519_yao::phase5_benchmark::ml_dsa_private::{
-    PrivateKernelEvaluation, PrivateKernelSchedule, evaluate_private_fixture,
-    garble_private_fixture,
+use ed25519_yao::{
+    ml_dsa_runtime::TrustedMlDsaSchedule,
+    ml_dsa_signing::{
+        SigningRole,
+        keygen::{KeygenKernel, KeygenStep, begin_keygen},
+    },
+    phase5_benchmark::ml_dsa_private::PrivateKernelSchedule,
 };
 use ed25519_yao_generator::{
     MlDsaPrivateKeygenCircuitV1, compile_ml_dsa_private_rounding_circuit_v1,
@@ -20,11 +24,12 @@ use ed25519_yao_generator::{
 use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     env,
     ffi::OsStr,
     fs::{self, OpenOptions},
-    io::{self, Read, Write},
+    io::{self, Write},
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::Path,
     process::Command,
@@ -345,216 +350,74 @@ fn own_seed(input: &Path) -> InvestigationResult<Zeroizing<[u8; 32]>> {
     Ok(share)
 }
 
-fn execute_kernel<R: Read, W: Write>(
-    role: Role,
-    path: &Path,
-    bits: &[bool],
-    reader: &mut R,
-    writer: &mut W,
-) -> InvestigationResult<PrivateKernelEvaluation> {
-    let bytes = fs::read(path)?;
-    let schedule = PrivateKernelSchedule::parse(&bytes)?;
-    Ok(match role {
-        Role::A => garble_private_fixture(&schedule, bits, reader, writer)?,
-        Role::B => evaluate_private_fixture(&schedule, bits, reader, writer)?,
-    })
-}
-
 fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> InvestigationResult<()> {
     let started = Instant::now();
     let seed = own_seed(input)?;
-    let mut rho_prime = Zeroizing::new([0; 64]);
-    let mut k = Zeroizing::new([0; 32]);
-    let mut samples = Zeroizing::new([[0; COEFFICIENTS]; SECRET_POLYNOMIALS]);
-    let mut t0 = Zeroizing::new([[0; COEFFICIENTS]; ROWS]);
+    let role = match role {
+        Role::A => SigningRole::A,
+        Role::B => SigningRole::B,
+    };
+    let mut artifacts = Vec::with_capacity(KeygenKernel::ALL.len());
+    for kernel in KeygenKernel::ALL {
+        artifacts.push(fs::read(schedules.join(format!("{}.bin", kernel.name())))?);
+    }
+    let mut trusted = Vec::with_capacity(artifacts.len());
+    for bytes in &artifacts {
+        trusted.push(TrustedMlDsaSchedule::parse(
+            bytes,
+            Sha256::digest(bytes).into(),
+        )?);
+    }
+    let schedule_preparation_wall_ns = started.elapsed().as_nanos();
     let mut reader = io::stdin().lock();
     let mut writer = io::stdout().lock();
-    let mut stages = Vec::with_capacity(18);
-    let mut seed_input = Zeroizing::new(Vec::from(seed.as_slice()));
-    if let Role::A = role {
-        getrandom::getrandom(rho_prime.as_mut())?;
-        getrandom::getrandom(k.as_mut())?;
-        seed_input.extend_from_slice(rho_prime.as_slice());
-        seed_input.extend_from_slice(k.as_slice());
-    }
-    let seed_bits = bytes_to_bits(&seed_input);
-    let expansion = execute_kernel(
-        role,
-        &schedules.join("seed.bin"),
-        &seed_bits,
-        &mut reader,
-        &mut writer,
+    let mut current = begin_keygen(role, &seed)?;
+    let mut circuit_wall_ns = Vec::with_capacity(18);
+    let output = loop {
+        current = match current {
+            KeygenStep::Circuit(request) => {
+                let kernel = request.kernel();
+                let schedule = trusted
+                    .iter()
+                    .find(|entry| entry.circuit_id() == kernel.circuit_id())
+                    .ok_or("Missing canonical key-generation schedule.")?;
+                let circuit_started = Instant::now();
+                let output = private_signing::drive_runtime(
+                    request.begin(schedule)?,
+                    &mut reader,
+                    &mut writer,
+                )?;
+                circuit_wall_ns.push(circuit_started.elapsed().as_nanos());
+                request.accept(output)?
+            }
+            KeygenStep::Complete(output) => break output,
+        };
+    };
+    require(
+        output.circuits.len() == circuit_wall_ns.len(),
+        "Key-generation measurements lost a circuit transition.",
     )?;
-    let rho: [u8; 32] = expansion.output[..32].try_into()?;
-    if let Role::B = role {
-        rho_prime.copy_from_slice(&expansion.output[32..96]);
-        k.copy_from_slice(&expansion.output[96..128]);
+    let mut stages = Vec::with_capacity(output.circuits.len());
+    for ((kernel, ordinal, metrics), elapsed) in output.circuits.iter().zip(circuit_wall_ns) {
+        stages.push(json!({"component": kernel.name(), "ordinal": ordinal, "circuit_wall_ns": elapsed, "metrics": private_execution::encode_runtime_metrics(metrics)}));
     }
-    stages.push(stage_evidence("seed-expansion", 0, &expansion));
-    drop(expansion);
-    drop(seed_bits);
-    drop(seed_input);
-    for nonce in 0..SECRET_POLYNOMIALS {
-        let mut bits = bytes_to_bits(rho_prime.as_slice());
-        if let Role::A = role {
-            fill_uniform_residues(&mut samples[nonce])?;
-            append_residue_bits(&mut bits, &samples[nonce]);
-            bits.extend(bytes_to_bits(&(nonce as u16).to_le_bytes()).iter().copied());
-        }
-        let evaluation = execute_kernel(
-            role,
-            &schedules.join("sampling.bin"),
-            &bits,
-            &mut reader,
-            &mut writer,
-        )?;
-        require(
-            evaluation.output[0] & 1 == 1,
-            "Bounded sampler exhausted its canonical prefix. Both roles must discard all intermediate shares.",
-        )?;
-        if let Role::B = role {
-            samples[nonce] = decode_polynomial(&evaluation.output, 1, 23, MODULUS)?;
-        }
-        stages.push(stage_evidence("expand-s-and-sampling", nonce, &evaluation));
-    }
-    drop(rho_prime);
-    let expand_started = Instant::now();
-    let (matrix, rejected_candidates) = hybrid_keygen::expand_a(&rho);
-    let expand_a_wall_ns = expand_started.elapsed().as_nanos();
-    let arithmetic_started = Instant::now();
-    let t = Zeroizing::new(hybrid_keygen::matrix_product_plus_error(
-        &matrix,
-        &samples,
-        &hybrid_keygen::ntt_twiddles(),
-    ));
-    let arithmetic_wall_ns = arithmetic_started.elapsed().as_nanos();
-    let mut t1 = [[0; COEFFICIENTS]; ROWS];
-    for row in 0..ROWS {
-        let mut bits = Zeroizing::new(Vec::new());
-        append_residue_bits(&mut bits, &t[row]);
-        if let Role::A = role {
-            fill_uniform_residues(&mut t0[row])?;
-            append_residue_bits(&mut bits, &t0[row]);
-        }
-        let evaluation = execute_kernel(
-            role,
-            &schedules.join("rounding.bin"),
-            &bits,
-            &mut reader,
-            &mut writer,
-        )?;
-        t1[row] = decode_polynomial(&evaluation.output, 0, 10, 1024)?;
-        if let Role::B = role {
-            t0[row] = decode_polynomial(&evaluation.output, COEFFICIENTS * 10, 23, MODULUS)?;
-        }
-        stages.push(stage_evidence("power2round", row, &evaluation));
-    }
-    let public_key = hybrid_keygen::encode_public_key(&rho, &t1)?;
     let directory = result
         .parent()
         .ok_or("Role result has no parent directory.")?;
-    persist_material(&directory.join(MATERIAL_FILENAME), &seed, &k, &samples, &t0)?;
+    write_private_file(&directory.join(MATERIAL_FILENAME), &output.own_material)?;
     fs::write(
         result,
         serde_json::to_vec(&json!({
-            "role": role.argument(),
-            "public_key_hex": hex::encode(&public_key),
-            "public_key_sha256": digest(&public_key),
-            "material_bytes": MATERIAL_BYTES,
-            "expand_a_wall_ns": expand_a_wall_ns,
-            "expand_a_rejected_public_candidates": rejected_candidates,
-            "local_ntt_matrix_product_wall_ns": arithmetic_wall_ns,
+            "role": match role { SigningRole::A => "private-keygen-role-a", SigningRole::B => "private-keygen-role-b" },
+            "public_key_hex": hex::encode(output.public_key),
+            "public_key_sha256": digest(&output.public_key),
+            "material_bytes": output.own_material.len(),
+            "schedule_preparation_wall_ns": schedule_preparation_wall_ns,
             "role_pipeline_wall_ns_including_schedule_reads": started.elapsed().as_nanos(),
             "stages": stages,
         }))?,
     )?;
     Ok(())
-}
-
-fn persist_material(
-    path: &Path,
-    seed: &[u8; 32],
-    k: &[u8; 32],
-    samples: &hybrid_keygen::SecretVector,
-    t0: &[hybrid_keygen::Polynomial; ROWS],
-) -> InvestigationResult<()> {
-    let mut bytes = Zeroizing::new(Vec::with_capacity(MATERIAL_BYTES));
-    bytes.extend_from_slice(seed);
-    bytes.extend_from_slice(k);
-    for polynomial in samples.iter().chain(t0) {
-        for coefficient in polynomial {
-            bytes.extend_from_slice(&coefficient.to_le_bytes());
-        }
-    }
-    require(
-        bytes.len() == MATERIAL_BYTES,
-        "Role material length differs from its declared schema.",
-    )?;
-    write_private_file(path, &bytes)
-}
-
-fn stage_evidence(component: &str, ordinal: usize, evaluation: &PrivateKernelEvaluation) -> Value {
-    json!({"component": component, "ordinal": ordinal, "metrics": private_execution::encode_metrics(&evaluation.metrics)})
-}
-
-fn bytes_to_bits(bytes: &[u8]) -> Zeroizing<Vec<bool>> {
-    let mut bits = Zeroizing::new(Vec::with_capacity(bytes.len() * 8));
-    for byte in bytes {
-        for bit in 0..8 {
-            bits.push((byte >> bit) & 1 != 0);
-        }
-    }
-    bits
-}
-
-fn append_residue_bits(bits: &mut Vec<bool>, polynomial: &hybrid_keygen::Polynomial) {
-    for coefficient in polynomial {
-        for bit in 0..23 {
-            bits.push((coefficient >> bit) & 1 != 0);
-        }
-    }
-}
-
-fn fill_uniform_residues(polynomial: &mut hybrid_keygen::Polynomial) -> InvestigationResult<()> {
-    // Rejection depends only on fresh independent masks, never on key material.
-    let mut bytes = Zeroizing::new([0; 3]);
-    for coefficient in polynomial {
-        loop {
-            getrandom::getrandom(bytes.as_mut())?;
-            let candidate = u32::from(bytes[0])
-                | (u32::from(bytes[1]) << 8)
-                | (u32::from(bytes[2] & 0x7f) << 16);
-            if candidate < MODULUS {
-                *coefficient = candidate;
-                break;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn decode_polynomial(
-    bytes: &[u8],
-    offset: usize,
-    width: usize,
-    limit: u32,
-) -> InvestigationResult<hybrid_keygen::Polynomial> {
-    require(
-        offset + COEFFICIENTS * width <= bytes.len() * 8,
-        "Private polynomial output is truncated.",
-    )?;
-    let mut polynomial = [0; COEFFICIENTS];
-    for (index, coefficient) in polynomial.iter_mut().enumerate() {
-        for bit in 0..width {
-            let position = offset + index * width + bit;
-            *coefficient |= u32::from((bytes[position / 8] >> (position % 8)) & 1) << bit;
-        }
-        require(
-            *coefficient < limit,
-            "Private polynomial output contains a noncanonical coefficient.",
-        )?;
-    }
-    Ok(polynomial)
 }
 
 fn verify_public_metrics(a: &Value, b: &Value) -> InvestigationResult<()> {

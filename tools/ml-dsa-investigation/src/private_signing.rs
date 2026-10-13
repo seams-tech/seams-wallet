@@ -379,7 +379,7 @@ fn run_role(
     Ok(())
 }
 
-fn drive_runtime<R: Read, W: Write>(
+pub(super) fn drive_runtime<R: Read, W: Write>(
     mut current: Step<'_>,
     reader: &mut R,
     writer: &mut W,

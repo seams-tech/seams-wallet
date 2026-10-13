@@ -1,0 +1,1002 @@
+{
+  "schema": "seams.ml-dsa-cloudflare-threshold-investigation.v1",
+  "created_at": "2026-10-13T10:08:29.154Z",
+  "environment": "hosted-cloudflare",
+  "endpoint": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/",
+  "public_fixture_only": false,
+  "disposable_test_keys_only": true,
+  "security_scope": "Disposable fixed fixtures and fresh joint keys run with genuine Chou-Orlandi and IKNP OT. Complete key generation and threshold signing use the shared resumable core. No wallet admission, durable shares, production peer authentication, or authorized cloud export flow is implemented.",
+  "measurement_scope": "Client wall time includes request and response transport. Worker Date.now observations are elapsed markers. CPU billing and actual physical placement require separate platform evidence.",
+  "sampling_scope": "One warm-up precedes each kernel. The measured samples establish observed latency only; they do not establish a production tail-latency bound.",
+  "provenance": {
+    "captured_at": "2026-10-13T10:03:33.081Z",
+    "sources": [
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa.rs",
+        "bytes": 28932,
+        "sha256": "1bb38255fe72d5814448a0d688fc2beedc3f8070aff433e91bb38d2b8abc2eb1"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs",
+        "bytes": 23701,
+        "sha256": "c8ad3f9645946049a4482a088ac190f243c5c4c3fda1dd445e739c6f8c353253"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/lib.rs",
+        "bytes": 230963,
+        "sha256": "733347a6d36f8cd631687c4f1d70da001e5e027b082091090cc4b789248aa42d"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/Cargo.toml",
+        "bytes": 2202,
+        "sha256": "0c61f638429447e4d0cc752918b2324a3a9b7b6fa0a76a009b06ce8efcb4e4ba"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/Cargo.lock",
+        "bytes": 44221,
+        "sha256": "76ec976d4e1adda57709f4792a143c81d0a67c9997368fef9ee4212f263c4f43"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs",
+        "bytes": 23107,
+        "sha256": "c9af426bcb0e98301d5de0e77954a871a776e04e8f026d94e70a17a1af2971df"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa.a.jsonc",
+        "bytes": 535,
+        "sha256": "78067f5416f13ae8c555587c9f475b847f9376afd217f9ed13e18650c5b2a58f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa.b.jsonc",
+        "bytes": 454,
+        "sha256": "235a892d5f180584c42af0e1885beb2bedc9303fc8678b726cd0abcb967379ce"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/Cargo.toml",
+        "bytes": 1097,
+        "sha256": "081edc504406f8ee63382e825125f0fbbaa00d8846c1b49928a91ba0ce8f143f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/lib.rs",
+        "bytes": 4434,
+        "sha256": "f5c6d453ebe42c74cf7e1870c714a524573cf4fa114f6a7734df33d9f95726f1"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive.rs",
+        "bytes": 29431,
+        "sha256": "0d973555d7551d9fe03d63c8235bb7792e8a59ffdb7b307a906ed070d5546e3f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/runtime.rs",
+        "bytes": 15882,
+        "sha256": "9d2c7b1e16d2a57a10a59f36b460312b3d7171c42862faa72095fac2f189066a"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "bytes": 45401,
+        "sha256": "f9d9126d98b04bd5f92279f12063174242d0d69fffefe84d539cc1b829ea0ac4"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
+        "bytes": 27042,
+        "sha256": "aa6939d0692fbc3179a08e031a8dbc079bcf76b0472c73efb895b6122ae0400e"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
+        "bytes": 7246,
+        "sha256": "4698ac5204e38c7b01fa8c54926316aae4c491b3e30da0f9cdd1a4f442201db7"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
+        "bytes": 11378,
+        "sha256": "88cbf26de21c9b0cbd918dce3db075baa9f6d8086fe4621115a7399d5d152a8a"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/gate_aes.rs",
+        "bytes": 25775,
+        "sha256": "7dfdaab51ff5af717a943b216959acda6ffb05575730c1f227bd518098e9a12b"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ot.rs",
+        "bytes": 45627,
+        "sha256": "533421d9e12f0e2e07f25368809c80dbf145c4bdbbbea0a477261a74fbe67c13"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/Cargo.toml",
+        "bytes": 625,
+        "sha256": "11c36dac7a1f2f7046c9b2204cf43c1bcfea8cfc9b086b5c56c861d3dd1699c0"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/Cargo.lock",
+        "bytes": 22450,
+        "sha256": "5c5438425875268fec3a611f36a660ace1b96bc7e68b7c5244b7e3a7cee55068"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/src/worker_fixtures.rs",
+        "bytes": 9051,
+        "sha256": "a92eb96435c36082d9454656c6d20d9e4b75bb1383a172015af56ecaf16fd3e7"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/src/private_signing.rs",
+        "bytes": 16998,
+        "sha256": "96540216b22ce6d6821d1e95ea8d641100d8c3e72a53428c474fa04a6a680fc0"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/keccak.rs",
+        "bytes": 12407,
+        "sha256": "dedc27c96dcf7b0436f3d04831b8797ee9a7009ad2d6caf7b9db9400c4bbe1ec"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ir.rs",
+        "bytes": 28037,
+        "sha256": "a975ceaa50a094b555d39136a668e14a468b3bbeb62406330b21ac24a8cb28bc"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/schedule.rs",
+        "bytes": 12983,
+        "sha256": "46ffe8c2fa2d4c78395cceb7c2d98e56444739df64f03c4ffff1330cb67c7dcf"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
+        "bytes": 8056,
+        "sha256": "2097119c481dd19b30b8a37a272c658f03ce551774322c07f97351136b489307"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
+        "bytes": 13316,
+        "sha256": "36c072cb237ecdd2b020f1b2dc644e7db07087bdb2e9d26dba0578db76c82c15"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
+        "bytes": 9192,
+        "sha256": "e93881895f7c3903d8e5251bb1c78b96947522c5a68177eafb71a105205e15df"
+      }
+    ],
+    "schedules": [
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/seed.bin",
+        "bytes": 1319583,
+        "sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/sampling.bin",
+        "bytes": 8060037,
+        "sha256": "c7d5680e43d0e3b463ce7e21b5b334d967800deb4e40a18064bff44aaa326e2f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/rounding.bin",
+        "bytes": 1276730,
+        "sha256": "f20478d8d358f1caf45085ec9e9c1a76e83ae0dd7b08e7559fc7b439f1960527"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/signing-seed.bin",
+        "bytes": 1315304,
+        "sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/signing-mask.bin",
+        "bytes": 7358768,
+        "sha256": "d89aa99def7b82cefe5a60771ab65b34a15ff918bd2d7f00a729e6bf9f6b6276"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-high.bin",
+        "bytes": 675898,
+        "sha256": "564483eb4bbf964497bcd35d66002d28d1b0cfe7c7afe0a45d308bbaa7d1a126"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-hash.bin",
+        "bytes": 9454746,
+        "sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/response-check.bin",
+        "bytes": 795708,
+        "sha256": "a7a13aa3628619645b57d049c8877dc6e5a72a8eeb96c776443842decd8bc227"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/row-check.bin",
+        "bytes": 2733372,
+        "sha256": "d66f8b1a7694ec8e80571ac598b50bb3016b0dbd91da3cc5a617187bc3d333c1"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/aggregate-check.bin",
+        "bytes": 85929,
+        "sha256": "17fd8a2afae6c3df1c5fa5be9ae93ac7d5c10dbca37705cc79dd6bdb43a1b201"
+      }
+    ],
+    "threshold_fixture": {
+      "context_hex": "",
+      "deterministic_signature_hex": "a65d764d93361e2d45d7bad5b35076f9eed5c68e069a7b08bf8ec40a9c3102603b049257187cd3361fe73d2c2fe774788933a1bc104ec2d99e43d84f49ca11f3456047acca3fe3be0dbd7eca52af224b65123b3fc0a24f58393ccc9d2a38103557ca5ee60926cb1118403b9d5aa3a79853f8f7b4c79c76e60042a9cfe12c62c6733b5839f7cdf44187d72884b58909eae6cd966d6863baf5eafb9a839aa656b938b8cae8b492de99331e2ece290e6088b278590d7933f50849c2cbd4fb550ef26153a1bb22c2de5a52a88620fcce8c8a222d62b9d1c23f22bd497b1252f5a7ec4a5040fea8f1498a3209826efbec542edd02241ef34bc01274f5d9f9d6cd58cc78f29b78c46a6ae9c65db88039ac2a861704e365b4410c907d80e6982134f3ad729898c7b112f92aaed7c24be0b0059d02142dd7a17eb446e1050445f5ca76978caac93c23184df945ade1958db010ec540d42c748fd12abcfc66a76806ad633d6e4a9c96fcaa21e48a4415d4c572102b4d12a8538dd2565439ff86684ef7f50a67ec48a0cd8e4604fc92be67e5372706c67a934366f154f324eab9e183e1c1e71fae1dbdbae33518a787af649c8058023a56cef15e845573968565b2bac8c8ee44e8204c83c36c44039567cc285ba313e4ead4db207591365e56f1bb32f71c565b8ad8048990189a112a062d6ba822665e11ea97158d2d0fb6976d5730c73b6d03a330744ceb1edb30a02931ecd6d4ecc3843cc7a2846619c57ed9af0ec1b6b45130f21fd446a7dd44c3a4d15056dd2ea02a2eff6d773e1037b2ea4873d479cd0958382142b628774671e09919dd4c008649f509f2a89b88b87c6ffec15453258a9af37d2f34b28737892809b5bbf786694caa7781f0ebd3ad166e423d2a6a3c3d81724df0b7f4d18c91e6ee2e56c3dca406d99dfc6ca1706cb4a65c6621757cb6da218cc536aaf7b0494dbab7edf1390202a0ab4fe24ee483a02f8a22cf3a8f0d23f4bd12a00ce07d09674f88f801e7d3f2c39c3d09b3bfb1487e68f7e6c2be53edc6b98946d40478df89619558453837ac99fe980499e9b7bb917cc4be38358f34c5af225811359b67c51dfe5dbf109576315dff71d510182ad9cd3a90fc3cfede793c234aec311aa50bd23a455e1abf55fce4f4821a3f1be9906554a135a0b4619b855f5c741edcc2845c40f82bee54ff7017da79fa46c5f576f4e4aea46e6483966b165682a5a63de4a50a87b22a49b76feae5cdaf9c89fc3906de8e2fb80ed91cf054ff9f553b5088c1eb1e2f90f4af3eced4c9ae9f84165509dc16edc2329dbaec4ca1d07055e706bb331c0a2bc61ab5efff1be362b1bec8f9dcbf0aefdb643c98a9dabf759f6f6541973c42373b8bb5cb502be308cdf29c41d52bad0438a01b9fbe46bbab403a73efb67e8e09510cf425bee557693a49a779ad09b3708759a74e35126069e96b7b5c5a2d3de37f7d1089509a3150eaf876a4f2471ec5f226a4c206b48a1b9b1230a463da2d28e5f53ee662d069cbe59cae57b2b1d270fd67af033d870e584714b5f81b385d4384188417106f6671fbf92014c391647cdedc8d81594d3e92d1388492f1591ce4cea30bb907ef3ec9a249133d0fff8bfca1218192e0c748ff7128a14156e0bc1884c569b04c671fe7e3cdbb518616081eee057bf3e672e831c88e105d19e458ffb1c52e140dfe6e47d55d9b87a0579925148f3d3458522f44a732c1d92b8a65e0c71b7f393bb649a3e9e11031dd5e2030e34a319da7a9b30b9f154d869930d603242cbeb94aae20189a9690f1de861e60ea3558f0276ec7028397da2d1c28cbda398bd79065db71e4aafa6a11576fd5fb7d87f07e5906f2fcbe31ab1bc1e14a8c4daa813187dc74edc3101c424954f1fb7c4acfb911500c240f0527dcf724710d0d95d4de5499180e1b56a65f36c0194e52532ea4523eeed7fea4443d2b3bef3ffb025696fc42585efb7882bb47fdf53afdb7a95371dd48878af9a1ff1a3b0685de1922645ad535d304b0a6846b34b3b68f1af46231f8244e9eca05bf03c99cb21d9293fa136bf0e065a07124374a5bae41e49b5fcb92d289fa33a6e4a969e17d9a4cf14bb2a6c9e24c08c9820890482ec729d583c12c4495bf0ca8b2cafee6a5cbf077c34518d4debd7a3ca8fd772dcfcf8d41aa978e453ab1aa75d63a9d33bdb4c409c13c7e72351342a9320ab06d5ceb0b20a8a84ada34b213c3a18d687ca82cbe1881906723d96c8e92d2faa7b676a5dec601d5b07fa147c7298da18db8068d25d3a17cf075b3191268dfbfba3d60425d9cd367bb6009118974417c3948f62a75ac0bad7ccf49ad20f7e54c0fb53bbe87f93afe9770da012a5d5cc0643ec6aa5c745c876a1dfb46bf07750ee9af7ec4f2b6fd9f4f1d5fe206ba052a743350476f76671e141b9468f6eab34c133b92e392fc5180811940946bb63bfc792f451bd4a6526cf607cbdc14c34ecf8fbbbc20272002714336511fcb049235ea2f6a3a1df9d102eb5b6555f1582763a4e04ed5679ece3ce219c1d6c8543fbc18856161041d6397c9a74c9ebf9393bfa82a3772788cd292e186e8239eb6b628be005957694dfd5af61ce4a8d353164f44df1636cc06a2b5e6d64e21b56a39766707698bf123b7e4cc7002a57f2ced3408a8e6f29fe3a83405668359b25f9b54f87ee44b47f590e679236566c1b4352e6dd4b27ca721f4048f8f495669c3ae5b89087faed8f7a73096464caf6725e11ad737e98f139150d5a55fd3f1da2be1922b89abdb31f51fe36e1bdb007a6b91784035da70748eec9e5218fc5acf348efd3771fbc4f5cf8c03254646707183724b7ec63e6adc1e5018ffdc06e66f981b0b3dabf6bc6280efa2f8baaf72aacd62445a31716a6ea50ff8b071e79c23f332479d28364154acae2a786e58d6c53343c57ccc64dc1715fc4077a121f012b8209c18830b193b0687e5339709dd0de7b18c33d513947760314e2a20ce5c8886a86b8f678618de9a0d56d4117eb501b639c6a4fb488c1bbf873b5f730f730fc00d0d519ef60e988dafa861e073ffb2998023b0410f56e08ebbcb0e3b39707e66faf5788d204a78ec274e0caa8733c340e46d872d5109c912a0bbcb3a07cc5e4179de65865bdecc9d762c6c97c6ffa024d78faf4704e69794eafb46820423fcba685f78b2354a31c95fb42114ebfe162d4944a15d29c50023d76e18b428418d7558cd0c4cfbd36857e353458b423f3b0318a2bdc0a553c0838ee488145f063fa34ce58565bbf46d48cfd969db14c038f3364c6131b1c1850352aa6d196de5216bccc2141719a4acc7bf4fb1979e0b4267f4b5df7e4b68e98f61e2bdc39343cfbf61d871515300a8ec83879025ee833bb0bc21e39c6015061e5ff5afe3965344ffc6d4ae5cbb5359e5df5bb010d3b72da1f0c9b662b42f55480f6dee541d6f1dfe448aea7e6f430f153e752712d37aceb88820dd31f35d31436d448a320cbe6b2d88b543244f06d84134798d5ed5f7025d6d163d9396bbb4ee3efff7c523157f727b8d7c3713c94714ecf77932a1713658e71a14e466969dc61d8f93338007bcfb8084f95568944a4935be9d9a7e2f32b538c258b8078f17ae882bf80a581ffbb0545b6a93b645436129d7565b280cb6e2347e844d25785a5fe0545d6abbbc211fb85846471ef491f381fa123f9e04c7fc53d3d11734331eafc9f1c9efb10e8c11a6315e9b3d968ba32287c2d373a94480ac2d4d037eba77ab696b8d243e4c7ca30e5aec8821c6a5088767171a2f6e968b7b652254d3babbe2723fc56512cbcb0727f9ccdc1dd282a8654b03dc16f15549e0335a78e13092ecb23bd74aa6a54224a21a33ad9d1d22d7d273a162cb85998011cf5084a320e1ba28644b76fb6643640c39a408a80ca991bb580f6776c051783f062c1c99aa3791c816bb3685d616777071bc58cad8f8b0a7dfea1091c4eeb760df68998b40dd42ed22808b64b0e08d879eb0b3ee6bd885b961118de3ae54236e07bef6f7581b228742a6658725f18654882a151ec759e2bb6c80c1747eb0a0b05e63b6bd8c42f7edb442bb4b35930c1b40e764ef6576ed1196558a822e84b559fb88c91b0eb7892ba0deac43f27ca6dd79352b376c4f8cf9d5c82f4bbb785bb531b7a1c847a3f76be196330aea04db505612441d0a8540845d3d598c9b480adb10cc06f8e2a99d6b066f199ae38457f49f53bfd75210d6e416f37a37d699486dab8ee9cda8f7e227ca4f88571de6c685e675019af7fb05651a8fd52758e6d420fca172e1a4d737a6ccd222394ba8f49906a9db73936fc3c0c73d9fd60376d26aed71ca0fed6afac8ee267bc5ae98686b9c34e0a2d5b9e5635fb36ff0cc866d7557bd0acd5ee7ad859e9ce7cbe5fb88b6b879497ad732caafad007ba714055cf38a06dc5b8d90f161383d420e18067aa8c9ab40d42627ee544472064dbd8cddda85c0a67c315926999faf28d09ed22659ef5e9be2426346ce0a1eeff9ce189fa6e397177b6802fafe9a75a3d70c62336b2f21be5648a63de063b04e5e659d76118f4287b03863dcc399809b98e295a2eadf6526d0e3e636474c3cad4e1212b848ebac7c8efff2d4d880b131d33596cbbd317b9e30860b3fc000000000000000000000000000000000000000912151d2024",
+      "message_hex": "f34f48d83dc1c6a0b8c8ef0a77e55d2680d851ded3e75e044f71dec7b17fcb36",
+      "own_seed_share_hex": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "public_key_hex": "424b2f267e58d5b3b44d71acfc6a656bb26950d57c61db1c880bcfa1feab443f0942ab8bdbad7d708abbc356078f6d99a252271fe62c74091eb94afb9b9264c50a888e0dfed80cd5fb2cbd3667e60d539ebe44930219cd4faed15dbb3455a264802b9f49bce42ee7550feffdd4642a55ade693868a460cbec03f4fc99a4e30bccffa8a475e5395396674ebb81a94937587880f6dbd27bf1c4f5a9ee43cdd8b0e53b3b7fb49c73adfbc2d4f8c54303520c29bf97e26ee57db342d957c893936522d0942b41d82ee3772a00570adfb545c1143922b0496f826a0a970064b36ddf534b5f8e1c1cd0b5565ea846b45431f0618143ece89777bb3f61179ad20295fe0a6e062ae6eecbc2ef38f2ac1a22dc93b7b126336223c55b61eb8c0795542bbb2dc65e722eadc6866ffa9683beb8a999ad7a83e5e6e016c2e4c35f6f7649ad3bd52ec67ec1c5c6e7b9972771218be9554bba7727f0b84c44b9b0a8bd831fcff2c9779ccd4ca30c6ad75b04983e41de893ee5f39ea7355180b709c7045c22d33a083f6ae07a114746d1bfdccbee5b9043879bb5a2e120e2a4636283f4a1cd4924a2de6a4aa3d99ddd88f48aaa4e88bfd1ea769d82c10779f2ded796db542971ca289b76863ede5997b7e9ce183b43ccec278b10d92b87442ce0435bb1625171db5554b470239c50d2a0c3a41b2a38807db070b47bfb3e7d10f3cd979d69963c8d79f8029cc4a48eb04fcb3d708844febaa8b6ddff01ab64d59358e6505c4ec1d7cbb14ed2212df458ecefc03fe03037b1505a4c9444322f5f98dfa91a4cb8c45860a2dadc7515350bb6d431e49a6bc8f5ba956e682b0e513321a97d1962602891c9078f62a8a9646a31387a6f09684264837899e0d8ec7d11c565901298b20b345081690eb4c562c1aa3a25bef06566cb34c79bc0b25e4095d6ba793e81311e41a3329152686f00d4897f84fc4edf4b26d545365785ead8d63aef64a87c0b91a2e5500383956cdf5f6e37cf9d5482d1c8e3a5be38f17259ac45c9fa1c4bd3bf177d312ee52a6da023c05722a8738274dda8d1b04e99831cf57c87282a256c565c296d0524a063a3a41a48a83009978d98d8abf61af68e8013b594fe151d9bec199902c4c70b49584201743c6b53103d2fd24bdf078dc90b5a188b4f8d772179988d0416c94d4c57c0860b9d7b53d4cd261f332a1851565d52ac37f008747cafe320f363d9beb6e4117db43fd8aeebe5e0ce2f54e3f0367eb3cc971bbe0c301a8e52f96094936035c6ee3ca2d13db483a0dd04dc16247de0e0894ad7cb7e1ae7ebd4f8f900582b20021e77f70254501c6ac3dd15d43bbb7931c5283244312158c2eb1b3e1117e194f0a1e4c783efbc62c9f81c21562d0d34a5f042b5eaaf32f31f95c5b055f4e7a2070fb096f56c415549cde74f3864e8b9fc27e3299724b4639986044b55928fd6972785b280c25a3e21aab814ecbfb0c3cbec0914907ec907f25a1d88bce3d319ae8222a35945db62af7cc75cd29c1f5d98fcb93f750dc3031076979bb51dfc37d23e8eea78073a24d3e26c68e7bb10e459f2577b90080359ae0aec10318dcd9e0f9e34029c31b3e54b1855645db420618783346dad5b55eddb4f977b326a655525ebe2195eca9cec38a3c0d2273b77d3e68f1901c2ca5149734a51177bcb089476b18cba09fa8b9b46d94a2946f358e1decb1998652c58a90852423e2c85e79d19724461627e6390d1a81fb1a72f9c7edc4bd747dd5c85217b5856141028414ddbe71458f0a0b2b589df2e1b051783b8f718676b1defbae98ba496c2a935e92eeadea0a8393ef59f9e914f0743fe65640ddf9981cea6dbdd957a534ad4e790efc974ee89938ad99d53c5b680775399326834729bb37b082e795f8d87f52e6c8a8db68e515c277bbea82a7570d4280896c987a0608903e306c632a223c55f0ea3682039c4a3f5440f4b5ac3e6ed2b2dc900cecc72b72f50e49b2629ad30f0487b2707b86286f8c4f55659b25f9bdd7a6af460cc3c57a3982663bb717461581e196894929d84153d87a7f482d284b5b894ce1a78216b2a011f2b88742cee52d5133e8fe77edae242f5af91637c37ffca32430509b2fe4756303a9a3659fe32528af1e10d8d43bea991b2d109786cc66d35b1d78df254b92cdaa40f91a987e4a922ca81050e5bc3530ca85493bdf2a825374d0a8310a6860284ec3ec732326eeeffc42bbd42bc91b73e5e7c6b599d016490637629f3876c3e42f8db590e66a85a7838c818f78fffb4853cbef09434989803545dca87657cf7c7e7e6afa71382bc10fa0bb6480f243eea1b861101006fa0cff3275621943cc58eb4dc3a0428a5e425670fe82268de71c511d8ffbdc11b0d0f961120e971015ad5f448886b802e3fac11672319d487c84f1001339cb969784cb57344f2807f8b425f1d73caf8496d742ed237f4c9fcd5a4e84fba7e27fb1a8ae12c4f0427ae24e910d951bd8c35d61f8a678db01caea8ef789a95b62ee1b8c5d32c6baa536ba88a1070ea61aabbf59294e3f6f974c4c91cafc5bbf6b7ecfd57a18fb7557d71e06e900d281b0b49aa00feabb35714af33870edd7ac2393d93177f79ee5606c9df176f025ce49a6e5ff51a2a412ebf86ac0f40471c96ad4c119df230be6173df530ed656cbd8069214741ecdd0271c603fb6c4a8614ff878d33e726cac6693e938ca3fba82c4995c14a2d4af9014fe4c4c50b794cac596b52189f66a7106fb325b526ea"
+    },
+    "fixtures": [
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/fixtures-a.json",
+        "bytes": 20200,
+        "sha256": "17c7bab67c7d18d440175c478072a569a1c349ad227cc4c15e65980623175d02"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/fixtures-b.json",
+        "bytes": 20188,
+        "sha256": "4da3016f8c9d849e967dcc91db05dc8fa41851d682f56e4648e9caf2f2db97e9"
+      }
+    ],
+    "builds": [
+      {
+        "role": "a",
+        "modules": [
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+            "bytes": 26139,
+            "sha256": "0cff0132bd89390438e1f4a0bd4df5ab7911b13006113d9b995782c6d76d9dc2",
+            "gzip_bytes": 6756
+          },
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+            "bytes": 34265140,
+            "sha256": "17dab4748d57fcfe2f2dc8e46624a3748e8898a5c73521130acba846446ed2a8",
+            "gzip_bytes": 19058325
+          }
+        ]
+      },
+      {
+        "role": "b",
+        "modules": [
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+            "bytes": 23802,
+            "sha256": "edca40bbf12671b51d5da1cd5e9c724bfd20be6eaab0e2118636668b0409e3bc",
+            "gzip_bytes": 6037
+          },
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+            "bytes": 34191045,
+            "sha256": "cdc27792cae760d161271e09550004d456966e38c86d8f9ff5d586e4a1e6feb5",
+            "gzip_bytes": 19031518
+          }
+        ]
+      }
+    ],
+    "node": {
+      "version": "v26.4.0",
+      "openssl": "3.6.3",
+      "v8": "14.6.202.34-node.21",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "packages": [
+      {
+        "name": "wrangler",
+        "version": "4.111.0",
+        "manifest": {
+          "path": "/Users/pta/Dev/rust/seams-wallet/node_modules/wrangler/package.json",
+          "bytes": 6507,
+          "sha256": "779083c6f662f71d6ae71c56fa370b397c43facc6a46ecbdb02a1b84a08ac6f6"
+        }
+      },
+      {
+        "name": "miniflare",
+        "version": "4.20260710.0",
+        "manifest": {
+          "path": "/Users/pta/Dev/rust/seams-wallet/node_modules/miniflare/package.json",
+          "bytes": 3978,
+          "sha256": "90e56ae6c17d181b537b3cc2f661641e33ef2574f39f4a4c3067553a626a3363"
+        }
+      },
+      {
+        "name": "workerd",
+        "version": "1.20260710.1",
+        "manifest": {
+          "path": "/Users/pta/Dev/rust/seams-wallet/node_modules/workerd/package.json",
+          "bytes": 676,
+          "sha256": "6f12d12b36a25872bfc1063ccbf8fe0fe5b814d332278d5f948ac83a413dfc91"
+        }
+      }
+    ],
+    "reproduction": {
+      "working_directory": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.4.0/bin/node",
+        "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs",
+        "--endpoint",
+        "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev",
+        "--kernel",
+        "threshold-joint",
+        "--samples",
+        "1",
+        "--out",
+        "docs/evidence/ml-dsa-65-worker-threshold-joint-hosted-20261013.json"
+      ],
+      "fixtures": "cargo run --release --manifest-path tools/ml-dsa-investigation/Cargo.toml -- export-worker-fixtures crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules",
+      "build_a": "worker-build --release --out-dir build/ml-dsa-a --features ml-dsa-a",
+      "build_b": "worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b",
+      "wallet_root": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa",
+      "authentication": "PROBE_TOKEN is read from the environment for hosted runs. Its value is never included in this artifact."
+    }
+  },
+  "unauthorized_request_rejected": true,
+  "unique_execution_bindings": 2,
+  "unique_joint_public_keys": 2,
+  "cases": [
+    {
+      "kernel": "threshold-joint",
+      "warmup": {
+        "warmup": true,
+        "started_at": "2026-10-13T10:03:34.955Z",
+        "finished_at": "2026-10-13T10:07:09.586Z",
+        "client_response_headers_ms": 214627.07233300002,
+        "client_complete_ms": 214628.228458,
+        "client_verification_ms": 1.786167000012938,
+        "client_verification": {
+          "kind": "standard-ml-dsa-65-signature",
+          "verifier": "Node crypto backed by the recorded OpenSSL version",
+          "verified": true,
+          "changed_message_rejected": true,
+          "changed_signature_rejected": true,
+          "changed_public_key_rejected": true,
+          "fips_context_hex": "",
+          "canonical_fixture_bytes_checked": false
+        },
+        "report": {
+          "disposable_test_key": true,
+          "kernel": "threshold-joint",
+          "ok": true,
+          "production_eligible": false,
+          "public_fixture_only": false,
+          "roles": {
+            "a": {
+              "attempts": 13,
+              "challenge_hashes_hex": [
+                "8c706871414560ba2aa984a0b8cafc8fbbcb927152409c556dbcc6b11893cba564b05de3e939ea6d3198a6872a57cf1c",
+                "2552fd437a05a0151cf28f37abddb5d784f7a45d61e666342ff1e7dd460afbaf50e099aeec9537c51f818df642e54372",
+                "2aba783c320d7245a701a241fe1fc837a170d0efa44ebce90b4df888480921791bba82a4ee9df9bef1c307c5a43c344c",
+                "6a9fde462183d1ad78c7eeacf60443d692181e4dc40e8d9a25d7b450d014425e6b2730c2d6a596a02faab80f574da6d7",
+                "611358d906c11441f785ce51978d1b2a49ae01555efd718957e28258ddf0fe738abe0b8cebe95cdbdf622fb76dadeb78",
+                "bf1897f49cd281f6b6df967ba788064215e580c5c560dc93b8f16d126376c66de63bfece124c1424b54734cc3bb186e5",
+                "a38cf0c3678442151451c998b179b2f582ebaa4e28b9f86d4f842aaebd541718347edab0893cbd19d926c52c5e71c526",
+                "9d322ba8b673223f3c1df4657eb4324b9741d344eabf67e91746f2aa73ce390ee2f8d247594fb69da918977367b27583",
+                "8e778241234ed52348508e3abd0319203c546ec3ce65a6773ff77f670a5f24960ac194416f7e6f592e5004ae081a3c86",
+                "181a804982cac65f3d9f0f3532a93582cd5e0b4ea49088d0ea6e1c09fe8bde1db6401df6c4fbea84469575575919a82c",
+                "1f01087f2f76caf0782562782b6265130f4e6db95fa3d5edbc8220e594349fd5d59643249c88231f26dff767247c9615",
+                "fb8579c5dd42028e58289f2d909b0a8251353c2f88000471132d6d0e72bb78499c82631a8eaf3ffb3b61fb1ed90f0dd9",
+                "685d7a49b0ef52f43c37bb7a01abb9a5380fdddeb5ee44a2c8e767bf2e78043cc4c21f74ea4bb06d634f194e2be71994"
+              ],
+              "context_hex": "",
+              "disposable_test_key": true,
+              "incoming_colo": "NRT",
+              "kernel": "threshold-joint",
+              "keygen_observed_ms": 20259,
+              "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+              "message_hex": "f34f48d83dc1c6a0b8c8ef0a77e55d2680d851ded3e75e044f71dec7b17fcb36",
+              "public_fixture_only": false,
+              "public_key_hex": "227da62e5e3df0f2bea715fc63af1c9d9b05150a12cad880bb0308cf8febc621efe314bc4a8f2a3a1052e361339850b02090974ece9ec29275ea02db4bfe48bc98e0f75baa4c158a86f5bb3e81200592a9393fcb3289a036d5239fe8e2b7771ca2939538b068951840611e8317a64a9badb3b5ffe9e732c4fa0f6b80753f432f4e06e1143101d860185420897c4ccc2d4fdfb234f95d200c224945f019cd2d1c7ac1ffc9160a2abcafa20cef5831db5550e159d991e85536ddef731bb6468c544715ef89e1d8f5165385ab4e64217601f6d86363d69382efff71063b77a8eb107ca538f883e6df54889d3169bc97a837f45cc2ba5345592d39949dcbd552926470780c9b7b20d0cfeff14a4eba7ee1b296d241e30a3ea51c3817ef9f9097916b470c788e5a2be47e4b1b53957de1e2f33c54e3b6b14570adeec42d3ebeb8a50e68b7f7b474be81c6e79709e69c4a0b0084ed4798c45e8b8e03b87308daab4fe0a958004f4804aff00e24a0e832967bc9167b3b571472a92d5cd3b615a5df2db239f7a60d6513bb1566c968be99e639f26425a082ed116bf2721e4ecd6b6fcb58981a33215e326ab7613178a9f888d81a580896dc6c1c4c5919670b6c47a11b0a062bd8a2b2503ecf859f1f7e688b080c600d2aa4fb8ed87074d4001e1f55398c8c653738dede2d0fb084dabd2139afac417af621de4cacc28e8bcfc1c1ef404347fa49e9593fe015f492a976baa4738c54d6df87080fbeaff6f4c555b90a1696663e0f3fd551841b37e6fe8da1615c0543d76b3004832dd372cf3c9804903597be66fe5c809750452cc16bac5913250ec550795d2aead2844b6df4c9e8d210fda3c67448b9ff12c6f8410656722854c4ec457bd16554c74d674cea26c26c39c51ff3dbf508ffdb316dbda669b288faed558360b33e40cca6b3c54bbd4e6601a91a525a1ee84a06e27af5c94e731ebb3e49493231b2c75b2eaa7199062a8ad623a0a952a75314cc5a709ef44aa39a4c3eeb6571f32d0ba7f0e0adbd688c233165ed3a8a8489207e89f39f5deb291d67e7ab9a36722aa2d8102100012858aaf822737e337a87ab4df619f21de9f1e029cca50da7ba1c502e0f0205dba51d988e6474f5e0619bdafa42b475a49539e21000230b7a824fb412c7aff702335a87e81690eca87b4ee8b62aa34316a2dbc27a7834202513a88d1b3bff045b030ae0b3558dc1e856cae98b075d18d7cf5c8adebf746cd51cdc2c08ec65c34c7cb37b15795834c8b6a2b8f82591ce56371c3b88bc7028b37e01deadd538f2697df0b92b55b51729af31c9bc5bac3650068ce56424eeae1a2b3942bedab0dd2a97d99d63302fde4b67f4bc6c50bc469a75801e429c36a65829ecac9a5f82d02d97a3a2bf825a2ea03e25d50eb3d9379f6573848a9004ad6bda163f1543f1f581aeadb6be629ccca8b29c84705880e650137260e4971c00acf25509c8204e6bb644cceac042756fc16fbb6f5dbe9e7c704023d6a6e4d8fa3fd174926de4ad9a3ad671a2cabe00a64ac776b86b52bdc4003d753133b92b87d89ee8078ebefd891b53b82e9684a5d9bac4cba37b13ae9425a628a11dde623e80a34df4d8c8c9b65af2ebdc109c6dfaba2636b4b12fc2186a060e6cb4c58b8b48aa6a6a86096739ef579b93bbc8e4aa26cb52e57abf2d02ebc39e7e0d8cdb5b4f921985a7ee9c93b2973f76f981e28d2072ed2698a2a847700082ab562c9c04e702b7ef36b6eb5286d3a4d192bb771c9495326d8def3b3570922e9fb33e67ebcd9779fad027b50a32bc8c6b5f05e79e6a7a73e8a896da98ec148728aeff2e9504d44ff622f193a9bf3d97d246ded37b24d9add2c2d03d0ffbf34d967c6b11c49f3ca85f227ea5217f68ff92e77b37c7f24848353d763aaae63d35b9b7f51ad1f1230108c709daed24d7fd64c7fba0005a0f5c098fb9a46c4f036e3e98cf73a0454ca4876e58f815b8d3d5aad10e81ad5a7a5cb6af3cea3aabc0580a487734277733ebb662045621d13256f2b2e81d848d8387e38650948e7fbae66e6a3b3a634d7dac7259e1e4e4baa2c6797ba52eb454f6da0ced3fd9fbe3de55dfc92275295eb40fffeaca3f8073130751edb726f0b1f50f734649b6722667a395caf99bf284c4032fffec40888800a46e0666811e963e0e7a75cfe998be5954996e43ef5c43b53076ac2937ea5df185e483489cbb9888465efbb555cdae2c04222f292761faa91049137659affd56e1de4692223080116362199aa11eb276bc8dfc1e8febc21b6e741388e308f04bed6bf3218415ad62ff8d8e2ac11b80d113f4734420fda7b0082b2400fcf79c5551c550fa333486cb2ce0308e29cf0d02a4fa13e5a037df26ea5b4c24ca7beec7d42a96d20473b92d132bacdf45b7ccc4ef1845d608b8aff53f4bfa7962bc52a79c274882c4aa7ab30e3f3f14c776e98815abd7491ce33d7e7b261f6ed9ccc5fde054176af994775a59b3c991622d878239a4cdbfcdcaf30f0e76b4bfc0b6542e5f1bc8c53bdbe383698672cd69c685b80947baa6273f1d8a9ef1f24343c73a7ef3f17d9e1556af84f78a030c1c635465554ea04c627b314b9e08ee41906ecfc35c9bfe766b9c889f3d8964b14bbcfbf8e71b67eae29e219ba86c24adc19fa6cbb496b840ef64acb2bb9f25c9c869f7c06ad8b16c79971f0f8f2421d7cf0d6ce989741804213d1a646b538c23b4408e2129ec2aebd03dd2e73461b4ba7d4dea6106774175",
+              "reference_result": "Each role generated its own independent seed contribution. The standard signature verifies; no seed reconstruction occurs in this pipeline.",
+              "retry_count": 12,
+              "role": "a",
+              "run_id": "a0f735539cb406b93554a51767141ee2",
+              "runtime": {
+                "a_to_b_wire_bytes": 1281516287,
+                "accepted_share_bytes": 5312,
+                "b_to_a_wire_bytes": 32385845,
+                "circuit_count": 331,
+                "execution_bindings_sha256": "e3a2f6f5630a42440fe097e10762385097e7e4ea8e5650dd7164f8c61cc01633",
+                "fresh_execution_bindings": 331,
+                "largest_control_message_bytes": 376880,
+                "largest_label_arena_allocation_bytes": 404821,
+                "ot_wire_bytes": 95752256,
+                "per_kernel": [
+                  {
+                    "a_to_b_wire_bytes": 3008213,
+                    "b_to_a_wire_bytes": 400621,
+                    "calls": 13,
+                    "kernel": "aggregate-check",
+                    "ot_wire_bytes": 1147328,
+                    "table_bytes": 1914016
+                  },
+                  {
+                    "a_to_b_wire_bytes": 115325080,
+                    "b_to_a_wire_bytes": 1333072,
+                    "calls": 13,
+                    "kernel": "commitment-hash",
+                    "ot_wire_bytes": 3942848,
+                    "table_bytes": 111314944
+                  },
+                  {
+                    "a_to_b_wire_bytes": 109938192,
+                    "b_to_a_wire_bytes": 7675200,
+                    "calls": 78,
+                    "kernel": "commitment-high",
+                    "ot_wire_bytes": 22698624,
+                    "table_bytes": 86261760
+                  },
+                  {
+                    "a_to_b_wire_bytes": 89475945,
+                    "b_to_a_wire_bytes": 6396000,
+                    "calls": 65,
+                    "kernel": "response-check",
+                    "ot_wire_bytes": 18915520,
+                    "table_bytes": 70817760
+                  },
+                  {
+                    "a_to_b_wire_bytes": 13992576,
+                    "b_to_a_wire_bytes": 592320,
+                    "calls": 6,
+                    "kernel": "rounding",
+                    "ot_wire_bytes": 1746048,
+                    "table_bytes": 11698176
+                  },
+                  {
+                    "a_to_b_wire_bytes": 369383118,
+                    "b_to_a_wire_bytes": 15023424,
+                    "calls": 78,
+                    "kernel": "row-check",
+                    "ot_wire_bytes": 44743296,
+                    "table_bytes": 324597312
+                  },
+                  {
+                    "a_to_b_wire_bytes": 107197123,
+                    "b_to_a_wire_bytes": 136235,
+                    "calls": 11,
+                    "kernel": "sampling",
+                    "ot_wire_bytes": 362560,
+                    "table_bytes": 105819648
+                  },
+                  {
+                    "a_to_b_wire_bytes": 1239496,
+                    "b_to_a_wire_bytes": 8320,
+                    "calls": 1,
+                    "kernel": "seed",
+                    "ot_wire_bytes": 20672,
+                    "table_bytes": 1210368
+                  },
+                  {
+                    "a_to_b_wire_bytes": 470711800,
+                    "b_to_a_wire_bytes": 804960,
+                    "calls": 65,
+                    "kernel": "signing-mask",
+                    "ot_wire_bytes": 2142400,
+                    "table_bytes": 462592000
+                  },
+                  {
+                    "a_to_b_wire_bytes": 1239432,
+                    "b_to_a_wire_bytes": 12384,
+                    "calls": 1,
+                    "kernel": "signing-seed",
+                    "ot_wire_bytes": 32960,
+                    "table_bytes": 1193984
+                  }
+                ],
+                "signature_return_bytes": 3309,
+                "table_bytes": 1177419968,
+                "table_frame_count": 18085
+              },
+              "schema": "seams.ml-dsa-worker-threshold.v1",
+              "signature_hex": "685d7a49b0ef52f43c37bb7a01abb9a5380fdddeb5ee44a2c8e767bf2e78043cc4c21f74ea4bb06d634f194e2be719944523c845fb061af473874caeebffe36991fbb50ce103aa0ab7eee2ed7ae4091cda8670e980a4822faa645fcbab0f964f849ba89d05fab582ab34e94f36d6b1aa53faf1587f9e4a7bdaca4caabfdd86fed43b71842c5bd0ac56d3a119aef04270423b581e3ecea1014b6d45c1bd746a0d2dc333d7ba2f7eb7d91b39ecd6031e0ae47b8a813c396ede4d325b353ef47d57dbbd8a58d57977965e09a8510decd4ea9f0e5ae38ec0e0af433dc4d57e95bb2b52a57d0008fe8ce3c921be0ccb652148ece2013d2b484bbb4571c68cfdf860e51ef59067d1eda798f277b83fc53bf8f8e554d225f99661745c93fb019710e45d568fc7e3259f2e9185b4dd6e009c83da4c19b11f637d9e4a2d343104a7a14ec5ac42f5a45a7131df437ae8e00385d79c9490cead9ab09027693312dd291f3784b062f0549c907bdc06f44d822179ffa47897d1a47670e928dac4714b20e613793f3234502d5a35f0d47957142b21e500a82869f0321414fd85d0dbd58d4a0e885b119b8026d2e81f23dbc9096f0809701a5590724a7157675431d22a6c474ba5121488e89f15ab152f807df3fab7389395dfaee8cd33bfab46d599c7239ed27a197e2efdb18fa82185bc3d0b7bd601679cdc078aa3e81f71921241fc4bba08b65f9924cd476ce4041dabf5b7b86c9692bbeceaf1618f906ed7e99c4083118fdfa9af482a909a086b3de18c60c617fc7b7269b7f81f8ebb346880d02c0b1dec2a70b7aa8c49d9a8f163b7a3e4d5fb63af32b24bcb947a3142339bca0b13390c4bcfb3201c26bcc2bbac0882bf075ac575cad204dbe7385512ff6c2cc42655fe77249f09146b0d8d7ce65a0b3163a449f329eddf58e2ba113316798b77a0b16261245366e081a83414b9f14f819b2627848337b2f8b427f75c034539cc9d1ac446abc6c8a39bc300a0af1d644d05982fb5cd6096bd8989f504216c19276b20c32ba7377785a525b75910a0e9fca9fab67e761627a312090b2ec891c02d80f93bb4c4a9ca95359fa9db0bd40c6c071b81b1a375e3432fa26c796a10d8d1c7427600f94058bbd2e85943f8b5f48048eb4996befb61c8b08caefe01e058453f0b5941dd7b261cf89e86bf9cc8935a71d60fb2a717c5e2b4929c8fc3192d9e9b0d24bbe3e3657d9a0e76f886bd72fe420acc8f6d20c1d7935918b5e64622175a7be8b70827183830ade730074e5f0383446b360f6c06a964cb29eb279abb362ba88495dee216983f84e1a496771f211af366f021a2ddf5393efae05398f467848f2c029372d05734f1002edbdaec7648570911afbadcd16a1c2d00be08852cef6ddbc25a4dcb8071609659b74d7ab263698cb6edef36b0f0e6e605131dce45c06eead3f05a290d82060ed2cdc5caadeb3b8ba745a463623aebedcda41c8a8e3c60c384db7eadba1e283d2e98c3f10f01c1913d39fb16b2462a6565ba13d5210778a0df9eb02c6ad2f3420a36da140d8c7f7deb2535da6b60d77324c1c2385eea8093ea5b6b5802a2983af286557cb3a9e472e30db7d5a0d724383a1a3bbfa1708308fb96880fe63c27d22d23d7b177247aa8931b698bd2c355666241a39b36739107c43be3c3f0960325ea950fd75f5a790af184b8141d27e2dba0fd41557a7a7bc90a252905cbb66e67ca606f26f457c07b22699282e0213cfd5e48358421cd260e3b01f568bac910b5892efb853f96058590f12d1491ddd178d87143ff6cc3b4374e5e3445c8ba4f5d8aabc48b36a9c917fbf91c787736e36268411325dbd48caec24cfe37e71f92fa0e46dd77c261a0ac9429a1f00b13e06971c1581320c890d1f4f96526297ba0f5550f3394445fd3b389279432af8f2a891cdc97a75882a6320906a464bef1dc728d2c3a139217f2339aa876b8552673aa1c8419a5695f3d91e27e835a6ac3eb083bf6807a6a3e17fa036f8b6dedba24b20f76e7dc343e927c5d3605808e71b1cb69610b67aa3eb6581651d185a0e9d9313c9a7f5602c23f9a8d30c3fd32a1f898765390f83ae47ae4bddb239a7a78f594a250b508b10c9f8c7963ce1a66a397f535d484a6baba57a7304e0c207d7813b283ae79619642a64c7e7c1986251d6fac6cc2569c363a8dd0bc9e5ac2115a65d24d563517d9258e68634a52599c305a4d5434f7d0d8c775806d203a3edd1a5ecd30ea74aedee8b5f3912f6f8555bed1323bab5865af7298024142922d7593146f34f1a7f3e1526a67123a01c87d11dcd3f7f55f9504eafaf232db59be6e23dfd7677fc08a83cffd54663954deced0dd7ff329a90a8a68174e84db35a46ea8d63e5facf69278665f891c41d470da9706e6e7ad7c3f2e5e6c1447b1ff556c420f1c43d0ae2a6f3e5ec2249dbd53f7f26dcef2e2a79bea39ad17aa0275c8878407e0ed59c396b01c8b68527e7f93fea1070ef836c2821e12434fc922b9a88f65aa763eb96467fd2848dbf67ae72c000774d53f200085c91920966b86ee8fad90f4e9a48c29fc91e9e7cb7dda0be6b302b61f7f0c3067f4ee31f4d7429aa95bb057ff3ed513726c00e88383a4744399a2dbe2a8c180bf872cab88e8d205642a99b774bcca8066a35b55afb96876db25ffe24833c39cb4ceaa32531056162b2a5bff0046cfc4f48bc0c49a9523f84a91f6c06bda8a0b459edc8e1869c91195793aa946d406c071626ca26bc740b3b2e5578a11a71fd2b9e5e5dcd2ec157e5a2ecf4a466c8dc8ebb4feaee8ad8a339ea27ed55f2b759df53fb928ae37db290b254bd5dffd04b8e8662c7a06905e6f2f82a6311165897c26676f35b2099906dc25bcbb322afeaaf13997af47e78fb48c02b6574b4c065fd7d84d1824ee056ce6278b42b717292d2e7623fea14cc457ccc8b31b60cfd26837a88d3e72db7cade75605ff5f98640c1918741cf8f9cb6fdd80cf6c5f23139c4259386c86645ce7c7a2f4cf169a644685cd635d813c56ae5c392083e686ef994e6547322a9aafe5259f43a364ab062ff3ce255dc1902d97f1b827dc4aaba9dc20a79b2f4962e3c5509e945c303cc0b405b2237a9a9f4648dc2d9e731e63c164f2ba7bcdd13563553205d81ef405e52047a5c5afc97e32b061b8930fb70f06b0cd9ecee637f3ef925f1041a5fbec44e8c668b5e84e9c0c35e3fff82011a0b4e6092b5a1c30f446b8c94d1361b4c330e4289e03be68f467e818f1a285fd34330ca177c4833c65ad0849ff51856faa313396d3251c42c04cdbbc332af6cdb66fc49e800fe0d5c414f4c40bf30deb8142f633c5fc1c8723d67f9c26ae9049ea79b2653d7f6bc28b1289ac95cc8b094204fff574367eedb8efcbed71ad7a601e0ec02697ad8224b28d9001e68f7ccd5efaaebf38e833fa7b11e4c01da0698c073a27725de19d9c93de2554cdd04aa28119a17736f80e1548308f2e785527b0c81b7ef99122ffc83eeef577c32b6d537d00eed8b8cc74e5ca59cda64e5def90f3d344988bd8b157392a386f00e93a55972c0074e9053f6e86b9808dcb2d52a40acf44b1061257cf505c2ed8c944e5924c9417d969d55bfb8c9e401e6e3f3bc8db79bee810625a175eecf000f94cfcd23388f9773bb638a49063fe31d8bd86078e418d46ba4d4893f6605a855c6584d8a2aeadb9721f7219c41219bb492028586a3b329c086efdb9fb0e1a98d7c6460a91778b822e14faf3d127f72689c6ea79281ec4009c18a905f5172298b6cd012c31cacf5662b822318718698700048f7df0f55cbd105400fc19b08efb64e75e2a5aa999e1c97ee8015a634d465d5b56524e1ebfd07d64774c4acdfedd79e2dd9e92c3a06f2984ba88c34c4cb90729fa5ed1ec1de8612a82ea4fc5fc3a3aad6369d1dbed3eda0453e1af233039160c67f7269935d0223a643d51a76a40cf5d0f288883ca0a9bc0bfeae5a5d6a4df2d2cfd56176dec996f795c04659cd969a2193870e3833192e3f96279668e5b2e271da939bc40f51a08432b5a5705ff0e23b380cffe11fc41f4bf3fb7fdb42ee5b64a9b35b956bbc4cc7bc67c3698097461b4fdc4bc3eee6a1255276401327b97d490848aa7c3f19018267729eaed7339288f90c00693a560770e6d1de767fef487ed27448e0376d56b19de75f120784b774afb1483ab01942173c6155ed7efd07caa17563e6855bf96197f347f62d5d7eaa4eaeb73c5762ead77b0fba5c9907d9236afb2f0be7a03799b502952256b7119e0380c418685c7363e640debd45b782ee2bac4d9038f137d29433e4fc17489d15623ba244dc6d4b5d306211920ab676bdd6782f1e4f4d52033f071891180f527471c0fdd1bc76cab6b918385c953978b9224e0fe3decf65e0010062459e3250638db882bb125f6754db492687c1cdc6367cc9c6ce81235ffbe615b049edf79bc9f9feeedbcae3d2e6995d2fe6f92057f7d4887aa84eb39d6f1e43ee2e61d3432234182592f7ddecd59aade385e581f5aca3b901def88047ca6cdeff119f0157790547826cfd9e1024835743331fd9f0036d7d6335e2361c4185cd9607896c811539199abc0c4c7e4f11cf5294059696da8d2d8ecef1e25546a8a8fc8ce092b3d6b97c0d20000000000000000000000000000040e101a2229",
+              "signing_observed_ms": 192446,
+              "standard_signature_verified": true,
+              "transport": {
+                "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                "credit_window_messages": 8,
+                "first_receive_ms": 44,
+                "first_send_ms": 0,
+                "largest_pending_messages": 1,
+                "largest_runtime_message_bytes": 376880,
+                "last_receive_ms": 212705,
+                "last_send_ms": 212697,
+                "maximum_runtime_message_bytes": 376880,
+                "received_ack_bytes": 98705,
+                "received_completion_bytes": 15141,
+                "received_data_envelope_bytes": 3535,
+                "received_messages": 707,
+                "received_runtime_bytes": 32385845,
+                "sent_ack_bytes": 3535,
+                "sent_data_envelope_bytes": 98705,
+                "sent_messages": 19741,
+                "sent_runtime_bytes": 1281516287,
+                "worker_observed_elapsed_ms": 212714
+              },
+              "wasm_linear_memory_highwater_bytes": 36765696
+            },
+            "b": {
+              "attempts": 13,
+              "challenge_hashes_hex": [
+                "8c706871414560ba2aa984a0b8cafc8fbbcb927152409c556dbcc6b11893cba564b05de3e939ea6d3198a6872a57cf1c",
+                "2552fd437a05a0151cf28f37abddb5d784f7a45d61e666342ff1e7dd460afbaf50e099aeec9537c51f818df642e54372",
+                "2aba783c320d7245a701a241fe1fc837a170d0efa44ebce90b4df888480921791bba82a4ee9df9bef1c307c5a43c344c",
+                "6a9fde462183d1ad78c7eeacf60443d692181e4dc40e8d9a25d7b450d014425e6b2730c2d6a596a02faab80f574da6d7",
+                "611358d906c11441f785ce51978d1b2a49ae01555efd718957e28258ddf0fe738abe0b8cebe95cdbdf622fb76dadeb78",
+                "bf1897f49cd281f6b6df967ba788064215e580c5c560dc93b8f16d126376c66de63bfece124c1424b54734cc3bb186e5",
+                "a38cf0c3678442151451c998b179b2f582ebaa4e28b9f86d4f842aaebd541718347edab0893cbd19d926c52c5e71c526",
+                "9d322ba8b673223f3c1df4657eb4324b9741d344eabf67e91746f2aa73ce390ee2f8d247594fb69da918977367b27583",
+                "8e778241234ed52348508e3abd0319203c546ec3ce65a6773ff77f670a5f24960ac194416f7e6f592e5004ae081a3c86",
+                "181a804982cac65f3d9f0f3532a93582cd5e0b4ea49088d0ea6e1c09fe8bde1db6401df6c4fbea84469575575919a82c",
+                "1f01087f2f76caf0782562782b6265130f4e6db95fa3d5edbc8220e594349fd5d59643249c88231f26dff767247c9615",
+                "fb8579c5dd42028e58289f2d909b0a8251353c2f88000471132d6d0e72bb78499c82631a8eaf3ffb3b61fb1ed90f0dd9",
+                "685d7a49b0ef52f43c37bb7a01abb9a5380fdddeb5ee44a2c8e767bf2e78043cc4c21f74ea4bb06d634f194e2be71994"
+              ],
+              "context_hex": "",
+              "disposable_test_key": true,
+              "incoming_colo": null,
+              "kernel": "threshold-joint",
+              "keygen_observed_ms": 20707,
+              "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+              "message_hex": "f34f48d83dc1c6a0b8c8ef0a77e55d2680d851ded3e75e044f71dec7b17fcb36",
+              "public_fixture_only": false,
+              "public_key_hex": "227da62e5e3df0f2bea715fc63af1c9d9b05150a12cad880bb0308cf8febc621efe314bc4a8f2a3a1052e361339850b02090974ece9ec29275ea02db4bfe48bc98e0f75baa4c158a86f5bb3e81200592a9393fcb3289a036d5239fe8e2b7771ca2939538b068951840611e8317a64a9badb3b5ffe9e732c4fa0f6b80753f432f4e06e1143101d860185420897c4ccc2d4fdfb234f95d200c224945f019cd2d1c7ac1ffc9160a2abcafa20cef5831db5550e159d991e85536ddef731bb6468c544715ef89e1d8f5165385ab4e64217601f6d86363d69382efff71063b77a8eb107ca538f883e6df54889d3169bc97a837f45cc2ba5345592d39949dcbd552926470780c9b7b20d0cfeff14a4eba7ee1b296d241e30a3ea51c3817ef9f9097916b470c788e5a2be47e4b1b53957de1e2f33c54e3b6b14570adeec42d3ebeb8a50e68b7f7b474be81c6e79709e69c4a0b0084ed4798c45e8b8e03b87308daab4fe0a958004f4804aff00e24a0e832967bc9167b3b571472a92d5cd3b615a5df2db239f7a60d6513bb1566c968be99e639f26425a082ed116bf2721e4ecd6b6fcb58981a33215e326ab7613178a9f888d81a580896dc6c1c4c5919670b6c47a11b0a062bd8a2b2503ecf859f1f7e688b080c600d2aa4fb8ed87074d4001e1f55398c8c653738dede2d0fb084dabd2139afac417af621de4cacc28e8bcfc1c1ef404347fa49e9593fe015f492a976baa4738c54d6df87080fbeaff6f4c555b90a1696663e0f3fd551841b37e6fe8da1615c0543d76b3004832dd372cf3c9804903597be66fe5c809750452cc16bac5913250ec550795d2aead2844b6df4c9e8d210fda3c67448b9ff12c6f8410656722854c4ec457bd16554c74d674cea26c26c39c51ff3dbf508ffdb316dbda669b288faed558360b33e40cca6b3c54bbd4e6601a91a525a1ee84a06e27af5c94e731ebb3e49493231b2c75b2eaa7199062a8ad623a0a952a75314cc5a709ef44aa39a4c3eeb6571f32d0ba7f0e0adbd688c233165ed3a8a8489207e89f39f5deb291d67e7ab9a36722aa2d8102100012858aaf822737e337a87ab4df619f21de9f1e029cca50da7ba1c502e0f0205dba51d988e6474f5e0619bdafa42b475a49539e21000230b7a824fb412c7aff702335a87e81690eca87b4ee8b62aa34316a2dbc27a7834202513a88d1b3bff045b030ae0b3558dc1e856cae98b075d18d7cf5c8adebf746cd51cdc2c08ec65c34c7cb37b15795834c8b6a2b8f82591ce56371c3b88bc7028b37e01deadd538f2697df0b92b55b51729af31c9bc5bac3650068ce56424eeae1a2b3942bedab0dd2a97d99d63302fde4b67f4bc6c50bc469a75801e429c36a65829ecac9a5f82d02d97a3a2bf825a2ea03e25d50eb3d9379f6573848a9004ad6bda163f1543f1f581aeadb6be629ccca8b29c84705880e650137260e4971c00acf25509c8204e6bb644cceac042756fc16fbb6f5dbe9e7c704023d6a6e4d8fa3fd174926de4ad9a3ad671a2cabe00a64ac776b86b52bdc4003d753133b92b87d89ee8078ebefd891b53b82e9684a5d9bac4cba37b13ae9425a628a11dde623e80a34df4d8c8c9b65af2ebdc109c6dfaba2636b4b12fc2186a060e6cb4c58b8b48aa6a6a86096739ef579b93bbc8e4aa26cb52e57abf2d02ebc39e7e0d8cdb5b4f921985a7ee9c93b2973f76f981e28d2072ed2698a2a847700082ab562c9c04e702b7ef36b6eb5286d3a4d192bb771c9495326d8def3b3570922e9fb33e67ebcd9779fad027b50a32bc8c6b5f05e79e6a7a73e8a896da98ec148728aeff2e9504d44ff622f193a9bf3d97d246ded37b24d9add2c2d03d0ffbf34d967c6b11c49f3ca85f227ea5217f68ff92e77b37c7f24848353d763aaae63d35b9b7f51ad1f1230108c709daed24d7fd64c7fba0005a0f5c098fb9a46c4f036e3e98cf73a0454ca4876e58f815b8d3d5aad10e81ad5a7a5cb6af3cea3aabc0580a487734277733ebb662045621d13256f2b2e81d848d8387e38650948e7fbae66e6a3b3a634d7dac7259e1e4e4baa2c6797ba52eb454f6da0ced3fd9fbe3de55dfc92275295eb40fffeaca3f8073130751edb726f0b1f50f734649b6722667a395caf99bf284c4032fffec40888800a46e0666811e963e0e7a75cfe998be5954996e43ef5c43b53076ac2937ea5df185e483489cbb9888465efbb555cdae2c04222f292761faa91049137659affd56e1de4692223080116362199aa11eb276bc8dfc1e8febc21b6e741388e308f04bed6bf3218415ad62ff8d8e2ac11b80d113f4734420fda7b0082b2400fcf79c5551c550fa333486cb2ce0308e29cf0d02a4fa13e5a037df26ea5b4c24ca7beec7d42a96d20473b92d132bacdf45b7ccc4ef1845d608b8aff53f4bfa7962bc52a79c274882c4aa7ab30e3f3f14c776e98815abd7491ce33d7e7b261f6ed9ccc5fde054176af994775a59b3c991622d878239a4cdbfcdcaf30f0e76b4bfc0b6542e5f1bc8c53bdbe383698672cd69c685b80947baa6273f1d8a9ef1f24343c73a7ef3f17d9e1556af84f78a030c1c635465554ea04c627b314b9e08ee41906ecfc35c9bfe766b9c889f3d8964b14bbcfbf8e71b67eae29e219ba86c24adc19fa6cbb496b840ef64acb2bb9f25c9c869f7c06ad8b16c79971f0f8f2421d7cf0d6ce989741804213d1a646b538c23b4408e2129ec2aebd03dd2e73461b4ba7d4dea6106774175",
+              "reference_result": "Each role generated its own independent seed contribution. The standard signature verifies; no seed reconstruction occurs in this pipeline.",
+              "retry_count": 12,
+              "role": "b",
+              "run_id": "a0f735539cb406b93554a51767141ee2",
+              "runtime": {
+                "a_to_b_wire_bytes": 1281516287,
+                "accepted_share_bytes": 5312,
+                "b_to_a_wire_bytes": 32385845,
+                "circuit_count": 331,
+                "execution_bindings_sha256": "e3a2f6f5630a42440fe097e10762385097e7e4ea8e5650dd7164f8c61cc01633",
+                "fresh_execution_bindings": 331,
+                "largest_control_message_bytes": 376880,
+                "largest_label_arena_allocation_bytes": 404821,
+                "ot_wire_bytes": 95752256,
+                "per_kernel": [
+                  {
+                    "a_to_b_wire_bytes": 3008213,
+                    "b_to_a_wire_bytes": 400621,
+                    "calls": 13,
+                    "kernel": "aggregate-check",
+                    "ot_wire_bytes": 1147328,
+                    "table_bytes": 1914016
+                  },
+                  {
+                    "a_to_b_wire_bytes": 115325080,
+                    "b_to_a_wire_bytes": 1333072,
+                    "calls": 13,
+                    "kernel": "commitment-hash",
+                    "ot_wire_bytes": 3942848,
+                    "table_bytes": 111314944
+                  },
+                  {
+                    "a_to_b_wire_bytes": 109938192,
+                    "b_to_a_wire_bytes": 7675200,
+                    "calls": 78,
+                    "kernel": "commitment-high",
+                    "ot_wire_bytes": 22698624,
+                    "table_bytes": 86261760
+                  },
+                  {
+                    "a_to_b_wire_bytes": 89475945,
+                    "b_to_a_wire_bytes": 6396000,
+                    "calls": 65,
+                    "kernel": "response-check",
+                    "ot_wire_bytes": 18915520,
+                    "table_bytes": 70817760
+                  },
+                  {
+                    "a_to_b_wire_bytes": 13992576,
+                    "b_to_a_wire_bytes": 592320,
+                    "calls": 6,
+                    "kernel": "rounding",
+                    "ot_wire_bytes": 1746048,
+                    "table_bytes": 11698176
+                  },
+                  {
+                    "a_to_b_wire_bytes": 369383118,
+                    "b_to_a_wire_bytes": 15023424,
+                    "calls": 78,
+                    "kernel": "row-check",
+                    "ot_wire_bytes": 44743296,
+                    "table_bytes": 324597312
+                  },
+                  {
+                    "a_to_b_wire_bytes": 107197123,
+                    "b_to_a_wire_bytes": 136235,
+                    "calls": 11,
+                    "kernel": "sampling",
+                    "ot_wire_bytes": 362560,
+                    "table_bytes": 105819648
+                  },
+                  {
+                    "a_to_b_wire_bytes": 1239496,
+                    "b_to_a_wire_bytes": 8320,
+                    "calls": 1,
+                    "kernel": "seed",
+                    "ot_wire_bytes": 20672,
+                    "table_bytes": 1210368
+                  },
+                  {
+                    "a_to_b_wire_bytes": 470711800,
+                    "b_to_a_wire_bytes": 804960,
+                    "calls": 65,
+                    "kernel": "signing-mask",
+                    "ot_wire_bytes": 2142400,
+                    "table_bytes": 462592000
+                  },
+                  {
+                    "a_to_b_wire_bytes": 1239432,
+                    "b_to_a_wire_bytes": 12384,
+                    "calls": 1,
+                    "kernel": "signing-seed",
+                    "ot_wire_bytes": 32960,
+                    "table_bytes": 1193984
+                  }
+                ],
+                "signature_return_bytes": 3309,
+                "table_bytes": 1177419968,
+                "table_frame_count": 18085
+              },
+              "schema": "seams.ml-dsa-worker-threshold.v1",
+              "signature_hex": "685d7a49b0ef52f43c37bb7a01abb9a5380fdddeb5ee44a2c8e767bf2e78043cc4c21f74ea4bb06d634f194e2be719944523c845fb061af473874caeebffe36991fbb50ce103aa0ab7eee2ed7ae4091cda8670e980a4822faa645fcbab0f964f849ba89d05fab582ab34e94f36d6b1aa53faf1587f9e4a7bdaca4caabfdd86fed43b71842c5bd0ac56d3a119aef04270423b581e3ecea1014b6d45c1bd746a0d2dc333d7ba2f7eb7d91b39ecd6031e0ae47b8a813c396ede4d325b353ef47d57dbbd8a58d57977965e09a8510decd4ea9f0e5ae38ec0e0af433dc4d57e95bb2b52a57d0008fe8ce3c921be0ccb652148ece2013d2b484bbb4571c68cfdf860e51ef59067d1eda798f277b83fc53bf8f8e554d225f99661745c93fb019710e45d568fc7e3259f2e9185b4dd6e009c83da4c19b11f637d9e4a2d343104a7a14ec5ac42f5a45a7131df437ae8e00385d79c9490cead9ab09027693312dd291f3784b062f0549c907bdc06f44d822179ffa47897d1a47670e928dac4714b20e613793f3234502d5a35f0d47957142b21e500a82869f0321414fd85d0dbd58d4a0e885b119b8026d2e81f23dbc9096f0809701a5590724a7157675431d22a6c474ba5121488e89f15ab152f807df3fab7389395dfaee8cd33bfab46d599c7239ed27a197e2efdb18fa82185bc3d0b7bd601679cdc078aa3e81f71921241fc4bba08b65f9924cd476ce4041dabf5b7b86c9692bbeceaf1618f906ed7e99c4083118fdfa9af482a909a086b3de18c60c617fc7b7269b7f81f8ebb346880d02c0b1dec2a70b7aa8c49d9a8f163b7a3e4d5fb63af32b24bcb947a3142339bca0b13390c4bcfb3201c26bcc2bbac0882bf075ac575cad204dbe7385512ff6c2cc42655fe77249f09146b0d8d7ce65a0b3163a449f329eddf58e2ba113316798b77a0b16261245366e081a83414b9f14f819b2627848337b2f8b427f75c034539cc9d1ac446abc6c8a39bc300a0af1d644d05982fb5cd6096bd8989f504216c19276b20c32ba7377785a525b75910a0e9fca9fab67e761627a312090b2ec891c02d80f93bb4c4a9ca95359fa9db0bd40c6c071b81b1a375e3432fa26c796a10d8d1c7427600f94058bbd2e85943f8b5f48048eb4996befb61c8b08caefe01e058453f0b5941dd7b261cf89e86bf9cc8935a71d60fb2a717c5e2b4929c8fc3192d9e9b0d24bbe3e3657d9a0e76f886bd72fe420acc8f6d20c1d7935918b5e64622175a7be8b70827183830ade730074e5f0383446b360f6c06a964cb29eb279abb362ba88495dee216983f84e1a496771f211af366f021a2ddf5393efae05398f467848f2c029372d05734f1002edbdaec7648570911afbadcd16a1c2d00be08852cef6ddbc25a4dcb8071609659b74d7ab263698cb6edef36b0f0e6e605131dce45c06eead3f05a290d82060ed2cdc5caadeb3b8ba745a463623aebedcda41c8a8e3c60c384db7eadba1e283d2e98c3f10f01c1913d39fb16b2462a6565ba13d5210778a0df9eb02c6ad2f3420a36da140d8c7f7deb2535da6b60d77324c1c2385eea8093ea5b6b5802a2983af286557cb3a9e472e30db7d5a0d724383a1a3bbfa1708308fb96880fe63c27d22d23d7b177247aa8931b698bd2c355666241a39b36739107c43be3c3f0960325ea950fd75f5a790af184b8141d27e2dba0fd41557a7a7bc90a252905cbb66e67ca606f26f457c07b22699282e0213cfd5e48358421cd260e3b01f568bac910b5892efb853f96058590f12d1491ddd178d87143ff6cc3b4374e5e3445c8ba4f5d8aabc48b36a9c917fbf91c787736e36268411325dbd48caec24cfe37e71f92fa0e46dd77c261a0ac9429a1f00b13e06971c1581320c890d1f4f96526297ba0f5550f3394445fd3b389279432af8f2a891cdc97a75882a6320906a464bef1dc728d2c3a139217f2339aa876b8552673aa1c8419a5695f3d91e27e835a6ac3eb083bf6807a6a3e17fa036f8b6dedba24b20f76e7dc343e927c5d3605808e71b1cb69610b67aa3eb6581651d185a0e9d9313c9a7f5602c23f9a8d30c3fd32a1f898765390f83ae47ae4bddb239a7a78f594a250b508b10c9f8c7963ce1a66a397f535d484a6baba57a7304e0c207d7813b283ae79619642a64c7e7c1986251d6fac6cc2569c363a8dd0bc9e5ac2115a65d24d563517d9258e68634a52599c305a4d5434f7d0d8c775806d203a3edd1a5ecd30ea74aedee8b5f3912f6f8555bed1323bab5865af7298024142922d7593146f34f1a7f3e1526a67123a01c87d11dcd3f7f55f9504eafaf232db59be6e23dfd7677fc08a83cffd54663954deced0dd7ff329a90a8a68174e84db35a46ea8d63e5facf69278665f891c41d470da9706e6e7ad7c3f2e5e6c1447b1ff556c420f1c43d0ae2a6f3e5ec2249dbd53f7f26dcef2e2a79bea39ad17aa0275c8878407e0ed59c396b01c8b68527e7f93fea1070ef836c2821e12434fc922b9a88f65aa763eb96467fd2848dbf67ae72c000774d53f200085c91920966b86ee8fad90f4e9a48c29fc91e9e7cb7dda0be6b302b61f7f0c3067f4ee31f4d7429aa95bb057ff3ed513726c00e88383a4744399a2dbe2a8c180bf872cab88e8d205642a99b774bcca8066a35b55afb96876db25ffe24833c39cb4ceaa32531056162b2a5bff0046cfc4f48bc0c49a9523f84a91f6c06bda8a0b459edc8e1869c91195793aa946d406c071626ca26bc740b3b2e5578a11a71fd2b9e5e5dcd2ec157e5a2ecf4a466c8dc8ebb4feaee8ad8a339ea27ed55f2b759df53fb928ae37db290b254bd5dffd04b8e8662c7a06905e6f2f82a6311165897c26676f35b2099906dc25bcbb322afeaaf13997af47e78fb48c02b6574b4c065fd7d84d1824ee056ce6278b42b717292d2e7623fea14cc457ccc8b31b60cfd26837a88d3e72db7cade75605ff5f98640c1918741cf8f9cb6fdd80cf6c5f23139c4259386c86645ce7c7a2f4cf169a644685cd635d813c56ae5c392083e686ef994e6547322a9aafe5259f43a364ab062ff3ce255dc1902d97f1b827dc4aaba9dc20a79b2f4962e3c5509e945c303cc0b405b2237a9a9f4648dc2d9e731e63c164f2ba7bcdd13563553205d81ef405e52047a5c5afc97e32b061b8930fb70f06b0cd9ecee637f3ef925f1041a5fbec44e8c668b5e84e9c0c35e3fff82011a0b4e6092b5a1c30f446b8c94d1361b4c330e4289e03be68f467e818f1a285fd34330ca177c4833c65ad0849ff51856faa313396d3251c42c04cdbbc332af6cdb66fc49e800fe0d5c414f4c40bf30deb8142f633c5fc1c8723d67f9c26ae9049ea79b2653d7f6bc28b1289ac95cc8b094204fff574367eedb8efcbed71ad7a601e0ec02697ad8224b28d9001e68f7ccd5efaaebf38e833fa7b11e4c01da0698c073a27725de19d9c93de2554cdd04aa28119a17736f80e1548308f2e785527b0c81b7ef99122ffc83eeef577c32b6d537d00eed8b8cc74e5ca59cda64e5def90f3d344988bd8b157392a386f00e93a55972c0074e9053f6e86b9808dcb2d52a40acf44b1061257cf505c2ed8c944e5924c9417d969d55bfb8c9e401e6e3f3bc8db79bee810625a175eecf000f94cfcd23388f9773bb638a49063fe31d8bd86078e418d46ba4d4893f6605a855c6584d8a2aeadb9721f7219c41219bb492028586a3b329c086efdb9fb0e1a98d7c6460a91778b822e14faf3d127f72689c6ea79281ec4009c18a905f5172298b6cd012c31cacf5662b822318718698700048f7df0f55cbd105400fc19b08efb64e75e2a5aa999e1c97ee8015a634d465d5b56524e1ebfd07d64774c4acdfedd79e2dd9e92c3a06f2984ba88c34c4cb90729fa5ed1ec1de8612a82ea4fc5fc3a3aad6369d1dbed3eda0453e1af233039160c67f7269935d0223a643d51a76a40cf5d0f288883ca0a9bc0bfeae5a5d6a4df2d2cfd56176dec996f795c04659cd969a2193870e3833192e3f96279668e5b2e271da939bc40f51a08432b5a5705ff0e23b380cffe11fc41f4bf3fb7fdb42ee5b64a9b35b956bbc4cc7bc67c3698097461b4fdc4bc3eee6a1255276401327b97d490848aa7c3f19018267729eaed7339288f90c00693a560770e6d1de767fef487ed27448e0376d56b19de75f120784b774afb1483ab01942173c6155ed7efd07caa17563e6855bf96197f347f62d5d7eaa4eaeb73c5762ead77b0fba5c9907d9236afb2f0be7a03799b502952256b7119e0380c418685c7363e640debd45b782ee2bac4d9038f137d29433e4fc17489d15623ba244dc6d4b5d306211920ab676bdd6782f1e4f4d52033f071891180f527471c0fdd1bc76cab6b918385c953978b9224e0fe3decf65e0010062459e3250638db882bb125f6754db492687c1cdc6367cc9c6ce81235ffbe615b049edf79bc9f9feeedbcae3d2e6995d2fe6f92057f7d4887aa84eb39d6f1e43ee2e61d3432234182592f7ddecd59aade385e581f5aca3b901def88047ca6cdeff119f0157790547826cfd9e1024835743331fd9f0036d7d6335e2361c4185cd9607896c811539199abc0c4c7e4f11cf5294059696da8d2d8ecef1e25546a8a8fc8ce092b3d6b97c0d20000000000000000000000000000040e101a2229",
+              "signing_observed_ms": 192275,
+              "standard_signature_verified": true,
+              "transport": {
+                "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                "credit_window_messages": 8,
+                "first_receive_ms": 674,
+                "first_send_ms": 674,
+                "largest_pending_messages": 1,
+                "largest_runtime_message_bytes": 376880,
+                "last_receive_ms": 212982,
+                "last_send_ms": 212982,
+                "maximum_runtime_message_bytes": 376880,
+                "received_ack_bytes": 3535,
+                "received_completion_bytes": 0,
+                "received_data_envelope_bytes": 98705,
+                "received_messages": 19741,
+                "received_runtime_bytes": 1281516287,
+                "sent_ack_bytes": 98705,
+                "sent_data_envelope_bytes": 3535,
+                "sent_messages": 707,
+                "sent_runtime_bytes": 32385845,
+                "worker_observed_elapsed_ms": 212992
+              },
+              "wasm_linear_memory_highwater_bytes": 36175872
+            }
+          },
+          "run_id": "a0f735539cb406b93554a51767141ee2",
+          "schema": "seams.ml-dsa-worker-threshold.v1",
+          "scope": "Complete eighteen-circuit canonical key generation, followed by threshold signing and independent standard verification on separate Workers. All private material is ephemeral and role-local.",
+          "security_limits": [
+            "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+            "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+            "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+            "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+          ],
+          "worker_observed_total_ms": 213884
+        }
+      },
+      "samples": [
+        {
+          "warmup": false,
+          "started_at": "2026-10-13T10:07:10.788Z",
+          "finished_at": "2026-10-13T10:08:29.152Z",
+          "client_response_headers_ms": 78358.556583,
+          "client_complete_ms": 78361.03391599999,
+          "client_verification_ms": 3.07487500004936,
+          "client_verification": {
+            "kind": "standard-ml-dsa-65-signature",
+            "verifier": "Node crypto backed by the recorded OpenSSL version",
+            "verified": true,
+            "changed_message_rejected": true,
+            "changed_signature_rejected": true,
+            "changed_public_key_rejected": true,
+            "fips_context_hex": "",
+            "canonical_fixture_bytes_checked": false
+          },
+          "report": {
+            "disposable_test_key": true,
+            "kernel": "threshold-joint",
+            "ok": true,
+            "production_eligible": false,
+            "public_fixture_only": false,
+            "roles": {
+              "a": {
+                "attempts": 4,
+                "challenge_hashes_hex": [
+                  "213335de3f0109634473ca2d280807df862e7da7f985c961a8f40748b388349e3fa25cc89d3c5c36ce13cb4688afd3f6",
+                  "b227a8eeaec3e8934b5912c8f2674c9872c98f21db0e49ea22d4b6d69ae5f3eb4ad2ec398ff4703b2b015a3356836c0c",
+                  "1f8b2a25e28da677f24c97e657f9a4dd8756f58a0c170d3f9ff6452beb41afdd11d258b39d23902c1b9f55933d8b3ce4",
+                  "02609052083f73c952671d937e8d24b9807efb6a3711a99ba4cc76b244b6d7fddbf79ee8e0ba9e474ecade123a867dd0"
+                ],
+                "context_hex": "",
+                "disposable_test_key": true,
+                "incoming_colo": "NRT",
+                "kernel": "threshold-joint",
+                "keygen_observed_ms": 17147,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "message_hex": "f34f48d83dc1c6a0b8c8ef0a77e55d2680d851ded3e75e044f71dec7b17fcb36",
+                "public_fixture_only": false,
+                "public_key_hex": "d746eee4da733ce7d68e97f1e3ca77fc6bd5ac112bffb48b01b8a11442a9c48bbc2d4846d8bf4321ec691076526fd7cba47e7fd116e95c60d841d97a2ed96ad34f8685efe094fbea861995bf8f3c511ca263b5d25703c58d4e5bbb2a30ece81c56390dfc7a23e80166c1edbee651ee5c0263aed18565eeda3cffb5322801cf85b375f849dcc6014da704dc308d4a6c32fa4d259b05367a5bd631d5e10ca892ff78555fc8c62c3203adea3e5ebc50190595e27100a0fd7480d28fafb2e8fa4da2fde5e9842ee4eb0cb02937e3d5f0471176d0d90bf64047241ae0d7803f65e77c51b42ed6098a7406341b9f8f54051274d2c5d77a167cef1c59b3cc4ccac8bdc55621f0ba8ab0a12d07ec869a4fa8eb8178e5622ca081069890b39c359ec8ebf04fc4fdbc9f36c99d3f66202c6997d60e7ae194d6de205aef474a55de422f181219386179d104b747e3dc8587065af0d1f74af6a13e7a2081af483d5511315c36d49042d98cae7bd13255abd5386fe80e3a524552b073ae5b5e0d575aa710bef6fa3e2a4dfddc6a36682ca4759e5b448a903585e2d54d62f0faa6b1215ae1d459a5902cbadf295c3ab57650ca00d9dce5fbea58ef177ec4fdfd45e7349c0bb6538afb91a57ad2a954941a48d7d5f38fcf84d5877c87718944eb1a871c56383a168bb374081a8f125f41ddab1e1a64350d0691dd073d65a1cca0a34a8705b9ae81b364c2a8795ef6508d009a58b2113a582ede03197a4c0d2c8b15da4bf863be3236b4166c44e446956d4b1afb52eb3afbc238d215c5052d630f14a4dfbc5ee3c733b556d02e1a1ead2d7fe444327190e01b6245e9a6067da864747d576017d77931faab51b0b2a20773ca17fc3caebe2145d778f850b53c7aa9f5ad05508b078bfd9acc064c26beb83860ae5f206bb690473593b9add28c42a45cf54c22d95bc57b632d065aec627c67efe1707209865263fa7d4e866940423e7837bc733b39644afcb1594490f1ac3b0a5cd58e498343b6014e83f7994e9ff19bcda7d68c76094bb6c99a3cadf09a33d723cbdd72c976558275613be1a76d26f62b987ee68aa3c81dd84d8353fd96d0a3078d51d9256d45fd59c1bfe317a2db1154eaceeea276ec31e16101aed360c229940b249d4692697dc50c29db13a24725c202972105b1e8614571be21f1652bf38d5ced3fd1e31edd0958f5038ff59594c455391488a276d355ddd74977f5254b45beeb71011596fa6a6dfaf9decf0abd68c83d702efc0753bc21bca283e283aab8a321bd3071c073c927bc4c56586f78bce99005ae63eb9e83e5082999a32e55da69163a8ab42cd4cc9450aaedc712fd6a161df87f7287b47afb25335e75cf6fc29796c22ef3552132f82edb3af1a905353bfdcb38fd934518cf4444ead8f5e305a66729e2a01d34183d37cfd0a3609b07c2ecd703a1bfb7a9827e477305364c72e49589ad990d4bc77d616019349b2df569f7affddc19984b5e6f200a27f6cb74f131619e1d8398c03336e124501df8bd14adba0d997999f1e857261f0387d08c352a6d823ac9812a2e727c175d1bfa978e50bce7868800b7629d6f146d76a7ae70daa409dba6168c70134af900475e72b5f38181b33630646592d11bb13d67876164710d3f8ce8419a7543c728cf56a090712c571de04fcbc62fc56b10ee922a6784989e6ce7611393785008f8cf5152aa5f4813e7841a38a67e340f87dcb45084f8881f6e44d7ca85a3808540e6c66ff49a2d36f6f63f344c1121cacdd51c39ddcc6782ab9d405175a11fcab5aaeff9d8141a52ae90e60a231fae38121dceb197f8b154aa6a9705fe3b4b1b7230554de6d0941efc7b04dc84e5d8f721645319974a22b7abb85ed135b57a3f3bce2bc172e9374d65fa101ba68162500d4f4539ffe658709f21cab9c7c5ef0382efcd61439a3ad364b294df167cab0037c3924cddd9aaa7c727afd8d6fb146a57b2eda40933843d5354511460f523b3f5dd20c3e775d844c4f1c081bb77b9a2989e26109200e38992ffdba2e0cd4828b11c70066a98cfe6d1c0d9f26b9c3d10b7d29b8778aab424535edc238c158db695322f72b6ddb5f69d5984bb5df6278e41c9f35ba184c5e7cb283726674b282856e55dc90b79e41c05d03bb2ed4909786dbbb84b339d1a480a7c22c68adac163878f8bf0505a5eed7d10851025291b86c925a0ea75b25d1c672659850dc7febfaa84638447aa0b12d7f8afd2ab54f7ab1a44ce491b883854436b9d171620d35e5cee97098cea82f0b682c35036d1da4c34f23ef57337ee56a02b16d25d9686b87d43a2a35835de729658ed059f9cdcbc5e1eef59399704b6185b427df197ddd8971e2b6dd62732511908b3a0f09dd6d824730311f28face6ee7671d874c6cd886fbeee46e5bc3894f853e0b7ee3f28b92c0bb97dd5c13ad4134d924be3960c70dc2c338a82c4eb65a674dfea2f05453a18776cae7cffefa37de24835979221a8e69124b047ce24848d3276186a73fdf74441daee79897cdf3e424ccd83cd523474978206fa81d8a1baaa5296e0421a59dc498938efe42dd57e0bc92ab7c48d1f323cbdff7c838fb1d59e1cb740cb439393cf696db47d290d8df0ab755d38d9b7abebe5375740a20a554ea51b61c17ae411e0ee275088d38ef51f1cb740de6467e7c20f8279daf4a8c8b0e3a3d4a6184c0c334e9d08c8c50cc2897d3b20b9669c14d0492fed88cbc3f716271fbcb6843e1fd1757053cb5df6cb",
+                "reference_result": "Each role generated its own independent seed contribution. The standard signature verifies; no seed reconstruction occurs in this pipeline.",
+                "retry_count": 3,
+                "role": "a",
+                "run_id": "28686c25bbf82d4578d7ed18c9bca6f1",
+                "runtime": {
+                  "a_to_b_wire_bytes": 479933123,
+                  "accepted_share_bytes": 5312,
+                  "b_to_a_wire_bytes": 10485884,
+                  "circuit_count": 115,
+                  "execution_bindings_sha256": "0fb3226ef9e40ad4ae03afb89fc0a08c8ec01b3663dd5a60ac1b23085290fdd6",
+                  "fresh_execution_bindings": 115,
+                  "largest_control_message_bytes": 376880,
+                  "largest_label_arena_allocation_bytes": 404821,
+                  "ot_wire_bytes": 30959168,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 925604,
+                      "b_to_a_wire_bytes": 123268,
+                      "calls": 4,
+                      "kernel": "aggregate-check",
+                      "ot_wire_bytes": 353024,
+                      "table_bytes": 588928
+                    },
+                    {
+                      "a_to_b_wire_bytes": 35484640,
+                      "b_to_a_wire_bytes": 410176,
+                      "calls": 4,
+                      "kernel": "commitment-hash",
+                      "ot_wire_bytes": 1213184,
+                      "table_bytes": 34250752
+                    },
+                    {
+                      "a_to_b_wire_bytes": 33827136,
+                      "b_to_a_wire_bytes": 2361600,
+                      "calls": 24,
+                      "kernel": "commitment-high",
+                      "ot_wire_bytes": 6984192,
+                      "table_bytes": 26542080
+                    },
+                    {
+                      "a_to_b_wire_bytes": 27531060,
+                      "b_to_a_wire_bytes": 1968000,
+                      "calls": 20,
+                      "kernel": "response-check",
+                      "ot_wire_bytes": 5820160,
+                      "table_bytes": 21790080
+                    },
+                    {
+                      "a_to_b_wire_bytes": 13992576,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 11698176
+                    },
+                    {
+                      "a_to_b_wire_bytes": 113656344,
+                      "b_to_a_wire_bytes": 4622592,
+                      "calls": 24,
+                      "kernel": "row-check",
+                      "ot_wire_bytes": 13767168,
+                      "table_bytes": 99876096
+                    },
+                    {
+                      "a_to_b_wire_bytes": 107197123,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 105819648
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    },
+                    {
+                      "a_to_b_wire_bytes": 144834400,
+                      "b_to_a_wire_bytes": 247680,
+                      "calls": 20,
+                      "kernel": "signing-mask",
+                      "ot_wire_bytes": 659200,
+                      "table_bytes": 142336000
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239432,
+                      "b_to_a_wire_bytes": 12384,
+                      "calls": 1,
+                      "kernel": "signing-seed",
+                      "ot_wire_bytes": 32960,
+                      "table_bytes": 1193984
+                    }
+                  ],
+                  "signature_return_bytes": 3309,
+                  "table_bytes": 445306112,
+                  "table_frame_count": 6835
+                },
+                "schema": "seams.ml-dsa-worker-threshold.v1",
+                "signature_hex": "02609052083f73c952671d937e8d24b9807efb6a3711a99ba4cc76b244b6d7fddbf79ee8e0ba9e474ecade123a867dd09a6b4bfadfcf1508d642cf7ce973d9ea0ffad97a248b975ea2b5c493b4a2c5019f8c43bf100739b24e58753344fde6dd1f5e1ddd1e15de159502d3dad2ef700a52fe6f4a3b345712404835c4b146872599c9fe62d8cda2e793f54bb2a7e83ae97ec7072026ef467908bc60d9d22fd89417e6541ef40e34529ad0eb4b7aabfeb0d0cdc9df4454a9980bab5fdfe098b08eee7d282538ceef0f440149698a44476ddb986a467fe049e8dd82e004b6efed89814a394ea272117a7e6bccfbe73f38f80d3b190310d3a3e0dc8830b58eb741cdc8c39c8cbedda3913755daa57d3c3faea4c58f21ec8c7abd0d6724dae294c6618cd30af8bedd4a471776874908b30f9640801ddc082cbba469e097a44c55b84661b4fd5d74d36f14ae56799cbbb84cbb682937c5cf59bebc910379d16530b6447ce6efd47fceb9283d97ebb3f3116e1288158ec46fbb1e6ed1a9fbedc31eae9b503fe3e1be958811808e83d00fb551a8ea7cdbaaee696350c90c5402cba6fc0987a6a1660458f9e097e45a5a81370195d1e510f838fd229b334a336d10fc4fc979c688d6fd811af2b7d4150c0c5d0a0bfe3068415f11b9939ae76743bdce908336ce87ee321eebdb15bf2170d32aba7cca1113ab54713c1dd7556c7a6d45cf99e6aec2632c5148584910d940f4173286b2d220868fb20be2f9453cb3ff5af4d03cd5ad4fd0249255680a8b3c9d138ccb7edf4e9cdbb98a533df907ce25b7a0058da3fa268f35e6b8594a5173c486f344dfd4b7a1b6bd62efac18f72aff11572fac65c91c1741bace35f20862275ad175a36a1f6b9751749067df142c610d54d88ac9e4ef5a66c89f26a4aa23b03d03ab9955e0ef9af6bda81d66df20260eebdfefea155ca15356d10b138b0efeaca6526454904a13d874b4663468958b6672d488abd8aeb48052753850e9fde65ac8bf8a3c94bd442b572fb4b037991914dd6de6640001fbee3918b6e2b5575eb58dc731a59e9d00252fee2172f27ccf60b9d3866da220a2cf1cbfe614ddb0f56ac964b904f2d5bf4b777e05344b46aa94462e991acb7f96b8a282e21c28dc17eee32be90f55456004b73d9d1606651a5e41fa6b7c46993eb2bd2d47836ee1d27580b6b71acc6333b9f214be0ae0245f2977aa7c8989e8bf556bab51f3982fb13b9e3cad1e4e80100dc275d7096b92bf5fcc1702eb0fe663b947cdd7cb2349421c42117c8b38f68f255b75b69bde2d301b0b2f02d2c0490a71bd344ef0883e262e4a5012b46a12983a6404cc94b7a241d231902bc163649ecffbaa8512bbbb496fadb678d158a71de1f62699fb8d310d37e4ceee7ba7197988d843864de9fdb42d0a1060190a77a3de5be4bc418282a530d239fdb180baf27b552eeadf1fe2c0020d43a9569b5fd9615547440b45cb7a39498450202246a78b594b9a72d41d0420457c78133d9b9737337218465356e727e3c56768a3f4a60f6e169e2e49db4124a887c198760584e68f02cc3eae783b91c9f343b2b65bdefc027c88a38a1462e241125bba7adb69cdc4a99a19589e00bff51fefd03d29882ee0d86df92b27ffd55ef1fd4f3ba35ed563b5980a5a09b7b3b1245741970db7198151d9fe479779f89cdbafc7d22bfda9a831c2c604f7c8a519a1fb0d469a7e5bb21a9adc1f9243a0aa0f6c7e01e3509f66abaf813f5cc56e76fa42d4fa7084926dc0ced748f19689bb99922411c170deae6f81f784c560a7a40a7ade846c3fc89a3e1b29b4f0fb3972558184b7c70c793ffa1af0cc963cadd4803eff3b7ce0e7fcb9ffd467b66e056763a3dc65c1e73496c5d60d64e7289dec9041beb8542aa11905a1988d8412bcd011553b524867cb82c0266ce3163e687ca48e752a68138a8b9b4ae5d284ab3aad35c7378510e5e605bbddeadcf4cf174b06cda5445832fba43a72cc4f9aeb12b32be158a70ffba0c689bf3ea55d4307ffa9054db8c5b422b72304a23c7c80cc8cb3d7b027896913f774d7ee713da4ac106dc260c10cb88e8b21007fefca7a7da2240b60ef77de1d587d5fb7582cb64a2a97cf5a0ffd26a04f9d9f85697fd810a8a7c3c8993b10809e667fad04bb8849904231c1408d02a3f486fb94dd26b498901d8594c531810e93659a01f693ea63d18034fd5cd0c2bf296a5d1b1bb253920b3d1fe3688fa6716c469b66a230ed618b1766ec8d8b4dd9f2e16422781186ac1004315c229228423dd2411cce87b20760244e1559f41dac6e43697587ccd784d762e942ad9255e719e58386fb3916b3d4ef45921eacdc80dc85ecc35174955f1ed0db2fd862de0c3bacbd83eea1db50157ffbc93a7b917c985c1e9bdce792838a37123a515bb4931cbf2df68b30005c0a676e71833f75b7cf96ebb65bf1079603401916f52afecd99821da431aa9d4d54fdaa1d93478f8423e416c01041d1c1b4f4a39314e0621ec22617d6ed439407eeea0e1566f46c5149ddd1d369abbbbac8c10c1e3e3623ce6a4a11b61f0a504b91ed32907687a9430cff42905302c5efe1072109b49d7a86b7033b1ea80fef8964b302280ed5a5d485bdf9d5d79c3fdf6bb1d9d1f20b26dfd5694f7bc16716ad2f42429b40132c061caf31b01134557c0816cd3973a34ca5872b685fa89d0ea4b1e0331d0570114e0f475e8ecaf0ab74d324a9ec3b19f880f3028afd34ceba4276e5769ad7a1956ab1bd3487e9e84b7493e74ca5f14ecc2b57ae871693c55629a77045736d15c744f4f6c82c3999e733bc48a58ebae35b072eecd8bc9139eafce62939e809a84ae3bcd6478ea3d5892f4cac637e82cbffcf0d322517b5dac34cc93759b57e87d1e5e2b20abdf41e0132968fc4897542e8ada64f957edeccae7ff73b4767d2288d6ff43f59d1f0a26589edd3d364d0ba29a44a5c89dbeec4ebb58b3f6b58e60b0a27f8bf5a750a8d03730d04cf3e3a6b3f58767a73850b18bca32290e79faeec0526e3b84d29eabe4277395c561242d8724854df9bc5a49bdcab519278ec5a168ecf63c7ad364b2d60f3d2ac5e346eb18552112a8fd2c833e42da985951d8a63a063c6ac87b9fec5ad51302518aed7d71f8424905f209fb641bd96064fe788929d7292beba253b7a93837132911ec9b48bbfe8e62441b062a8b95a628e2ed89e978965472abd0b3185b30b2b53aab44fb521b5ae62d8596ba12843c313ab924320000f69e6a157459e0bf88af63dfa4df245d6057a6c325f0c19de8c84c402b3277b49ffd96957d6ead54eb651a2d18792e313bc10dc5986069a845548e3157372579b46ad1e119461766c175e05f1f8092c5a02c12ad552338c3c0ad412def021843625232cba8dd660f2758ac6e29dc05a6d5eb478f83e9dcc30dfed924b94a878080efd12a309a0dde39a3e1ef97d02e23d341bb3f82079edefac04e1ccbb15809607495d2db47e094c53b97f682aee66c62eaf7460f0ddd4f4936fd3e8501f780be04540b104b84bc7212a1fa74d24ee30cc46cac3463f1d934afe75bec9ff5fa2cd9580d5bc5a82538294bb8c42d1213ffcf4dbc496b433035e132a40be4fcd9b84cc7b7dcf4199816c4733c7e907fdd8f65e1b81a63c939819e02e5f781fbf993bf598293dd6d49b93cc3ab1471ec3b86704259303a259fafbbbedc60130dfe6242fd762ccbccce0050baeea688b6daf1e237683855c6626d20653fae4febb37d489e0918f81ff4165e2b2d7df2d1ac33b950dbc19a5916db3eed5332e35e35dd69ac5de5a295e664f3a6c4a1ac6e69b17ff0c540181080a279d4b70f1424baab95af8f221391f540b05250d9d330d0227f8e399b0b9640c038eec3492a69a5f9a7e27fce530442e427907049bcded9304cedf337ce8eb226857c8bb49d714fc90881b2d42ffb72651e0aa7afe8b36512db6334049c5b1611da4de9f4ea02e46d89a57a4286e5b1cc7e98a974b3812b12924df8f06a27f0f2d2da2561e17a9bd4f03df59150ca8e59bf180013bc8ddc9dc0d63a8fb760eed4208683834ea2b8386ef3cf45bfde2e4442c52d34468ecbb74ef4f687f78b8c832373aede947bf5b421c94fa4dc40f674ea5881ea892e8dd8c76b9f35421322dcea6fe1ec5e215df33614fc9417a3b12ec903bb30fe5dd8c658711248b5ed63335b78684a94389a8e28b72915fee5f6e4097e725d2dbc73444691663fea5c098d50b6ed169b91ec68a8c4dbe9758ee0b913833b66c904b2160ef476b3595cdedb491dd84b93cf66870a63d0ec3753aca9b01b3efa783de192441510bc811ae8d68b98a24c6975e20da1ec4d708b361146e7112857d383820ba4d256bcc553ed67703e7cf4c8054b602f27894dbb037022ea6a17cc2aa5a2c6f8b46509470a743cf4d2495631ac36506c9ba4dfa118071b35a623219a2f980923c3cfffb8c85bca2b34488e75a5d8a4bed5088e4816997bb81003c224a2ae2150ff2bca695f012afcc8f2552d7f7dcb24e856a6f30c257a694adb2cdfe0523e766d7d0bf434f6345be4186953d5ac9f321fb35ae157b4044213a496d73747a7bdafb001a87b5bbd9db2a607c8189808ab1dbe44a667c9193adccf8054d70777ea400000000000000000000000000000a11161b2329",
+                "signing_observed_ms": 59913,
+                "standard_signature_verified": true,
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 15,
+                  "first_send_ms": 0,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 376880,
+                  "last_receive_ms": 77060,
+                  "last_send_ms": 77051,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 37055,
+                  "received_completion_bytes": 14225,
+                  "received_data_envelope_bytes": 1285,
+                  "received_messages": 257,
+                  "received_runtime_bytes": 10485884,
+                  "sent_ack_bytes": 1285,
+                  "sent_data_envelope_bytes": 37055,
+                  "sent_messages": 7411,
+                  "sent_runtime_bytes": 479933123,
+                  "worker_observed_elapsed_ms": 77064
+                },
+                "wasm_linear_memory_highwater_bytes": 36765696
+              },
+              "b": {
+                "attempts": 4,
+                "challenge_hashes_hex": [
+                  "213335de3f0109634473ca2d280807df862e7da7f985c961a8f40748b388349e3fa25cc89d3c5c36ce13cb4688afd3f6",
+                  "b227a8eeaec3e8934b5912c8f2674c9872c98f21db0e49ea22d4b6d69ae5f3eb4ad2ec398ff4703b2b015a3356836c0c",
+                  "1f8b2a25e28da677f24c97e657f9a4dd8756f58a0c170d3f9ff6452beb41afdd11d258b39d23902c1b9f55933d8b3ce4",
+                  "02609052083f73c952671d937e8d24b9807efb6a3711a99ba4cc76b244b6d7fddbf79ee8e0ba9e474ecade123a867dd0"
+                ],
+                "context_hex": "",
+                "disposable_test_key": true,
+                "incoming_colo": null,
+                "kernel": "threshold-joint",
+                "keygen_observed_ms": 17371,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "message_hex": "f34f48d83dc1c6a0b8c8ef0a77e55d2680d851ded3e75e044f71dec7b17fcb36",
+                "public_fixture_only": false,
+                "public_key_hex": "d746eee4da733ce7d68e97f1e3ca77fc6bd5ac112bffb48b01b8a11442a9c48bbc2d4846d8bf4321ec691076526fd7cba47e7fd116e95c60d841d97a2ed96ad34f8685efe094fbea861995bf8f3c511ca263b5d25703c58d4e5bbb2a30ece81c56390dfc7a23e80166c1edbee651ee5c0263aed18565eeda3cffb5322801cf85b375f849dcc6014da704dc308d4a6c32fa4d259b05367a5bd631d5e10ca892ff78555fc8c62c3203adea3e5ebc50190595e27100a0fd7480d28fafb2e8fa4da2fde5e9842ee4eb0cb02937e3d5f0471176d0d90bf64047241ae0d7803f65e77c51b42ed6098a7406341b9f8f54051274d2c5d77a167cef1c59b3cc4ccac8bdc55621f0ba8ab0a12d07ec869a4fa8eb8178e5622ca081069890b39c359ec8ebf04fc4fdbc9f36c99d3f66202c6997d60e7ae194d6de205aef474a55de422f181219386179d104b747e3dc8587065af0d1f74af6a13e7a2081af483d5511315c36d49042d98cae7bd13255abd5386fe80e3a524552b073ae5b5e0d575aa710bef6fa3e2a4dfddc6a36682ca4759e5b448a903585e2d54d62f0faa6b1215ae1d459a5902cbadf295c3ab57650ca00d9dce5fbea58ef177ec4fdfd45e7349c0bb6538afb91a57ad2a954941a48d7d5f38fcf84d5877c87718944eb1a871c56383a168bb374081a8f125f41ddab1e1a64350d0691dd073d65a1cca0a34a8705b9ae81b364c2a8795ef6508d009a58b2113a582ede03197a4c0d2c8b15da4bf863be3236b4166c44e446956d4b1afb52eb3afbc238d215c5052d630f14a4dfbc5ee3c733b556d02e1a1ead2d7fe444327190e01b6245e9a6067da864747d576017d77931faab51b0b2a20773ca17fc3caebe2145d778f850b53c7aa9f5ad05508b078bfd9acc064c26beb83860ae5f206bb690473593b9add28c42a45cf54c22d95bc57b632d065aec627c67efe1707209865263fa7d4e866940423e7837bc733b39644afcb1594490f1ac3b0a5cd58e498343b6014e83f7994e9ff19bcda7d68c76094bb6c99a3cadf09a33d723cbdd72c976558275613be1a76d26f62b987ee68aa3c81dd84d8353fd96d0a3078d51d9256d45fd59c1bfe317a2db1154eaceeea276ec31e16101aed360c229940b249d4692697dc50c29db13a24725c202972105b1e8614571be21f1652bf38d5ced3fd1e31edd0958f5038ff59594c455391488a276d355ddd74977f5254b45beeb71011596fa6a6dfaf9decf0abd68c83d702efc0753bc21bca283e283aab8a321bd3071c073c927bc4c56586f78bce99005ae63eb9e83e5082999a32e55da69163a8ab42cd4cc9450aaedc712fd6a161df87f7287b47afb25335e75cf6fc29796c22ef3552132f82edb3af1a905353bfdcb38fd934518cf4444ead8f5e305a66729e2a01d34183d37cfd0a3609b07c2ecd703a1bfb7a9827e477305364c72e49589ad990d4bc77d616019349b2df569f7affddc19984b5e6f200a27f6cb74f131619e1d8398c03336e124501df8bd14adba0d997999f1e857261f0387d08c352a6d823ac9812a2e727c175d1bfa978e50bce7868800b7629d6f146d76a7ae70daa409dba6168c70134af900475e72b5f38181b33630646592d11bb13d67876164710d3f8ce8419a7543c728cf56a090712c571de04fcbc62fc56b10ee922a6784989e6ce7611393785008f8cf5152aa5f4813e7841a38a67e340f87dcb45084f8881f6e44d7ca85a3808540e6c66ff49a2d36f6f63f344c1121cacdd51c39ddcc6782ab9d405175a11fcab5aaeff9d8141a52ae90e60a231fae38121dceb197f8b154aa6a9705fe3b4b1b7230554de6d0941efc7b04dc84e5d8f721645319974a22b7abb85ed135b57a3f3bce2bc172e9374d65fa101ba68162500d4f4539ffe658709f21cab9c7c5ef0382efcd61439a3ad364b294df167cab0037c3924cddd9aaa7c727afd8d6fb146a57b2eda40933843d5354511460f523b3f5dd20c3e775d844c4f1c081bb77b9a2989e26109200e38992ffdba2e0cd4828b11c70066a98cfe6d1c0d9f26b9c3d10b7d29b8778aab424535edc238c158db695322f72b6ddb5f69d5984bb5df6278e41c9f35ba184c5e7cb283726674b282856e55dc90b79e41c05d03bb2ed4909786dbbb84b339d1a480a7c22c68adac163878f8bf0505a5eed7d10851025291b86c925a0ea75b25d1c672659850dc7febfaa84638447aa0b12d7f8afd2ab54f7ab1a44ce491b883854436b9d171620d35e5cee97098cea82f0b682c35036d1da4c34f23ef57337ee56a02b16d25d9686b87d43a2a35835de729658ed059f9cdcbc5e1eef59399704b6185b427df197ddd8971e2b6dd62732511908b3a0f09dd6d824730311f28face6ee7671d874c6cd886fbeee46e5bc3894f853e0b7ee3f28b92c0bb97dd5c13ad4134d924be3960c70dc2c338a82c4eb65a674dfea2f05453a18776cae7cffefa37de24835979221a8e69124b047ce24848d3276186a73fdf74441daee79897cdf3e424ccd83cd523474978206fa81d8a1baaa5296e0421a59dc498938efe42dd57e0bc92ab7c48d1f323cbdff7c838fb1d59e1cb740cb439393cf696db47d290d8df0ab755d38d9b7abebe5375740a20a554ea51b61c17ae411e0ee275088d38ef51f1cb740de6467e7c20f8279daf4a8c8b0e3a3d4a6184c0c334e9d08c8c50cc2897d3b20b9669c14d0492fed88cbc3f716271fbcb6843e1fd1757053cb5df6cb",
+                "reference_result": "Each role generated its own independent seed contribution. The standard signature verifies; no seed reconstruction occurs in this pipeline.",
+                "retry_count": 3,
+                "role": "b",
+                "run_id": "28686c25bbf82d4578d7ed18c9bca6f1",
+                "runtime": {
+                  "a_to_b_wire_bytes": 479933123,
+                  "accepted_share_bytes": 5312,
+                  "b_to_a_wire_bytes": 10485884,
+                  "circuit_count": 115,
+                  "execution_bindings_sha256": "0fb3226ef9e40ad4ae03afb89fc0a08c8ec01b3663dd5a60ac1b23085290fdd6",
+                  "fresh_execution_bindings": 115,
+                  "largest_control_message_bytes": 376880,
+                  "largest_label_arena_allocation_bytes": 404821,
+                  "ot_wire_bytes": 30959168,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 925604,
+                      "b_to_a_wire_bytes": 123268,
+                      "calls": 4,
+                      "kernel": "aggregate-check",
+                      "ot_wire_bytes": 353024,
+                      "table_bytes": 588928
+                    },
+                    {
+                      "a_to_b_wire_bytes": 35484640,
+                      "b_to_a_wire_bytes": 410176,
+                      "calls": 4,
+                      "kernel": "commitment-hash",
+                      "ot_wire_bytes": 1213184,
+                      "table_bytes": 34250752
+                    },
+                    {
+                      "a_to_b_wire_bytes": 33827136,
+                      "b_to_a_wire_bytes": 2361600,
+                      "calls": 24,
+                      "kernel": "commitment-high",
+                      "ot_wire_bytes": 6984192,
+                      "table_bytes": 26542080
+                    },
+                    {
+                      "a_to_b_wire_bytes": 27531060,
+                      "b_to_a_wire_bytes": 1968000,
+                      "calls": 20,
+                      "kernel": "response-check",
+                      "ot_wire_bytes": 5820160,
+                      "table_bytes": 21790080
+                    },
+                    {
+                      "a_to_b_wire_bytes": 13992576,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 11698176
+                    },
+                    {
+                      "a_to_b_wire_bytes": 113656344,
+                      "b_to_a_wire_bytes": 4622592,
+                      "calls": 24,
+                      "kernel": "row-check",
+                      "ot_wire_bytes": 13767168,
+                      "table_bytes": 99876096
+                    },
+                    {
+                      "a_to_b_wire_bytes": 107197123,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 105819648
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    },
+                    {
+                      "a_to_b_wire_bytes": 144834400,
+                      "b_to_a_wire_bytes": 247680,
+                      "calls": 20,
+                      "kernel": "signing-mask",
+                      "ot_wire_bytes": 659200,
+                      "table_bytes": 142336000
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239432,
+                      "b_to_a_wire_bytes": 12384,
+                      "calls": 1,
+                      "kernel": "signing-seed",
+                      "ot_wire_bytes": 32960,
+                      "table_bytes": 1193984
+                    }
+                  ],
+                  "signature_return_bytes": 3309,
+                  "table_bytes": 445306112,
+                  "table_frame_count": 6835
+                },
+                "schema": "seams.ml-dsa-worker-threshold.v1",
+                "signature_hex": "02609052083f73c952671d937e8d24b9807efb6a3711a99ba4cc76b244b6d7fddbf79ee8e0ba9e474ecade123a867dd09a6b4bfadfcf1508d642cf7ce973d9ea0ffad97a248b975ea2b5c493b4a2c5019f8c43bf100739b24e58753344fde6dd1f5e1ddd1e15de159502d3dad2ef700a52fe6f4a3b345712404835c4b146872599c9fe62d8cda2e793f54bb2a7e83ae97ec7072026ef467908bc60d9d22fd89417e6541ef40e34529ad0eb4b7aabfeb0d0cdc9df4454a9980bab5fdfe098b08eee7d282538ceef0f440149698a44476ddb986a467fe049e8dd82e004b6efed89814a394ea272117a7e6bccfbe73f38f80d3b190310d3a3e0dc8830b58eb741cdc8c39c8cbedda3913755daa57d3c3faea4c58f21ec8c7abd0d6724dae294c6618cd30af8bedd4a471776874908b30f9640801ddc082cbba469e097a44c55b84661b4fd5d74d36f14ae56799cbbb84cbb682937c5cf59bebc910379d16530b6447ce6efd47fceb9283d97ebb3f3116e1288158ec46fbb1e6ed1a9fbedc31eae9b503fe3e1be958811808e83d00fb551a8ea7cdbaaee696350c90c5402cba6fc0987a6a1660458f9e097e45a5a81370195d1e510f838fd229b334a336d10fc4fc979c688d6fd811af2b7d4150c0c5d0a0bfe3068415f11b9939ae76743bdce908336ce87ee321eebdb15bf2170d32aba7cca1113ab54713c1dd7556c7a6d45cf99e6aec2632c5148584910d940f4173286b2d220868fb20be2f9453cb3ff5af4d03cd5ad4fd0249255680a8b3c9d138ccb7edf4e9cdbb98a533df907ce25b7a0058da3fa268f35e6b8594a5173c486f344dfd4b7a1b6bd62efac18f72aff11572fac65c91c1741bace35f20862275ad175a36a1f6b9751749067df142c610d54d88ac9e4ef5a66c89f26a4aa23b03d03ab9955e0ef9af6bda81d66df20260eebdfefea155ca15356d10b138b0efeaca6526454904a13d874b4663468958b6672d488abd8aeb48052753850e9fde65ac8bf8a3c94bd442b572fb4b037991914dd6de6640001fbee3918b6e2b5575eb58dc731a59e9d00252fee2172f27ccf60b9d3866da220a2cf1cbfe614ddb0f56ac964b904f2d5bf4b777e05344b46aa94462e991acb7f96b8a282e21c28dc17eee32be90f55456004b73d9d1606651a5e41fa6b7c46993eb2bd2d47836ee1d27580b6b71acc6333b9f214be0ae0245f2977aa7c8989e8bf556bab51f3982fb13b9e3cad1e4e80100dc275d7096b92bf5fcc1702eb0fe663b947cdd7cb2349421c42117c8b38f68f255b75b69bde2d301b0b2f02d2c0490a71bd344ef0883e262e4a5012b46a12983a6404cc94b7a241d231902bc163649ecffbaa8512bbbb496fadb678d158a71de1f62699fb8d310d37e4ceee7ba7197988d843864de9fdb42d0a1060190a77a3de5be4bc418282a530d239fdb180baf27b552eeadf1fe2c0020d43a9569b5fd9615547440b45cb7a39498450202246a78b594b9a72d41d0420457c78133d9b9737337218465356e727e3c56768a3f4a60f6e169e2e49db4124a887c198760584e68f02cc3eae783b91c9f343b2b65bdefc027c88a38a1462e241125bba7adb69cdc4a99a19589e00bff51fefd03d29882ee0d86df92b27ffd55ef1fd4f3ba35ed563b5980a5a09b7b3b1245741970db7198151d9fe479779f89cdbafc7d22bfda9a831c2c604f7c8a519a1fb0d469a7e5bb21a9adc1f9243a0aa0f6c7e01e3509f66abaf813f5cc56e76fa42d4fa7084926dc0ced748f19689bb99922411c170deae6f81f784c560a7a40a7ade846c3fc89a3e1b29b4f0fb3972558184b7c70c793ffa1af0cc963cadd4803eff3b7ce0e7fcb9ffd467b66e056763a3dc65c1e73496c5d60d64e7289dec9041beb8542aa11905a1988d8412bcd011553b524867cb82c0266ce3163e687ca48e752a68138a8b9b4ae5d284ab3aad35c7378510e5e605bbddeadcf4cf174b06cda5445832fba43a72cc4f9aeb12b32be158a70ffba0c689bf3ea55d4307ffa9054db8c5b422b72304a23c7c80cc8cb3d7b027896913f774d7ee713da4ac106dc260c10cb88e8b21007fefca7a7da2240b60ef77de1d587d5fb7582cb64a2a97cf5a0ffd26a04f9d9f85697fd810a8a7c3c8993b10809e667fad04bb8849904231c1408d02a3f486fb94dd26b498901d8594c531810e93659a01f693ea63d18034fd5cd0c2bf296a5d1b1bb253920b3d1fe3688fa6716c469b66a230ed618b1766ec8d8b4dd9f2e16422781186ac1004315c229228423dd2411cce87b20760244e1559f41dac6e43697587ccd784d762e942ad9255e719e58386fb3916b3d4ef45921eacdc80dc85ecc35174955f1ed0db2fd862de0c3bacbd83eea1db50157ffbc93a7b917c985c1e9bdce792838a37123a515bb4931cbf2df68b30005c0a676e71833f75b7cf96ebb65bf1079603401916f52afecd99821da431aa9d4d54fdaa1d93478f8423e416c01041d1c1b4f4a39314e0621ec22617d6ed439407eeea0e1566f46c5149ddd1d369abbbbac8c10c1e3e3623ce6a4a11b61f0a504b91ed32907687a9430cff42905302c5efe1072109b49d7a86b7033b1ea80fef8964b302280ed5a5d485bdf9d5d79c3fdf6bb1d9d1f20b26dfd5694f7bc16716ad2f42429b40132c061caf31b01134557c0816cd3973a34ca5872b685fa89d0ea4b1e0331d0570114e0f475e8ecaf0ab74d324a9ec3b19f880f3028afd34ceba4276e5769ad7a1956ab1bd3487e9e84b7493e74ca5f14ecc2b57ae871693c55629a77045736d15c744f4f6c82c3999e733bc48a58ebae35b072eecd8bc9139eafce62939e809a84ae3bcd6478ea3d5892f4cac637e82cbffcf0d322517b5dac34cc93759b57e87d1e5e2b20abdf41e0132968fc4897542e8ada64f957edeccae7ff73b4767d2288d6ff43f59d1f0a26589edd3d364d0ba29a44a5c89dbeec4ebb58b3f6b58e60b0a27f8bf5a750a8d03730d04cf3e3a6b3f58767a73850b18bca32290e79faeec0526e3b84d29eabe4277395c561242d8724854df9bc5a49bdcab519278ec5a168ecf63c7ad364b2d60f3d2ac5e346eb18552112a8fd2c833e42da985951d8a63a063c6ac87b9fec5ad51302518aed7d71f8424905f209fb641bd96064fe788929d7292beba253b7a93837132911ec9b48bbfe8e62441b062a8b95a628e2ed89e978965472abd0b3185b30b2b53aab44fb521b5ae62d8596ba12843c313ab924320000f69e6a157459e0bf88af63dfa4df245d6057a6c325f0c19de8c84c402b3277b49ffd96957d6ead54eb651a2d18792e313bc10dc5986069a845548e3157372579b46ad1e119461766c175e05f1f8092c5a02c12ad552338c3c0ad412def021843625232cba8dd660f2758ac6e29dc05a6d5eb478f83e9dcc30dfed924b94a878080efd12a309a0dde39a3e1ef97d02e23d341bb3f82079edefac04e1ccbb15809607495d2db47e094c53b97f682aee66c62eaf7460f0ddd4f4936fd3e8501f780be04540b104b84bc7212a1fa74d24ee30cc46cac3463f1d934afe75bec9ff5fa2cd9580d5bc5a82538294bb8c42d1213ffcf4dbc496b433035e132a40be4fcd9b84cc7b7dcf4199816c4733c7e907fdd8f65e1b81a63c939819e02e5f781fbf993bf598293dd6d49b93cc3ab1471ec3b86704259303a259fafbbbedc60130dfe6242fd762ccbccce0050baeea688b6daf1e237683855c6626d20653fae4febb37d489e0918f81ff4165e2b2d7df2d1ac33b950dbc19a5916db3eed5332e35e35dd69ac5de5a295e664f3a6c4a1ac6e69b17ff0c540181080a279d4b70f1424baab95af8f221391f540b05250d9d330d0227f8e399b0b9640c038eec3492a69a5f9a7e27fce530442e427907049bcded9304cedf337ce8eb226857c8bb49d714fc90881b2d42ffb72651e0aa7afe8b36512db6334049c5b1611da4de9f4ea02e46d89a57a4286e5b1cc7e98a974b3812b12924df8f06a27f0f2d2da2561e17a9bd4f03df59150ca8e59bf180013bc8ddc9dc0d63a8fb760eed4208683834ea2b8386ef3cf45bfde2e4442c52d34468ecbb74ef4f687f78b8c832373aede947bf5b421c94fa4dc40f674ea5881ea892e8dd8c76b9f35421322dcea6fe1ec5e215df33614fc9417a3b12ec903bb30fe5dd8c658711248b5ed63335b78684a94389a8e28b72915fee5f6e4097e725d2dbc73444691663fea5c098d50b6ed169b91ec68a8c4dbe9758ee0b913833b66c904b2160ef476b3595cdedb491dd84b93cf66870a63d0ec3753aca9b01b3efa783de192441510bc811ae8d68b98a24c6975e20da1ec4d708b361146e7112857d383820ba4d256bcc553ed67703e7cf4c8054b602f27894dbb037022ea6a17cc2aa5a2c6f8b46509470a743cf4d2495631ac36506c9ba4dfa118071b35a623219a2f980923c3cfffb8c85bca2b34488e75a5d8a4bed5088e4816997bb81003c224a2ae2150ff2bca695f012afcc8f2552d7f7dcb24e856a6f30c257a694adb2cdfe0523e766d7d0bf434f6345be4186953d5ac9f321fb35ae157b4044213a496d73747a7bdafb001a87b5bbd9db2a607c8189808ab1dbe44a667c9193adccf8054d70777ea400000000000000000000000000000a11161b2329",
+                "signing_observed_ms": 60117,
+                "standard_signature_verified": true,
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 380,
+                  "first_send_ms": 380,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 376880,
+                  "last_receive_ms": 77488,
+                  "last_send_ms": 77488,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 1285,
+                  "received_completion_bytes": 0,
+                  "received_data_envelope_bytes": 37055,
+                  "received_messages": 7411,
+                  "received_runtime_bytes": 479933123,
+                  "sent_ack_bytes": 37055,
+                  "sent_data_envelope_bytes": 1285,
+                  "sent_messages": 257,
+                  "sent_runtime_bytes": 10485884,
+                  "worker_observed_elapsed_ms": 77494
+                },
+                "wasm_linear_memory_highwater_bytes": 36175872
+              }
+            },
+            "run_id": "28686c25bbf82d4578d7ed18c9bca6f1",
+            "schema": "seams.ml-dsa-worker-threshold.v1",
+            "scope": "Complete eighteen-circuit canonical key generation, followed by threshold signing and independent standard verification on separate Workers. All private material is ephemeral and role-local.",
+            "security_limits": [
+              "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+              "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+              "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+              "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+            ],
+            "worker_observed_total_ms": 77458
+          }
+        }
+      ],
+      "client_complete_ms": {
+        "median": 78361.03391599999,
+        "minimum": 78361.03391599999,
+        "maximum": 78361.03391599999
+      }
+    }
+  ]
+}

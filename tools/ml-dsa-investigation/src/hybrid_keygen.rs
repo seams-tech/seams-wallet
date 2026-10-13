@@ -24,8 +24,8 @@ const PREFIX_BYTES: usize = 481;
 const FIXTURE_NAMES: [&str; 4] = ["zero", "incrementing", "all-ff", "alternating"];
 
 pub(super) use ed25519_yao::ml_dsa_signing::arithmetic::{
-    Polynomial, SecretVector, add_mod, expand_a, matrix_product_plus_error, ntt_twiddles,
-    subtract_mod,
+    Polynomial, SecretVector, add_mod, encode_public_key, expand_a, matrix_product_plus_error,
+    ntt_twiddles, subtract_mod,
 };
 
 struct PublicFixture {
@@ -214,7 +214,7 @@ fn complete_fixture(
         t0_b[row] = output.t0_b_shares;
     }
     let rounding_evaluation_ns = rounding_start.elapsed().as_nanos();
-    let public_key = encode_public_key(&fixture.expanded[..32], &t1)?;
+    let public_key = encode_public_key(fixture.expanded[..32].try_into()?, &t1)?;
     let key = SigningKey::<MlDsa65>::from_seed(&fixture.seed.into());
     require(
         public_key == key.verifying_key().encode().as_slice(),
@@ -328,22 +328,6 @@ pub(super) fn pack_signed_vector(
         pack_unsigned(&encoded, bits, output)?;
     }
     Ok(())
-}
-
-pub(super) fn encode_public_key(
-    rho: &[u8],
-    t1: &[Polynomial; ROWS],
-) -> InvestigationResult<Vec<u8>> {
-    require(rho.len() == 32, "Public key rho must contain 32 bytes.")?;
-    let mut public_key = rho.to_vec();
-    for polynomial in t1 {
-        pack_unsigned(polynomial, 10, &mut public_key)?;
-    }
-    require(
-        public_key.len() == 1952,
-        "Hybrid public key has the wrong size.",
-    )?;
-    Ok(public_key)
 }
 
 fn pack_unsigned(
