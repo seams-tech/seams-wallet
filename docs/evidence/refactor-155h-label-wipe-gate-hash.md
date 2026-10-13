@@ -89,8 +89,12 @@ drops a label. Measure a change in the engine benchmark, not beside it.
   for reasons of this machine: the Phase 2B review subject needs a clean
   checkout, and the Aeneas track needs its pinned tool. Aeneas extracts the
   reference generator, not this code.
-- Open before a release: the local Yao contract and the registration contract
-  on release Worker builds, and a staging measurement.
+- On release builds of both Derivers at commit `ab91d575`, in an export tree:
+  the 13 release cases of `passkey.ed25519-yao-local.contract.test.ts` pass,
+  and its fourteenth needs a debug Router by design. All 14 cases of
+  `passkey.registration.contract.test.ts` pass after an unrelated repair of
+  one test interceptor (`757eba5b`).
+- Open: a release and the staging measurement.
 
 ## Wipe guarantee
 

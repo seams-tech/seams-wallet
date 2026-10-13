@@ -793,8 +793,9 @@ work. One item each.
   210 ms on warm isolates, Deriver A's CPU from 166 ms to 121 ms and Deriver
   B's from 146 ms to 123 ms. The transcript is unchanged, and the frozen
   known answers pass. The [record](evidence/refactor-155h-label-wipe-gate-hash.md)
-  holds the measurements and the verification. Open: the contract suites on
-  release Workers, a release and the staging measurement.
+  holds the measurements and the verification. The Yao and registration
+  contracts pass on release Workers. Open: a release and the staging
+  measurement.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
   commitment checks and the HPKE seal are product additions the benchmark
   pair does not run. Place them with the local profiler and move what does
