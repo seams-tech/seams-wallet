@@ -823,12 +823,12 @@ bookkeeping, one D1 round trip per Deriver, and a protocol of about 630 ms.
 Users of the hosted menu do not wait for setup. Direct callers of
 `registerWallet` do, about 0.7 s from Tokyo.
 
-- [ ] Batch the Gateway's setup D1 writes into one batch after the Console
+- [x] Batch the Gateway's setup D1 writes into one batch after the Console
   reply, and keep the admission read first. Do not insert before the Console
   request answers: that request is also the publishable-key authentication
   (`resolveWalletRegistrationContext` in `walletRegistrationRoutes.ts` near
   line 2067), and a write for an unauthenticated caller is an abuse surface.
-- [ ] Move Console's API-key usage update off the request. It records the
+- [x] Move Console's API-key usage update off the request. It records the
   last-used timestamps and consumes no quota, as R155F classified it.
 - [x] Start setup's best-effort preflight when a registration-configured wallet
   runtime initializes. Reuse the existing browser preflight helper. Same-origin
@@ -841,8 +841,20 @@ Users of the hosted menu do not wait for setup. Direct callers of
   Local implementation and SDK completion evidence are recorded in
   [setup and SDK completion](evidence/refactor-155h-setup-sdk-completion.md).
 
-Expected gain: 50–100 ms from the batch and up to 190 ms from the preflight,
-for direct callers only.
+Implementation follow-up, October 13:
+- The Gateway already persists the setup snapshot, ceremony and home reservation
+  in one batch after Console authorization. No additional batching change is needed.
+- Setup warm-up now starts at validated iframe configuration, before lazy runtime
+  loading. The old constructor warm-up is removed. Appearance changes do not repeat it.
+- Console publishable-key authentication schedules its usage timestamp write through
+  the request's `waitUntil`. Authorization still completes before success. Delayed
+  writes cannot move timestamps backwards, and Worker logs retain write failures.
+- Successful NEAR-only hydration already consumes the temporary seal. Its redundant
+  discard request remains removed; failure cleanup still runs.
+- These changes require one combined staging comparison. No new savings are claimed.
+
+Remaining savings from earlier preflight and deferred usage telemetry are
+unmeasured. The existing Gateway batch is already part of the measured baseline.
 
 ## Phase 6 — Where the APAC home runs
 

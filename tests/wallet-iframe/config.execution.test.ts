@@ -44,6 +44,19 @@ export async function loadWalletHostRuntime() {
 export async function preloadWalletHostRecoveryCodeSurface() {}
 `;
 
+function requestCount(requests: string[]): number {
+  return requests.length;
+}
+
+async function recordSetupWarmup(requests: string[], route: Route): Promise<void> {
+  const request = route.request();
+  expect(request.method()).toBe('OPTIONS');
+  expect(request.postData()).toBeNull();
+  expect(request.headers().authorization).toBeUndefined();
+  requests.push(request.url());
+  await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
+}
+
 async function serveBundle(bundle: string, route: Route): Promise<void> {
   await route.fulfill({ contentType: 'text/javascript', body: bundle });
 }
@@ -172,6 +185,8 @@ test('execution replacement fences loading and active host requests while appear
     ],
   });
   await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+  const setupWarmups: string[] = [];
+  await page.route('**/wallets/register/setup', recordSetupWarmup.bind(null, setupWarmups));
   await page.route('**/__execution-host.js', serveBundle.bind(null, result.outputFiles[0]!.text));
   await registerWalletServiceRoute(
     page,
@@ -191,6 +206,8 @@ test('execution replacement fences loading and active host requests while appear
   await expect
     .poll(page.evaluate.bind(page, readMessages))
     .toContainEqual({ type: 'PONG', requestId: 'initial-1' });
+  await expect.poll(requestCount.bind(null, setupWarmups)).toBe(1);
+  expect(await frame.evaluate(readHost)).toMatchObject({ started: [] });
 
   await frame.evaluate(holdWork);
   await page.evaluate(startRequest, 'appearance-work');
@@ -205,6 +222,7 @@ test('execution replacement fences loading and active host requests while appear
   await expect
     .poll(page.evaluate.bind(page, readMessages))
     .toContainEqual(expect.objectContaining({ type: 'ERROR', requestId: 'invalid-3' }));
+  expect(setupWarmups).toHaveLength(1);
   await frame.evaluate(releaseWork, 'appearance-work');
   await expect
     .poll(page.evaluate.bind(page, readMessages))
@@ -282,6 +300,6 @@ test('execution replacement fences loading and active host requests while appear
   });
   await writeFile(
     info.outputPath('execution-generation.json'),
-    JSON.stringify({ messages, host }, null, 2),
+    JSON.stringify({ messages, host, setupWarmups }, null, 2),
   );
 });

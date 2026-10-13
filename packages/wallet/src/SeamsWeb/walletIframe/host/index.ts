@@ -1,3 +1,4 @@
+import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
 import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
@@ -290,6 +291,10 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             state.configuration = configuration;
             if (executionChanged) {
               state.executionGeneration += 1;
+              const config = configuration.config;
+              if (config.registration.publishableKey && config.registration.projectEnvironmentId) {
+                prewarmWalletRegistrationSetup(config.network.relayer.url);
+              }
               for (const activeRequestId of activeRuntimeRequests) {
                 post({
                   type: 'ERROR',

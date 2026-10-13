@@ -1,3 +1,4 @@
+import { WALLET_REGISTRATION_SETUP_PATH } from './walletRegistrationSetupPrewarm';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import {
@@ -156,18 +157,12 @@ export { parseWalletRegistrationFinalizeResponse };
 const REGISTRATION_ROUTE_PAYLOAD_DIAGNOSTICS_LABEL = '[Registration] wallet route payload summary';
 const ROUTE_PAYLOAD_BREAKDOWN_MAX_DEPTH = 2;
 const ROUTE_PAYLOAD_BREAKDOWN_MAX_FIELDS = 64;
-const WALLET_REGISTRATION_SETUP_PATH = '/wallets/register/setup';
 const WALLET_REGISTRATION_RESPOND_PATH = '/wallets/register/respond';
 const WALLET_REGISTRATION_NEAR_ADMISSION_PATH = '/wallets/register/near-admission';
 const WALLET_REGISTRATION_ACTIVATE_PATH = '/wallets/register/activate';
 const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provisioning';
 /** Managed environment id header for Router API `api_credentials` auth. */
 const ROUTER_API_ENVIRONMENT_ID_HEADER = 'X-Seams-Environment-Id';
-
-/** Warm the setup preflight while the wallet runtime initializes. */
-export function prewarmWalletRegistrationSetup(relayerUrl: string): void {
-  prewarmRelayerPreflights(relayerUrl, [WALLET_REGISTRATION_SETUP_PATH]);
-}
 
 /**
  * Preflights the routes that a registration calls after setup, and the routes

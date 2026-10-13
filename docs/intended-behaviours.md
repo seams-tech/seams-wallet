@@ -418,11 +418,12 @@ runtime state and preserves valid durable presignatures. Request rejection does 
 roll back work already committed by the wallet or network.
 Signing-only clients can initialize without registration credentials. Registration
 still requires its normal configured credentials.
-When registration credentials are configured, wallet runtime initialization may
-warm the setup route's CORS preflight. This best-effort OPTIONS request carries no
+When validated execution configuration supplies registration credentials, the
+iframe host may warm the setup route's CORS preflight. This best-effort OPTIONS request carries no
 credentials or registration data and creates no wallet or custody work. A failed
 warm-up does not prevent registration. Same-origin and signing-only clients send
-no setup warm-up. Successful registration hydration consumes its temporary client
+no setup warm-up. Appearance updates and equivalent configuration do not repeat
+the warm-up. Configuration warm-up precedes lazy runtime loading. Successful registration hydration consumes its temporary client
 seal; failure paths still discard any unconsumed preparation before returning.
 
 Appearance updates preserve execution settings and warm signing state. Updating

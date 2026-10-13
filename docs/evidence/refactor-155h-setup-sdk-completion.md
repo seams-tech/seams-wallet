@@ -141,3 +141,32 @@ frozen sources, site hashes, production build logs, `arms.json`, raw registratio
 artifacts, `analyze.py`, `summary.json`, `proof-verification.json`, and before/after
 serving versions. `run.py` and `resume.py` record the exact commands and recovery.
 No staging restoration was required because no deployment changed.
+
+## Combined implementation follow-up — October 13
+
+The next batch moves setup OPTIONS from the runtime constructor to validated
+iframe configuration. It therefore starts before the lazy runtime loads. The old
+constructor call is deleted. Appearance updates and equivalent configuration do
+not start another warm-up. Signing-only and same-origin configurations retain the
+existing exclusions.
+
+Console publishable-key authentication now hands its usage write to the current
+request's `waitUntil`. Key, environment and origin validation still precede success.
+Usage timestamps use monotonic updates. Delayed telemetry cannot undo revocation
+or overwrite a newer timestamp. No schema change is needed.
+
+The Gateway setup batch already exists: the snapshot, ceremony and home reservation
+are persisted together after Console authorization. The checklist is reconciled;
+there is no additional claimed saving from that existing implementation.
+
+Checks passed:
+- SDK type check and private server type checks.
+- Browser configuration scenario: warm-up starts before runtime work; appearance
+  and invalid updates do not repeat it; replacement still fences active work.
+- Console composition scenario with real Miniflare D1: authentication returns while
+  telemetry is held; reordered writes preserve timestamps; concurrent revocation,
+  wrong origin and wrong environment remain enforced; telemetry failure is observable.
+- Public bloat check and focused private lint.
+
+The previous staging numbers remain the baseline. This batch has no new hosted
+latency result. Measure the complete SDK and Console candidate together next.
