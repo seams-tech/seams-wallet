@@ -175,6 +175,32 @@ It records conditional branches for manual review and pins the source, compiler,
 This check precedes final Worker optimization and native JIT compilation.
 It supplies no blanket timing guarantee.
 The [composition review](../../docs/router-ab/ml-dsa-65-privacy-review.md) records the arithmetic bounds and the remaining security work.
+
+## Core lifecycle scenarios
+
+The full report also exercises lifecycle behavior on the zero-seed disposable fixture before authorized recovery.
+Separate role processes use the same persistent role-local material files for these scenarios:
+
+1. A exits after the first private signing-mask circuit. Neither role returns a signature.
+2. A replays the first mask's OT base-choice message during the second mask circuit.
+   The message preserves its family and length but carries the old session.
+   B rejects it through the OT boundary. Neither role returns a signature.
+3. A fresh operation restarts both roles and produces an independently verified signature.
+4. Four concurrent operations sign distinct public messages with independent joint randomness.
+   Each signature passes independent verification. All circuit bindings remain distinct across these operations and the restart.
+
+The generated report includes injection diagnostics, expected peer failures, full successful signature results, and independent negative checks.
+Use a new output filename to preserve earlier campaigns:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  --samples 100 --garbled-samples 3 \
+  --output docs/evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json
+```
+
+These scenarios establish core process behavior.
+They do not establish durable Router replay rejection, backup restoration, refresh, or Cloudflare lifecycle handling.
+Their contended process timings are correctness evidence and must remain separate from serial performance measurements.
 Classical OT does not establish post-quantum transcript confidentiality.
 
 The [signing options](../../docs/router-ab/ml-dsa-65-signing-options.md) distinguish commitment `w1` from challenge hash `c_tilde`.

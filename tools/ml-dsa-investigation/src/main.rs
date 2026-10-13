@@ -9,6 +9,7 @@ mod reference;
 mod rounding_evidence;
 mod sampler_evidence;
 mod signing_circuit_evidence;
+mod signing_lifecycle_evidence;
 mod signing_mask_evidence;
 mod worker_fixtures;
 
@@ -219,6 +220,7 @@ fn generate_report(
         "src/private_signing.rs",
         "src/rounding_evidence.rs",
         "src/signing_mask_evidence.rs",
+        "src/signing_lifecycle_evidence.rs",
         "src/worker_fixtures.rs",
         "src/signing_circuit_evidence.rs",
     ] {
@@ -252,7 +254,7 @@ fn generate_report(
         );
     }
     Ok(json!({
-        "schema": "seams.ml-dsa-investigation.v6",
+        "schema": "seams.ml-dsa-investigation.v7",
         "benchmark_only": true,
         "production_eligible": false,
         "created_at_unix_ms": SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis(),

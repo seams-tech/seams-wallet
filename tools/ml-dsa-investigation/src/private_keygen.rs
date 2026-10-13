@@ -261,6 +261,15 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         &public_path,
         fixture.unwrap_or("joint-random-disposable-key"),
     )?;
+    let lifecycle = match fixture {
+        Some("zero") => crate::signing_lifecycle_evidence::run(
+            schedules,
+            &role_a.join(MATERIAL_FILENAME),
+            &role_b.join(MATERIAL_FILENAME),
+            &public_path,
+        )?,
+        _ => serde_json::Value::Null,
+    };
     let signing_path = case.path().join("public-threshold-signing.json");
     fs::write(&signing_path, serde_json::to_vec(&threshold_signing)?)?;
     eprintln!(
@@ -303,6 +312,7 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         "role_a": a,
         "role_b": b,
         "threshold_signing": threshold_signing,
+        "host_signing_lifecycle": lifecycle,
         "authorized_test_recipient": recovered,
     }))
 }
@@ -386,6 +396,7 @@ fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> Invest
                     request.begin(schedule)?,
                     &mut reader,
                     &mut writer,
+                    &mut crate::signing_lifecycle_evidence::WireFault::Direct,
                 )?;
                 circuit_wall_ns.push(circuit_started.elapsed().as_nanos());
                 request.accept(output)?

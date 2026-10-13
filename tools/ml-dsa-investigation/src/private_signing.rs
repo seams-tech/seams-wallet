@@ -1,5 +1,6 @@
 //! Complete threshold signatures from role-local disposable key material.
 
+use crate::signing_lifecycle_evidence::{RoleExecution, WireFault};
 use crate::{InvestigationResult, digest, private_execution, reference, require};
 use ed25519_yao::{
     ml_dsa_runtime::{RuntimeOutput, Step, TrustedMlDsaSchedule},
@@ -30,7 +31,7 @@ use zeroize::Zeroizing;
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-enum Randomness {
+pub(super) enum Randomness {
     Deterministic,
     JointRandom,
 }
@@ -46,10 +47,10 @@ impl Randomness {
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-struct Operation {
-    message: [u8; 32],
-    context: Vec<u8>,
-    randomness: Randomness,
+pub(super) struct Operation {
+    pub message: [u8; 32],
+    pub context: Vec<u8>,
+    pub randomness: Randomness,
 }
 
 pub(super) fn try_run_child() -> InvestigationResult<bool> {
@@ -57,9 +58,11 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     let Some(mode) = arguments.first() else {
         return Ok(false);
     };
-    let role = match mode.as_str() {
-        "private-signing-role-a" => SigningRole::A,
-        "private-signing-role-b" => SigningRole::B,
+    let execution = match mode.as_str() {
+        "private-signing-role-a" => RoleExecution::Complete(SigningRole::A),
+        "private-signing-role-b" => RoleExecution::Complete(SigningRole::B),
+        "private-signing-interrupt-role-a" => RoleExecution::InterruptAfterMask,
+        "private-signing-replay-role-a" => RoleExecution::ReplayBaseChoices,
         _ => return Ok(false),
     };
     require(
@@ -67,7 +70,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         "Signing role needs schedules, own material, public key, public operation, and public result paths.",
     )?;
     run_role(
-        role,
+        execution,
         Path::new(&arguments[1]),
         Path::new(&arguments[2]),
         Path::new(&arguments[3]),
@@ -145,7 +148,6 @@ pub(super) fn run_case(
     public_key: &Path,
     case_name: &str,
 ) -> InvestigationResult<Value> {
-    let directory = tempfile::tempdir()?;
     let operation = Operation {
         message: reference::public_message(),
         context: match case_name {
@@ -157,6 +159,17 @@ pub(super) fn run_case(
             _ => Randomness::Deterministic,
         },
     };
+    run_operation(schedules, own_a, own_b, public_key, operation)
+}
+
+pub(super) fn run_operation(
+    schedules: &Path,
+    own_a: &Path,
+    own_b: &Path,
+    public_key: &Path,
+    operation: Operation,
+) -> InvestigationResult<Value> {
+    let directory = tempfile::tempdir()?;
     let operation_path = directory.path().join("public-operation.json");
     fs::write(&operation_path, serde_json::to_vec(&operation)?)?;
     let result_a = directory.path().join("public-result-a.json");
@@ -292,13 +305,14 @@ fn role_argument(role: SigningRole) -> &'static str {
 }
 
 fn run_role(
-    role: SigningRole,
+    execution: RoleExecution,
     schedules: &Path,
     own_material: &Path,
     public_key_path: &Path,
     operation_path: &Path,
     result_path: &Path,
 ) -> InvestigationResult<()> {
+    let role = execution.role();
     let started = Instant::now();
     let material = Zeroizing::new(fs::read(own_material)?);
     let own = OwnSigningShare::parse(&material)?;
@@ -330,6 +344,7 @@ fn run_role(
     let mut reader = io::stdin().lock();
     let mut writer = io::stdout().lock();
     let mut circuit_wall_ns = Vec::new();
+    let mut fault = execution.wire_fault(result_path);
     let signature = loop {
         current = match current {
             SigningStep::Circuit(request) => {
@@ -339,8 +354,15 @@ fn run_role(
                     .find(|entry| entry.circuit_id() == kernel.circuit_id())
                     .ok_or("Missing signing schedule.")?;
                 let circuit_started = Instant::now();
-                let output = drive_runtime(request.begin(schedule)?, &mut reader, &mut writer)?;
+                fault.start_kernel(kernel);
+                let output = drive_runtime(
+                    request.begin(schedule)?,
+                    &mut reader,
+                    &mut writer,
+                    &mut fault,
+                )?;
                 circuit_wall_ns.push(circuit_started.elapsed().as_nanos());
+                execution.after_kernel(kernel, result_path)?;
                 request.accept(output)?
             }
             SigningStep::Send(send) => {
@@ -383,11 +405,12 @@ pub(super) fn drive_runtime<R: Read, W: Write>(
     mut current: Step<'_>,
     reader: &mut R,
     writer: &mut W,
+    fault: &mut WireFault,
 ) -> InvestigationResult<RuntimeOutput> {
     loop {
         current = match current {
             Step::Send(send) => {
-                writer.write_all(send.bytes())?;
+                fault.write_message(send.kind(), send.bytes(), writer)?;
                 writer.flush()?;
                 send.resume()?
             }
