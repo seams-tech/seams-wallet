@@ -1026,7 +1026,8 @@ other regions' custody calls cross to Singapore in either case.
   version switch on staging and record the cause. Add no retry without one.
 - [ ] D1 stalls. From the Phase 0 record, report p90 and p99 per call type.
   Keep the two deliberate admission checks, as R155G records.
-- [ ] Pauses of durable writes. The
+- [ ] Pauses of durable writes. The standing note is
+  [cloudflare-stalls.md](cloudflare-stalls.md). The
   [record](evidence/refactor-155h-write-stalls.md) gives the cause that is
   visible from outside: each host pauses write confirmation every 5 s for
   110–400 ms, and a write that arrives then costs the rest of the pause. The
