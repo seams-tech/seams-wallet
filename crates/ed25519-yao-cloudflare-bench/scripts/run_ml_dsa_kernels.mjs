@@ -39,6 +39,9 @@ const SOURCES = [
   "../../tools/ed25519-yao-generator/src/circuit/keccak.rs",
   "../../tools/ed25519-yao-generator/src/circuit/ir.rs",
   "../../tools/ed25519-yao-generator/src/circuit/schedule.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_arithmetic.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_sampling.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_rounding.rs",
   "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
   "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
   "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
@@ -103,6 +106,16 @@ async function provenance() {
   for (const kernel of SCHEDULES) schedules.push(await fileIdentity(resolve(ROOT, `src/ml_dsa_schedules/${kernel}.bin`)));
   const fixtures = [];
   for (const role of ["a", "b"]) fixtures.push(await fileIdentity(resolve(ROOT, `src/ml_dsa_schedules/fixtures-${role}.json`)));
+  const fixtureA = JSON.parse(await readFile(fixtures[0].path, "utf8"));
+  const fixtureB = JSON.parse(await readFile(fixtures[1].path, "utf8"));
+  assert.deepEqual(fixtureA.schedules, fixtureB.schedules);
+  for (let index = 0; index < SCHEDULES.length; index += 1) {
+    const resources = fixtureA.schedules[SCHEDULES[index]];
+    assert.equal(resources.sha256, schedules[index].sha256);
+    assert.equal(resources.bytes, schedules[index].bytes);
+    assert(Number.isSafeInteger(resources.and_gates) && resources.and_gates > 0);
+    assert.equal(resources.table_bytes, resources.and_gates * 32);
+  }
   const packages = [];
   for (const name of ["wrangler", "miniflare", "workerd"]) {
     const path = REQUIRE.resolve(`${name}/package.json`);
@@ -115,7 +128,8 @@ async function provenance() {
     captured_at: new Date().toISOString(),
     sources,
     schedules,
-    threshold_fixture: JSON.parse(await readFile(resolve(ROOT, "src/ml_dsa_schedules/fixtures-a.json"), "utf8")).threshold_fixture,
+    threshold_fixture: fixtureA.threshold_fixture,
+    schedule_resources: fixtureA.schedules,
     fixtures,
     builds,
     node: { version: process.version, openssl: process.versions.openssl, v8: process.versions.v8, platform: process.platform, architecture: process.arch },
@@ -211,7 +225,27 @@ function standardKey(bytes) {
   return createPublicKey({ key: Buffer.concat([prefix, bytes]), type: "spki", format: "der" });
 }
 
-function assertThresholdRole(role, expectedRole, kernel, runId) {
+function assertKernelResources(role, expectedCalls, schedules) {
+  const observed = new Set();
+  let circuitCount = 0;
+  let tableBytes = 0;
+  for (const kernel of role.runtime.per_kernel) {
+    assert.equal(observed.has(kernel.kernel), false);
+    observed.add(kernel.kernel);
+    assert.equal(kernel.calls, expectedCalls[kernel.kernel]);
+    assert.equal(kernel.table_bytes, schedules[kernel.kernel].table_bytes * kernel.calls);
+    circuitCount += kernel.calls;
+    tableBytes += kernel.table_bytes;
+  }
+  assert.deepEqual([...observed].sort(), Object.keys(expectedCalls).sort());
+  assert.equal(role.runtime.circuit_count, circuitCount);
+  assert.equal(role.runtime.fresh_execution_bindings, circuitCount);
+  assert.equal(role.runtime.table_bytes, tableBytes);
+  assert(role.runtime.a_to_b_wire_bytes > tableBytes);
+  assert(role.runtime.b_to_a_wire_bytes > 0);
+}
+
+function assertThresholdRole(role, expectedRole, kernel, runId, schedules) {
   assert.equal(role.schema, "seams.ml-dsa-worker-threshold.v1");
   assert.equal(role.role, expectedRole);
   assert.equal(role.kernel, kernel);
@@ -226,9 +260,20 @@ function assertThresholdRole(role, expectedRole, kernel, runId) {
   assert(Number.isInteger(role.attempts) && role.attempts >= 1 && role.attempts <= 821);
   assert.equal(role.retry_count, role.attempts - 1);
   assert.equal(role.challenge_hashes_hex.length, role.attempts);
-  assert.equal(role.runtime.circuit_count, 19 + 24 * role.attempts);
-  assert.equal(role.runtime.fresh_execution_bindings, role.runtime.circuit_count);
-  assert.equal(role.runtime.table_bytes, 118_728_192 + 1_193_984 + 81_345_984 * role.attempts);
+  assertKernelResources(role, {
+    seed: 1,
+    sampling: 11,
+    rounding: 6,
+    "signing-seed": 1,
+    "signing-mask": 5 * role.attempts,
+    "commitment-high": 6 * role.attempts,
+    "commitment-hash": role.attempts,
+    "response-check": 5 * role.attempts,
+    "row-check": 6 * role.attempts,
+    "aggregate-check": role.attempts,
+  }, schedules);
+  assert.equal(role.runtime.accepted_share_bytes, 5312);
+  assert.equal(role.runtime.signature_return_bytes, 3309);
   assert.equal(role.transport.credit_window_messages, 8);
   assert(role.transport.largest_pending_messages <= 8);
   assert(role.transport.largest_runtime_message_bytes <= 376_880);
@@ -239,14 +284,14 @@ function assertThresholdRole(role, expectedRole, kernel, runId) {
   }
 }
 
-function assertThresholdReport(report, kernel, runId, fixture) {
+function assertThresholdReport(report, kernel, runId, fixture, schedules) {
   assert.equal(report.schema, "seams.ml-dsa-worker-threshold.v1");
   assert.equal(report.ok, true);
   assert.equal(report.production_eligible, false);
   assert.equal(report.kernel, kernel);
   assert.equal(report.run_id, runId);
-  assertThresholdRole(report.roles.a, "a", kernel, runId);
-  assertThresholdRole(report.roles.b, "b", kernel, runId);
+  assertThresholdRole(report.roles.a, "a", kernel, runId, schedules);
+  assertThresholdRole(report.roles.b, "b", kernel, runId, schedules);
   const a = report.roles.a;
   const b = report.roles.b;
   for (const field of ["public_key_hex", "signature_hex", "message_hex", "context_hex", "attempts", "challenge_hashes_hex"]) {
@@ -293,7 +338,7 @@ function assertThresholdReport(report, kernel, runId, fixture) {
   };
 }
 
-function assertKeygenReport(report, kernel, runId, fixture) {
+function assertKeygenReport(report, kernel, runId, fixture, schedules) {
   assert.equal(report.schema, "seams.ml-dsa-worker-keygen.v1");
   assert.equal(report.ok, true);
   assert.equal(report.production_eligible, false);
@@ -309,10 +354,7 @@ function assertKeygenReport(report, kernel, runId, fixture) {
     assert.equal(role.public_fixture_only, kernel === "keygen-fixture");
     assert.equal(role.public_key_hex.length, 1952 * 2);
     assert.equal(role.own_material_bytes, 17_472);
-    assert.equal(role.runtime.circuit_count, 18);
-    assert.equal(role.runtime.fresh_execution_bindings, 18);
-    assert.equal(role.runtime.table_bytes, 118_728_192);
-    assert.equal(role.runtime.a_to_b_wire_bytes + role.runtime.b_to_a_wire_bytes, 123_166_070);
+    assertKernelResources(role, { seed: 1, sampling: 11, rounding: 6 }, schedules);
     assert.equal(role.runtime.accepted_share_bytes, 0);
     assert.equal(role.runtime.signature_return_bytes, 0);
     assert.equal(role.transport.credit_window_messages, 8);
@@ -348,7 +390,7 @@ function assertKeygenReport(report, kernel, runId, fixture) {
   };
 }
 
-async function oneSample(endpoint, token, kernel, expectedDigest, fixture, warmup) {
+async function oneSample(endpoint, token, kernel, expectedDigest, identity, warmup) {
   const startedAt = new Date().toISOString();
   const runId = randomBytes(16).toString("hex");
   const url = new URL("/benchmark", endpoint);
@@ -366,9 +408,9 @@ async function oneSample(endpoint, token, kernel, expectedDigest, fixture, warmu
   const report = JSON.parse(body);
   let clientVerification;
   if (isThreshold(kernel)) {
-    clientVerification = assertThresholdReport(report, kernel, runId, fixture);
+    clientVerification = assertThresholdReport(report, kernel, runId, identity.threshold_fixture, identity.schedule_resources);
   } else if (isKeygen(kernel)) {
-    clientVerification = assertKeygenReport(report, kernel, runId, fixture);
+    clientVerification = assertKeygenReport(report, kernel, runId, identity.threshold_fixture, identity.schedule_resources);
   } else {
     assertReport(report, kernel, runId, expectedDigest);
     clientVerification = { kind: "private-kernel-fixture", expected_role_outputs_match: true };
@@ -418,12 +460,12 @@ async function exercise(options, endpoint, token, identity) {
     }
     if (!isPipeline(kernel)) assert.equal(typeof expectedDigest, "string", "The local schedule identity is missing");
     if (!options.local) await delay(1200);
-    const warmup = await oneSample(endpoint, token, kernel, expectedDigest, identity.threshold_fixture, true);
+    const warmup = await oneSample(endpoint, token, kernel, expectedDigest, identity, true);
     assertFreshBinding(warmup, bindings, jointPublicKeys);
     const measured = [];
     for (let index = 0; index < options.samples; index += 1) {
       if (!options.local) await delay(1200);
-      const sample = await oneSample(endpoint, token, kernel, expectedDigest, identity.threshold_fixture, false);
+      const sample = await oneSample(endpoint, token, kernel, expectedDigest, identity, false);
       assertFreshBinding(sample, bindings, jointPublicKeys);
       measured.push(sample);
     }

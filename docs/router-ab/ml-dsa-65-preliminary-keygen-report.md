@@ -5,6 +5,7 @@ Date: October 13, 2026. Branch: `ml-dsa`.
 Complete 2-of-2 key generation works on two Cloudflare Workers.
 Fresh joint keys took **12.44 seconds at the median**, with five measured runs between **11.79 and 12.53 seconds**.
 This is the current Yao baseline. It exceeds the investigation's provisional five-second generation target.
+The [follow-up optimization report](ml-dsa-65-optimization-report.md) records a later arithmetic rewrite. The measurements below retain this deployed baseline.
 
 | Environment | Measured operation | Observed time |
 | --- | --- | ---: |

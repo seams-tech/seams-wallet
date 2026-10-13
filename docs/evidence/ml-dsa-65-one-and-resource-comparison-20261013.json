@@ -1,0 +1,260 @@
+{
+  "schema": "seams.ml-dsa-one-and-resource-comparison.v1",
+  "created_at": "2026-10-13T11:52:27.754091+00:00",
+  "scope": "Exact compiler and runtime resource comparison for one-AND full-adder and subtractor identities. No protocol inputs, outputs, share formats, seed derivation, or disclosures change.",
+  "inputs": [
+    {
+      "path": "docs/evidence/ml-dsa-65-threshold-host-shared-core-20261013.json",
+      "sha256": "1fd41a11a1fb5f818bd6936be82fd9befc0fd80938c65243063d0fa3fd051af6"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-threshold-host-one-and-20261013.json",
+      "sha256": "578f7d145443306d4a6a23e913c7d92dafcc61037315991ed5a415ce1c732091"
+    }
+  ],
+  "per_kernel": [
+    {
+      "kernel": "seed",
+      "baseline": {
+        "and_gates": 37824,
+        "table_bytes": 1210368,
+        "schedule_bytes": 1319583,
+        "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      },
+      "candidate": {
+        "and_gates": 37824,
+        "table_bytes": 1210368,
+        "schedule_bytes": 1319583,
+        "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      }
+    },
+    {
+      "kernel": "sampling",
+      "baseline": {
+        "and_gates": 300624,
+        "table_bytes": 9619968,
+        "schedule_bytes": 8060037,
+        "schedule_sha256": "c7d5680e43d0e3b463ce7e21b5b334d967800deb4e40a18064bff44aaa326e2f"
+      },
+      "candidate": {
+        "and_gates": 292180,
+        "table_bytes": 9349760,
+        "schedule_bytes": 8131283,
+        "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71"
+      }
+    },
+    {
+      "kernel": "rounding",
+      "baseline": {
+        "and_gates": 60928,
+        "table_bytes": 1949696,
+        "schedule_bytes": 1276730,
+        "schedule_sha256": "f20478d8d358f1caf45085ec9e9c1a76e83ae0dd7b08e7559fc7b439f1960527"
+      },
+      "candidate": {
+        "and_gates": 43008,
+        "table_bytes": 1376256,
+        "schedule_bytes": 1378874,
+        "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99"
+      }
+    },
+    {
+      "kernel": "signing-mask",
+      "baseline": {
+        "and_gates": 222400,
+        "table_bytes": 7116800,
+        "schedule_bytes": 7358768,
+        "schedule_sha256": "d89aa99def7b82cefe5a60771ab65b34a15ff918bd2d7f00a729e6bf9f6b6276"
+      },
+      "candidate": {
+        "and_gates": 212928,
+        "table_bytes": 6813696,
+        "schedule_bytes": 7451952,
+        "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1"
+      }
+    },
+    {
+      "kernel": "signing-seed",
+      "baseline": {
+        "and_gates": 37312,
+        "table_bytes": 1193984,
+        "schedule_bytes": 1315304,
+        "schedule_sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41"
+      },
+      "candidate": {
+        "and_gates": 37312,
+        "table_bytes": 1193984,
+        "schedule_bytes": 1315304,
+        "schedule_sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41"
+      }
+    },
+    {
+      "kernel": "commitment-high",
+      "baseline": {
+        "and_gates": 34560,
+        "table_bytes": 1105920,
+        "schedule_bytes": 675898,
+        "schedule_sha256": "564483eb4bbf964497bcd35d66002d28d1b0cfe7c7afe0a45d308bbaa7d1a126"
+      },
+      "candidate": {
+        "and_gates": 28160,
+        "table_bytes": 901120,
+        "schedule_bytes": 769082,
+        "schedule_sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6"
+      }
+    },
+    {
+      "kernel": "commitment-hash",
+      "baseline": {
+        "and_gates": 267584,
+        "table_bytes": 8562688,
+        "schedule_bytes": 9454746,
+        "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+      },
+      "candidate": {
+        "and_gates": 267584,
+        "table_bytes": 8562688,
+        "schedule_bytes": 9454746,
+        "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+      }
+    },
+    {
+      "kernel": "response-check",
+      "baseline": {
+        "and_gates": 34047,
+        "table_bytes": 1089504,
+        "schedule_bytes": 795708,
+        "schedule_sha256": "a7a13aa3628619645b57d049c8877dc6e5a72a8eeb96c776443842decd8bc227"
+      },
+      "candidate": {
+        "and_gates": 28415,
+        "table_bytes": 909280,
+        "schedule_bytes": 808252,
+        "schedule_sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506"
+      }
+    },
+    {
+      "kernel": "row-check",
+      "baseline": {
+        "and_gates": 130047,
+        "table_bytes": 4161504,
+        "schedule_bytes": 2733372,
+        "schedule_sha256": "d66f8b1a7694ec8e80571ac598b50bb3016b0dbd91da3cc5a617187bc3d333c1"
+      },
+      "candidate": {
+        "and_gates": 106239,
+        "table_bytes": 3399648,
+        "schedule_bytes": 2973500,
+        "schedule_sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7"
+      }
+    },
+    {
+      "kernel": "aggregate-check",
+      "baseline": {
+        "and_gates": 4601,
+        "table_bytes": 147232,
+        "schedule_bytes": 85929,
+        "schedule_sha256": "17fd8a2afae6c3df1c5fa5be9ae93ac7d5c10dbca37705cc79dd6bdb43a1b201"
+      },
+      "candidate": {
+        "and_gates": 3077,
+        "table_bytes": 98464,
+        "schedule_bytes": 96695,
+        "schedule_sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b"
+      }
+    }
+  ],
+  "complete_resources": {
+    "key_generation": {
+      "calls": {
+        "seed": 1,
+        "sampling": 11,
+        "rounding": 6
+      },
+      "baseline": {
+        "and_gates": 3710256,
+        "table_bytes": 118728192
+      },
+      "candidate": {
+        "and_gates": 3509852,
+        "table_bytes": 112315264
+      },
+      "table_bytes_saved": 6412928,
+      "table_bytes_reduction_percent": 5.401352359513737
+    },
+    "signing_candidate": {
+      "calls": {
+        "signing-mask": 5,
+        "commitment-high": 6,
+        "commitment-hash": 1,
+        "response-check": 5,
+        "row-check": 6,
+        "aggregate-check": 1
+      },
+      "baseline": {
+        "and_gates": 2542062,
+        "table_bytes": 81345984
+      },
+      "candidate": {
+        "and_gates": 2283770,
+        "table_bytes": 73080640
+      },
+      "table_bytes_saved": 8265344,
+      "table_bytes_reduction_percent": 10.160727787127144
+    }
+  },
+  "packaged_description_bytes": {
+    "baseline": 33076075,
+    "candidate": 33699271
+  },
+  "fixed_case_checks": [
+    {
+      "case": "zero",
+      "same_public_key": true,
+      "exact_deterministic_signature_checked": true
+    },
+    {
+      "case": "incrementing",
+      "same_public_key": true,
+      "exact_deterministic_signature_checked": true
+    },
+    {
+      "case": "all-ff",
+      "same_public_key": true,
+      "exact_deterministic_signature_checked": false
+    },
+    {
+      "case": "alternating",
+      "same_public_key": true,
+      "exact_deterministic_signature_checked": false
+    }
+  ],
+  "native_keygen": {
+    "baseline": {
+      "samples_ms": [
+        1864.747417,
+        1869.831167,
+        1871.291708,
+        1875.905709,
+        1737.963417
+      ],
+      "median_ms": 1869.831167,
+      "minimum_ms": 1737.963417,
+      "maximum_ms": 1875.905709
+    },
+    "candidate": {
+      "samples_ms": [
+        1856.935916,
+        1994.335917,
+        1819.663125,
+        1846.525125,
+        1827.464709
+      ],
+      "median_ms": 1846.525125,
+      "minimum_ms": 1819.663125,
+      "maximum_ms": 1994.335917
+    },
+    "limits": "Five mixed cases per campaign. These sequential historical campaigns do not establish a controlled latency improvement or a production percentile."
+  },
+  "reproduction": "Regenerate the candidate with the complete host command recorded in its reproduce_argv. Recompute weighted AND/table sums from schedule_identities and signing_schedule_identities using the calls recorded here."
+}

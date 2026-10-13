@@ -105,7 +105,7 @@ Reproduce the artifact from the repository directory:
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
   --samples 100 --garbled-samples 3 \
-  --output docs/evidence/ml-dsa-65-threshold-host-shared-core-20261013.json
+  --output docs/evidence/ml-dsa-65-threshold-host-one-and-20261013.json
 ```
 
 The sample counts apply to reference operations and successful public garbling workloads respectively.

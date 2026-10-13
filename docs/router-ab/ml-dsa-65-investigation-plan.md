@@ -1,6 +1,7 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: complete host and deployed Worker key generation and threshold signing verified, 2026-10-13.
+Follow-up: exact arithmetic optimization passes host and local Worker E2E checks. Hosted remeasurement awaits approval for its new disposable token.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -16,6 +17,7 @@ Five fresh joint keys took 12.44 seconds at the median, with an observed range o
 These results exceed the provisional five-second generation target.
 The current shared-core native harness records a 1.87-second median across its five key-generation cases.
 The earlier checkpoints below retain their original artifact measurements.
+The [arithmetic optimization report](ml-dsa-65-optimization-report.md) records the next implementation and its remaining measurement limits.
 
 ## Current implementation evidence — October 13, 2026
 
@@ -482,20 +484,21 @@ Do not budget compression savings for pseudorandom garbled tables.
 
 ### 1 Freeze the contract and research baseline
 
-- [ ] Record the exact FIPS edition, applicable errata, NEAR protocol version, and message encoding.
-- [ ] Pin the deployed Cloudflare artifacts and reconcile their runtime with the source and packaged manifests.
+- [x] Record the exact FIPS edition, applicable errata, NEAR protocol version, and message encoding for the experimental baseline.
+- [x] Pin the deployed experimental Cloudflare artifacts and reconcile their runtime with the source and packaged manifests.
 - [ ] Verify NEAR feature activation and the exact signing input, including context and prehash behavior.
 - [ ] Pin paper revisions, source commits, dependency versions, implementation licenses, and parameter sets for each candidate.
 - [ ] Record proof assumptions, prototype limits, security losses, and required external parties.
 - [ ] Confirm support for canonical existing keys without plaintext key import at either server.
 - [x] Pin an independent ML-DSA-65 implementation as the reference for public test seeds and signature verification.
-- [ ] Specify the exact share format that the first signing prototype consumes from key generation.
-  The experiment contract defines a provisional uniformly masked format. Signing compatibility remains to be demonstrated.
+- [x] Specify the exact share format that the first signing prototype consumes from key generation.
+  The uniformly masked format passes complete host and deployed Worker signing before authorized test recovery.
 - [ ] Specify the admitted key-generation, signing, refresh, recovery, and export operations.
-- [ ] Define each role's inputs, outputs, persistent secrets, permitted disclosures, and abort behavior.
+- [x] Define the experimental roles' inputs, outputs, private material, permitted disclosures, and abort behavior.
+  The complete privacy argument and production persistence contract remain open.
 - [ ] Specify seed creation and retention, key identity checks, and recovery after permanent participant loss.
 - [ ] Choose the intended signing entrypoints and role-private persistence owners.
-- [ ] Set performance targets before selecting a protocol.
+- [x] Record provisional performance targets before selecting a protocol.
 - [ ] Fix the primary signing workload, deployment constraints, and permitted preprocessing storage before ranking candidates.
 
 Output: a concise contract and candidate matrix linked from this plan.
@@ -525,10 +528,11 @@ See [Service Bindings](https://developers.cloudflare.com/workers/runtime-apis/bi
 ### 3 Benchmark the secret computation
 
 - [x] Use the existing half-gates engine for the first executable measurements.
-- [ ] Run A and B in separate processes before repeating the workload in the selected Cloudflare runtime.
+- [x] Run A and B in separate processes before repeating the workload in the selected Cloudflare runtime.
 - [x] Measure one Keccak permutation, complete seed expansion, and all secret polynomial streams on the native host.
 - [x] Include secret sampling, coefficient selection, share conversion, and private outputs in the host pipeline.
-- [ ] Record generated gate counts, live-wire counts, peak memory, directional bytes, CPU, and latency for each stage.
+- [x] Record generated gate counts, live-wire counts, directional bytes, and native stage latency.
+- [ ] Establish target peak memory and exact per-stage CPU attribution. Current Wasm high-water marks exclude total isolate memory.
 - [x] Verify exact coefficient values and order against the independent reference using public synthetic fixtures.
 - [x] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
 - [ ] Compare GMW on the same workload, including two-party preprocessing generation and all share conversions.
@@ -547,7 +551,8 @@ Gate counts alone do not establish CPU cost or elapsed time.
 - [ ] Include the real transport and role-private persistence path in complete operation timings.
 - [x] Compare regenerated public keys across independent standard implementations.
 - [x] Reconstruct the test seed only at the authorized export recipient and compare the complete ordinary expanded keypair.
-- [ ] Verify that each participant retains only its own seed and signing material.
+- [x] Verify role-local seed and signing material through the shared-core host and Worker harnesses.
+  This check supplies no shared-host operating-system isolation claim.
 - [ ] Record separate timings for first use and repeated use of public matrix data.
 
 Output: complete key-generation measurements, public synthetic vectors, and exact share-format descriptions.
@@ -557,16 +562,18 @@ Retain the current half-gates implementation as the comparison baseline until se
 ### 5 Produce and compare complete signatures
 
 - [ ] Specify how each candidate consumes the exact outputs from key generation.
-- [ ] Produce the first valid signature from generated shares before expanding SDK integration.
-- [ ] Measure general 2PC signing with local linear operations.
+- [x] Produce the first valid signature from generated shares before expanding SDK integration.
+- [x] Measure general 2PC signing with local linear operations on the host and deployed Workers.
 - [ ] Evaluate Mithril and Trilithium only after their share and preprocessing requirements are explicit.
-- [ ] Keep nonce material, rejected candidates, and secret acceptance checks inside the required privacy boundary.
-- [ ] Account for fresh randomness, retry counts, candidate selection, conversions, and final encoding.
+- [x] Keep rejected masks, commitments, responses, hints, and individual checks private in the baseline.
+  The baseline opens challenge hashes and one aggregate acceptance bit. Its composition argument still requires review.
+- [x] Account for fresh randomness, retry counts, candidate selection, conversions, and final encoding in complete baseline runs.
 - [ ] Measure empty and prepared preprocessing pools separately.
 - [ ] Measure successful signatures across all attempts, including abandoned work.
 - [ ] Identify each finalist's largest latency costs and optimize those costs before the final comparison.
 - [ ] Measure sustained signing with pool replenishment active and compare results after pool exhaustion.
-- [ ] Verify signatures with an independent standard implementation and the pinned NEAR verifier.
+- [x] Verify threshold signatures with RustCrypto and OpenSSL, including altered-input rejection checks.
+- [ ] Verify threshold signatures against the pinned NEAR verifier and a deployed NEAR transaction.
 - [ ] Evaluate repeated key sharing and refresh for any candidate with short shares.
 - [ ] Document the complete passive privacy argument, including permitted intermediate disclosures.
 
@@ -673,11 +680,16 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-1. Adapt the validated private kernels to the existing resumable Worker transport. Measure CPU and memory with genuine OT.
-2. Build on the validated signing-mask kernel. Compile private commitment hashing, aggregate checks, and hint encoding next.
-3. Review the exact challenge/count disclosure and compare it with the fully private baseline.
-4. Compare GMW and smaller garbling with complete preprocessing and conversion costs.
-5. Produce a standard threshold signature, verify it independently and against NEAR, then publish the complete feasibility report.
+1. Reduce exact arithmetic-circuit costs. Use one-AND carry and borrow identities, then repeat canonical key generation, signing, and recovery checks.
+2. Measure the revised complete host and Worker flows. Preserve the earlier reports and compare gate counts, bytes, retries, and elapsed time.
+3. Compare GMW, ABY2.0, and smaller garbling with complete preprocessing and conversion costs. Prioritize the largest measured sampling and signing costs.
+4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production integration.
+5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
+6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
+7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
+8. Rank complete candidates under one workload. Select and package the fastest measured design, then consume exact releases in the private application.
 
-Use that report to prioritize protocol optimization and the remaining lifecycle work.
+The complete deployed baseline now passes. The first speed experiment changes only Boolean arithmetic identities.
+It preserves the canonical seed, share format, protocol sequence, and permitted disclosures.
+It provides no new privacy assumption and makes no speed claim before measurement.
 Keep implementation and benchmark reports linked from this document as the investigation proceeds.
