@@ -4,6 +4,7 @@ mod add256;
 mod clamp;
 mod families;
 mod ir;
+mod keccak;
 mod lane_materialization;
 mod phase4_families;
 mod scalar;
@@ -13,6 +14,10 @@ mod sha512;
 use ir::CanonicalBooleanCircuitV1;
 
 pub use ir::BooleanCircuitMetricsV1;
+pub use keccak::{
+    compile_ml_dsa_hash_circuit_v1, MlDsaHashCircuitV1, MlDsaHashFixtureErrorV1,
+    MlDsaHashWorkloadV1,
+};
 pub use schedule::ProvisionalScheduleMetricsV1;
 
 pub use families::{
