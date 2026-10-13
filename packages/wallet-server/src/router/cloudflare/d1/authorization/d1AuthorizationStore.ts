@@ -3409,19 +3409,35 @@ function directV2SessionIdentityAvailabilitySql(): string {
       )
       AND NOT EXISTS (
         SELECT 1
-          FROM wallet_session_authorizations_v2 AS existing
-         WHERE existing.namespace = ?
-           AND existing.org_id = ?
-           AND existing.project_id = ?
-           AND existing.env_id = ?
-           AND existing.tenant_id = ?
-           AND (
-             existing.authorization_id = ?
-             OR existing.mint_id = ?
-             OR existing.wallet_session_id = ?
-             OR existing.quota_id = ?
-           )
+          FROM (
+            SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id, ? AS tenant_id,
+                   ? AS authorization_id, ? AS mint_id, ? AS wallet_session_id, ? AS quota_id
+          ) AS candidate
+         WHERE ${existingSessionWithCandidateSql('authorization_id')}
+            OR ${existingSessionWithCandidateSql('mint_id')}
+            OR ${existingSessionWithCandidateSql('wallet_session_id')}
+            OR ${existingSessionWithCandidateSql('quota_id')}
       )`;
+}
+
+/**
+ * Each of the four session identifiers has its own unique key. One lookup for
+ * each key reads one row. A single lookup with the four identifiers in an OR
+ * reads every session of the tenant.
+ */
+function existingSessionWithCandidateSql(
+  identifier: 'authorization_id' | 'mint_id' | 'wallet_session_id' | 'quota_id',
+): string {
+  return `EXISTS (
+              SELECT 1
+                FROM wallet_session_authorizations_v2 AS existing
+               WHERE existing.namespace = candidate.namespace
+                 AND existing.org_id = candidate.org_id
+                 AND existing.project_id = candidate.project_id
+                 AND existing.env_id = candidate.env_id
+                 AND existing.tenant_id = candidate.tenant_id
+                 AND existing.${identifier} = candidate.${identifier}
+            )`;
 }
 
 function directV2SessionIdentityAvailabilityBindings(
