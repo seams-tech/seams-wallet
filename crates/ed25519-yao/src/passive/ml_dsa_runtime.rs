@@ -305,9 +305,9 @@ pub struct RuntimeMetrics {
     /// Actual wire arena capacity times its element size.
     pub label_arena_allocation_bytes: usize,
     /// Largest table message, including its eight-byte envelope.
-    pub table_buffer_allocation_bytes: usize,
+    pub maximum_table_message_bytes: usize,
     /// Largest control message length, excluding retained OT state.
-    pub largest_control_buffer_bytes: usize,
+    pub maximum_control_message_bytes: usize,
     /// Public schedule byte length.
     pub schedule_bytes: usize,
     /// Digest of the fresh header that binds this execution.
@@ -626,8 +626,8 @@ impl<'a> Common<'a> {
                 output_translation_bytes: schedule.outputs.div_ceil(8),
                 public_return_bytes: schedule.workload.public_bytes(),
                 label_arena_allocation_bytes: 0,
-                table_buffer_allocation_bytes: 0,
-                largest_control_buffer_bytes: 0,
+                maximum_table_message_bytes: 0,
+                maximum_control_message_bytes: 0,
                 schedule_bytes: schedule.bytes.len(),
                 execution_binding_sha256: binding,
             },
@@ -649,11 +649,11 @@ impl<'a> Common<'a> {
             self.metrics.ot_wire_bytes += bytes;
         }
         if kind == MessageKind::TableFrame {
-            self.metrics.table_buffer_allocation_bytes =
-                self.metrics.table_buffer_allocation_bytes.max(bytes);
+            self.metrics.maximum_table_message_bytes =
+                self.metrics.maximum_table_message_bytes.max(bytes);
         } else {
-            self.metrics.largest_control_buffer_bytes =
-                self.metrics.largest_control_buffer_bytes.max(bytes);
+            self.metrics.maximum_control_message_bytes =
+                self.metrics.maximum_control_message_bytes.max(bytes);
         }
     }
 }

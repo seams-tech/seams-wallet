@@ -1,0 +1,1305 @@
+{
+  "schema": "seams.ml-dsa-cloudflare-kernel-cpu.v1",
+  "created_at": "2026-10-13T07:00:38.686508+00:00",
+  "scope": "Read-only Cloudflare Workers aggregate analytics for four disposable private kernel probes with genuine OT. No complete threshold signer is measured.",
+  "limits": [
+    "One-second buckets can combine invocations. Bucket quantiles cannot be combined into campaign percentiles.",
+    "The campaign separates operations by 1.2 seconds. An operation can still span several wall-clock buckets.",
+    "The dataset does not expose run IDs. Timestamp association is an inference.",
+    "Worker B uses an asynchronous WebSocket. CPU attribution to its initial invocation is not independently established.",
+    "Reported CPU is an analytics observation, not an invoice or total per-signature cost."
+  ],
+  "units": "microseconds for all cpuTime and wallTime fields",
+  "units_evidence": [
+    {
+      "data": {
+        "__type": {
+          "description": "",
+          "fields": [
+            {
+              "description": "CPU time 25th percentile - microseconds",
+              "name": "cpuTimeP25"
+            },
+            {
+              "description": "CPU time 50th percentile - microseconds",
+              "name": "cpuTimeP50"
+            },
+            {
+              "description": "CPU time 75th percentile - microseconds",
+              "name": "cpuTimeP75"
+            },
+            {
+              "description": "CPU time 90th percentile - microseconds",
+              "name": "cpuTimeP90"
+            },
+            {
+              "description": "CPU time 95th percentile - microseconds",
+              "name": "cpuTimeP95"
+            },
+            {
+              "description": "CPU time 99th percentile - microseconds",
+              "name": "cpuTimeP99"
+            },
+            {
+              "description": "CPU time 99.9th percentile - microseconds",
+              "name": "cpuTimeP999"
+            },
+            {
+              "description": "Duration 25th percentile - GB*s",
+              "name": "durationP25"
+            },
+            {
+              "description": "Duration 50th percentile - GB*s",
+              "name": "durationP50"
+            },
+            {
+              "description": "Duration 75th percentile - GB*s",
+              "name": "durationP75"
+            },
+            {
+              "description": "Duration 90th percentile - GB*s",
+              "name": "durationP90"
+            },
+            {
+              "description": "Duration 95th percentile - GB*s",
+              "name": "durationP95"
+            },
+            {
+              "description": "Duration 99th percentile - GB*s",
+              "name": "durationP99"
+            },
+            {
+              "description": "Duration 99.9th percentile - GB*s",
+              "name": "durationP999"
+            },
+            {
+              "description": "V8 isolate memory usage 25th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP25"
+            },
+            {
+              "description": "V8 isolate memory usage 50th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP50"
+            },
+            {
+              "description": "V8 isolate memory usage 75th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP75"
+            },
+            {
+              "description": "V8 isolate memory usage 90th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP90"
+            },
+            {
+              "description": "V8 isolate memory usage 95th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP95"
+            },
+            {
+              "description": "V8 isolate memory usage 99th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP99"
+            },
+            {
+              "description": "V8 isolate memory usage 99.9th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP999"
+            },
+            {
+              "description": "Request duration 25th percentile - microseconds",
+              "name": "requestDurationP25"
+            },
+            {
+              "description": "Request duration 50th percentile - microseconds",
+              "name": "requestDurationP50"
+            },
+            {
+              "description": "Request duration 75th percentile - microseconds",
+              "name": "requestDurationP75"
+            },
+            {
+              "description": "Request duration 90th percentile - microseconds",
+              "name": "requestDurationP90"
+            },
+            {
+              "description": "Request duration 95th percentile - microseconds",
+              "name": "requestDurationP95"
+            },
+            {
+              "description": "Request duration 99th percentile - microseconds",
+              "name": "requestDurationP99"
+            },
+            {
+              "description": "Request duration 99.9th percentile - microseconds",
+              "name": "requestDurationP999"
+            },
+            {
+              "description": "Response body size 25th percentile - bytes",
+              "name": "responseBodySizeP25"
+            },
+            {
+              "description": "Response body size 50th percentile - bytes",
+              "name": "responseBodySizeP50"
+            },
+            {
+              "description": "Response body size 75th percentile - bytes",
+              "name": "responseBodySizeP75"
+            },
+            {
+              "description": "Response body size 90th percentile - bytes",
+              "name": "responseBodySizeP90"
+            },
+            {
+              "description": "Response body size 95th percentile - bytes",
+              "name": "responseBodySizeP95"
+            },
+            {
+              "description": "Response body size 99th percentile - bytes",
+              "name": "responseBodySizeP99"
+            },
+            {
+              "description": "Response body size 99.9th percentile - bytes",
+              "name": "responseBodySizeP999"
+            },
+            {
+              "description": "Wall time 25th percentile - microseconds",
+              "name": "wallTimeP25"
+            },
+            {
+              "description": "Wall time 50th percentile - microseconds",
+              "name": "wallTimeP50"
+            },
+            {
+              "description": "Wall time 75th percentile - microseconds",
+              "name": "wallTimeP75"
+            },
+            {
+              "description": "Wall time 90th percentile - microseconds",
+              "name": "wallTimeP90"
+            },
+            {
+              "description": "Wall time 95th percentile - microseconds",
+              "name": "wallTimeP95"
+            },
+            {
+              "description": "Wall time 99th percentile - microseconds",
+              "name": "wallTimeP99"
+            },
+            {
+              "description": "Wall time 99.9th percentile - microseconds",
+              "name": "wallTimeP999"
+            },
+            {
+              "description": "WebAssembly linear memory usage 25th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP25"
+            },
+            {
+              "description": "WebAssembly linear memory usage 50th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP50"
+            },
+            {
+              "description": "WebAssembly linear memory usage 75th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP75"
+            },
+            {
+              "description": "WebAssembly linear memory usage 90th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP90"
+            },
+            {
+              "description": "WebAssembly linear memory usage 95th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP95"
+            },
+            {
+              "description": "WebAssembly linear memory usage 99th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP99"
+            },
+            {
+              "description": "WebAssembly linear memory usage 99.9th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP999"
+            }
+          ],
+          "name": "AccountWorkersInvocationsAdaptiveQuantiles"
+        }
+      },
+      "errors": null
+    }
+  ],
+  "query": "query GetWorkersAnalytics($accountTag: string, $datetimeStart: string, $datetimeEnd: string, $scriptName: string) {\n viewer { accounts(filter: {accountTag: $accountTag}) {\n  workersInvocationsAdaptive(limit: 1000, filter: {scriptName: $scriptName, datetime_geq: $datetimeStart, datetime_leq: $datetimeEnd}) {\n   sum { subrequests requests errors }\n   quantiles { cpuTimeP50 cpuTimeP99 wallTimeP50 wallTimeP99 }\n   dimensions { datetime scriptName status }\n  }\n } }\n}",
+  "deployed_worker_versions": {
+    "ml-dsa-kernel-20261013-a": "861034bd-8324-478c-9708-f2777c5819a1",
+    "ml-dsa-kernel-20261013-b": "975431e0-4843-4536-98ef-068beb96d6b8"
+  },
+  "operations": [
+    {
+      "kernel": "seed",
+      "warmup": true,
+      "started_at": "2026-10-13T06:58:49.556Z",
+      "finished_at": "2026-10-13T06:58:50.303Z",
+      "run_id": "852aecb287731a45506734d617c468c1"
+    },
+    {
+      "kernel": "seed",
+      "warmup": false,
+      "started_at": "2026-10-13T06:58:51.503Z",
+      "finished_at": "2026-10-13T06:58:51.774Z",
+      "run_id": "eb508e0ca04cbe08f4f37381fc0855aa"
+    },
+    {
+      "kernel": "seed",
+      "warmup": false,
+      "started_at": "2026-10-13T06:58:52.973Z",
+      "finished_at": "2026-10-13T06:58:53.231Z",
+      "run_id": "df25022ade263962a955f72cda400527"
+    },
+    {
+      "kernel": "seed",
+      "warmup": false,
+      "started_at": "2026-10-13T06:58:54.434Z",
+      "finished_at": "2026-10-13T06:58:54.708Z",
+      "run_id": "15ce7c183b29c9c120d5e45a58805928"
+    },
+    {
+      "kernel": "seed",
+      "warmup": false,
+      "started_at": "2026-10-13T06:58:55.909Z",
+      "finished_at": "2026-10-13T06:58:56.174Z",
+      "run_id": "f7d39b30876044f07cb57a39508117b7"
+    },
+    {
+      "kernel": "seed",
+      "warmup": false,
+      "started_at": "2026-10-13T06:58:57.374Z",
+      "finished_at": "2026-10-13T06:58:57.613Z",
+      "run_id": "896b4424ebf362b47dd60db8e56c503e"
+    },
+    {
+      "kernel": "sampling-0",
+      "warmup": true,
+      "started_at": "2026-10-13T06:58:58.814Z",
+      "finished_at": "2026-10-13T06:58:59.954Z",
+      "run_id": "1b4cc658c6a56a559a7388623e2d60c7"
+    },
+    {
+      "kernel": "sampling-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:01.155Z",
+      "finished_at": "2026-10-13T06:59:02.298Z",
+      "run_id": "a44db41215eb3ece72c0fb2e84ffe1a1"
+    },
+    {
+      "kernel": "sampling-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:03.499Z",
+      "finished_at": "2026-10-13T06:59:04.604Z",
+      "run_id": "abfaad338d80bb102714a4eadd774c68"
+    },
+    {
+      "kernel": "sampling-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:05.806Z",
+      "finished_at": "2026-10-13T06:59:06.910Z",
+      "run_id": "5107ed51b5ff52f04d2635c53715278c"
+    },
+    {
+      "kernel": "sampling-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:08.111Z",
+      "finished_at": "2026-10-13T06:59:09.295Z",
+      "run_id": "b894b84d1000b6e6aa9258df22d3341a"
+    },
+    {
+      "kernel": "sampling-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:10.496Z",
+      "finished_at": "2026-10-13T06:59:11.619Z",
+      "run_id": "406c9968fabaa40861c728c70d4b994e"
+    },
+    {
+      "kernel": "rounding",
+      "warmup": true,
+      "started_at": "2026-10-13T06:59:12.819Z",
+      "finished_at": "2026-10-13T06:59:13.182Z",
+      "run_id": "9ccaa3e8abb479d99c76215fb9c1ee1e"
+    },
+    {
+      "kernel": "rounding",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:14.383Z",
+      "finished_at": "2026-10-13T06:59:14.721Z",
+      "run_id": "1ad48235168c6afc203618ccdbb209c1"
+    },
+    {
+      "kernel": "rounding",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:15.922Z",
+      "finished_at": "2026-10-13T06:59:16.255Z",
+      "run_id": "49e4ecfeb2cb2616fa848fd3cf7699c4"
+    },
+    {
+      "kernel": "rounding",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:17.455Z",
+      "finished_at": "2026-10-13T06:59:17.897Z",
+      "run_id": "f96b2bfa4e0dce571ab1f825c51927da"
+    },
+    {
+      "kernel": "rounding",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:19.099Z",
+      "finished_at": "2026-10-13T06:59:19.450Z",
+      "run_id": "142bbc55a1756119a46f929fe097c5bb"
+    },
+    {
+      "kernel": "rounding",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:20.651Z",
+      "finished_at": "2026-10-13T06:59:21.341Z",
+      "run_id": "48b6fb5816bb7ec816277db493b52f48"
+    },
+    {
+      "kernel": "mask-0",
+      "warmup": true,
+      "started_at": "2026-10-13T06:59:22.543Z",
+      "finished_at": "2026-10-13T06:59:23.963Z",
+      "run_id": "7a7834bdc65d21dab87a13e9a7337996"
+    },
+    {
+      "kernel": "mask-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:25.165Z",
+      "finished_at": "2026-10-13T06:59:26.256Z",
+      "run_id": "4651426e2c361573dd90edd7dbcceeef"
+    },
+    {
+      "kernel": "mask-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:27.457Z",
+      "finished_at": "2026-10-13T06:59:28.307Z",
+      "run_id": "e4e0feab8479a99c023c1b16e2aabf01"
+    },
+    {
+      "kernel": "mask-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:29.509Z",
+      "finished_at": "2026-10-13T06:59:30.385Z",
+      "run_id": "2babc962c3892d2299a80be5a91095b1"
+    },
+    {
+      "kernel": "mask-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:31.586Z",
+      "finished_at": "2026-10-13T06:59:32.679Z",
+      "run_id": "ec51e5ef6899600adfd700d16213223b"
+    },
+    {
+      "kernel": "mask-0",
+      "warmup": false,
+      "started_at": "2026-10-13T06:59:33.880Z",
+      "finished_at": "2026-10-13T06:59:34.787Z",
+      "run_id": "ebe004e358e71e7b1f6279ea634b5e45"
+    }
+  ],
+  "results": [
+    {
+      "role": "a",
+      "variables_without_account": {
+        "datetimeStart": "2026-10-13T06:58:44.556000+00:00",
+        "datetimeEnd": "2026-10-13T06:59:39.787000+00:00",
+        "scriptName": "ml-dsa-kernel-20261013-a"
+      },
+      "response": {
+        "data": {
+          "viewer": {
+            "accounts": [
+              {
+                "workersInvocationsAdaptive": [
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:31Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 411444,
+                      "cpuTimeP99": 411444,
+                      "wallTimeP50": 980366,
+                      "wallTimeP99": 980366
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:15Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 146255,
+                      "cpuTimeP99": 146255,
+                      "wallTimeP50": 314794,
+                      "wallTimeP99": 314794
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:47Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 25340,
+                      "cpuTimeP99": 25340,
+                      "wallTimeP50": 26453,
+                      "wallTimeP99": 26453
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:57Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 90111,
+                      "cpuTimeP99": 90111,
+                      "wallTimeP50": 219003,
+                      "wallTimeP99": 219003
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:58Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 497199,
+                      "cpuTimeP99": 497199,
+                      "wallTimeP50": 1116434,
+                      "wallTimeP99": 1116434
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:52Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 91400,
+                      "cpuTimeP99": 91400,
+                      "wallTimeP50": 235790,
+                      "wallTimeP99": 235790
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:20Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 143655,
+                      "cpuTimeP99": 143655,
+                      "wallTimeP50": 321826,
+                      "wallTimeP99": 321826
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:33Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 400496,
+                      "cpuTimeP99": 400496,
+                      "wallTimeP50": 850234,
+                      "wallTimeP99": 850234
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:08Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 540957,
+                      "cpuTimeP99": 540957,
+                      "wallTimeP50": 1125162,
+                      "wallTimeP99": 1125162
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:49Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 179739,
+                      "cpuTimeP99": 179739,
+                      "wallTimeP50": 727552,
+                      "wallTimeP99": 727552
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:55Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 100459,
+                      "cpuTimeP99": 100459,
+                      "wallTimeP50": 237281,
+                      "wallTimeP99": 237281
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:03Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 491895,
+                      "cpuTimeP99": 491895,
+                      "wallTimeP50": 1088760,
+                      "wallTimeP99": 1088760
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:10Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 508096,
+                      "cpuTimeP99": 508096,
+                      "wallTimeP50": 1103215,
+                      "wallTimeP99": 1103215
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:17Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 180153,
+                      "cpuTimeP99": 180153,
+                      "wallTimeP50": 358903,
+                      "wallTimeP99": 358903
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:19Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 138429,
+                      "cpuTimeP99": 138429,
+                      "wallTimeP50": 334529,
+                      "wallTimeP99": 334529
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:27Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 384839,
+                      "cpuTimeP99": 384839,
+                      "wallTimeP50": 831520,
+                      "wallTimeP99": 831520
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:25Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 431651,
+                      "cpuTimeP99": 431651,
+                      "wallTimeP50": 903640,
+                      "wallTimeP99": 903640
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:14Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 134367,
+                      "cpuTimeP99": 134367,
+                      "wallTimeP50": 321755,
+                      "wallTimeP99": 321755
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:22Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 386868,
+                      "cpuTimeP99": 386868,
+                      "wallTimeP50": 838359,
+                      "wallTimeP99": 838359
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:05Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 522780,
+                      "cpuTimeP99": 522780,
+                      "wallTimeP50": 1086208,
+                      "wallTimeP99": 1086208
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:29Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 386304,
+                      "cpuTimeP99": 386304,
+                      "wallTimeP50": 839847,
+                      "wallTimeP99": 839847
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:12Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 151094,
+                      "cpuTimeP99": 151094,
+                      "wallTimeP50": 341311,
+                      "wallTimeP99": 341311
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:51Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 102478,
+                      "cpuTimeP99": 102478,
+                      "wallTimeP50": 248608,
+                      "wallTimeP99": 248608
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:01Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 482733,
+                      "cpuTimeP99": 482733,
+                      "wallTimeP50": 1122610,
+                      "wallTimeP99": 1122610
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:54Z",
+                      "scriptName": "ml-dsa-kernel-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 116094,
+                      "cpuTimeP99": 116094,
+                      "wallTimeP50": 254534,
+                      "wallTimeP99": 254534
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "errors": null
+      }
+    },
+    {
+      "role": "b",
+      "variables_without_account": {
+        "datetimeStart": "2026-10-13T06:58:44.556000+00:00",
+        "datetimeEnd": "2026-10-13T06:59:39.787000+00:00",
+        "scriptName": "ml-dsa-kernel-20261013-b"
+      },
+      "response": {
+        "data": {
+          "viewer": {
+            "accounts": [
+              {
+                "workersInvocationsAdaptive": [
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:17Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 148606,
+                      "cpuTimeP99": 148606,
+                      "wallTimeP50": 347072,
+                      "wallTimeP99": 347072
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:12Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 161793,
+                      "cpuTimeP99": 161793,
+                      "wallTimeP50": 332328,
+                      "wallTimeP99": 332328
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:19Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 167091,
+                      "cpuTimeP99": 167091,
+                      "wallTimeP50": 322501,
+                      "wallTimeP99": 322501
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:20Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 154486,
+                      "cpuTimeP99": 154486,
+                      "wallTimeP50": 312701,
+                      "wallTimeP99": 312701
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:27Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 372897,
+                      "cpuTimeP99": 372897,
+                      "wallTimeP50": 785554,
+                      "wallTimeP99": 785554
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:57Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 112454,
+                      "cpuTimeP99": 112454,
+                      "wallTimeP50": 209005,
+                      "wallTimeP99": 209005
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:54Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 111797,
+                      "cpuTimeP99": 111797,
+                      "wallTimeP50": 241524,
+                      "wallTimeP99": 241524
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:22Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 362399,
+                      "cpuTimeP99": 362399,
+                      "wallTimeP50": 792018,
+                      "wallTimeP99": 792018
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:34Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 372815,
+                      "cpuTimeP99": 372815,
+                      "wallTimeP50": 786641,
+                      "wallTimeP99": 786641
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:31Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 386429,
+                      "cpuTimeP99": 386429,
+                      "wallTimeP50": 936268,
+                      "wallTimeP99": 936268
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:15Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 144151,
+                      "cpuTimeP99": 144151,
+                      "wallTimeP50": 304585,
+                      "wallTimeP99": 304585
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:53Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 112623,
+                      "cpuTimeP99": 112623,
+                      "wallTimeP50": 221602,
+                      "wallTimeP99": 221602
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:55Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 113172,
+                      "cpuTimeP99": 113172,
+                      "wallTimeP50": 224754,
+                      "wallTimeP99": 224754
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:14Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 161710,
+                      "cpuTimeP99": 161710,
+                      "wallTimeP50": 311920,
+                      "wallTimeP99": 311920
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:01Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 496534,
+                      "cpuTimeP99": 496534,
+                      "wallTimeP50": 1068964,
+                      "wallTimeP99": 1068964
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:25Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 359090,
+                      "cpuTimeP99": 359090,
+                      "wallTimeP50": 854404,
+                      "wallTimeP99": 854404
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:49Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 348517,
+                      "cpuTimeP99": 348517,
+                      "wallTimeP50": 471758,
+                      "wallTimeP99": 471758
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:08Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 476430,
+                      "cpuTimeP99": 476430,
+                      "wallTimeP50": 1057203,
+                      "wallTimeP99": 1057203
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:05Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 443355,
+                      "cpuTimeP99": 443355,
+                      "wallTimeP50": 1032732,
+                      "wallTimeP99": 1032732
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:29Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 374290,
+                      "cpuTimeP99": 374290,
+                      "wallTimeP50": 793540,
+                      "wallTimeP99": 793540
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:51Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 119745,
+                      "cpuTimeP99": 119745,
+                      "wallTimeP50": 235450,
+                      "wallTimeP99": 235450
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:59:03Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 489885,
+                      "cpuTimeP99": 489885,
+                      "wallTimeP50": 1037592,
+                      "wallTimeP99": 1037592
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T06:58:58Z",
+                      "scriptName": "ml-dsa-kernel-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 496959,
+                      "cpuTimeP99": 496959,
+                      "wallTimeP50": 1052176,
+                      "wallTimeP99": 1052176
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "errors": null
+      }
+    }
+  ]
+}

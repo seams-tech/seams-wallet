@@ -16,7 +16,7 @@ use std::{
     io::{Read, Write},
     time::Instant,
 };
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 /// Failure from the core runtime or the host transport.
 #[derive(Debug)]
@@ -94,10 +94,10 @@ pub struct PrivateRoleMetrics {
     pub public_return_bytes: usize,
     /// Actual reusable wire arena capacity times its element size.
     pub label_arena_allocation_bytes: usize,
-    /// Largest table message buffer, including its eight-byte envelope.
-    pub table_buffer_allocation_bytes: usize,
-    /// Largest encoded control-flight or direct-label allocation.
-    pub largest_control_buffer_bytes: usize,
+    /// Maximum raw table-message length, including its eight-byte envelope.
+    pub maximum_table_message_bytes: usize,
+    /// Maximum exact control-message length.
+    pub maximum_control_message_bytes: usize,
     /// Public schedule bytes held outside the arena.
     pub schedule_bytes: usize,
     /// Wall duration before the first gate transition or table request.
@@ -188,8 +188,10 @@ impl InputBuffers {
         } else {
             &mut self.control
         };
+        buffer.zeroize();
         if buffer.capacity() < length {
-            buffer.reserve_exact(length.saturating_sub(buffer.len()));
+            let additional = length.saturating_sub(buffer.len());
+            buffer.reserve_exact(additional);
         }
         buffer.resize(length, 0);
         reader.read_exact(buffer)?;
@@ -282,8 +284,8 @@ fn host_metrics(metrics: RuntimeMetrics, timings: Timings, started: Instant) -> 
         output_translation_bytes: metrics.output_translation_bytes,
         public_return_bytes: metrics.public_return_bytes,
         label_arena_allocation_bytes: metrics.label_arena_allocation_bytes,
-        table_buffer_allocation_bytes: metrics.table_buffer_allocation_bytes,
-        largest_control_buffer_bytes: metrics.largest_control_buffer_bytes,
+        maximum_table_message_bytes: metrics.maximum_table_message_bytes,
+        maximum_control_message_bytes: metrics.maximum_control_message_bytes,
         schedule_bytes: metrics.schedule_bytes,
         setup_wall_ns,
         gate_compute_wall_ns: timings.gate_compute_ns,

@@ -213,6 +213,31 @@ impl CircuitBuilder {
         self.finish_with_schema(outputs, 0x8a, input_schema, output_schema)
     }
 
+    pub(super) fn finish_ml_dsa_private_signing_component(
+        self,
+        outputs: Vec<BuilderBit>,
+        component: u8,
+        input_schema: &[u8],
+        output_schema: &[u8],
+    ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
+        let (inputs, output_count) = match component {
+            0x8b => (2048, 512),
+            0x8c => (12800, 1024),
+            0x8d => (12800, 384),
+            0x8e => (11777, 1),
+            0x8f => (23809, 257),
+            0x90 => (3328, 1),
+            _ => return Err(CircuitBuildError::InputSchemaWireCountMismatch),
+        };
+        if self.input_count != inputs {
+            return Err(CircuitBuildError::InputSchemaWireCountMismatch);
+        }
+        if outputs.len() != output_count {
+            return Err(CircuitBuildError::OutputSchemaWireCountMismatch);
+        }
+        self.finish_with_schema(outputs, component, input_schema, output_schema)
+    }
+
     pub(super) fn finish_ml_dsa_eta4_sampling_component(
         self,
         outputs: Vec<BuilderBit>,

@@ -43,8 +43,14 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         directory,
         "seed",
         seed_circuit.canonical_schedule_encoding(),
-        RoleFixture { input: &garbled_execution::bytes_to_bits(&seed_input_a), output: &expanded[..32] },
-        RoleFixture { input: &garbled_execution::bytes_to_bits(&seed_share), output: &seed_output_b },
+        RoleFixture {
+            input: &garbled_execution::bytes_to_bits(&seed_input_a),
+            output: &expanded[..32],
+        },
+        RoleFixture {
+            input: &garbled_execution::bytes_to_bits(&seed_share),
+            output: &seed_output_b,
+        },
         &mut role_a,
         &mut role_b,
     )?;
@@ -70,8 +76,14 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         directory,
         "sampling-0",
         sampling_circuit.canonical_schedule_encoding(),
-        RoleFixture { input: &sampling_a, output: &[1] },
-        RoleFixture { input: &garbled_execution::bytes_to_bits(&rho_share_b), output: &garbled_execution::pack_bits(&sampling_output_b) },
+        RoleFixture {
+            input: &sampling_a,
+            output: &[1],
+        },
+        RoleFixture {
+            input: &garbled_execution::bytes_to_bits(&rho_share_b),
+            output: &garbled_execution::pack_bits(&sampling_output_b),
+        },
         &mut role_a,
         &mut role_b,
     )?;
@@ -103,8 +115,14 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         directory,
         "rounding",
         rounding_circuit.canonical_schedule_encoding(),
-        RoleFixture { input: &rounding_a, output: &garbled_execution::pack_bits(&rounding_public) },
-        RoleFixture { input: &rounding_b, output: &garbled_execution::pack_bits(&rounding_output_b) },
+        RoleFixture {
+            input: &rounding_a,
+            output: &garbled_execution::pack_bits(&rounding_public),
+        },
+        RoleFixture {
+            input: &rounding_b,
+            output: &garbled_execution::pack_bits(&rounding_output_b),
+        },
         &mut role_a,
         &mut role_b,
     )?;
@@ -125,8 +143,14 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         directory,
         "mask-0",
         mask_circuit.canonical_schedule_encoding(),
-        RoleFixture { input: &mask_a, output: &[] },
-        RoleFixture { input: &garbled_execution::bytes_to_bits(&mask_seed_b), output: &garbled_execution::pack_bits(&mask_output_b) },
+        RoleFixture {
+            input: &mask_a,
+            output: &[],
+        },
+        RoleFixture {
+            input: &garbled_execution::bytes_to_bits(&mask_seed_b),
+            output: &garbled_execution::pack_bits(&mask_output_b),
+        },
         &mut role_a,
         &mut role_b,
     )?;

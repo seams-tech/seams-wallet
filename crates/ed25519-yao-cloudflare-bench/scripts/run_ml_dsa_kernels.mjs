@@ -6,6 +6,7 @@ import { dirname, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { setTimeout as delay } from "node:timers/promises";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WALLET_ROOT = resolve(ROOT, "../..");
@@ -15,9 +16,14 @@ const SOURCES = [
   "src/ml_dsa.rs",
   "src/lib.rs",
   "Cargo.toml",
+  "Cargo.lock",
   "scripts/run_ml_dsa_kernels.mjs",
   "wrangler.ml-dsa.a.jsonc",
   "wrangler.ml-dsa.b.jsonc",
+  "../ed25519-yao/Cargo.toml",
+  "../ed25519-yao/src/lib.rs",
+  "../ed25519-yao/src/passive.rs",
+  "../ed25519-yao/src/passive/runtime.rs",
   "../ed25519-yao/src/passive/ml_dsa_runtime.rs",
   "../ed25519-yao/src/passive/gate_aes.rs",
   "../ed25519-yao/src/passive/ot.rs",
@@ -139,6 +145,8 @@ function assertRole(role, expectedRole, kernel, runId) {
   assert.equal(role.run_id, runId);
   assert.equal(role.public_fixture_only, true);
   assert.equal(role.fixture_output_matches, true);
+  assert(Number.isInteger(role.wasm_linear_memory_highwater_bytes));
+  assert(role.wasm_linear_memory_highwater_bytes > 0);
   assert.match(role.schedule_sha256, /^[a-f0-9]{64}$/);
   assert.equal(role.transport.credit_window_messages, 8);
   assert(role.transport.largest_pending_messages <= 8);
@@ -147,7 +155,7 @@ function assertRole(role, expectedRole, kernel, runId) {
   assert.equal(Object.hasOwn(role, "output_hex"), false);
 }
 
-function assertReport(report, kernel, runId) {
+function assertReport(report, kernel, runId, expectedDigest) {
   assert.equal(report.schema, "seams.ml-dsa-worker-kernel.v1");
   assert.equal(report.ok, true);
   assert.equal(report.public_fixture_only, true);
@@ -155,7 +163,8 @@ function assertReport(report, kernel, runId) {
   assert.equal(report.run_id, runId);
   assertRole(report.roles.a, "a", kernel, runId);
   assertRole(report.roles.b, "b", kernel, runId);
-  assert.equal(report.roles.a.schedule_sha256, report.roles.b.schedule_sha256);
+  assert.equal(report.roles.a.schedule_sha256, expectedDigest);
+  assert.equal(report.roles.b.schedule_sha256, expectedDigest);
   assert.equal(report.roles.a.runtime.execution_binding_sha256, report.roles.b.runtime.execution_binding_sha256);
   assert.equal(report.roles.a.runtime.garbler_to_evaluator_wire_bytes, report.roles.a.transport.sent_runtime_bytes);
   assert.equal(report.roles.a.runtime.evaluator_to_garbler_wire_bytes, report.roles.a.transport.received_runtime_bytes);
@@ -163,9 +172,13 @@ function assertReport(report, kernel, runId) {
   assert.equal(report.roles.b.runtime.evaluator_to_garbler_wire_bytes, report.roles.b.transport.sent_runtime_bytes);
   assert.equal(report.roles.a.transport.sent_runtime_bytes, report.roles.b.transport.received_runtime_bytes);
   assert.equal(report.roles.b.transport.sent_runtime_bytes, report.roles.a.transport.received_runtime_bytes);
+  assert.equal(report.roles.a.transport.sent_ack_bytes, report.roles.b.transport.received_ack_bytes);
+  assert.equal(report.roles.b.transport.sent_ack_bytes, report.roles.a.transport.received_ack_bytes);
+  assert(report.roles.a.transport.received_completion_bytes > 0);
 }
 
-async function oneSample(endpoint, token, kernel, warmup) {
+async function oneSample(endpoint, token, kernel, expectedDigest, warmup) {
+  const startedAt = new Date().toISOString();
   const runId = randomBytes(16).toString("hex");
   const url = new URL("/benchmark", endpoint);
   url.searchParams.set("kernel", kernel);
@@ -179,8 +192,8 @@ async function oneSample(endpoint, token, kernel, warmup) {
   const body = await response.text();
   assert.equal(response.status, 200, `Kernel ${kernel} failed: ${body.slice(0, 3000)}`);
   const report = JSON.parse(body);
-  assertReport(report, kernel, runId);
-  return { warmup, client_response_headers_ms: responseHeadersMs, client_complete_ms: performance.now() - started, report };
+  assertReport(report, kernel, runId, expectedDigest);
+  return { warmup, started_at: startedAt, finished_at: new Date().toISOString(), client_response_headers_ms: responseHeadersMs, client_complete_ms: performance.now() - started, report };
 }
 
 function median(values) {
@@ -197,16 +210,34 @@ function sampleElapsed(sample) {
   return sample.client_complete_ms;
 }
 
-async function exercise(options, endpoint, token) {
+function assertFreshBinding(sample, bindings) {
+  const binding = sample.report.roles.a.runtime.execution_binding_sha256;
+  assert.match(binding, /^[a-f0-9]{64}$/);
+  assert.equal(bindings.has(binding), false, "The runtime reused an execution binding");
+  bindings.add(binding);
+}
+
+async function exercise(options, endpoint, token, identity) {
   const unauthorized = await fetch(new URL("/benchmark?kernel=seed&run_id=00000000000000000000000000000000", endpoint));
   assert.equal(unauthorized.status, 401);
   await unauthorized.arrayBuffer();
   const cases = [];
+  const bindings = new Set();
   for (const kernel of options.kernels) {
-    const warmup = await oneSample(endpoint, token, kernel, true);
+    let expectedDigest = null;
+    for (const schedule of identity.schedules) {
+      if (schedule.path.endsWith(`/${kernel}.bin`)) expectedDigest = schedule.sha256;
+    }
+    assert.equal(typeof expectedDigest, "string", "The local schedule identity is missing");
+    if (!options.local) await delay(1200);
+    const warmup = await oneSample(endpoint, token, kernel, expectedDigest, true);
+    assertFreshBinding(warmup, bindings);
     const measured = [];
     for (let index = 0; index < options.samples; index += 1) {
-      measured.push(await oneSample(endpoint, token, kernel, false));
+      if (!options.local) await delay(1200);
+      const sample = await oneSample(endpoint, token, kernel, expectedDigest, false);
+      assertFreshBinding(sample, bindings);
+      measured.push(sample);
     }
     const elapsed = measured.map(sampleElapsed);
     cases.push({
@@ -217,7 +248,7 @@ async function exercise(options, endpoint, token) {
     });
     process.stdout.write(`${kernel}: ${median(elapsed).toFixed(1)} ms median (${options.samples} samples)\n`);
   }
-  return { unauthorized_request_rejected: true, cases };
+  return { unauthorized_request_rejected: true, unique_execution_bindings: bindings.size, cases };
 }
 
 async function main() {
@@ -229,7 +260,7 @@ async function main() {
   try {
     if (options.local) local = await localRuntime(token);
     const endpoint = local === null ? options.endpoint : local.endpoint;
-    const result = await exercise(options, endpoint, token);
+    const result = await exercise(options, endpoint, token, identity);
     const artifact = {
       schema: "seams.ml-dsa-cloudflare-private-kernels.v1",
       created_at: new Date().toISOString(),

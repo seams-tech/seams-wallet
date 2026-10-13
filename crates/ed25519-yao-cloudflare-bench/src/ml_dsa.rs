@@ -12,14 +12,14 @@ use std::collections::VecDeque;
 use ed25519_yao::ml_dsa_runtime::begin_evaluator;
 #[cfg(feature = "ml-dsa-a")]
 use ed25519_yao::ml_dsa_runtime::begin_garbler;
-use ed25519_yao::ml_dsa_runtime::{RuntimeMetrics, Step, TrustedMlDsaSchedule};
+use ed25519_yao::ml_dsa_runtime::{RuntimeMetrics, Step, TrustedMlDsaSchedule, MAX_MESSAGE_BYTES};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
 use worker::{Env, EventStream, WebSocket, WebsocketEvent};
 use zeroize::Zeroizing;
+use wasm_bindgen::JsCast;
 
 const CREDIT_WINDOW: u32 = 8;
-const MAX_RUNTIME_MESSAGE_BYTES: usize = 188_464;
 const MAX_COMPLETION_BYTES: usize = 16_384;
 const DATA: u8 = 0;
 const ACK: u8 = 1;
@@ -107,7 +107,7 @@ fn hex_digit(byte: u8) -> worker::Result<u8> {
 }
 
 fn decode_hex(encoded: &str) -> worker::Result<Vec<u8>> {
-    if encoded.len() % 2 != 0 {
+    if !encoded.len().is_multiple_of(2) {
         return Err(failure("The generated fixture has an odd hex length."));
     }
     let mut bytes = Vec::with_capacity(encoded.len() / 2);
@@ -154,7 +154,7 @@ fn fixture(kernel: Kernel) -> worker::Result<Fixture> {
     if packed.len() != input_bits.div_ceil(8) {
         return Err(failure("The fixture input byte length is incorrect."));
     }
-    if input_bits % 8 != 0 && packed[packed.len() - 1] >> (input_bits % 8) != 0 {
+    if !input_bits.is_multiple_of(8) && packed[packed.len() - 1] >> (input_bits % 8) != 0 {
         return Err(failure("The fixture input has nonzero padding bits."));
     }
     let mut input = Zeroizing::new(Vec::with_capacity(input_bits));
@@ -191,6 +191,7 @@ struct DeliveryMetrics {
     received_runtime_bytes: usize,
     sent_ack_bytes: usize,
     received_ack_bytes: usize,
+    received_completion_bytes: usize,
     first_send_ms: Option<f64>,
     last_send_ms: Option<f64>,
     first_receive_ms: Option<f64>,
@@ -212,6 +213,9 @@ struct Duplex<'a> {
 
 impl<'a> Duplex<'a> {
     fn new(socket: &'a WebSocket) -> worker::Result<Self> {
+        socket
+            .as_ref()
+            .set_binary_type(worker::web_sys::BinaryType::Arraybuffer);
         let events = socket.events()?;
         socket.accept()?;
         Ok(Self {
@@ -227,7 +231,7 @@ impl<'a> Duplex<'a> {
     }
 
     async fn send(&mut self, bytes: &[u8]) -> worker::Result<()> {
-        if bytes.len() > MAX_RUNTIME_MESSAGE_BYTES {
+        if bytes.len() > MAX_MESSAGE_BYTES {
             return Err(failure("The runtime message exceeds the transport bound."));
         }
         while self.metrics.sent_messages - self.acknowledged >= CREDIT_WINDOW {
@@ -283,7 +287,7 @@ impl<'a> Duplex<'a> {
     }
 
     fn accept_data(&mut self, envelope: &[u8]) -> worker::Result<()> {
-        if envelope.len() < 5 || envelope.len() > MAX_RUNTIME_MESSAGE_BYTES + 5 {
+        if envelope.len() < 5 || envelope.len() > MAX_MESSAGE_BYTES + 5 {
             return Err(failure("The transport data length is invalid."));
         }
         let sequence = u32::from_le_bytes(envelope[1..5].try_into().map_err(runtime_failure)?);
@@ -335,6 +339,7 @@ impl<'a> Duplex<'a> {
         if envelope.len() > MAX_COMPLETION_BYTES || self.completion.is_some() {
             return Err(failure("The peer completion is duplicated or too large."));
         }
+        self.metrics.received_completion_bytes += envelope.len();
         self.completion = Some(serde_json::from_slice(&envelope[1..]).map_err(runtime_failure)?);
         Ok(())
     }
@@ -349,6 +354,7 @@ impl<'a> Duplex<'a> {
         Ok(())
     }
 
+    #[cfg(feature = "ml-dsa-a")]
     async fn peer_completion(&mut self) -> worker::Result<Value> {
         self.flush().await?;
         loop {
@@ -359,6 +365,7 @@ impl<'a> Duplex<'a> {
         }
     }
 
+    #[cfg(feature = "ml-dsa-b")]
     fn send_completion(&self, completion: &Value) -> worker::Result<()> {
         let mut envelope = vec![COMPLETE];
         envelope.extend_from_slice(&serde_json::to_vec(completion).map_err(runtime_failure)?);
@@ -371,14 +378,16 @@ impl<'a> Duplex<'a> {
     fn measurements(&self) -> Value {
         json!({
             "credit_window_messages": CREDIT_WINDOW,
-            "maximum_runtime_message_bytes": MAX_RUNTIME_MESSAGE_BYTES,
+            "maximum_runtime_message_bytes": MAX_MESSAGE_BYTES,
             "sent_messages": self.metrics.sent_messages,
             "received_messages": self.metrics.received_messages,
             "sent_runtime_bytes": self.metrics.sent_runtime_bytes,
             "received_runtime_bytes": self.metrics.received_runtime_bytes,
             "sent_ack_bytes": self.metrics.sent_ack_bytes,
             "received_ack_bytes": self.metrics.received_ack_bytes,
-            "data_envelope_bytes": 5,
+            "sent_data_envelope_bytes": self.metrics.sent_messages * 5,
+            "received_data_envelope_bytes": self.metrics.received_messages * 5,
+            "received_completion_bytes": self.metrics.received_completion_bytes,
             "first_send_ms": self.metrics.first_send_ms,
             "last_send_ms": self.metrics.last_send_ms,
             "first_receive_ms": self.metrics.first_receive_ms,
@@ -443,10 +452,19 @@ fn role_report(
         "schedule_sha256": encode_hex(digest),
         "public_fixture_only": true,
         "fixture_output_matches": matched,
+        "wasm_linear_memory_highwater_bytes": wasm_linear_memory_highwater_bytes(),
+        "linear_memory_scope": "Current isolate-wide Wasm linear memory. Memory can grow across earlier operations. JavaScript buffers and total Worker memory are excluded.",
         "incoming_colo": colo,
         "runtime": metrics_json(metrics),
         "transport": transport.measurements(),
     })
+}
+
+fn wasm_linear_memory_highwater_bytes() -> u32 {
+    let memory = wasm_bindgen::memory()
+        .dyn_into::<worker::js_sys::WebAssembly::Memory>()
+        .expect("wasm_bindgen exposes this module's linear memory");
+    worker::js_sys::Uint8Array::new(&memory.buffer()).byte_length()
 }
 
 fn metrics_json(metrics: RuntimeMetrics) -> Value {
@@ -461,11 +479,11 @@ fn metrics_json(metrics: RuntimeMetrics) -> Value {
         "output_translation_bytes": metrics.output_translation_bytes,
         "public_return_bytes": metrics.public_return_bytes,
         "label_arena_allocation_bytes": metrics.label_arena_allocation_bytes,
-        "table_buffer_allocation_bytes": metrics.table_buffer_allocation_bytes,
-        "largest_control_buffer_bytes": metrics.largest_control_buffer_bytes,
+        "maximum_table_message_bytes": metrics.maximum_table_message_bytes,
+        "maximum_control_message_bytes": metrics.maximum_control_message_bytes,
         "schedule_bytes": metrics.schedule_bytes,
         "execution_binding_sha256": encode_hex(&metrics.execution_binding_sha256),
-        "memory_scope": "Explicit runtime arenas and buffers only. Retained OT matrices, Wasm linear memory, and host WebSocket queues are excluded.",
+        "memory_scope": "Only the label arena is an allocation measurement. Message byte fields are maximum lengths. OT state, Wasm linear memory, and host queues are excluded.",
     })
 }
 
@@ -525,7 +543,7 @@ fn request_parameters(
             "The run ID must contain 32 lowercase hex characters.",
         ));
     }
-    let parsed = worker::Request::from(request.clone());
+    let parsed = worker::Request::from(request.clone().map_err(worker::Error::from)?);
     let colo = parsed.cf().map(incoming_colo);
     Ok((kernel, run_id, colo))
 }
@@ -583,23 +601,16 @@ async fn run_a(
     own_inputs_match(&schedule, &fixture)?;
     let schedule_prepared_ms = clock_ms() - started_ms;
     let socket = connect_b(env, kernel, run_id).await?;
-    let mut transport = Duplex::new(&socket)?;
-    let step = begin_garbler(&schedule, &fixture.input).map_err(runtime_failure)?;
-    let (matched, metrics) = drive(step, &mut transport, &fixture.expected_output).await?;
-    let a = role_report(
-        kernel,
-        &fixture.digest,
-        matched,
-        metrics,
-        &transport,
-        colo,
-        run_id,
-    );
-    let b = transport.peer_completion().await?;
-    socket.close(Some(1000), Some("completed"))?;
-    if b.get("fixture_output_matches") != Some(&Value::Bool(true)) {
-        return Err(failure("The peer fixture output check failed."));
-    }
+    let result = run_a_session(&socket, kernel, run_id, colo, &fixture, &schedule).await;
+    let close_code = if result.is_ok() { 1000 } else { 1011 };
+    let closed = socket.close(Some(close_code), Some("session ended"));
+    let roles = match result {
+        Ok(roles) => {
+            closed?;
+            roles
+        }
+        Err(error) => return Err(error),
+    };
     worker::console_log!(
         "{}",
         json!({"event": "ml-dsa-kernel-complete", "role": ROLE, "run_id": run_id, "kernel": kernel.name()})
@@ -614,8 +625,36 @@ async fn run_a(
         "worker_observed_total_ms": clock_ms() - started_ms,
         "placement": "Incoming colo identifies the request entry point. It does not prove equal physical placement of both Workers.",
         "scope": "One private kernel, genuine OT, disposable public fixtures. This is not a threshold signing protocol.",
-        "roles": { "a": a, "b": b },
+        "roles": roles,
     }))
+}
+
+#[cfg(feature = "ml-dsa-a")]
+async fn run_a_session(
+    socket: &WebSocket,
+    kernel: Kernel,
+    run_id: &str,
+    colo: Option<String>,
+    fixture: &Fixture,
+    schedule: &TrustedMlDsaSchedule<'_>,
+) -> worker::Result<Value> {
+    let mut transport = Duplex::new(socket)?;
+    let step = begin_garbler(schedule, &fixture.input).map_err(runtime_failure)?;
+    let (matched, metrics) = drive(step, &mut transport, &fixture.expected_output).await?;
+    let b = transport.peer_completion().await?;
+    if b.get("fixture_output_matches") != Some(&Value::Bool(true)) {
+        return Err(failure("The peer fixture output check failed."));
+    }
+    let a = role_report(
+        kernel,
+        &fixture.digest,
+        matched,
+        metrics,
+        &transport,
+        colo,
+        run_id,
+    );
+    Ok(json!({ "a": a, "b": b }))
 }
 
 #[cfg(feature = "ml-dsa-b")]
@@ -643,6 +682,7 @@ async fn run_b(
         &run_id,
     );
     transport.send_completion(&report)?;
+    socket.close(Some(1000), Some("kernel complete"))?;
     worker::console_log!(
         "{}",
         json!({"event": "ml-dsa-kernel-complete", "role": ROLE, "run_id": run_id, "kernel": kernel.name()})

@@ -10,6 +10,7 @@ mod ml_dsa_arithmetic;
 mod ml_dsa_keygen;
 mod ml_dsa_rounding;
 mod ml_dsa_sampling;
+mod ml_dsa_signing;
 mod ml_dsa_signing_mask;
 mod phase4_families;
 mod scalar;
@@ -35,6 +36,9 @@ pub use ml_dsa_rounding::{
 pub use ml_dsa_sampling::{
     compile_ml_dsa_eta4_sampling_circuit_v1, MlDsaEta4SamplingCircuitV1,
     MlDsaEta4SamplingFixtureErrorV1, MlDsaEta4SamplingFixtureOutputV1,
+};
+pub use ml_dsa_signing::{
+    compile_ml_dsa_private_signing_circuit_v1, MlDsaPrivateSigningCircuitV1, MlDsaSigningWorkloadV1,
 };
 pub use ml_dsa_signing_mask::{
     compile_ml_dsa_private_signing_mask_circuit_v1, MlDsaPrivateSigningMaskCircuitV1,

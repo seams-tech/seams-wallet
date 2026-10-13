@@ -251,13 +251,17 @@ pub(super) fn shake256(
     output_bytes: usize,
 ) -> Vec<BuilderBit> {
     assert!(message.len().is_multiple_of(8));
-    assert!(message.len() / 8 < SHAKE256_RATE_BYTES);
-    let mut padded = message.to_vec();
+    let mut state = [[ZERO_BIT; 64]; 25];
+    let mut full_blocks = message.chunks_exact(SHAKE256_RATE_BYTES * 8);
+    for block in &mut full_blocks {
+        absorb_bits(builder, &mut state, block);
+        keccak_f1600(builder, &mut state);
+    }
+    let mut padded = full_blocks.remainder().to_vec();
     append_constant_byte(&mut padded, 0x1f);
     padded.resize(SHAKE256_RATE_BYTES * 8, ZERO_BIT);
     padded[SHAKE256_RATE_BYTES * 8 - 1] = BuilderBit::Constant(true);
-    let mut state = [[ZERO_BIT; 64]; 25];
-    install_bits(&mut state, &padded);
+    absorb_bits(builder, &mut state, &padded);
     let mut outputs = Vec::with_capacity(output_bytes * 8);
     while outputs.len() < output_bytes * 8 {
         keccak_f1600(builder, &mut state);
@@ -268,6 +272,12 @@ pub(super) fn shake256(
         }
     }
     outputs
+}
+
+fn absorb_bits(builder: &mut CircuitBuilder, state: &mut State, bits: &[BuilderBit]) {
+    for (index, bit) in bits.iter().copied().enumerate() {
+        state[index / 64][index % 64] = builder.xor(state[index / 64][index % 64], bit);
+    }
 }
 
 fn keccak_f1600(builder: &mut CircuitBuilder, state: &mut State) {

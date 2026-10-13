@@ -6,6 +6,7 @@ mod private_keygen;
 mod reference;
 mod rounding_evidence;
 mod sampler_evidence;
+mod signing_circuit_evidence;
 mod signing_mask_evidence;
 mod worker_fixtures;
 
@@ -200,6 +201,7 @@ fn generate_report(
         "src/rounding_evidence.rs",
         "src/signing_mask_evidence.rs",
         "src/worker_fixtures.rs",
+        "src/signing_circuit_evidence.rs",
     ] {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(manifest.join(path))?)}));
     }
@@ -212,19 +214,21 @@ fn generate_report(
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_rounding.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
+        "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
         "crates/ed25519-yao/src/passive.rs",
         "crates/ed25519-yao/src/passive/gate_aes.rs",
         "crates/ed25519-yao/src/passive/runtime.rs",
         "crates/ed25519-yao/src/passive/ot.rs",
         "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_kernel.rs",
         "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_private.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
     ] {
         sources.push(
             json!({"repository_path": path, "sha256": digest(&fs::read(repository.join(path))?)}),
         );
     }
     Ok(json!({
-        "schema": "seams.ml-dsa-investigation.v3",
+        "schema": "seams.ml-dsa-investigation.v4",
         "benchmark_only": true,
         "production_eligible": false,
         "created_at_unix_ms": SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis(),
@@ -247,7 +251,9 @@ fn generate_report(
         "garbled_execution": garbled_execution::run(garbled_samples)?,
         "hybrid_key_generation": hybrid_keygen::run()?,
         "private_key_generation": private_keygen::run()?,
+        "private_measurement_method": "Method 2 sums synchronous resumable core gate transitions separately from host table I/O. Setup ends before the first gate transition or table request. Maximum message lengths exclude retained OT matrices and process peak memory.",
         "private_signing_mask": signing_mask_evidence::run(garbled_samples)?,
+        "signing_circuit_components": signing_circuit_evidence::run()?,
     }))
 }
 

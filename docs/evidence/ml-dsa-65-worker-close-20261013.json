@@ -1,0 +1,688 @@
+{
+  "schema": "seams.ml-dsa-worker-close-diagnosis.v1",
+  "classification": "production_regression in the experimental benchmark adapter",
+  "fault": "B produced the expected private kernel result, then Cloudflare marked its request as a hung-request exception.",
+  "facts": [
+    {
+      "fact": "The first hosted campaign had 24 successful role output checks and 24 B exception buckets.",
+      "instrument": "Hosted result JSON and Cloudflare workersInvocationsAdaptive analytics.",
+      "version": "fda25a06-7506-46e6-a895-139ee10b503f"
+    },
+    {
+      "fact": "A separate tailed reproduction logged completion before the hung-request exception for eight sessions.",
+      "instrument": "Wrangler live tail.",
+      "checked_records": 8
+    },
+    {
+      "fact": "The explicit-close build completed all repeated kernel outputs and produced no exceptions in the 24 matching live-tail records.",
+      "instrument": "Hosted result JSON, run IDs, and Wrangler live tail.",
+      "checked_records": 24,
+      "version": "975431e0-4843-4536-98ef-068beb96d6b8"
+    }
+  ],
+  "cause_table": [
+    {
+      "cause": "Wrong cryptographic output",
+      "contradicted_by": "Both roles passed every independent expected-output check.",
+      "left": false
+    },
+    {
+      "cause": "CPU limit or memory limit",
+      "contradicted_by": "Tail reported a hung request after completion, rather than a resource-limit exception.",
+      "left": false
+    },
+    {
+      "cause": "Incomplete server-side WebSocket teardown",
+      "supported_by": "Explicit B close after its completion message removed the exception while preserving kernel outputs.",
+      "left": true
+    },
+    {
+      "cause": "Analytics-only reporting artifact",
+      "contradicted_by": "Live tail reproduced the exception and the change removed it.",
+      "left": false
+    }
+  ],
+  "change": "B explicitly closes its own socket with code 1000 after sending its completion report.",
+  "limits": [
+    "The record identifies the adapter teardown cause. It does not establish the runtime internal promise or close-handshake implementation.",
+    "Parity with production Router A/B admission, persistence, and orchestration is not established."
+  ],
+  "primary_reference": "https://developers.cloudflare.com/workers/observability/errors/#cause-2-websocket-connections-that-are-never-closed",
+  "tail_records_before": [
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874405483
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874405483
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"b2fa05908a4b12943ead752928b8f221\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874405475
+        }
+      ],
+      "eventTimestamp": 1791874405040,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874407057
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874407057
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"132b9e351ea40ff04fc84f06092b0089\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874407054
+        }
+      ],
+      "eventTimestamp": 1791874406941,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874409074
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874409074
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"6026caa9cff0b70b5ce13c7c768238ee\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874409071
+        }
+      ],
+      "eventTimestamp": 1791874408432,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874411306
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874411306
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"16f6a18fd21a837c97f2b600081ae489\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874411304
+        }
+      ],
+      "eventTimestamp": 1791874410692,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874413086
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874413086
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"06bd2a4147637fe5e087d7b383176837\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874413084
+        }
+      ],
+      "eventTimestamp": 1791874412894,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874414650
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874414650
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"9b6d1b990e7c5d0dd32c134f2f2a54cb\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874414648
+        }
+      ],
+      "eventTimestamp": 1791874414461,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874416567
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874416567
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"acd3205df24ef7677f3f16300472de8c\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874416564
+        }
+      ],
+      "eventTimestamp": 1791874416068,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    },
+    {
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874418581
+        },
+        {
+          "name": "Error",
+          "message": "The Workers runtime canceled this request because it detected that your Worker's code had hung and would never generate a response. Refer to: https://developers.cloudflare.com/workers/observability/errors/",
+          "timestamp": 1791874418581
+        }
+      ],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"5c253d5f02ac07795a98b5005e366ebb\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874418576
+        }
+      ],
+      "eventTimestamp": 1791874418121,
+      "scriptVersion": {
+        "id": "fda25a06-7506-46e6-a895-139ee10b503f"
+      }
+    }
+  ],
+  "tail_records_after": [
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"852aecb287731a45506734d617c468c1\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874729975
+        }
+      ],
+      "eventTimestamp": 1791874729653,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"eb508e0ca04cbe08f4f37381fc0855aa\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874731660
+        }
+      ],
+      "eventTimestamp": 1791874731539,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"df25022ade263962a955f72cda400527\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874733122
+        }
+      ],
+      "eventTimestamp": 1791874733009,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"15ce7c183b29c9c120d5e45a58805928\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874734601
+        }
+      ],
+      "eventTimestamp": 1791874734467,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"f7d39b30876044f07cb57a39508117b7\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874736057
+        }
+      ],
+      "eventTimestamp": 1791874735944,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"seed\",\"role\":\"b\",\"run_id\":\"896b4424ebf362b47dd60db8e56c503e\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874737505
+        }
+      ],
+      "eventTimestamp": 1791874737406,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"1b4cc658c6a56a559a7388623e2d60c7\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874739581
+        }
+      ],
+      "eventTimestamp": 1791874738898,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"a44db41215eb3ece72c0fb2e84ffe1a1\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874741932
+        }
+      ],
+      "eventTimestamp": 1791874741229,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"abfaad338d80bb102714a4eadd774c68\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874744241
+        }
+      ],
+      "eventTimestamp": 1791874743567,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"5107ed51b5ff52f04d2635c53715278c\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874746584
+        }
+      ],
+      "eventTimestamp": 1791874745877,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"b894b84d1000b6e6aa9258df22d3341a\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874748902
+        }
+      ],
+      "eventTimestamp": 1791874748197,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"sampling-0\",\"role\":\"b\",\"run_id\":\"406c9968fabaa40861c728c70d4b994e\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874751277
+        }
+      ],
+      "eventTimestamp": 1791874750575,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"9ccaa3e8abb479d99c76215fb9c1ee1e\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874753032
+        }
+      ],
+      "eventTimestamp": 1791874752848,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"1ad48235168c6afc203618ccdbb209c1\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874754570
+        }
+      ],
+      "eventTimestamp": 1791874754410,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"49e4ecfeb2cb2616fa848fd3cf7699c4\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874756120
+        }
+      ],
+      "eventTimestamp": 1791874755951,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"f96b2bfa4e0dce571ab1f825c51927da\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874757696
+        }
+      ],
+      "eventTimestamp": 1791874757488,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"142bbc55a1756119a46f929fe097c5bb\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874759295
+        }
+      ],
+      "eventTimestamp": 1791874759129,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"rounding\",\"role\":\"b\",\"run_id\":\"48b6fb5816bb7ec816277db493b52f48\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874761011
+        }
+      ],
+      "eventTimestamp": 1791874760842,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"7a7834bdc65d21dab87a13e9a7337996\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874763477
+        }
+      ],
+      "eventTimestamp": 1791874762976,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"4651426e2c361573dd90edd7dbcceeef\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874765979
+        }
+      ],
+      "eventTimestamp": 1791874765401,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"e4e0feab8479a99c023c1b16e2aabf01\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874768010
+        }
+      ],
+      "eventTimestamp": 1791874767522,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"2babc962c3892d2299a80be5a91095b1\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874770087
+        }
+      ],
+      "eventTimestamp": 1791874769592,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"ec51e5ef6899600adfd700d16213223b\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874772338
+        }
+      ],
+      "eventTimestamp": 1791874771686,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    },
+    {
+      "outcome": "ok",
+      "exceptions": [],
+      "logs": [
+        {
+          "message": [
+            "{\"event\":\"ml-dsa-kernel-complete\",\"kernel\":\"mask-0\",\"role\":\"b\",\"run_id\":\"ebe004e358e71e7b1f6279ea634b5e45\"}"
+          ],
+          "level": "log",
+          "timestamp": 1791874774486
+        }
+      ],
+      "eventTimestamp": 1791874774000,
+      "scriptVersion": {
+        "id": "975431e0-4843-4536-98ef-068beb96d6b8"
+      }
+    }
+  ],
+  "adapter_source_sha256_after": "c46c82a8378ffe2bb3579e603ef8ef2fb32da46a2e5bf9ec74c67b170af4938b"
+}

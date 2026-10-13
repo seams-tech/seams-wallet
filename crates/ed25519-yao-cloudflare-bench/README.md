@@ -190,3 +190,59 @@ After collection, delete A, then B. Remove the temporary secret file:
 pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.a.jsonc
 pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.b.jsonc
 ```
+
+## Private ML-DSA kernel probes
+
+The ML-DSA role builds execute seed expansion, one sampling polynomial, one
+rounding polynomial, and one signing-mask polynomial. Each build contains only
+its own disposable fixture inputs. Both builds use genuine OT and the same
+resumable cryptographic runtime as the host investigation.
+
+Generate the public schedules and role fixtures from the repository root:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  export-worker-fixtures crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules
+```
+
+Run Worker builds and deployments from this crate directory. `worker-build`
+resolves its crate from the current directory.
+
+```sh
+pnpm exec wrangler deploy --config wrangler.ml-dsa.b.jsonc
+pnpm exec wrangler deploy --config wrangler.ml-dsa.a.jsonc
+```
+
+Install the same 64-character random `PROBE_TOKEN` secret on both temporary
+Workers. Keep its restricted JSON file outside Git. A has a public route. B
+accepts only its Service Binding. Neither build contains wallet key material.
+
+Run the local or hosted E2E campaign from the repository root:
+
+```sh
+node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
+  --local --samples 5 --out /tmp/ml-dsa-kernels-local.json
+node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
+  --endpoint https://<a-endpoint> --samples 5 --out /tmp/ml-dsa-kernels-hosted.json
+```
+
+The hosted command reads `PROBE_TOKEN` from its environment. Each group contains
+one warm-up and the requested measured samples. The report pins source files,
+role fixtures, schedules, packaged Wasm, configurations, and installed tools.
+It checks each role's expected output, shared execution binding, and exact
+runtime traffic. B sends a separate completion report and closes its socket.
+
+Worker `Date.now()` records elapsed observations. Use Cloudflare CPU
+analytics separately. Wasm linear memory is an isolate-wide high-water mark.
+it excludes JavaScript buffers and total Worker memory. This campaign measures
+private kernels, rather than a complete key-generation or signing operation.
+
+Delete both temporary Workers after collection, from this crate directory:
+
+```sh
+pnpm exec wrangler delete --config wrangler.ml-dsa.a.jsonc --force
+pnpm exec wrangler delete --config wrangler.ml-dsa.b.jsonc --force
+```
+
+Remove the restricted token file after deletion. These configurations create
+no Durable Objects or D1 databases.

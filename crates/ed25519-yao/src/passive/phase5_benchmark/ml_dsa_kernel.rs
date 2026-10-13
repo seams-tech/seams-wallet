@@ -20,7 +20,7 @@ use super::super::{
 };
 
 const HEADER_BYTES: usize = 58;
-pub(super) const FRAME_BYTES: usize = 64 * 1024;
+const FRAME_BYTES: usize = 64 * 1024;
 const STREAM_MAGIC: &[u8; 8] = b"MLDSAG01";
 
 /// Failure in the public-fixture benchmark or its local pipe.
@@ -53,13 +53,13 @@ type Result<T> = std::result::Result<T, KernelBenchmarkError>;
 
 /// Validated EYAOSC01 schedule for one fixed ML-DSA hashing workload.
 pub struct PublicKernelSchedule<'a> {
-    pub(super) bytes: &'a [u8],
+    bytes: &'a [u8],
     width: usize,
-    pub(super) inputs: usize,
-    pub(super) gates: usize,
-    pub(super) outputs: usize,
-    pub(super) slots: usize,
-    pub(super) and_gates: usize,
+    inputs: usize,
+    gates: usize,
+    outputs: usize,
+    slots: usize,
+    and_gates: usize,
     records_end: usize,
 }
 
@@ -78,7 +78,7 @@ impl<'a> PublicKernelSchedule<'a> {
         )
     }
 
-    pub(super) fn parse_shapes(bytes: &'a [u8], shapes: &[(u8, usize, usize)]) -> Result<Self> {
+    fn parse_shapes(bytes: &'a [u8], shapes: &[(u8, usize, usize)]) -> Result<Self> {
         ensure(
             bytes.len() >= HEADER_BYTES && &bytes[..8] == b"EYAOSC01",
             "Invalid schedule header.",
@@ -148,7 +148,7 @@ impl<'a> PublicKernelSchedule<'a> {
         self.outputs
     }
 
-    pub(super) fn gate(&self, index: usize) -> Gate {
+    fn gate(&self, index: usize) -> Gate {
         let start = HEADER_BYTES + index * (1 + self.width * 3);
         let record = &self.bytes[start..start + 1 + self.width * 3];
         Gate {
@@ -159,22 +159,22 @@ impl<'a> PublicKernelSchedule<'a> {
         }
     }
 
-    pub(super) fn output_slots(&self) -> impl Iterator<Item = usize> + '_ {
+    fn output_slots(&self) -> impl Iterator<Item = usize> + '_ {
         self.bytes[self.records_end..]
             .chunks_exact(self.width)
             .map(read_slot)
     }
 
-    pub(super) fn digest(&self) -> [u8; 32] {
+    fn digest(&self) -> [u8; 32] {
         Sha256::digest(self.bytes).into()
     }
 }
 
-pub(super) struct Gate {
-    pub(super) opcode: u8,
-    pub(super) left: usize,
-    pub(super) right: usize,
-    pub(super) output: usize,
+struct Gate {
+    opcode: u8,
+    left: usize,
+    right: usize,
+    output: usize,
 }
 
 /// Exact counters for one role. Timings are host wall-clock measurements.
@@ -431,18 +431,18 @@ fn read_input_labels<R: Read>(
     Ok(())
 }
 
-pub(super) struct TableReader {
-    pub(super) bytes: Zeroizing<Vec<u8>>,
-    pub(super) cursor: usize,
-    pub(super) length: usize,
-    pub(super) consumed: usize,
-    pub(super) expected_bytes: usize,
-    pub(super) count: usize,
-    pub(super) io_wall_ns: u128,
+struct TableReader {
+    bytes: Zeroizing<Vec<u8>>,
+    cursor: usize,
+    length: usize,
+    consumed: usize,
+    expected_bytes: usize,
+    count: usize,
+    io_wall_ns: u128,
 }
 
 impl TableReader {
-    pub(super) fn new(expected_bytes: usize) -> Self {
+    fn new(expected_bytes: usize) -> Self {
         Self {
             bytes: Zeroizing::new(vec![0; FRAME_BYTES]),
             cursor: 0,
@@ -454,7 +454,7 @@ impl TableReader {
         }
     }
 
-    pub(super) fn next<R: Read>(&mut self, reader: &mut R) -> Result<GarbledAndGate> {
+    fn next<R: Read>(&mut self, reader: &mut R) -> Result<GarbledAndGate> {
         if self.cursor == self.length {
             let started = Instant::now();
             let mut header = [0; 8];
@@ -481,7 +481,7 @@ impl TableReader {
     }
 }
 
-pub(super) fn write_frame<W: Write>(writer: &mut W, frame: &[u8], index: usize) -> Result<u128> {
+fn write_frame<W: Write>(writer: &mut W, frame: &[u8], index: usize) -> Result<u128> {
     let started = Instant::now();
     writer.write_all(&(frame.len() as u32).to_be_bytes())?;
     writer.write_all(&(index as u32).to_be_bytes())?;
@@ -519,7 +519,7 @@ fn metrics(
     }
 }
 
-pub(super) fn fresh_domain() -> Result<SessionDomain> {
+fn fresh_domain() -> Result<SessionDomain> {
     loop {
         let mut bytes = [0; 8];
         getrandom::getrandom(&mut bytes)
@@ -530,13 +530,13 @@ pub(super) fn fresh_domain() -> Result<SessionDomain> {
     }
 }
 
-pub(super) fn ordinal(index: usize) -> Result<GateOrdinal> {
+fn ordinal(index: usize) -> Result<GateOrdinal> {
     GateOrdinal::from_schedule_index(index as u64).ok_or(KernelBenchmarkError::Invalid(
         "Gate ordinal exceeds tweak domain.",
     ))
 }
 
-pub(super) fn missing_wire(_: super::super::runtime::CircuitRunError) -> KernelBenchmarkError {
+fn missing_wire(_: super::super::runtime::CircuitRunError) -> KernelBenchmarkError {
     KernelBenchmarkError::Invalid("Missing initialized schedule wire.")
 }
 
@@ -552,7 +552,7 @@ fn read_slot(bytes: &[u8]) -> usize {
     result
 }
 
-pub(super) fn ensure(condition: bool, message: &'static str) -> Result<()> {
+fn ensure(condition: bool, message: &'static str) -> Result<()> {
     if condition {
         Ok(())
     } else {

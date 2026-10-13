@@ -191,6 +191,9 @@ pub use circuit::{
     compile_ml_dsa_private_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
 };
 pub use circuit::{
+    compile_ml_dsa_private_signing_circuit_v1, MlDsaPrivateSigningCircuitV1, MlDsaSigningWorkloadV1,
+};
+pub use circuit::{
     compile_ml_dsa_private_signing_mask_circuit_v1, MlDsaPrivateSigningMaskCircuitV1,
     MlDsaSigningMaskFixtureErrorV1, MlDsaSigningMaskFixtureOutputV1,
 };
