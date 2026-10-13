@@ -164,7 +164,8 @@ async function verifyPublishedClientRejection(
 ): Promise<void> {
   const definition = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   expect(definition.name).toBe('@seams/wallet');
-  expect(definition.version).toBe('0.8.0');
+  // The last release that sends protocol 3.
+  expect(definition.version).toBe('0.9.4');
   const bundle = await build({
     entryPoints: [path.join(root, 'dist/esm/core/rpcClients/relayer/walletRegistration.js')],
     bundle: true,
@@ -224,7 +225,7 @@ export async function verifyWalletProtocolCutover(
   expect(await unsupported.json()).toMatchObject({ ok: false, code: 'wallet_protocol_mismatch' });
 
   const previousVersion = await context.request.post(previous.url, {
-    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '2' },
+    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '3' },
     data: '{invalid JSON',
   });
   expect(previousVersion.status()).toBe(409);
@@ -308,7 +309,7 @@ export async function verifyWalletProtocolCutover(
         oldRequest:
           'current browser client with the protocol header removed to reproduce the published request shape',
         rejectedRequests: previous.requests,
-        published073Client: publishedRoot ? 'rejected with upgrade message' : 'not requested',
+        publishedProtocol3Client: publishedRoot ? 'rejected with upgrade message' : 'not requested',
         upgradeMessageVisible: true,
         unsupportedProtocolRejectedBeforeJsonParsing: true,
         previousProtocolRejectedBeforeJsonParsing: true,

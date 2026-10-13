@@ -135,6 +135,10 @@ class CapturedCustodyCall {
   }
 }
 
+function unexpectedRouterUse() {
+  throw new Error('Registration setup must not reach the Router');
+}
+
 // The Yao identity in each stored record of one ceremony: its setup snapshot and its copy.
 async function readEd25519YaoMints(database, ceremonyId) {
   const { results } = await database
@@ -181,6 +185,7 @@ const bundle = await build({
       export { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from './packages/shared-ts/src/threshold/participants';
       export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
     `,
   },
 });
@@ -239,7 +244,8 @@ try {
     database,
     ...scope,
     registrationAuthority: new ObservedRegistrationAuthority(database, scope),
-    // Setup mints the Yao identity of a NEAR branch for this SigningWorker.
+    // Setup mints the Yao identity of a NEAR branch for this SigningWorker and
+    // describes the admission that respond will issue over it.
     ed25519YaoProductRegistration:
       api.createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1({
         signingWorkerId: 'worker',
@@ -247,7 +253,16 @@ try {
           database,
           scope,
         }),
-        registrationBackend: {},
+        registrationBackend: new api.RouterAbEd25519YaoHttpRegistrationBackend({
+          routerUrl: 'https://router.invalid',
+          signingWorkerId: 'worker',
+          internalServiceAuth: 'setup-test-secret',
+          deriverAInputPublicKey: new Array(32).fill(1),
+          deriverBInputPublicKey: new Array(32).fill(2),
+          signingWorkerRecipientPublicKey: new Array(32).fill(3),
+          resolveTenantRoot: unexpectedRouterUse,
+          fetch: unexpectedRouterUse,
+        }),
       }),
   };
   const registration = api.createCloudflareD1RouterApiAuthService({
@@ -315,6 +330,21 @@ try {
   assert.equal(minted[0].materialActivation.signing_worker, 'worker');
   assert.equal(minted[0].sessionId.length, 32);
   assert.ok(minted[0].sessionId.some(Boolean));
+  // A passkey's scope is known before its proof, so setup describes the
+  // admission over that identity. It admits nothing: no Yao record exists.
+  assert.equal(first.ed25519.status, 'described');
+  assert.deepEqual(first.ed25519.admissionReceipt.binding.session_id, minted[0].sessionId);
+  assert.deepEqual(
+    first.ed25519.admissionRequest.scope.material_activation,
+    minted[0].materialActivation,
+  );
+  assert.equal(first.ed25519.admissionRequest.scope.lifecycle_id, first.registrationCeremonyId);
+  assert.equal(
+    await database
+      .prepare('SELECT COUNT(*) AS rows FROM router_ab_yao_versioned_json_records')
+      .first('rows'),
+    0,
+  );
 
   const replay = await setup(registration, input);
   assert.equal(replay.ok, true, JSON.stringify(replay));
@@ -326,6 +356,7 @@ try {
     minted,
     'A replayed setup must keep its minted Yao identity',
   );
+  assert.deepEqual(replay.ed25519, first.ed25519, 'A replayed setup describes the same admission');
 
   const other = await setup(registration, {
     ...input,

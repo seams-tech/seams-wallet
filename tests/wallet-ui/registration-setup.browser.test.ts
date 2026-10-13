@@ -10,7 +10,7 @@ class SetupServer {
   mode: 'lost' | 'accepted' | 'changed' | 'changed_ceremony' = 'lost';
 
   async handle(route: Route): Promise<void> {
-    expect(route.request().headers()['x-seams-wallet-protocol']).toBe('3');
+    expect(route.request().headers()['x-seams-wallet-protocol']).toBe('4');
     const body = route.request().postDataJSON();
     const environment = route.request().headers()['x-seams-environment-id'];
     this.requests.push({ operationId: body.registrationOperationId, environment });
@@ -40,6 +40,8 @@ class SetupServer {
           .digest('base64url'),
         intent,
         signedSetup: 'fixture-signed-setup',
+        home: { kind: 'direct' },
+        ed25519: { status: 'after_proof' },
       },
     });
   }

@@ -111,7 +111,16 @@ function setupHarness(faultForCall: (call: number) => BatchFault) {
     }),
     // A NEAR-only plan prepares no ECDSA branch.
     ecdsaStrictRegistration: {} as RouterAbEcdsaStrictRegistrationPort,
-    ed25519YaoSigningWorkerId: 'worker',
+    // Setup mints the Yao identity for this SigningWorker. This runtime describes no admission.
+    ed25519Yao: {
+      signingWorkerId: 'worker',
+      describeRegistrationAdmission: async () => ({
+        ok: false as const,
+        status: 503 as const,
+        code: 'admission_failed',
+        message: 'This runtime describes no admission before its proof',
+      }),
+    },
     startRegistrationWallets: null,
   };
   const count = (sql: string) => Number(sqlite.prepare(sql).get()?.rows);

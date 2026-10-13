@@ -4380,6 +4380,10 @@ export class IntendedBehaviourHarness {
       this.handleIntendedYaoFaultRoute.bind(this),
     );
     await this.context.route(
+      '**/wallets/register/respond',
+      this.handleIntendedYaoRespondFaultRoute.bind(this),
+    );
+    await this.context.route(
       `**${WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1}`,
       this.handleIntendedYaoFinalizeFaultRoute.bind(this),
     );
@@ -4678,6 +4682,20 @@ export class IntendedBehaviourHarness {
         [LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1]: current.token,
       },
     });
+  }
+
+  /** A respond that carries its execute request runs the execution that the fault targets. */
+  private async handleIntendedYaoRespondFaultRoute(route: Route): Promise<void> {
+    const request = route.request();
+    if (
+      this.intendedYaoFaultInjection.kind === 'idle' ||
+      request.method() !== 'POST' ||
+      !Object.hasOwn(request.postDataJSON() ?? {}, 'ed25519Execution')
+    ) {
+      await route.fallback();
+      return;
+    }
+    await this.handleIntendedYaoFaultRoute(route);
   }
 
   private async handleIntendedYaoRecoveryFaultRoute(route: Route): Promise<void> {
