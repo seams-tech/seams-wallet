@@ -17,6 +17,30 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.9.4
+
+Status: **prepared, not published.** Patch release with no wire, schema or
+protocol change. It carries the work on public `dev` since 0.9.3.
+
+- **Custody Workers.** A wire label is wiped with one volatile write, and the
+  garbler hashes its four blocks in one cipher pass (`ab91d575`): garbling
+  takes half the time and evaluation two thirds, with the same protocol
+  bytes. A failed package delivery reaches the Router promptly (`4f360155`).
+  Each wallet object logs its host once (`df5b5566`).
+- **Gateway.** Registration setup retries a transient database fault and
+  answers a server error without the driver's text (`b8de6715`).
+- **SDK.** The setup preflight starts when a registration-configured runtime
+  starts (`8a7d8f75`, `4ae974a8`). The React entry gains a voice assistant
+  card (`21503882`).
+- **Compatibility.** No request or response of registration changes. A 0.9.3
+  application works with a 0.9.4 backend, and each role Worker works with
+  its 0.9.3 peers.
+- **Local validation before the pull request.** On the candidate tree: the
+  bloat check, the lock check, the type check, the Rust tests of the three
+  Router crates and the five strict Worker entrypoints. The Yao and
+  registration contracts pass on release Workers with the engine change. The
+  private console builds against the candidate module build.
+
 ## 0.9.3
 
 Status: **published October 12, 2026, 18:04 UTC, and deployed to staging.**
