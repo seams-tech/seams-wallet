@@ -1,8 +1,6 @@
-//! Generated tenant-root configuration for a local VM deployment.
+//! Generated tenant-root configuration for local Worker deployments.
 //!
-//! Every value uses the env name a Cloudflare role reads, so a VM role and a
-//! Worker are configured the same way. Each Secret appears only in the env
-//! file of the one role that holds it:
+//! Each secret appears only in the env file of the role that holds it:
 //!
 //! - the control plane holds the issuer signing key;
 //! - each Deriver holds its role signing key, its role-store record key and
@@ -18,21 +16,16 @@ use router_ab_core::RouterAbProtocolResult;
 use crate::local_ed25519_yao_delivery::derive_local_ed25519_yao_recipient_key_pair_v1;
 use crate::local_generated_secret_bytes_v1;
 
-/// Private origin the VM control plane binds by default.
-pub const LOCAL_TENANT_ROOT_CONTROL_PLANE_DEFAULT_URL_V1: &str = "http://127.0.0.1:4106";
 /// Grant authority signing key in the operator file.
 pub const LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY_ENV_V1: &str = "LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY";
 /// Grant authority key id in the operator file.
 pub const LOCAL_TENANT_ROOT_GRANT_KEY_ID_ENV_V1: &str = "LOCAL_TENANT_ROOT_GRANT_KEY_ID";
 
-const ROUTER_DEFAULT_URL: &str = "http://127.0.0.1:4100";
 const ISSUER_KEY_ID: &str = "local-tenant-root-issuer-v1";
 const GRANT_KEY_ID: &str = "local-tenant-root-grant-authority-v1";
 
 /// The tenant-root lines appended to each generated env file.
 pub(crate) struct LocalTenantRootEnvLinesV1 {
-    /// Replaces the templates' deployment-authority placeholder.
-    pub deployment_authority_id: String,
     pub router: String,
     pub deriver_a: String,
     pub deriver_b: String,
@@ -45,7 +38,11 @@ pub(crate) fn local_tenant_root_env_lines_v1(
 ) -> RouterAbProtocolResult<LocalTenantRootEnvLinesV1> {
     let secret = |label: &str| local_generated_secret_bytes_v1(label, seed);
     let verifying_hex = |seed: [u8; 32]| {
-        hex::encode(ed25519_dalek::SigningKey::from_bytes(&seed).verifying_key().to_bytes())
+        hex::encode(
+            ed25519_dalek::SigningKey::from_bytes(&seed)
+                .verifying_key()
+                .to_bytes(),
+        )
     };
     let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
 
@@ -56,11 +53,6 @@ pub(crate) fn local_tenant_root_env_lines_v1(
     let custody_b = secret("tenant-root-deriver-b-custody-authority-signing-key")?;
     let role_a = secret("tenant-root-deriver-a-role-signing-key")?;
     let role_b = secret("tenant-root-deriver-b-role-signing-key")?;
-    let deployment = format!(
-        "local-{}",
-        &hex::encode(secret("tenant-root-deployment-authority")?)[..24]
-    );
-
     let issuer_keys_json = format!(
         r#"{{"keys":[{{"issuer_key_id":"{ISSUER_KEY_ID}","verifying_key_hex":"{}"}}]}}"#,
         verifying_hex(issuer)
@@ -81,7 +73,10 @@ pub(crate) fn local_tenant_root_env_lines_v1(
 
     let router = published.clone();
 
-    let deriver = |upper: &str, lower: &str, role_seed: [u8; 32]| -> RouterAbProtocolResult<String> {
+    let deriver = |upper: &str,
+                   lower: &str,
+                   role_seed: [u8; 32]|
+     -> RouterAbProtocolResult<String> {
         let kek = derive_local_ed25519_yao_recipient_key_pair_v1(&secret(&format!(
             "tenant-root-deriver-{lower}-role-store-record-key"
         ))?)?;
@@ -129,10 +124,7 @@ pub(crate) fn local_tenant_root_env_lines_v1(
          TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY={issuer_secret}\n\
          OPERATIONS_INCIDENT_VERIFYING_KEY_HEX={operations_public}\n\
          DERIVER_A_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX={custody_a_public}\n\
-         DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX={custody_b_public}\n\
-         LOCAL_TENANT_ROOT_DEPLOYMENT_AUTHORITY_ID={deployment}\n\
-         LOCAL_ROUTER_PRIVATE_URL={ROUTER_DEFAULT_URL}\n\
-         LOCAL_TENANT_ROOT_CONTROL_PLANE_URL={LOCAL_TENANT_ROOT_CONTROL_PLANE_DEFAULT_URL_V1}\n",
+         DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX={custody_b_public}\n",
         issuer_secret = b64u(&issuer),
         operations_public = verifying_hex(operations),
         custody_a_public = verifying_hex(custody_a),
@@ -155,7 +147,6 @@ pub(crate) fn local_tenant_root_env_lines_v1(
     );
 
     Ok(LocalTenantRootEnvLinesV1 {
-        deployment_authority_id: deployment,
         router,
         deriver_a: deriver("A", "a", role_a)?,
         deriver_b: deriver("B", "b", role_b)?,

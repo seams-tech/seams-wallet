@@ -265,6 +265,13 @@ No deprecated export or Node HTTP bridge replaces the removed Express entrypoint
 The Node Gateway, its SQLite facade, and the VM Wallet launcher are removed.
 SQLite inspection remains only in test evidence tooling.
 The removed Node listener supplied a 1 MiB request-body cap. Configure and qualify request limits at the self-hosted HTTPS ingress.
-Remaining native VM server removal continues on the implementation branch.
 A local candidate must pass the same lifecycle contracts before release and deployment.
 Deployments with durable state require an inventoried, state-safe cutover; source deletion does not migrate that state.
+
+The native Rust VM servers, their SQLite hosts, scheduler, process controller,
+and seed commands are removed. Their host-specific transport tests are retired.
+The `router_ab_local_init` tool still generates local Worker deployment inputs.
+Independent protocol helpers remain for Cloudflare fixtures and client validation.
+The retained helper, client registration, and Workers ownership checks verify
+those consumers. Full distributed Wallet qualification remains a separate gate.
+See [native-host removal evidence](../evidence/r190-native-host-removal.json).
