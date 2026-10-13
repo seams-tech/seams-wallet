@@ -782,6 +782,98 @@ pub struct LocalEnvMaterializedTenantRootFileV1 {
     pub contents: String,
 }
 
+/// The loopback HTTP origin of one local role. The port is a `u16`, so an
+/// origin cannot name a port outside the TCP range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalLoopbackOriginV1(u16);
+
+impl LocalLoopbackOriginV1 {
+    /// The origin on `port`.
+    pub const fn on_port(port: u16) -> Self {
+        Self(port)
+    }
+}
+
+impl std::fmt::Display for LocalLoopbackOriginV1 {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "http://127.0.0.1:{}", self.0)
+    }
+}
+
+impl std::str::FromStr for LocalLoopbackOriginV1 {
+    type Err = RouterAbProtocolError;
+
+    /// Parses `http://127.0.0.1:<port>`.
+    fn from_str(url: &str) -> RouterAbProtocolResult<Self> {
+        let port = url
+            .strip_prefix("http://127.0.0.1:")
+            .and_then(|port| port.parse().ok());
+        port.map(Self).ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("local role origin must be http://127.0.0.1:<port>: {url}"),
+            )
+        })
+    }
+}
+
+/// The origin of every role in one local stack. An env plan writes each origin
+/// under the env keys that name its role, so no URL text is searched or
+/// rewritten.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalStackOriginsV1 {
+    /// The Router, which is also the JWT issuer.
+    pub router: LocalLoopbackOriginV1,
+    /// Deriver A.
+    pub deriver_a: LocalLoopbackOriginV1,
+    /// Deriver B.
+    pub deriver_b: LocalLoopbackOriginV1,
+    /// The SigningWorker.
+    pub signing_worker: LocalLoopbackOriginV1,
+    /// The tenant-root control plane.
+    pub control_plane: LocalLoopbackOriginV1,
+}
+
+impl Default for LocalStackOriginsV1 {
+    /// The fixed ports the env templates show.
+    fn default() -> Self {
+        Self {
+            router: LocalLoopbackOriginV1(4100),
+            deriver_a: LocalLoopbackOriginV1(4103),
+            deriver_b: LocalLoopbackOriginV1(4104),
+            signing_worker: LocalLoopbackOriginV1(4105),
+            control_plane: LocalLoopbackOriginV1(4106),
+        }
+    }
+}
+
+impl LocalStackOriginsV1 {
+    fn for_env_key(&self, key: &str) -> Option<LocalLoopbackOriginV1> {
+        match key {
+            LOCAL_GATEWAY_PUBLIC_URL_ENV_V1
+            | LOCAL_ROUTER_PRIVATE_URL_ENV_V1
+            | router_ab_cloudflare::ROUTER_JWT_ISSUER_ENV => Some(self.router),
+            LOCAL_DERIVER_A_URL_ENV_V1 => Some(self.deriver_a),
+            LOCAL_DERIVER_B_URL_ENV_V1 => Some(self.deriver_b),
+            LOCAL_SIGNING_WORKER_URL_ENV_V1 => Some(self.signing_worker),
+            LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1 => Some(self.control_plane),
+            _ => None,
+        }
+    }
+
+    /// Sets every key of `contents` that names a role origin.
+    fn write_into_env(&self, contents: &str) -> String {
+        let write_line = |line: &str| {
+            let key = line.split_once('=').map_or(line, |(key, _)| key);
+            match self.for_env_key(key) {
+                Some(origin) => format!("{key}={origin}\n"),
+                None => line.to_owned(),
+            }
+        };
+        contents.split_inclusive('\n').map(write_line).collect()
+    }
+}
+
 /// Files and directories needed by the local Router/A/B dev harness.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LocalEnvMaterializationPlanV1 {
@@ -838,17 +930,26 @@ impl LocalEnvMaterializationPlanV1 {
 pub fn local_env_materialization_plan_v1(
     seed: &[u8],
 ) -> RouterAbProtocolResult<LocalEnvMaterializationPlanV1> {
+    local_env_materialization_plan_at_v1(seed, &LocalStackOriginsV1::default())
+}
+
+/// Builds the plan with each role at its origin in `origins`.
+pub fn local_env_materialization_plan_at_v1(
+    seed: &[u8],
+    origins: &LocalStackOriginsV1,
+) -> RouterAbProtocolResult<LocalEnvMaterializationPlanV1> {
     require_non_empty("local env materialization seed", &hex::encode(seed))?;
     let tenant_root = local_tenant_root_env::local_tenant_root_env_lines_v1(seed)?;
     let role_file = |role, path: &str, template: &str, tenant_root_lines: &str| {
         Ok::<_, RouterAbProtocolError>(LocalEnvMaterializedFileV1 {
             role,
             path: path.to_owned(),
-            contents: materialize_template_v1(&format!("{template}{tenant_root_lines}"), seed)?
-                .replace(
+            contents: origins.write_into_env(
+                &materialize_template_v1(&format!("{template}{tenant_root_lines}"), seed)?.replace(
                     "dev-only-tenant-root-deployment-authority",
                     &tenant_root.deployment_authority_id,
                 ),
+            ),
         })
     };
     let plan = LocalEnvMaterializationPlanV1 {
@@ -888,7 +989,8 @@ pub fn local_env_materialization_plan_v1(
             LocalEnvMaterializedTenantRootFileV1 {
                 label: LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_LABEL_V1.to_owned(),
                 path: LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1.to_owned(),
-                contents: materialize_template_v1(&tenant_root.control_plane, seed)?,
+                contents: origins
+                    .write_into_env(&materialize_template_v1(&tenant_root.control_plane, seed)?),
             },
             LocalEnvMaterializedTenantRootFileV1 {
                 label: LOCAL_TENANT_ROOT_OPERATOR_ENV_LABEL_V1.to_owned(),

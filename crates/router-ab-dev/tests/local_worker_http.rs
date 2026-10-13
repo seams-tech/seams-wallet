@@ -19,13 +19,14 @@ use router_ab_core::{
 };
 use router_ab_dev::{
     admit_local_ed25519_yao_registration_v1, generate_local_ed25519_yao_recipient_key_pair_v1,
-    local_env_materialization_plan_v1, parse_local_env_file_contents_v1,
+    local_env_materialization_plan_at_v1, parse_local_env_file_contents_v1,
     parse_local_worker_role_config_for_role_v1,
     seal_local_ed25519_yao_activation_deriver_a_input_v1,
     seal_local_ed25519_yao_activation_deriver_b_input_v1, LocalDeriverAPairRecordV1,
     LocalEd25519YaoActivationDeriverARequestV1, LocalEd25519YaoActivationDeriverBRequestV1,
     LocalEd25519YaoActivationRecipientsV1, LocalEd25519YaoClientContributionV1,
-    LocalEd25519YaoRecipientPrivateKeyV1, LocalWorkerRoleConfigV1,
+    LocalEd25519YaoRecipientPrivateKeyV1, LocalLoopbackOriginV1, LocalStackOriginsV1,
+    LocalWorkerRoleConfigV1,
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
@@ -7785,19 +7786,20 @@ fn write_router_env(
     signing_worker_url: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let seed = fresh_nonzero_bytes_32()?;
-    let plan = local_env_materialization_plan_v1(&seed)?;
+    let origins = LocalStackOriginsV1 {
+        router: router_url.parse()?,
+        deriver_a: deriver_a_url.parse()?,
+        deriver_b: deriver_b_url.parse()?,
+        signing_worker: signing_worker_url.parse()?,
+        ..LocalStackOriginsV1::default()
+    };
+    let plan = local_env_materialization_plan_at_v1(&seed, &origins)?;
     let file = plan
         .files
         .into_iter()
         .find(|file| file.role == LocalServiceRoleV1::Router)
         .ok_or("local env plan is missing Router file")?;
-    let contents = file
-        .contents
-        .replace("http://127.0.0.1:4100", router_url)
-        .replace("http://127.0.0.1:4103", deriver_a_url)
-        .replace("http://127.0.0.1:4104", deriver_b_url)
-        .replace("http://127.0.0.1:4105", signing_worker_url);
-    let contents = pin_test_service_credentials(&contents);
+    let contents = pin_test_service_credentials(&file.contents);
     fs::create_dir_all(root)?;
     fs::write(root.join(file.path), contents)?;
     Ok(())
@@ -7811,31 +7813,27 @@ fn write_product_worker_envs(
     signing_worker_url: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let seed = fresh_nonzero_bytes_32()?;
-    let control_plane_url = format!("http://127.0.0.1:{}", free_port()?);
-    let plan = local_env_materialization_plan_v1(&seed)?;
+    let origins = LocalStackOriginsV1 {
+        router: router_url.parse()?,
+        deriver_a: deriver_a_url.parse()?,
+        deriver_b: deriver_b_url.parse()?,
+        signing_worker: signing_worker_url.parse()?,
+        control_plane: LocalLoopbackOriginV1::on_port(free_port()?),
+    };
+    let plan = local_env_materialization_plan_at_v1(&seed, &origins)?;
     for directory in &plan.directories {
         fs::create_dir_all(root.join(directory))?;
     }
-    let replace = |contents: &str| {
-        pin_test_service_credentials(
-            &contents
-                .replace("http://127.0.0.1:4100", router_url)
-                .replace("http://127.0.0.1:4103", deriver_a_url)
-                .replace("http://127.0.0.1:4104", deriver_b_url)
-                .replace("http://127.0.0.1:4105", signing_worker_url)
-                .replace("http://127.0.0.1:4106", &control_plane_url),
-        )
-    };
     let mut router_env = None;
     for file in plan.files {
-        let contents = replace(&file.contents);
+        let contents = pin_test_service_credentials(&file.contents);
         if file.role == LocalServiceRoleV1::Router {
             router_env = Some(contents.clone());
         }
         fs::write(root.join(file.path), contents)?;
     }
     for file in plan.tenant_root_files {
-        fs::write(root.join(file.path), replace(&file.contents))?;
+        fs::write(root.join(file.path), pin_test_service_credentials(&file.contents))?;
     }
     router_env.ok_or_else(|| "local env plan is missing Router file".into())
 }
@@ -8020,7 +8018,12 @@ fn write_deriver_envs_to_roots(
     deriver_b_url: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let seed = fresh_nonzero_bytes_32()?;
-    let plan = local_env_materialization_plan_v1(&seed)?;
+    let origins = LocalStackOriginsV1 {
+        deriver_a: deriver_a_url.parse()?,
+        deriver_b: deriver_b_url.parse()?,
+        ..LocalStackOriginsV1::default()
+    };
+    let plan = local_env_materialization_plan_at_v1(&seed, &origins)?;
     fs::create_dir_all(deriver_a_root)?;
     fs::create_dir_all(deriver_b_root)?;
     for file in plan.files {
@@ -8029,12 +8032,7 @@ fn write_deriver_envs_to_roots(
             LocalServiceRoleV1::DeriverB => deriver_b_root,
             _ => continue,
         };
-        let contents = file
-            .contents
-            .replace("http://127.0.0.1:4103", deriver_a_url)
-            .replace("http://127.0.0.1:4104", deriver_b_url);
-        let contents = pin_test_service_credentials(&contents);
-        fs::write(root.join(file.path), contents)?;
+        fs::write(root.join(file.path), pin_test_service_credentials(&file.contents))?;
     }
     Ok(())
 }
