@@ -12,7 +12,8 @@ since October 13: the Yao execution is about 60 ms shorter, see its
 [record](evidence/refactor-155h-release-094-staging.md).
 Of Phase 1, the session mint at setup is implemented, and Phase 10 builds
 the one-request registration on it; both are on `dev` for release 0.10.0.
-The rest of Phase 1 and Phase 3 are decided and not implemented. Date:
+Phase 1 pair preparation and its setup limit are implemented locally; hosted
+validation remains. Phase 3 is decided and not implemented. Date:
 October 13, 2026.
 
 [R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
@@ -291,8 +292,36 @@ span baseline. No production change.
 
 ## Phase 1 — Custody execution at setup
 
-Registration today: setup reserves the home and starts the four wallet
-objects; respond verifies the credential, mints the Yao session and issues the
+Implementation update (October 13): setup dispatches input-free admissions to
+both wallet objects and opens A's authenticated connection to B during the
+passkey prompt. The user selected **30 setups per minute per publishable key
+and source IP**. Counters use the existing regional Gateway database. A
+counter failure returns 503; exhaustion returns 429 before reservation or
+startup. This is a regional limit, so traffic across regions has separate counters.
+
+Each wallet holds one preparation for at most 30 seconds, bounded by the
+ceremony expiry. A retry preserves the first epoch and deadline. The prepared
+connection carries no client input or protocol material. Execution binds the
+existing admission to the exact encrypted-input pair, then claims each role
+before protocol material flows. Expiry releases unused admissions and closes
+the socket. Missing or expired preparation uses the online admission path.
+Cancelled admissions and ownership fences refuse execution.
+
+The real Worker test verifies connection reuse, exact replay, expiry fallback,
+abandoned admission cleanup, and cancellation. Gateway D1 tests verify the
+30-request concurrent limit, key/IP separation, window expiry, and failure
+refusal. [Evidence](evidence/refactor-155h-prompt-preparation.md) records commands
+and limits. No deployment or latency saving is claimed for this change.
+
+A binds and rereads its role state in one D1 batch. B binds during its existing
+input preparation and retains its fresh read before running. Removing B's last
+read requires a separate state handoff; this implementation does not cache root
+material between requests. The original one-batch-per-role estimate below is
+therefore still an optimization target.
+
+
+Before this phase, setup reserved the home and started the four wallet
+objects; respond verified the credential, minted the Yao session and issued the
 admission receipt; execute admits both Derivers, connects them, runs the
 oblivious transfer, garbles, evaluates, seals and delivers. The passkey prompt
 sits between setup and respond, and nothing of the custody path uses it. This
@@ -333,12 +362,12 @@ execute-time input, so the connection is accepted at setup.
   identity binds no authority and admits nothing: the admission still
   follows the verified proof. Setup of a NEAR plan now fails with
   `not_configured` when no SigningWorker is configured; respond failed there
-  before. Mixed registration takes the stored material activation and keeps
-  the session mint of its later admission route. No wire changes. A ceremony
+  before. Mixed registration uses the same stored material activation and session
+  identity for its later verified admission. No wire changes. A ceremony
   record of a NEAR plan without the identity does not parse, so a
   registration that is between setup and respond during a deployment starts
   again.
-- [ ] **Prepare the pair during the prompt.** After the setup transaction
+- [x] **Prepare the pair during the prompt.** After the setup transaction
   commits, the Gateway sends one prepare request to the Router with the
   session identity and the run's deadline, through the path that sends the
   wallet-start request today. The Router dispatches Deriver B's admission and
@@ -355,7 +384,7 @@ execute-time input, so the connection is accepted at setup.
   precomputing the transfers on random choices, changes the transcript and
   needs the stream KATs, the specification's online ceremony and
   `cargo yao-fv all` with it.
-- [ ] **Execute binds, then runs the online part.** The execute request carries
+- [x] **Execute binds, then runs the online part.** The execute request carries
   the client's encrypted inputs and the admission receipt as today. The
   Router's claim verifies the receipt against the session minted at setup and
   binds the prepared pair session to this execution. Both Derivers record the
@@ -367,20 +396,21 @@ execute-time input, so the connection is accepted at setup.
   the oblivious transfer. An admitted session that no execute claims expires
   with the deadline, and both objects close the connection and release the
   admission. An execute after expiry prepares inline, as today.
-- [ ] **One session, one use.** The admitted session binds to one execution
+- [x] **One session, one use.** The admitted session binds to one execution
   id at execute. A second claim, a retry after a lost reply, or a relocation
   fence must find it bound or released, never open for a second execution.
 - [ ] **Bound the exposure at setup.** Setup already starts objects and reserves
   a home for any caller with the publishable key. The prepare adds two D1
   admissions and one held connection per setup, and no protocol CPU. Enforce
   the existing setup route policy per publishable key and source IP before
-  the prepare, and cap admitted sessions per wallet to one. Record the
-  measured cost of an abandoned setup.
-- [ ] **Keep the other families online.** Recovery, export and lane
+  the prepare, and cap admitted sessions per wallet to one. The limit and cap
+  are implemented. Record the hosted cost of an abandoned setup before closing
+  this measurement item.
+- [x] **Keep the other families online.** Recovery, export and lane
   materialization keep the online path; only fresh registration activation
   prepares at setup. Mixed NEAR and ECDSA registration keeps the same NEAR
   path.
-- [ ] Update `docs/router-ab/ed25519-yao.md` (fixed roles and the online
+- [x] Update `docs/router-ab/ed25519-yao.md` (fixed roles and the online
   ceremony), the registration lifecycle text in `docs/intended-behaviours.md`,
   R155C's flow description, and the local Yao contract's stage assertions. Add
   composed scenarios for an abandoned setup, an expired prepared session and an
@@ -392,7 +422,7 @@ claim precede protocol material, role secret separation (A never carries B's
 input), ownership fences and relocation, and cancellation of a registration
 that never executed.
 
-Expected gain: about 0.3 s of the execute request at the median. Admission,
+Original full-plan estimate: about 0.3 s of the execute request at the median. Admission,
 connection and B's re-read leave the path, and one D1 round trip per Deriver
 stays. The oblivious transfer, the
 garbling, the evaluation, the sealing, the delivery and the two Router
