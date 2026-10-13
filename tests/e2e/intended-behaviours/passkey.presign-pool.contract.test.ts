@@ -19,7 +19,9 @@ import {
 import { normalizeRuntimePolicyScope } from '../../../packages/shared-ts/src/threshold/signingRootScope';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdir, writeFile, access, rename } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -1376,6 +1378,28 @@ test('third-generation linked signing enforces live policy and isolates unrelate
   await verifyLiveSigningPolicy(device3, newContexts[0], 'post_device_link', testInfo);
 });
 
+const executeRuntimeFailure = promisify(execFile);
+
+async function interruptOwnedRuntimeAfterCommittedReply(
+  request: Request,
+  committedReply: string,
+): Promise<void> {
+  const script = process.env.SEAMS_INTENDED_COMMITTED_REPLY_RUNTIME_FAILURE_SCRIPT;
+  if (!script) return;
+  if (!path.isAbsolute(script)) throw new Error('The owned runtime failure script must be absolute');
+  const requestBody = request.postData();
+  if (requestBody === null) throw new Error('The committed finalize request requires a body');
+  await executeRuntimeFailure(
+    'python3',
+    [
+      script,
+      createHash('sha256').update(requestBody).digest('hex'),
+      createHash('sha256').update(committedReply).digest('hex'),
+    ],
+    { timeout: 120_000 },
+  );
+}
+
 class LostFinalize {
   finalizations = 0;
   lost: {
@@ -1399,6 +1423,9 @@ class LostFinalize {
       body: await response.text(),
       d1: gatewayD1Evidence(response),
     };
+    if (this.lost.status === 200) {
+      await interruptOwnedRuntimeAfterCommittedReply(this.lost.request, this.lost.body);
+    }
     await route.abort('connectionclosed');
   }
 }
