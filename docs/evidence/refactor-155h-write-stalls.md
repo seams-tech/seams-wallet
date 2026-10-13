@@ -31,6 +31,13 @@ does, for object storage and for D1, and it gives the cost for a caller.
   describes this pattern, and the open-source runtime has no such timer.
   Cloudflare's D1 team has described a related one: storage operations of
   the objects on one machine can starve each other.
+- **Of seven candidate causes the facts leave one.** A periodic task of the
+  host's storage service holds the commit path of every object on the host.
+  The section "Candidate causes against the facts" gives the table. It names
+  the place, not the task.
+- **The probe is a reproduction, and it matches staging only in part.**
+  Staging's own stalled database writes carry the five-second signature in
+  some runs and not in others.
 
 Two statements of the earlier record are wrong, and this record replaces
 them. The cycle is not counted from an object's first write: an object stays
@@ -68,9 +75,10 @@ in Tokyo.
 | First | October 12, 23:40–23:58 | SIN, HKG, NRT, KIX, LHR, AMS, IAD, EWR, ATL, ORD, MIA, SYD, MEL, BNE | Per city: 46 streams on 36 objects, 240 new objects with three single writes, one caller loop |
 | Second | October 13, 00:08–00:12 | HKG, SIN | 300 new objects used like wallet objects, three streams of three minutes, the tail of the probe Worker |
 | D1 | October 13, 00:13–00:20 | KIX | One throwaway database, six streams from a Worker in the same colo |
-| Hourly | October 13, from 00:21 | The six cities | Twelve streams and 240 wallet-shaped objects per city and round |
+| Hourly | October 13, 00:21–09:35 | The six cities | Seven rounds: twelve streams and 240 wallet-shaped objects per city and round |
 | Hosts | October 13, 00:43–00:45 | SIN, HKG | 60 streams of 13 s under each of the two Worker names at once |
 | Heavy and light | October 13, 01:29–01:31 | SIN, HKG | Five objects per city: cycles of 13 MB and cycles of 40 KB in turn, aligned to the host's pause |
+| One layer down | October 13, 09:45–09:50 | SIN, HKG | Six objects per city: ticks with no write, with an unconfirmed `put` and with an `INSERT`; each tick reads the storage bookmark and sends a fetch. Three objects for the check of the outside clock |
 
 ## The cycle
 
@@ -90,15 +98,18 @@ All values are milliseconds.
 - **The period is 5,000 ms.** The gap between two neighbouring pauses of one
   stream was 4,950–5,050 ms in every city, at a resolution of 25 ms. Over
   three minutes the fitted period of six objects was 5,000.0–5,000.7 ms.
-- **Almost every cycle has a pause.** In all runs up to the first hourly
-  round, 1,640 of 1,800 cycle ticks had a stall window, in 232 of 234
-  streams of 24 s or more, on 209 hosts in 14 colos.
+- **Almost every cycle has a pause.** Over all runs, 656 of 660 streams of
+  24 s or more showed the cycle, on 577 hosts in 14 colos. About nine cycle
+  ticks in ten had a stall window.
 - **All writes in a pause are released together.** A write that arrives 10 ms
   after the pause starts and one that arrives 200 ms later are confirmed at
   the same moment, within about one normal hold. The wait of a write is the
   time that is left of the pause.
-- **The object runs during the pause.** Its timers fired on time in all
-  224,000 ticks. Only the confirmations stop.
+- **The object's code runs during the pause.** 161 ticks with an
+  unconfirmed `put` fell inside a measured pause. `sync()` stalled in 157 of
+  them. The outgoing fetch of the same tick stalled in none. Only the
+  confirmations stop. An earlier version of this record cited timers that
+  fired on time; that fact is void, see "How the facts were checked".
 - **A second cycle of 30 s.** Five of six three-minute streams had a second
   stall window exactly six times, at a fixed place in a cycle of 30,000 ms,
   with a median length of 43–166 ms. In the 45-second streams, 24 pairs of
@@ -141,6 +152,20 @@ resolution. The two objects on host 1026f87 also shared one long pause:
   the median with a 32 KB row forty times a second, 152 ms with one small
   write per 250 ms. Something on the host that is not the probe sets the
   length.
+- **One pause ends for all objects of a host at the same instant.** In the
+  runs with two streams on one host, 201 of 209 pauses of one object had a
+  stall window in the second object at the same time. The two ends were 2 ms
+  apart at the median and 39 ms at the 90th percentile.
+- **The start is a timer; the length is not.** Over three minutes the start
+  of each pause stayed within 6–8 ms (standard deviation) of a straight
+  cycle in Singapore, at ticks of 25 ms, while the lengths went from 41 to
+  710 ms. The period was 5,000.0–5,000.7 ms: the timer does not wait for the
+  work of the cycle before.
+- **The pause writes nothing to the object's log.** The bookmark of an
+  object that wrote nothing stayed the same through four pauses, in twelve
+  objects. In 12,480 commits the first and third fields of the bookmark
+  never changed, and the second advanced by one or two per commit, also
+  across a pause.
 - **The cycle is slightly longer than 5,000 ms.** Host 976f46 in Hong Kong
   was at 628–632 ms at 23:40 and at 787–798 ms at 00:44: 160 ms later after
   64 minutes, or 5,000.2 ms per cycle.
@@ -168,13 +193,13 @@ resolution. The two objects on host 1026f87 also shared one long pause:
   173 ms; in 166 adjacent pairs on one host the difference was −8 ms at the
   median, 78 pairs positive and 88 negative. A flush of 13 MB on a data
   centre SSD takes about 10 ms, which this test cannot see; a pause that
-  grew with the data would have shown. The timers of the heavy writers were
-  never late, so 2.6 MB/s met no backpressure.
-- **Not a freeze of the host.** An object that never wrote sent 3,804
-  outgoing fetches at 1–3 ms from seven hosts, four of them slow by 34–75 ms
-  on one Tokyo host and none on the others. The timers of every stream fired
-  on time. Requests to an object with no pending write were answered in
-  normal time.
+  grew with the data would have shown.
+- **Not a freeze of the object or of the host.** An object that never wrote
+  sent 3,804 outgoing fetches at 1–3 ms from seven hosts, four of them slow
+  by 34–75 ms on one Tokyo host and none on the others. Inside a measured
+  pause, the fetch of a tick that made an unconfirmed `put` was never slow,
+  0 of 161, while the `sync()` of the same tick was. Requests to an object
+  with no pending write were answered in normal time.
 - **Not the followers alone.** Hosts in one colo pause at different
   instants, and two objects on one host at the same instant. A pause at
   the followers would need three of five to stop together, in step with
@@ -257,21 +282,43 @@ deleted after the run.
 
 ## Stability by hour
 
-The hourly repeats run until about 12:40 JST on October 13. Each row is
-twelve streams of 45 s on new objects, and 240 new objects that take a start
-request and three single writes.
+Seven rounds, 90 minutes apart, on October 13. Each cell is twelve streams of
+45 s on new objects: the share of writes stalled over 20 ms, and the median
+pause in milliseconds.
 
-| Round | Time, JST | City | Hold | Writes stalled over 20 ms | Over 100 ms | Mean stall per write | Pause p50 | p90 | Max | Wallet-shaped writes stalled |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 00:21 | SIN | 2 | 8.8% | 5.6% | 20.2 | 324 | 576 | 2,310 | 44 of 480 |
-| 1 | 00:23 | HKG | 36 | 5.7% | 2.0% | 8.1 | 215 | 364 | 606 | 19 of 480 |
-| 1 | 00:24 | NRT, KIX | 9 | 2.8% | 1.2% | 4.0 | 131 | 267 | 779 | 20 of 480 |
-| 1 | 00:27 | US east | 17 | 5.4% | 3.1% | 9.5 | 211 | 498 | 725 | 36 of 480 |
-| 1 | 00:29 | LHR, AMS | 9 | 3.9% | 2.2% | 6.6 | 144 | 441 | 737 | 16 of 480 |
-| 1 | 00:31 | SYD, MEL, BNE | 13 | 7.6% | 5.6% | 17.4 | 399 | 691 | 963 | 45 of 480 |
+| Round | JST | UTC | SIN | HKG | NRT, KIX | US east | LHR, AMS | SYD, MEL, BNE |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 00:21 | 15:21 | 8.8%, 324 | 5.7%, 215 | 2.8%, 131 | 5.4%, 211 | 3.9%, 144 | 7.6%, 399 |
+| 2 | 01:51 | 16:51 | 8.9%, 334 | 3.0%, 157 | 2.9%, 129 | 4.6%, 237 | 3.6%, 143 | 8.0%, 356 |
+| 3 | 03:21 | 18:21 | 7.7%, 373 | 4.1%, 172 | 3.2%, 144 | 4.7%, 178 | 2.8%, 94 | 7.1%, 304 |
+| 4 | 04:52 | 19:52 | 5.3%, 231 | 3.3%, 192 | 4.2%, 168 | 4.0%, 174 | 2.1%, 98 | 2.7%, 144 |
+| 5 | 06:21 | 21:21 | 4.2%, 181 | 2.2%, 136 | 2.7%, 124 | 5.7%, 249 | 4.1%, 91 | 2.3%, 128 |
+| 6 | 07:51 | 22:51 | 4.1%, 164 | 3.9%, 133 | 2.7%, 121 | 3.1%, 159 | 2.7%, 110 | 2.0%, 107 |
+| 7 | 09:21 | 00:21 | 4.0%, 183 | 3.1%, 173 | 2.1%, 119 | 3.3%, 151 | 2.9%, 137 | 1.0%, 69 |
 
-The pauses change within the hour. Sydney's median pause was 128 ms at 23:55
-and 399 ms at 00:31. Hong Kong's was 144 ms and then 215 ms.
+Mean stall per write, in milliseconds:
+
+| Round | SIN | HKG | NRT, KIX | US east | LHR, AMS | SYD, MEL, BNE |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 20.2 | 8.1 | 4.0 | 9.5 | 6.6 | 17.4 |
+| 2 | 22.9 | 2.9 | 4.0 | 7.4 | 5.7 | 25.6 |
+| 3 | 19.3 | 4.0 | 4.3 | 7.6 | 4.8 | 14.6 |
+| 4 | 10.1 | 4.0 | 7.1 | 8.2 | 2.5 | 3.0 |
+| 5 | 7.4 | 1.9 | 4.4 | 11.2 | 16.4 | 2.4 |
+| 6 | 8.8 | 6.6 | 3.1 | 3.9 | 3.7 | 1.8 |
+| 7 | 6.0 | 3.3 | 2.0 | 4.3 | 3.3 | 0.9 |
+
+- **The pause is there in every round and every city.** 3,980 of 4,460
+  cycle ticks had one, 89%.
+- **Its length changes through the day.** Singapore's median pause was
+  324–373 ms from 15:21 to 18:21 UTC and 164–231 ms from 19:52 to 00:21 UTC.
+  Sydney's went from 304–399 ms to 69–144 ms over the same hours. Tokyo
+  stayed at 119–168 ms.
+- **Singapore and Sydney moved together.** One night cannot say whether the
+  hour of the day, the day or something that the two share drives it.
+- **Singapore had the highest mean stall per write in five of seven rounds.**
+- Three more hosts carried objects of both Worker names in these rounds.
+  Their phases differed by 2, 4 and 10 ms.
 
 ## Staging
 
@@ -307,6 +354,31 @@ the Router's claim below.
 - **One object waited about 2 s in 13 commands in a row** on October 8 at
   12:43 JST. It is left out of the table. Its cause is not known.
 
+### Does staging show the probe's signature?
+
+The probe reproduces a stall. A reproduction is a hypothesis until the real
+system shows the same signal. The signal of the pause is a phase: on one
+host, stalled writes start within a few hundred milliseconds of the same
+place in a cycle of 5,000 ms. Staging's wallet objects are on many hosts and
+the tails do not name the host, so their stalls cannot be folded. A role
+database can: it is one object on one host. The Deriver wallet objects log
+the time and length of each write batch to their role database.
+
+- **Stalled batches.** Of 2,018 write batches in the hosted runs, 44 took
+  more than 60 ms over the median of their kind, 2.2%, by 107 ms at the
+  median and 548 ms at most.
+- **Pairs on one database in one run.** 15 pairs. In 6 the two starts were
+  within 300 ms of each other in the cycle. Chance gives 12%, and normal
+  batches of the same runs gave 12%. The same test on the probe's own D1
+  database gave 45 of 78, because some of its stalls are off the cycle.
+- **By run.** The run of October 12 at 19:00 JST had four large stalls on
+  one database, all within 412 ms of the cycle. Four other runs had pairs
+  far apart in the cycle.
+
+Staging therefore shows the five-second signature in part. Some of its
+stalls are the pause, and some have another cause that this record did not
+examine. Fifteen pairs are few.
+
 The Gateway routes show how small the stalls were on staging that week. The
 excess of a route over the median of its own run was 299–617 ms at the 90th
 percentile for the three registration routes and 440 ms for the two signing
@@ -338,39 +410,98 @@ databases, and the count of 13 comes from reading the code.
 - **On staging's week in Hong Kong** the same chain adds 32 ms at the mean,
   and one registration in 12 has a stall over 50 ms.
 
-## What it establishes
+## How the facts were checked
 
-- **Measured.** The period, the share of cycles with a pause, the length of
-  the pauses, the shared phase of objects on one `fl` value, the life of the
-  phase over restarts and minutes, the stall of a lone write in a predicted
-  pause, the second cycle of 30 s, the exposure of each write API, the
-  effect of `allowUnconfirmed`, the wait of responses and of requests that
-  wrote nothing, and the same cycle in one D1 database.
-- **Inferred.** That `fl` names the machine that runs the object. That the
-  pause is in the confirmation path on that machine, because the object's
-  code runs and every object there waits. That the cost of a registration is
-  a sum of independent draws.
-- **Two candidates, not findings.** First, the D1 team wrote in April 2026
-  that an expensive storage operation of one object can starve the storage
-  operations of the other objects on its machine, and that the threading of
-  storage operations is being changed. A task that runs on each host every
-  five seconds on those threads would give the pauses measured here. Second,
-  five and thirty seconds are the default intervals at which a Linux kernel
-  wakes its page writeback and expires dirty pages, and five seconds is the
-  default commit interval of an ext4 journal; a synchronous write that meets
-  such a flush waits for it. The measurements fit both. Nothing here proves
-  either.
-- **Unknown.** What the host does every five and every thirty seconds.
-  Whether the pause is on the object's host or on the followers that confirm
-  its log. Why pauses are longer in Singapore, and why they grow within an
-  hour. Why staging stalled less in its week than the probe did in its nights.
-  Whether Cloudflare intends the behaviour.
+Each fact below a conclusion was checked for how it was gathered. Two did
+not hold, and one instrument was discarded before use.
+
+- **Void: "the timers fired on time".** The stream recorded how late each
+  timer callback ran, and read 0 in every tick. The runtime sets
+  `Date.now()` inside a timer callback to the scheduled time, as a
+  side-channel defence (`IoContext::now` in `workerd`). The reading is 0 by
+  construction and says nothing.
+- **Discarded: the trace page's `ts` as an outside clock.** A check burned
+  about 60 ms of CPU before every second tick and then read `ts`. It read
+  0–1 ms after the scheduled time in all 36 burned ticks, while the caller
+  measured 670–750 ms more for the request. `ts` follows the object's own
+  clock.
+- **The object's clock leaves out the object's own CPU time**, also after
+  the next request completes. The same check shows it. A stream uses
+  microseconds of CPU per tick, so its waits are not affected.
+- **Valid: the wait of `sync()`.** Three independent clocks agree with it:
+  the outgoing fetch after a write in the object, the round trip that a
+  calling Worker measures, and the round trip of a D1 write from a
+  stateless Worker.
+- **Valid: the outgoing fetch that is not gated.** It is the control inside
+  the object. If the object's code stopped, the fetch of the next tick would
+  leave late and return late by the object's clock. It never did.
+- **An inference: `fl` is the host.** 53 of 55 pairs of objects with one
+  `fl` shared the phase, and three more pairs in the hourly rounds.
+
+## Candidate causes against the facts
+
+A cause is kept only if no fact contradicts it. The facts:
+
+1. A strict timer: the start stays within one tick of a cycle of
+   5,000.0–5,000.7 ms, and the period does not grow with the pause.
+2. One phase per host, for every object, both Worker names and D1. Hosts in
+   one colo differ.
+3. Two objects on one host are released at the same instant.
+4. In the same object and tick, a request that is not gated is not delayed.
+5. A lone write after an idle cycle stalls in the predicted pause, and the
+   pause moves no log position of an idle object.
+6. The length does not follow the object's own volume: 13 MB against 40 KB.
+7. The length differs by host at one time, 74–441 ms, and by cycle on one
+   host, 41–710 ms.
+8. A second cycle of 30,000 ms with its own phase.
+9. Nine Singapore hosts had pauses of 1–3 s in the same five seconds, and
+   Singapore and Sydney shortened together within three hours.
+10. The length does not follow the hold: Singapore has the shortest hold and
+    the longest pauses.
+
+| Candidate cause | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | Verdict |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | --- |
+| Our code or our Worker | no | no | | | | | | no | | | Out |
+| The object's isolate or process stops | yes | yes | yes | no | yes | yes | yes | yes | | yes | Out |
+| A flush of the object's own log at a host tick | yes | yes | no | yes | no | no | | | | yes | Out |
+| One noisy neighbour at random times | no | yes | yes | yes | yes | yes | yes | no | no | yes | Out |
+| The followers, or the network to them | yes | no | yes | yes | yes | yes | yes | yes | yes | | Out |
+| A journal commit or page writeback of the host's kernel | yes | yes | yes | yes | yes | yes | yes | no | no | yes | Out unless two more causes are added |
+| A periodic task of the host's storage service that holds the commit path of every object | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | Kept |
+
+An empty cell means the fact does not bear on the cause.
+
+- **No single fact picks out one cause.** Each fact removes one or two
+  candidates, and together they leave one. The stall share and the tail
+  percentiles are weak signals: every candidate meets them.
+- **The followers fail fact 2.** A write needs three of five followers. A
+  pause at the followers would need three to stop together, in step with the
+  clock of each leader host.
+- **The kernel candidate fails two facts.** The expiry of dirty pages after
+  30 s is an age limit, not a timer with its own phase. Local disks of nine
+  hosts do not slow in the same seconds without a shared cause. It can be
+  kept only with a second timer and a shared slowdown added, and each
+  addition explains one fact only.
+- **The kept candidate is coarse.** It says where the pause is and that a
+  timer starts it. It does not say what the task does. The facts that a
+  customer can gather do not split it further: whether the task is CPU work
+  over all objects of the host, or a call to a service that the hosts share.
+  Fact 9 leans to the second.
+- **It agrees with what Cloudflare has said.** The D1 team wrote in April
+  2026 that storage operations of the objects on one machine can starve each
+  other and that their threading is being changed.
+
+## What stays unknown
+
+What the task does, and why it needs 100–400 ms. Whether the objects of
+another account on the host pause too. Why pauses are longest in Singapore
+and Sydney, and what shortened them after 19:00 UTC. Which part of staging's
+stalls is the pause. Whether Cloudflare intends the behaviour.
 
 ## Limits
 
-- The runs of this record cover one hour, from 23:40 to 00:33 JST. The
-  hourly repeats extend it to midday; their table holds what exists at the
-  time of writing.
+- The runs cover ten hours of one night and morning, from 23:40 to 09:30
+  JST. The hours from 01:00 to 14:00 UTC are not measured.
 - The probe objects are new and small. Staging's objects stalled less in
   their week; the record cannot say whether the hour, the day or the objects
   make the difference.
@@ -379,14 +510,18 @@ databases, and the count of 13 comes from reading the code.
 - D1 was measured on one database in one colo.
 - A window needs a wait 20 ms above the median. A pause shorter than that is
   not counted, so the share of cycles with a pause is a lower bound.
-- The tail of the probe Worker delivered one event in five. Three stalled
-  calls had a tail event.
+- The tail of the probe Worker delivered about one event in three. Four
+  slow calls had a tail event.
+- The staging tails name no host. Only the role databases could be folded
+  on the cycle, with 15 pairs of stalled batches.
 - A placement region does not fix the colo. The run for Ashburn put objects
   in five colos and the run for Sydney in three.
 
-The [JSON record](refactor-155h-write-stalls.json) holds every sample: the
-waits of each stream as a histogram, each stalled write with its time, every
-single write, every caller round trip and every D1 row.
+The [JSON record](refactor-155h-write-stalls.json) holds every sample of the
+first two runs: the waits of each stream as a histogram, each stalled write
+with its time, every single write, every caller round trip and every D1 row.
+For the later runs it holds histograms, the pauses and the phases. The raw
+responses of every run are in the private probe folder.
 
 ## Public sources
 

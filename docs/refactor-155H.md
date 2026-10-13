@@ -891,18 +891,22 @@ writes on a cycle of 5,000 ms, and for a shorter time on a second cycle of
 30 s. Every object on the host waits, whatever its age, write rate or
 storage API, and D1 waits the same way. A write, a response or an outgoing
 request that arrives in the pause waits until its end, also for a request
-that wrote nothing. A pause lasted 110–400 ms at the median by city and hour.
-Singapore's pauses were among the longest: 6–9% of its writes stalled,
-against 3–6% in Hong Kong. For 13 writes in series a Singapore home still
+that wrote nothing. A pause lasted 70–400 ms at the median by city and hour.
+Singapore's pauses were among the longest: 4–9% of its writes stalled by
+hour, against 2–6% in Hong Kong. For 13 writes in series a Singapore home still
 waits less at the median, about 80 ms against 490 ms, and at the mean, 250 ms
 against 520 ms. It waits the same at the 90th percentile and more at the
 99th, 2.6 s against 0.8 s. Staging's own single-write commands of October 7
 to 12 stalled less than the probe: 0.6% waited more than 50 ms over the
 median. Two earlier statements were wrong and are corrected in the records:
 the cycle does not start with an object's first write, and most of staging's
-slow Router commands were claims that waited for a new object to start. What
-the host does in the pause is not known; Phase 7 holds the report for
-Cloudflare. Second,
+slow Router commands were claims that waited for a new object to start. The
+probe is a reproduction: staging's own stalled database writes carry the
+five-second signature in some runs and not in others, so the numbers above
+are the probe's, not yet the product's. Of seven candidate causes the facts
+leave one, a periodic task of the host's storage service that holds the
+commit path of every object; what the task does is not known, and Phase 7
+holds the report for Cloudflare. Second,
 the benchmark pair met a new isolate in 20 of 31 ceremonies in Singapore
 against 7 and 10 of 31 in Hong Kong, in one run each. That one is not settled.
 The measurement seat is a third point: from Tokyo, a Singapore home shows
@@ -1039,6 +1043,16 @@ other regions' custody calls cross to Singapore in either case.
   - Report the share of clean single-write commands more than 20, 50 and
     100 ms over their median in every hosted comparison. `staging_tails.py`
     in the private probe folder computes it.
+  - Make the pause visible in the product's own logs. Each wallet object
+    logs the `fl` value of `https://cloudflare.com/cdn-cgi/trace` once per
+    instance, off the request path. A stalled command can then be folded on
+    5,000 ms per host, as the record does for the role databases. Until
+    then the share of a registration's tail that the pause explains is the
+    probe's estimate.
+  - Do not measure lateness with the object's clock. `Date.now()` in a
+    timer callback is the scheduled time, and the clock leaves out the
+    object's own CPU time. Use the caller's round trip or a request that is
+    not gated.
 - [ ] Report the pauses to Cloudflare. The user sends it; the draft is
   `.artifacts/r155h-write-stall-probe/cloudflare-support-draft.md` in
   `seams-monorepo`. Ask what the hosts do every 5 s and 30 s, and whether
