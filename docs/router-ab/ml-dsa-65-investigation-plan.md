@@ -690,6 +690,8 @@ State remaining opportunities that could change that ranking.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
+   The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now covers mid-mask interruption, cross-session OT replay, restart, and four concurrent signatures.
+   Router admission, durable replay control, refresh, protected restore, and deployed lifecycle scenarios remain open.
 8. Rank complete candidates under one workload. Select and package the fastest measured design, then consume exact releases in the private application.
 
 The complete deployed baseline now passes. The first speed experiment changes only Boolean arithmetic identities.

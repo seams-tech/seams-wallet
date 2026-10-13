@@ -145,6 +145,11 @@ Retries need fresh execution identifiers and fresh garbling randomness.
 Concurrent operations must hold separate state and must not share candidate or OT state.
 Prepared correlations, if introduced, need atomic reservation and terminal consumption even after interruption.
 
+The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now checks interruption after one private mask circuit and cross-session OT replay.
+Both failures return no signature. A fresh restart and four concurrent signing operations then pass independent verification.
+All 773 circuit bindings across those successful operations differ.
+This evidence covers the host core and supplies no durable Router replay or Cloudflare storage claim.
+
 Refresh must preserve the canonical seed and all reconstructed private fields while replacing both roles' shares.
 It needs an atomic epoch transition and an explicit rollback and restore policy.
 Restoring an old backup must require that transition before signing.
