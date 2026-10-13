@@ -19,12 +19,9 @@ Every deployment remains a separate, authorized step.
 
 ## 0.10.0
 
-Status: **in preparation, not published.** Minor release with a registration
-wire change and one schema addition. It carries the work on public `dev`
-since 0.9.4. The user decided the version number on October 13, and Codex
-releases and deploys it together with R155H Phase 1, which is not on `dev`
-yet. The items below are on `dev` at `f736824e`. The package versions are
-still 0.9.4: the version change comes last.
+Status: **prepared, not published.** Minor release with a registration wire
+change and three schema additions. It carries the work on public `dev` since
+0.9.4. The user decided the version number and the release on October 13.
 
 - **Protocol.** The wallet-management protocol is 4. The setup reply of a
   registration has a new field, and the client parsers accept exact keys, so
@@ -39,13 +36,30 @@ still 0.9.4: the version change comes last.
   keep both routes. The
   [record](evidence/refactor-155h-one-request-registration.md) holds the
   rules that did not change.
+- **Pair preparation during the prompt.** After setup, the Gateway asks the
+  Router to admit both Derivers and to connect Deriver A to Deriver B, for a
+  passkey plan with a NEAR branch (`699f71f1`, `40afd5e7`). The preparation
+  holds no client input and grants no execution authority. Execution binds
+  the admission to the encrypted inputs and claims both roles before
+  protocol material flows. A missing or expired preparation uses the online
+  admission. The
+  [record](evidence/refactor-155h-prompt-preparation.md) holds the
+  scenarios.
+- **Setup rate limit.** 30 setups per minute for one publishable key and
+  source address, counted in each regional Gateway database. Exhaustion
+  answers 429 and a counter failure 503, both before any reservation or
+  custody work.
 - **Finalization.** Registration reads and writes no shared capability
   record. The record holds recovery state only. A signing admission takes
   its material from the signer row. The
   [record](evidence/refactor-155h-capability-from-signer-row.md) holds the
   guards and the database calls.
 - **Schema.** Gateway migration `0079_tenant_lookup_indexes.sql` adds three
-  indexes for the tenant lookups (`958b67d5`). No table changes.
+  indexes (`958b67d5`), and `0080_registration_setup_rate_limits.sql` adds
+  the counter table. Migration `0020_registration_preparation.sql` adds one
+  nullable column to `tenant_root_root_use_admissions` in each Deriver
+  database. All three must be applied before the matching versions serve.
+  The standard deployment applies them.
 - **In-flight registrations.** A ceremony record of a NEAR plan now holds
   the minted identity, and a record without it does not parse. A
   registration that started on 0.9.4 does not continue on 0.10.0.
@@ -58,22 +72,11 @@ still 0.9.4: the version change comes last.
 - **Private Console.** Its registration canary sends the protocol number as
   a literal (`packages/wallet-console-server-ts/src/tenantDeployment/provisioning.ts`),
   and `tests/relayer/tenant-home-challenge.e2e.test.ts` sends it too. The
-  pin commit must change both to 4, or the staging activation fails. The
-  private server package at `3f4fdb45` type-checks against the server build
-  of `dcace878`.
-- **Version change, prepared.** `.artifacts/release-0100/prepare-0.10.0.patch`
-  in the main checkout sets both packages and the public docs to 0.10.0 and
-  holds the upgrade notes for protocol 4. It applies to `f736824e`. The
-  folder is ignored by git.
-- **Local validation of the two items.** The contract suite passes: 132 of
-  134 cases on release Workers and the two debug-build cases on the debug
-  Router. The type checks and the bloat check pass. The Rust steps and the
-  private console build were not run again; no Rust file of the role
-  Workers changed.
+  pin commit must change both to 4, or the staging activation fails.
 - **Cutover proof.** The contract suite has no published-client check any
   more (`f736824e`). After the staging deployment, the test site built from
   the published 0.9.4 package must show the upgrade message.
-- **Measurement.** Take the 0.9.4 baseline on staging in the hour before
+- **Measurement.** The 0.9.4 baseline on staging is taken in the hour before
   the deployment. A 0.9.4 test site does not work against a 0.10.0 backend,
   so each side runs its own client.
 

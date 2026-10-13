@@ -10,7 +10,7 @@ users.
 
 ## Build and identity
 
-- [ ] SDK, Wallet Server, and hosted wallet assets use the matching 0.9.0 release.
+- [ ] SDK, Wallet Server, and hosted wallet assets use the matching 0.10.0 release.
 - [ ] An already-open older client shows an upgrade message. After reload,
       registration and signing complete with the current release.
 - [ ] The docs, application, wallet runtime, workers, and WASM build without

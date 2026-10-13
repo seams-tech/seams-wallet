@@ -32,26 +32,51 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Upgrading to 0.9.0
+## Upgrading to 0.10.0
 
-Pin the application package and backend package to **0.9.4**, the current patch
-release of 0.9, and build the
+Pin the application package and backend package to **0.10.0** and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 
 ```sh
 # Application
-pnpm add @seams/wallet@0.9.4
+pnpm add @seams/wallet@0.10.0
 
 # Backend deployment
-pnpm add @seams/wallet-server@0.9.4
+pnpm add @seams/wallet-server@0.10.0
 ```
 
-This release changes the registration contract and the wallet iframe protocol. The
-wallet-management protocol is `3` and the iframe protocol is `15.0.0`. An already-open
-0.8.0 client receives an HTTP 409 upgrade-required response from a 0.9.0 backend. Show
-the reload or upgrade message. Stop the attempt. Reload with matching application and
-wallet assets. Retrying the old payload cannot fix a version mismatch. A 0.8.0
-application cannot connect to 0.9.0 wallet-origin assets, so release the application
+This release changes the registration contract. The wallet-management protocol is `4`.
+The iframe protocol stays `15.0.0`. An already-open 0.9 client receives an HTTP 409
+upgrade-required response from a 0.10.0 backend. Show the reload or upgrade message.
+Stop the attempt. Reload with matching application and wallet assets. Retrying the old
+payload cannot fix a version mismatch. Release the application, the wallet origin and
+the backend together.
+
+The public SDK calls do not change. A NEAR-only passkey registration now sends the
+passkey proof and the custody execution in one request, and registration no longer
+writes the shared capability record of the environment. During the passkey prompt the
+backend admits the two custody roles and connects them. This preparation holds no
+client input and grants no execution authority.
+
+Registration setup has a rate limit of 30 requests per minute for one publishable key
+and one source address, counted in each region. A further request receives HTTP 429
+with the code `rate_limited`. Show the message and let the user try again after one
+minute. A backend that forwards the requests of many users from one address shares
+one limit among them.
+
+Deploy the Gateway, wallet runtime, Router, both Derivers, and the Signing Worker from
+the same release, and apply its complete D1 migration set before the new versions
+serve. Gateway migration `0079` adds three indexes, and `0080` adds the table of the
+setup rate limit. Migration `0020` of each Deriver database adds one column to the
+root-use admissions. A registration that started on 0.9 does not continue on 0.10.0:
+start it again.
+
+## Upgrading from 0.8.0 to 0.9
+
+Release 0.9.0 changed the registration contract and the wallet iframe protocol. Its
+wallet-management protocol is `3` and its iframe protocol is `15.0.0`. An already-open
+0.8.0 client receives an HTTP 409 upgrade-required response from a 0.9 backend. A 0.8.0
+application cannot connect to 0.9 wallet-origin assets, so release the application
 and the wallet origin together.
 
 Update integrations to the consolidated wallet API. `registerWallet`,
@@ -60,12 +85,10 @@ registration, iframe-initialization, and execution calls. `auth.lock` replaces `
 Remove the provider's `eager` prop. See the [SDK reference](/reference/) for the
 complete surface.
 
-Deploy the Gateway, wallet runtime, Router, both Derivers, and the Signing Worker from
-the same release, and apply its complete D1 migration set. Remove
-`signer_peer_verifying_keys` from `ROUTER_AB_PUBLIC_KEYSET_JSON` in the same activation.
-Deriver migration `0019` renames a column that 0.8.0 reads. A rollback to 0.8.0 must
-reverse that migration and restore the matching application, wallet assets, and
-backend together.
+Remove `signer_peer_verifying_keys` from `ROUTER_AB_PUBLIC_KEYSET_JSON` in the same
+activation. Deriver migration `0019` renames a column that 0.8.0 reads. A rollback to
+0.8.0 must reverse that migration and restore the matching application, wallet assets,
+and backend together.
 
 Version 0.9.0 requires wallet-object addresses, which wallets registered on 0.8.0 do
 not have. It does not provide a tool to migrate those wallets. Operators with durable
@@ -73,8 +96,8 @@ wallet state must resolve that migration before replacing their deployment.
 
 Version 0.9.3 added Gateway migration `0078`, which creates the table
 `registration_passkey_claims`. Registration finalization reads that table, so apply the
-migration before a Gateway of 0.9.3 or later serves. Releases 0.9.3 and 0.9.4 have no
-wire or protocol change: a 0.9.2 application works with a 0.9.4 backend.
+migration before a Gateway of 0.9.3 or later serves. Releases 0.9.1 to 0.9.4 have no
+wire or protocol change.
 
 ## Regional routing
 

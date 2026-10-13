@@ -20,7 +20,7 @@ device.
 The linked device has its own `laneId`, `laneShareEpoch`, holder-share envelope,
 permission policy, revocation status, and audit history.
 
-Version 0.9.0 links owner-controlled devices to the same wallet and its regional home.
+Version 0.10.0 links owner-controlled devices to the same wallet and its regional home.
 The selected operation still requires local user presence and server admission. Scoped
 mandate-based device or agent delegation is a separate planned capability.
 

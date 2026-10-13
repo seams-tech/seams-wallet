@@ -16,7 +16,7 @@ remain isolated while the shared Cloudflare account control plane remains honest
 Stronger active security and independently administered Deriver accounts remain deferred
 profiles and are not implied by the deployed benchmark.
 
-The 0.9.0 hosted stack runs Rust compute compiled to WebAssembly inside Workers and
+The 0.10.0 hosted stack runs Rust compute compiled to WebAssembly inside Workers and
 Durable Objects. The July Worker/WebSocket measurements below describe historical
 implementation benchmarks. They are Worker clock spans, and a Worker clock span excludes
 the Worker's own CPU time. They do not measure real ceremony time, current end-to-end
@@ -337,7 +337,7 @@ outputs belong to a stronger future profile.
 ## Cost model
 
 The following estimate applies to the historical Worker benchmark. Current
-hosted 0.9.0 costs also include Durable Object compute, regional D1, and backup
+hosted 0.10.0 costs also include Durable Object compute, regional D1, and backup
 storage and requests. Measure those separately for the actual deployment.
 
 The July 10, 2026 planning snapshot for Cloudflare Workers Standard assumes:

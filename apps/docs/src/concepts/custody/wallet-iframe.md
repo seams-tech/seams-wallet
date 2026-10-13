@@ -22,7 +22,7 @@ PRF output, Email OTP secret material, VoiceID templates, and server shares stay
 the app origin. Authorized key export displays material in the wallet-origin viewer.
 `keys.exportKey` returns an outcome to the app. It does not return the private key.
 
-In 0.9.0, WebAuthn credential creation and assertions execute on the wallet origin. The
+In 0.10.0, WebAuthn credential creation and assertions execute on the wallet origin. The
 SDK delegates iframe permissions to that origin. There is no application-origin WebAuthn
 fallback. Use a supported browser and a compatible wallet-origin relying party ID (RP
 ID).

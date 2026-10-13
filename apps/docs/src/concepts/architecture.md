@@ -128,14 +128,14 @@ and signing roles. Wallet ownership remains fixed across these services. Verify 
 placement for each service before claiming that all services run in the same region.
 
 All devices of one wallet use the same home. Travelling changes the client-to-home
-network distance and leaves the wallet's home unchanged. In version 0.9.0 the owner
+network distance and leaves the wallet's home unchanged. In version 0.10.0 the owner
 can move a wallet to another region with the wallet region setting or
 `seams.placement.move`. No relocation is automatic. Shared tenant authority remains
 separate from wallet-owned regional state.
 
 Staging now supports US, WEUR, APAC and OC (Oceania). The OC D1 primary serves from
 Sydney. Its Gateway and Wallet Runtime target Sydney. Production OC allocations
-remain pending. Wallet Server 0.9.0 includes the `oc` data-jurisdiction type.
+remain pending. Wallet Server 0.10.0 includes the `oc` data-jurisdiction type.
 
 ## Custody model
 
