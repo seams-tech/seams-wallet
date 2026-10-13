@@ -22,7 +22,7 @@ does, for object storage and for D1, and it gives the cost for a caller.
   wrote nothing.
 - **A pause lasts 70–400 ms at the median.** Between 1% and 9% of writes
   meet it. The longest pauses, in Singapore and Sydney, grew while the probe
-  ran, in three rounds of eight. A load step ten hours later did not
+  ran, in three rounds of nine. A load step ten hours later did not
   reproduce the rise, so its cause is open. The long pauses are not shown to
   be a property of those cities.
 - **D1 pauses the same way.**
@@ -81,7 +81,7 @@ in Tokyo.
 | First | October 12, 23:40–23:58 | SIN, HKG, NRT, KIX, LHR, AMS, IAD, EWR, ATL, ORD, MIA, SYD, MEL, BNE | Per city: 46 streams on 36 objects, 240 new objects with three single writes, one caller loop |
 | Second | October 13, 00:08–00:12 | HKG, SIN | 300 new objects used like wallet objects, three streams of three minutes, the tail of the probe Worker |
 | D1 | October 13, 00:13–00:20 | KIX | One throwaway database, six streams from a Worker in the same colo |
-| Hourly | October 13, 00:21–11:03 | The six cities | Eight rounds: twelve streams and 240 wallet-shaped objects per city and round |
+| Hourly | October 13, 00:21–12:33 | The six cities | Nine rounds: twelve streams and 240 wallet-shaped objects per city and round |
 | Load step | October 13, 11:04–11:25 | SIN, SYD | Three light streams for nine minutes under one Worker name; load from the second name at known times |
 | Hosts | October 13, 00:43–00:45 | SIN, HKG | 60 streams of 13 s under each of the two Worker names at once |
 | Heavy and light | October 13, 01:29–01:31 | SIN, HKG | Five objects per city: cycles of 13 MB and cycles of 40 KB in turn, aligned to the host's pause |
@@ -297,7 +297,7 @@ deleted after the run.
 
 ## Stability by hour
 
-Eight rounds, 90 minutes apart, on October 13. Each cell is twelve streams of
+Nine rounds, 90 minutes apart, on October 13. Each cell is twelve streams of
 45 s on new objects: the share of writes stalled over 20 ms, and the median
 pause in milliseconds.
 
@@ -311,6 +311,7 @@ pause in milliseconds.
 | 6 | 07:51 | 22:51 | 4.1%, 164 | 3.9%, 133 | 2.7%, 121 | 3.1%, 159 | 2.7%, 110 | 2.0%, 107 |
 | 7 | 09:21 | 00:21 | 4.0%, 183 | 3.1%, 173 | 2.1%, 119 | 3.3%, 151 | 2.9%, 137 | 1.0%, 69 |
 | 8 | 10:51 | 01:51 | 3.5%, 137 | 2.9%, 137 | 1.8%, 92 | 4.0%, 189 | 2.6%, 109 | 2.5%, 123 |
+| 9 | 12:21 | 03:21 | 4.4%, 187 | 3.4%, 153 | 2.6%, 107 | 7.0%, 370 | 2.9%, 113 | 3.0%, 114 |
 
 Mean stall per write, in milliseconds:
 
@@ -324,24 +325,26 @@ Mean stall per write, in milliseconds:
 | 6 | 8.8 | 6.6 | 3.1 | 3.9 | 3.7 | 1.8 |
 | 7 | 6.0 | 3.3 | 2.0 | 4.3 | 3.3 | 0.9 |
 | 8 | 4.9 | 2.6 | 1.6 | 6.2 | 4.0 | 2.4 |
+| 9 | 7.9 | 3.2 | 3.4 | 14.8 | 6.7 | 5.4 |
 
-- **The pause is there in every round and every city.** 4,541 of 5,108
+- **The pause is there in every round and every city.** 5,106 of 5,756
   cycle ticks had one, 89%.
 - **The table cannot be read as an effect of the hour.** In Singapore and
   Sydney the pause was short when each round began and grew while the probe
-  ran, in rounds 1 to 3 and not in rounds 4 to 8. Median pause in
+  ran, in rounds 1 to 3 and not in rounds 4 to 9. Median pause in
   milliseconds by seconds since the round began:
 
   | Round | SIN 0–12 s | 12–25 s | 25–45 s | SYD 0–12 s | 12–25 s | 25–45 s |
   | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-  | 1 | 155 | 277 | 369 | 172 | 267 | 443 |
+  | 1 | 156 | 277 | 370 | 172 | 267 | 443 |
   | 2 | 176 | 286 | 374 | 110 | 210 | 469 |
   | 3 | 97 | 357 | 414 | 213 | 180 | 458 |
-  | 4 | 376 | 268 | 171 | 166 | 153 | 141 |
+  | 4 | 376 | 268 | 171 | 166 | 154 | 142 |
   | 5 | 180 | 201 | 184 | 44 | 109 | 137 |
   | 6 | 160 | 149 | 184 | 90 | 73 | 112 |
-  | 7 | 183 | 190 | 183 | 51 | 76 | 69 |
-  | 8 | 157 | 131 | 144 | 101 | 166 | 122 |
+  | 7 | 183 | 190 | 184 | 52 | 76 | 69 |
+  | 8 | 157 | 132 | 144 | 102 | 166 | 122 |
+  | 9 | 177 | 198 | 177 | 85 | 101 | 142 |
 
   The other four cities show no such rise. Either the probe's own load
   lengthened the pause in those two regions at those hours, or the region
@@ -363,10 +366,15 @@ Mean stall per write, in milliseconds:
   So the probe's load does not lengthen the pause at that hour. The rise of
   rounds 1 to 3, at 15:00 to 18:30 UTC, stays unexplained: the same load step
   was not run at those hours.
+- **A long pause can be there before the probe adds load.** In round 9 the
+  median pause in US east was 356 ms in the first 12 s of the round, then
+  339 ms and 385 ms. Rounds 1 to 8 had 151–249 ms there. The twelve streams
+  ran in five colos. So the length of the pause changes without a rise
+  within the round.
 - **At the start of a round**, before that rise, the median pause was
-  97–183 ms in Singapore in seven of eight rounds, 44–213 ms in Sydney,
-  137–222 ms in Hong Kong and 126–156 ms in Tokyo.
-- **Singapore had the highest mean stall per write in five of eight
+  97–183 ms in Singapore in eight of nine rounds, 44–213 ms in Sydney,
+  126–222 ms in Hong Kong and 79–156 ms in Tokyo.
+- **Singapore had the highest mean stall per write in five of nine
   rounds.** That ranking includes the rise.
 - Three more hosts carried objects of both Worker names in these rounds.
   Their phases differed by 2, 4 and 10 ms.

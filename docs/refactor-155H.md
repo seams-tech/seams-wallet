@@ -917,7 +917,7 @@ storage API, and D1 waits the same way. A write, a response or an outgoing
 request that arrives in the pause waits until its end, also for a request
 that wrote nothing. A pause lasted 70–400 ms at the median. The longest
 ones, in Singapore and Sydney, grew while the probe ran, from about 150 ms
-to about 400 ms within 30 s in three rounds of eight; a load test ten hours
+to about 400 ms within 30 s in three rounds of nine; a load test ten hours
 later did not reproduce it, so the cause is open and the long pauses are
 not shown to be a property of those cities.
 At the start of a round Singapore's median pause was 97–183 ms, like Hong

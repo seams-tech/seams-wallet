@@ -70,7 +70,7 @@ the wallet, on more than 570 hosts in 14 colos:
   0.6% waited more than 50 ms over the median. The staging logs of that week
   name no host, so its stalls could not be matched to the cycle.
 - **What makes it longer.** In Singapore and Sydney the pause grew from
-  about 150 ms to about 400 ms while the probe ran, in three rounds of eight,
+  about 150 ms to about 400 ms while the probe ran, in three rounds of nine,
   all between 15:00 and 18:30 UTC. A test at 02:00 UTC added the same load
   beside three light streams and found no effect. So the probe's load does
   not lengthen the pause at that hour, and the rise is unexplained.
