@@ -1,0 +1,94 @@
+{
+  "reviewedCommit": "ab91d575d46a13be28deccb95660d6517c9164f3",
+  "parent": "f5e998669858e27aba20746c30ff11b42ce8c18c",
+  "result": "No introduced Yao invariant violation found in scoped review",
+  "checks": [
+    {
+      "check": "engine",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "crates/ed25519-yao/Cargo.toml",
+        "--features",
+        "local-protocol"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "adapter",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "crates/router-ab-ed25519-yao/Cargo.toml"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "vectors-check",
+      "command": [
+        "cargo",
+        "yao-fv",
+        "vectors-check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "runtime-conformance-check",
+      "command": [
+        "cargo",
+        "yao-fv",
+        "runtime-conformance-check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "passive-public-shape-check",
+      "command": [
+        "cargo",
+        "yao-fv",
+        "passive-public-shape-check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "passive-security-check",
+      "command": [
+        "cargo",
+        "yao-fv",
+        "passive-security-check"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "anti-drift",
+      "command": [
+        "cargo",
+        "yao-fv",
+        "anti-drift"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "wasmCipher": {
+    "cases": 2000,
+    "independentAesBlocks": 8000,
+    "passed": true,
+    "reference": "Node crypto/OpenSSL AES-128-ECB without padding",
+    "target": "wasm32-unknown-unknown, release O3, fat LTO, SIMD128",
+    "source": "ab91d575 unchanged gate_aes.rs",
+    "wasmSha256": "4b5b646a064bcef185c95c6bb236cac7ce26c26a986c036041a084e611546dba"
+  },
+  "nativeSelectionCodegen": "passed existing optimized-host label and IKNP checks",
+  "zeroization": "Optimized wasm32 engine IR retains 16-byte volatile zero copy and optimization barrier; AES state retains 64-byte volatile zero copy",
+  "limits": [
+    "No full production security proof",
+    "No Cloudflare JIT timing or microarchitectural guarantee",
+    "No claim to erase compiler-created copies",
+    "Ignored statistical timing case not run",
+    "Full nine-track verification not claimed; Aeneas extraction covers different functions"
+  ]
+}
