@@ -242,8 +242,9 @@ async function verifyFrozenCapabilityCache(api, store, database, scope, frozen, 
   );
   assert.deepEqual(await readRecords(database, scope), before);
 
+  // The cache keeps the four newest capabilities that no recovery suspends.
   const eviction = await store.load(lifecycleId);
-  for (let index = 0; index < 33; index += 1) {
+  for (let index = 0; index < 5; index += 1) {
     const fixture = await api.buildNearRegistrationAuthorityFixture(`cache-eviction-${index}`);
     copyCapabilityCache(
       eviction.state.recovery,
@@ -252,7 +253,7 @@ async function verifyFrozenCapabilityCache(api, store, database, scope, frozen, 
   }
   assert.equal((await commitCache(store, lifecycleId, eviction)).kind, 'stored');
   const evicted = await store.load(lifecycleId);
-  assert.equal(evicted.state.recovery.capabilities.size, 32);
+  assert.equal([...evicted.state.recovery.capabilities.values()].filter(isSettled).length, 4);
   for (const key of active.capabilities.keys())
     assert.equal(evicted.state.recovery.capabilities.has(key), false);
   const afterEviction = await readRecords(database, scope);
@@ -262,4 +263,8 @@ async function verifyFrozenCapabilityCache(api, store, database, scope, frozen, 
     /router_ab_yao_versioned_json_cas_guard/u,
   );
   assert.deepEqual(await readRecords(database, scope), afterEviction);
+}
+
+function isSettled(capability) {
+  return capability.kind !== 'suspended';
 }
