@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 518 dependency records (110 npm, 408 Cargo).
+Inventory: 445 dependency records (41 npm, 404 Cargo).
 
 ## Dependency inventory
 
@@ -26,7 +26,6 @@ Inventory: 518 dependency records (110 npm, 408 Cargo).
 | cargo | base64 | 0.23.1 | MIT OR Apache-2.0 | Marshall Pierce <marshall@mpierce.org> |
 | cargo | base64ct | 1.8.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | base64ct | 1.8.3 | Apache-2.0 OR MIT | RustCrypto Developers |
-| cargo | bitflags | 2.13.0 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | bitflags | 2.13.1 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | bitflags | 2.13.2 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | block-buffer | 0.10.4 | MIT OR Apache-2.0 | RustCrypto Developers |
@@ -49,8 +48,6 @@ Inventory: 518 dependency records (110 npm, 408 Cargo).
 | cargo | bytes | 1.12.1 | MIT | Carl Lerche <me@carllerche.com>; Sean McArthur <sean@seanmonstar.com> |
 | cargo | cast | 0.3.0 | MIT OR Apache-2.0 | Jorge Aparicio <jorge@japaric.io> |
 | cargo | cc | 1.2.64 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
-| cargo | cc | 1.2.67 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
-| cargo | cc | 1.4.0 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | cc | 1.4.5 | MIT OR Apache-2.0 |  |
 | cargo | cfg_aliases | 0.2.1 | MIT | Zicklag <zicklag@katharostech.com> |
 | cargo | cfg_aliases | 0.2.2 | MIT | Zicklag <zicklag@katharostech.com> |
@@ -226,7 +223,6 @@ Inventory: 518 dependency records (110 npm, 408 Cargo).
 | cargo | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT |  |
 | cargo | pkcs8 | 0.10.2 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | pkcs8 | 0.11.0 | Apache-2.0 OR MIT | RustCrypto Developers |
-| cargo | pkg-config | 0.3.33 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | pkg-config | 0.3.34 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | poly1305 | 0.8.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | polyval | 0.6.2 | Apache-2.0 OR MIT | RustCrypto Developers |
@@ -443,89 +439,20 @@ Inventory: 518 dependency records (110 npm, 408 Cargo).
 | npm | @scure/bip39 | 1.6.0 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @simplewebauthn/server | 13.2.2 | MIT | Matthew Miller <matthew@millerti.me> |
 | npm | abitype | 1.2.3 | MIT | awkweb.eth <t@wevm.dev>; jxom.eth <j@wevm.dev> |
-| npm | accepts | 1.3.8 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
-| npm | array-flatten | 1.1.1 | MIT | Blake Embrey hello@blakeembrey.com |
 | npm | asn1js | 3.0.7 | BSD-3-Clause | Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
 | npm | base-x | 5.0.1 | MIT | Daniel Cousens |
-| npm | body-parser | 1.20.3 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
 | npm | bs58 | 6.0.0 | MIT |  |
-| npm | bytes | 3.1.2 | MIT | Jed Watson <jed.watson@me.com>; TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com); Théo FIDRY <theo.fidry@gmail.com> |
-| npm | call-bind-apply-helpers | 1.0.2 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | call-bound | 1.0.4 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | content-disposition | 0.5.4 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | content-type | 1.0.5 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | cookie-signature | 1.0.6 | MIT | TJ Holowaychuk <tj@learnboost.com> |
-| npm | cookie | 0.7.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Roman Shtylman <shtylman@gmail.com> |
-| npm | debug | 2.6.9 | MIT | Andrew Rhyne <rhyneandrew@gmail.com>; Nathan Rajlich <nathan@tootallnate.net> (http://n8.io); TJ Holowaychuk <tj@vision-media.ca> |
-| npm | depd | 2.0.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | destroy | 1.2.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong me@jongleberry.com |
-| npm | dunder-proto | 1.0.1 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | ee-first | 1.1.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong me@jongleberry.com |
-| npm | encodeurl | 1.0.2 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | encodeurl | 2.0.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | es-define-property | 1.0.1 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | es-errors | 1.3.0 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | es-object-atoms | 1.1.1 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | escape-html | 1.0.3 | MIT |  |
-| npm | etag | 1.8.1 | MIT | David Björklund <david.bjorklund@gmail.com>; Douglas Christopher Wilson <doug@somethingdoug.com> |
 | npm | eventemitter3 | 5.0.1 | MIT | Arnout Kazemier |
-| npm | express | 4.21.2 | MIT | Aaron Heckmann <aaron.heckmann+github@gmail.com>; Ciaran Jessup <ciaranj@gmail.com>; Douglas Christopher Wilson <doug@somethingdoug.com>; Guillermo Rauch <rauchg@gmail.com>; Jonathan Ong <me@jongleberry.com>; Roman Shtylman <shtylman+expressjs@gmail.com>; TJ Holowaychuk <tj@vision-media.ca>; Young Jae Sim <hanul@hanul.me> |
-| npm | finalhandler | 1.3.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | forwarded | 0.2.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | fresh | 0.5.2 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com); TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com) |
-| npm | function-bind | 1.1.2 | MIT | Jordan Harband; Raynos; Raynos <raynos2@gmail.com> |
-| npm | get-intrinsic | 1.3.0 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | get-proto | 1.0.1 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | gopd | 1.2.0 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | has-symbols | 1.1.0 | MIT | Jordan Harband ljharb@gmail.com |
-| npm | hasown | 2.0.2 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | http-errors | 2.0.0 | MIT | Alan Plum <me@pluma.io>; Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
-| npm | iconv-lite | 0.4.24 | MIT | Alexander Shtuchkin <ashtuchkin@gmail.com> |
 | npm | idb | 8.0.3 | ISC | Jake Archibald |
-| npm | inherits | 2.0.4 | ISC |  |
-| npm | ipaddr.js | 1.9.1 | MIT | whitequark <whitequark@whitequark.org> |
 | npm | isows | 1.0.7 | MIT |  |
-| npm | math-intrinsics | 1.1.0 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | media-typer | 0.3.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | merge-descriptors | 1.0.3 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong me@jongleberry.com; Mike Grabowski <grabbou@gmail.com> |
-| npm | methods | 1.1.2 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com); TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com) |
-| npm | mime-db | 1.52.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com); Robert Kieffer <robert@broofa.com> (http://github.com/broofa) |
-| npm | mime-types | 2.1.35 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jeremiah Senkpiel <fishrock123@rocketmail.com> (https://searchbeam.jit.su); Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
-| npm | mime | 1.6.0 | MIT | Benjamin Thomas benjamin@benjaminthomas.org; Robert Kieffer robert@broofa.com |
-| npm | ms | 2.0.0 | MIT |  |
-| npm | ms | 2.1.3 | MIT |  |
-| npm | negotiator | 0.6.3 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Federico Romero <federico.romero@outboxlabs.com>; Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/) |
-| npm | object-inspect | 1.13.4 | MIT | James Halliday mail@substack.net |
-| npm | on-finished | 2.4.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
 | npm | ox | 0.12.1 | MIT |  |
-| npm | parseurl | 1.3.3 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
-| npm | path-to-regexp | 0.1.12 | MIT |  |
 | npm | preact | 10.29.8 | MIT |  |
-| npm | proxy-addr | 2.0.7 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
 | npm | pvtsutils | 1.3.6 | MIT | Miroshin Stepan<microshine@mail.ru>; PeculiarVentures |
 | npm | pvutils | 1.1.5 | MIT | Miroshin Stepan microshine@mail.ru; Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
-| npm | qs | 6.13.0 | BSD-3-Clause | Jordan Harband ljharb@gmail.com |
-| npm | range-parser | 1.2.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; James Wyatt Cready <wyatt.cready@lanetix.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com); TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com) |
-| npm | raw-body | 2.5.2 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com); Raynos <raynos2@gmail.com> |
 | npm | reflect-metadata | 0.2.2 | Apache-2.0 | Ron Buckton ron.buckton@microsoft.com |
-| npm | safe-buffer | 5.2.1 | MIT | Feross Aboukhadijeh feross@feross.org |
-| npm | safer-buffer | 2.1.2 | MIT | Nikita Skovoroda chalkerx@gmail.com |
-| npm | send | 0.19.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; James Wyatt Cready <jcready@gmail.com>; Jesús Leganés Combarro <piranna@gmail.com>; TJ Holowaychuk <tj@vision-media.ca> |
-| npm | serve-static | 1.16.2 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | setprototypeof | 1.2.0 | ISC | Wes Todd |
-| npm | side-channel-list | 1.0.0 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | side-channel-map | 1.0.1 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | side-channel-weakmap | 1.0.2 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | side-channel | 1.1.0 | MIT | Jordan Harband <ljharb@gmail.com> |
-| npm | statuses | 2.0.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
-| npm | toidentifier | 1.0.1 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Nick Baugh <niftylettuce@gmail.com> (http://niftylettuce.com/) |
 | npm | tslib | 1.14.1 | 0BSD | Microsoft Corp. |
 | npm | tslib | 2.8.1 | 0BSD | Microsoft Corp. |
 | npm | tsyringe | 4.10.0 | MIT | Steven Hobson-Campbell |
-| npm | type-is | 1.6.18 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com>; Jonathan Ong <me@jongleberry.com> (http://jongleberry.com) |
-| npm | unpipe | 1.0.0 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
-| npm | utils-merge | 1.0.1 | MIT | Jared Hanson jaredhanson@gmail.com |
-| npm | vary | 1.1.2 | MIT | Douglas Christopher Wilson <doug@somethingdoug.com> |
 | npm | viem | 2.46.0 | MIT |  |
 | npm | voice-glow | 0.2.1 | MIT | Jakub Antalik |
 | npm | ws | 8.18.3 | MIT | Einar Otto Stangvik <einaros@gmail.com> (http://2x.io) |
@@ -547,7 +474,6 @@ but do not include a top-level license or notice file in the distributed package
 - cargo:rustls-platform-verifier-android@0.1.1 — MIT OR Apache-2.0
 - cargo:ts-rs-macros@12.0.1 — MIT
 - cargo:ts-rs@12.0.1 — MIT
-- npm:cookie-signature@1.0.6 — MIT
 
 ## Packaged license and notice texts
 
@@ -1871,40 +1797,6 @@ Applies to:
     THE SOFTWARE.
 
 
-### 11d017c3b9f1ee3f
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:parseurl@1.3.3
-
-
-    (The MIT License)
-
-    Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2014-2017 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 123a331b5dbf04c3
 
 Packaged as: LICENSE-MIT
@@ -2328,37 +2220,6 @@ Applies to:
     THE SOFTWARE.
 
 
-### 1662fae9b5314d11
-
-Packaged as: license.md
-
-Applies to:
-
-- npm:ms@2.1.3
-
-    The MIT License (MIT)
-
-    Copyright (c) 2020 Vercel, Inc.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
 ### 177540cad091a40e
 
 Packaged as: LICENSE-MIT
@@ -2392,38 +2253,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 1a526fbe8d8577f5
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:unpipe@1.0.0
-
-    (The MIT License)
-
-    Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 1c7cf76689c837a6
@@ -2759,37 +2588,6 @@ Applies to:
     SOFTWARE.
 
 
-### 206c1adcf206dc00
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:has-symbols@1.1.0
-
-    MIT License
-
-    Copyright (c) 2016 Jordan Harband
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
 ### 209fbbe0ad52d923
 
 Packaged as: LICENSE-MIT
@@ -2899,40 +2697,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 23d466b1b134b415
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:body-parser@1.20.3
-- npm:type-is@1.6.18
-
-    (The MIT License)
-
-    Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2014-2015 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 23f18e03dc49df91
@@ -3133,105 +2897,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 255aa557a1f55224
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:escape-html@1.0.3
-
-    (The MIT License)
-
-    Copyright (c) 2012-2013 TJ Holowaychuk
-    Copyright (c) 2015 Andreas Lubbe
-    Copyright (c) 2015 Tiancheng "Timothy" Gu
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### 257aed98914108e9
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:content-type@1.0.5
-
-    (The MIT License)
-
-    Copyright (c) 2015 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### 25a328069fe771f8
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:send@0.19.0
-
-    (The MIT License)
-
-    Copyright (c) 2012 TJ Holowaychuk
-    Copyright (c) 2014-2022 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 275c491d6d116055
@@ -3613,38 +3278,6 @@ Applies to:
     COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
     IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### 2b770a704c15de23
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:dunder-proto@1.0.1
-- npm:math-intrinsics@1.1.0
-
-    MIT License
-
-    Copyright (c) 2024 ECMAScript Shims
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### 2d1c57bff28344b9
@@ -4075,38 +3708,6 @@ Applies to:
     MIT OR Apache-2.0
 
 
-### 37876d7de8bdf5e5
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:raw-body@2.5.2
-
-    The MIT License (MIT)
-
-    Copyright (c) 2013-2014 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2014-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-
-
 ### 378f5840b258e277
 
 Packaged as: LICENSE-MIT
@@ -4114,8 +3715,6 @@ Packaged as: LICENSE-MIT
 Applies to:
 
 - cargo:cc@1.2.64
-- cargo:cc@1.2.67
-- cargo:cc@1.4.0
 - cargo:cc@1.4.5
 - cargo:cfg-if@1.0.1
 - cargo:cfg-if@1.0.4
@@ -4128,7 +3727,6 @@ Applies to:
 - cargo:js-sys@0.3.85
 - cargo:js-sys@0.3.90
 - cargo:openssl-probe@0.2.1
-- cargo:pkg-config@0.3.33
 - cargo:pkg-config@0.3.34
 - cargo:wasm-bindgen-backend@0.2.100
 - cargo:wasm-bindgen-futures@0.4.73
@@ -4457,37 +4055,6 @@ Applies to:
     ------------------------------------------------------------------------------
 
     Copyright notices are retained in src/* files where relevant.
-
-
-### 39c5ec504cf6bd5c
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:get-intrinsic@1.3.0
-
-    MIT License
-
-    Copyright (c) 2020 Jordan Harband
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### 3aecc12b1cb28832
@@ -5388,38 +4955,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 47dcccf62bf40469
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:finalhandler@1.3.1
-
-    (The MIT License)
-
-    Copyright (c) 2014-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 4a883ecc3bb1010f
 
 Packaged as: LICENSE-MIT
@@ -5453,37 +4988,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 4bc935e71be198c6
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:safer-buffer@2.1.2
-
-    MIT License
-
-    Copyright (c) 2018 Nikita Skovoroda <chalkerx@gmail.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### 4cada0bd02ea3692
@@ -5554,38 +5058,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 4eeb3271453a891d
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:array-flatten@1.1.1
-- npm:path-to-regexp@0.1.12
-
-    The MIT License (MIT)
-
-    Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com)
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
 
 
 ### 508a77d2e7b51d98
@@ -5829,39 +5301,6 @@ Applies to:
        limitations under the License.
 
 
-### 512cfa4d5e7a7569
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:statuses@2.0.1
-
-
-    The MIT License (MIT)
-
-    Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2016 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-
-
 ### 527adf9d4c760f73
 
 Packaged as: LICENSE
@@ -5961,40 +5400,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 553d4d20029a24e3
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:negotiator@0.6.3
-
-    (The MIT License)
-
-    Copyright (c) 2012-2014 Federico Romero
-    Copyright (c) 2012-2014 Isaac Z. Schlueter
-    Copyright (c) 2014-2015 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 553fffcd9b1cb158
@@ -6293,71 +5698,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 5e325595b4ea8cfe
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:call-bind-apply-helpers@1.0.2
-- npm:call-bound@1.0.4
-- npm:es-define-property@1.0.1
-- npm:es-errors@1.3.0
-- npm:es-object-atoms@1.1.1
-- npm:side-channel-list@1.0.0
-- npm:side-channel-map@1.0.1
-
-    MIT License
-
-    Copyright (c) 2024 Jordan Harband
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
-### 60d39459b26bab58
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:debug@2.6.9
-
-    (The MIT License)
-
-    Copyright (c) 2014 TJ Holowaychuk <tj@vision-media.ca>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy of this software
-    and associated documentation files (the 'Software'), to deal in the Software without restriction,
-    including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
-    and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
-    subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all copies or substantial
-    portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-    LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 61d383b05b87d78f
 
 Packaged as: LICENSE-MIT
@@ -6454,35 +5794,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 62568a2d1337b771
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:ipaddr.js@1.9.1
-
-    Copyright (C) 2011-2017 whitequark <whitequark@whitequark.org>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
 
 
 ### 62c7a1e35f564068
@@ -6753,39 +6064,6 @@ Applies to:
     SOFTWARE.
 
 
-### 62fb7d7c1822fe78
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:merge-descriptors@1.0.3
-
-    (The MIT License)
-
-    Copyright (c) 2013 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 63af4bea227c94d0
 
 Packaged as: LICENSE-MIT
@@ -6820,41 +6098,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 63b9a188d7d43e64
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:serve-static@1.16.2
-
-    (The MIT License)
-
-    Copyright (c) 2010 Sencha Inc.
-    Copyright (c) 2011 LearnBoost
-    Copyright (c) 2011 TJ Holowaychuk
-    Copyright (c) 2014-2016 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 6462612d92b86138
@@ -6902,7 +6145,6 @@ Packaged as: LICENSE-MIT
 
 Applies to:
 
-- cargo:bitflags@2.13.0
 - cargo:bitflags@2.13.1
 - cargo:bitflags@2.13.2
 - cargo:log@0.4.27
@@ -6976,37 +6218,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### 6652830c2607c722
-
-Packaged as: license.md
-
-Applies to:
-
-- npm:ms@2.0.0
-
-    The MIT License (MIT)
-
-    Copyright (c) 2016 Zeit, Inc.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### 6652c868f35dfe5e
@@ -7166,31 +6377,6 @@ Applies to:
     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-### 69be713b3d6c33e0
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:inherits@2.0.4
-
-    The ISC License
-
-    Copyright (c) Isaac Z. Schlueter
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose with or without fee is hereby granted, provided that the above
-    copyright notice and this permission notice appear in all copies.
-
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-    FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-    PERFORMANCE OF THIS SOFTWARE.
 
 
 ### 6abdec69ada0c5f0
@@ -7491,36 +6677,6 @@ Applies to:
        identification within third-party archives.
 
 
-### 6e7d699cdd1e4fa8
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:utils-merge@1.0.1
-
-    The MIT License (MIT)
-
-    Copyright (c) 2013-2017 Jared Hanson
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy of
-    this software and associated documentation files (the "Software"), to deal in
-    the Software without restriction, including without limitation the rights to
-    use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-    the Software, and to permit persons to whom the Software is furnished to do so,
-    subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-    FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-    COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-    IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 6efb0476a1cc0850
 
 Packaged as: LICENSE-MIT
@@ -7669,40 +6825,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 71f83c4c0621102a
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:accepts@1.3.8
-- npm:mime-types@2.1.35
-
-    (The MIT License)
-
-    Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 7365cc8878a1d7ce
 
 Packaged as: LICENSE-MIT
@@ -7776,38 +6898,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 74d8054d56d522bd
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:media-typer@0.3.0
-
-    (The MIT License)
-
-    Copyright (c) 2014 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 7576269ea71f767b
 
 Packaged as: LICENSE-MIT
@@ -7846,39 +6936,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 7585ea7bba616ccb
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:encodeurl@1.0.2
-- npm:encodeurl@2.0.0
-
-    (The MIT License)
-
-    Copyright (c) 2016 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 75fdde8c4db3b85d
 
 Packaged as: LICENSE-MIT
@@ -7908,29 +6965,6 @@ Applies to:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
-
-
-### 76d6d1ea0c268da3
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:setprototypeof@1.2.0
-
-    Copyright (c) 2015, Wes Todd
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose with or without fee is hereby granted, provided that the above
-    copyright notice and this permission notice appear in all copies.
-
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-    SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-    OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-    CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 ### 78779d420019e6b4
@@ -8513,39 +7547,6 @@ Applies to:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
-
-
-### 8089bcc08845ec14
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:on-finished@2.4.1
-
-    (The MIT License)
-
-    Copyright (c) 2013 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2014 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 8173d5c29b4f956d
@@ -9637,37 +8638,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 8f2658c03422c408
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:mime@1.6.0
-
-    The MIT License (MIT)
-
-    Copyright (c) 2010 Benjamin Thomas, Robert Kieffer
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-
-
 ### 90a8b6622d5e3faa
 
 Packaged as: LICENSE-MIT
@@ -9835,35 +8805,6 @@ Applies to:
     SOFTWARE.
 
 
-### 916586c760c1cb10
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:function-bind@1.1.2
-
-    Copyright (c) 2013 Raynos.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-
-
 ### 91e934255ba3b2f2
 
 Packaged as: LICENSE-MIT
@@ -9931,40 +8872,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 95a5762890e5c1c9
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:express@4.21.2
-
-    (The MIT License)
-
-    Copyright (c) 2009-2014 TJ Holowaychuk <tj@vision-media.ca>
-    Copyright (c) 2013-2014 Roman Shtylman <shtylman+expressjs@gmail.com>
-    Copyright (c) 2014-2015 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### 96033c92159349b4
 
 Packaged as: LICENSE-MIT
@@ -9994,38 +8901,6 @@ Applies to:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
-
-
-### 965ef284f7f4c176
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:ee-first@1.1.1
-
-
-    The MIT License (MIT)
-
-    Copyright (c) 2014 Jonathan Ong me@jongleberry.com
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
 
 
 ### 98181e7249d0c017
@@ -10147,39 +9022,6 @@ Applies to:
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-
-### a0ec0dab16b3666f
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:fresh@0.5.2
-
-    (The MIT License)
-
-    Copyright (c) 2012 TJ Holowaychuk <tj@vision-media.ca>
-    Copyright (c) 2016-2017 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### a192bdfbed999ea0
@@ -10393,7 +9235,6 @@ Applies to:
 - cargo:autocfg@1.5.1
 - cargo:base64@0.22.1
 - cargo:base64@0.23.1
-- cargo:bitflags@2.13.0
 - cargo:bitflags@2.13.1
 - cargo:bitflags@2.13.2
 - cargo:bs58@0.5.1
@@ -10403,8 +9244,6 @@ Applies to:
 - cargo:bumpalo@3.20.3
 - cargo:cast@0.3.0
 - cargo:cc@1.2.64
-- cargo:cc@1.2.67
-- cargo:cc@1.4.0
 - cargo:cc@1.4.5
 - cargo:cfg-if@1.0.1
 - cargo:cfg-if@1.0.4
@@ -10456,7 +9295,6 @@ Applies to:
 - cargo:once_cell@1.21.4
 - cargo:openssl-probe@0.2.1
 - cargo:percent-encoding@2.3.2
-- cargo:pkg-config@0.3.33
 - cargo:pkg-config@0.3.34
 - cargo:postcard@1.1.3
 - cargo:rustc_version@0.4.1
@@ -11158,39 +9996,6 @@ Applies to:
        END OF TERMS AND CONDITIONS
 
 
-### a7996721249a136f
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:etag@1.8.1
-- npm:proxy-addr@2.0.7
-
-    (The MIT License)
-
-    Copyright (c) 2014-2016 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### a825bd853ab71619
 
 Packaged as: LICENSE-MIT
@@ -11204,37 +10009,6 @@ Applies to:
     The MIT License (MIT)
 
     Copyright (c) 2014 Paho Lurie-Gregg
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
-### a832d679750e49ab
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:toidentifier@1.0.1
-
-    MIT License
-
-    Copyright (c) 2016 Douglas Christopher Wilson <doug@somethingdoug.com>
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -12503,103 +11277,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### bd134b41da59e452
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:depd@2.0.0
-
-    (The MIT License)
-
-    Copyright (c) 2014-2018 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### bd40cc437e28a3ad
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:object-inspect@1.13.4
-
-    MIT License
-
-    Copyright (c) 2013 James Halliday
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
-### bd47ce7b88c77596
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:content-disposition@0.5.4
-- npm:forwarded@0.2.0
-- npm:vary@1.1.2
-
-    (The MIT License)
-
-    Copyright (c) 2014-2017 Douglas Christopher Wilson
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### bd9e3f4569647207
 
 Packaged as: LICENSE.md
@@ -12665,68 +11342,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### be46ce1e3b0479af
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:get-proto@1.0.1
-
-    MIT License
-
-    Copyright (c) 2025 Jordan Harband
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
-### bf9b0d665be2a689
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:hasown@2.0.2
-
-    MIT License
-
-    Copyright (c) Jordan Harband and contributors
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### c0fabcc308b450cb
@@ -13486,37 +12101,6 @@ Applies to:
        limitations under the License.
 
 
-### c7cc929b57080f4b
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:safe-buffer@5.2.1
-
-    The MIT License (MIT)
-
-    Copyright (c) Feross Aboukhadijeh
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-
-
 ### c986bcdb83103d4d
 
 Packaged as: LICENSE-MIT
@@ -13755,104 +12339,6 @@ Applies to:
     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-### cc1dfd4dafa27271
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:mime-db@1.52.0
-
-    (The MIT License)
-
-    Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
-    Copyright (c) 2015-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### ce9fb515b91fedfd
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:methods@1.1.2
-
-    (The MIT License)
-
-    Copyright (c) 2013-2014 TJ Holowaychuk <tj@vision-media.ca>
-    Copyright (c) 2015-2016 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### cfc3f455254c0af0
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:side-channel-weakmap@1.0.2
-- npm:side-channel@1.1.0
-
-    MIT License
-
-    Copyright (c) 2019 Jordan Harband
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### cfc7749b96f63bd3
@@ -14320,37 +12806,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### d90bf0a089da4cf4
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:gopd@1.2.0
-
-    MIT License
-
-    Copyright (c) 2022 Jordan Harband
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
 ### dc91f8200e4b2a1f
 
 Packaged as: LICENSE-MIT
@@ -14384,39 +12839,6 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### dcb94ff9b1e037a8
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:http-errors@2.0.0
-
-
-    The MIT License (MIT)
-
-    Copyright (c) 2014 Jonathan Ong me@jongleberry.com
-    Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
 
 
 ### e0cfa1006a645206
@@ -14518,78 +12940,6 @@ Applies to:
     5.4. "Results" means any outcome obtained by computational analysis
     of Data, including for example machine learning models and models'
     insights.
-
-
-### e3b44af066615de2
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:bytes@3.1.2
-
-    (The MIT License)
-
-    Copyright (c) 2012-2014 TJ Holowaychuk <tj@vision-media.ca>
-    Copyright (c) 2015 Jed Watson <jed.watson@me.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### e7dc37bf662d7f78
-
-Packaged as: LICENSE.md
-
-Applies to:
-
-- npm:qs@6.13.0
-
-    BSD 3-Clause License
-
-    Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-
-    1. Redistributions of source code must retain the above copyright notice, this
-       list of conditions and the following disclaimer.
-
-    2. Redistributions in binary form must reproduce the above copyright notice,
-       this list of conditions and the following disclaimer in the documentation
-       and/or other materials provided with the distribution.
-
-    3. Neither the name of the copyright holder nor the names of its
-       contributors may be used to endorse or promote products derived from
-       this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-    CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-    OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ### e7f5360a60628940
@@ -14895,39 +13245,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### f655e6291356ec0d
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:range-parser@1.2.1
-
-    (The MIT License)
-
-    Copyright (c) 2012-2014 TJ Holowaychuk <tj@vision-media.ca>
-    Copyright (c) 2015-2016 Douglas Christopher Wilson <doug@somethingdoug.com
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### f7bdb3426d045cd5
 
 Packaged as: LICENSE-MIT
@@ -15044,36 +13361,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### f9c6da891840e895
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:iconv-lite@0.4.24
-
-    Copyright (c) 2011 Alexander Shtuchkin
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ### fb77f0a9c53e473a
 
 Packaged as: LICENSE-MIT
@@ -15125,39 +13412,6 @@ Applies to:
     The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-### fe9538ec27e7fb9b
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:cookie@0.7.1
-
-    (The MIT License)
-
-    Copyright (c) 2012-2014 Roman Shtylman <shtylman@gmail.com>
-    Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    'Software'), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### fee6bdac4b917351
@@ -15231,38 +13485,5 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-
-
-### ffe370c8785b0b68
-
-Packaged as: LICENSE
-
-Applies to:
-
-- npm:destroy@1.2.0
-
-
-    The MIT License (MIT)
-
-    Copyright (c) 2014 Jonathan Ong me@jongleberry.com
-    Copyright (c) 2015-2022 Douglas Christopher Wilson doug@somethingdoug.com
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
 
 

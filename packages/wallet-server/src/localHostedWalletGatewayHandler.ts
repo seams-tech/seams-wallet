@@ -242,7 +242,7 @@ async function handleEcdsaRespondFault(
 /**
  * The local Gateway: the hosted Gateway handler plus the intended-suite
  * transport faults, which a request arms with local-only headers. The local
- * Worker and the local Node host both serve through this.
+ * Worker serves through this handler.
  */
 export async function handleLocalHostedWalletGatewayRequestV1(
   request: Request,
