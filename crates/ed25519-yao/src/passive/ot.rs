@@ -217,6 +217,18 @@ impl OtFamily for MlDsaDecisionOtFamily {
     const OT_COUNT: usize = 1_664;
 }
 
+/// Fixed bounded batch for the investigation's Boolean-engine preprocessing.
+#[cfg(feature = "passive-benchmark")]
+#[derive(Debug)]
+pub(super) struct MlDsaBooleanBatchOtFamily;
+#[cfg(feature = "passive-benchmark")]
+impl sealed::Sealed for MlDsaBooleanBatchOtFamily {}
+#[cfg(feature = "passive-benchmark")]
+impl OtFamily for MlDsaBooleanBatchOtFamily {
+    const CODE: u8 = 10;
+    const OT_COUNT: usize = 4096;
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct PayloadPair {
     zero: [u8; LABEL_BYTES],

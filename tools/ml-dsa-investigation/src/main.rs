@@ -1,4 +1,5 @@
 mod arithmetic_audit;
+mod boolean_engine_evidence;
 mod circuit_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
@@ -20,6 +21,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    CompareBooleanEngines {
+        output: PathBuf,
+    },
     InspectArithmetic {
         output: PathBuf,
     },
@@ -44,6 +48,9 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if boolean_engine_evidence::try_run_child()? {
+        return Ok(());
+    }
     if private_signing::try_run_child()? {
         return Ok(());
     }
@@ -57,6 +64,7 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::CompareBooleanEngines { output } => boolean_engine_evidence::run(&output)?,
         Invocation::InspectArithmetic { output } => arithmetic_audit::run(&output)?,
         Invocation::ExportWorkerFixtures { directory } => {
             println!(
@@ -91,6 +99,17 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "compare-boolean-engines" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("An engine comparison output path is required.")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected engine comparison argument.",
+            )?;
+            return Ok(Invocation::CompareBooleanEngines { output });
+        }
         if first == "inspect-arithmetic" {
             let output = PathBuf::from(args.next().ok_or("An audit output path is required.")?);
             require(
@@ -210,6 +229,7 @@ fn generate_report(
         "Cargo.lock",
         "src/main.rs",
         "src/arithmetic_audit.rs",
+        "src/boolean_engine_evidence.rs",
         "src/reference.rs",
         "src/circuit_evidence.rs",
         "src/sampler_evidence.rs",
@@ -243,6 +263,7 @@ fn generate_report(
         "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_kernel.rs",
         "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_private.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",

@@ -201,6 +201,25 @@ cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.to
 These scenarios establish core process behavior.
 They do not establish durable Router replay rejection, backup restoration, refresh, or Cloudflare lifecycle handling.
 Their contended process timings are correctness evidence and must remain separate from serial performance measurements.
+
+## GMW and ABY2.0 kernel comparison
+
+Generate the public Worker fixtures with the export command before this comparison.
+Then run:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  compare-boolean-engines docs/evidence/ml-dsa-65-boolean-engine-kernels-host-20261013.json
+```
+
+The command checks seed expansion, sampling, rounding, and signing-mask expansion through both Boolean engines.
+Each case has three complete measured executions after one excluded warm-up.
+Both roles generate private correlations through genuine OT in both directions.
+The artifact includes fresh base OT, batch padding, input conversion, online exchanges, and output decoding.
+It compares exact private outputs with the independent generated fixtures and checks actual directional pipe traffic.
+Every execution begins without prepared correlations. It destroys its correlations after use.
+These experiments provide no complete alternative signer, persistent pool, or Cloudflare performance claim.
+The [engine report](../../docs/router-ab/ml-dsa-65-engine-comparison.md) records the costs and remaining comparisons.
 Classical OT does not establish post-quantum transcript confidentiality.
 
 The [signing options](../../docs/router-ab/ml-dsa-65-signing-options.md) distinguish commitment `w1` from challenge hash `c_tilde`.

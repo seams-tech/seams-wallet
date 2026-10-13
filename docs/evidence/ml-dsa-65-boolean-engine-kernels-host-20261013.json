@@ -1,0 +1,3361 @@
+{
+  "cases": [
+    {
+      "engine": "gmw",
+      "kernel": "seed",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 365759834,
+          "role_a": {
+            "actual_pipe_received_bytes": 2059408,
+            "actual_pipe_sent_bytes": 2059578,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "55dbf5f94c7cd6fac03318b446f5d186f817f69d3439b73991a9c781e8982a5c",
+            "output_bytes": 32,
+            "output_matches": true,
+            "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1173500
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 9456,
+                "sent": 9456,
+                "wall_ns_including_peer_wait": 974667
+              },
+              "output": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 256666
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 357228125
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 302963,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 362736584,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2059578,
+            "actual_pipe_sent_bytes": 2059408,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "55dbf5f94c7cd6fac03318b446f5d186f817f69d3439b73991a9c781e8982a5c",
+            "output_bytes": 128,
+            "output_matches": true,
+            "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1290875
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 9456,
+                "sent": 9456,
+                "wall_ns_including_peer_wait": 2697667
+              },
+              "output": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 261792
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 355487709
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 302963,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 362737208,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 376393583,
+          "role_a": {
+            "actual_pipe_received_bytes": 2059408,
+            "actual_pipe_sent_bytes": 2059578,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "f4396da6de22bfa8504c7d615e9f3c802acf4f2fafb14cbad657afa5467ab138",
+            "output_bytes": 32,
+            "output_matches": true,
+            "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1225541
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 9456,
+                "sent": 9456,
+                "wall_ns_including_peer_wait": 1275334
+              },
+              "output": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 327417
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 367130958
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 302963,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 373271625,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2059578,
+            "actual_pipe_sent_bytes": 2059408,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "f4396da6de22bfa8504c7d615e9f3c802acf4f2fafb14cbad657afa5467ab138",
+            "output_bytes": 128,
+            "output_matches": true,
+            "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1652791
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 9456,
+                "sent": 9456,
+                "wall_ns_including_peer_wait": 2915209
+              },
+              "output": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 241584
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 365464375
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 302963,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 373278916,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 374115250,
+          "role_a": {
+            "actual_pipe_received_bytes": 2059408,
+            "actual_pipe_sent_bytes": 2059578,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "3069ca4488fc6eee579a5f1e8b489c70f24a758dc05c389055c1c72601550aa3",
+            "output_bytes": 32,
+            "output_matches": true,
+            "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1518458
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 9456,
+                "sent": 9456,
+                "wall_ns_including_peer_wait": 1037833
+              },
+              "output": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 249333
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 365049125
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 302963,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 371099875,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2059578,
+            "actual_pipe_sent_bytes": 2059408,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "3069ca4488fc6eee579a5f1e8b489c70f24a758dc05c389055c1c72601550aa3",
+            "output_bytes": 128,
+            "output_matches": true,
+            "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1640501
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 9456,
+                "sent": 9456,
+                "wall_ns_including_peer_wait": 2786416
+              },
+              "output": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 239583
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 363254375
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 302963,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 371097625,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 364368833,
+        "role_a": {
+          "actual_pipe_received_bytes": 2059408,
+          "actual_pipe_sent_bytes": 2059578,
+          "and_gates": 37824,
+          "and_layers": 24,
+          "execution_binding_sha256": "4efc3fd6a68147a5a5e7641169d35382bebc2d1523e1619ffb15030b778a153d",
+          "output_bytes": 32,
+          "output_matches": true,
+          "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+          "padded_ots_per_direction": 40960,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 1487542
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 9456,
+              "sent": 9456,
+              "wall_ns_including_peer_wait": 1134500
+            },
+            "output": {
+              "received": 32,
+              "sent": 128,
+              "wall_ns_including_peer_wait": 395666
+            },
+            "preprocessing": {
+              "received": 2049920,
+              "sent": 2049920,
+              "wall_ns_including_peer_wait": 353233000
+            }
+          },
+          "preprocessing_batches": 10,
+          "retained_private_state_allocation_bytes": 302963,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 361232458,
+          "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+          "topology_allocation_bytes": 7528448
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 2059578,
+          "actual_pipe_sent_bytes": 2059408,
+          "and_gates": 37824,
+          "and_layers": 24,
+          "execution_binding_sha256": "4efc3fd6a68147a5a5e7641169d35382bebc2d1523e1619ffb15030b778a153d",
+          "output_bytes": 128,
+          "output_matches": true,
+          "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+          "padded_ots_per_direction": 40960,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 1492834
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 9456,
+              "sent": 9456,
+              "wall_ns_including_peer_wait": 2738417
+            },
+            "output": {
+              "received": 128,
+              "sent": 32,
+              "wall_ns_including_peer_wait": 392666
+            },
+            "preprocessing": {
+              "received": 2049920,
+              "sent": 2049920,
+              "wall_ns_including_peer_wait": 351624584
+            }
+          },
+          "preprocessing_batches": 10,
+          "retained_private_state_allocation_bytes": 302963,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 361084666,
+          "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+          "topology_allocation_bytes": 7528448
+        }
+      }
+    },
+    {
+      "engine": "aby2",
+      "kernel": "seed",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 373881000,
+          "role_a": {
+            "actual_pipe_received_bytes": 2054840,
+            "actual_pipe_sent_bytes": 2055010,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "85f678e8c1af443a3938d9e923421af5a98fa4e9d5ca223cf3cbc24b1afde086",
+            "output_bytes": 32,
+            "output_matches": true,
+            "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1299041
+              },
+              "input_online": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 6667
+              },
+              "input_setup": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 14375
+              },
+              "online": {
+                "received": 4728,
+                "sent": 4728,
+                "wall_ns_including_peer_wait": 937333
+              },
+              "output": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 285416
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 365057791
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 416806,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 370967125,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2055010,
+            "actual_pipe_sent_bytes": 2054840,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "85f678e8c1af443a3938d9e923421af5a98fa4e9d5ca223cf3cbc24b1afde086",
+            "output_bytes": 128,
+            "output_matches": true,
+            "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1321916
+              },
+              "input_online": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 11750
+              },
+              "input_setup": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 1737959
+              },
+              "online": {
+                "received": 4728,
+                "sent": 4728,
+                "wall_ns_including_peer_wait": 940917
+              },
+              "output": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 336333
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 362972208
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 416806,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 371009750,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 362752250,
+          "role_a": {
+            "actual_pipe_received_bytes": 2054840,
+            "actual_pipe_sent_bytes": 2055010,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "bcec9aaa4b22234cafac2a37faf1666ce242f5ac7a13e062cb9f8f43905aaaf0",
+            "output_bytes": 32,
+            "output_matches": true,
+            "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1305124
+              },
+              "input_online": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 10000
+              },
+              "input_setup": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 14916
+              },
+              "online": {
+                "received": 4728,
+                "sent": 4728,
+                "wall_ns_including_peer_wait": 933333
+              },
+              "output": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 331333
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 353978917
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 416806,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 359913458,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2055010,
+            "actual_pipe_sent_bytes": 2054840,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "bcec9aaa4b22234cafac2a37faf1666ce242f5ac7a13e062cb9f8f43905aaaf0",
+            "output_bytes": 128,
+            "output_matches": true,
+            "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1309125
+              },
+              "input_online": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 11209
+              },
+              "input_setup": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 1578584
+              },
+              "online": {
+                "received": 4728,
+                "sent": 4728,
+                "wall_ns_including_peer_wait": 930750
+              },
+              "output": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 330792
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 352407875
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 416806,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 359913750,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 348110500,
+          "role_a": {
+            "actual_pipe_received_bytes": 2054840,
+            "actual_pipe_sent_bytes": 2055010,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "a1a6e397469b341b4ec35ecf0adca59987d9e17240e82d41416563d572ff3e62",
+            "output_bytes": 32,
+            "output_matches": true,
+            "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1246792
+              },
+              "input_online": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 9167
+              },
+              "input_setup": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 9167
+              },
+              "online": {
+                "received": 4728,
+                "sent": 4728,
+                "wall_ns_including_peer_wait": 642292
+              },
+              "output": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 316166
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 340140875
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 416806,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 345476375,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2055010,
+            "actual_pipe_sent_bytes": 2054840,
+            "and_gates": 37824,
+            "and_layers": 24,
+            "execution_binding_sha256": "a1a6e397469b341b4ec35ecf0adca59987d9e17240e82d41416563d572ff3e62",
+            "output_bytes": 128,
+            "output_matches": true,
+            "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+            "padded_ots_per_direction": 40960,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1215749
+              },
+              "input_online": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 10708
+              },
+              "input_setup": {
+                "received": 32,
+                "sent": 128,
+                "wall_ns_including_peer_wait": 1537334
+              },
+              "online": {
+                "received": 4728,
+                "sent": 4728,
+                "wall_ns_including_peer_wait": 641500
+              },
+              "output": {
+                "received": 128,
+                "sent": 32,
+                "wall_ns_including_peer_wait": 314041
+              },
+              "preprocessing": {
+                "received": 2049920,
+                "sent": 2049920,
+                "wall_ns_including_peer_wait": 338466334
+              }
+            },
+            "preprocessing_batches": 10,
+            "retained_private_state_allocation_bytes": 416806,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 345474458,
+            "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+            "topology_allocation_bytes": 7528448
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 378833000,
+        "role_a": {
+          "actual_pipe_received_bytes": 2054840,
+          "actual_pipe_sent_bytes": 2055010,
+          "and_gates": 37824,
+          "and_layers": 24,
+          "execution_binding_sha256": "573480153bfe2be64a302e50e186b05259a204949a838d622e79d484563664bb",
+          "output_bytes": 32,
+          "output_matches": true,
+          "output_sha256": "9123593c034e201020ffa9082f04887a7489ce648c74816b10876d915cee0d44",
+          "padded_ots_per_direction": 40960,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 1257583
+            },
+            "input_online": {
+              "received": 32,
+              "sent": 128,
+              "wall_ns_including_peer_wait": 6417
+            },
+            "input_setup": {
+              "received": 128,
+              "sent": 32,
+              "wall_ns_including_peer_wait": 9625
+            },
+            "online": {
+              "received": 4728,
+              "sent": 4728,
+              "wall_ns_including_peer_wait": 909750
+            },
+            "output": {
+              "received": 32,
+              "sent": 128,
+              "wall_ns_including_peer_wait": 319958
+            },
+            "preprocessing": {
+              "received": 2049920,
+              "sent": 2049920,
+              "wall_ns_including_peer_wait": 370349417
+            }
+          },
+          "preprocessing_batches": 10,
+          "retained_private_state_allocation_bytes": 416806,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 376076542,
+          "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+          "topology_allocation_bytes": 7528448
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 2055010,
+          "actual_pipe_sent_bytes": 2054840,
+          "and_gates": 37824,
+          "and_layers": 24,
+          "execution_binding_sha256": "573480153bfe2be64a302e50e186b05259a204949a838d622e79d484563664bb",
+          "output_bytes": 128,
+          "output_matches": true,
+          "output_sha256": "8783e286ffa2e6189e7175fc5afcb8c435ad9fea0330341656b856268dd6bb47",
+          "padded_ots_per_direction": 40960,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 1261749
+            },
+            "input_online": {
+              "received": 128,
+              "sent": 32,
+              "wall_ns_including_peer_wait": 8000
+            },
+            "input_setup": {
+              "received": 32,
+              "sent": 128,
+              "wall_ns_including_peer_wait": 1749875
+            },
+            "online": {
+              "received": 4728,
+              "sent": 4728,
+              "wall_ns_including_peer_wait": 905292
+            },
+            "output": {
+              "received": 128,
+              "sent": 32,
+              "wall_ns_including_peer_wait": 330375
+            },
+            "preprocessing": {
+              "received": 2049920,
+              "sent": 2049920,
+              "wall_ns_including_peer_wait": 368605000
+            }
+          },
+          "preprocessing_batches": 10,
+          "retained_private_state_allocation_bytes": 416806,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 376078750,
+          "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+          "topology_allocation_bytes": 7528448
+        }
+      }
+    },
+    {
+      "engine": "gmw",
+      "kernel": "sampling",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 2526864375,
+          "role_a": {
+            "actual_pipe_received_bytes": 14832490,
+            "actual_pipe_sent_bytes": 14833300,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "7b03b0c040ccaece967dcd66284cdf28bc41ccac77a994538a07c85c2117d1e6",
+            "output_bytes": 1,
+            "output_matches": true,
+            "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 7813543
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 73065,
+                "sent": 73065,
+                "wall_ns_including_peer_wait": 7321750
+              },
+              "output": {
+                "received": 1,
+                "sent": 737,
+                "wall_ns_including_peer_wait": 1740084
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2488065458
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2043389,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2523596959,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 14833300,
+            "actual_pipe_sent_bytes": 14832490,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "7b03b0c040ccaece967dcd66284cdf28bc41ccac77a994538a07c85c2117d1e6",
+            "output_bytes": 737,
+            "output_matches": true,
+            "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 8049167
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 73065,
+                "sent": 73065,
+                "wall_ns_including_peer_wait": 8896625
+              },
+              "output": {
+                "received": 737,
+                "sent": 1,
+                "wall_ns_including_peer_wait": 1653209
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2486481958
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2043389,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2523519000,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 2496005875,
+          "role_a": {
+            "actual_pipe_received_bytes": 14832490,
+            "actual_pipe_sent_bytes": 14833300,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "eaf0e3a179f941efad03c9e84b435ca29ff3961f4a245573f72d153420b2c341",
+            "output_bytes": 1,
+            "output_matches": true,
+            "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 8211416
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 73065,
+                "sent": 73065,
+                "wall_ns_including_peer_wait": 7574708
+              },
+              "output": {
+                "received": 1,
+                "sent": 737,
+                "wall_ns_including_peer_wait": 1636875
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2455701292
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2043389,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2491581459,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 14833300,
+            "actual_pipe_sent_bytes": 14832490,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "eaf0e3a179f941efad03c9e84b435ca29ff3961f4a245573f72d153420b2c341",
+            "output_bytes": 737,
+            "output_matches": true,
+            "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 8341291
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 73065,
+                "sent": 73065,
+                "wall_ns_including_peer_wait": 9129958
+              },
+              "output": {
+                "received": 737,
+                "sent": 1,
+                "wall_ns_including_peer_wait": 1810917
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2452942500
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2043389,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2491699709,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 2535759125,
+          "role_a": {
+            "actual_pipe_received_bytes": 14832490,
+            "actual_pipe_sent_bytes": 14833300,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "60686643c3306df371c43fb5f37332de63bc3149d6b383350e8caade69da1503",
+            "output_bytes": 1,
+            "output_matches": true,
+            "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 8896041
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 73065,
+                "sent": 73065,
+                "wall_ns_including_peer_wait": 8666625
+              },
+              "output": {
+                "received": 1,
+                "sent": 737,
+                "wall_ns_including_peer_wait": 1639250
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2491555333
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2043389,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2529700875,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 14833300,
+            "actual_pipe_sent_bytes": 14832490,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "60686643c3306df371c43fb5f37332de63bc3149d6b383350e8caade69da1503",
+            "output_bytes": 737,
+            "output_matches": true,
+            "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 8794709
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 73065,
+                "sent": 73065,
+                "wall_ns_including_peer_wait": 10375000
+              },
+              "output": {
+                "received": 737,
+                "sent": 1,
+                "wall_ns_including_peer_wait": 1796000
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2489543958
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2043389,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2529838041,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 2495262375,
+        "role_a": {
+          "actual_pipe_received_bytes": 14832490,
+          "actual_pipe_sent_bytes": 14833300,
+          "and_gates": 292180,
+          "and_layers": 199,
+          "execution_binding_sha256": "2148db5a8a4885b39cab308b84fac2326f8691eabdc71420dc89f9c8f7b40550",
+          "output_bytes": 1,
+          "output_matches": true,
+          "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+          "padded_ots_per_direction": 294912,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 8760875
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 73065,
+              "sent": 73065,
+              "wall_ns_including_peer_wait": 6833667
+            },
+            "output": {
+              "received": 1,
+              "sent": 737,
+              "wall_ns_including_peer_wait": 1812541
+            },
+            "preprocessing": {
+              "received": 14759424,
+              "sent": 14759424,
+              "wall_ns_including_peer_wait": 2454026750
+            }
+          },
+          "preprocessing_batches": 72,
+          "retained_private_state_allocation_bytes": 2043389,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 2491400541,
+          "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+          "topology_allocation_bytes": 47955944
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 14833300,
+          "actual_pipe_sent_bytes": 14832490,
+          "and_gates": 292180,
+          "and_layers": 199,
+          "execution_binding_sha256": "2148db5a8a4885b39cab308b84fac2326f8691eabdc71420dc89f9c8f7b40550",
+          "output_bytes": 737,
+          "output_matches": true,
+          "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+          "padded_ots_per_direction": 294912,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 8634333
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 73065,
+              "sent": 73065,
+              "wall_ns_including_peer_wait": 8456833
+            },
+            "output": {
+              "received": 737,
+              "sent": 1,
+              "wall_ns_including_peer_wait": 1596208
+            },
+            "preprocessing": {
+              "received": 14759424,
+              "sent": 14759424,
+              "wall_ns_including_peer_wait": 2452396708
+            }
+          },
+          "preprocessing_batches": 72,
+          "retained_private_state_allocation_bytes": 2043389,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 2491196166,
+          "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+          "topology_allocation_bytes": 47955944
+        }
+      }
+    },
+    {
+      "engine": "aby2",
+      "kernel": "sampling",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 2533344500,
+          "role_a": {
+            "actual_pipe_received_bytes": 14796843,
+            "actual_pipe_sent_bytes": 14797653,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "9be75b7c26edef8bfd0be9143ef5c8c24c85fa6e04364b484857442395c891fa",
+            "output_bytes": 1,
+            "output_matches": true,
+            "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 8030918
+              },
+              "input_online": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 19458
+              },
+              "input_setup": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 29000
+              },
+              "online": {
+                "received": 36552,
+                "sent": 36552,
+                "wall_ns_including_peer_wait": 7187208
+              },
+              "output": {
+                "received": 1,
+                "sent": 737,
+                "wall_ns_including_peer_wait": 2179917
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2491703167
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2625878,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2527174792,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 14797653,
+            "actual_pipe_sent_bytes": 14796843,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "9be75b7c26edef8bfd0be9143ef5c8c24c85fa6e04364b484857442395c891fa",
+            "output_bytes": 737,
+            "output_matches": true,
+            "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 8178459
+              },
+              "input_online": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 37250
+              },
+              "input_setup": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 1775459
+              },
+              "online": {
+                "received": 36552,
+                "sent": 36552,
+                "wall_ns_including_peer_wait": 7181417
+              },
+              "output": {
+                "received": 737,
+                "sent": 1,
+                "wall_ns_including_peer_wait": 2116500
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2489687625
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2625878,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2527129083,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 2549145750,
+          "role_a": {
+            "actual_pipe_received_bytes": 14796843,
+            "actual_pipe_sent_bytes": 14797653,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "3c37297d5323dfd675b3a82ce3e049b75d992a049e6f2f5f744a9ed6615fadf8",
+            "output_bytes": 1,
+            "output_matches": true,
+            "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 8599959
+              },
+              "input_online": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 21125
+              },
+              "input_setup": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 15375
+              },
+              "online": {
+                "received": 36552,
+                "sent": 36552,
+                "wall_ns_including_peer_wait": 5740417
+              },
+              "output": {
+                "received": 1,
+                "sent": 737,
+                "wall_ns_including_peer_wait": 1771334
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2511430417
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2625878,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2545457792,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 14797653,
+            "actual_pipe_sent_bytes": 14796843,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "3c37297d5323dfd675b3a82ce3e049b75d992a049e6f2f5f744a9ed6615fadf8",
+            "output_bytes": 737,
+            "output_matches": true,
+            "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 7829417
+              },
+              "input_online": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 28500
+              },
+              "input_setup": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 1577833
+              },
+              "online": {
+                "received": 36552,
+                "sent": 36552,
+                "wall_ns_including_peer_wait": 5739542
+              },
+              "output": {
+                "received": 737,
+                "sent": 1,
+                "wall_ns_including_peer_wait": 1798041
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2507796291
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2625878,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2545414292,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 2488691917,
+          "role_a": {
+            "actual_pipe_received_bytes": 14796843,
+            "actual_pipe_sent_bytes": 14797653,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "48708569b922e6d6f36f32aba5bf5f477c10fa5d594f543c948666a907b652cb",
+            "output_bytes": 1,
+            "output_matches": true,
+            "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 7840793
+              },
+              "input_online": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 17334
+              },
+              "input_setup": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 19791
+              },
+              "online": {
+                "received": 36552,
+                "sent": 36552,
+                "wall_ns_including_peer_wait": 7133917
+              },
+              "output": {
+                "received": 1,
+                "sent": 737,
+                "wall_ns_including_peer_wait": 1992833
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2447947625
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2625878,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2483851375,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 14797653,
+            "actual_pipe_sent_bytes": 14796843,
+            "and_gates": 292180,
+            "and_layers": 199,
+            "execution_binding_sha256": "48708569b922e6d6f36f32aba5bf5f477c10fa5d594f543c948666a907b652cb",
+            "output_bytes": 737,
+            "output_matches": true,
+            "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+            "padded_ots_per_direction": 294912,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 8916500
+              },
+              "input_online": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 29416
+              },
+              "input_setup": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 1538125
+              },
+              "online": {
+                "received": 36552,
+                "sent": 36552,
+                "wall_ns_including_peer_wait": 7129834
+              },
+              "output": {
+                "received": 737,
+                "sent": 1,
+                "wall_ns_including_peer_wait": 1948041
+              },
+              "preprocessing": {
+                "received": 14759424,
+                "sent": 14759424,
+                "wall_ns_including_peer_wait": 2446411250
+              }
+            },
+            "preprocessing_batches": 72,
+            "retained_private_state_allocation_bytes": 2625878,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 2483820416,
+            "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+            "topology_allocation_bytes": 47955944
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 2500708875,
+        "role_a": {
+          "actual_pipe_received_bytes": 14796843,
+          "actual_pipe_sent_bytes": 14797653,
+          "and_gates": 292180,
+          "and_layers": 199,
+          "execution_binding_sha256": "bca9c93eecccc262b6d3c65ae3a3207d64224721804383102b982305c835fda8",
+          "output_bytes": 1,
+          "output_matches": true,
+          "output_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+          "padded_ots_per_direction": 294912,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 8249916
+            },
+            "input_online": {
+              "received": 64,
+              "sent": 802,
+              "wall_ns_including_peer_wait": 19208
+            },
+            "input_setup": {
+              "received": 802,
+              "sent": 64,
+              "wall_ns_including_peer_wait": 23625
+            },
+            "online": {
+              "received": 36552,
+              "sent": 36552,
+              "wall_ns_including_peer_wait": 5531459
+            },
+            "output": {
+              "received": 1,
+              "sent": 737,
+              "wall_ns_including_peer_wait": 2133250
+            },
+            "preprocessing": {
+              "received": 14759424,
+              "sent": 14759424,
+              "wall_ns_including_peer_wait": 2462278166
+            }
+          },
+          "preprocessing_batches": 72,
+          "retained_private_state_allocation_bytes": 2625878,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 2496589333,
+          "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+          "topology_allocation_bytes": 47955944
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 14797653,
+          "actual_pipe_sent_bytes": 14796843,
+          "and_gates": 292180,
+          "and_layers": 199,
+          "execution_binding_sha256": "bca9c93eecccc262b6d3c65ae3a3207d64224721804383102b982305c835fda8",
+          "output_bytes": 737,
+          "output_matches": true,
+          "output_sha256": "b1901084529c8c24933468c79952e303e0d6f6ee0c2c61a86297ba0490ab19c0",
+          "padded_ots_per_direction": 294912,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 8071208
+            },
+            "input_online": {
+              "received": 802,
+              "sent": 64,
+              "wall_ns_including_peer_wait": 32792
+            },
+            "input_setup": {
+              "received": 64,
+              "sent": 802,
+              "wall_ns_including_peer_wait": 1673667
+            },
+            "online": {
+              "received": 36552,
+              "sent": 36552,
+              "wall_ns_including_peer_wait": 5528916
+            },
+            "output": {
+              "received": 737,
+              "sent": 1,
+              "wall_ns_including_peer_wait": 2254583
+            },
+            "preprocessing": {
+              "received": 14759424,
+              "sent": 14759424,
+              "wall_ns_including_peer_wait": 2460365166
+            }
+          },
+          "preprocessing_batches": 72,
+          "retained_private_state_allocation_bytes": 2625878,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 2496701250,
+          "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+          "topology_allocation_bytes": 47955944
+        }
+      }
+    },
+    {
+      "engine": "gmw",
+      "kernel": "rounding",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 388724709,
+          "role_a": {
+            "actual_pipe_received_bytes": 2265984,
+            "actual_pipe_sent_bytes": 2266794,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "d3d531e08cb393831c417f19b4dd33671174a5a7e0fdb321e710e6dd53c2ddea",
+            "output_bytes": 320,
+            "output_matches": true,
+            "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1475126
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 10752,
+                "sent": 10752,
+                "wall_ns_including_peer_wait": 1836541
+              },
+              "output": {
+                "received": 320,
+                "sent": 1056,
+                "wall_ns_including_peer_wait": 287292
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 378113958
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 341248,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 384736500,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2266794,
+            "actual_pipe_sent_bytes": 2265984,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "d3d531e08cb393831c417f19b4dd33671174a5a7e0fdb321e710e6dd53c2ddea",
+            "output_bytes": 1056,
+            "output_matches": true,
+            "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1483416
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 10752,
+                "sent": 10752,
+                "wall_ns_including_peer_wait": 3598458
+              },
+              "output": {
+                "received": 1056,
+                "sent": 320,
+                "wall_ns_including_peer_wait": 299708
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 375920791
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 341248,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 384694208,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 385663791,
+          "role_a": {
+            "actual_pipe_received_bytes": 2265984,
+            "actual_pipe_sent_bytes": 2266794,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "1c85e6624fb932c8ae67d0fff17b10ed77948350f180ef937b711d8e47e454e5",
+            "output_bytes": 320,
+            "output_matches": true,
+            "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1549625
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 10752,
+                "sent": 10752,
+                "wall_ns_including_peer_wait": 1685708
+              },
+              "output": {
+                "received": 320,
+                "sent": 1056,
+                "wall_ns_including_peer_wait": 290458
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 375874791
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 341248,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 383005958,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2266794,
+            "actual_pipe_sent_bytes": 2265984,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "1c85e6624fb932c8ae67d0fff17b10ed77948350f180ef937b711d8e47e454e5",
+            "output_bytes": 1056,
+            "output_matches": true,
+            "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1589958
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 10752,
+                "sent": 10752,
+                "wall_ns_including_peer_wait": 3282041
+              },
+              "output": {
+                "received": 1056,
+                "sent": 320,
+                "wall_ns_including_peer_wait": 294167
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 374269667
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 341248,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 383005708,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 391776417,
+          "role_a": {
+            "actual_pipe_received_bytes": 2265984,
+            "actual_pipe_sent_bytes": 2266794,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "31b1b9fad8ddae36154d8dcd2ba7d2089ceae6025b1f844d587766a53144dce3",
+            "output_bytes": 320,
+            "output_matches": true,
+            "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1536708
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 10752,
+                "sent": 10752,
+                "wall_ns_including_peer_wait": 1779792
+              },
+              "output": {
+                "received": 320,
+                "sent": 1056,
+                "wall_ns_including_peer_wait": 296166
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 381279500
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 341248,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 388133250,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2266794,
+            "actual_pipe_sent_bytes": 2265984,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "31b1b9fad8ddae36154d8dcd2ba7d2089ceae6025b1f844d587766a53144dce3",
+            "output_bytes": 1056,
+            "output_matches": true,
+            "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1590626
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 10752,
+                "sent": 10752,
+                "wall_ns_including_peer_wait": 3424708
+              },
+              "output": {
+                "received": 1056,
+                "sent": 320,
+                "wall_ns_including_peer_wait": 306833
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 379625791
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 341248,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 388139000,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 392405625,
+        "role_a": {
+          "actual_pipe_received_bytes": 2265984,
+          "actual_pipe_sent_bytes": 2266794,
+          "and_gates": 43008,
+          "and_layers": 93,
+          "execution_binding_sha256": "e28d7a71994a562414dba39af4171667533d158e745b6f0f5b615fc85c01f8bc",
+          "output_bytes": 320,
+          "output_matches": true,
+          "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+          "padded_ots_per_direction": 45056,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 1613251
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 10752,
+              "sent": 10752,
+              "wall_ns_including_peer_wait": 1685166
+            },
+            "output": {
+              "received": 320,
+              "sent": 1056,
+              "wall_ns_including_peer_wait": 316209
+            },
+            "preprocessing": {
+              "received": 2254912,
+              "sent": 2254912,
+              "wall_ns_including_peer_wait": 381927125
+            }
+          },
+          "preprocessing_batches": 11,
+          "retained_private_state_allocation_bytes": 341248,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 389252250,
+          "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+          "topology_allocation_bytes": 7579648
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 2266794,
+          "actual_pipe_sent_bytes": 2265984,
+          "and_gates": 43008,
+          "and_layers": 93,
+          "execution_binding_sha256": "e28d7a71994a562414dba39af4171667533d158e745b6f0f5b615fc85c01f8bc",
+          "output_bytes": 1056,
+          "output_matches": true,
+          "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+          "padded_ots_per_direction": 45056,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 1736083
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 10752,
+              "sent": 10752,
+              "wall_ns_including_peer_wait": 3447625
+            },
+            "output": {
+              "received": 1056,
+              "sent": 320,
+              "wall_ns_including_peer_wait": 321375
+            },
+            "preprocessing": {
+              "received": 2254912,
+              "sent": 2254912,
+              "wall_ns_including_peer_wait": 380063958
+            }
+          },
+          "preprocessing_batches": 11,
+          "retained_private_state_allocation_bytes": 341248,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 389258125,
+          "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+          "topology_allocation_bytes": 7579648
+        }
+      }
+    },
+    {
+      "engine": "aby2",
+      "kernel": "rounding",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 381035583,
+          "role_a": {
+            "actual_pipe_received_bytes": 2262816,
+            "actual_pipe_sent_bytes": 2263626,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "2b098a3e52ab17d27a7efc28fe457e11e7fd9973029fc6be4264ce69949730d8",
+            "output_bytes": 320,
+            "output_matches": true,
+            "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1572375
+              },
+              "input_online": {
+                "received": 736,
+                "sent": 1472,
+                "wall_ns_including_peer_wait": 26750
+              },
+              "input_setup": {
+                "received": 1472,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 27583
+              },
+              "online": {
+                "received": 5376,
+                "sent": 5376,
+                "wall_ns_including_peer_wait": 1394833
+              },
+              "output": {
+                "received": 320,
+                "sent": 1056,
+                "wall_ns_including_peer_wait": 390083
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 371912625
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 467456,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 378469583,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2263626,
+            "actual_pipe_sent_bytes": 2262816,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "2b098a3e52ab17d27a7efc28fe457e11e7fd9973029fc6be4264ce69949730d8",
+            "output_bytes": 1056,
+            "output_matches": true,
+            "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1565167
+              },
+              "input_online": {
+                "received": 1472,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 36083
+              },
+              "input_setup": {
+                "received": 736,
+                "sent": 1472,
+                "wall_ns_including_peer_wait": 1565542
+              },
+              "online": {
+                "received": 5376,
+                "sent": 5376,
+                "wall_ns_including_peer_wait": 1391166
+              },
+              "output": {
+                "received": 1056,
+                "sent": 320,
+                "wall_ns_including_peer_wait": 379209
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 370347834
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 467456,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 378469083,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 382848958,
+          "role_a": {
+            "actual_pipe_received_bytes": 2262816,
+            "actual_pipe_sent_bytes": 2263626,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "42468a5ca2a59edd58a7ced7dedc7d6352a2843141bc22d5a16591621ecfc61c",
+            "output_bytes": 320,
+            "output_matches": true,
+            "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1527624
+              },
+              "input_online": {
+                "received": 736,
+                "sent": 1472,
+                "wall_ns_including_peer_wait": 103083
+              },
+              "input_setup": {
+                "received": 1472,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 41333
+              },
+              "online": {
+                "received": 5376,
+                "sent": 5376,
+                "wall_ns_including_peer_wait": 1978291
+              },
+              "output": {
+                "received": 320,
+                "sent": 1056,
+                "wall_ns_including_peer_wait": 377875
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 373177208
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 467456,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 380312708,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2263626,
+            "actual_pipe_sent_bytes": 2262816,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "42468a5ca2a59edd58a7ced7dedc7d6352a2843141bc22d5a16591621ecfc61c",
+            "output_bytes": 1056,
+            "output_matches": true,
+            "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1566750
+              },
+              "input_online": {
+                "received": 1472,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 93792
+              },
+              "input_setup": {
+                "received": 736,
+                "sent": 1472,
+                "wall_ns_including_peer_wait": 1567708
+              },
+              "online": {
+                "received": 5376,
+                "sent": 5376,
+                "wall_ns_including_peer_wait": 1997333
+              },
+              "output": {
+                "received": 1056,
+                "sent": 320,
+                "wall_ns_including_peer_wait": 377958
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 371636916
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 467456,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 380313041,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 383996250,
+          "role_a": {
+            "actual_pipe_received_bytes": 2262816,
+            "actual_pipe_sent_bytes": 2263626,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "a1ad0e03f4f68fbe89727e51cfa2cd4e11873bbc74ecdc5b389241bcf62acc65",
+            "output_bytes": 320,
+            "output_matches": true,
+            "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 1543250
+              },
+              "input_online": {
+                "received": 736,
+                "sent": 1472,
+                "wall_ns_including_peer_wait": 26208
+              },
+              "input_setup": {
+                "received": 1472,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 29041
+              },
+              "online": {
+                "received": 5376,
+                "sent": 5376,
+                "wall_ns_including_peer_wait": 1632125
+              },
+              "output": {
+                "received": 320,
+                "sent": 1056,
+                "wall_ns_including_peer_wait": 348041
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 374449708
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 467456,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 381335667,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 2263626,
+            "actual_pipe_sent_bytes": 2262816,
+            "and_gates": 43008,
+            "and_layers": 93,
+            "execution_binding_sha256": "a1ad0e03f4f68fbe89727e51cfa2cd4e11873bbc74ecdc5b389241bcf62acc65",
+            "output_bytes": 1056,
+            "output_matches": true,
+            "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+            "padded_ots_per_direction": 45056,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1560000
+              },
+              "input_online": {
+                "received": 1472,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 35750
+              },
+              "input_setup": {
+                "received": 736,
+                "sent": 1472,
+                "wall_ns_including_peer_wait": 1526000
+              },
+              "online": {
+                "received": 5376,
+                "sent": 5376,
+                "wall_ns_including_peer_wait": 1627625
+              },
+              "output": {
+                "received": 1056,
+                "sent": 320,
+                "wall_ns_including_peer_wait": 362625
+              },
+              "preprocessing": {
+                "received": 2254912,
+                "sent": 2254912,
+                "wall_ns_including_peer_wait": 372930125
+              }
+            },
+            "preprocessing_batches": 11,
+            "retained_private_state_allocation_bytes": 467456,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 381337625,
+            "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+            "topology_allocation_bytes": 7579648
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 388355000,
+        "role_a": {
+          "actual_pipe_received_bytes": 2262816,
+          "actual_pipe_sent_bytes": 2263626,
+          "and_gates": 43008,
+          "and_layers": 93,
+          "execution_binding_sha256": "97b8201d5183a3e5cc53a6e4868aa83ded776fe4d1ab36c01c918009fafdcd79",
+          "output_bytes": 320,
+          "output_matches": true,
+          "output_sha256": "7ca93a2dfd74c5c0cad1c8960a778fa09901e014b70e4d11b90fce6909ddec4a",
+          "padded_ots_per_direction": 45056,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 1484875
+            },
+            "input_online": {
+              "received": 736,
+              "sent": 1472,
+              "wall_ns_including_peer_wait": 31042
+            },
+            "input_setup": {
+              "received": 1472,
+              "sent": 736,
+              "wall_ns_including_peer_wait": 27917
+            },
+            "online": {
+              "received": 5376,
+              "sent": 5376,
+              "wall_ns_including_peer_wait": 1425625
+            },
+            "output": {
+              "received": 320,
+              "sent": 1056,
+              "wall_ns_including_peer_wait": 362417
+            },
+            "preprocessing": {
+              "received": 2254912,
+              "sent": 2254912,
+              "wall_ns_including_peer_wait": 379172250
+            }
+          },
+          "preprocessing_batches": 11,
+          "retained_private_state_allocation_bytes": 467456,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 385545500,
+          "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+          "topology_allocation_bytes": 7579648
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 2263626,
+          "actual_pipe_sent_bytes": 2262816,
+          "and_gates": 43008,
+          "and_layers": 93,
+          "execution_binding_sha256": "97b8201d5183a3e5cc53a6e4868aa83ded776fe4d1ab36c01c918009fafdcd79",
+          "output_bytes": 1056,
+          "output_matches": true,
+          "output_sha256": "5787d4b0508b020efa9f635065c9f20b1e4a6f07eec3f6ccd3977566d4a8fcee",
+          "padded_ots_per_direction": 45056,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 1475667
+            },
+            "input_online": {
+              "received": 1472,
+              "sent": 736,
+              "wall_ns_including_peer_wait": 37250
+            },
+            "input_setup": {
+              "received": 736,
+              "sent": 1472,
+              "wall_ns_including_peer_wait": 1543667
+            },
+            "online": {
+              "received": 5376,
+              "sent": 5376,
+              "wall_ns_including_peer_wait": 1424625
+            },
+            "output": {
+              "received": 1056,
+              "sent": 320,
+              "wall_ns_including_peer_wait": 367875
+            },
+            "preprocessing": {
+              "received": 2254912,
+              "sent": 2254912,
+              "wall_ns_including_peer_wait": 377485500
+            }
+          },
+          "preprocessing_batches": 11,
+          "retained_private_state_allocation_bytes": 467456,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 385541458,
+          "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+          "topology_allocation_bytes": 7579648
+        }
+      }
+    },
+    {
+      "engine": "gmw",
+      "kernel": "signing-mask",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 1784727583,
+          "role_a": {
+            "actual_pipe_received_bytes": 10712878,
+            "actual_pipe_sent_bytes": 10713688,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "505e16aa25b09440a4cd60d09898372b9e210723c029f499c40cbec2d356c1f3",
+            "output_bytes": 0,
+            "output_matches": true,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 6743208
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 53294,
+                "sent": 53294,
+                "wall_ns_including_peer_wait": 6125792
+              },
+              "output": {
+                "received": 0,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 1796167
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1750715333
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 1708586,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1781452209,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 10713688,
+            "actual_pipe_sent_bytes": 10712878,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "505e16aa25b09440a4cd60d09898372b9e210723c029f499c40cbec2d356c1f3",
+            "output_bytes": 736,
+            "output_matches": true,
+            "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 6886166
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 53294,
+                "sent": 53294,
+                "wall_ns_including_peer_wait": 7659334
+              },
+              "output": {
+                "received": 736,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1827583
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1748833042
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 1708586,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1781468083,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 1779320333,
+          "role_a": {
+            "actual_pipe_received_bytes": 10712878,
+            "actual_pipe_sent_bytes": 10713688,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "577838d6368fc475eff2f8830644053f5a5bfd899f08c23368ab1677b9bb1c61",
+            "output_bytes": 0,
+            "output_matches": true,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 6711875
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 53294,
+                "sent": 53294,
+                "wall_ns_including_peer_wait": 6419875
+              },
+              "output": {
+                "received": 0,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 1601583
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1743102583
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 1708586,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1774054833,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 10713688,
+            "actual_pipe_sent_bytes": 10712878,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "577838d6368fc475eff2f8830644053f5a5bfd899f08c23368ab1677b9bb1c61",
+            "output_bytes": 736,
+            "output_matches": true,
+            "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 6718166
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 53294,
+                "sent": 53294,
+                "wall_ns_including_peer_wait": 7935458
+              },
+              "output": {
+                "received": 736,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1699708
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1741423917
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 1708586,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1774139083,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 1800952709,
+          "role_a": {
+            "actual_pipe_received_bytes": 10712878,
+            "actual_pipe_sent_bytes": 10713688,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "0793d0397e1882d9dec7cc9531589a40150b9ef50e1497576b9a5381f2f5e495",
+            "output_bytes": 0,
+            "output_matches": true,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 7067875
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 53294,
+                "sent": 53294,
+                "wall_ns_including_peer_wait": 6820125
+              },
+              "output": {
+                "received": 0,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 1797750
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1765431625
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 1708586,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1797600583,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 10713688,
+            "actual_pipe_sent_bytes": 10712878,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "0793d0397e1882d9dec7cc9531589a40150b9ef50e1497576b9a5381f2f5e495",
+            "output_bytes": 736,
+            "output_matches": true,
+            "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 7153500
+              },
+              "input_online": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "input_setup": {
+                "received": 0,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 0
+              },
+              "online": {
+                "received": 53294,
+                "sent": 53294,
+                "wall_ns_including_peer_wait": 8405000
+              },
+              "output": {
+                "received": 736,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 1942166
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1763833958
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 1708586,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1797733000,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 1783670125,
+        "role_a": {
+          "actual_pipe_received_bytes": 10712878,
+          "actual_pipe_sent_bytes": 10713688,
+          "and_gates": 212928,
+          "and_layers": 185,
+          "execution_binding_sha256": "988f21685a27f858e4badacea2dab18c66a2d38a70612c3edd1c0bf622937a53",
+          "output_bytes": 0,
+          "output_matches": true,
+          "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "padded_ots_per_direction": 212992,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 6738959
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 53294,
+              "sent": 53294,
+              "wall_ns_including_peer_wait": 5309708
+            },
+            "output": {
+              "received": 0,
+              "sent": 736,
+              "wall_ns_including_peer_wait": 1255167
+            },
+            "preprocessing": {
+              "received": 10659584,
+              "sent": 10659584,
+              "wall_ns_including_peer_wait": 1748885500
+            }
+          },
+          "preprocessing_batches": 52,
+          "retained_private_state_allocation_bytes": 1708586,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 1779628500,
+          "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+          "topology_allocation_bytes": 39746048
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 10713688,
+          "actual_pipe_sent_bytes": 10712878,
+          "and_gates": 212928,
+          "and_layers": 185,
+          "execution_binding_sha256": "988f21685a27f858e4badacea2dab18c66a2d38a70612c3edd1c0bf622937a53",
+          "output_bytes": 736,
+          "output_matches": true,
+          "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+          "padded_ots_per_direction": 212992,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 6846083
+            },
+            "input_online": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "input_setup": {
+              "received": 0,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 0
+            },
+            "online": {
+              "received": 53294,
+              "sent": 53294,
+              "wall_ns_including_peer_wait": 6828083
+            },
+            "output": {
+              "received": 736,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 1307625
+            },
+            "preprocessing": {
+              "received": 10659584,
+              "sent": 10659584,
+              "wall_ns_including_peer_wait": 1747357875
+            }
+          },
+          "preprocessing_batches": 52,
+          "retained_private_state_allocation_bytes": 1708586,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 1779666667,
+          "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+          "topology_allocation_bytes": 39746048
+        }
+      }
+    },
+    {
+      "engine": "aby2",
+      "kernel": "signing-mask",
+      "samples": [
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 1790519916,
+          "role_a": {
+            "actual_pipe_received_bytes": 10687147,
+            "actual_pipe_sent_bytes": 10687957,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "cc1e3f66b7e0374e17a2ffd195f264523d6d08e2e53ab5b72680373f36972115",
+            "output_bytes": 0,
+            "output_matches": true,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 6918583
+              },
+              "input_online": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 19125
+              },
+              "input_setup": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 16000
+              },
+              "online": {
+                "received": 26697,
+                "sent": 26697,
+                "wall_ns_including_peer_wait": 4649542
+              },
+              "output": {
+                "received": 0,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 2116583
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1756782167
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 2352532,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1787343708,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 10687957,
+            "actual_pipe_sent_bytes": 10687147,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "cc1e3f66b7e0374e17a2ffd195f264523d6d08e2e53ab5b72680373f36972115",
+            "output_bytes": 736,
+            "output_matches": true,
+            "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 6794124
+              },
+              "input_online": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 28916
+              },
+              "input_setup": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 1537000
+              },
+              "online": {
+                "received": 26697,
+                "sent": 26697,
+                "wall_ns_including_peer_wait": 4645542
+              },
+              "output": {
+                "received": 736,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 2108459
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1755247583
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 2352532,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1787344291,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 1788871458,
+          "role_a": {
+            "actual_pipe_received_bytes": 10687147,
+            "actual_pipe_sent_bytes": 10687957,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "cbb105408b5878ae38d7ba4e0bd809d2d2c2622a296b134a0fcf8b084a5273ad",
+            "output_bytes": 0,
+            "output_matches": true,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 6740167
+              },
+              "input_online": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 19834
+              },
+              "input_setup": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 20375
+              },
+              "online": {
+                "received": 26697,
+                "sent": 26697,
+                "wall_ns_including_peer_wait": 4634916
+              },
+              "output": {
+                "received": 0,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 2301750
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1755455750
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 2352532,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1785973583,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 10687957,
+            "actual_pipe_sent_bytes": 10687147,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "cbb105408b5878ae38d7ba4e0bd809d2d2c2622a296b134a0fcf8b084a5273ad",
+            "output_bytes": 736,
+            "output_matches": true,
+            "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 6782834
+              },
+              "input_online": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 33250
+              },
+              "input_setup": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 1517666
+              },
+              "online": {
+                "received": 26697,
+                "sent": 26697,
+                "wall_ns_including_peer_wait": 4631458
+              },
+              "output": {
+                "received": 736,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 2209667
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1753470792
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 2352532,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1785895792,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          }
+        },
+        {
+          "process_pair_wall_ns_including_startup_topology_and_verification": 1809792125,
+          "role_a": {
+            "actual_pipe_received_bytes": 10687147,
+            "actual_pipe_sent_bytes": 10687957,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "ce16bf797ef41022f859b205309bbfa197992130fbfe118ad1c037be7a93d502",
+            "output_bytes": 0,
+            "output_matches": true,
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 0,
+                "sent": 74,
+                "wall_ns_including_peer_wait": 7308583
+              },
+              "input_online": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 18000
+              },
+              "input_setup": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 18584
+              },
+              "online": {
+                "received": 26697,
+                "sent": 26697,
+                "wall_ns_including_peer_wait": 6206750
+              },
+              "output": {
+                "received": 0,
+                "sent": 736,
+                "wall_ns_including_peer_wait": 2066791
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1773132291
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 2352532,
+            "role": "a",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1806572625,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          },
+          "role_b": {
+            "actual_pipe_received_bytes": 10687957,
+            "actual_pipe_sent_bytes": 10687147,
+            "and_gates": 212928,
+            "and_layers": 185,
+            "execution_binding_sha256": "ce16bf797ef41022f859b205309bbfa197992130fbfe118ad1c037be7a93d502",
+            "output_bytes": 736,
+            "output_matches": true,
+            "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+            "padded_ots_per_direction": 212992,
+            "phases": {
+              "binding": {
+                "received": 74,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 7431875
+              },
+              "input_online": {
+                "received": 802,
+                "sent": 64,
+                "wall_ns_including_peer_wait": 28542
+              },
+              "input_setup": {
+                "received": 64,
+                "sent": 802,
+                "wall_ns_including_peer_wait": 1680500
+              },
+              "online": {
+                "received": 26697,
+                "sent": 26697,
+                "wall_ns_including_peer_wait": 6203833
+              },
+              "output": {
+                "received": 736,
+                "sent": 0,
+                "wall_ns_including_peer_wait": 2160792
+              },
+              "preprocessing": {
+                "received": 10659584,
+                "sent": 10659584,
+                "wall_ns_including_peer_wait": 1771367083
+              }
+            },
+            "preprocessing_batches": 52,
+            "retained_private_state_allocation_bytes": 2352532,
+            "role": "b",
+            "role_wall_ns_including_load_topology_and_fixture_check": 1806647458,
+            "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+            "topology_allocation_bytes": 39746048
+          }
+        }
+      ],
+      "warmup_excluded": {
+        "process_pair_wall_ns_including_startup_topology_and_verification": 1773821083,
+        "role_a": {
+          "actual_pipe_received_bytes": 10687147,
+          "actual_pipe_sent_bytes": 10687957,
+          "and_gates": 212928,
+          "and_layers": 185,
+          "execution_binding_sha256": "5f26c8b13350538318931cfd6e3356fd1085cf38a160ed52d162ba2bda0d7f55",
+          "output_bytes": 0,
+          "output_matches": true,
+          "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "padded_ots_per_direction": 212992,
+          "phases": {
+            "binding": {
+              "received": 0,
+              "sent": 74,
+              "wall_ns_including_peer_wait": 7097208
+            },
+            "input_online": {
+              "received": 64,
+              "sent": 802,
+              "wall_ns_including_peer_wait": 17875
+            },
+            "input_setup": {
+              "received": 802,
+              "sent": 64,
+              "wall_ns_including_peer_wait": 17083
+            },
+            "online": {
+              "received": 26697,
+              "sent": 26697,
+              "wall_ns_including_peer_wait": 5445750
+            },
+            "output": {
+              "received": 0,
+              "sent": 736,
+              "wall_ns_including_peer_wait": 1694917
+            },
+            "preprocessing": {
+              "received": 10659584,
+              "sent": 10659584,
+              "wall_ns_including_peer_wait": 1739230375
+            }
+          },
+          "preprocessing_batches": 52,
+          "retained_private_state_allocation_bytes": 2352532,
+          "role": "a",
+          "role_wall_ns_including_load_topology_and_fixture_check": 1770607625,
+          "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+          "topology_allocation_bytes": 39746048
+        },
+        "role_b": {
+          "actual_pipe_received_bytes": 10687957,
+          "actual_pipe_sent_bytes": 10687147,
+          "and_gates": 212928,
+          "and_layers": 185,
+          "execution_binding_sha256": "5f26c8b13350538318931cfd6e3356fd1085cf38a160ed52d162ba2bda0d7f55",
+          "output_bytes": 736,
+          "output_matches": true,
+          "output_sha256": "3c319b18da30ee7f34271ff6745802772e8e4699d73fd3b80ddae3fb53ebe65e",
+          "padded_ots_per_direction": 212992,
+          "phases": {
+            "binding": {
+              "received": 74,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 7529376
+            },
+            "input_online": {
+              "received": 802,
+              "sent": 64,
+              "wall_ns_including_peer_wait": 29792
+            },
+            "input_setup": {
+              "received": 64,
+              "sent": 802,
+              "wall_ns_including_peer_wait": 1505500
+            },
+            "online": {
+              "received": 26697,
+              "sent": 26697,
+              "wall_ns_including_peer_wait": 5441750
+            },
+            "output": {
+              "received": 736,
+              "sent": 0,
+              "wall_ns_including_peer_wait": 1729709
+            },
+            "preprocessing": {
+              "received": 10659584,
+              "sent": 10659584,
+              "wall_ns_including_peer_wait": 1737726250
+            }
+          },
+          "preprocessing_batches": 52,
+          "retained_private_state_allocation_bytes": 2352532,
+          "role": "b",
+          "role_wall_ns_including_load_topology_and_fixture_check": 1770675291,
+          "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+          "topology_allocation_bytes": 39746048
+        }
+      }
+    }
+  ],
+  "compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+  "executable_sha256": "c895f8aaa8b3b7e7116e23d6ac85d7e8a19f4d6688a30e818ac023919bc0653d",
+  "fixture_identities": [
+    {
+      "bytes": 20759,
+      "role": "a",
+      "sha256": "c8ca8b101ae15b55426f86667a6307f968bd83c8bb583c5b70d4ac0fa5bbabbb"
+    },
+    {
+      "bytes": 20747,
+      "role": "b",
+      "sha256": "53a39e66af1e8944737c5ee2b78a61d6092243327f7837983d567868487af404"
+    }
+  ],
+  "host": "Darwin arm64",
+  "limits": [
+    "This experiment executes kernels, not a complete alternative ML-DSA key-generation or signing pipeline.",
+    "Existing 16-byte OT payloads intentionally remain in preprocessing costs. Packed-bit OT, silent OT, and reusable base OTs remain separate unmeasured alternatives.",
+    "Every measured execution starts with an empty correlation pool. Recorded online phases consume freshly prepared correlations within that execution.",
+    "No persistent preprocessing pool, sustained refill, preprocessing storage, target peak memory, or Cloudflare performance claim follows from these measurements.",
+    "The public fixtures contain no wallet secrets. The new comparison engines require independent cryptographic review.",
+    "The ABY2.0 comparison uses Boolean sharing throughout each circuit. Existing sampling and rounding conversions remain inside the identical pinned Boolean topology. It implements no mixed-ring conversion shortcut."
+  ],
+  "production_eligible": false,
+  "reproduce_argv": [
+    "cargo",
+    "run",
+    "--release",
+    "--locked",
+    "--manifest-path",
+    "tools/ml-dsa-investigation/Cargo.toml",
+    "--",
+    "compare-boolean-engines",
+    "docs/evidence/ml-dsa-65-boolean-engine-kernels-host-20261013.json"
+  ],
+  "schema": "seams.ml-dsa-boolean-engine-kernels.v1",
+  "scope": "Four pinned private kernels evaluated by separate role processes, with genuine two-directional fresh-base IKNP preprocessing, exact conversion and output traffic, and independent generated fixture checks.",
+  "source_revision": "6a9b9783f27414b509b03134895aee477c983e6f",
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+      "sha256": "9498bbbfec5b864f65d9e071ed76f4a0f4d8c68132d4994e58d3970998779f5a"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+      "sha256": "bb4a759d52d9b7ca3ef1ac6da20b859a92229283f95adfd6839c190781cd87d3"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "sha256": "647118dd9291557b4e5f76b5cd571a9f67a5548de17b7a388ffe21a984ae7089"
+    },
+    {
+      "path": "crates/ed25519-yao/Cargo.toml",
+      "sha256": "081edc504406f8ee63382e825125f0fbbaa00d8846c1b49928a91ba0ce8f143f"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/worker_fixtures.rs",
+      "sha256": "daae9024616e97e0b95c91488800fce2fe9cebcaa5e2f316e128061847cc7638"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/boolean_engine_evidence.rs",
+      "sha256": "996d1c5cb78f983e040f42697bbdb9fb8bd9278e93abc70b7f3a7201ca3f6d4a"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/private_execution.rs",
+      "sha256": "9d4d41bcdebb834e45128bad728d1167f2c0856660608d4d44cd9f18678b82d6"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/Cargo.toml",
+      "sha256": "11c36dac7a1f2f7046c9b2204cf43c1bcfea8cfc9b086b5c56c861d3dd1699c0"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/Cargo.lock",
+      "sha256": "5c5438425875268fec3a611f36a660ace1b96bc7e68b7c5244b7e3a7cee55068"
+    }
+  ],
+  "working_tree_dirty": true
+}

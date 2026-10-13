@@ -9,6 +9,10 @@ use core::{fmt, mem::size_of};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
+/// Experimental Boolean-engine comparison with genuine two-party preprocessing.
+#[cfg(all(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
+pub mod boolean_comparison;
+
 use super::ot::{
     BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaCommitmentOtFamily,
     MlDsaDecisionOtFamily, MlDsaRoundingOtFamily, MlDsaSamplingOtFamily, MlDsaSeedOtFamily,
