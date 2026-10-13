@@ -684,6 +684,7 @@ pub(crate) async fn call_signing_worker_wallet_do_v1(
 
 #[worker::durable_object]
 pub struct RouterAbSigningWorkerWalletDurableObject {
+    state: Rc<State>,
     sql: SqlStorage,
     storage: Rc<Storage>,
     env: Env,
@@ -698,6 +699,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             sql: storage.sql(),
             storage,
             env,
+            state: Rc::new(state),
         }
     }
 
@@ -706,7 +708,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             return super::custody_target::observe_location().await;
         }
         let path = request.path();
-        let observation = self.timing.begin("signing_worker", path);
+        let observation = self.timing.begin(&self.state, "signing_worker", path);
         let result = self.fetch_wallet_request(request).await;
         observation.finish(result)
     }

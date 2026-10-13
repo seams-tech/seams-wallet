@@ -1,4 +1,5 @@
-//! Placement inspection runs only during relocation preparation.
+//! Placement inspection runs only during relocation preparation. The trace page that it
+//! reads also names the host of a wallet object for the command timing log.
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response};
 
@@ -164,27 +165,42 @@ fn json_request<T: Serialize>(path: &str, value: &T) -> worker::Result<Request> 
     Request::new_with_init(&format!("https://custody.internal{path}"), &init)
 }
 
-pub(super) async fn observe_location() -> worker::Result<Response> {
+/// The platform's trace page as the calling object sees it, or nothing when it is unavailable.
+async fn trace() -> worker::Result<Option<String>> {
     let url = worker::Url::parse("https://cloudflare.com/cdn-cgi/trace")?;
     let mut response = worker::Fetch::Url(url).send().await?;
     if response.status_code() != 200 {
+        return Ok(None);
+    }
+    response.text().await.map(Some)
+}
+
+fn trace_field<'a>(trace: &'a str, name: &str) -> Option<&'a str> {
+    trace
+        .lines()
+        .find_map(|line| line.strip_prefix(name)?.strip_prefix('='))
+}
+
+pub(super) async fn observe_location() -> worker::Result<Response> {
+    let Some(trace) = trace().await? else {
         return Response::error("Custody placement observation unavailable", 503);
-    }
-    let trace = response.text().await?;
-    let mut colo = None;
-    let mut country = None;
-    for line in trace.lines() {
-        if let Some(value) = line.strip_prefix("colo=") {
-            colo = Some(value);
-        }
-        if let Some(value) = line.strip_prefix("loc=") {
-            country = Some(value);
-        }
-    }
-    match (colo, country) {
+    };
+    match (trace_field(&trace, "colo"), trace_field(&trace, "loc")) {
         (Some(colo), Some(country)) if colo.len() == 3 && country.len() == 2 => {
             Response::from_json(&serde_json::json!({"colo": colo, "country": country}))
         }
         _ => Response::error("Custody placement observation is invalid", 503),
     }
+}
+
+/// The colo and the host that run the calling object, or nothing when the trace page gives no
+/// valid pair. The host is the page's `fl` value.
+pub(super) async fn observe_host() -> Option<(String, String)> {
+    let trace = trace().await.ok()??;
+    let colo = trace_field(&trace, "colo")?;
+    let host = trace_field(&trace, "fl")?;
+    let valid = colo.len() == 3
+        && (1..=16).contains(&host.len())
+        && host.bytes().all(|byte| byte.is_ascii_alphanumeric());
+    valid.then(|| (colo.to_owned(), host.to_owned()))
 }
