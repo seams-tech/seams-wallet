@@ -1022,6 +1022,10 @@ function isRequestTraceEntry(entry: TraceEntry): boolean {
   return entry.kind === 'request';
 }
 
+function isRegistrationPostRequest(entry: TraceEntry): boolean {
+  return isRequestTraceEntry(entry) && entry.message.startsWith('POST /wallets/register/');
+}
+
 function isWalletUnlockVerifyRequest(entry: TraceEntry): boolean {
   return entry.url !== undefined && new URL(entry.url).pathname === '/wallet/unlock/verify';
 }
@@ -3087,7 +3091,9 @@ export class IntendedBehaviourHarness {
     if (observedPaths.some((path) => path.startsWith('/wallets/recovery/'))) {
       throw new Error('Passkey cold sync unexpectedly consumed wallet recovery state');
     }
-    if (observedPaths.some((path) => path.startsWith('/wallets/register/'))) {
+    // The SDK warms the setup route with a preflight when its runtime starts.
+    // Only a POST creates registration state.
+    if (this.trace.slice(traceStartIndex).some(isRegistrationPostRequest)) {
       throw new Error('Passkey cold sync unexpectedly created another wallet registration');
     }
     this.currentWarmSigningStage = 'post_unlock';
