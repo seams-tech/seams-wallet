@@ -898,22 +898,24 @@ writes on a cycle of 5,000 ms, and for a shorter time on a second cycle of
 30 s. Every object on the host waits, whatever its age, write rate or
 storage API, and D1 waits the same way. A write, a response or an outgoing
 request that arrives in the pause waits until its end, also for a request
-that wrote nothing. A pause lasted 70–400 ms at the median by city and hour.
-Singapore's pauses were among the longest: 4–9% of its writes stalled by
-hour, against 2–6% in Hong Kong. For 13 writes in series a Singapore home still
-waits less at the median, about 80 ms against 490 ms, and at the mean, 250 ms
-against 520 ms. It waits the same at the 90th percentile and more at the
-99th, 2.6 s against 0.8 s. Staging's own single-write commands of October 7
-to 12 stalled less than the probe: 0.6% waited more than 50 ms over the
-median. Two earlier statements were wrong and are corrected in the records:
-the cycle does not start with an object's first write, and most of staging's
+that wrote nothing. A pause lasted 70–400 ms at the median. The longest
+ones, in Singapore and Sydney, grew while the probe ran, from about 150 ms
+to about 400 ms within 30 s in three rounds of seven; the probe's own load
+is the likely cause, so they are not shown to be a property of those cities.
+At the start of a round Singapore's median pause was 97–183 ms, like Hong
+Kong's and Tokyo's. For 13 writes in series a Singapore home waits less than
+a Hong Kong home at the median and the mean in every reading of the data;
+the tail of the Singapore estimate is an upper bound, and half of it is one
+event of seven seconds. Staging's own single-write commands of October 7 to
+12 stalled less than the probe: 0.6% waited more than 50 ms over the median.
+Two earlier statements were wrong and are corrected in the records: the
+cycle does not start with an object's first write, and most of staging's
 slow Router commands were claims that waited for a new object to start. The
-probe is a reproduction: staging's own stalled database writes carry the
-five-second signature in some runs and not in others, so the numbers above
-are the probe's, not yet the product's. Of seven candidate causes the facts
-leave one, a periodic task of the host's storage service that holds the
-commit path of every object; what the task does is not known, and Phase 7
-holds the report for Cloudflare. Second,
+probe is a reproduction, and its match with staging is not established: the
+tails name no host. The facts leave one kind of cause, a step that each host
+starts on its own timer and that probably waits for something the hosts of
+a region share; what it is, is not known, and Phase 7 holds the report for
+Cloudflare. Second,
 the benchmark pair met a new isolate in 20 of 31 ceremonies in Singapore
 against 7 and 10 of 31 in Hong Kong, in one run each. That one is not settled.
 The measurement seat is a third point: from Tokyo, a Singapore home shows
@@ -1050,12 +1052,17 @@ other regions' custody calls cross to Singapore in either case.
   - Report the share of clean single-write commands more than 20, 50 and
     100 ms over their median in every hosted comparison. `staging_tails.py`
     in the private probe folder computes it.
-  - Make the pause visible in the product's own logs. Each wallet object
-    logs the `fl` value of `https://cloudflare.com/cdn-cgi/trace` once per
-    instance, off the request path. A stalled command can then be folded on
-    5,000 ms per host, as the record does for the role databases. Until
-    then the share of a registration's tail that the pause explains is the
-    probe's estimate.
+  - Make the pause visible in the product's own logs. Done in code, not
+    deployed: each wallet object logs `wallet_do_host` with its role, object
+    id, colo and host once per instance, beside its first command and off
+    the response. The host is the `fl` value of
+    `https://cloudflare.com/cdn-cgi/trace`. Open: in the next hosted run,
+    fold the stalled commands of each host on 5,000 ms. Until then the
+    share of a registration's tail that the pause explains is the probe's
+    estimate.
+  - Before another probe round, measure one region with a single light
+    stream and then add load from a second deployment at a known time. The
+    probe's own load may lengthen the pause that it measures.
   - Do not measure lateness with the object's clock. `Date.now()` in a
     timer callback is the scheduled time, and the clock leaves out the
     object's own CPU time. Use the caller's round trip or a request that is
