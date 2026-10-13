@@ -1,3 +1,11 @@
+function writeStreamChunks(controller) {
+  const encoder = new TextEncoder();
+  for (const chunk of ['alpha\n', 'βeta\n', 'omega']) {
+    controller.enqueue(encoder.encode(chunk));
+  }
+  controller.close();
+}
+
 export class TenantRoot {
   constructor(state, env) {
     this.state = state;
@@ -16,6 +24,12 @@ export class TenantRoot {
 
 export default {
   fetch(request, env) {
+    if (new URL(request.url).pathname === '/stream') {
+      return new Response(new ReadableStream({ start: writeStreamChunks }), {
+        status: 206,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'x-stream-owner': 'router' },
+      });
+    }
     if (new URL(request.url).pathname === '/health') {
       return new Response('ready');
     }

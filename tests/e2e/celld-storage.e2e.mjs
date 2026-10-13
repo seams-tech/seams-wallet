@@ -288,7 +288,12 @@ try {
     /distinct physical buckets/,
     'duplicate',
   );
-  result.downgrade = await refusal(baseline, env, /physical-r2-buckets-v1/, 'downgrade');
+  result.downgrade = await refusal(
+    baseline,
+    env,
+    /physical-r2-buckets-v1|workers-rs-binding-brands-v1/,
+    'downgrade',
+  );
   runtime = await start('router', 'restart');
   await ready(runtime, `${runtime.url}/health`);
   assert.deepEqual(await request(runtime, '/a/read'), { value: 'a-updated' });

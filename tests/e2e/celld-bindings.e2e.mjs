@@ -91,10 +91,28 @@ async function referenceScenario() {
     assertObject(throughObject, 2);
     assert.equal(throughService.id, throughObject.id);
     assert.deepEqual(readThroughService, throughObject);
-    return { throughService, throughObject, readThroughService };
+    const streamClone = await responseValue(
+      await runtime.dispatchFetch('http://probe/stream-clone'),
+    );
+    assertStreamClone(streamClone, false);
+    return { throughService, throughObject, readThroughService, streamClone };
   } finally {
     await runtime.dispose();
   }
+}
+
+function assertStreamClone(value, rejectsDisturbed) {
+  assert.deepEqual(value, {
+    originalText: 'alpha\nβeta\nomega',
+    copyText: 'alpha\nβeta\nomega',
+    originalStatus: 206,
+    copyStatus: 206,
+    originalHeader: 'router',
+    copyHeader: 'router',
+    rejectsConsumed: true,
+    rejectsLocked: true,
+    rejectsDisturbed,
+  });
 }
 
 function assertObject(value, count) {
@@ -320,6 +338,15 @@ try {
   assertObject(result.serviceControl[0], 2);
   assert.deepEqual(result.serviceControl[0], result.serviceControl[1]);
   assert.equal(result.owner[0].id, result.serviceControl[0].id);
+  result.stage = 'celld-streaming-response-clone';
+  [result.streamClone] = await celldScenario(directory, 'service', ['/stream-clone']);
+  assertStreamClone(result.streamClone, true);
+  result.streamCloneDifference = {
+    releasedPartiallyReadBody: {
+      workerdRejects: result.reference.streamClone.rejectsDisturbed,
+      celldRejects: result.streamClone.rejectsDisturbed,
+    },
+  };
   result.stage = 'celld-cross-script-object';
   result.crossScript = await celldScenario(directory, 'external', [
     '/object/increment',
