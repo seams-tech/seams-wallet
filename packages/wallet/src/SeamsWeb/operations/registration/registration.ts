@@ -3162,6 +3162,7 @@ async function prepareDeferredNearSessionHydration(args: {
 
 type NearRegistrationSealPreparation =
   | { readonly kind: 'none' }
+  | { readonly kind: 'consumed' }
   | {
       readonly kind: 'preparing';
       readonly thresholdSessionId: string;
@@ -5120,6 +5121,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       }),
     });
     if (hydration.kind === 'failed') throw hydration.error;
+    sealPreparation = { kind: 'consumed' };
     registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.session_hydration');
     await activatePasskeyRegistrationEd25519Material({
       signingEngine: context.signingEngine,

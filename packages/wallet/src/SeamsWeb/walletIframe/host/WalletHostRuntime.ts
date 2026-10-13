@@ -20,6 +20,7 @@ import { IndexedDBManager, configureIndexedDB } from '@/core/indexedDB';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import type { TempoChainTarget } from '@/core/platform/types';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
+import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistration';
 import {
   acknowledgeWalletRecoveryBackup,
   readWalletRecoveryCodeStatus,
@@ -161,6 +162,9 @@ export class WalletHostRuntime {
   private readonly resumePendingAcknowledgementsV1: () => Promise<void>;
   constructor(configs: WalletHostConfig, nearClient?: NearClient) {
     this.configs = configs;
+    if (configs.registration.publishableKey && configs.registration.projectEnvironmentId) {
+      prewarmWalletRegistrationSetup(configs.network.relayer.url);
+    }
     configureIndexedDB({ mode: 'wallet' });
     // Use provided client or create default one
     this.nearClient =

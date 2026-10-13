@@ -164,6 +164,11 @@ const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provi
 /** Managed environment id header for Router API `api_credentials` auth. */
 const ROUTER_API_ENVIRONMENT_ID_HEADER = 'X-Seams-Environment-Id';
 
+/** Warm the setup preflight while the wallet runtime initializes. */
+export function prewarmWalletRegistrationSetup(relayerUrl: string): void {
+  prewarmRelayerPreflights(relayerUrl, [WALLET_REGISTRATION_SETUP_PATH]);
+}
+
 /**
  * Preflights the routes that a registration calls after setup, and the routes
  * of a NEAR wallet's first signature. Setup and the authenticator prompt run

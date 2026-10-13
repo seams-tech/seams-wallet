@@ -68,6 +68,15 @@ of the change can be drift.
 
 ## Stages in the browser
 
+**Measurement correction, October 13:** the original `Client work after finalize`
+and `After the passkey step` rows below reconstruct the end from the setup stage
+and the whole SDK duration. That mixes two start points and includes earlier
+initialization. They remain below as historical reported figures. Console-event
+intervals give **54.32 ms** median after finalize and **1,642.35 ms** after the
+passkey step for 0.9.3. These intervals include observer delivery uncertainty.
+Registration without interaction and first-signature durations are unaffected.
+See the [correction and implementation record](refactor-155h-setup-sdk-completion.md).
+
 | Stage, ms | p50 0.9.0 | p50 0.9.3 | Change | p90 0.9.0 | p90 0.9.3 | Change |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Setup | 548 | 424 | −124 | 1,062 | 823 | −239 |

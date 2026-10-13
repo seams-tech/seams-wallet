@@ -830,11 +830,14 @@ Users of the hosted menu do not wait for setup. Direct callers of
   line 2067), and a write for an unauthenticated caller is an abuse surface.
 - [ ] Move Console's API-key usage update off the request. It records the
   last-used timestamps and consumes no quota, as R155F classified it.
-- [ ] Decide the setup preflight. Two options exist without a new Worker: a
-  route on the wallet origin, so the Gateway API is same-origin from the wallet
-  iframe, or an edge answer to `OPTIONS` before the pinned Worker. Measure the
-  setup preflight's share with the hosted test first; it is 125–191 ms serial
-  from Tokyo.
+- [x] Start setup's best-effort preflight when a registration-configured wallet
+  runtime initializes. Reuse the existing browser preflight helper. Same-origin
+  and signing-only clients skip it. This overlaps the exchange with initialization;
+  immediate registration may still wait for an unfinished preflight.
+- [ ] Measure the setup preflight change on staging. The earlier serial exchange
+  took 125–191 ms from Tokyo; that is an upper bound, not a measured saving.
+  Local implementation and SDK completion evidence are recorded in
+  [setup and SDK completion](evidence/refactor-155h-setup-sdk-completion.md).
 
 Expected gain: 50–100 ms from the batch and up to 190 ms from the preflight,
 for direct callers only.

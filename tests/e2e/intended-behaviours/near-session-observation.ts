@@ -4,6 +4,7 @@ import type { IntendedBehaviourHarness } from './harness';
 
 class SessionReadEvidence {
   readonly requests: { stage: string; path: string }[] = [];
+  readonly setupRequests: { method: string; hasBody: boolean; hasCredentials: boolean }[] = [];
   stage = 'registration';
 
   count(stage: string): number {
@@ -12,6 +13,14 @@ class SessionReadEvidence {
 
   record(request: Request): void {
     const path = new URL(request.url()).pathname;
+    if (path === '/wallets/register/setup') {
+      const headers = request.headers();
+      this.setupRequests.push({
+        method: request.method(),
+        hasBody: request.postData() !== null,
+        hasCredentials: Boolean(headers.authorization || headers.cookie || headers['x-api-key']),
+      });
+    }
     if (request.method() === 'POST' && path === '/wallet/session/status') {
       this.requests.push({ stage: this.stage, path });
     }
@@ -39,6 +48,12 @@ export async function verifyNearSessionObservation(
     // The registration response states the issued session, and signing prepare
     // returns the status it admitted, so neither asks the Gateway for status.
     await harness.registerPasskeyEd25519YaoWallet();
+    expect(evidence.setupRequests.map(setupRequestMethod)).toEqual(['OPTIONS', 'POST']);
+    expect(evidence.setupRequests[0]).toEqual({
+      method: 'OPTIONS',
+      hasBody: false,
+      hasCredentials: false,
+    });
     evidence.stage = 'first_signature';
     const signature = await harness.signNearMessage('Verify the registered session observation');
     expect(evidence.requests).toEqual([]);
@@ -73,6 +88,7 @@ export async function verifyNearSessionObservation(
       firstSignatureStatusRequests: evidence.count('first_signature'),
       laterQueriesReadFreshStatus: true,
       lockWinsOverDelayedStatus: true,
+      setupRequests: evidence.setupRequests,
       signature,
       requests: evidence.requests,
     }, null, 2));
@@ -80,4 +96,8 @@ export async function verifyNearSessionObservation(
   } finally {
     context.off('request', record);
   }
+}
+
+function setupRequestMethod(request: { method: string }): string {
+  return request.method;
 }
