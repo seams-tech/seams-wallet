@@ -45,6 +45,7 @@ import {
   normalizeAddSignerSelection,
   normalizeRegistrationSignerPlan,
   registrationSignerBranchKeyFromString,
+  findRegistrationSignerPlanNearEd25519Branch,
   registrationSignerSetSelectionFromPlan,
   type AddSignerSelection,
   type RegistrationNearAccountProvisioning,
@@ -91,6 +92,7 @@ import {
   parseRouterAbEd25519YaoRegistrationActivationResultV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import { parseRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
@@ -116,6 +118,7 @@ import {
   StoredWalletAddSignerFinalizeRequest,
   StoredWalletRegistrationCeremony,
   StoredWalletRegistrationCeremonyAuthorityState,
+  type StoredWalletRegistrationEd25519YaoMint,
   type StoredWalletRegistrationEvmFamilyEcdsaActivatedBranch,
   type StoredWalletRegistrationEvmFamilyEcdsaActivationClaimedBranch,
   type StoredWalletRegistrationEvmFamilyEcdsaFinalizedBranch,
@@ -355,6 +358,7 @@ export function parseD1StoredWalletRegistrationCeremony(
   const signerState = parseD1StoredWalletRegistrationSignerState(record.signerState);
   const signingRootId = toOptionalTrimmedString(record.signingRootId);
   const signingRootVersion = toOptionalTrimmedString(record.signingRootVersion);
+  const ed25519YaoMint = parseD1WalletRegistrationEd25519YaoMint(record.ed25519YaoMint);
   if (
     !registrationCeremonyId ||
     !intent ||
@@ -373,7 +377,10 @@ export function parseD1StoredWalletRegistrationCeremony(
     !storedRegistrationSignerPlansMatch(signerPlan, intentSignerPlan) ||
     (signingRootId && preparedContext.signingRootId !== signingRootId) ||
     (signingRootVersion && preparedContext.signingRootVersion !== signingRootVersion) ||
-    !signerState
+    !signerState ||
+    ed25519YaoMint === undefined ||
+    // A NEAR branch has its minted identity, and no other plan has one.
+    (ed25519YaoMint === null) !== (findRegistrationSignerPlanNearEd25519Branch(signerPlan) === null)
   ) {
     return null;
   }
@@ -389,6 +396,7 @@ export function parseD1StoredWalletRegistrationCeremony(
     orgId,
     expiresAtMs,
     authorityState,
+    ed25519YaoMint,
     signerState,
   };
   const expectedOrigin = toOptionalTrimmedString(record.expectedOrigin);
@@ -396,6 +404,25 @@ export function parseD1StoredWalletRegistrationCeremony(
   if (signingRootVersion) ceremony.signingRootVersion = signingRootVersion;
   if (expectedOrigin) ceremony.expectedOrigin = expectedOrigin;
   return ceremony;
+}
+
+/** `undefined` for a record that is not a mint and not `null`. */
+function parseD1WalletRegistrationEd25519YaoMint(
+  raw: unknown,
+): StoredWalletRegistrationEd25519YaoMint | null | undefined {
+  if (raw === null) return null;
+  const record = toRecordValue(raw);
+  if (!record || !hasExactKeys(record, ['materialActivation', 'sessionId'])) return undefined;
+  const sessionId = parseD1Bytes32(record.sessionId);
+  if (!sessionId || sessionId.every((byte) => byte === 0)) return undefined;
+  try {
+    return {
+      materialActivation: parseRouterAbMpcMaterialActivationRef(record.materialActivation),
+      sessionId,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 /**

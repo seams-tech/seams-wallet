@@ -186,6 +186,10 @@ export type WalletRegistrationRouteErrorV2 = {
  * defers is simpler and strictly safer, so Ed25519 work does not appear in the
  * setup request or response at all. Respond derives it, authority-bound, for
  * both methods.
+ *
+ * Setup does mint the Yao identity of a NEAR branch, its material identity
+ * and its session, and stores it with the ceremony. That identity binds no
+ * authority and admits nothing: respond issues the admission over it.
  */
 type WalletRegistrationSetupSuccessBase = {
   readonly home: WalletSessionHome;

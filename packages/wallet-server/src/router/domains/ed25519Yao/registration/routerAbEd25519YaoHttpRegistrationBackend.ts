@@ -4,6 +4,7 @@ import {
   parseRouterAbEd25519YaoActivationKeysetV1,
   parseRouterAbEd25519YaoActivationResultV1,
   parseRouterAbEd25519YaoExportResultV1,
+  type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoActivationKeysetV1,
   type RouterAbEd25519YaoRecoveryActivationRequestV1,
@@ -222,6 +223,14 @@ function randomSession(): number[] {
     globalThis.crypto.getRandomValues(bytes);
   } while (isZero(bytes));
   return Array.from(bytes);
+}
+
+function isSessionId(bytes: readonly number[]): boolean {
+  return (
+    bytes.length === 32 &&
+    bytes.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255) &&
+    bytes.some((byte) => byte !== 0)
+  );
 }
 
 function isZero(bytes: Uint8Array): boolean {
@@ -791,8 +800,9 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   async admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     _traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    return await this.admitActivation(request, 'registration');
+    return await this.admitActivation(request, 'registration', mintedSessionId);
   }
 
   async admitRecovery(
@@ -882,6 +892,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       | RouterAbEd25519YaoRegistrationAdmissionRequestV1
       | RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     operation: 'registration' | 'recovery',
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     if (request.scope.signing_worker_id !== this.config.signingWorkerId) {
       return {
@@ -896,7 +907,15 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       request.participant_ids,
     );
     const keyset = this.keyset();
-    const sessionId = randomSession();
+    if (mintedSessionId !== undefined && !isSessionId(mintedSessionId)) {
+      return {
+        ok: false,
+        status: 500,
+        code: 'admission_failed',
+        message: `${operation} minted session is invalid`,
+      };
+    }
+    const sessionId = mintedSessionId === undefined ? randomSession() : [...mintedSessionId];
     switch (operation) {
       case 'registration':
         return {

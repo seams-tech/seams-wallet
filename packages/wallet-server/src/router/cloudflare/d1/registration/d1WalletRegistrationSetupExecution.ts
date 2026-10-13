@@ -14,6 +14,7 @@ import {
   routerAbEcdsaStrictRegistrationFactsBindingJson,
   type RouterAbEcdsaStrictRegistrationPort,
 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
+import { mintRouterAbEd25519YaoRegistrationIdentityV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import { isTransientD1Error } from '../../../../storage/d1Retry';
 import type { WalletRegistrationSetupInput } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import type {
@@ -46,6 +47,8 @@ type WalletRegistrationSetupDependencies = {
   readonly reservation: Pick<WalletRegistrationReservationAuthority, 'reserve'> | null;
   readonly store: CloudflareD1RegistrationCeremonyIntentStore;
   readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
+  /** The SigningWorker of Ed25519 Yao registrations, or `null` when none is configured. */
+  readonly ed25519YaoSigningWorkerId: string | null;
   readonly startRegistrationWallets: RegistrationWalletStarter | null;
 };
 
@@ -104,7 +107,7 @@ async function completeReservedRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: Pick<
     WalletRegistrationSetupDependencies,
-    'home' | 'store' | 'ecdsaStrictRegistration'
+    'home' | 'store' | 'ecdsaStrictRegistration' | 'ed25519YaoSigningWorkerId'
   >,
   admitted: Variant<WalletRegistrationSetupReservationResult, 'ok', true>,
   normalized: Variant<ReturnType<typeof normalizeWalletRegistrationSetupRequest>, 'ok', true>,
@@ -179,6 +182,12 @@ async function completeReservedRegistrationSetup(
   if (!ecdsaBranch && !nearEd25519Branch) {
     return walletRegistrationSetupError('invalid_body', 'registration signer branch is required');
   }
+  if (nearEd25519Branch && !dependencies.ed25519YaoSigningWorkerId) {
+    return walletRegistrationSetupError(
+      'not_configured',
+      'Ed25519 Yao registration is unavailable',
+    );
+  }
   /* A mixed plan is stored whole — the plan is what the ceremony agreed
        to — but only its ECDSA branch is prepared here. Respond adds the
        Ed25519 branch once the verified authority determines its scope. */
@@ -205,8 +214,9 @@ async function completeReservedRegistrationSetup(
   }
 
   /* ECDSA preparation only, and only when the plan has an ECDSA branch.
-       An Ed25519-only plan has nothing to prepare before the proof: its Yao
-       admission binds the authority scope, so respond derives it. */
+       An Ed25519 branch gets its Yao identity below and nothing else before
+       the proof: its admission binds the authority scope, so respond derives
+       it and issues it over that identity. */
   const ecdsaPrepared =
     ecdsaBranch && chainTargets && runtimePolicyScope
       ? await buildD1EvmFamilyEcdsaRegistrationPrepare({
@@ -259,6 +269,13 @@ async function completeReservedRegistrationSetup(
     expiresAtMs,
     /* The proof does not exist yet; respond binds it. */
     authorityState: { kind: 'awaiting_proof', authMethod: normalized.authMethod },
+    ed25519YaoMint:
+      nearEd25519Branch && dependencies.ed25519YaoSigningWorkerId
+        ? mintRouterAbEd25519YaoRegistrationIdentityV1({
+            walletId: wallet.walletId,
+            signingWorkerId: dependencies.ed25519YaoSigningWorkerId,
+          })
+        : null,
     signerState: { kind: 'signer_set_registration', branches: storedBranches },
   };
   const stored = await dependencies.store.reserveSetupCeremony(

@@ -157,6 +157,7 @@ import {
   verifiedRegistrationCeremonyAuthority,
   type StoredRegistrationAuthority,
   type StoredWalletRegistrationCeremony,
+  type StoredWalletRegistrationEd25519YaoMint,
   type StoredWalletRegistrationCeremonyAuthorityState,
   type StoredWalletRegistrationEvmFamilyEcdsaActivatedBranch,
   type StoredWalletRegistrationEvmFamilyEcdsaPendingActivationBranch,
@@ -208,7 +209,6 @@ import {
 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoLifecycleDecision';
 import {
   buildRouterAbEd25519YaoProductAdmissionRequestV1,
-  createRouterAbEd25519YaoMaterialActivationRefV1,
   projectRouterAbEd25519YaoExactWalletSession,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
@@ -373,12 +373,14 @@ type FinalizeWalletRegistrationInput =
   | FinalizeWalletRegistrationNearInput
   | FinalizeWalletRegistrationEcdsaInput;
 
+/** The admission request of a NEAR branch, over the identity that setup minted. */
 async function buildRespondEd25519AdmissionRequest(input: {
   readonly ceremony: StoredWalletRegistrationCeremony;
   readonly branch: RegistrationNearEd25519SignerPlan;
   readonly authority: StoredRegistrationAuthority;
   readonly signingWorkerId: string;
 }) {
+  const mint = requireRegistrationEd25519YaoMint(input.ceremony);
   return buildRouterAbEd25519YaoProductAdmissionRequestV1({
     registrationCeremonyId: input.ceremony.registrationCeremonyId,
     walletId: input.ceremony.intent.walletId,
@@ -387,11 +389,17 @@ async function buildRespondEd25519AdmissionRequest(input: {
     authorityScope: registrationEd25519AuthorityScopeFromAuthority(input.authority),
     branch: input.branch,
     signingWorkerId: input.signingWorkerId,
-    materialActivation: createRouterAbEd25519YaoMaterialActivationRefV1({
-      walletId: input.ceremony.intent.walletId,
-      signingWorkerId: input.signingWorkerId,
-    }),
+    materialActivation: mint.materialActivation,
   });
+}
+
+function requireRegistrationEd25519YaoMint(
+  ceremony: StoredWalletRegistrationCeremony,
+): StoredWalletRegistrationEd25519YaoMint {
+  if (!ceremony.ed25519YaoMint) {
+    throw new Error('Registration ceremony has no NEAR branch identity');
+  }
+  return ceremony.ed25519YaoMint;
 }
 
 type D1LinkedDeviceEd25519AuthorityReaderV1 = {
@@ -2990,6 +2998,7 @@ export class CloudflareD1WalletRegistrationService {
       reservation: this.registrationAuthority,
       store: this.getRegistrationCeremonyIntentStore(),
       ecdsaStrictRegistration: this.ecdsaStrictRegistration,
+      ed25519YaoSigningWorkerId: this.getEd25519YaoProductRegistration()?.signingWorkerId ?? null,
       startRegistrationWallets: this.startRegistrationWallets,
     });
   }
@@ -4484,6 +4493,7 @@ export class CloudflareD1WalletRegistrationService {
               next: authorizedCeremony(bound),
             }),
       input.startedDispatchRoot,
+      requireRegistrationEd25519YaoMint(ceremony).sessionId,
     );
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     // An admission that already existed carried no write of this request.

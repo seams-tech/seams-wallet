@@ -11,6 +11,7 @@ import {
 import {
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import {
@@ -140,10 +141,12 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
       startRegistrationDispatchRoot(
         signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
       ): RouterAbEd25519YaoStartedDispatchRootV1 | null;
+      /** `mintedSessionId` is the session that the registration's setup minted. */
       bindAndAdmitVerifiedRegistration(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
         companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
         startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
+        mintedSessionId: RouterAbEd25519YaoBytes32V1,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
       bindVerifiedIntent(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
@@ -564,10 +567,17 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
 
   async bindAndAdmitVerifiedRegistration(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+    _companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
+    _startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
+    mintedSessionId: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     const bound = await this.input.authorization.bindAndAuthorizeAdmission(input);
     if (!bound.ok) return bound;
-    const admitted = await this.input.registrationService.admit(bound.admissionRequest);
+    const admitted = await this.input.registrationService.admit(
+      bound.admissionRequest,
+      undefined,
+      mintedSessionId,
+    );
     if (!admitted.ok) return admitted;
     return {
       ok: true,
@@ -702,6 +712,32 @@ export function createRouterAbEd25519YaoMaterialActivationRefV1(input: {
     lifecycleBinding: `life_${secureRandomBase64Url(24)}`,
     signingWorker: signingWorkerId,
   });
+}
+
+/**
+ * Mints the Yao identity of a registration's NEAR branch: its material
+ * identity and the session of its admission. Setup stores it, and the
+ * admission that follows the proof is issued over it.
+ */
+export function mintRouterAbEd25519YaoRegistrationIdentityV1(input: {
+  readonly walletId: WalletId;
+  readonly signingWorkerId: string;
+}): {
+  readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  readonly sessionId: RouterAbEd25519YaoBytes32V1;
+} {
+  const sessionId = new Uint8Array(32);
+  do {
+    globalThis.crypto.getRandomValues(sessionId);
+  } while (sessionId.every(isZeroByte));
+  return {
+    materialActivation: createRouterAbEd25519YaoMaterialActivationRefV1(input),
+    sessionId: Array.from(sessionId),
+  };
+}
+
+function isZeroByte(byte: number): boolean {
+  return byte === 0;
 }
 
 /**

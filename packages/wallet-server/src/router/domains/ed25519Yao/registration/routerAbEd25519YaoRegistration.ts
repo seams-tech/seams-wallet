@@ -74,9 +74,15 @@ export type RouterAbEd25519YaoRegistrationBackendResult =
 
 export interface RouterAbEd25519YaoRegistrationBackend {
   takeLastRouterServerTiming?(): string | null;
+  /**
+   * Issues the admission receipt. A registration passes the session that its
+   * setup minted, and the receipt is over that session. Without one the
+   * backend mints the session here.
+   */
   admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ):
     | Promise<RouterAbEd25519YaoRegistrationBackendResult>
     | RouterAbEd25519YaoRegistrationBackendResult;
@@ -94,6 +100,7 @@ export interface RouterAbEd25519YaoRegistrationService {
   admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<
     RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationAdmissionReceiptV1>
   >;
@@ -570,6 +577,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
   async admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<
     RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationAdmissionReceiptV1>
   > {
@@ -584,7 +592,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
         try {
           outcome = {
             kind: 'backend_response',
-            result: await this.backend.admit(request, traceContext),
+            result: await this.backend.admit(request, traceContext, mintedSessionId),
           };
         } catch (error: unknown) {
           outcome = {

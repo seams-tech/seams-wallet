@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoBytes32V1 } from '@shared/utils/routerAbEd25519Yao';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
 import {
   InMemoryRouterAbEd25519YaoRegistrationService,
@@ -115,11 +116,13 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
     companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
     startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
+    mintedSessionId: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     return await bindAndAdmitVerifiedRegistration({
       input,
       companionWrite,
       startedDispatchRoot,
+      mintedSessionId,
       store: this.input.store,
       backend: this.input.registrationBackend,
     });
@@ -262,6 +265,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
   readonly companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null;
   readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
+  readonly mintedSessionId: RouterAbEd25519YaoBytes32V1;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
@@ -323,7 +327,11 @@ async function bindAndAdmitVerifiedRegistration(input: {
     }
     if (backendResult === null) {
       try {
-        backendResult = await input.backend.admit(bound.admissionRequest);
+        backendResult = await input.backend.admit(
+          bound.admissionRequest,
+          undefined,
+          input.mintedSessionId,
+        );
       } catch (error: unknown) {
         return {
           ok: false,
