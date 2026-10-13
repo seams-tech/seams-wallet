@@ -1093,8 +1093,14 @@ async fn execute_router_ceremony_with_finalization_v1(
             timing,
             delivery,
         );
-        let (result, ()) = futures::join!(ceremony, exchange.run(env, runtime, address, trace_id));
-        result
+        let delivery = exchange.run(env, runtime, address, trace_id);
+        match futures::future::select(Box::pin(ceremony), Box::pin(delivery)).await {
+            futures::future::Either::Left((result, _)) => result,
+            futures::future::Either::Right((delivery, ceremony)) => match delivery {
+                Ok(()) => ceremony.await,
+                Err(error) => package_delivery::failure_outcome(error),
+            },
+        }
     } else {
         ceremony_execution::prepare_execute_and_finalize(
             env,
@@ -1747,16 +1753,7 @@ async fn finalize_router_result_v1(
                                 delivery_started_at_ms,
                                 "failure",
                             );
-                            // A later attempt took this one's place at the
-                            // SigningWorker: this attempt ends, terminally.
-                            if error.code() == RouterAbProtocolErrorCode::SupersededAttempt {
-                                return Ok(RouterCeremonyOutcomeV1::Standard(
-                                    RouterEd25519YaoExecuteResultV1::rejected(
-                                        router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
-                                    ),
-                                ));
-                            }
-                            return Err(error);
+                            return package_delivery::failure_outcome(error);
                         }
                     };
                     worker_response.validate_for_operation(operation)?;
