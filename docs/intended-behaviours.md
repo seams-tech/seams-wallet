@@ -523,6 +523,17 @@ throughout the resize. Reduced-motion behavior remains immediate.
   local transaction. Continuations use that local execution identity. A missing
   identity fails locally and cannot create one through a directory lookup.
   Setup retries preserve the current ceremony and cannot reopen a retired home.
+- Setup repeats its ceremony read and its ceremony write after a transient
+  fault of the database connection, at most twice and with a short wait. The
+  repeat is an exact retry: it stores nothing a second time. When the fault
+  persists, setup returns HTTP 503 with the code `storage_unavailable`, and
+  the same request can succeed later. Every other internal failure returns
+  HTTP 500 with the code `internal`. Both carry a fixed message; the cause is
+  logged on the server and never sent to the browser. A rejected request keeps
+  HTTP 400 with its own code and message. The SDK reports the fixed message
+  and does not repeat setup itself; a repeat by the caller reuses the recorded
+  `registrationOperationId`. `registrationSetupTransientD1.unit.test.ts`
+  verifies the retry and the three statuses.
 - When registration starts, the SDK sends one `OPTIONS` request to each Gateway
   route that the registration calls after setup. A registration with a NEAR
   signer also sends one to each of the two NEAR signing routes. The requests

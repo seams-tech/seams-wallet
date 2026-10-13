@@ -14,6 +14,7 @@ import {
   routerAbEcdsaStrictRegistrationFactsBindingJson,
   type RouterAbEcdsaStrictRegistrationPort,
 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
+import { isTransientD1Error } from '../../../../storage/d1Retry';
 import type { WalletRegistrationSetupInput } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import type {
   RegistrationWalletStarter,
@@ -91,8 +92,9 @@ export async function executeD1WalletRegistrationSetup(
     if (startup.status === 'rejected') throw startup.reason;
     return setup.value;
   } catch (error: unknown) {
+    // The route layer maps both codes to a 5xx status and withholds this message.
     return walletRegistrationSetupError(
-      'internal',
+      isTransientD1Error(error) ? 'storage_unavailable' : 'internal',
       errorMessage(error) || 'Failed to set up wallet registration',
     );
   }
