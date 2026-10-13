@@ -95,10 +95,49 @@ async function referenceScenario() {
       await runtime.dispatchFetch('http://probe/stream-clone'),
     );
     assertStreamClone(streamClone, false);
-    return { throughService, throughObject, readThroughService, streamClone };
+    const rawEcPublicKeys = await responseValue(
+      await runtime.dispatchFetch('http://probe/raw-ec-public-keys'),
+    );
+    assertRawEcPublicKeys(rawEcPublicKeys);
+    return { throughService, throughObject, readThroughService, streamClone, rawEcPublicKeys };
   } finally {
     await runtime.dispose();
   }
+}
+
+function assertRawEcPublicKeys(value) {
+  const curves = [];
+  for (const [namedCurve, size] of [
+    ['P-256', 65],
+    ['P-384', 97],
+    ['P-521', 133],
+  ]) {
+    curves.push({
+      namedCurve,
+      size,
+      prefix: 4,
+      roundTrip: true,
+      ecdsaRoundTrip: true,
+      plaintext: 'synthetic-linked-device-credential',
+      changedAadError: 'OperationError',
+      shortPointError: 'DataError',
+      offCurveError: 'DataError',
+      infinityError: 'DataError',
+      wrongCurveError: 'DataError',
+      publicUsageError: 'SyntaxError',
+      signingUsageError: 'SyntaxError',
+      nonextractableError: 'InvalidAccessError',
+      privateExportError: 'InvalidAccessError',
+    });
+  }
+  assert.deepEqual(value, {
+    generatorImported: true,
+    curves,
+    secureCurves: [
+      { name: 'Ed25519', size: 32, roundTrip: true },
+      { name: 'X25519', size: 32, roundTrip: true },
+    ],
+  });
 }
 
 function assertStreamClone(value, rejectsDisturbed) {
@@ -347,6 +386,9 @@ try {
       celldRejects: result.streamClone.rejectsDisturbed,
     },
   };
+  result.stage = 'celld-raw-ec-public-keys';
+  [result.rawEcPublicKeys] = await celldScenario(directory, 'service', ['/raw-ec-public-keys']);
+  assertRawEcPublicKeys(result.rawEcPublicKeys);
   result.stage = 'celld-cross-script-object';
   result.crossScript = await celldScenario(directory, 'external', [
     '/object/increment',
