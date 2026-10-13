@@ -1,5 +1,10 @@
 # Registration capability persistence
 
+Superseded on October 13, 2026: registration no longer writes the shared
+capability record at all. See
+[refactor-155h-capability-from-signer-row.md](refactor-155h-capability-from-signer-row.md).
+The text below records the state of October 10 and 11.
+
 Recorded October 10, 2026. This is a local storage change after the
 [hosted allocation comparison](refactor-155d-allocation-hosted.md).
 Hosted latency savings have not been measured for this change.

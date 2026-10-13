@@ -1166,16 +1166,24 @@ What a finalization costs at the Gateway, about 380 ms at the median:
   of an environment share its version check, so concurrent registrations
   contend, and a second lost attempt fails the request.
 - **The wallet commit span is two round trips.** The founding rows and the
-  shared record are read side by side, then the batch commits.
+  shared record are read side by side, then the batch commits. Without the
+  shared record the founding rows are the only read.
 
 Items:
 
-- [ ] Decide what the shared capability record holds. Either registration
-  stops installing into it and the first use rehydrates from the signer row,
-  which the code already does for an evicted wallet, or capabilities move to
-  one record per wallet. Recovery, export and unlock read this record, so the
-  owner decides. Expected: 40–60 ms of finalization and no contention
-  between registrations.
+- [x] The shared record holds recovery state only. Registration reads and
+  writes none of it: the wallet commit checks its capability, keeps the fence
+  of its wallet and commits its own rows in one batch. A lookup reads the
+  signer row beside the shared record and writes nothing. A signing admission
+  resolves its material from the signer row that its session read already
+  holds, so the session statement no longer reads the shared record. A
+  recovery admission still stores and suspends its capability there. The
+  record keeps every suspended capability and the four newest others, so it
+  stays small. Two registrations no longer share a version check. The
+  [record](evidence/refactor-155h-capability-from-signer-row.md) holds the
+  guards and the database calls. Not released and not measured on staging:
+  expected 40–60 ms of finalization, and less CPU in each signing admission
+  and unlock.
 - [ ] Read the Yao registration record in finalization's initial batch
   instead of in the consume. One round trip, about 13 ms.
 - [ ] Warm the seal once per isolate from the first request's background
