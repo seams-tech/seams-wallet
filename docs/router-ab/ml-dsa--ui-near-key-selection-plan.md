@@ -11,8 +11,8 @@ Multiple devices can have permission to use either or both keys.
 
 This plan covers presentation, selection, and their host integration. Production
 ML-DSA custody, enrollment, signing, and recovery follow the
-[NEAR support design](chain-support/near-ml-dsa-65.md). The
-[signing investigation](router-ab/ml-dsa-65-investigation-plan.md) owns protocol readiness.
+[NEAR support design](../chain-support/near-ml-dsa-65.md). The
+[signing investigation](ml-dsa-65-investigation-plan.md) owns protocol readiness.
 
 ## Product decisions
 
