@@ -158,6 +158,23 @@ The [preliminary report](../../docs/router-ab/ml-dsa-65-preliminary-keygen-repor
 The [kernel report](../../docs/evidence/ml-dsa-65-worker-kernels-hosted-20261013.json) preserves the earlier component measurements.
 Host timing does not establish Worker CPU time, bandwidth, latency, or cost.
 Cross-implementation agreement does not establish FIPS module validation.
+
+## Compiled arithmetic inspection
+
+The private polynomial arithmetic uses bounded, division-free reduction.
+Run the compiled-code check from an AArch64 host with the Wasm Rust target installed:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  inspect-arithmetic docs/evidence/ml-dsa-65-division-free-arithmetic-audit-20261013.json
+```
+
+The command compiles the core separately for Wasm and the native host.
+It rejects division or remainder instructions in the three private polynomial functions.
+It records conditional branches for manual review and pins the source, compiler, and assembly identities.
+This check precedes final Worker optimization and native JIT compilation.
+It supplies no blanket timing guarantee.
+The [composition review](../../docs/router-ab/ml-dsa-65-privacy-review.md) records the arithmetic bounds and the remaining security work.
 Classical OT does not establish post-quantum transcript confidentiality.
 
 The [signing options](../../docs/router-ab/ml-dsa-65-signing-options.md) distinguish commitment `w1` from challenge hash `c_tilde`.

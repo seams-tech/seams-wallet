@@ -684,6 +684,9 @@ State remaining opportunities that could change that ranking.
 2. Measure the revised complete host and Worker flows. Preserve the earlier reports and compare gate counts, bytes, retries, and elapsed time.
 3. Compare GMW, ABY2.0, and smaller garbling with complete preprocessing and conversion costs. Prioritize the largest measured sampling and signing costs.
 4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production integration.
+   The [source review](ml-dsa-65-privacy-review.md) records these boundaries.
+   Division-free local arithmetic passes complete host interoperability and compiled core checks.
+   The complete proof, final Worker qualification, and independent review remain open.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.

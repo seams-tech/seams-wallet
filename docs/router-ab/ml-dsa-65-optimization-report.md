@@ -92,6 +92,13 @@ The inspected core assembly precedes final Worker optimization and native JIT co
 No constant-time certificate follows from this audit.
 Evaluate bounded division-free modular reduction as a separate change and repeat full canonical interoperability checks.
 
+The next change now implements that reduction without changing circuit topology or protocol traffic.
+Its [complete host campaign](../evidence/ml-dsa-65-threshold-host-division-free-20261013.json) passes all five cases, including threshold signatures before recovery.
+The fixed public keys and deterministic signatures remain identical to the previous campaign.
+The [compiled audit](../evidence/ml-dsa-65-division-free-arithmetic-audit-20261013.json) finds zero division or remainder sites in the three private polynomial functions on Wasm and AArch64.
+Final Worker and runtime qualification remain open.
+The [composition review](ml-dsa-65-privacy-review.md) records the reduction bounds, disclosure contract, and remaining integration requirements.
+
 ## Evidence and remaining work
 
 - [Complete native one-AND execution](../evidence/ml-dsa-65-threshold-host-one-and-20261013.json).

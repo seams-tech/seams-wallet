@@ -1,0 +1,136 @@
+{
+  "arithmetic_source_sha256": "d8bd0416e0ed2948b0813ec5ab1b3643543e6f0e2e3c115253134c2a7c4df40c",
+  "audit_source_sha256": "b86c7c84d16d0f4f01812599643a8a06e6e3dda51def57a341d0bfc46597b3a2",
+  "compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+  "limits": [
+    "The check covers the compiled core's three private polynomial arithmetic functions and their inlined reductions.",
+    "Conditional branches require manual data-flow review. Their count alone proves no timing property.",
+    "Public matrix expansion and public-length hashing can retain division or remainder instructions.",
+    "This is pre-link core assembly. Final Worker optimization, Cloudflare JIT behavior, other cryptographic primitives, and hardware timing remain outside this check."
+  ],
+  "profile": "release",
+  "reproduce_argv": [
+    "cargo",
+    "run",
+    "--release",
+    "--locked",
+    "--manifest-path",
+    "tools/ml-dsa-investigation/Cargo.toml",
+    "--",
+    "inspect-arithmetic",
+    "docs/evidence/ml-dsa-65-division-free-arithmetic-audit-20261013.json"
+  ],
+  "result": "no-division-in-private-arithmetic; target-qualification-open",
+  "schema": "seams.ml-dsa-arithmetic-audit.v1",
+  "source_revision": "87af37745fead31d82f9d0b1579c938d5322fc89",
+  "targets": [
+    {
+      "assembly_sha256": "a09a6a39a6f130254a70076bdccd84547b633eee53db2f089ef25a228ab02c6a",
+      "private_functions": [
+        {
+          "body_sha256": "e5cad0a4cd59edc946a50bf0abc8b6fdfe2c8a210e329ed1e7bc781c4231d397",
+          "conditional_branch_sites_requiring_review": [
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t2",
+            "br_if   \t0",
+            "br_if   \t4",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "inverse_ntt",
+          "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic11inverse_ntt"
+        },
+        {
+          "body_sha256": "7114389331d10fb871b8574a057becf8f186b3881881fef39b55f3b9d4196f08",
+          "conditional_branch_sites_requiring_review": [
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "matrix_product_plus_error",
+          "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic25matrix_product_plus_error"
+        },
+        {
+          "body_sha256": "138d94df9f5ec262f350ef2525b5d75ea37c3f1d7a6e7b2344ff5fdfd88a1458",
+          "conditional_branch_sites_requiring_review": [
+            "br_if   \t0",
+            "br_if   \t3",
+            "br_if   \t5",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "ntt",
+          "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic3ntt"
+        }
+      ],
+      "target": "wasm32-unknown-unknown"
+    },
+    {
+      "assembly_sha256": "03be657fee63f37ee24b3205ec5a28ec113ae0a222112c6c9407c2624c69a6a7",
+      "private_functions": [
+        {
+          "body_sha256": "89fe54ed6bef07969af01e52e1643be822590e8a355e3e68a9714b2dc694a5ab",
+          "conditional_branch_sites_requiring_review": [
+            "b.hs\tLBB124_14",
+            "b.eq\tLBB124_1",
+            "b.hi\tLBB124_19",
+            "b.ls\tLBB124_9",
+            "b.lo\tLBB124_9",
+            "b.ne\tLBB124_8",
+            "b.hi\tLBB124_18",
+            "b.hs\tLBB124_17",
+            "b.ne\tLBB124_10",
+            "cbnz\tx17, LBB124_4",
+            "b.ne\tLBB124_15"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "inverse_ntt",
+          "symbol": "__RNvNtNtNtCs7vd0WjNvbCL_11ed25519_yao7passive14ml_dsa_signing10arithmetic11inverse_ntt"
+        },
+        {
+          "body_sha256": "f295132b490880e9902504ddbc414bfbbb4cf80056a3782cf70245a91525dca2",
+          "conditional_branch_sites_requiring_review": [
+            "b.ne\tLBB127_2",
+            "b.ne\tLBB127_4",
+            "b.ne\tLBB127_6",
+            "b.ne\tLBB127_8",
+            "b.ne\tLBB127_10",
+            "b.ne\tLBB127_12",
+            "b.ne\tLBB127_1"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "matrix_product_plus_error",
+          "symbol": "__RNvNtNtNtCs7vd0WjNvbCL_11ed25519_yao7passive14ml_dsa_signing10arithmetic25matrix_product_plus_error"
+        },
+        {
+          "body_sha256": "e0db780407f12259f4c377d2abaa981fd9e4f78f2e261e1ec09b5f450cb011c4",
+          "conditional_branch_sites_requiring_review": [
+            "cbz\tx10, LBB128_13",
+            "b.eq\tLBB128_1",
+            "b.hi\tLBB128_15",
+            "b.ls\tLBB128_9",
+            "b.lo\tLBB128_9",
+            "b.ne\tLBB128_8",
+            "b.hs\tLBB128_14",
+            "b.ne\tLBB128_10",
+            "cbnz\tx17, LBB128_4"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "ntt",
+          "symbol": "__RNvNtNtNtCs7vd0WjNvbCL_11ed25519_yao7passive14ml_dsa_signing10arithmetic3ntt"
+        }
+      ],
+      "target": "aarch64-apple-darwin"
+    }
+  ]
+}
