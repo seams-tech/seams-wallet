@@ -7,6 +7,12 @@
 - Keep completed work committed on `dev`. Report any work that remains elsewhere.
 - Preserve active worktrees until their owning agent has safely integrated the work.
 
+# Diagnosing a fault of unknown cause
+
+Follow `docs/debugging-method.md`: gather facts before causes, check each
+instrument, keep a table of causes against facts, and report what is measured,
+inferred and unknown.
+
 # Keeping the codebase lean
 
 Run `pnpm report:bloat --check` before committing. It fails when dead exports,
