@@ -91,38 +91,91 @@ A [sanitized result](refactor-155j-startup-cancellation.json) records all four c
 - Startup does not admit signing authority. Ownership checks and execution claims
   remain on the actual operation. No timeout, claim or protocol behavior changed.
 
-## Missing observations added
+## Hosted diagnostic capture
 
-The Gateway startup result now includes wallet ID, ownership generation and start
-time. Timeout is distinct from other failures. A separate event records when the
-abort fires, and the listener is removed when startup completes.
+On October 13, temporary Gateway, Router, Deriver A and Deriver B builds ran on
+existing staging resources. Public sources were frozen at `dee249c5`; private
+Gateway sources were frozen at `bbc0f03`. The browser used the earlier combined
+setup/SDK candidate. Binding values, secrets, database schemas and placement were
+preserved. This was a diagnostic capture, not a release latency comparison.
 
-Role forwarding now records its start, duration and reply status beside the existing
-object-selection event. Object command records include handler start time. Existing
-object host observations are reused. These records contain routing identifiers,
-not keys, credentials, protocol frames or authorization headers.
+The Gateway recorded wallet ID, ownership generation, startup start time and abort
+initiation. Role forwarding recorded start, duration and reply status. Object
+command records included handler start time. These additions have been removed
+from the working source. The existing three-second timeout remains unchanged.
 
-These diagnostics are committed locally, not deployed. A cancelled forward can
-lack a completion record. Missing records must remain missing, not be interpreted
-as a zero-length operation.
+The bounded run attempted 89 registrations. It completed 87 independently verified
+NEP-413 signatures. Two attempts failed; one planned attempt did not run after the
+last failure. The verifier rejected altered signed fields for every completed
+signature. The run retained both failed attempts.
+
+**The earlier three-second Deriver A startup stall did not recur.** No Gateway
+startup abort event was observed. Among APAC startup forwards in the collected
+tails, the largest completed duration was 489 ms for A and 673 ms for B. These
+are all APAC tail observations, not a benchmark-only population. Other US-region
+startup traffic reached 1,333 ms and is excluded from the APAC figures.
+
+### A different slow failure was captured
+
+Sample `group-30/registration-2.json` reached the Signing Worker object promptly.
+Its startup had already succeeded, and both Derivers recorded completed prewarm.
+
+| Boundary | Observed result |
+| --- | --- |
+| Gateway joined startup | Success, 353 ms |
+| A startup forward | Success, 179 ms |
+| B startup forward | Success, 268 ms |
+| Signing Worker startup | First command; HTTP 200 |
+| Signing Worker package delivery | Second command; 30,000 ms handler span; about 2 ms CPU; HTTP 500 |
+| Browser registration action | Remained pending until its 120-second harness timeout |
+
+The Signing Worker has an existing 30-second timeout around decoding the streamed
+package body in `durable_object/signing_worker_wallet/package_delivery.rs`.
+The captured command hit that duration and has no completed `body_wait` record.
+This identifies the request-body wait boundary. It does not identify why the
+Router's producer did not complete the body. The failed attempt has no observed
+A/B execution completion record. Missing tail records do not prove that execution
+never began.
+
+The Router joins the ceremony and early delivery futures in
+`router_coordinator.rs`. A delivery failure therefore needs investigation on both
+sides: why the producer stalls, and why the HTTP failure does not promptly settle
+the browser request. Preserve durable claims and exact retry behavior when fixing
+that path. Increasing the timeout would extend the failed wait.
+
+The other failed sample, `group-11/registration-3.json`, registered successfully
+but received HTTP 503 on its first signature: `Wallet Session status is unavailable`.
+Its cause remains unresolved. Runtime and Signing Worker tails were enabled after
+that failure, so they cannot explain it retrospectively.
+
+### Evidence and restoration
+
+[Sanitized invocation timeline and version IDs](refactor-155j-hosted-startup.json).
+Private raw artifacts, frozen sources, signatures, activation records and guards:
+`.artifacts/r155j-hosted-startup-20261013/` in `seams-monorepo`.
+The independent verification report is
+`.artifacts/proof-verification-r155j-hosted-startup-20261013.json`.
+
+The script selected the original serving versions after each stop. Tenant
+reactivation must also pass before restoration is complete. Unfinished ceremonies
+can temporarily block readiness; they are allowed to expire without deleting
+lifecycle records. See the private `restored.json` and activation records for the
+final readiness result.
 
 ## Next action
 
-Deploy the coordinated diagnostic candidate during the next R155J staging window.
-Capture correlated startup, abort, object-entry, command and host records. Keep the
-three-second timeout until evidence shows a useful retained continuation changes
-the critical path. Use the existing startup path; do not race replacement objects.
-
-If the long interval stays before handler entry, retain a sanitized Cloudflare
-support bundle. Provider escalation requires separate authorization. The 500-attempt
-p99 acceptance run, setup recovery tests and cost controls remain separate open work.
-
+Investigate the captured streamed-delivery failure and prompt failure propagation.
+Keep the original startup cause marked unresolved. A future coordinated capture
+can target it; this bounded run provides no causal fix for that stall and no p99
+acceptance claim. The 500-attempt acceptance run and setup cost controls remain
+separate work. Do not race replacement objects or change the startup timeout based
+on this evidence.
 
 ## Validation
 
-The four-case workerd reproduction passed twice. The final run asserts queued
-startup omission, same-object execution, one constructor, and completion of an
-already-entered asynchronous handler after caller cancellation.
-`packages/wallet-server` type-check passed. Wasm-target Rust checks passed for
-Router and Deriver A entrypoints. The public bloat check passed. No live deployment
-or resource change was made during this investigation.
+The four-case local workerd reproduction passed twice. It asserts queued startup
+omission, same-object execution, one constructor, and completion of an entered
+asynchronous handler after caller cancellation. The initial diagnostic change
+passed Wallet Server type-check and Wasm-target Router/Deriver A checks.
+After removing the temporary diagnostics, Wallet Server type-check and the public
+bloat check passed. All 87 completed hosted signatures passed independent checks.

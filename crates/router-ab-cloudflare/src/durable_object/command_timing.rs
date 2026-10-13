@@ -84,7 +84,6 @@ impl CommandObservation {
             "instance_command": self.ordinal,
             "first_command_after_constructor": self.ordinal == 1,
             "since_previous_start_ms": self.since_previous_start_ms,
-            "started_ms": self.started_ms,
             "handler_ms": handler_ms,
             "status": result.as_ref().ok().map(worker::Response::status_code),
         });

@@ -82,7 +82,10 @@ The same A object received startup and execution dispatch. Execution was its fir
 handled command, with `prewarm: none`. A local workerd reproduction shows that the
 abort can remove queued startup; disabling it does not shorten the initialization
 wait. Diagnostics now distinguish abort initiation, forwarding completion and
-handler start. They are not deployed. The platform cause remains unresolved.
+handler start. A bounded staging capture ran 89 attempts: 87 signatures verified,
+two attempts failed. The three-second startup stall did not recur. Temporary
+diagnostics were removed from source after capture. The platform cause remains unresolved.
+The capture found a separate 30-second streamed-package body timeout; see the evidence.
 
 
 The slowest 0.9.3 registration spent 4.166 seconds in custody execution.
@@ -92,7 +95,7 @@ before A's object ran. This does not prove that cancellation caused the delay.
 
 - [ ] Correlate that sample from Gateway startup through Router, role Worker,
   object entry, prewarm, admission, and execution completion.
-- [ ] Use existing correlation identifiers. Add only missing timing boundaries.
+- [x] Use existing correlation identifiers. Add only missing timing boundaries.
   Never record secret inputs, credentials, protocol material, or raw authorization headers.
 - [ ] Record dispatch, handler entry, first storage operation, and reply for each role.
   Record abort initiation and downstream completion separately.
@@ -100,7 +103,7 @@ before A's object ran. This does not prove that cancellation caused the delay.
   storage confirmation, and transport failure. Mark missing observations explicitly.
 - [ ] Reproduce cancellation with a controlled delayed startup in the composed test.
   Check whether abort cancels downstream work, stops observation, or leaves work running.
-- [ ] Verify startup and execution address the same persisted A object and ownership generation.
+- [x] Verify startup and execution address the same persisted A object and ownership generation.
 - [x] Check whether startup completion means handler readiness or completed compute prewarming.
 - [x] Record a causal finding, or the precise boundary that remains unexplained. The
   unresolved interval precedes A handler entry; see the evidence above.
@@ -137,6 +140,12 @@ bundle. Include version IDs, times, location evidence, request correlation, and
 the successful control. The user sends it to Cloudflare unless separately authorized.
 
 ## Phase 3 — Remove additional waits and close setup recovery
+
+- [ ] Diagnose the captured Signing Worker package-body timeout. Trace the Router
+  producer and propagate delivery failure promptly to the caller. The October 13
+  sample spent 30 seconds in the body wait, then remained pending in the browser.
+  Preserve durable claims and exact retry behavior. See
+  [the correlated capture](evidence/refactor-155j-slow-startup.md).
 
 - [ ] Review commit `b8de6715` against the current setup lifecycle. Reuse its bounded
   retry implementation and error mapping. Confirm whether it is already released.

@@ -55,17 +55,7 @@ async fn start_object(
         &format!("https://router-ab-do.internal{PATH}"),
         worker::RequestInit::new().with_method(Method::Post),
     )?;
-    let started_ms = worker::Date::now().as_millis();
-    let response = stub.fetch_with_request(request).await;
-    worker::console_log!("{}", serde_json::json!({
-        "event": "wallet_startup_forward",
-        "role": role,
-        "object_name": name,
-        "started_ms": started_ms,
-        "duration_ms": worker::Date::now().as_millis().saturating_sub(started_ms),
-        "status": response.as_ref().ok().map(Response::status_code),
-    }));
-    response
+    stub.fetch_with_request(request).await
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
