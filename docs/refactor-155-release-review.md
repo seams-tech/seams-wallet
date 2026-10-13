@@ -17,6 +17,66 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.10.0
+
+Status: **in preparation, not published.** Minor release with a registration
+wire change and one schema addition. It carries the work on public `dev`
+since 0.9.4. The user decided the version number on October 13, and Codex
+releases and deploys it together with R155H Phase 1, which is not on `dev`
+yet. The items below are on `dev` at `f736824e`. The package versions are
+still 0.9.4: the version change comes last.
+
+- **Protocol.** The wallet-management protocol is 4. The setup reply of a
+  registration has a new field, and the client parsers accept exact keys, so
+  a 0.10.0 backend refuses every earlier SDK with HTTP 409, and a 0.10.0 SDK
+  needs a 0.10.0 backend. The iframe protocol stays 15.0.0. The last
+  protocol change also got a minor version, 0.8.0 to 0.9.0.
+- **One request after the passkey step.** Setup mints the Yao identity of a
+  NEAR branch and describes the admission of a NEAR-only passkey plan. The
+  SDK prepares the custody run during the prompt and sends the proof and the
+  execute request together. Respond admits and runs the execution with the
+  checks of the execute route. Email OTP, mixed registration and add-signer
+  keep both routes. The
+  [record](evidence/refactor-155h-one-request-registration.md) holds the
+  rules that did not change.
+- **Finalization.** Registration reads and writes no shared capability
+  record. The record holds recovery state only. A signing admission takes
+  its material from the signer row. The
+  [record](evidence/refactor-155h-capability-from-signer-row.md) holds the
+  guards and the database calls.
+- **Schema.** Gateway migration `0079_tenant_lookup_indexes.sql` adds three
+  indexes for the tenant lookups (`958b67d5`). No table changes.
+- **In-flight registrations.** A ceremony record of a NEAR plan now holds
+  the minted identity, and a record without it does not parse. A
+  registration that started on 0.9.4 does not continue on 0.10.0.
+- **Stored wallets.** No stored wallet record changes. The signer row held
+  the active capability before this release too.
+- **Also on `dev`.** The local environment plans of `router-ab-dev` use typed
+  role origins (`188933a2`). The ML-DSA investigation adds benchmark code
+  and three unused input families to the Yao engine crate (`cbe1d732`); no
+  production path uses them.
+- **Private Console.** Its registration canary sends the protocol number as
+  a literal (`packages/wallet-console-server-ts/src/tenantDeployment/provisioning.ts`),
+  and `tests/relayer/tenant-home-challenge.e2e.test.ts` sends it too. The
+  pin commit must change both to 4, or the staging activation fails. The
+  private server package at `3f4fdb45` type-checks against the server build
+  of `dcace878`.
+- **Version change, prepared.** `.artifacts/release-0100/prepare-0.10.0.patch`
+  in the main checkout sets both packages and the public docs to 0.10.0 and
+  holds the upgrade notes for protocol 4. It applies to `f736824e`. The
+  folder is ignored by git.
+- **Local validation of the two items.** The contract suite passes: 132 of
+  134 cases on release Workers and the two debug-build cases on the debug
+  Router. The type checks and the bloat check pass. The Rust steps and the
+  private console build were not run again; no Rust file of the role
+  Workers changed.
+- **Cutover proof.** The contract suite has no published-client check any
+  more (`f736824e`). After the staging deployment, the test site built from
+  the published 0.9.4 package must show the upgrade message.
+- **Measurement.** Take the 0.9.4 baseline on staging in the hour before
+  the deployment. A 0.9.4 test site does not work against a 0.10.0 backend,
+  so each side runs its own client.
+
 ## 0.9.4
 
 Status: **published October 13, 2026, 07:07 UTC, and deployed to staging.**
