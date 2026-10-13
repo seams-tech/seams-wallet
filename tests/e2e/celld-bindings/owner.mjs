@@ -1,6 +1,7 @@
 export class TenantRoot {
-  constructor(state) {
+  constructor(state, env) {
     this.state = state;
+    this.env = env;
   }
 
   async fetch(request) {
@@ -9,7 +10,7 @@ export class TenantRoot {
       count += 1;
       await this.state.storage.put('count', count);
     }
-    return Response.json({ owner: 'router', count });
+    return Response.json({ owner: this.env.OWNER_LABEL, count, id: this.state.id.toString() });
   }
 }
 
@@ -17,6 +18,9 @@ export default {
   fetch(request, env) {
     if (new URL(request.url).pathname === '/health') {
       return new Response('ready');
+    }
+    if (new URL(request.url).pathname.startsWith('/caller/')) {
+      return env.CONTROL_PLANE.fetch(request);
     }
     const id = env.TENANT_ROOT.idFromName('tenant');
     return env.TENANT_ROOT.get(id).fetch(request);

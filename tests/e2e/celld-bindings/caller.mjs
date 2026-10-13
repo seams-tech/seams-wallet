@@ -7,7 +7,9 @@ export default {
     if (path.startsWith('/service/')) {
       return env.ROUTER.fetch(request);
     }
-    const id = env.TENANT_ROOT.idFromName('tenant');
-    return env.TENANT_ROOT.get(id).fetch(request);
+    const namespace = path.startsWith('/alias/') ? env.ALIAS : env.TENANT_ROOT;
+    const id = namespace.idFromName('tenant');
+    const restored = namespace.idFromString(id.toString());
+    return namespace.get(restored).fetch(request);
   },
 };

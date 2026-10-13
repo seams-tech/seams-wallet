@@ -1,7 +1,7 @@
-// Usage: node tests/e2e/celld-bindings.e2e.mjs /absolute/path/to/celld
+// Usage: node tests/e2e/celld-bindings.e2e.mjs /path/to/candidate /path/to/celld-0.6.2
 // A failed capability gate writes its evidence and exits with status 1.
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { closeSync, openSync } from 'node:fs';
@@ -16,7 +16,9 @@ import { Miniflare } from 'miniflare';
 const require = createRequire(import.meta.url);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const fixtures = join(root, 'tests/e2e/celld-bindings');
-const binary = resolve(process.argv[2] ?? 'celld');
+assert.equal(process.argv.length, 4, 'provide candidate and original celld binary paths');
+const binary = resolve(process.argv[2]);
+const baselineBinary = resolve(process.argv[3]);
 const compatibilityDate = '2026-06-12';
 
 function sha256(bytes) {
@@ -56,6 +58,7 @@ async function referenceScenario() {
     workers: [
       {
         name: 'caller',
+        bindings: { OWNER_LABEL: 'caller' },
         modules: true,
         scriptPath: join(fixtures, 'caller.mjs'),
         compatibilityDate,
@@ -66,6 +69,7 @@ async function referenceScenario() {
       },
       {
         name: 'owner',
+        bindings: { OWNER_LABEL: 'router' },
         modules: true,
         scriptPath: join(fixtures, 'owner.mjs'),
         compatibilityDate,
@@ -83,8 +87,9 @@ async function referenceScenario() {
     const readThroughService = await responseValue(
       await runtime.dispatchFetch('http://probe/service/read'),
     );
-    assert.deepEqual(throughService, { owner: 'router', count: 1 });
-    assert.deepEqual(throughObject, { owner: 'router', count: 2 });
+    assertObject(throughService, 1);
+    assertObject(throughObject, 2);
+    assert.equal(throughService.id, throughObject.id);
     assert.deepEqual(readThroughService, throughObject);
     return { throughService, throughObject, readThroughService };
   } finally {
@@ -92,39 +97,71 @@ async function referenceScenario() {
   }
 }
 
+function assertObject(value, count) {
+  assert.equal(value.owner, 'router');
+  assert.equal(value.count, count);
+  assert.match(value.id, /^[a-f0-9]{64}$/);
+}
+
 async function prepareProject(directory) {
   await copyFile(join(fixtures, 'owner.mjs'), join(directory, 'owner.mjs'));
   await copyFile(join(fixtures, 'caller.mjs'), join(directory, 'caller.mjs'));
-  await writeJson(join(directory, 'owner.json'), {
+  const owner = {
     name: 'owner',
     main: 'owner.mjs',
     no_bundle: true,
     compatibility_date: compatibilityDate,
     durable_objects: { bindings: [{ name: 'TENANT_ROOT', class_name: 'TenantRoot' }] },
     migrations: [{ tag: 'v1', new_sqlite_classes: ['TenantRoot'] }],
-  });
+    vars: { OWNER_LABEL: 'router' },
+  };
+  await writeJson(join(directory, 'owner.json'), owner);
   const caller = {
     name: 'caller',
     main: 'caller.mjs',
     no_bundle: true,
     compatibility_date: compatibilityDate,
     services: [{ binding: 'ROUTER', service: 'owner' }],
+    vars: { OWNER_LABEL: 'caller' },
   };
   await writeJson(join(directory, 'service.json'), caller);
-  await writeJson(join(directory, 'external.json'), {
+  const external = {
     ...caller,
     durable_objects: {
-      bindings: [{ name: 'TENANT_ROOT', class_name: 'TenantRoot', script_name: 'owner' }],
+      bindings: [
+        { name: 'TENANT_ROOT', class_name: 'TenantRoot', script_name: 'owner' },
+        { name: 'ALIAS', class_name: 'TenantRoot', script_name: 'owner' },
+      ],
+    },
+  };
+  await writeJson(join(directory, 'external.json'), external);
+  await writeJson(join(directory, 'restart.json'), external);
+  await writeJson(join(directory, 'object-only.json'), { ...external, services: [] });
+  await writeJson(join(directory, 'router.json'), {
+    ...owner,
+    services: [{ binding: 'CONTROL_PLANE', service: 'caller' }],
+  });
+  await writeJson(join(directory, 'other.json'), { ...caller, name: 'other', services: [] });
+  await writeJson(join(directory, 'wrong-owner.json'), {
+    ...caller,
+    durable_objects: {
+      bindings: [{ name: 'TENANT_ROOT', class_name: 'TenantRoot', script_name: 'other' }],
+    },
+  });
+  await writeJson(join(directory, 'missing-owner.json'), {
+    ...caller,
+    durable_objects: {
+      bindings: [{ name: 'TENANT_ROOT', class_name: 'TenantRoot', script_name: 'missing' }],
     },
   });
 }
 
-async function startCelld(directory, config) {
+async function startCelld(directory, config, executable) {
   const port = await freePort();
   const logPath = join(directory, `${config}.log`);
   const log = openSync(logPath, 'w');
   const child = spawn(
-    binary,
+    executable,
     [
       'dev',
       join(directory, `${config}.json`),
@@ -178,8 +215,8 @@ async function stopCelld(runtime) {
   }
 }
 
-async function celldScenario(directory, config, paths) {
-  const runtime = await startCelld(directory, config);
+async function celldScenario(directory, config, paths, executable = binary) {
+  const runtime = await startCelld(directory, config, executable);
   try {
     await waitReady(runtime);
     const values = [];
@@ -198,6 +235,55 @@ async function celldScenario(directory, config, paths) {
   }
 }
 
+async function expectOwnerRefusal(directory, config, reason) {
+  const runtime = await startCelld(directory, config, binary);
+  let refusal = null;
+  try {
+    await waitReady(runtime);
+  } catch (error) {
+    refusal = String(error);
+  } finally {
+    await stopCelld(runtime);
+  }
+  assert.equal(typeof refusal, 'string', 'an invalid owner must prevent startup');
+  assert.match(refusal, reason);
+  return refusal;
+}
+
+async function refuseOldRuntime(directory) {
+  const attempt = spawnSync(
+    baselineBinary,
+    [
+      '--no-control-plane',
+      '--bucket',
+      'celld-dev',
+      '--listen',
+      '127.0.0.1:0',
+      '--internal-listen',
+      '127.0.0.1:0',
+    ],
+    {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 5_000,
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        TMPDIR: process.env.TMPDIR,
+        CELLD_INTERNAL_DEV_STORE: join(directory, '.celld/dev/objects.sqlite3'),
+        CELLD_WATCH: join(directory, 'downgrade-runtime'),
+      },
+    },
+  );
+  const output = `${attempt.stdout ?? ''}${attempt.stderr ?? ''}`;
+  await writeFile(join(directory, 'downgrade.log'), output);
+  assert.equal(attempt.error, undefined);
+  assert.equal(attempt.signal, null);
+  assert.equal(attempt.status, 1);
+  assert.match(output, /external-durable-objects-v1/);
+  return { exitCode: attempt.status, output };
+}
+
 await mkdir(join(root, '.artifacts'), { recursive: true });
 const directory = await mkdtemp(join(root, '.artifacts/celld-bindings-'));
 const result = {
@@ -207,6 +293,8 @@ const result = {
   platform: `${process.platform}-${process.arch}`,
   celld: commandVersion(binary, ['--version']),
   celldSha256: sha256(await readFile(binary)),
+  baselineCelld: commandVersion(baselineBinary, ['--version']),
+  baselineSha256: sha256(await readFile(baselineBinary)),
   miniflare: require('miniflare/package.json').version,
   workerd: require('workerd/package.json').version,
   harnessSha256: sha256(await readFile(fileURLToPath(import.meta.url))),
@@ -223,25 +311,53 @@ try {
   result.stage = 'celld-service-control';
   await prepareProject(directory);
   // Each config shares this dev directory. Named deployments and state survive restart.
-  result.owner = await celldScenario(directory, 'owner', ['/increment']);
-  assert.deepEqual(result.owner, [{ owner: 'router', count: 1 }]);
+  result.owner = await celldScenario(directory, 'owner', ['/increment'], baselineBinary);
+  assertObject(result.owner[0], 1);
   result.serviceControl = await celldScenario(directory, 'service', [
     '/service/increment',
     '/service/read',
   ]);
-  assert.deepEqual(result.serviceControl, [
-    { owner: 'router', count: 2 },
-    { owner: 'router', count: 2 },
-  ]);
+  assertObject(result.serviceControl[0], 2);
+  assert.deepEqual(result.serviceControl[0], result.serviceControl[1]);
+  assert.equal(result.owner[0].id, result.serviceControl[0].id);
   result.stage = 'celld-cross-script-object';
   result.crossScript = await celldScenario(directory, 'external', [
     '/object/increment',
+    '/alias/read',
     '/service/read',
   ]);
-  assert.deepEqual(result.crossScript, [
-    { owner: 'router', count: 3 },
-    { owner: 'router', count: 3 },
-  ]);
+  assertObject(result.crossScript[0], 3);
+  assert.deepEqual(result.crossScript[0], result.crossScript[1]);
+  assert.deepEqual(result.crossScript[0], result.crossScript[2]);
+  assert.equal(result.owner[0].id, result.crossScript[0].id);
+  result.stage = 'celld-restart';
+  result.restart = await celldScenario(directory, 'restart', ['/object/read']);
+  assert.deepEqual(result.restart[0], result.crossScript[0]);
+  result.stage = 'celld-object-only-dependency';
+  result.objectOnly = await celldScenario(directory, 'object-only', ['/object/read']);
+  assert.deepEqual(result.objectOnly[0], result.crossScript[0]);
+  result.stage = 'celld-router-cycle';
+  result.routerCycle = await celldScenario(directory, 'router', ['/caller/increment', '/read']);
+  assertObject(result.routerCycle[0], 4);
+  assert.deepEqual(result.routerCycle[0], result.routerCycle[1]);
+  assert.equal(result.owner[0].id, result.routerCycle[0].id);
+  result.stage = 'celld-owner-rejection';
+  await celldScenario(directory, 'other', []);
+  result.wrongOwner = await expectOwnerRefusal(
+    directory,
+    'wrong-owner',
+    /not owned by script other/,
+  );
+  result.missingOwner = await expectOwnerRefusal(
+    directory,
+    'missing-owner',
+    /load Worker binding target missing/,
+  );
+  result.stage = 'celld-recovery-after-rejection';
+  result.recovery = await celldScenario(directory, 'object-only', ['/object/read']);
+  assert.deepEqual(result.recovery[0], result.routerCycle[0]);
+  result.stage = 'celld-downgrade-refusal';
+  result.downgradeRefusal = await refuseOldRuntime(directory);
   result.status = 'passed';
 } catch (error) {
   result.status = 'failed';
