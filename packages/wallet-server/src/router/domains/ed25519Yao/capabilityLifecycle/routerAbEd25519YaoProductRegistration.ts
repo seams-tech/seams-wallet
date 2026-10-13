@@ -56,6 +56,7 @@ import {
   InMemoryRouterAbEd25519YaoRecoveryStateV1,
   type RouterAbEd25519YaoActiveCapabilityLookupResultV1,
   type RouterAbEd25519YaoActiveCapabilityLookupV1,
+  type RouterAbEd25519YaoActiveCapabilityRehydratorV1,
   type RouterAbEd25519YaoActiveCapabilityResolverV1,
   type RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
   type RouterAbEd25519YaoRecoveryAuthorizationAdapter,
@@ -126,7 +127,8 @@ export type RouterAbEd25519YaoWalletSessionMintInputV1 =
 
 export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
   RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
-    RouterAbEd25519YaoActiveCapabilityResolverV1 & {
+    RouterAbEd25519YaoActiveCapabilityResolverV1 &
+    RouterAbEd25519YaoActiveCapabilityRehydratorV1 & {
       readonly kind: 'router_ab_ed25519_yao_product_registration_runtime_v1';
       readonly signingWorkerId: string;
       /**
@@ -592,6 +594,13 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
   }
 
   async resolveActiveCapability(
+    input: RouterAbEd25519YaoActiveCapabilityLookupV1,
+  ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
+    return await this.input.capabilityResolver.resolveActiveCapability(input);
+  }
+
+  /** This runtime's recovery state already holds every capability it resolves. */
+  async rehydrateActiveCapability(
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
     return await this.input.capabilityResolver.resolveActiveCapability(input);

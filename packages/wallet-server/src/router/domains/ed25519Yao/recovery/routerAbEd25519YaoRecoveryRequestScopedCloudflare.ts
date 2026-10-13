@@ -44,6 +44,7 @@ import {
   type RouterAbEd25519YaoRecoveryExecuteClaimV1,
   type RouterAbEd25519YaoRecoveryFailure,
   type RouterAbEd25519YaoRecoveryServiceResult,
+  type RouterAbEd25519YaoActiveCapabilityRehydratorV1,
   type RouterAbEd25519YaoActiveCapabilityResolverV1,
   type WarmBootstrapLinkedEd25519AuthorityReaderV1,
 } from './routerAbEd25519YaoRecovery';
@@ -109,7 +110,8 @@ export type RouterAbEd25519YaoRecoveryRequestScopedCloudflareInputV1 = {
   readonly backend: RouterAbEd25519YaoRecoveryBackend;
   readonly authorization: RouterAbEd25519YaoRecoveryAuthorizationAdapter;
   readonly capabilityPersistence: RouterAbEd25519YaoCapabilityPersistenceV1;
-  readonly capabilities: RouterAbEd25519YaoActiveCapabilityResolverV1;
+  readonly capabilities: RouterAbEd25519YaoActiveCapabilityResolverV1 &
+    RouterAbEd25519YaoActiveCapabilityRehydratorV1;
   readonly linkedAuthorities?: WarmBootstrapLinkedEd25519AuthorityReaderV1 | null;
 };
 
@@ -577,7 +579,9 @@ async function runAdmissionRequest(
     return mapAdmissionResult(first);
   }
 
-  const resolved = await context.input.capabilities.resolveActiveCapability({
+  // The signer row holds the capability. An admission suspends it in the
+  // recovery state, so it is stored there first.
+  const resolved = await context.input.capabilities.rehydrateActiveCapability({
     kind: 'router_ab_ed25519_yao_active_capability_lookup_v1',
     walletId: request.application_binding.wallet_id,
     nearEd25519SigningKeyId: request.application_binding.near_ed25519_signing_key_id,

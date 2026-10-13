@@ -685,29 +685,6 @@ function sameLinkedEcdsaResolvedSignerIdentity(
   );
 }
 
-async function ed25519ExportIdentityFromActiveCapability(
-  descriptor: RouterAbEd25519YaoActiveCapabilityDescriptorV1,
-): Promise<RouterAbEd25519YaoExportAuthorizationIdentityV1> {
-  return {
-    scope: {
-      lifecycle_id: descriptor.lifecycle.lifecycleId,
-      root_share_epoch: descriptor.lifecycle.rootShareEpoch,
-      account_id: descriptor.lifecycle.accountId,
-      threshold_session_id: descriptor.lifecycle.thresholdSessionId,
-      signer_set_id: descriptor.lifecycle.signerSetId,
-      signing_worker_id: descriptor.lifecycle.signingWorkerId,
-      material_activation: descriptor.materialActivation,
-    },
-    application_binding: descriptor.applicationBinding,
-    participant_ids: descriptor.participantIds,
-    registered_public_key: descriptor.registeredPublicKey,
-    state_epoch: descriptor.stateEpoch,
-    runtime_policy_binding: await deriveRouterAbEd25519YaoRuntimePolicyBindingV1(
-      descriptor.runtimePolicyScope,
-    ),
-  };
-}
-
 async function ed25519ExportIdentityFromPersistedCapability(
   capability: WalletEd25519YaoActiveCapabilityRecord,
 ): Promise<RouterAbEd25519YaoExportAuthorizationIdentityV1> {
@@ -2116,63 +2093,21 @@ export class CloudflareD1WalletRegistrationService {
           ),
         };
       }
-      const lookup = {
-        kind: 'router_ab_ed25519_yao_active_capability_lookup_v1' as const,
-        walletId: input.walletId,
-        nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
-        signerSlot: signer.signerSlot,
-        signingWorkerId: signer.signingWorkerId,
-        participantIds: signer.participantIds,
-      };
-      const active =
-        input.signerRead?.resolveActiveCapability(lookup) ??
-        await yaoRuntime.resolveActiveCapability(lookup);
-      if (!active.ok) {
-        if (active.code === 'unknown_capability') {
-          if (
-            !sameRouterAbMpcMaterialActivationRef(
-              signer.activeYaoCapability.activationResult.binding.material_activation,
-              input.materialActivation,
-            )
-          ) {
-            return {
-              ok: false,
-              code: 'not_found',
-              message: 'Ed25519 material activation does not match the persisted capability',
-            };
-          }
-          // Recovery admission suspends the in-memory capability before its
-          // execute request; the persisted signer remains the admitted source.
-          return await activeEd25519MaterialFromPersistedSigner(signer);
-        }
-        return {
-          ok: false,
-          code: 'internal',
-          message: active.message,
-        };
-      }
       if (
         !sameRouterAbMpcMaterialActivationRef(
-          active.capability.materialActivation,
+          signer.activeYaoCapability.activationResult.binding.material_activation,
           input.materialActivation,
         )
       ) {
         return {
           ok: false,
           code: 'not_found',
-          message: 'Ed25519 material activation does not match the active capability',
+          message: 'Ed25519 material activation does not match the persisted capability',
         };
       }
-      return {
-        ok: true,
-        materialActivation: active.capability.materialActivation,
-        nearAccountId: active.capability.nearAccountId,
-        signerSlot: signer.signerSlot,
-        signingWorkerId: signer.signingWorkerId,
-        participantIds: signer.participantIds,
-        runtimePolicyScope: active.capability.runtimePolicyScope,
-        exportIdentity: await ed25519ExportIdentityFromActiveCapability(active.capability),
-      };
+      // The signer row holds the capability. A recovery admission suspends it
+      // in the recovery state only, and the row stays the admitted source.
+      return await activeEd25519MaterialFromPersistedSigner(signer);
     } catch (error: unknown) {
       return {
         ok: false,

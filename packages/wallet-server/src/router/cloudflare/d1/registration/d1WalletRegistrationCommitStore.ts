@@ -12,7 +12,7 @@ import {
   type ActiveWalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
-import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import { mpcMaterialActivationRefsEqual, parseWalletId } from '@shared/utils/domainIds';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { buildWalletSessionCapabilitySubjectsV1 } from '../../../../authorization/domain';
@@ -26,8 +26,8 @@ import {
   type D1WalletStoreScope,
 } from '../../../../core/d1WalletStore';
 import type { WalletRecord, WalletSignerRecord } from '../../../../core/WalletStore';
-import { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
-import { commitRouterAbEd25519YaoRegistrationCapability } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoCapabilityCommit';
+import { lifecycleWriteFenceStatements } from '../ed25519Yao/d1Ed25519YaoStateWriteFence';
+import { validateRouterAbEd25519YaoRegistrationCapability } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoCapabilityCommit';
 import {
   prepareD1WebAuthnCredentialBindingPutStatement,
   type WebAuthnCredentialBindingRecord,
@@ -685,33 +685,39 @@ export class CloudflareD1WalletRegistrationCommitStore
     executeBatch?: D1RegistrationCommitBatch,
   ): Promise<void> {
     assertCommitWalletIdentity(input, authority);
+    const fenced: D1PreparedStatementLike[] = [];
     const ed25519Signer = input.walletSigners.find(isEd25519Signer);
     if (ed25519Signer) {
       const capability = ed25519Signer.activeYaoCapability;
       if (capability.version !== 'wallet_ed25519_yao_registration_capability_v1') {
         throw new Error('A registration commit requires its registration capability');
       }
-      const store = createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
-        database: this.database,
-        scope: this.scope,
+      const validated = validateRouterAbEd25519YaoRegistrationCapability({
+        kind: 'router_ab_ed25519_yao_registration_finalize_capability_v1',
+        activeCapabilityBinding: capability.activeCapabilityBinding,
+        nearAccountId: capability.nearAccountId,
+        registrationAdmissionRequest: capability.admissionRequest,
+        registrationAdmissionReceipt: capability.admissionReceipt,
+        registrationResult: capability.activationResult,
+        runtimePolicyScope: capability.runtimePolicyScope,
       });
-      const installed = await commitRouterAbEd25519YaoRegistrationCapability(
-        store,
-        {
-          kind: 'router_ab_ed25519_yao_registration_finalize_capability_v1',
-          activeCapabilityBinding: capability.activeCapabilityBinding,
-          nearAccountId: capability.nearAccountId,
-          registrationAdmissionRequest: capability.admissionRequest,
-          registrationAdmissionReceipt: capability.admissionReceipt,
-          registrationResult: capability.activationResult,
-          runtimePolicyScope: capability.runtimePolicyScope,
-        },
-        prepareWalletWrite(this.database, this.scope, authority, input, executeBatch),
+      if (!validated.ok) throw new Error(validated.message);
+      /* The signer row holds the capability, so the commit writes no recovery
+         state. It still obeys the fence of the capability's wallet: a
+         cancelled registration and a relocating wallet refuse the write. */
+      const capabilityWallet = parseWalletId(
+        capability.admissionRequest.application_binding.wallet_id,
       );
-      if (!installed.ok) throw new Error(installed.message);
-      return;
+      if (!capabilityWallet.ok) throw new Error('Lifecycle wallet owner is invalid');
+      fenced.push(
+        ...lifecycleWriteFenceStatements(
+          { database: this.database, scope: this.scope },
+          new Set([capabilityWallet.value, input.wallet.walletId]),
+        ),
+      );
     }
-    const { statements } = await prepareWalletWrite(this.database, this.scope, authority, input);
+    const prepared = await prepareWalletWrite(this.database, this.scope, authority, input);
+    const statements = [...fenced, ...prepared.statements];
     const results = executeBatch
       ? await executeBatch(statements)
       : await this.database.batch<D1ResultLike>(statements);
@@ -727,7 +733,6 @@ async function prepareWalletWrite(
   scope: D1WalletRegistrationCommitScope,
   authority: RegistrationAuthority,
   input: D1WalletRegistrationCommitInput,
-  executeBatch?: D1RegistrationCommitBatch,
 ) {
   const foundingStatements = await prepareFoundingStatements({
     database,
@@ -756,7 +761,7 @@ async function prepareWalletWrite(
     ...emailOtpCommitStatements(input),
     ...input.decisionStatements,
   );
-  return { statements, executeBatch };
+  return { statements };
 }
 
 function isEd25519Signer(signer: WalletSignerRecord) {

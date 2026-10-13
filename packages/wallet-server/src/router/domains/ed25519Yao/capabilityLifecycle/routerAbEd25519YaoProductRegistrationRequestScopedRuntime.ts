@@ -27,7 +27,10 @@ import {
   routerAbEd25519YaoAdmittedRegistrationAuthorityV1,
   type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
-import { rehydrateRouterAbEd25519YaoCapability } from './routerAbEd25519YaoCapabilityCommit';
+import {
+  rehydrateRouterAbEd25519YaoCapability,
+  resolveRouterAbEd25519YaoPersistedActiveCapability,
+} from './routerAbEd25519YaoCapabilityCommit';
 import {
   parseRouterAbEd25519YaoRegistrationRouterAnswerV1,
   type RouterAbEd25519YaoPinnedRegistrationBackend,
@@ -48,7 +51,7 @@ export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   /** The Router, which owns each registration's execution and its consumption. */
   readonly registrationBackend: RouterAbEd25519YaoPinnedRegistrationBackend;
-  /** Loads one canonical signer record for an existing-wallet capability miss. */
+  /** Loads the canonical signer record of a capability lookup. */
   readonly loadPersistedActiveCapability?: (
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ) => Promise<WalletEd25519YaoActiveCapabilityRecord | null>;
@@ -184,7 +187,37 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     return await rehydrateRouterAbEd25519YaoCapability(this.input.store, input);
   }
 
+  /**
+   * The signer row holds a wallet's capability, and the recovery state says
+   * whether a recovery suspended it. Both are read together and nothing is
+   * written, so a lookup never contends with another wallet.
+   */
   async resolveActiveCapability(
+    input: RouterAbEd25519YaoActiveCapabilityLookupV1,
+  ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
+    const invalid = resolveRouterAbEd25519YaoActiveCapability(NO_CAPABILITIES, input);
+    if (!invalid.ok && invalid.code === 'invalid_lookup') return invalid;
+    const loadPersisted = this.input.loadPersistedActiveCapability;
+    const [loaded, persisted] = await Promise.all([
+      this.input.store.loadCapabilities(),
+      loadPersisted ? loadPersisted(input) : null,
+    ]);
+    const result = resolveRouterAbEd25519YaoActiveCapability(
+      loaded.value.recoveryCapabilities,
+      input,
+    );
+    if (
+      result.ok ||
+      result.code !== 'unknown_capability' ||
+      !persisted ||
+      !routerAbEd25519YaoPersistedCapabilityMatchesLookupV1(persisted, input)
+    ) {
+      return result;
+    }
+    return resolveRouterAbEd25519YaoPersistedActiveCapability(loaded, persisted, input);
+  }
+
+  async rehydrateActiveCapability(
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
     const loaded = await this.input.store.loadCapabilities();
@@ -215,6 +248,9 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     return resolveRouterAbEd25519YaoActiveCapability(refreshed.value.recoveryCapabilities, input);
   }
 }
+
+const NO_CAPABILITIES: Parameters<typeof resolveRouterAbEd25519YaoActiveCapability>[0] =
+  new Map();
 
 /**
  * Binds a verified intent and admits its registration. The tenant root the
