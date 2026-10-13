@@ -402,10 +402,12 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   const mode = parseLocalIntendedYaoFaultModeV1(rawMode);
   const token = parseLocalIntendedYaoFaultTokenV1(rawToken);
   const url = new URL(request.url);
+  // A respond that carries its execute request runs the same Router execution.
   if (
     url.protocol !== 'http:' ||
     url.hostname !== '127.0.0.1' ||
-    url.pathname !== ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 ||
+    (url.pathname !== ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 &&
+      url.pathname !== REGISTRATION_RESPOND_PATH) ||
     request.method !== 'POST' ||
     !mode ||
     !token

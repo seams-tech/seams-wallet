@@ -447,6 +447,10 @@ use encoding::{
     decode_base64url_fixed_64_v1, decode_base64url_json_v1, encode_base64url_bytes_v1,
 };
 mod paths;
+#[cfg(feature = "workers-rs")]
+mod registration_pair_connection;
+#[cfg(feature = "workers-rs")]
+mod registration_pair_preparation;
 pub use paths::*;
 mod trace_context;
 #[cfg(feature = "workers-rs")]

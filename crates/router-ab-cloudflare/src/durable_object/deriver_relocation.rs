@@ -150,11 +150,20 @@ fn reserve_destination<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
 ) -> worker::Result<Response> {
+    sql.exec(super::registration_preparation::SCHEMA, None)?;
     if snapshot::import::activated_preparation(sql, &command)? {
-        return Response::from_json(&Receipt { kind: "prepared", destination_object: command.owner.object_name()?, request: command });
+        return Response::from_json(&Receipt {
+            kind: "prepared",
+            destination_object: command.owner.object_name()?,
+            request: command,
+        });
     }
     // SQL guards also reject deferred writers that entered before preparation.
-    for table in ["yao_pair_sessions", "yao_pair_admission_fences"] {
+    for table in [
+        "yao_pair_sessions",
+        "yao_pair_admission_fences",
+        "yao_registration_preparation",
+    ] {
         for operation in ["INSERT", "UPDATE", "DELETE"] {
             sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_preparation) BEGIN SELECT RAISE(ABORT, 'Deriver destination is reserved'); END"), None)?;
         }
@@ -162,7 +171,7 @@ fn reserve_destination<Owner: WalletOwner>(
     let request_json =
         serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
     sql.exec(
-        "INSERT INTO wallet_relocation_preparation (id, request_json) SELECT 1, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions) AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences) AND NOT EXISTS (SELECT 1 FROM wallet_relocation_source) ON CONFLICT DO NOTHING",
+        "INSERT INTO wallet_relocation_preparation (id, request_json) SELECT 1, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions) AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences) AND NOT EXISTS (SELECT 1 FROM yao_registration_preparation) AND NOT EXISTS (SELECT 1 FROM wallet_relocation_source) ON CONFLICT DO NOTHING",
         vec![SqlStorageValue::String(request_json.clone())],
     )?;
     let rows = sql
@@ -264,10 +273,15 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
 ) -> worker::Result<Response> {
+    sql.exec(super::registration_preparation::SCHEMA, None)?;
     snapshot::import::require_source_generation(sql, &command)?;
-    let request_json = serde_json::to_string(&command)
-        .map_err(|error| pair_error(error.to_string()))?;
-    let existing = sql.exec("SELECT request_json FROM wallet_relocation_source WHERE id = 1", None)?
+    let request_json =
+        serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
+    let existing = sql
+        .exec(
+            "SELECT request_json FROM wallet_relocation_source WHERE id = 1",
+            None,
+        )?
         .to_array::<ReservationRow>()?;
     if let [row] = existing.as_slice() {
         if row.request_json != request_json {
@@ -276,7 +290,7 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
     } else {
         require_open::<Owner>(sql)?;
         let pending = sql.exec(
-            "SELECT COUNT(*) AS count FROM yao_pair_sessions WHERE lifecycle NOT IN ('completed', 'burned', 'expired')",
+            "SELECT (SELECT COUNT(*) FROM yao_pair_sessions WHERE lifecycle NOT IN ('completed', 'burned', 'expired')) + (SELECT COUNT(*) FROM yao_registration_preparation) AS count",
             None,
         )?.to_array::<PendingPairs>()?;
         let [pending] = pending.as_slice() else {
@@ -289,13 +303,19 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
         }
         // Synchronous SQL runs without an await between the inventory check and fence.
         // Guards also cover deferred writes that entered before this request.
-        for table in ["yao_pair_sessions", "yao_pair_admission_fences"] {
+        for table in [
+            "yao_pair_sessions",
+            "yao_pair_admission_fences",
+            "yao_registration_preparation",
+        ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_source_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_source) BEGIN SELECT RAISE(ABORT, 'Deriver source is frozen'); END"), None)?;
             }
         }
-        sql.exec("INSERT INTO wallet_relocation_source (id, request_json) VALUES (1, ?)",
-            vec![SqlStorageValue::String(request_json)])?;
+        sql.exec(
+            "INSERT INTO wallet_relocation_source (id, request_json) VALUES (1, ?)",
+            vec![SqlStorageValue::String(request_json)],
+        )?;
     }
     Response::from_json(&serde_json::json!({
         "kind": "settled_fence", "source_object": command.owner.object_name()?, "request": command,

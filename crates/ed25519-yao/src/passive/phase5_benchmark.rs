@@ -1,5 +1,8 @@
 //! Fixed-fixture, non-production Phase 5 separate-role stream benchmark facade.
 
+pub mod ml_dsa_kernel;
+pub mod ml_dsa_private;
+
 use core::fmt;
 use std::io::Read;
 

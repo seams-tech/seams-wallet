@@ -8,6 +8,10 @@ import type {
   WalletRegistrationRespondResponseV2,
 } from '../../../core/threeRouteRegistrationContracts';
 import type { RouterAbEcdsaRegistrationRequestV1 } from '@shared/utils/routerAbEcdsaDerivation';
+import {
+  parseRouterAbEd25519YaoRegistrationActivationExecuteRequestV1,
+  type RouterAbEd25519YaoActivationExecuteRequestV1,
+} from '@shared/utils/routerAbEd25519Yao';
 import type { WalletRegistrationAuthorityInput } from '../../../core/registrationContracts';
 import {
   resolvePublishableKeyApiCredentialAuth,
@@ -163,6 +167,7 @@ type RouterApiWalletRegistrationServices = {
   session?: SessionAdapter | null;
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
   registrationContext?: WalletRegistrationContextResolver | null;
+  registrationSetupRateLimit?: import('../../framework/registrationSetupRateLimit').RegistrationSetupRateLimit;
 };
 
 type ParsedRegistrationSignerSet = {
@@ -2094,6 +2099,27 @@ export async function handleRouterApiWalletRegistrationSetup(
   });
   if (!resolved.ok) return routeJson(resolved.status, resolved.body);
   const principal = context.principal;
+  if (input.services.registrationSetupRateLimit) {
+    try {
+      const limit = await input.services.registrationSetupRateLimit({
+        apiKeyId: principal.apiKeyId,
+        orgId: principal.orgId,
+        projectId: context.environment.projectId,
+        envId: context.environment.key,
+        sourceIp: input.sourceIp || 'unknown',
+      });
+      if (!limit.allowed) {
+        return routeJson(429, {
+          ok: false,
+          code: 'rate_limited',
+          message: 'Too many registration attempts. Wait one minute and try again.',
+          retryAfterMs: 60_000,
+        });
+      }
+    } catch {
+      return routeError(503, 'internal', 'Registration setup rate limit is unavailable');
+    }
+  }
   const runtimePolicyScope = {
     orgId: principal.orgId,
     projectId: context.environment.projectId,
@@ -2225,6 +2251,7 @@ function parseWalletRegistrationRespondRequest(body: unknown): ParseResult<{
     strictRegistration: RouterAbEcdsaRegistrationRequestV1;
     requestDigestB64u: string;
   };
+  ed25519Execution?: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
 }> {
   if (!isPlainObject(body)) {
     return { ok: false, code: 'invalid_body', message: 'JSON body required' };
@@ -2260,10 +2287,35 @@ function parseWalletRegistrationRespondRequest(body: unknown): ParseResult<{
   const parsedAuthority = parseWalletRegistrationAuthorityProof(body);
   if (!parsedAuthority.ok) return parsedAuthority;
   const authority = parsedAuthority.value;
+  if (planKind !== 'near_ed25519' && body.ed25519Execution !== undefined) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'only an Ed25519-only respond carries its Yao execution',
+    };
+  }
   if (planKind === 'near_ed25519') {
+    if (body.ed25519Execution === undefined) {
+      return {
+        ok: true,
+        value: { registrationCeremonyId, signedSetup, authority, planKind },
+      };
+    }
+    const ed25519Execution = parseRouterAbEd25519YaoRegistrationActivationExecuteRequestV1(
+      body.ed25519Execution,
+    );
+    if (!ed25519Execution.ok) {
+      return { ok: false, code: 'invalid_body', message: ed25519Execution.message };
+    }
     return {
       ok: true,
-      value: { registrationCeremonyId, signedSetup, authority, planKind },
+      value: {
+        registrationCeremonyId,
+        signedSetup,
+        authority,
+        planKind,
+        ed25519Execution: ed25519Execution.value,
+      },
     };
   }
   const ecdsa = isPlainObject(body.ecdsa) ? body.ecdsa : null;

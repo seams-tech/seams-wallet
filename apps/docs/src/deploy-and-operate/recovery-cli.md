@@ -12,7 +12,7 @@ destination credentials through command-line arguments or environment
 variables.
 
 ::: warning Native release availability
-The npm launcher is published as **0.6.0**, separately from Wallet SDK 0.9.0.
+The npm launcher is published as **0.6.0**, separately from Wallet SDK 0.10.0.
 As checked on October 4, 2026, its signed native release assets at
 `seams-tech/seams-wallet` tag `seams-cli-v0.6.0` are unavailable. The launcher
 cannot run on a fresh installation until those assets are published. An npm

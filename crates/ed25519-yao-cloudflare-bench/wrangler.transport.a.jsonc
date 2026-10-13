@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "ml-dsa-probe-20261013-a",
+  "main": "src/transport_probe.mjs",
+  "compatibility_date": "2026-07-02",
+  "workers_dev": true,
+  "preview_urls": false,
+  "limits": { "cpu_ms": 10000 },
+  "vars": { "PROBE_ROLE": "a", "PROBE_DO_HINT": "apac" },
+  "services": [{ "binding": "PROBE_B", "service": "ml-dsa-probe-20261013-b" }],
+  "durable_objects": { "bindings": [{ "name": "PROBE_WALLETS", "class_name": "ProbeWallet" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProbeWallet"] }],
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

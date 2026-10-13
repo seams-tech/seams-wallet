@@ -187,6 +187,18 @@ export function routerAbEd25519YaoCredentialDigestHexV1(digest: Uint8Array): str
   return bytesToHex(digest);
 }
 
+/** The digest that an admission binds for the credential of its registration intent. */
+export async function routerAbEd25519YaoCredentialDigestSha256HexV1(
+  credential: string,
+): Promise<string> {
+  const digest = await credentialDigestSha256(credential);
+  try {
+    return bytesToHex(digest);
+  } finally {
+    digest.fill(0);
+  }
+}
+
 function bytesToHex(bytes: Uint8Array): string {
   let encoded = '';
   for (const byte of bytes) encoded += byte.toString(16).padStart(2, '0');

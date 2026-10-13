@@ -169,7 +169,7 @@ fn evaluate(
     }))
 }
 
-fn reference_shake256(input: &[u8], length: usize) -> Vec<u8> {
+pub(super) fn reference_shake256(input: &[u8], length: usize) -> Vec<u8> {
     let mut hash = Shake256::default();
     hash.update(input);
     let mut output = vec![0; length];
@@ -177,7 +177,7 @@ fn reference_shake256(input: &[u8], length: usize) -> Vec<u8> {
     output
 }
 
-fn reference_keccak(input: &[u8]) -> InvestigationResult<Vec<u8>> {
+pub(super) fn reference_keccak(input: &[u8]) -> InvestigationResult<Vec<u8>> {
     require(input.len() == 200, "Keccak fixture requires 200 bytes.")?;
     let mut lanes = [0_u64; 25];
     for (index, bytes) in input.chunks_exact(8).enumerate() {

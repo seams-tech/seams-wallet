@@ -152,6 +152,11 @@ impl MlDsaHashCircuitV1 {
         ProvisionalBenchmarkScheduleDigest32V1(self.schedule.digest())
     }
 
+    /// Returns the host benchmark schedule for isolated half-gate execution.
+    pub fn canonical_schedule_encoding(&self) -> &[u8] {
+        self.schedule.canonical_encoding()
+    }
+
     /// Evaluates public fixtures in cleartext through the Boolean schedule.
     ///
     /// Keccak accepts its 200-byte state in lane order x + 5*y, with little-endian lanes.
@@ -228,7 +233,7 @@ pub fn compile_ml_dsa_hash_circuit_v1(workload: MlDsaHashWorkloadV1) -> MlDsaHas
     }
 }
 
-fn append_constant_byte(bits: &mut Vec<BuilderBit>, byte: u8) {
+pub(super) fn append_constant_byte(bits: &mut Vec<BuilderBit>, byte: u8) {
     for bit in 0..8 {
         bits.push(BuilderBit::Constant((byte >> bit) & 1 == 1));
     }
@@ -240,7 +245,7 @@ fn install_bits(state: &mut State, bits: &[BuilderBit]) {
     }
 }
 
-fn shake256(
+pub(super) fn shake256(
     builder: &mut CircuitBuilder,
     message: &[BuilderBit],
     output_bytes: usize,

@@ -176,6 +176,79 @@ impl CircuitBuilder {
         self.finish_with_schema(outputs, component, input_schema, output_schema)
     }
 
+    pub(super) fn finish_ml_dsa_private_keygen_component(
+        self,
+        outputs: Vec<BuilderBit>,
+        component: u8,
+        input_schema: &[u8],
+        output_schema: &[u8],
+    ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
+        let (expected_inputs, expected_outputs) = match component {
+            0x87 => (1_280, 1_024),
+            0x88 => (6_912, 5_889),
+            0x89 => (17_664, 8_448),
+            _ => return Err(CircuitBuildError::InputSchemaWireCountMismatch),
+        };
+        if self.input_count != expected_inputs {
+            return Err(CircuitBuildError::InputSchemaWireCountMismatch);
+        }
+        if outputs.len() != expected_outputs {
+            return Err(CircuitBuildError::OutputSchemaWireCountMismatch);
+        }
+        self.finish_with_schema(outputs, component, input_schema, output_schema)
+    }
+
+    pub(super) fn finish_ml_dsa_private_signing_mask_component(
+        self,
+        outputs: Vec<BuilderBit>,
+        input_schema: &[u8],
+        output_schema: &[u8],
+    ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
+        if self.input_count != 6_912 {
+            return Err(CircuitBuildError::InputSchemaWireCountMismatch);
+        }
+        if outputs.len() != 5_888 {
+            return Err(CircuitBuildError::OutputSchemaWireCountMismatch);
+        }
+        self.finish_with_schema(outputs, 0x8a, input_schema, output_schema)
+    }
+
+    pub(super) fn finish_ml_dsa_eta4_sampling_component(
+        self,
+        outputs: Vec<BuilderBit>,
+    ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
+        if self.input_count != 9_736 {
+            return Err(CircuitBuildError::InputSchemaWireCountMismatch);
+        }
+        if outputs.len() != 5_889 {
+            return Err(CircuitBuildError::OutputSchemaWireCountMismatch);
+        }
+        self.finish_with_schema(
+            outputs,
+            0x85,
+            super::ml_dsa_sampling::INPUT_SCHEMA,
+            super::ml_dsa_sampling::OUTPUT_SCHEMA,
+        )
+    }
+
+    pub(super) fn finish_ml_dsa_power2round_component(
+        self,
+        outputs: Vec<BuilderBit>,
+    ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
+        if self.input_count != 17_664 {
+            return Err(CircuitBuildError::InputSchemaWireCountMismatch);
+        }
+        if outputs.len() != 8_448 {
+            return Err(CircuitBuildError::OutputSchemaWireCountMismatch);
+        }
+        self.finish_with_schema(
+            outputs,
+            0x86,
+            super::ml_dsa_rounding::INPUT_SCHEMA,
+            super::ml_dsa_rounding::OUTPUT_SCHEMA,
+        )
+    }
+
     pub(super) fn finish_provisional_activation_core(
         self,
         outputs: Vec<BuilderBit>,

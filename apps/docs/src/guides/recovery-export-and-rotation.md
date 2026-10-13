@@ -14,7 +14,7 @@ This guide concerns wallet-user operations. Tenant administrators manage a separ
 derivation-root lifecycle. Refreshing A/B operational shares preserves the effective
 tenant root and wallet identities. R120 implements that server path. Administrative
 recovery requires the configured dashboard, recovery custody, and a usable signed native
-CLI release. SDK 0.9.0 publication alone does not establish those paths. See [recovery
+CLI release. SDK 0.10.0 publication alone does not establish those paths. See [recovery
 and portability](/deploy-and-operate/recovery-and-portability) for their availability
 and the later R122 migration boundary.
 

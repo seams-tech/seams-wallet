@@ -27,7 +27,10 @@ import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethod
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WalletCustodyRegistrationOutcome } from '@shared/passkey-custody';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import type { RouterAbEd25519YaoActivationAdmissionReceiptV1 } from '@shared/utils/routerAbEd25519Yao';
+import type {
+  RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  RouterAbEd25519YaoActivationResultV1,
+} from '@shared/utils/routerAbEd25519Yao';
 import type {
   ThresholdEd25519AuthorityScope,
   EcdsaDerivationServerBootstrapResponse,
@@ -186,6 +189,14 @@ export type WalletRegistrationRouteErrorV2 = {
  * defers is simpler and strictly safer, so Ed25519 work does not appear in the
  * setup request or response at all. Respond derives it, authority-bound, for
  * both methods.
+ *
+ * Setup does mint the Yao identity of a NEAR branch, its material identity
+ * and its session, and stores it with the ceremony. That identity binds no
+ * authority and admits nothing: respond issues the admission over it.
+ *
+ * For an Ed25519-only passkey plan, setup also describes that admission (see
+ * `WalletRegistrationSetupEd25519AdmissionV2`). The description is not work
+ * and not an admission. It lets the client prepare during the prompt.
  */
 type WalletRegistrationSetupSuccessBase = {
   readonly home: WalletSessionHome;
@@ -199,6 +210,30 @@ type WalletRegistrationSetupSuccessBase = {
   /** Opaque; echoed verbatim on routes 2 and 3. */
   signedSetup: SignedSetupPayloadB64u;
 };
+
+/**
+ * What setup says about the Yao admission of an Ed25519-only plan.
+ *
+ * A passkey's authority scope is its relying party, which the intent fixes.
+ * So setup can describe the admission that respond will issue: the request,
+ * and the receipt over the session that setup minted. The client prepares
+ * its protocol inputs from it during the prompt and sends them with the
+ * proof. Nothing is admitted until respond has verified that proof.
+ *
+ * An Email OTP scope holds the verified provider subject, so its admission
+ * is known after the proof only.
+ */
+export type WalletRegistrationSetupEd25519AdmissionV2 =
+  | {
+      readonly status: 'described';
+      readonly admissionRequest: RespondEd25519DeferredWorkV2['admissionRequest'];
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+    }
+  | {
+      readonly status: 'after_proof';
+      readonly admissionRequest?: never;
+      readonly admissionReceipt?: never;
+    };
 
 /**
  * Setup's shape follows the signer plan, exhaustively.
@@ -218,6 +253,7 @@ export type WalletRegistrationSetupResponseV2 =
          are the whole of setup's work for this plan. */
       kind: 'near_ed25519';
       ecdsa?: never;
+      ed25519: WalletRegistrationSetupEd25519AdmissionV2;
     })
   | WalletRegistrationRouteErrorV2;
 
@@ -250,11 +286,28 @@ type WalletRegistrationRespondSignerPlanV2 =
       /** The client completes Yao and recovery backup before committing this wallet. */
       kind: 'near_ed25519';
       ecdsa?: never;
-      ed25519: {
-        readonly status: 'admitted';
-        readonly admissionRequest: RespondEd25519DeferredWorkV2['admissionRequest'];
-        readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
-      };
+      ed25519: WalletRegistrationRespondEd25519AdmissionV2;
+    };
+
+/**
+ * `executed` answers a respond that carried the execute request: the Gateway
+ * admitted and then ran it, and `activationResult` is what the execute route
+ * returns. `admitted` answers every other respond, and a respond whose
+ * execution did not complete: the admission is stored, and the client runs
+ * or repeats the execution through the execute route.
+ */
+export type WalletRegistrationRespondEd25519AdmissionV2 =
+  | {
+      readonly status: 'admitted';
+      readonly admissionRequest: RespondEd25519DeferredWorkV2['admissionRequest'];
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      readonly activationResult?: never;
+    }
+  | {
+      readonly status: 'executed';
+      readonly admissionRequest: RespondEd25519DeferredWorkV2['admissionRequest'];
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      readonly activationResult: RouterAbEd25519YaoActivationResultV1<'registration'>;
     };
 
 /** Exact A/B role bundles, unchanged from the derivation respond leg. */

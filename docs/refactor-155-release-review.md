@@ -17,10 +17,91 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.10.0
+
+Status: **prepared, not published.** Minor release with a registration wire
+change and three schema additions. It carries the work on public `dev` since
+0.9.4. The user decided the version number and the release on October 13.
+
+- **Protocol.** The wallet-management protocol is 4. The setup reply of a
+  registration has a new field, and the client parsers accept exact keys, so
+  a 0.10.0 backend refuses every earlier SDK with HTTP 409, and a 0.10.0 SDK
+  needs a 0.10.0 backend. The iframe protocol stays 15.0.0. The last
+  protocol change also got a minor version, 0.8.0 to 0.9.0.
+- **One request after the passkey step.** Setup mints the Yao identity of a
+  NEAR branch and describes the admission of a NEAR-only passkey plan. The
+  SDK prepares the custody run during the prompt and sends the proof and the
+  execute request together. Respond admits and runs the execution with the
+  checks of the execute route. Email OTP, mixed registration and add-signer
+  keep both routes. The
+  [record](evidence/refactor-155h-one-request-registration.md) holds the
+  rules that did not change.
+- **Pair preparation during the prompt.** After setup, the Gateway asks the
+  Router to admit both Derivers and to connect Deriver A to Deriver B, for a
+  passkey plan with a NEAR branch (`699f71f1`, `40afd5e7`). The preparation
+  holds no client input and grants no execution authority. Execution binds
+  the admission to the encrypted inputs and claims both roles before
+  protocol material flows. A missing or expired preparation uses the online
+  admission. The
+  [record](evidence/refactor-155h-prompt-preparation.md) holds the
+  scenarios.
+- **Setup rate limit.** 30 setups per minute for one publishable key and
+  source address, counted in each regional Gateway database. Exhaustion
+  answers 429 and a counter failure 503, both before any reservation or
+  custody work.
+- **Finalization.** Registration reads and writes no shared capability
+  record. The record holds recovery state only. A signing admission takes
+  its material from the signer row. The
+  [record](evidence/refactor-155h-capability-from-signer-row.md) holds the
+  guards and the database calls.
+- **Schema.** Gateway migration `0079_tenant_lookup_indexes.sql` adds three
+  indexes (`958b67d5`), and `0080_registration_setup_rate_limits.sql` adds
+  the counter table. Migration `0020_registration_preparation.sql` adds one
+  nullable column to `tenant_root_root_use_admissions` in each Deriver
+  database. All three must be applied before the matching versions serve.
+  The standard deployment applies them.
+- **In-flight registrations.** A ceremony record of a NEAR plan now holds
+  the minted identity, and a record without it does not parse. A
+  registration that started on 0.9.4 does not continue on 0.10.0.
+- **Stored wallets.** No stored wallet record changes. The signer row held
+  the active capability before this release too.
+- **Also on `dev`.** The local environment plans of `router-ab-dev` use typed
+  role origins (`188933a2`). The ML-DSA investigation adds benchmark code
+  and three unused input families to the Yao engine crate (`cbe1d732`); no
+  production path uses them.
+- **Private Console.** Its registration canary sends the protocol number as
+  a literal (`packages/wallet-console-server-ts/src/tenantDeployment/provisioning.ts`),
+  and `tests/relayer/tenant-home-challenge.e2e.test.ts` sends it too. The
+  pin commit must change both to 4, or the staging activation fails.
+- **Cutover proof.** The contract suite has no published-client check any
+  more (`f736824e`). After the staging deployment, the test site built from
+  the published 0.9.4 package must show the upgrade message.
+- **Measurement.** The 0.9.4 baseline on staging is taken in the hour before
+  the deployment. A 0.9.4 test site does not work against a 0.10.0 backend,
+  so each side runs its own client.
+
 ## 0.9.4
 
-Status: **prepared, not published.** Patch release with no wire, schema or
-protocol change. It carries the work on public `dev` since 0.9.3.
+Status: **published October 13, 2026, 07:07 UTC, and deployed to staging.**
+Patch release with no wire, schema or protocol change. It carries the work
+on public `dev` between 0.9.3 and `7f03117d`. Production does not run it.
+
+- **Publication.** CI on [pull request 38](https://github.com/seams-tech/seams-wallet/pull/38)
+  passed on `7f03117d`. `main` is at the merge commit `79423316` with the
+  same tree. `release-wallet-packages.yml` run `38356125919` published both
+  packages. One CI job failed once on a test harness fault: a local Router
+  got a port number above 65535. No release commit touches that crate, and
+  the rerun passed; `188933a2` on `dev` corrects the harness.
+- **Private adoption.** The private repository pins 0.9.4 since `3f4fdb45`.
+  Its check and its build pass.
+- **Staging.** Deployed on October 13, 16:32 JST, with the protected
+  activation. The Yao execution is about 60 ms shorter: the Router's execute
+  request measures 720 ms at the median against 783 ms, and the garbler's
+  CPU 196 ms against 250 ms. Registration after the passkey step measures
+  1,876 ms at the median against 1,915 ms on 0.9.3 in the same hour, which
+  is inside the difference between two runs. The
+  [record](evidence/refactor-155h-release-094-staging.md) holds the
+  measurement and the outliers.
 
 - **Custody Workers.** A wire label is wiped with one volatile write, and the
   garbler hashes its four blocks in one cipher pass (`ab91d575`): garbling
@@ -36,10 +117,11 @@ protocol change. It carries the work on public `dev` since 0.9.3.
   application works with a 0.9.4 backend, and each role Worker works with
   its 0.9.3 peers.
 - **Local validation before the pull request.** On the candidate tree: the
-  bloat check, the lock check, the type check, the Rust tests of the three
-  Router crates and the five strict Worker entrypoints. The Yao and
-  registration contracts pass on release Workers with the engine change. The
-  private console builds against the candidate module build.
+  bloat check, the lock check, the type check, the Rust tests of
+  `router-ab-core`, `router-ab-cloudflare` and `ed25519-yao`, and the five
+  strict Worker entrypoints. The tests of `router-ab-dev` ran in CI only. The
+  Yao and registration contracts pass on release Workers with the engine
+  change. The private console builds against the candidate module build.
 
 ## 0.9.3
 

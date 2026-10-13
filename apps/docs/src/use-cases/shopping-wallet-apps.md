@@ -36,6 +36,6 @@ Virtual-card issuance adds cardholder onboarding, fraud, chargebacks, liquidity,
 support, reconciliation, and regulatory responsibilities. It is optional. It suits
 qualified wallet operators whose users need to spend at external merchants.
 
-Virtual-card issuance remains product direction. Wallet SDK 0.9.0 exposes no
+Virtual-card issuance remains product direction. Wallet SDK 0.10.0 exposes no
 card-issuance or card-lifecycle API. Use the [SDK reference](/reference/) to
 identify the available wallet operations.

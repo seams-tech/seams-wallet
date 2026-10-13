@@ -59,7 +59,9 @@ class NearRegistrationReplay {
     expect(first.status()).toBe(200);
     const original = await first.json();
     expect(original.kind).toBe('near_ed25519');
-    expect(original.ed25519.status).toBe('admitted');
+    // The passkey client sends its execute request with the proof, and the
+    // Gateway admits and executes in this request. An exact repeat replays both.
+    expect(original.ed25519.status).toBe('executed');
     const replay = await route.fetch();
     expect(replay.status()).toBe(200);
     const repeated = await replay.json();

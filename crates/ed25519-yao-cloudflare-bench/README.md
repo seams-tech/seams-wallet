@@ -109,3 +109,84 @@ cargo test --test source_guards
 The fault and cross-account configurations build with their features and
 their `smoke:*` scripts still run against `wrangler dev`; they are kept as
 they were.
+
+## ML-DSA raw transport probe
+
+`src/transport_probe.mjs` measures synthetic binary transport between two separate
+Workers. It does not run a signing protocol. The isolated
+`wrangler.transport.{a,b}.jsonc` configurations use temporary names
+`ml-dsa-probe-20261013-a` and `ml-dsa-probe-20261013-b`.
+They do not change the Ed25519 benchmark pair.
+
+The campaign compares HTTP request streaming with binary WebSockets. Each uses
+both a direct A-to-B Service Binding and a wallet Durable Object on each side.
+The wallet path is A Worker → A wallet object → B Worker → B wallet object.
+The payload sizes are exactly 8,000,000, 32,000,000, and 64,000,000 bytes.
+Each payload frame contains 64 KiB or 128 KiB, plus an eight-byte sequence header.
+HTTP awaits each stream write. WebSockets permit eight outstanding frames,
+then require receiver credit. The report records these limits.
+
+The receiver checks frame order, exact byte count, and a rolling Adler-32 checksum.
+The payload contains public synthetic bytes. Adler-32 detects accidental changes.
+It provides no cryptographic integrity guarantee.
+
+Run the local E2E campaign from the repository root:
+
+```sh
+node crates/ed25519-yao-cloudflare-bench/scripts/run_transport_probe.mjs \
+  --local --samples 1 --out /tmp/ml-dsa-transport-local.json
+```
+
+The driver uses the installed Miniflare and workerd. It reads both Wrangler
+configurations and creates fresh local wallet objects. It keeps runtime state in
+`/tmp` and removes that state after the run. Local authentication uses a random
+in-memory token when `PROBE_TOKEN` is absent.
+
+The E2E campaign verifies all 24 combinations, with one warm-up per combination.
+It also checks public authentication rejection, truncated HTTP and WebSocket
+payloads, and a slow HTTP receiver. The JSON report is the repeatable artifact.
+`--quick` selects only 8 MB and 64 KiB frames. `--samples` counts measured runs
+per combination and defaults to five. Warm-up runs remain in the report.
+
+For a hosted campaign, authenticate with `pnpm exec wrangler whoami` first.
+Install the same `PROBE_TOKEN` secret on both temporary Workers. The token must
+contain at least 32 characters. Use Wrangler `secret bulk` with a restricted
+JSON file containing `PROBE_TOKEN`. Keep that file outside the repository.
+Deploy B, then A:
+
+```sh
+pnpm exec wrangler deploy --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.b.jsonc
+pnpm exec wrangler deploy --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.a.jsonc
+node crates/ed25519-yao-cloudflare-bench/scripts/run_transport_probe.mjs \
+  --endpoint https://<a-endpoint> --samples 5 --out /tmp/ml-dsa-transport-hosted.json
+```
+
+The driver reads `PROBE_TOKEN` from its environment. It never writes the token
+into the report. Only A has a public endpoint. Both roles require authentication.
+
+Client wall time includes actual elapsed time. The streamed report also records
+client arrival times for setup, first payload byte, last payload byte, receiver
+completion, and sender acknowledgement. Those arrivals include the return path.
+Network buffering can combine several events. Worker `Date.now()` observations
+omit that invocation's own CPU time. Collect tail `cpuTime` and `wallTime` for
+both Workers and wallet objects when interpreting hosted results.
+
+The report separates intended placement from reported request colo. Both wallet
+objects request the `apac` location hint. Cloudflare gives no placement guarantee
+for this hint. Actual wallet object locations remain unknown. This probe uses no
+D1, so D1 placement is not applicable. It measures generation and checksum CPU
+along with transport. It does not measure peak runtime memory or garbled-circuit
+cost. The credit window can limit throughput when round-trip latency is high.
+
+Cloudflare documents [streaming](https://developers.cloudflare.com/workers/runtime-apis/streams/),
+[WebSocket frame buffering](https://developers.cloudflare.com/workers/runtime-apis/websockets/#reading-binary-payloads),
+and [Durable Object location hints](https://developers.cloudflare.com/durable-objects/reference/data-location/#provide-a-location-hint).
+The configurations use the existing benchmark's compatibility date so the pinned
+local workerd can execute the same API behavior.
+
+After collection, delete A, then B. Remove the temporary secret file:
+
+```sh
+pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.a.jsonc
+pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.b.jsonc
+```

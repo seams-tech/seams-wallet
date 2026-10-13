@@ -4,6 +4,8 @@ import {
   parseRouterAbEd25519YaoActivationKeysetV1,
   parseRouterAbEd25519YaoActivationResultV1,
   parseRouterAbEd25519YaoExportResultV1,
+  type RouterAbEd25519YaoBytes32V1,
+  type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoActivationKeysetV1,
   type RouterAbEd25519YaoRecoveryActivationRequestV1,
@@ -222,6 +224,14 @@ function randomSession(): number[] {
     globalThis.crypto.getRandomValues(bytes);
   } while (isZero(bytes));
   return Array.from(bytes);
+}
+
+function isSessionId(bytes: readonly number[]): boolean {
+  return (
+    bytes.length === 32 &&
+    bytes.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255) &&
+    bytes.some((byte) => byte !== 0)
+  );
 }
 
 function isZero(bytes: Uint8Array): boolean {
@@ -788,11 +798,32 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     return timing;
   }
 
+  async prepareRegistrationPair(
+    identity: WalletObjectIdentity,
+    request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    receipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>,
+    expiresAtMs: number,
+  ): Promise<void> {
+    const tenantRoot = await this.resolveRegistrationDispatchRoot(
+      routerAbEd25519YaoRegistrationSigningRootIdV1(request),
+    );
+    const response = await this.post('/router-ab/router/ed25519-yao/registration/prepare', identity, {
+      tenant_root: tenantRoot,
+      application: request.application_binding,
+      participant_ids: request.participant_ids,
+      binding: receipt.binding,
+      ownership_generation: identity.ownershipGeneration,
+      expires_at_ms: expiresAtMs,
+    }, createRouterAbTraceContextV1().value, 'exact');
+    if (!response.ok) throw new Error('Registration pair preparation failed');
+  }
+
   async admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     _traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    return await this.admitActivation(request, 'registration');
+    return await this.admitActivation(request, 'registration', mintedSessionId);
   }
 
   async admitRecovery(
@@ -882,6 +913,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       | RouterAbEd25519YaoRegistrationAdmissionRequestV1
       | RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     operation: 'registration' | 'recovery',
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     if (request.scope.signing_worker_id !== this.config.signingWorkerId) {
       return {
@@ -896,7 +928,15 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       request.participant_ids,
     );
     const keyset = this.keyset();
-    const sessionId = randomSession();
+    if (mintedSessionId !== undefined && !isSessionId(mintedSessionId)) {
+      return {
+        ok: false,
+        status: 500,
+        code: 'admission_failed',
+        message: `${operation} minted session is invalid`,
+      };
+    }
+    const sessionId = mintedSessionId === undefined ? randomSession() : [...mintedSessionId];
     switch (operation) {
       case 'registration':
         return {
@@ -1242,9 +1282,7 @@ export function createRouterAbEd25519YaoHttpRegistrationBackendFromEnv(input: {
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1;
   onSpan?: (span: RouterAbEd25519YaoGatewaySpanV1) => void;
   fetch: typeof fetch;
-}): RouterAbEd25519YaoPinnedRegistrationBackend &
-  RouterAbEd25519YaoRecoveryBackend &
-  RouterAbEd25519YaoExportBackend {
+}): RouterAbEd25519YaoHttpRegistrationBackend {
   const env = input.env;
   return new RouterAbEd25519YaoHttpRegistrationBackend({
     routerUrl: requireNonEmpty(

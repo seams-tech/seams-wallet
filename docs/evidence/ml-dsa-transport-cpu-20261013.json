@@ -1,0 +1,4260 @@
+{
+  "schema": "seams.ml-dsa-cloudflare-aggregate-metrics.v1",
+  "created_at": "2026-10-13T05:04:14.161335+00:00",
+  "scope": "Read-only Cloudflare Workers aggregate CPU analytics for disposable transport probes. This query does not measure garbling CPU or per-operation cost.",
+  "limits": [
+    "One-second buckets can combine multiple transfer sizes, paths, and concurrent requests. Do not combine bucket quantiles into a campaign quantile.",
+    "The query includes both hosted probe campaigns within this time window.",
+    "Durable Object CPU attribution and per-operation billing are not established by this aggregate Worker dataset."
+  ],
+  "units": "microseconds for all cpuTime and wallTime fields",
+  "units_evidence": [
+    {
+      "data": {
+        "__type": {
+          "description": "",
+          "fields": [
+            {
+              "description": "CPU time 25th percentile - microseconds",
+              "name": "cpuTimeP25"
+            },
+            {
+              "description": "CPU time 50th percentile - microseconds",
+              "name": "cpuTimeP50"
+            },
+            {
+              "description": "CPU time 75th percentile - microseconds",
+              "name": "cpuTimeP75"
+            },
+            {
+              "description": "CPU time 90th percentile - microseconds",
+              "name": "cpuTimeP90"
+            },
+            {
+              "description": "CPU time 95th percentile - microseconds",
+              "name": "cpuTimeP95"
+            },
+            {
+              "description": "CPU time 99th percentile - microseconds",
+              "name": "cpuTimeP99"
+            },
+            {
+              "description": "CPU time 99.9th percentile - microseconds",
+              "name": "cpuTimeP999"
+            },
+            {
+              "description": "Duration 25th percentile - GB*s",
+              "name": "durationP25"
+            },
+            {
+              "description": "Duration 50th percentile - GB*s",
+              "name": "durationP50"
+            },
+            {
+              "description": "Duration 75th percentile - GB*s",
+              "name": "durationP75"
+            },
+            {
+              "description": "Duration 90th percentile - GB*s",
+              "name": "durationP90"
+            },
+            {
+              "description": "Duration 95th percentile - GB*s",
+              "name": "durationP95"
+            },
+            {
+              "description": "Duration 99th percentile - GB*s",
+              "name": "durationP99"
+            },
+            {
+              "description": "Duration 99.9th percentile - GB*s",
+              "name": "durationP999"
+            },
+            {
+              "description": "V8 isolate memory usage 25th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP25"
+            },
+            {
+              "description": "V8 isolate memory usage 50th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP50"
+            },
+            {
+              "description": "V8 isolate memory usage 75th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP75"
+            },
+            {
+              "description": "V8 isolate memory usage 90th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP90"
+            },
+            {
+              "description": "V8 isolate memory usage 95th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP95"
+            },
+            {
+              "description": "V8 isolate memory usage 99th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP99"
+            },
+            {
+              "description": "V8 isolate memory usage 99.9th percentile across Worker invocations - bytes",
+              "name": "memoryUsageBytesP999"
+            },
+            {
+              "description": "Request duration 25th percentile - microseconds",
+              "name": "requestDurationP25"
+            },
+            {
+              "description": "Request duration 50th percentile - microseconds",
+              "name": "requestDurationP50"
+            },
+            {
+              "description": "Request duration 75th percentile - microseconds",
+              "name": "requestDurationP75"
+            },
+            {
+              "description": "Request duration 90th percentile - microseconds",
+              "name": "requestDurationP90"
+            },
+            {
+              "description": "Request duration 95th percentile - microseconds",
+              "name": "requestDurationP95"
+            },
+            {
+              "description": "Request duration 99th percentile - microseconds",
+              "name": "requestDurationP99"
+            },
+            {
+              "description": "Request duration 99.9th percentile - microseconds",
+              "name": "requestDurationP999"
+            },
+            {
+              "description": "Response body size 25th percentile - bytes",
+              "name": "responseBodySizeP25"
+            },
+            {
+              "description": "Response body size 50th percentile - bytes",
+              "name": "responseBodySizeP50"
+            },
+            {
+              "description": "Response body size 75th percentile - bytes",
+              "name": "responseBodySizeP75"
+            },
+            {
+              "description": "Response body size 90th percentile - bytes",
+              "name": "responseBodySizeP90"
+            },
+            {
+              "description": "Response body size 95th percentile - bytes",
+              "name": "responseBodySizeP95"
+            },
+            {
+              "description": "Response body size 99th percentile - bytes",
+              "name": "responseBodySizeP99"
+            },
+            {
+              "description": "Response body size 99.9th percentile - bytes",
+              "name": "responseBodySizeP999"
+            },
+            {
+              "description": "Wall time 25th percentile - microseconds",
+              "name": "wallTimeP25"
+            },
+            {
+              "description": "Wall time 50th percentile - microseconds",
+              "name": "wallTimeP50"
+            },
+            {
+              "description": "Wall time 75th percentile - microseconds",
+              "name": "wallTimeP75"
+            },
+            {
+              "description": "Wall time 90th percentile - microseconds",
+              "name": "wallTimeP90"
+            },
+            {
+              "description": "Wall time 95th percentile - microseconds",
+              "name": "wallTimeP95"
+            },
+            {
+              "description": "Wall time 99th percentile - microseconds",
+              "name": "wallTimeP99"
+            },
+            {
+              "description": "Wall time 99.9th percentile - microseconds",
+              "name": "wallTimeP999"
+            },
+            {
+              "description": "WebAssembly linear memory usage 25th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP25"
+            },
+            {
+              "description": "WebAssembly linear memory usage 50th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP50"
+            },
+            {
+              "description": "WebAssembly linear memory usage 75th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP75"
+            },
+            {
+              "description": "WebAssembly linear memory usage 90th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP90"
+            },
+            {
+              "description": "WebAssembly linear memory usage 95th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP95"
+            },
+            {
+              "description": "WebAssembly linear memory usage 99th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP99"
+            },
+            {
+              "description": "WebAssembly linear memory usage 99.9th percentile across Worker invocations - bytes",
+              "name": "wasmMemoryBytesP999"
+            }
+          ],
+          "name": "AccountWorkersInvocationsAdaptiveQuantiles"
+        }
+      },
+      "errors": null
+    }
+  ],
+  "query": "query GetWorkersAnalytics($accountTag: string, $datetimeStart: string, $datetimeEnd: string, $scriptName: string) {\n viewer { accounts(filter: {accountTag: $accountTag}) {\n  workersInvocationsAdaptive(limit: 1000, filter: {scriptName: $scriptName, datetime_geq: $datetimeStart, datetime_leq: $datetimeEnd}) {\n   sum { subrequests requests errors }\n   quantiles { cpuTimeP50 cpuTimeP99 wallTimeP50 wallTimeP99 }\n   dimensions { datetime scriptName status }\n  }\n } }\n}",
+  "variables_without_account": {
+    "datetimeStart": "2026-10-13T04:30:00Z",
+    "datetimeEnd": "2026-10-13T06:30:00Z",
+    "scriptName": "ml-dsa-probe-20261013-b"
+  },
+  "deployed_worker_versions": {
+    "ml-dsa-probe-20261013-a": "40d8eadc-c6e1-4ad0-9597-327cd149ac4c",
+    "ml-dsa-probe-20261013-b": "b724c1ca-9d6f-41d2-8ce2-606045263742"
+  },
+  "results": [
+    {
+      "role": "a",
+      "response": {
+        "data": {
+          "viewer": {
+            "accounts": [
+              {
+                "workersInvocationsAdaptive": [
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:13Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 71256,
+                      "cpuTimeP99": 80248,
+                      "wallTimeP50": 344607,
+                      "wallTimeP99": 396482
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:15Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 556,
+                      "cpuTimeP99": 619,
+                      "wallTimeP50": 1306075,
+                      "wallTimeP99": 1385471
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 16
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:52Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 155079,
+                      "cpuTimeP99": 185883,
+                      "wallTimeP50": 373571,
+                      "wallTimeP99": 448678
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:44Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 174387,
+                      "cpuTimeP99": 174387,
+                      "wallTimeP50": 1042733,
+                      "wallTimeP99": 1042733
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:43Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 610,
+                      "cpuTimeP99": 610,
+                      "wallTimeP50": 1090299,
+                      "wallTimeP99": 1090299
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:12Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 497,
+                      "cpuTimeP99": 497,
+                      "wallTimeP50": 957083,
+                      "wallTimeP99": 957083
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:35Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 423,
+                      "cpuTimeP99": 603,
+                      "wallTimeP50": 488707,
+                      "wallTimeP99": 636571
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:01Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 828,
+                      "cpuTimeP99": 828,
+                      "wallTimeP50": 572286,
+                      "wallTimeP99": 572286
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:46Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 196786,
+                      "cpuTimeP99": 196786,
+                      "wallTimeP50": 945498,
+                      "wallTimeP99": 945498
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:46Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 598,
+                      "cpuTimeP99": 598,
+                      "wallTimeP50": 1192564,
+                      "wallTimeP99": 1192564
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:55Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 137218,
+                      "cpuTimeP99": 177930,
+                      "wallTimeP50": 315439,
+                      "wallTimeP99": 447294
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:26Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 548,
+                      "cpuTimeP99": 548,
+                      "wallTimeP50": 1228019,
+                      "wallTimeP99": 1228019
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:58Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 467,
+                      "cpuTimeP99": 467,
+                      "wallTimeP50": 1147292,
+                      "wallTimeP99": 1147292
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:32Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 662,
+                      "cpuTimeP99": 662,
+                      "wallTimeP50": 962282,
+                      "wallTimeP99": 962282
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:28Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 519,
+                      "cpuTimeP99": 650,
+                      "wallTimeP50": 534538,
+                      "wallTimeP99": 592101
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:13Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 867,
+                      "cpuTimeP99": 867,
+                      "wallTimeP50": 854361,
+                      "wallTimeP99": 854361
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:06Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 662,
+                      "cpuTimeP99": 761,
+                      "wallTimeP50": 613014,
+                      "wallTimeP99": 673378
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:48Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 15478,
+                      "cpuTimeP99": 36014,
+                      "wallTimeP50": 48972,
+                      "wallTimeP99": 65269
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:20Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 616,
+                      "cpuTimeP99": 616,
+                      "wallTimeP50": 1376017,
+                      "wallTimeP99": 1376017
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:49Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 569,
+                      "cpuTimeP99": 569,
+                      "wallTimeP50": 1060561,
+                      "wallTimeP99": 1060561
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:16Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 574,
+                      "cpuTimeP99": 574,
+                      "wallTimeP50": 2074799,
+                      "wallTimeP99": 2074799
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:18Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 221331,
+                      "cpuTimeP99": 221331,
+                      "wallTimeP50": 967665,
+                      "wallTimeP99": 967665
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:32Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 19463,
+                      "cpuTimeP99": 102561,
+                      "wallTimeP50": 103146,
+                      "wallTimeP99": 449753
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 8
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:38Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 542,
+                      "cpuTimeP99": 542,
+                      "wallTimeP50": 541081,
+                      "wallTimeP99": 541081
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:33Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 105526,
+                      "cpuTimeP99": 110745,
+                      "wallTimeP50": 454943,
+                      "wallTimeP99": 490697
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:28Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 146707,
+                      "cpuTimeP99": 165641,
+                      "wallTimeP50": 337166,
+                      "wallTimeP99": 392147
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:07Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 426,
+                      "cpuTimeP99": 426,
+                      "wallTimeP50": 590964,
+                      "wallTimeP99": 590964
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:40Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 525,
+                      "cpuTimeP99": 525,
+                      "wallTimeP50": 2054778,
+                      "wallTimeP99": 2054778
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:51Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 82208,
+                      "cpuTimeP99": 140861,
+                      "wallTimeP50": 188224,
+                      "wallTimeP99": 331747
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:32Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 715,
+                      "cpuTimeP99": 715,
+                      "wallTimeP50": 2190745,
+                      "wallTimeP99": 2190745
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:48Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 662,
+                      "cpuTimeP99": 662,
+                      "wallTimeP50": 1202371,
+                      "wallTimeP99": 1202371
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:17Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 601,
+                      "cpuTimeP99": 666,
+                      "wallTimeP50": 262455,
+                      "wallTimeP99": 355311
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:24Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 561,
+                      "cpuTimeP99": 561,
+                      "wallTimeP50": 1347390,
+                      "wallTimeP99": 1347390
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:36Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 471,
+                      "cpuTimeP99": 620,
+                      "wallTimeP50": 498933,
+                      "wallTimeP99": 532067
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:09Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 496,
+                      "cpuTimeP99": 496,
+                      "wallTimeP50": 1118689,
+                      "wallTimeP99": 1118689
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:34Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 551,
+                      "cpuTimeP99": 735,
+                      "wallTimeP50": 156468,
+                      "wallTimeP99": 257682
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 6
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:39Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 184055,
+                      "cpuTimeP99": 184055,
+                      "wallTimeP50": 832185,
+                      "wallTimeP99": 832185
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:04Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 501,
+                      "cpuTimeP99": 637,
+                      "wallTimeP50": 362542,
+                      "wallTimeP99": 420164
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:45Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 536,
+                      "cpuTimeP99": 536,
+                      "wallTimeP50": 1120861,
+                      "wallTimeP99": 1120861
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:08Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 491,
+                      "cpuTimeP99": 491,
+                      "wallTimeP50": 2001283,
+                      "wallTimeP99": 2001283
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:27Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 63185,
+                      "cpuTimeP99": 164799,
+                      "wallTimeP50": 143243,
+                      "wallTimeP99": 389562
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 6
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:54Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 21824,
+                      "cpuTimeP99": 28615,
+                      "wallTimeP50": 110891,
+                      "wallTimeP99": 276183
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 5,
+                      "subrequests": 5
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:30Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 126474,
+                      "cpuTimeP99": 134216,
+                      "wallTimeP50": 324649,
+                      "wallTimeP99": 343202
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:44Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 481,
+                      "cpuTimeP99": 481,
+                      "wallTimeP50": 1091834,
+                      "wallTimeP99": 1091834
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:59Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 446,
+                      "cpuTimeP99": 527,
+                      "wallTimeP50": 350621,
+                      "wallTimeP99": 496710
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:47Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 483,
+                      "cpuTimeP99": 483,
+                      "wallTimeP50": 1152551,
+                      "wallTimeP99": 1152551
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:34Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 121083,
+                      "cpuTimeP99": 121083,
+                      "wallTimeP50": 658840,
+                      "wallTimeP99": 658840
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:16Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 172120,
+                      "cpuTimeP99": 172120,
+                      "wallTimeP50": 889722,
+                      "wallTimeP99": 889722
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:14Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 71815,
+                      "cpuTimeP99": 177710,
+                      "wallTimeP50": 337426,
+                      "wallTimeP99": 955356
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:10Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 651,
+                      "cpuTimeP99": 651,
+                      "wallTimeP50": 2032103,
+                      "wallTimeP99": 2032103
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:10Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 508,
+                      "cpuTimeP99": 674,
+                      "wallTimeP50": 181309,
+                      "wallTimeP99": 573146
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 8
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:08Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 24173,
+                      "cpuTimeP99": 37346,
+                      "wallTimeP50": 1180581,
+                      "wallTimeP99": 1232232
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 15,
+                      "subrequests": 15
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:47Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 555,
+                      "cpuTimeP99": 555,
+                      "wallTimeP50": 972316,
+                      "wallTimeP99": 972316
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:21Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 568,
+                      "cpuTimeP99": 568,
+                      "wallTimeP50": 1279191,
+                      "wallTimeP99": 1279191
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:49Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 585,
+                      "cpuTimeP99": 685,
+                      "wallTimeP50": 151138,
+                      "wallTimeP99": 319940
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:07Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 24157,
+                      "cpuTimeP99": 43046,
+                      "wallTimeP50": 1115592,
+                      "wallTimeP99": 1183838
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 14,
+                      "subrequests": 14
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:23Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 134777,
+                      "cpuTimeP99": 134777,
+                      "wallTimeP50": 657557,
+                      "wallTimeP99": 657557
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:19Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 666,
+                      "cpuTimeP99": 1209,
+                      "wallTimeP50": 194275,
+                      "wallTimeP99": 297763
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:24Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 18241,
+                      "cpuTimeP99": 160948,
+                      "wallTimeP50": 42751,
+                      "wallTimeP99": 808721
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:06Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 940,
+                      "cpuTimeP99": 940,
+                      "wallTimeP50": 1162549,
+                      "wallTimeP99": 1162549
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:10Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 558,
+                      "cpuTimeP99": 558,
+                      "wallTimeP50": 825198,
+                      "wallTimeP99": 825198
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:54Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 121877,
+                      "cpuTimeP99": 146798,
+                      "wallTimeP50": 303985,
+                      "wallTimeP99": 327757
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:49Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 25182,
+                      "cpuTimeP99": 87932,
+                      "wallTimeP50": 54159,
+                      "wallTimeP99": 250902
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 9,
+                      "subrequests": 9
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:22Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 641,
+                      "cpuTimeP99": 641,
+                      "wallTimeP50": 1229193,
+                      "wallTimeP99": 1229193
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:05Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 515,
+                      "cpuTimeP99": 541,
+                      "wallTimeP50": 594791,
+                      "wallTimeP99": 638189
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:56Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 24834,
+                      "cpuTimeP99": 39858,
+                      "wallTimeP50": 932687,
+                      "wallTimeP99": 964133
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 8
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:04Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 621,
+                      "cpuTimeP99": 621,
+                      "wallTimeP50": 658580,
+                      "wallTimeP99": 658580
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:51Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 657,
+                      "cpuTimeP99": 657,
+                      "wallTimeP50": 1084877,
+                      "wallTimeP99": 1084877
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:19Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 182756,
+                      "cpuTimeP99": 182756,
+                      "wallTimeP50": 853169,
+                      "wallTimeP99": 853169
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:18Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 667,
+                      "cpuTimeP99": 782,
+                      "wallTimeP50": 315786,
+                      "wallTimeP99": 340225
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:39Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 508,
+                      "cpuTimeP99": 672,
+                      "wallTimeP50": 443470,
+                      "wallTimeP99": 559473
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:29Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 135607,
+                      "cpuTimeP99": 146191,
+                      "wallTimeP50": 309373,
+                      "wallTimeP99": 340854
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:56Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 573,
+                      "cpuTimeP99": 636,
+                      "wallTimeP50": 229451,
+                      "wallTimeP99": 299583
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:43Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 132724,
+                      "cpuTimeP99": 132724,
+                      "wallTimeP50": 643838,
+                      "wallTimeP99": 643838
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:31Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 131003,
+                      "cpuTimeP99": 146664,
+                      "wallTimeP50": 298070,
+                      "wallTimeP99": 340960
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:42Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 173861,
+                      "cpuTimeP99": 227647,
+                      "wallTimeP50": 742083,
+                      "wallTimeP99": 970182
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:55Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 25776,
+                      "cpuTimeP99": 27957,
+                      "wallTimeP50": 345024,
+                      "wallTimeP99": 397003
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 6
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:50Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 537,
+                      "cpuTimeP99": 537,
+                      "wallTimeP50": 889434,
+                      "wallTimeP99": 889434
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:29Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 576,
+                      "cpuTimeP99": 612,
+                      "wallTimeP50": 576760,
+                      "wallTimeP99": 639628
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:42Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 531,
+                      "cpuTimeP99": 531,
+                      "wallTimeP50": 1061533,
+                      "wallTimeP99": 1061533
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:59Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 617,
+                      "cpuTimeP99": 617,
+                      "wallTimeP50": 1089007,
+                      "wallTimeP99": 1089007
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:10Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 92905,
+                      "cpuTimeP99": 101873,
+                      "wallTimeP50": 477969,
+                      "wallTimeP99": 532388
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:06Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 24121,
+                      "cpuTimeP99": 46037,
+                      "wallTimeP50": 919387,
+                      "wallTimeP99": 945580
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 16
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:57Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 23088,
+                      "cpuTimeP99": 28679,
+                      "wallTimeP50": 869448,
+                      "wallTimeP99": 871712
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:14Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 577,
+                      "cpuTimeP99": 577,
+                      "wallTimeP50": 2001677,
+                      "wallTimeP99": 2001677
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:33Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 564,
+                      "cpuTimeP99": 680,
+                      "wallTimeP50": 188627,
+                      "wallTimeP99": 205478
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 5,
+                      "subrequests": 5
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:36Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 533,
+                      "cpuTimeP99": 533,
+                      "wallTimeP50": 2048323,
+                      "wallTimeP99": 2048323
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:14Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 707,
+                      "cpuTimeP99": 707,
+                      "wallTimeP50": 925370,
+                      "wallTimeP99": 925370
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:58Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 22119,
+                      "cpuTimeP99": 32088,
+                      "wallTimeP50": 857269,
+                      "wallTimeP99": 862295
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:20Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 158735,
+                      "cpuTimeP99": 158735,
+                      "wallTimeP50": 871079,
+                      "wallTimeP99": 871079
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:12Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 75386,
+                      "cpuTimeP99": 85834,
+                      "wallTimeP50": 331450,
+                      "wallTimeP99": 367755
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:34Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 610,
+                      "cpuTimeP99": 610,
+                      "wallTimeP50": 2016627,
+                      "wallTimeP99": 2016627
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:56Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 910,
+                      "cpuTimeP99": 174265,
+                      "wallTimeP50": 388052,
+                      "wallTimeP99": 819161
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:58Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 587,
+                      "cpuTimeP99": 747,
+                      "wallTimeP50": 157359,
+                      "wallTimeP99": 242931
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 6
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:43Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 977,
+                      "cpuTimeP99": 977,
+                      "wallTimeP50": 1150949,
+                      "wallTimeP99": 1150949
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:38Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 71988,
+                      "cpuTimeP99": 188300,
+                      "wallTimeP50": 360515,
+                      "wallTimeP99": 755814
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:42Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 562,
+                      "cpuTimeP99": 562,
+                      "wallTimeP50": 1054225,
+                      "wallTimeP99": 1054225
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:09Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 698,
+                      "cpuTimeP99": 784,
+                      "wallTimeP50": 123918,
+                      "wallTimeP99": 338366
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:38Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 521,
+                      "cpuTimeP99": 521,
+                      "wallTimeP50": 1925682,
+                      "wallTimeP99": 1925682
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:48Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 484,
+                      "cpuTimeP99": 484,
+                      "wallTimeP50": 1241120,
+                      "wallTimeP99": 1241120
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:21Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 730,
+                      "cpuTimeP99": 730,
+                      "wallTimeP50": 889279,
+                      "wallTimeP99": 889279
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:20Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 577,
+                      "cpuTimeP99": 762,
+                      "wallTimeP50": 227563,
+                      "wallTimeP99": 1033280
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:21Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 141690,
+                      "cpuTimeP99": 174392,
+                      "wallTimeP50": 692628,
+                      "wallTimeP99": 897049
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:50Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 725,
+                      "cpuTimeP99": 725,
+                      "wallTimeP50": 4278156,
+                      "wallTimeP99": 4278156
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:25Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 869,
+                      "cpuTimeP99": 869,
+                      "wallTimeP50": 938490,
+                      "wallTimeP99": 938490
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:31Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 25222,
+                      "cpuTimeP99": 49386,
+                      "wallTimeP50": 117712,
+                      "wallTimeP99": 155489
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 5
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:25Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 17182,
+                      "cpuTimeP99": 91023,
+                      "wallTimeP50": 71565,
+                      "wallTimeP99": 304879
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 11,
+                      "subrequests": 11
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:16Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 611,
+                      "cpuTimeP99": 748,
+                      "wallTimeP50": 1095027,
+                      "wallTimeP99": 1277589
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 16
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:03Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 500,
+                      "cpuTimeP99": 500,
+                      "wallTimeP50": 1049231,
+                      "wallTimeP99": 1049231
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:11Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 85721,
+                      "cpuTimeP99": 112240,
+                      "wallTimeP50": 365410,
+                      "wallTimeP99": 468379
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:53Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 198850,
+                      "cpuTimeP99": 201210,
+                      "wallTimeP50": 482958,
+                      "wallTimeP99": 536657
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:41Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 497,
+                      "cpuTimeP99": 646,
+                      "wallTimeP50": 503110,
+                      "wallTimeP99": 1090974
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:17Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 573,
+                      "cpuTimeP99": 948,
+                      "wallTimeP50": 1507332,
+                      "wallTimeP99": 1795918
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 16
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:15Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 607,
+                      "cpuTimeP99": 607,
+                      "wallTimeP50": 1058294,
+                      "wallTimeP99": 1058294
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:40Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 218795,
+                      "cpuTimeP99": 218795,
+                      "wallTimeP50": 981936,
+                      "wallTimeP99": 981936
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:35Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 93734,
+                      "cpuTimeP99": 97539,
+                      "wallTimeP50": 401272,
+                      "wallTimeP99": 500204
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:23Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 664,
+                      "cpuTimeP99": 664,
+                      "wallTimeP50": 1103754,
+                      "wallTimeP99": 1103754
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:03Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 599,
+                      "cpuTimeP99": 753,
+                      "wallTimeP50": 482227,
+                      "wallTimeP99": 496315
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:01Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 678,
+                      "cpuTimeP99": 678,
+                      "wallTimeP50": 1121302,
+                      "wallTimeP99": 1121302
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:07Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 582,
+                      "cpuTimeP99": 582,
+                      "wallTimeP50": 968620,
+                      "wallTimeP99": 968620
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:46Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 588,
+                      "cpuTimeP99": 588,
+                      "wallTimeP50": 1117587,
+                      "wallTimeP99": 1117587
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:02Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 544,
+                      "cpuTimeP99": 645,
+                      "wallTimeP50": 454378,
+                      "wallTimeP99": 499665
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:00Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 538,
+                      "cpuTimeP99": 716,
+                      "wallTimeP50": 643133,
+                      "wallTimeP99": 674468
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:37Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 609,
+                      "cpuTimeP99": 722,
+                      "wallTimeP50": 524076,
+                      "wallTimeP99": 636283
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:37Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 74082,
+                      "cpuTimeP99": 92974,
+                      "wallTimeP50": 353115,
+                      "wallTimeP99": 467303
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:22Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 149385,
+                      "cpuTimeP99": 149385,
+                      "wallTimeP50": 697596,
+                      "wallTimeP99": 697596
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:03Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 24462,
+                      "cpuTimeP99": 39307,
+                      "wallTimeP50": 2254194,
+                      "wallTimeP99": 2280951
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 16
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:12Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 639,
+                      "cpuTimeP99": 700,
+                      "wallTimeP50": 358598,
+                      "wallTimeP99": 406003
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 8
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:13Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 632,
+                      "cpuTimeP99": 779,
+                      "wallTimeP50": 1887194,
+                      "wallTimeP99": 1904474
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 17,
+                      "subrequests": 17
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:28Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 613,
+                      "cpuTimeP99": 711,
+                      "wallTimeP50": 263920,
+                      "wallTimeP99": 4292339
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:05Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 577,
+                      "cpuTimeP99": 577,
+                      "wallTimeP50": 1153665,
+                      "wallTimeP99": 1153665
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:47Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 147464,
+                      "cpuTimeP99": 147464,
+                      "wallTimeP50": 710570,
+                      "wallTimeP99": 710570
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:09Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 17894,
+                      "cpuTimeP99": 38624,
+                      "wallTimeP50": 86723,
+                      "wallTimeP99": 123045
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 9,
+                      "subrequests": 9
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:16Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 627,
+                      "cpuTimeP99": 627,
+                      "wallTimeP50": 956722,
+                      "wallTimeP99": 956722
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:25Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 793,
+                      "cpuTimeP99": 793,
+                      "wallTimeP50": 1182044,
+                      "wallTimeP99": 1182044
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:24Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 650,
+                      "cpuTimeP99": 650,
+                      "wallTimeP50": 918526,
+                      "wallTimeP99": 918526
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:26Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 70557,
+                      "cpuTimeP99": 85650,
+                      "wallTimeP50": 164338,
+                      "wallTimeP99": 202497
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 5,
+                      "subrequests": 5
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:50Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 73776,
+                      "cpuTimeP99": 90833,
+                      "wallTimeP50": 164903,
+                      "wallTimeP99": 210024
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 6
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:54Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 756,
+                      "cpuTimeP99": 756,
+                      "wallTimeP50": 320432,
+                      "wallTimeP99": 320432
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:15Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 172943,
+                      "cpuTimeP99": 172943,
+                      "wallTimeP50": 731727,
+                      "wallTimeP99": 731727
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:08Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 19330,
+                      "cpuTimeP99": 23206,
+                      "wallTimeP50": 95740,
+                      "wallTimeP99": 110143
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:55Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 579,
+                      "cpuTimeP99": 793,
+                      "wallTimeP50": 319226,
+                      "wallTimeP99": 341712
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:22Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 554,
+                      "cpuTimeP99": 554,
+                      "wallTimeP50": 1010574,
+                      "wallTimeP99": 1010574
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:36Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 85867,
+                      "cpuTimeP99": 88881,
+                      "wallTimeP50": 419678,
+                      "wallTimeP99": 447892
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 3
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:26Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 614,
+                      "cpuTimeP99": 614,
+                      "wallTimeP50": 855994,
+                      "wallTimeP99": 855994
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:11Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 528,
+                      "cpuTimeP99": 940,
+                      "wallTimeP50": 353618,
+                      "wallTimeP99": 454582
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 8
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:52Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 572,
+                      "cpuTimeP99": 572,
+                      "wallTimeP50": 816863,
+                      "wallTimeP99": 816863
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:18Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 575,
+                      "cpuTimeP99": 575,
+                      "wallTimeP50": 1992230,
+                      "wallTimeP99": 1992230
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:41Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 220977,
+                      "cpuTimeP99": 220977,
+                      "wallTimeP50": 907060,
+                      "wallTimeP99": 907060
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:19Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 626,
+                      "cpuTimeP99": 782,
+                      "wallTimeP50": 1643436,
+                      "wallTimeP99": 1751220
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 16
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:11Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 585,
+                      "cpuTimeP99": 585,
+                      "wallTimeP50": 875628,
+                      "wallTimeP99": 875628
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:59Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 23090,
+                      "cpuTimeP99": 41936,
+                      "wallTimeP50": 3994287,
+                      "wallTimeP99": 4003161
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 17,
+                      "subrequests": 17
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:02Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 472,
+                      "cpuTimeP99": 472,
+                      "wallTimeP50": 1117483,
+                      "wallTimeP99": 1117483
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:27Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 636,
+                      "cpuTimeP99": 636,
+                      "wallTimeP50": 531571,
+                      "wallTimeP99": 531571
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:40Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 556,
+                      "cpuTimeP99": 644,
+                      "wallTimeP50": 471893,
+                      "wallTimeP99": 480722
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 2
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:57Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 517,
+                      "cpuTimeP99": 541,
+                      "wallTimeP50": 152590,
+                      "wallTimeP99": 189179
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:08Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 548,
+                      "cpuTimeP99": 548,
+                      "wallTimeP50": 1152998,
+                      "wallTimeP99": 1152998
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:57Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 682,
+                      "cpuTimeP99": 786,
+                      "wallTimeP50": 183808,
+                      "wallTimeP99": 1017646
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 4
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:30Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 742,
+                      "cpuTimeP99": 742,
+                      "wallTimeP50": 2005371,
+                      "wallTimeP99": 2005371
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:17Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 183801,
+                      "cpuTimeP99": 183801,
+                      "wallTimeP50": 729210,
+                      "wallTimeP99": 729210
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:53Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 575,
+                      "cpuTimeP99": 575,
+                      "wallTimeP50": 1001918,
+                      "wallTimeP99": 1001918
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:12Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 628,
+                      "cpuTimeP99": 628,
+                      "wallTimeP50": 1884557,
+                      "wallTimeP99": 1884557
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:46:27Z",
+                      "scriptName": "ml-dsa-probe-20261013-a",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 650,
+                      "cpuTimeP99": 650,
+                      "wallTimeP50": 172110,
+                      "wallTimeP99": 172110
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "errors": null
+      }
+    },
+    {
+      "role": "b",
+      "response": {
+        "data": {
+          "viewer": {
+            "accounts": [
+              {
+                "workersInvocationsAdaptive": [
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:33Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 247880,
+                      "cpuTimeP99": 266802,
+                      "wallTimeP50": 453696,
+                      "wallTimeP99": 489153
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:03Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 121673,
+                      "cpuTimeP99": 166355,
+                      "wallTimeP50": 2252919,
+                      "wallTimeP99": 2278097
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:49Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 25684,
+                      "cpuTimeP99": 95093,
+                      "wallTimeP50": 53083,
+                      "wallTimeP99": 249857
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 9,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:39Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 427236,
+                      "cpuTimeP99": 427236,
+                      "wallTimeP50": 831058,
+                      "wallTimeP99": 831058
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:08Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 117583,
+                      "cpuTimeP99": 174921,
+                      "wallTimeP50": 1178614,
+                      "wallTimeP99": 1230121
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 15,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:59Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 130065,
+                      "cpuTimeP99": 153109,
+                      "wallTimeP50": 3991223,
+                      "wallTimeP99": 3994468
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 17,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:38Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 209745,
+                      "cpuTimeP99": 411104,
+                      "wallTimeP50": 359276,
+                      "wallTimeP99": 754530
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:26Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 80166,
+                      "cpuTimeP99": 98961,
+                      "wallTimeP50": 163443,
+                      "wallTimeP99": 201275
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 5,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:11Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 199642,
+                      "cpuTimeP99": 253521,
+                      "wallTimeP50": 364321,
+                      "wallTimeP99": 467116
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:47Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 415235,
+                      "cpuTimeP99": 415235,
+                      "wallTimeP50": 709523,
+                      "wallTimeP99": 709523
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:07Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 115692,
+                      "cpuTimeP99": 153641,
+                      "wallTimeP50": 1113886,
+                      "wallTimeP99": 1181043
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 14,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:46Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 537112,
+                      "cpuTimeP99": 537112,
+                      "wallTimeP50": 944114,
+                      "wallTimeP99": 944114
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:29Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 152843,
+                      "cpuTimeP99": 167267,
+                      "wallTimeP50": 308368,
+                      "wallTimeP99": 340005
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:58Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 117238,
+                      "cpuTimeP99": 120517,
+                      "wallTimeP50": 848358,
+                      "wallTimeP99": 860174
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:08Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 53157,
+                      "cpuTimeP99": 54043,
+                      "wallTimeP50": 94830,
+                      "wallTimeP99": 98130
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:37Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 204490,
+                      "cpuTimeP99": 269546,
+                      "wallTimeP50": 351945,
+                      "wallTimeP99": 466247
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:36Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 234792,
+                      "cpuTimeP99": 258731,
+                      "wallTimeP50": 418232,
+                      "wallTimeP99": 446621
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:35Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 214874,
+                      "cpuTimeP99": 219606,
+                      "wallTimeP50": 400301,
+                      "wallTimeP99": 499146
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:28Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 164680,
+                      "cpuTimeP99": 193201,
+                      "wallTimeP50": 336084,
+                      "wallTimeP99": 390506
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:54Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 61149,
+                      "cpuTimeP99": 66973,
+                      "wallTimeP50": 109641,
+                      "wallTimeP99": 190135
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 5,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:56Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 185792,
+                      "cpuTimeP99": 185792,
+                      "wallTimeP50": 386544,
+                      "wallTimeP99": 386544
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:53Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 221855,
+                      "cpuTimeP99": 230593,
+                      "wallTimeP50": 481624,
+                      "wallTimeP99": 535312
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:41Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 485815,
+                      "cpuTimeP99": 485815,
+                      "wallTimeP50": 895439,
+                      "wallTimeP99": 895439
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:17Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 389375,
+                      "cpuTimeP99": 389375,
+                      "wallTimeP50": 718212,
+                      "wallTimeP99": 718212
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:24Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 19101,
+                      "cpuTimeP99": 465159,
+                      "wallTimeP50": 41565,
+                      "wallTimeP99": 807223
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:09Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 49211,
+                      "cpuTimeP99": 78104,
+                      "wallTimeP50": 85797,
+                      "wallTimeP99": 122025
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 9,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:52Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 173290,
+                      "cpuTimeP99": 223449,
+                      "wallTimeP50": 372429,
+                      "wallTimeP99": 447525
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:55Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 84867,
+                      "cpuTimeP99": 107049,
+                      "wallTimeP50": 343825,
+                      "wallTimeP99": 383705
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:51Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 91968,
+                      "cpuTimeP99": 164134,
+                      "wallTimeP50": 186716,
+                      "wallTimeP99": 330247
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:18Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 526700,
+                      "cpuTimeP99": 526700,
+                      "wallTimeP50": 966619,
+                      "wallTimeP99": 966619
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:14Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 195679,
+                      "cpuTimeP99": 401331,
+                      "wallTimeP50": 336396,
+                      "wallTimeP99": 954305
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:44Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 514257,
+                      "cpuTimeP99": 514257,
+                      "wallTimeP50": 1041398,
+                      "wallTimeP99": 1041398
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:32Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 51942,
+                      "cpuTimeP99": 244861,
+                      "wallTimeP50": 101851,
+                      "wallTimeP99": 448348
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:16Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 409806,
+                      "cpuTimeP99": 409806,
+                      "wallTimeP50": 888672,
+                      "wallTimeP99": 888672
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:15Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 400083,
+                      "cpuTimeP99": 400083,
+                      "wallTimeP50": 730637,
+                      "wallTimeP99": 730637
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:30Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 138734,
+                      "cpuTimeP99": 158212,
+                      "wallTimeP50": 323576,
+                      "wallTimeP99": 342149
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:42Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 413044,
+                      "cpuTimeP99": 527072,
+                      "wallTimeP50": 741060,
+                      "wallTimeP99": 968641
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:12Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 185574,
+                      "cpuTimeP99": 202228,
+                      "wallTimeP50": 330251,
+                      "wallTimeP99": 366555
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:23Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 380532,
+                      "cpuTimeP99": 380532,
+                      "wallTimeP50": 656477,
+                      "wallTimeP99": 656477
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:31Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 66296,
+                      "cpuTimeP99": 73018,
+                      "wallTimeP50": 119601,
+                      "wallTimeP99": 153941
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 5,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:25Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 19641,
+                      "cpuTimeP99": 104455,
+                      "wallTimeP50": 70422,
+                      "wallTimeP99": 303352
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 11,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:48Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 22307,
+                      "cpuTimeP99": 37431,
+                      "wallTimeP50": 47725,
+                      "wallTimeP99": 63958
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:50Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 80582,
+                      "cpuTimeP99": 100139,
+                      "wallTimeP50": 163776,
+                      "wallTimeP99": 208870
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:55Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 156478,
+                      "cpuTimeP99": 197221,
+                      "wallTimeP50": 314381,
+                      "wallTimeP99": 445355
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:57Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 109281,
+                      "cpuTimeP99": 121411,
+                      "wallTimeP50": 868214,
+                      "wallTimeP99": 869251
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 4,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:02:56Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 119035,
+                      "cpuTimeP99": 171008,
+                      "wallTimeP50": 931344,
+                      "wallTimeP99": 960931
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 8,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:34Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 269182,
+                      "cpuTimeP99": 269182,
+                      "wallTimeP50": 657179,
+                      "wallTimeP99": 657179
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:20Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 454861,
+                      "cpuTimeP99": 454861,
+                      "wallTimeP50": 869788,
+                      "wallTimeP99": 869788
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:13Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 197782,
+                      "cpuTimeP99": 223097,
+                      "wallTimeP50": 343300,
+                      "wallTimeP99": 395179
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:27Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 70778,
+                      "cpuTimeP99": 190648,
+                      "wallTimeP50": 142227,
+                      "wallTimeP99": 388350
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 6,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:40Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 548840,
+                      "cpuTimeP99": 548840,
+                      "wallTimeP50": 980497,
+                      "wallTimeP99": 980497
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:19Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 440798,
+                      "cpuTimeP99": 440798,
+                      "wallTimeP50": 852126,
+                      "wallTimeP99": 852126
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:21Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 400289,
+                      "cpuTimeP99": 515247,
+                      "wallTimeP50": 690679,
+                      "wallTimeP99": 895763
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:10Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 206398,
+                      "cpuTimeP99": 235614,
+                      "wallTimeP50": 476960,
+                      "wallTimeP99": 531117
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:03:06Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 121761,
+                      "cpuTimeP99": 135430,
+                      "wallTimeP50": 918039,
+                      "wallTimeP99": 942599
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 16,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:22Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 403215,
+                      "cpuTimeP99": 403215,
+                      "wallTimeP50": 696588,
+                      "wallTimeP99": 696588
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T04:45:31Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 148781,
+                      "cpuTimeP99": 169730,
+                      "wallTimeP50": 296990,
+                      "wallTimeP99": 339763
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 3,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:54Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 139179,
+                      "cpuTimeP99": 158685,
+                      "wallTimeP50": 303128,
+                      "wallTimeP99": 326606
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 2,
+                      "subrequests": 0
+                    }
+                  },
+                  {
+                    "dimensions": {
+                      "datetime": "2026-10-13T05:01:43Z",
+                      "scriptName": "ml-dsa-probe-20261013-b",
+                      "status": "success"
+                    },
+                    "quantiles": {
+                      "cpuTimeP50": 370233,
+                      "cpuTimeP99": 370233,
+                      "wallTimeP50": 642703,
+                      "wallTimeP99": 642703
+                    },
+                    "sum": {
+                      "errors": 0,
+                      "requests": 1,
+                      "subrequests": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "errors": null
+      }
+    }
+  ]
+}

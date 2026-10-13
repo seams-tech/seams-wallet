@@ -42,6 +42,8 @@ mod linked_presign_history;
 #[cfg(feature = "workers-rs")]
 pub(crate) mod presign_session_relocation;
 #[cfg(feature = "workers-rs")]
+pub(crate) mod registration_preparation;
+#[cfg(feature = "workers-rs")]
 mod router_wallet;
 #[cfg(feature = "workers-rs")]
 pub(crate) use router_wallet::{

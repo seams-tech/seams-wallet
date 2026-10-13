@@ -29,6 +29,7 @@ pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
     env: &Env,
     request: &CloudflareEd25519YaoPairPrepareRequestV1,
     pair_object: String,
+    access: RootUseAccess,
 ) -> RouterAbProtocolResult<(DeriverAPairPreparationV1, DeriverATargetSource)> {
     let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
     request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
@@ -39,7 +40,7 @@ pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
             &request.tenant_root,
             &request.pair_binding,
             Some(pair_object),
-            RootUseAccess::Admit,
+            access,
         )
         .await?;
     let prepared_at_ms =

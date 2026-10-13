@@ -2,8 +2,8 @@
 
 use router_ab_core::LocalServiceRoleV1;
 use router_ab_dev::{
-    local_env_materialization_plan_v1, local_worker_bind_addr_v1, parse_local_env_file_contents_v1,
-    parse_local_worker_role_config_for_role_v1, LocalWorkerRoleConfigV1,
+    local_worker_bind_addr_v1, parse_local_env_file_contents_v1,
+    parse_local_worker_role_config_for_role_v1, LocalLoopbackOriginV1, LocalWorkerRoleConfigV1,
     LOCAL_DERIVER_A_ENV_FILE_V1, LOCAL_DERIVER_B_ENV_FILE_V1, LOCAL_ROUTER_ENV_FILE_V1,
     LOCAL_SIGNING_WORKER_ENV_FILE_V1, LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1,
     LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1, LOCAL_WORKER_HEALTH_PATH,
@@ -289,41 +289,6 @@ pub fn post_json_to_path_with_headers<T: Serialize>(
     ))
 }
 
-pub fn write_materialized_envs_with_urls(
-    root: &Path,
-    seed: &[u8],
-    urls: &LocalWorkerUrls,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let plan = local_env_materialization_plan_v1(seed)?;
-    for directory in &plan.directories {
-        fs::create_dir_all(root.join(directory))?;
-    }
-    let files = plan
-        .files
-        .into_iter()
-        .map(|file| (file.path, file.contents))
-        .chain(
-            plan.tenant_root_files
-                .into_iter()
-                .map(|file| (file.path, file.contents)),
-        );
-    for (relative, contents) in files {
-        let contents = contents
-            .replace("http://127.0.0.1:4100", &urls.router)
-            .replace("http://127.0.0.1:4102", &urls.router)
-            .replace("http://127.0.0.1:4103", &urls.deriver_a)
-            .replace("http://127.0.0.1:4104", &urls.deriver_b)
-            .replace("http://127.0.0.1:4105", &urls.signing_worker)
-            .replace("http://127.0.0.1:4106", &urls.control_plane);
-        let path = root.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, contents)?;
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LocalWorkerUrls {
     pub router: String,
@@ -391,9 +356,9 @@ pub fn ephemeral_root(label: &str) -> Result<PathBuf, Box<dyn std::error::Error>
     Ok(path)
 }
 
-pub fn free_port_url() -> Result<String, Box<dyn std::error::Error>> {
+pub fn free_loopback_origin() -> Result<LocalLoopbackOriginV1, Box<dyn std::error::Error>> {
     let port = TcpListener::bind("127.0.0.1:0")?.local_addr()?.port();
-    Ok(format!("http://127.0.0.1:{port}"))
+    Ok(LocalLoopbackOriginV1::on_port(port))
 }
 
 pub fn pid_path(root: &Path, spec: LocalWorkerProcessSpec) -> PathBuf {

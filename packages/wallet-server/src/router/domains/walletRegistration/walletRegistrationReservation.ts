@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
 import type { CommittedWalletRegistration } from '../../../authorization/domain';
 import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
@@ -15,6 +16,7 @@ import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { isPlainObject, requireCanonicalString } from '@shared/utils/validation';
 import type { WalletRegistrationSetupInput } from './walletRegistrationInputs';
+import type { RouterAbEd25519YaoActivationAdmissionReceiptV1, RouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 
 export type WalletRegistrationSetupReservation = {
   readonly walletId: WalletId;
@@ -46,10 +48,22 @@ export type WalletRegistrationSetupReservationResult =
     };
 
 /** Persist custody addresses before setup completes, then start the reserved wallet objects. */
-export type RegistrationWalletStarter = (registration: {
+export type RegistrationWalletStartup = {
   readonly walletId: WalletId;
   readonly ownershipGeneration: number;
-}) => Promise<void>;
+} & (
+  | { readonly kind: 'objects'; readonly admissionRequest?: never; readonly admissionReceipt?: never; readonly expiresAtMs?: never }
+  | {
+      readonly kind: 'pair';
+      readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+      readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
+      readonly expiresAtMs: number;
+    }
+);
+
+export type RegistrationPairStartup = Variant<RegistrationWalletStartup, 'kind', 'pair'>;
+
+export type RegistrationWalletStarter = (registration: RegistrationWalletStartup) => Promise<void>;
 
 type ReservationOutcome =
   | { readonly ok: true }

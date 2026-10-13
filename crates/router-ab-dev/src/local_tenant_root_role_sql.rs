@@ -166,6 +166,7 @@ pub const LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] 
     ("0017_tenant_root_root_use_admission_claims.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0017_tenant_root_root_use_admission_claims.sql")),
     ("0018_tenant_root_recovery_retention_keys.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0018_tenant_root_recovery_retention_keys.sql")),
     ("0019_wallet_object_addresses.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0019_wallet_object_addresses.sql")),
+    ("0020_registration_preparation.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0020_registration_preparation.sql")),
 ];
 /// Deriver B's role-private schema: the same migrations its Cloudflare D1
 /// database runs.
@@ -189,6 +190,7 @@ pub const LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] 
     ("0017_tenant_root_root_use_admission_claims.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0017_tenant_root_root_use_admission_claims.sql")),
     ("0018_tenant_root_recovery_retention_keys.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0018_tenant_root_recovery_retention_keys.sql")),
     ("0019_wallet_object_addresses.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0019_wallet_object_addresses.sql")),
+    ("0020_registration_preparation.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0020_registration_preparation.sql")),
 ];
 /// The VM Router's SQLite schema: its tenant-root creation state and its
 /// wallet objects.

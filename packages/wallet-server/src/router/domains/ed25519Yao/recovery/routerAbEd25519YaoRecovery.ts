@@ -679,6 +679,18 @@ export interface RouterAbEd25519YaoActiveCapabilityResolverV1 {
     | RouterAbEd25519YaoActiveCapabilityLookupResultV1;
 }
 
+/**
+ * Stores a wallet's signer-row capability in the recovery state, so that a
+ * recovery admission can suspend it. A lookup alone stores nothing.
+ */
+export interface RouterAbEd25519YaoActiveCapabilityRehydratorV1 {
+  rehydrateActiveCapability(
+    input: RouterAbEd25519YaoActiveCapabilityLookupV1,
+  ):
+    | Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1>
+    | RouterAbEd25519YaoActiveCapabilityLookupResultV1;
+}
+
 type CapabilityIdentity = {
   readonly capabilityBinding: RouterAbEd25519YaoBytes32V1;
   readonly nearAccountId: string;

@@ -290,6 +290,7 @@ import type { PendingWalletRegistrationEd25519MetadataV1 } from '@/core/indexedD
 import {
   ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
   sameRouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  sameRouterAbEd25519YaoActivationBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
 // Re-exported so this module's public surface is unchanged by the move.
 export {
@@ -4491,19 +4492,21 @@ async function registerEmailOtpEd25519YaoWalletOnly(
       established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
         home: setup.home,
         walletId: String(walletId),
-        factorJson: JSON.stringify({
-          envelopeId: `wallet-custody-envelope:${crypto.randomUUID()}`,
-          factor: buildEmailOtpEnvelopeFactor({
-            enrollmentId: materialForFinalize.enrollmentId,
-            enrollmentSealKeyVersion: materialForFinalize.enrollmentSealKeyVersion,
+        factor: {
+          factorJson: JSON.stringify({
+            envelopeId: `wallet-custody-envelope:${crypto.randomUUID()}`,
+            factor: buildEmailOtpEnvelopeFactor({
+              enrollmentId: materialForFinalize.enrollmentId,
+              enrollmentSealKeyVersion: materialForFinalize.enrollmentSealKeyVersion,
+            }),
+            /* The wallet's first auth method, from the intent that allocated it.
+               The seal binds the envelope to this exact method, and finalize
+               commits the same id — so the envelope has an owner from the moment
+               it exists. */
+            walletAuthMethodId: setup.intent.foundingWalletAuthMethodId,
           }),
-          /* The wallet's first auth method, from the intent that allocated it.
-             The seal binds the envelope to this exact method, and finalize
-             commits the same id — so the envelope has an owner from the moment
-             it exists. */
-          walletAuthMethodId: setup.intent.foundingWalletAuthMethodId,
-        }),
-        factorSecret: emailOtpWalletCustodyFactorSecret,
+          factorSecret: emailOtpWalletCustodyFactorSecret,
+        },
         nearEd25519SigningKeyId:
           responded.ed25519.admissionRequest.application_binding.near_ed25519_signing_key_id,
         registrationCeremonyId: setup.registrationCeremonyId,
@@ -4789,6 +4792,10 @@ async function registerEmailOtpEd25519YaoWalletOnly(
   }
 }
 
+function ignoreCustodyRunFailureUntilAwaited(): void {
+  return;
+}
+
 async function registerPasskeyEd25519YaoWalletOnly(args: {
   context: RegistrationWebContext;
   authMethod: Extract<RegistrationAuthMethodInput, { kind: 'passkey' }>;
@@ -4832,7 +4839,9 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       status: 'waiting_for_user',
       interaction: { kind: 'passkey_create', overlay: 'show' },
     });
-    const passkeyAuthority = await resolvePasskeyRegistrationAuthority({
+    const described =
+      setup.kind === 'near_ed25519' && setup.ed25519.status === 'described' ? setup.ed25519 : null;
+    const passkeyAuthorityPending = resolvePasskeyRegistrationAuthority({
       context,
       walletId: intent.walletId,
       signerSlot: args.ed25519Selection.signerSlot,
@@ -4844,75 +4853,141 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         ...(args.confirmationConfigOverride ?? options.confirmationConfig ?? {}),
       },
       passkeyExecution: args.passkeyExecution,
+    }).then((authority) => {
+      postTouchIdCompletedAt = performance.now();
+      registrationTiming.capturePasskeyAuthDiagnostics(authority.diagnostics);
+      registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.authentication');
+      emitRegistrationEvent(options.onEvent, eventAccountId, {
+        authMethod: 'passkey',
+        phase: RegistrationEventPhase.STEP_04_PASSKEY_CREATE_SUCCEEDED,
+        status: 'succeeded',
+        interaction: { kind: 'passkey_create', overlay: 'hide' },
+      });
+      return authority;
     });
-    postTouchIdCompletedAt = performance.now();
-    registrationTiming.capturePasskeyAuthDiagnostics(passkeyAuthority.diagnostics);
-    registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.authentication');
-    emitRegistrationEvent(options.onEvent, eventAccountId, {
-      authMethod: 'passkey',
-      phase: RegistrationEventPhase.STEP_04_PASSKEY_CREATE_SUCCEEDED,
-      status: 'succeeded',
-      interaction: { kind: 'passkey_create', overlay: 'hide' },
-    });
-    const responded = await respondWalletRegistration({
-      relayerUrl,
-      registrationCeremonyId: setup.registrationCeremonyId,
-      signerPlanKind: 'near_ed25519',
-      signedSetup: setup.signedSetup,
-      headers: {
-        ...registrationRouteHeaders(traceContext),
-        ...buildWalletHomeRoutingHeaders(setup.home),
-      },
-      kind: 'passkey',
-      webauthnRegistration: passkeyAuthority.webauthnRegistration,
-    });
-    registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.respond');
-    if (responded.kind !== 'near_ed25519') {
-      throw new Error('Ed25519-only registration respond returned a different signer branch');
-    }
-    sealPreparation = startNearRegistrationSealPreparation({
-      signingEngine: context.signingEngine,
-      ceremonyId: setup.registrationCeremonyId,
-      thresholdSessionId: responded.ed25519.admissionRequest.scope.threshold_session_id,
-      prfFirstB64u: passkeyAuthority.prfFirstB64u,
-    });
-    const parsedCredentialId = parseWebAuthnCredentialIdB64u(
-      String(passkeyAuthority.credential.rawId || passkeyAuthority.credential.id || '').trim(),
-    );
-    if (!parsedCredentialId.ok) {
-      throw new Error(`passkey credential id ${parsedCredentialId.error.message}`);
-    }
-    const walletCustodyFactorSecret = base64UrlDecode(passkeyAuthority.prfFirstB64u)
-      .buffer as ArrayBuffer;
-    let established: Awaited<
-      ReturnType<RegistrationWebContext['signingEngine']['establishWalletCustodyNearEd25519KeySet']>
-    >;
-    try {
-      established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
-        home: setup.home,
-        walletId: String(intent.walletId),
+    type PasskeyAuthority = Awaited<typeof passkeyAuthorityPending>;
+    const respond = async (
+      authority: PasskeyAuthority,
+      ed25519Execution?: Parameters<typeof respondWalletRegistration>[0]['ed25519Execution'],
+    ) => {
+      const answer = await respondWalletRegistration({
+        relayerUrl,
+        registrationCeremonyId: setup.registrationCeremonyId,
+        signerPlanKind: 'near_ed25519',
+        signedSetup: setup.signedSetup,
+        headers: {
+          ...registrationRouteHeaders(traceContext),
+          ...buildWalletHomeRoutingHeaders(setup.home),
+        },
+        kind: 'passkey',
+        webauthnRegistration: authority.webauthnRegistration,
+        ...(ed25519Execution ? { ed25519Execution } : {}),
+        onServerTiming: recordRegistrationServerTimingBuckets.bind(undefined, registrationTiming),
+      });
+      registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.respond');
+      if (answer.kind !== 'near_ed25519') {
+        throw new Error('Ed25519-only registration respond returned a different signer branch');
+      }
+      return answer.ed25519;
+    };
+    const credentialIdOf = (authority: PasskeyAuthority) => {
+      const parsed = parseWebAuthnCredentialIdB64u(
+        String(authority.credential.rawId || authority.credential.id || '').trim(),
+      );
+      if (!parsed.ok) throw new Error(`passkey credential id ${parsed.error.message}`);
+      return parsed.value;
+    };
+    let walletCustodyFactorSecret: ArrayBuffer | null = null;
+    const custodyFactorOf = (authority: PasskeyAuthority) => {
+      walletCustodyFactorSecret = base64UrlDecode(authority.prfFirstB64u).buffer as ArrayBuffer;
+      return {
         factorJson: JSON.stringify({
           envelopeId: `wallet-custody-envelope:${crypto.randomUUID()}`,
           factor: buildPasskeyEnvelopeFactor({
             rpId: requireWebAuthnRpId(args.authMethod.rpId),
-            credentialIdB64u: parsedCredentialId.value,
+            credentialIdB64u: credentialIdOf(authority),
           }),
           walletAuthMethodId: setup.intent.foundingWalletAuthMethodId,
         }),
         factorSecret: walletCustodyFactorSecret,
-        nearEd25519SigningKeyId:
-          responded.ed25519.admissionRequest.application_binding.near_ed25519_signing_key_id,
-        registrationCeremonyId: setup.registrationCeremonyId,
-        admissionRequest: responded.ed25519.admissionRequest,
-        admissionReceipt: responded.ed25519.admissionReceipt,
-        participantIds: responded.ed25519.admissionRequest.participant_ids,
-        routerOrigin: new URL(relayerUrl).origin,
-        authorization: `Bearer ${String(setup.signedSetup)}`,
-        traceContext,
+      };
+    };
+    const startSealPreparation = (authority: PasskeyAuthority, thresholdSessionId: string) =>
+      startNearRegistrationSealPreparation({
+        signingEngine: context.signingEngine,
+        ceremonyId: setup.registrationCeremonyId,
+        thresholdSessionId,
+        prfFirstB64u: authority.prfFirstB64u,
       });
+    type Admission = Pick<Awaited<ReturnType<typeof respond>>, 'admissionRequest' | 'admissionReceipt'>;
+    const custodyRunFor = (admission: Admission) => ({
+      home: setup.home,
+      walletId: String(intent.walletId),
+      nearEd25519SigningKeyId: admission.admissionRequest.application_binding.near_ed25519_signing_key_id,
+      registrationCeremonyId: setup.registrationCeremonyId,
+      admissionRequest: admission.admissionRequest,
+      admissionReceipt: admission.admissionReceipt,
+      participantIds: admission.admissionRequest.participant_ids,
+      routerOrigin: new URL(relayerUrl).origin,
+      authorization: `Bearer ${String(setup.signedSetup)}`,
+      traceContext,
+    });
+    let passkeyAuthority: PasskeyAuthority;
+    let admission: Admission;
+    let established: Awaited<
+      ReturnType<RegistrationWebContext['signingEngine']['establishWalletCustodyNearEd25519KeySet']>
+    >;
+    try {
+      if (described) {
+        /* Setup described the admission, so the custody run prepares its
+           execute request while the user answers the prompt. Its Router
+           round then waits for the proof and sends both in one request. */
+        admission = described;
+        const custodyRun = context.signingEngine.establishWalletCustodyNearEd25519KeySet({
+          ...custodyRunFor(described),
+          factor: {
+            factorAfterRouterRound: async () => custodyFactorOf(await passkeyAuthorityPending),
+          },
+          executeWithProof: async (yaoExecuteRequestJson) => {
+            const answer = await respond(
+              await passkeyAuthorityPending,
+              JSON.parse(yaoExecuteRequestJson),
+            );
+            if (
+              !sameRouterAbEd25519YaoActivationBindingV1(
+                answer.admissionReceipt.binding,
+                described.admissionReceipt.binding,
+              )
+            ) {
+              throw new Error('Registration respond issued another admission than setup described');
+            }
+            return answer.status === 'executed' ? JSON.stringify(answer.activationResult) : null;
+          },
+        });
+        // A failed prompt is reported by the line below, before the run that waited for it.
+        custodyRun.catch(ignoreCustodyRunFailureUntilAwaited);
+        passkeyAuthority = await passkeyAuthorityPending;
+        sealPreparation = startSealPreparation(
+          passkeyAuthority,
+          described.admissionRequest.scope.threshold_session_id,
+        );
+        established = await custodyRun;
+      } else {
+        passkeyAuthority = await passkeyAuthorityPending;
+        admission = await respond(passkeyAuthority);
+        sealPreparation = startSealPreparation(
+          passkeyAuthority,
+          admission.admissionRequest.scope.threshold_session_id,
+        );
+        established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
+          ...custodyRunFor(admission),
+          factor: custodyFactorOf(passkeyAuthority),
+        });
+      }
     } finally {
-      zeroizeArrayBuffer(walletCustodyFactorSecret);
+      if (walletCustodyFactorSecret) zeroizeArrayBuffer(walletCustodyFactorSecret);
     }
+    const parsedCredentialId = { value: credentialIdOf(passkeyAuthority) };
     registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.custody');
     await confirmWalletRecoveryCodesBackedUp(
       context,
@@ -5019,7 +5094,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       credential: passkeyAuthority.credential,
     });
     const materialFacts = registrationEd25519MaterialFacts({
-      admissionRequest: responded.ed25519.admissionRequest,
+      admissionRequest: admission.admissionRequest,
       finalized: finalized.ed25519,
       walletId: intent.walletId,
       expectedRuntimePolicyScope: normalizeRuntimePolicyScope(intent.runtimePolicyScope),

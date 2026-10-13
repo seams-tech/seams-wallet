@@ -111,6 +111,38 @@ pub(super) fn run(samples: usize) -> InvestigationResult<Value> {
     }))
 }
 
+pub(super) fn expanded_public_fixture_key(name: &str) -> InvestigationResult<Vec<u8>> {
+    let seed = public_seed(name)?;
+    expanded_authorized_test_key(seed.as_slice().try_into()?)
+}
+
+/// Only disposable keys reconstructed by the authorized test recipient enter here.
+pub(super) fn expanded_authorized_test_key(seed: &[u8; 32]) -> InvestigationResult<Vec<u8>> {
+    let scratch = tempfile::tempdir()?;
+    fs::write(
+        scratch.path().join("seed.pk8"),
+        private_key_der(0x80, seed.as_slice()),
+    )?;
+    openssl_command(scratch.path(), &expanded_key_command())?;
+    read_expanded_public_fixture_key(scratch.path())
+}
+
+fn read_expanded_public_fixture_key(directory: &Path) -> InvestigationResult<Vec<u8>> {
+    let expanded_der = fs::read(directory.join("expanded.pk8"))?;
+    let expanded_length = 4032;
+    let wrapper_length = private_key_der(0x04, &vec![0; expanded_length]).len() - expanded_length;
+    require(
+        expanded_der.len() == wrapper_length + expanded_length,
+        "Unexpected expanded private key DER size.",
+    )?;
+    let expanded = &expanded_der[wrapper_length..];
+    require(
+        expanded_der == private_key_der(0x04, expanded),
+        "Unexpected expanded private key DER wrapper.",
+    )?;
+    Ok(expanded.to_vec())
+}
+
 fn run_fixture(name: &str, samples: usize) -> InvestigationResult<Value> {
     let seed = public_seed(name)?;
     let message = public_message();
@@ -138,18 +170,7 @@ fn run_fixture(name: &str, samples: usize) -> InvestigationResult<Value> {
         "OpenSSL and RustCrypto public keys differ.",
     )?;
     openssl_command(directory, &expanded_key_command())?;
-    let expanded_der = fs::read(directory.join("expanded.pk8"))?;
-    let expanded_length = 4032;
-    let wrapper_length = private_key_der(0x04, &vec![0; expanded_length]).len() - expanded_length;
-    require(
-        expanded_der.len() == wrapper_length + expanded_length,
-        "Unexpected expanded private key DER size.",
-    )?;
-    let expanded = &expanded_der[wrapper_length..];
-    require(
-        expanded_der == private_key_der(0x04, expanded),
-        "Unexpected expanded private key DER wrapper.",
-    )?;
+    let expanded = read_expanded_public_fixture_key(directory)?;
     let mut changed_seed = seed;
     changed_seed[0] ^= 1;
     let wrong_key = SigningKey::<MlDsa65>::from_seed(&changed_seed);
@@ -202,7 +223,7 @@ fn run_fixture(name: &str, samples: usize) -> InvestigationResult<Value> {
         "public_seed_hex": hex::encode(seed.as_slice()),
         "sizes_bytes": {"seed": seed.len(), "public_key": public.len(), "expanded_private_key": expanded.len(), "seed_pkcs8": private_key_der(0x80, seed.as_slice()).len(), "public_spki": public_key_der(public.as_slice()).len()},
         "public_key_sha256": digest(public.as_slice()),
-        "openssl_expanded_private_key_sha256_public_fixture_only": digest(expanded),
+        "openssl_expanded_private_key_sha256_public_fixture_only": digest(&expanded),
         "seed_public_key_and_deterministic_signatures_identical_across_implementations": true,
         "expanded_private_export_limit": "Only OpenSSL exports the FIPS 204 expanded private encoding. RustCrypto 0.1.1 deprecates this export API. The tool uses its current seed and signing APIs.",
         "same_seed_recovery_identical": true,

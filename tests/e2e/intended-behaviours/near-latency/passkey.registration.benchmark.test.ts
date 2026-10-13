@@ -42,15 +42,18 @@ class NearTimings {
   sdkInvocations = 0;
   readonly responses: Promise<void>[] = [];
 
+  /** A respond that carried the Router round reports the execution it ran. */
   observeResponse(response: Response): void {
-    if (new URL(response.url()).pathname !== '/router-ab/ed25519/yao/registration/execute') return;
+    const path = new URL(response.url()).pathname;
+    if (path !== '/router-ab/ed25519/yao/registration/execute' && path !== '/wallets/register/respond')
+      return;
     this.responses.push(this.collectRouterTiming(response));
   }
 
   async collectRouterTiming(response: Response): Promise<void> {
     const header = await response.headerValue('server-timing');
     for (const entry of (header ?? '').split(',')) {
-      const parsed = /^\s*([a-zA-Z0-9_]+);dur=([0-9.]+)\s*$/.exec(entry);
+      const parsed = /^\s*(yao_[a-zA-Z0-9_]+);dur=([0-9.]+)\s*$/.exec(entry);
       if (!parsed) continue;
       const durationMs = Number(parsed[2]);
       if (isDuration(durationMs))

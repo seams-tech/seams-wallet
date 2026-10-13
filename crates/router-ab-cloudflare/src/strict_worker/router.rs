@@ -491,6 +491,25 @@ pub(super) async fn handle_strict_router_fetch_v1(
     if path == "/router-ab/router/wallet/start" {
         return handle_router_wallet_start(&mut request, &env).await;
     }
+    if path == crate::registration_pair_preparation::ROUTER_PATH {
+        if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {
+            return cloudflare_private_service_auth_error_response_v1(error);
+        }
+        if request.method() != Method::Post {
+            return Response::error("Registration preparation requires POST", 405);
+        }
+        let route = crate::WalletObjectRoute::from_gateway_request(&request)
+            .map_err(|error| worker::Error::RustError(error.to_string()))?;
+        let preparation = decode_bounded_json_request(&mut request, 16384)
+            .await
+            .map_err(|error| worker::Error::RustError(error.to_string()))?;
+        return match crate::registration_pair_preparation::prepare_pair(&env, route, preparation)
+            .await
+        {
+            Ok(()) => Response::from_json(&true),
+            Err(error) => cloudflare_protocol_error_response_v1(error),
+        };
+    }
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         return handle_router_prewarm_v1(&request, &env).await;
     }

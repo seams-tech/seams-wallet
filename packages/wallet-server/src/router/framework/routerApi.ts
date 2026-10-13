@@ -247,6 +247,7 @@ export interface RouterApiOptions {
   publishableKeyAuth?: RouterApiPublishableKeyAuthAdapter | null;
   /** Fresh credential and active-environment resolution for registration setup. */
   registrationContext?: WalletRegistrationContextResolver | null;
+  registrationSetupRateLimit?: import('./registrationSetupRateLimit').RegistrationSetupRateLimit;
   /**
    * Optional Router API usage-meter adapter used to emit host runtime events.
    */

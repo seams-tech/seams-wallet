@@ -6,6 +6,11 @@ mod families;
 mod ir;
 mod keccak;
 mod lane_materialization;
+mod ml_dsa_arithmetic;
+mod ml_dsa_keygen;
+mod ml_dsa_rounding;
+mod ml_dsa_sampling;
+mod ml_dsa_signing_mask;
 mod phase4_families;
 mod scalar;
 mod schedule;
@@ -17,6 +22,23 @@ pub use ir::BooleanCircuitMetricsV1;
 pub use keccak::{
     compile_ml_dsa_hash_circuit_v1, MlDsaHashCircuitV1, MlDsaHashFixtureErrorV1,
     MlDsaHashWorkloadV1,
+};
+pub use ml_dsa_keygen::{
+    compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,
+    compile_ml_dsa_private_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
+};
+pub use ml_dsa_rounding::{
+    compile_ml_dsa_power2round_circuit_v1, MlDsaPower2RoundCircuitV1,
+    MlDsaPower2RoundFixtureErrorV1, MlDsaPower2RoundFixtureFieldV1,
+    MlDsaPower2RoundFixtureOutputV1,
+};
+pub use ml_dsa_sampling::{
+    compile_ml_dsa_eta4_sampling_circuit_v1, MlDsaEta4SamplingCircuitV1,
+    MlDsaEta4SamplingFixtureErrorV1, MlDsaEta4SamplingFixtureOutputV1,
+};
+pub use ml_dsa_signing_mask::{
+    compile_ml_dsa_private_signing_mask_circuit_v1, MlDsaPrivateSigningMaskCircuitV1,
+    MlDsaSigningMaskFixtureErrorV1, MlDsaSigningMaskFixtureOutputV1,
 };
 pub use schedule::ProvisionalScheduleMetricsV1;
 

@@ -220,6 +220,16 @@ async fn handle_strict_deriver_fetch_v1(
     _context: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == crate::registration_pair_preparation::ROLE_PATH
+        || path == crate::registration_pair_preparation::SOCKET_PATH
+    {
+        return crate::registration_pair_preparation::forward_role_request(
+            request,
+            &env,
+            runtime.worker_role(),
+        )
+        .await;
+    }
     if path == crate::durable_object::wallet_startup::ALLOCATE_PATH {
         return crate::durable_object::wallet_startup::allocate_role_address(&request, &env, runtime.worker_role());
     }

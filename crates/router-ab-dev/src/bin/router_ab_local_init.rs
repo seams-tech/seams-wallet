@@ -1,8 +1,8 @@
 #[path = "local_dev_process/mod.rs"]
 mod local_dev_process;
 
-use local_dev_process::{free_port_url, LocalWorkerUrls};
-use router_ab_dev::{local_env_materialization_plan_v1, LocalEnvMaterializationPlanV1};
+use local_dev_process::{free_loopback_origin, LocalWorkerUrls};
+use router_ab_dev::{local_env_materialization_plan_at_v1, LocalStackOriginsV1};
 use serde::Serialize;
 use std::{
     env, fs,
@@ -28,22 +28,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_args(env::args().skip(1))?;
     let mut seed = [0u8; 32];
     getrandom::getrandom(&mut seed)?;
-    let urls = if options.ephemeral_ports {
-        Some(LocalWorkerUrls {
-            router: free_port_url()?,
-            deriver_a: free_port_url()?,
-            deriver_b: free_port_url()?,
-            signing_worker: free_port_url()?,
-            control_plane: free_port_url()?,
+    let origins = if options.ephemeral_ports {
+        Some(LocalStackOriginsV1 {
+            router: free_loopback_origin()?,
+            deriver_a: free_loopback_origin()?,
+            deriver_b: free_loopback_origin()?,
+            signing_worker: free_loopback_origin()?,
+            control_plane: free_loopback_origin()?,
         })
     } else {
         None
     };
-    let mut plan = local_env_materialization_plan_v1(&seed)?;
-    if let Some(urls) = &urls {
-        replace_default_urls(&mut plan, urls);
-        plan.validate()?;
-    }
+    let plan = local_env_materialization_plan_at_v1(&seed, &origins.unwrap_or_default())?;
 
     for directory in &plan.directories {
         fs::create_dir_all(options.root.join(directory))?;
@@ -84,28 +80,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|file| file.path)
             .chain(plan.tenant_root_files.into_iter().map(|file| file.path))
             .collect(),
-        urls,
+        urls: origins.map(|origins| LocalWorkerUrls {
+            router: origins.router.to_string(),
+            deriver_a: origins.deriver_a.to_string(),
+            deriver_b: origins.deriver_b.to_string(),
+            signing_worker: origins.signing_worker.to_string(),
+            control_plane: origins.control_plane.to_string(),
+        }),
     };
     println!("{}", serde_json::to_string_pretty(&summary)?);
     Ok(())
-}
-
-fn replace_default_urls(plan: &mut LocalEnvMaterializationPlanV1, urls: &LocalWorkerUrls) {
-    let replace = |contents: &str| {
-        contents
-            .replace("http://127.0.0.1:4100", &urls.router)
-            .replace("http://127.0.0.1:4102", &urls.router)
-            .replace("http://127.0.0.1:4103", &urls.deriver_a)
-            .replace("http://127.0.0.1:4104", &urls.deriver_b)
-            .replace("http://127.0.0.1:4105", &urls.signing_worker)
-            .replace("http://127.0.0.1:4106", &urls.control_plane)
-    };
-    for file in &mut plan.files {
-        file.contents = replace(&file.contents);
-    }
-    for file in &mut plan.tenant_root_files {
-        file.contents = replace(&file.contents);
-    }
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<InitOptions, String> {

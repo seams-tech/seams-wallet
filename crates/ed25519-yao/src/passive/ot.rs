@@ -163,6 +163,33 @@ impl OtFamily for LaneMaterializationOtFamily {
     const OT_COUNT: usize = 1_792;
 }
 
+/// Fixed evaluator input shape for the investigation seed-expansion circuit.
+#[derive(Debug)]
+pub(super) struct MlDsaSeedOtFamily;
+impl sealed::Sealed for MlDsaSeedOtFamily {}
+impl OtFamily for MlDsaSeedOtFamily {
+    const CODE: u8 = 4;
+    const OT_COUNT: usize = 256;
+}
+
+/// Fixed evaluator input shape for one investigation sampling circuit.
+#[derive(Debug)]
+pub(super) struct MlDsaSamplingOtFamily;
+impl sealed::Sealed for MlDsaSamplingOtFamily {}
+impl OtFamily for MlDsaSamplingOtFamily {
+    const CODE: u8 = 5;
+    const OT_COUNT: usize = 512;
+}
+
+/// Fixed evaluator input shape for one investigation rounding polynomial.
+#[derive(Debug)]
+pub(super) struct MlDsaRoundingOtFamily;
+impl sealed::Sealed for MlDsaRoundingOtFamily {}
+impl OtFamily for MlDsaRoundingOtFamily {
+    const CODE: u8 = 6;
+    const OT_COUNT: usize = 5_888;
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct PayloadPair {
     zero: [u8; LABEL_BYTES],

@@ -7,7 +7,14 @@ Singapore staging lane, registration after the passkey step measures
 and 3,044 ms on 0.9.0: 164 and 198 wallets, client in Tokyo. 80% of the
 wallets finish in less than 2.0 s after the passkey step. The
 [record](evidence/refactor-155h-release-093-staging.md) holds the chain.
-Phases 1 and 3 are decided and not implemented. Date: October 13, 2026.
+Release 0.9.4 carries the engine change of Phase 4 and serves on staging
+since October 13: the Yao execution is about 60 ms shorter, see its
+[record](evidence/refactor-155h-release-094-staging.md).
+Of Phase 1, the session mint at setup is implemented, and Phase 10 builds
+the one-request registration on it; both are on `dev` for release 0.10.0.
+Phase 1 pair preparation and its setup limit are implemented locally; hosted
+validation remains. Phase 3 is decided and not implemented. Date:
+October 13, 2026.
 
 [R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
 outliers and the combined p99 comparison. It reuses this plan's Phase 1 design
@@ -285,8 +292,36 @@ span baseline. No production change.
 
 ## Phase 1 — Custody execution at setup
 
-Registration today: setup reserves the home and starts the four wallet
-objects; respond verifies the credential, mints the Yao session and issues the
+Implementation update (October 13): setup dispatches input-free admissions to
+both wallet objects and opens A's authenticated connection to B during the
+passkey prompt. The user selected **30 setups per minute per publishable key
+and source IP**. Counters use the existing regional Gateway database. A
+counter failure returns 503; exhaustion returns 429 before reservation or
+startup. This is a regional limit, so traffic across regions has separate counters.
+
+Each wallet holds one preparation for at most 30 seconds, bounded by the
+ceremony expiry. A retry preserves the first epoch and deadline. The prepared
+connection carries no client input or protocol material. Execution binds the
+existing admission to the exact encrypted-input pair, then claims each role
+before protocol material flows. Expiry releases unused admissions and closes
+the socket. Missing or expired preparation uses the online admission path.
+Cancelled admissions and ownership fences refuse execution.
+
+The real Worker test verifies connection reuse, exact replay, expiry fallback,
+abandoned admission cleanup, and cancellation. Gateway D1 tests verify the
+30-request concurrent limit, key/IP separation, window expiry, and failure
+refusal. [Evidence](evidence/refactor-155h-prompt-preparation.md) records commands
+and limits. No deployment or latency saving is claimed for this change.
+
+A binds and rereads its role state in one D1 batch. B binds during its existing
+input preparation and retains its fresh read before running. Removing B's last
+read requires a separate state handoff; this implementation does not cache root
+material between requests. The original one-batch-per-role estimate below is
+therefore still an optimization target.
+
+
+Before this phase, setup reserved the home and started the four wallet
+objects; respond verified the credential, minted the Yao session and issued the
 admission receipt; execute admits both Derivers, connects them, runs the
 oblivious transfer, garbles, evaluates, seals and delivers. The passkey prompt
 sits between setup and respond, and nothing of the custody path uses it. This
@@ -315,14 +350,24 @@ admissions, the connection and B's re-read ride on it, about 370 ms at the
 median. It splits B's preparation into a setup-time admission and an
 execute-time input, so the connection is accepted at setup.
 
-- [ ] **Mint the Yao session at setup.** `setupWalletRegistration` creates the
-  lifecycle and threshold session identity that
-  `authorizeWalletRegistrationNearAdmission` creates at respond today, and
-  stores it with the ceremony. Respond keeps verifying the credential and keeps
-  issuing the admission receipt, now over the session minted at setup. The
-  SDK's respond response keeps its shape; the setup response carries nothing
-  new to the client.
-- [ ] **Prepare the pair during the prompt.** After the setup transaction
+- [x] **Mint the Yao session at setup.** The lifecycle id and the threshold
+  session id were the ceremony id already. Two values were minted at respond:
+  the four ids of the material activation and the 32-byte session id of the
+  admission receipt. Setup now mints both for a plan with a NEAR branch and
+  stores them in the ceremony record (`ed25519YaoMint`), in the setup
+  snapshot and in its copy. A setup retry reads the stored record back, so
+  the identity is minted once. Respond builds the admission request over the
+  stored material activation, and the NEAR-only admission passes the stored
+  session id to the backend, which issues the receipt over it. The minted
+  identity binds no authority and admits nothing: the admission still
+  follows the verified proof. Setup of a NEAR plan now fails with
+  `not_configured` when no SigningWorker is configured; respond failed there
+  before. Mixed registration uses the same stored material activation and session
+  identity for its later verified admission. No wire changes. A ceremony
+  record of a NEAR plan without the identity does not parse, so a
+  registration that is between setup and respond during a deployment starts
+  again.
+- [x] **Prepare the pair during the prompt.** After the setup transaction
   commits, the Gateway sends one prepare request to the Router with the
   session identity and the run's deadline, through the path that sends the
   wallet-start request today. The Router dispatches Deriver B's admission and
@@ -339,7 +384,7 @@ execute-time input, so the connection is accepted at setup.
   precomputing the transfers on random choices, changes the transcript and
   needs the stream KATs, the specification's online ceremony and
   `cargo yao-fv all` with it.
-- [ ] **Execute binds, then runs the online part.** The execute request carries
+- [x] **Execute binds, then runs the online part.** The execute request carries
   the client's encrypted inputs and the admission receipt as today. The
   Router's claim verifies the receipt against the session minted at setup and
   binds the prepared pair session to this execution. Both Derivers record the
@@ -351,20 +396,21 @@ execute-time input, so the connection is accepted at setup.
   the oblivious transfer. An admitted session that no execute claims expires
   with the deadline, and both objects close the connection and release the
   admission. An execute after expiry prepares inline, as today.
-- [ ] **One session, one use.** The admitted session binds to one execution
+- [x] **One session, one use.** The admitted session binds to one execution
   id at execute. A second claim, a retry after a lost reply, or a relocation
   fence must find it bound or released, never open for a second execution.
 - [ ] **Bound the exposure at setup.** Setup already starts objects and reserves
   a home for any caller with the publishable key. The prepare adds two D1
   admissions and one held connection per setup, and no protocol CPU. Enforce
   the existing setup route policy per publishable key and source IP before
-  the prepare, and cap admitted sessions per wallet to one. Record the
-  measured cost of an abandoned setup.
-- [ ] **Keep the other families online.** Recovery, export and lane
+  the prepare, and cap admitted sessions per wallet to one. The limit and cap
+  are implemented. Record the hosted cost of an abandoned setup before closing
+  this measurement item.
+- [x] **Keep the other families online.** Recovery, export and lane
   materialization keep the online path; only fresh registration activation
   prepares at setup. Mixed NEAR and ECDSA registration keeps the same NEAR
   path.
-- [ ] Update `docs/router-ab/ed25519-yao.md` (fixed roles and the online
+- [x] Update `docs/router-ab/ed25519-yao.md` (fixed roles and the online
   ceremony), the registration lifecycle text in `docs/intended-behaviours.md`,
   R155C's flow description, and the local Yao contract's stage assertions. Add
   composed scenarios for an abandoned setup, an expired prepared session and an
@@ -376,7 +422,7 @@ claim precede protocol material, role secret separation (A never carries B's
 input), ownership fences and relocation, and cancellation of a registration
 that never executed.
 
-Expected gain: about 0.3 s of the execute request at the median. Admission,
+Original full-plan estimate: about 0.3 s of the execute request at the median. Admission,
 connection and B's re-read leave the path, and one D1 round trip per Deriver
 stays. The oblivious transfer, the
 garbling, the evaluation, the sealing, the delivery and the two Router
@@ -782,8 +828,8 @@ work. One item each.
   request at 1,300 ms and 1,464 ms at the 90th percentile, the real protocol
   time at 634 ms and 647 ms, Deriver B's CPU from 286 ms to 239 ms and
   Deriver A's from 344 ms to 314 ms. A first run gains less than a warm run.
-- [x] **Label wipes and a four-block gate hash.** Implemented on October 13,
-  not released. The gate hash was not the largest cost: the wipe of dropped
+- [x] **Label wipes and a four-block gate hash.** Implemented on October 13
+  and released in 0.9.4. The gate hash was not the largest cost: the wipe of dropped
   labels was. The derived wipe of a 16-byte array writes and fences each
   byte, and a ceremony drops several million labels. A label is now a value
   that one volatile write wipes, and the garbler hashes its four blocks in
@@ -794,8 +840,11 @@ work. One item each.
   B's from 146 ms to 123 ms. The transcript is unchanged, and the frozen
   known answers pass. The [record](evidence/refactor-155h-label-wipe-gate-hash.md)
   holds the measurements and the verification. The Yao and registration
-  contracts pass on release Workers. Open: a release and the staging
-  measurement.
+  contracts pass on release Workers. On staging with 0.9.4, the garbler's
+  CPU per execution fell from 250 ms to 196 ms at the median and the
+  evaluator's from 207 ms to 182 ms. The Router's execute request fell from
+  783 ms to 720 ms. The [staging record](evidence/refactor-155h-release-094-staging.md)
+  holds the runs.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
   commitment checks and the HPKE seal are product additions the benchmark
   pair does not run. Place them with the local profiler and move what does
@@ -1166,16 +1215,24 @@ What a finalization costs at the Gateway, about 380 ms at the median:
   of an environment share its version check, so concurrent registrations
   contend, and a second lost attempt fails the request.
 - **The wallet commit span is two round trips.** The founding rows and the
-  shared record are read side by side, then the batch commits.
+  shared record are read side by side, then the batch commits. Without the
+  shared record the founding rows are the only read.
 
 Items:
 
-- [ ] Decide what the shared capability record holds. Either registration
-  stops installing into it and the first use rehydrates from the signer row,
-  which the code already does for an evicted wallet, or capabilities move to
-  one record per wallet. Recovery, export and unlock read this record, so the
-  owner decides. Expected: 40–60 ms of finalization and no contention
-  between registrations.
+- [x] The shared record holds recovery state only. Registration reads and
+  writes none of it: the wallet commit checks its capability, keeps the fence
+  of its wallet and commits its own rows in one batch. A lookup reads the
+  signer row beside the shared record and writes nothing. A signing admission
+  resolves its material from the signer row that its session read already
+  holds, so the session statement no longer reads the shared record. A
+  recovery admission still stores and suspends its capability there. The
+  record keeps every suspended capability and the four newest others, so it
+  stays small. Two registrations no longer share a version check. The
+  [record](evidence/refactor-155h-capability-from-signer-row.md) holds the
+  guards and the database calls. Not released and not measured on staging:
+  expected 40–60 ms of finalization, and less CPU in each signing admission
+  and unlock.
 - [ ] Read the Yao registration record in finalization's initial batch
   instead of in the consume. One round trip, about 13 ms.
 - [ ] Warm the seal once per isolate from the first request's background
@@ -1200,16 +1257,39 @@ request. The client then seals its inputs during the prompt and sends the
 passkey proof and the inputs in one request. The Gateway verifies the proof,
 admits, and executes.
 
-- [ ] Depends on Phase 1's first item, the session mint at setup. R155J owns
-  that implementation; build this on it, once.
-- [ ] A new setup reply field and a merged route change the registration
-  wire. The client parsers accept exact keys, so the wallet-management
-  protocol moves to 4.
-- [ ] Keep exact replay of the merged request, the refusal of another
-  credential, and the separate routes for mixed registration, Email OTP and
-  add-signer until they move too.
-- [ ] Update the registration paragraphs of `docs/intended-behaviours.md` and
-  the contract cases that pin the request order.
+- [x] Phase 1's first item, the session mint at setup, is done.
+- [x] Setup describes the admission of a NEAR-only passkey plan: the request
+  and the receipt over the minted session (`ed25519.status = described`).
+  The description stores nothing and admits nothing. Email OTP gets
+  `after_proof`, because its scope holds the verified provider subject.
+- [x] The SDK starts the custody run when setup returns. The run prepares the
+  execute request during the prompt. Its Router round waits for the proof and
+  sends both in the respond request (`ed25519Execution`). The custody driver
+  takes the passkey factor after the round, because the seed is sealed at
+  the end of the run. No Rust or WASM change was necessary.
+- [x] Respond verifies the proof, stores the admission and then runs the
+  execution with the checks of the execute route: the binding, the credential
+  digest and the expiry. Its reply has `status = executed` and the activation
+  result. When the execution does not complete, the reply has
+  `status = admitted`, and the SDK sends the same request to the execute
+  route. A reply whose admission differs from the description fails the
+  registration.
+- [x] The wallet-management protocol is 4: the setup reply has a new field
+  and the client parsers accept exact keys.
+- [x] Exact replay of the merged request, the refusal of another credential,
+  and the separate routes for mixed registration, Email OTP and add-signer
+  are kept. The local fault injection reaches an execution inside respond.
+- [x] `docs/intended-behaviours.md` and the contract case that pins the
+  respond replay are updated.
+- [x] The contract suite passes on the change: 132 of 134 cases on release
+  Workers and the two debug-build cases on the debug Router. The
+  [record](evidence/refactor-155h-one-request-registration.md) holds the
+  checks.
+- [ ] Not released and not measured on staging. A release with protocol 4
+  refuses every earlier SDK. The user decided on October 13 that it is
+  release 0.10.0, and that Codex releases and deploys it together with
+  Phase 1. The private Console sends the protocol header as a literal in two
+  places; the [release review](refactor-155-release-review.md) lists them.
 
 Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
 about half of that for a user in Singapore. The client's input preparation,

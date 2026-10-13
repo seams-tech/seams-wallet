@@ -55,6 +55,10 @@ const bundle = await build({
       export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
       export { registrationEstablishedMintId } from './packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
       export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
+      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
     `,
   },
 });
@@ -72,29 +76,6 @@ class ConcurrentWalletDatabase extends api.TracedD1Database {
       await competingCommit();
     }
     return super.batch(statements);
-  }
-}
-
-class DelayedFoundingDatabase extends api.TracedD1Database {
-  capabilityRead = Promise.withResolvers();
-  readsOverlapped = false;
-
-  async measure(method, queries, execute) {
-    if (queries.some(readsFoundingAuthority)) {
-      const timeout = setTimeout(
-        this.capabilityRead.reject,
-        5_000,
-        new Error('Capability read waited for the delayed founding-record read'),
-      );
-      try {
-        await this.capabilityRead.promise;
-        this.readsOverlapped = true;
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-    if (queries.some(readsCapability)) this.capabilityRead.resolve();
-    return await super.measure(method, queries, execute);
   }
 }
 
@@ -166,19 +147,19 @@ try {
   const callsBeforeCommit = trace(traced).length;
   await commit(input);
   const commitCalls = trace(traced).slice(callsBeforeCommit);
-  assert.equal(
-    commitCalls.length,
-    2,
-    'Fresh wallet and capability commit uses one read and one batch',
-  );
-  const tables = new Set(commitCalls[1].statements.flatMap(statementTables));
-  for (const table of ['wallets', 'wallet_signers', 'router_ab_yao_versioned_json_records']) {
+  assert.equal(commitCalls.length, 1, 'Fresh wallet commit uses one batch and no read');
+  const tables = new Set(commitCalls[0].statements.flatMap(statementTables));
+  for (const table of ['wallets', 'wallet_signers', 'wallet_relocation_authorization_fences']) {
     assert.ok(tables.has(table), `${table} must commit in the same batch`);
   }
+  assert.ok(
+    !tables.has('router_ab_yao_versioned_json_records'),
+    'A registration reads and writes no recovery state',
+  );
   const committed = await snapshot(database);
   assert.equal(committed.wallets.length, 1);
   assert.equal(committed.wallet_signers.length, 1);
-  assert.equal(committed.capabilities.length, 1);
+  assert.equal(committed.capabilities.length, 0);
   assert.equal(committed.webauthn_authenticators.length, 1);
   assert.equal(committed.webauthn_credential_bindings.length, 1);
   await commit(input);
@@ -192,7 +173,22 @@ try {
     }),
   );
 
-  // Another wallet wins the cache version after our read, before our write.
+  // The signer row alone answers a capability lookup, and the lookup writes nothing.
+  const lookupCalls = trace(traced).length;
+  const resolved = await capabilityRuntime(traced).resolveActiveCapability(
+    capabilityLookup(authority.walletId, input.walletSigners[0]),
+  );
+  assert.equal(resolved.ok, true);
+  assert.deepEqual(
+    resolved.capability.activeCapabilityBinding,
+    input.walletSigners[0].activeYaoCapability.activeCapabilityBinding,
+  );
+  const lookupStatements = trace(traced).slice(lookupCalls).flatMap(callStatements);
+  assert.ok(lookupStatements.every(isRead), 'A capability lookup writes nothing');
+  assert.deepEqual(await snapshot(database), committed);
+
+  // Another wallet commits between our preparation and our write. No record
+  // is shared, so neither commit repeats.
   const otherStore = new api.CloudflareD1WalletRegistrationCommitStore({
     database,
     credentialClaims: { claim: acceptCredential },
@@ -213,17 +209,16 @@ try {
   await commit(input);
   const raceCalls = trace(traced).slice(beforeRace);
   const walletWrites = raceCalls.filter(writesWalletBatch);
-  assert.equal(walletWrites.length, 2);
-  assert.equal(walletWrites[0].outcome, 'error');
-  assert.equal(walletWrites[1].outcome, 'ok');
+  assert.equal(walletWrites.length, 1);
+  assert.equal(walletWrites[0].outcome, 'ok');
   const afterRace = await snapshot(database);
   assert.equal(afterRace.wallets.length, 2);
   assert.equal(afterRace.wallet_signers.length, 2);
-  const cached = JSON.stringify(afterRace.capabilities);
-  assert.ok(cached.includes(authority.walletId));
-  assert.ok(cached.includes(other.walletId));
+  assert.equal(afterRace.capabilities.length, 0);
 
-  const overlap = await verifyIndependentCommitReads(database, now);
+  const fences = await verifyWalletFences(database, now);
+
+  const overlap = await verifyWalletAndSessionCommit(database, now);
   const earlyClaim = await verifyEarlyClaim(database);
   const evidence = {
     refusedClaimLeavesNoWallet: true,
@@ -233,12 +228,14 @@ try {
     exactCommitReplayPreservesRows: true,
     commitDoesNotRepeatDirectoryClaim: true,
     directoryCalls: directory.requests.length,
-    walletAndCapabilityCommitD1Calls: commitCalls.length,
-    walletAndCapabilityCommitTrace: commitCalls,
+    walletCommitD1Calls: commitCalls.length,
+    walletCommitTrace: commitCalls,
+    capabilityLookupReadsSignerRowAndWritesNothing: true,
     concurrentWalletPreserved: true,
     concurrentWalletWriteAttempts: walletWrites.length,
     concurrentCommitTrace: raceCalls,
-    independentCommitReads: overlap,
+    ...fences,
+    walletAndSessionCommit: overlap,
     earlyClaim,
   };
   await writeFile(resolve(output, 'proof.json'), `${JSON.stringify(evidence, null, 2)}\n`);
@@ -342,7 +339,113 @@ async function verifyEarlyClaim(database) {
   };
 }
 
-async function verifyIndependentCommitReads(database, now) {
+// The commit writes no recovery state, but it keeps the fence of its wallet:
+// a cancelled registration and a wallet that relocates both refuse it.
+async function verifyWalletFences(database, now) {
+  const scope = { namespace: 'claim-overlap', orgId: 'org', projectId: 'project', envId: 'test' };
+  const store = new api.CloudflareD1WalletRegistrationCommitStore({
+    database,
+    credentialClaims: { claim: acceptCredential },
+    ...scope,
+  });
+  const refused = [];
+  for (const [label, fence] of [
+    ['cancelled-registration', cancelRegistration],
+    ['relocating-wallet', fenceRelocation],
+  ]) {
+    const authority = api.buildPasskeyRegistrationAuthorityFixture(label);
+    const commit = await store.reserveAuthority(authority);
+    await fence(database, scope, authority.walletId);
+    const before = await snapshot(database);
+    await assert.rejects(
+      commit({
+        kind: 'passkey_wallet_registration_commit_v1',
+        wallet: api.buildD1WalletRecord({ walletId: authority.walletId, now }),
+        walletSigners: [await api.buildNearRegistrationSignerFixture(label, now)],
+        now,
+        decisionStatements: [],
+      }),
+      /router_ab_yao_versioned_json_cas_guard/u,
+    );
+    assert.deepEqual(await snapshot(database), before);
+    refused.push(label);
+  }
+  return {
+    cancelledRegistrationRefusesWalletCommit: refused.includes('cancelled-registration'),
+    relocatingWalletRefusesWalletCommit: refused.includes('relocating-wallet'),
+  };
+}
+
+async function cancelRegistration(database, scope, walletId) {
+  const ceremonyId = `registration:${walletId}`;
+  await seedRegistrationHome({ database, scope, walletId, ceremonyId });
+  await database
+    .prepare(
+      `UPDATE wallet_execution_generations
+          SET state = 'retired', registration_completion = 'cancelled'
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND wallet_id = ? AND origin_id = ?`,
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId, ceremonyId)
+    .run();
+}
+
+async function fenceRelocation(database, scope, walletId) {
+  const identity = api.WalletRelocationSessionSource.parse({
+    walletId,
+    moveId: `wmove_${'e'.repeat(43)}`,
+    requestDigestHex: '6'.repeat(64),
+    sourceGeneration: 1,
+  });
+  await new api.D1WalletRelocationSessions(database, scope).retire(identity, Date.now());
+  await new api.D1WalletAuthorizationFreeze(database, scope).freeze(identity, Date.now());
+}
+
+function capabilityRuntime(database) {
+  const scope = { namespace: 'claim-overlap', orgId: 'org', projectId: 'project', envId: 'test' };
+  return api.createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1({
+    signingWorkerId: 'worker',
+    store: api.createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
+      database,
+      scope,
+    }),
+    registrationBackend: {},
+    loadPersistedActiveCapability: loadSignerRowCapability.bind(undefined, database, scope),
+  });
+}
+
+async function loadSignerRowCapability(database, scope, lookup) {
+  const row = await database
+    .prepare(
+      `SELECT record_json FROM wallet_signers
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND wallet_id = ? AND signer_family = 'ed25519'`,
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, lookup.walletId)
+    .first();
+  return row ? JSON.parse(row.record_json).activeYaoCapability : null;
+}
+
+function capabilityLookup(walletId, signer) {
+  return {
+    kind: 'router_ab_ed25519_yao_active_capability_lookup_v1',
+    walletId,
+    nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
+    signerSlot: signer.signerSlot,
+    signingWorkerId: signer.signingWorkerId,
+    participantIds: signer.participantIds,
+  };
+}
+
+function callStatements(call) {
+  return call.statements;
+}
+
+function isRead(statement) {
+  return statement.query.kind === 'SELECT';
+}
+
+async function verifyWalletAndSessionCommit(database, now) {
   const authority = api.buildPasskeyRegistrationAuthorityFixture('independent-reads');
   const signer = await api.buildNearRegistrationSignerFixture('independent-reads', now);
   const founding = await api.buildLinkedDeviceManagementAuthorityFixture({
@@ -365,7 +468,7 @@ async function verifyIndependentCommitReads(database, now) {
       ).toString('base64url'),
     },
   });
-  const traced = new DelayedFoundingDatabase(database);
+  const traced = new api.TracedD1Database(database);
   const scope = {
     namespace: 'independent-reads',
     orgId: 'org',
@@ -443,17 +546,18 @@ async function verifyIndependentCommitReads(database, now) {
     walletId: authority.walletId,
     state: 'registering',
   });
-  assert.equal(traced.readsOverlapped, true);
   const calls = trace(traced).slice(callsBefore);
-  assert.equal(calls.length, 3);
-  assert.ok(writesWalletBatch(calls[2]));
-  const tables = new Set(calls[2].statements.flatMap(statementTables));
+  assert.equal(calls.length, 2, 'One founding-record read, then one batch');
+  assert.ok(calls[0].statements.every(isRead));
+  assert.ok(writesWalletBatch(calls[1]));
+  const tables = new Set(calls[1].statements.flatMap(statementTables));
+  assert.ok(!tables.has('router_ab_yao_versioned_json_records'));
   for (const table of [
     'wallets',
     'wallet_signers',
     'wallet_authorities',
     'wallet_auth_methods',
-    'router_ab_yao_versioned_json_records',
+    'wallet_relocation_authorization_fences',
     'wallet_session_authorizations_v2',
     'authorization_wallet_session_quotas',
     'wallet_execution_generations',
@@ -466,24 +570,15 @@ async function verifyIndependentCommitReads(database, now) {
   assert.ok(replay.every(sessionWasAlreadyCommitted));
   assert.deepEqual(await snapshot(database), committed);
   return {
-    delayedFoundingReadDidNotBlockCapabilityRead: true,
-    initialSessionFailureRollsBackWalletAndCapability: true,
+    initialSessionFailureRollsBackWallet: true,
     concurrentLostReplyRetriesPreserveCredentialAndQuota: true,
-    walletCapabilityAndSessionD1Calls: calls.length,
+    walletAndSessionD1Calls: calls.length,
     calls,
   };
 }
 
 function sessionWasAlreadyCommitted(commit) {
   return commit.result.kind === 'already_committed';
-}
-
-function readsFoundingAuthority(query) {
-  return query.kind === 'SELECT' && query.tables.includes('wallet_authorities');
-}
-
-function readsCapability(query) {
-  return query.kind === 'SELECT' && query.tables.includes('router_ab_yao_versioned_json_records');
 }
 
 async function migrate(database) {

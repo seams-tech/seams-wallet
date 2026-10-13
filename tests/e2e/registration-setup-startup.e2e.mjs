@@ -40,12 +40,19 @@ class AddressAllocator {
 }
 
 class RegistrationAddresses {
+  preparations = [];
+  failPreparation = false;
   constructor(api, store, allocator) {
     this.api = api;
     this.store = store;
     this.allocator = allocator;
   }
   async initialize(registration) {
+    if (registration.kind === 'pair') {
+      if (this.failPreparation) throw new Error('Preparation service unavailable');
+      this.preparations.push(registration);
+      return;
+    }
     const identity = this.api.walletObjectIdentity(
       registration.walletId,
       registration.ownershipGeneration,
@@ -135,6 +142,26 @@ class CapturedCustodyCall {
   }
 }
 
+function unexpectedRouterUse() {
+  throw new Error('Registration setup must not reach the Router');
+}
+
+// The Yao identity in each stored record of one ceremony: its setup snapshot and its copy.
+async function readEd25519YaoMints(database, ceremonyId) {
+  const { results } = await database
+    .prepare(
+      `SELECT record_json FROM registration_ceremony_records
+        WHERE record_scope IN ('setup-ceremony', 'ceremony') ORDER BY record_scope`,
+    )
+    .all();
+  const mints = [];
+  for (const row of results) {
+    const record = JSON.parse(row.record_json);
+    if (record.registrationCeremonyId === ceremonyId) mints.push(record.ed25519YaoMint);
+  }
+  return mints;
+}
+
 async function insertCandidate(store, identity, candidate) {
   const { WalletObjectAddresses } = await import(pathToFileURL(bundlePath));
   return store.insert(identity, WalletObjectAddresses.parse(candidate));
@@ -163,6 +190,10 @@ const bundle = await build({
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
       export { implicitNearAccountProvisioning, REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION } from './packages/shared-ts/src/utils/registrationSignerPlan';
       export { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from './packages/shared-ts/src/threshold/participants';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { consumeRegistrationSetupRateLimit } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationSetupRateLimit';
+      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
     `,
   },
 });
@@ -209,6 +240,7 @@ const runtime = new Miniflare({
 try {
   const database = await runtime.getD1Database('SIGNER_DB');
   await migrate(database);
+  const rateLimitEvidence = await verifySetupRateLimit(database);
   const allocator = new AddressAllocator(
     await runtime.getDurableObjectNamespace('ROUTER'),
     await runtime.getDurableObjectNamespace('A'),
@@ -221,6 +253,26 @@ try {
     database,
     ...scope,
     registrationAuthority: new ObservedRegistrationAuthority(database, scope),
+    // Setup mints the Yao identity of a NEAR branch for this SigningWorker and
+    // describes the admission that respond will issue over it.
+    ed25519YaoProductRegistration:
+      api.createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1({
+        signingWorkerId: 'worker',
+        store: api.createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1({
+          database,
+          scope,
+        }),
+        registrationBackend: new api.RouterAbEd25519YaoHttpRegistrationBackend({
+          routerUrl: 'https://router.invalid',
+          signingWorkerId: 'worker',
+          internalServiceAuth: 'setup-test-secret',
+          deriverAInputPublicKey: new Array(32).fill(1),
+          deriverBInputPublicKey: new Array(32).fill(2),
+          signingWorkerRecipientPublicKey: new Array(32).fill(3),
+          resolveTenantRoot: unexpectedRouterUse,
+          fetch: unexpectedRouterUse,
+        }),
+      }),
   };
   const registration = api.createCloudflareD1RouterApiAuthService({
     ...options,
@@ -276,15 +328,47 @@ try {
   assert.equal(options.registrationAuthority.continuationReads, 0);
   // The local authority never relocates a wallet, so the reserved generation is the first.
   assert.equal(allocator.calls, 1);
+  assert.equal(starter.preparations.length, 1);
+  assert.deepEqual(starter.preparations[0].admissionReceipt, first.ed25519.admissionReceipt);
+  assert.equal(starter.preparations[0].walletId, first.walletId);
   const identity = api.walletObjectIdentity(first.walletId, 1, scope);
   const saved = await addresses.read(identity);
   assert.ok(saved);
+  // Setup minted the Yao identity of the NEAR branch, in the snapshot and in its copy.
+  const minted = await readEd25519YaoMints(database, first.registrationCeremonyId);
+  assert.equal(minted.length, 2);
+  assert.deepEqual(minted[0], minted[1]);
+  assert.equal(minted[0].materialActivation.material_owner, first.walletId);
+  assert.equal(minted[0].materialActivation.signing_worker, 'worker');
+  assert.equal(minted[0].sessionId.length, 32);
+  assert.ok(minted[0].sessionId.some(Boolean));
+  // A passkey's scope is known before its proof, so setup describes the
+  // admission over that identity. It admits nothing: no Yao record exists.
+  assert.equal(first.ed25519.status, 'described');
+  assert.deepEqual(first.ed25519.admissionReceipt.binding.session_id, minted[0].sessionId);
+  assert.deepEqual(
+    first.ed25519.admissionRequest.scope.material_activation,
+    minted[0].materialActivation,
+  );
+  assert.equal(first.ed25519.admissionRequest.scope.lifecycle_id, first.registrationCeremonyId);
+  assert.equal(
+    await database
+      .prepare('SELECT COUNT(*) AS rows FROM router_ab_yao_versioned_json_records')
+      .first('rows'),
+    0,
+  );
 
   const replay = await setup(registration, input);
   assert.equal(replay.ok, true, JSON.stringify(replay));
   assert.equal(replay.registrationCeremonyId, first.registrationCeremonyId);
   assert.equal(allocator.calls, 1, 'A replayed setup must use its saved addresses');
   assert.deepEqual(await addresses.read(identity), saved);
+  assert.deepEqual(
+    await readEd25519YaoMints(database, first.registrationCeremonyId),
+    minted,
+    'A replayed setup must keep its minted Yao identity',
+  );
+  assert.deepEqual(replay.ed25519, first.ed25519, 'A replayed setup describes the same admission');
 
   const other = await setup(registration, {
     ...input,
@@ -295,6 +379,12 @@ try {
   });
   assert.equal(other.ok, true, JSON.stringify(other));
   assert.notEqual(other.walletId, first.walletId);
+  const otherMinted = await readEd25519YaoMints(database, other.registrationCeremonyId);
+  assert.notDeepEqual(otherMinted[0].sessionId, minted[0].sessionId);
+  assert.notEqual(
+    otherMinted[0].materialActivation.activation_id,
+    minted[0].materialActivation.activation_id,
+  );
   assert.equal(allocator.calls, 2);
   assert.notDeepEqual(
     await addresses.read(api.walletObjectIdentity(other.walletId, 1, scope)),
@@ -482,6 +572,14 @@ try {
     /immutable/,
   );
 
+  starter.failPreparation = true;
+  const withoutPreparation = await setup(registration, {
+    ...input,
+    request: { ...input.request, registrationOperationId: api.createRegistrationSetupOperationId() },
+  });
+  assert.equal(withoutPreparation.ok, true, 'A failed early preparation must preserve the committed setup');
+  starter.failPreparation = false;
+
   const setupRecovery = await verifySetupRecovery(database, options, starter, addresses, input);
 
   await writeFile(
@@ -489,6 +587,8 @@ try {
     `${JSON.stringify(
       {
         setupRecovery,
+        unavailablePreparationPreservesSetup: true,
+        rateLimitEvidence,
         replayUsesStoredAddresses: true,
         independentWallets: true,
         lostAllocationReplyRecovered: true,
@@ -640,4 +740,34 @@ async function verifySetupRecovery(database, options, starter, addresses, input)
 
 function isCeremonyRecord(record) {
   return record.record_scope === 'ceremony' || record.record_scope === 'setup-ceremony';
+}
+
+async function verifySetupRateLimit(database) {
+  const input = { ...scope, apiKeyId: 'public-key', sourceIp: '192.0.2.1' };
+  const consume = api.consumeRegistrationSetupRateLimit.bind(null, database, scope.namespace, input);
+  const attempts = await Promise.all(Array.from({ length: 42 }, consume));
+  const accepted = attempts.filter(isAllowed).length;
+  assert.equal(accepted, 30, 'Concurrent setup must admit exactly thirty requests');
+  for (const other of [
+    { ...input, apiKeyId: 'another-key' },
+    { ...input, sourceIp: '192.0.2.2' },
+  ]) {
+    assert.equal((await api.consumeRegistrationSetupRateLimit(database, scope.namespace, other)).allowed, true);
+  }
+  await database.prepare('UPDATE registration_setup_rate_limits SET reset_at_ms = 0').run();
+  assert.equal((await consume()).allowed, true, 'Expired windows allow setup again');
+  await database.prepare('DROP TABLE registration_setup_rate_limits').run();
+  await assert.rejects(consume, /registration_setup_rate_limits/);
+  await database.batch(unstable_splitSqlQuery(await readFile(
+    'packages/wallet-server/migrations/d1-signer/0080_registration_setup_rate_limits.sql', 'utf8',
+  )).map(prepareStatement.bind(null, database)));
+  return { attempts: attempts.length, accepted, keyAndIpIsolation: true, expiredWindow: true, storageFailureRefused: true };
+}
+
+function isAllowed(result) {
+  return result.allowed;
+}
+
+function prepareStatement(database, query) {
+  return database.prepare(query);
 }

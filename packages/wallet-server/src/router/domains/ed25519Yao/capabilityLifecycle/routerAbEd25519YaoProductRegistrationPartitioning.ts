@@ -21,7 +21,13 @@ type RecoveryCapabilityState = MapValue<InMemoryRouterAbEd25519YaoRecoveryStateV
 type RecoveryLifecycleState = MapValue<InMemoryRouterAbEd25519YaoRecoveryStateV1['recoveries']>;
 type ExportLifecycleState = MapValue<InMemoryRouterAbEd25519YaoExportStateV1['exports']>;
 
-const MAX_SHARED_RECOVERY_CAPABILITIES = 32;
+/** A suspended capability belongs to a recovery in progress and has no other record. */
+const MAX_SUSPENDED_RECOVERY_CAPABILITIES = 32;
+/**
+ * An active or a retired capability repeats its signer row. A recovery stores
+ * one between its installation and its suspension, so only the newest few stay.
+ */
+const MAX_SETTLED_RECOVERY_CAPABILITIES = 4;
 
 export type RouterAbEd25519YaoProductRegistrationSharedStateV1 = {
   readonly kind: 'router_ab_ed25519_yao_product_registration_shared_state_v1';
@@ -257,21 +263,22 @@ export function boundedRouterAbEd25519YaoProductRegistrationSharedStateV1(
 function boundedRecoveryCapabilities(
   source: ReadonlyMap<string, RecoveryCapabilityState>,
 ): Map<string, RecoveryCapabilityState> {
-  if (source.size <= MAX_SHARED_RECOVERY_CAPABILITIES) return new Map(source);
-
-  // Durable signer rows are canonical. This shared map is a request cache, so
-  // retain active recovery ceremonies first and let older wallets rehydrate.
+  // Signer rows are canonical, so an evicted capability is read from its row
+  // and a later recovery stores it again.
   const entries = [...source.entries()];
   const suspended = entries.filter(([, capability]) => capability.kind === 'suspended');
   const retained = new Set<string>();
-  for (const [key] of suspended.slice(-MAX_SHARED_RECOVERY_CAPABILITIES)) retained.add(key);
+  for (const [key] of suspended.slice(-MAX_SUSPENDED_RECOVERY_CAPABILITIES)) retained.add(key);
+  let settled = 0;
   for (
     let index = entries.length - 1;
-    index >= 0 && retained.size < MAX_SHARED_RECOVERY_CAPABILITIES;
+    index >= 0 && settled < MAX_SETTLED_RECOVERY_CAPABILITIES;
     index -= 1
   ) {
     const entry = entries[index];
-    if (entry) retained.add(entry[0]);
+    if (!entry || entry[1].kind === 'suspended') continue;
+    retained.add(entry[0]);
+    settled += 1;
   }
 
   const bounded = new Map<string, RecoveryCapabilityState>();

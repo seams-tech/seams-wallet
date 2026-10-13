@@ -12,7 +12,7 @@ relayer URL, and managed-registration credentials.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet@0.9.4
+pnpm add @seams/wallet@0.10.0
 ```
 
 ## 2. Mount the provider
@@ -24,9 +24,9 @@ values from `import.meta.env`. Use the same environment variable names or your o
 configuration loader. Pass `chains` to configure different networks. Use
 `defineSeamsConfig` for networks other than testnet.
 
-These docs target `@seams/wallet` **0.9.4**. Keep the wallet-origin assets and
+These docs target `@seams/wallet` **0.10.0**. Keep the wallet-origin assets and
 `@seams/wallet-server` on the matching release. See
-[upgrading to 0.9.0](/deploy-and-operate/hosted-integration#upgrading-to-0-9-0)
+[upgrading to 0.10.0](/deploy-and-operate/hosted-integration#upgrading-to-0-10-0)
 before updating an existing integration.
 
 <<< ./examples/setup.tsx

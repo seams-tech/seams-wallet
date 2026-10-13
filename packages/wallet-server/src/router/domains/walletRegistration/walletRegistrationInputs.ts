@@ -9,6 +9,7 @@ import type {
   RouterAbEcdsaRegistrationRequestV1,
   RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
+import type { RouterAbEd25519YaoActivationExecuteRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import type {
   WalletRegistrationAuthorityInput,
   WalletRegistrationFinalizeSignerWork,
@@ -51,6 +52,11 @@ export type WalletRegistrationRespondInput = {
     readonly strictRegistration: RouterAbEcdsaRegistrationRequestV1;
     readonly requestDigestB64u: string;
   };
+  /**
+   * The execute request of an Ed25519-only plan, prepared from the admission
+   * that setup described. Respond admits, then runs it in the same request.
+   */
+  readonly ed25519Execution?: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
   /** Verifies the opaque setup token before authority-bound work begins. */
   readonly verifier: WalletRegistrationSetupVerifier;
   readonly userAgent?: string;

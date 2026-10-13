@@ -9,11 +9,19 @@ import {
   type StoredWalletRegistrationSignerBranch,
 } from '../../../../core/RegistrationCeremonyStore';
 import { registrationPreparationIdFromString } from '../../../../core/registrationContracts';
-import type { WalletRegistrationSetupResponseV2 } from '../../../../core/threeRouteRegistrationContracts';
+import type {
+  WalletRegistrationSetupEd25519AdmissionV2,
+  WalletRegistrationSetupResponseV2,
+} from '../../../../core/threeRouteRegistrationContracts';
 import {
   routerAbEcdsaStrictRegistrationFactsBindingJson,
   type RouterAbEcdsaStrictRegistrationPort,
 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
+import {
+  buildRouterAbEd25519YaoProductAdmissionRequestV1,
+  mintRouterAbEd25519YaoRegistrationIdentityV1,
+  type RouterAbEd25519YaoProductRegistrationRuntimeV1,
+} from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import { isTransientD1Error } from '../../../../storage/d1Retry';
 import type { WalletRegistrationSetupInput } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import type {
@@ -30,6 +38,7 @@ import { CloudflareD1RegistrationCeremonyIntentStore } from './d1RegistrationCer
 import {
   errorMessage,
   registrationIntentSignerBranches,
+  registrationSignerBranchesFromPlan,
   registrationPreparedContextEcdsaChainTargets,
   resolveRegistrationPreparedContextFromPlan,
 } from './d1RegistrationSetupSupport';
@@ -46,6 +55,11 @@ type WalletRegistrationSetupDependencies = {
   readonly reservation: Pick<WalletRegistrationReservationAuthority, 'reserve'> | null;
   readonly store: CloudflareD1RegistrationCeremonyIntentStore;
   readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
+  /** The runtime of Ed25519 Yao registrations, or `null` when none is configured. */
+  readonly ed25519Yao: Pick<
+    RouterAbEd25519YaoProductRegistrationRuntimeV1,
+    'signingWorkerId' | 'describeRegistrationAdmission'
+  > | null;
   readonly startRegistrationWallets: RegistrationWalletStarter | null;
 };
 
@@ -82,6 +96,7 @@ export async function executeD1WalletRegistrationSetup(
     // can overlap the ceremony read and write; neither grants signing authority.
     const [startup, setup] = await Promise.allSettled([
       dependencies.startRegistrationWallets?.({
+        kind: 'objects',
         walletId: wallet.walletId,
         ownershipGeneration: admitted.ownershipGeneration,
       }),
@@ -90,6 +105,24 @@ export async function executeD1WalletRegistrationSetup(
     if (setup.status === 'rejected') throw setup.reason;
     if (!setup.value.ok) return setup.value;
     if (startup.status === 'rejected') throw startup.reason;
+    if (dependencies.startRegistrationWallets) {
+      try {
+        const preparation = await describeCommittedSetupPair(setup.value, dependencies);
+        if (preparation.status === 'described') {
+          await dependencies.startRegistrationWallets({
+            kind: 'pair',
+            walletId: wallet.walletId,
+            ownershipGeneration: admitted.ownershipGeneration,
+            admissionRequest: preparation.admissionRequest,
+            admissionReceipt: preparation.admissionReceipt,
+            expiresAtMs,
+          });
+        }
+      } catch {
+        // The committed setup can execute through ordinary online admission.
+        console.warn('[wallet-registration] pair preparation unavailable');
+      }
+    }
     return setup.value;
   } catch (error: unknown) {
     // The route layer maps both codes to a 5xx status and withholds this message.
@@ -100,11 +133,36 @@ export async function executeD1WalletRegistrationSetup(
   }
 }
 
+async function describeCommittedSetupPair(
+  response: Variant<WalletRegistrationSetupResponseV2, 'ok', true>,
+  dependencies: Pick<WalletRegistrationSetupDependencies, 'store' | 'ed25519Yao'>,
+): Promise<WalletRegistrationSetupEd25519AdmissionV2> {
+  switch (response.kind) {
+    case 'near_ed25519':
+      return response.ed25519;
+    case 'evm_family_ecdsa':
+      return { status: 'after_proof' };
+    case 'near_ed25519_and_evm_family_ecdsa': {
+      const ceremony = await dependencies.store.getSetupCeremony(response.registrationCeremonyId);
+      if (!ceremony) throw new Error('Committed mixed registration ceremony is missing');
+      const branches = registrationSignerBranchesFromPlan(ceremony.signerPlan);
+      if (!branches.nearEd25519) throw new Error('Mixed registration has no NEAR branch');
+      return describeSetupEd25519Admission(dependencies.ed25519Yao, ceremony, branches.nearEd25519);
+    }
+    default:
+      return assertNeverSetupResponse(response);
+  }
+}
+
+function assertNeverSetupResponse(value: never): never {
+  throw new Error(`Unexpected registration setup response: ${String(value)}`);
+}
+
 async function completeReservedRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: Pick<
     WalletRegistrationSetupDependencies,
-    'home' | 'store' | 'ecdsaStrictRegistration'
+    'home' | 'store' | 'ecdsaStrictRegistration' | 'ed25519Yao'
   >,
   admitted: Variant<WalletRegistrationSetupReservationResult, 'ok', true>,
   normalized: Variant<ReturnType<typeof normalizeWalletRegistrationSetupRequest>, 'ok', true>,
@@ -167,7 +225,7 @@ async function completeReservedRegistrationSetup(
     if (admitted.lifecycle === 'reserved') {
       await dependencies.store.reserveSetupCeremony(existing, admitted.ownershipGeneration);
     }
-    return await setupResponseFromCeremony(input, dependencies.home, existing);
+    return await setupResponseFromCeremony(input, dependencies, existing);
   }
   if (admitted.lifecycle === 'established')
     return walletRegistrationSetupError(
@@ -178,6 +236,12 @@ async function completeReservedRegistrationSetup(
   const nearEd25519Branch = branches.value.nearEd25519;
   if (!ecdsaBranch && !nearEd25519Branch) {
     return walletRegistrationSetupError('invalid_body', 'registration signer branch is required');
+  }
+  if (nearEd25519Branch && !dependencies.ed25519Yao) {
+    return walletRegistrationSetupError(
+      'not_configured',
+      'Ed25519 Yao registration is unavailable',
+    );
   }
   /* A mixed plan is stored whole — the plan is what the ceremony agreed
        to — but only its ECDSA branch is prepared here. Respond adds the
@@ -205,8 +269,9 @@ async function completeReservedRegistrationSetup(
   }
 
   /* ECDSA preparation only, and only when the plan has an ECDSA branch.
-       An Ed25519-only plan has nothing to prepare before the proof: its Yao
-       admission binds the authority scope, so respond derives it. */
+       An Ed25519 branch gets its Yao identity below and nothing else before
+       the proof: its admission binds the authority scope, so respond derives
+       it and issues it over that identity. */
   const ecdsaPrepared =
     ecdsaBranch && chainTargets && runtimePolicyScope
       ? await buildD1EvmFamilyEcdsaRegistrationPrepare({
@@ -259,20 +324,74 @@ async function completeReservedRegistrationSetup(
     expiresAtMs,
     /* The proof does not exist yet; respond binds it. */
     authorityState: { kind: 'awaiting_proof', authMethod: normalized.authMethod },
+    ed25519YaoMint:
+      nearEd25519Branch && dependencies.ed25519Yao
+        ? mintRouterAbEd25519YaoRegistrationIdentityV1({
+            walletId: wallet.walletId,
+            signingWorkerId: dependencies.ed25519Yao.signingWorkerId,
+          })
+        : null,
     signerState: { kind: 'signer_set_registration', branches: storedBranches },
   };
   const stored = await dependencies.store.reserveSetupCeremony(
     ceremony,
     admitted.ownershipGeneration,
   );
-  return await setupResponseFromCeremony(input, dependencies.home, stored);
+  return await setupResponseFromCeremony(input, dependencies, stored);
+}
+
+/**
+ * The admission that respond will issue for a passkey plan with a NEAR branch.
+ * It follows from the stored ceremony alone, so a setup retry describes the
+ * same admission. A failure to describe it withholds the description and
+ * nothing else: respond then issues the admission as its first word on it.
+ */
+async function describeSetupEd25519Admission(
+  ed25519Yao: WalletRegistrationSetupDependencies['ed25519Yao'],
+  ceremony: StoredWalletRegistrationCeremony,
+  branch: NonNullable<ReturnType<typeof registrationSignerBranchesFromPlan>['nearEd25519']>,
+): Promise<WalletRegistrationSetupEd25519AdmissionV2> {
+  const authMethod = ceremony.intent.authMethod;
+  const mint = ceremony.ed25519YaoMint;
+  const signingRootId = toOptionalTrimmedString(ceremony.signingRootId);
+  const signingRootVersion = toOptionalTrimmedString(ceremony.signingRootVersion);
+  if (
+    authMethod.kind !== 'passkey' ||
+    !ed25519Yao ||
+    !mint ||
+    !signingRootId ||
+    !signingRootVersion
+  ) {
+    return { status: 'after_proof' };
+  }
+  const admissionRequest = await buildRouterAbEd25519YaoProductAdmissionRequestV1({
+    registrationCeremonyId: ceremony.registrationCeremonyId,
+    walletId: ceremony.intent.walletId,
+    signingRootId,
+    signingRootVersion,
+    authorityScope: { kind: 'passkey', rpId: authMethod.rpId },
+    branch,
+    signingWorkerId: ed25519Yao.signingWorkerId,
+    materialActivation: mint.materialActivation,
+  });
+  const described = await ed25519Yao
+    .describeRegistrationAdmission(admissionRequest, mint.sessionId)
+    .catch(withholdEd25519AdmissionDescription);
+  return described?.ok
+    ? { status: 'described', admissionRequest, admissionReceipt: described.value }
+    : { status: 'after_proof' };
+}
+
+function withholdEd25519AdmissionDescription(): null {
+  return null;
 }
 
 async function setupResponseFromCeremony(
   input: WalletRegistrationSetupInput,
-  home: WalletSessionHome,
+  dependencies: Pick<WalletRegistrationSetupDependencies, 'home' | 'ed25519Yao'>,
   ceremony: StoredWalletRegistrationCeremony,
 ): Promise<WalletRegistrationSetupResponseV2> {
+  const home = dependencies.home;
   const { signedSetup } = await buildWalletRegistrationSetupSignature({
     signer: input.signer,
     ceremony,
@@ -290,7 +409,19 @@ async function setupResponseFromCeremony(
     intent: ceremony.intent,
     signedSetup,
   };
-  if (!branches.value.evmFamilyEcdsa) return { ...success, kind: 'near_ed25519' };
+  if (!branches.value.evmFamilyEcdsa) {
+    if (!branches.value.nearEd25519)
+      return walletRegistrationSetupError('invalid_state', 'Registration setup has no signer');
+    return {
+      ...success,
+      kind: 'near_ed25519',
+      ed25519: await describeSetupEd25519Admission(
+        dependencies.ed25519Yao,
+        ceremony,
+        branches.value.nearEd25519,
+      ),
+    };
+  }
   if (ceremony.signerState.kind !== 'signer_set_registration')
     return walletRegistrationSetupError(
       'invalid_state',

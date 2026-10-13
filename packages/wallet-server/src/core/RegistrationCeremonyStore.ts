@@ -47,6 +47,7 @@ import type {
   RouterAbEcdsaStrictForwardedRegistrationResponseV1,
   RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
+import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RouterAbEcdsaPendingActivationV1 } from '../router/domains/ecdsa/routerAbEcdsaStrictRegistration';
 import type { WalletEd25519SignerRecord } from './WalletStore';
 import { type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
@@ -421,6 +422,16 @@ export type StoredWalletRegistrationCeremonyAuthorityState =
       authMethod?: never;
     };
 
+/**
+ * The Yao identity of a registration's NEAR branch. Setup mints it, and the
+ * admission that respond issues after the proof is over these values. It
+ * grants nothing: no admission exists until the proof is verified.
+ */
+export type StoredWalletRegistrationEd25519YaoMint = {
+  materialActivation: RouterAbMpcMaterialActivationRefWire;
+  sessionId: RouterAbEd25519YaoBytes32V1;
+};
+
 type StoredWalletRegistrationCeremonyBase = {
   registrationCeremonyId: string;
   foundingWalletAuthorityId: WalletAuthorityId;
@@ -436,6 +447,8 @@ type StoredWalletRegistrationCeremonyBase = {
   expectedOrigin?: string;
   expiresAtMs: number;
   authorityState: StoredWalletRegistrationCeremonyAuthorityState;
+  /** `null` exactly when the signer plan has no NEAR branch. */
+  ed25519YaoMint: StoredWalletRegistrationEd25519YaoMint | null;
 };
 
 export type StoredWalletRegistrationCeremony = StoredWalletRegistrationCeremonyBase & {

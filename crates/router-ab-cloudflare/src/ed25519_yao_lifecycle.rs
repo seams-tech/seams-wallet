@@ -1,14 +1,18 @@
 mod bound_root;
 mod deriver_b_start;
-pub(crate) use bound_root::DeriverATargetSource;
-#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
-pub(crate) use bound_root::{prepare_deriver_a_pair_for_wallet_do_v1, DeriverAPairPreparationV1};
+#[cfg(feature = "strict-worker-deriver-b-entrypoint")]
+mod registration_peer;
 use crate::tenant_root_role_d1::RootUseAccess;
+pub(crate) use bound_root::DeriverATargetSource;
 use bound_root::{
     load_ed25519_yao_tenant_root_role_share_v2, prepare_deriver_a_target, PreparedDeriverATarget,
 };
+#[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+pub(crate) use bound_root::{prepare_deriver_a_pair_for_wallet_do_v1, DeriverAPairPreparationV1};
 use core::{fmt, future::Future};
 use deriver_b_start::handle_pair_bound_deriver_b_websocket;
+#[cfg(feature = "strict-worker-deriver-b-entrypoint")]
+pub(crate) use registration_peer::accept_prepared_peer;
 use std::time::Duration;
 
 #[path = "ed25519_yao_role_d1.rs"]
@@ -763,6 +767,23 @@ struct DeriverBWalletDoStorageV1 {
 }
 
 impl DeriverBYaoSessionD1V1 {
+    async fn registration_preparation_access(
+        &self,
+        request: &CloudflareEd25519YaoPairPrepareRequestV1,
+    ) -> worker::Result<RootUseAccess> {
+        #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
+        if let Some(wallet) = &self.wallet_do {
+            return crate::durable_object::registration_preparation::access_for_execution(
+                &wallet.object_id,
+                &wallet.sql,
+                &self.env,
+                &request.tenant_root,
+                &request.pair_binding,
+            )
+            .await;
+        }
+        Ok(RootUseAccess::Admit)
+    }
     #[cfg(not(feature = "strict-worker-deriver-b-entrypoint"))]
     fn new(env: Env) -> Self {
         Self {
@@ -887,13 +908,14 @@ impl DeriverBYaoSessionD1V1 {
         {
             return Response::from_json(&answer);
         }
+        let access = self.registration_preparation_access(&request).await?;
         let (_, role_share, _, root_metadata_digest) = load_ed25519_yao_tenant_root_role_share_v2(
             &self.env,
             CloudflareWorkerRoleV1::DeriverB,
             &request.tenant_root,
             &request.pair_binding,
             self.pair_object_id(),
-            RootUseAccess::Admit,
+            access,
         )
         .await
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
@@ -1450,6 +1472,7 @@ pub(crate) async fn execute_deriver_a_role<ConfirmStart, Confirmation>(
     trace_id: RoleTraceContextV1,
     pair_execution: DeriverAPairExecutionContextV1<'_>,
     target_source: DeriverATargetSource,
+    prepared_peer: Option<crate::registration_pair_connection::PreparedConnection>,
     confirm_start: ConfirmStart,
 ) -> Result<DeriverAPairRoleExecutionV1, DeriverAPairRoleFailureV1>
 where
@@ -1478,15 +1501,25 @@ where
     };
     // Both operations must finish, including when the root read fails. The
     // connection owns socket cleanup until protocol execution ends.
+    let was_prepared = prepared_peer.is_some();
+    let connect = async {
+        match prepared_peer {
+            Some(peer) => Ok(peer.connection),
+            None => {
+                connect_deriver_b(
+                    env,
+                    websocket_binding,
+                    trace_id,
+                    pair_execution.execution_id,
+                    &start,
+                )
+                .await
+            }
+        }
+    };
     let (target_result, connection_result) = futures::join!(
         prepare_deriver_a_target(env, &pair_execution, target_source, trace_id),
-        connect_deriver_b(
-            env,
-            websocket_binding,
-            trace_id,
-            pair_execution.execution_id,
-            &start,
-        ),
+        connect,
     );
     // B's answer comes first: when B holds no claim, the reservation is
     // released whatever became of A's own target.
@@ -1504,10 +1537,24 @@ where
         outbound,
         stable_context,
     } = target_result?;
-    confirm_start().await?;
     let mut transport =
         CloudflareEd25519YaoWebSocketTransportV1::deriver_a(&connection.socket, session)
             .map_err(map_websocket_error)?;
+    if was_prepared {
+        match transport
+            .start_prepared_registration(pair_execution.execution_id, &start)
+            .await
+        {
+            Ok(()) => {}
+            Err(CloudflareEd25519YaoPairStartErrorV1::Refused(refusal)) => {
+                return Err(DeriverAPairRoleFailureV1::PeerHoldsNoClaim(refusal.reason))
+            }
+            Err(CloudflareEd25519YaoPairStartErrorV1::Failed(error)) => {
+                return Err(map_websocket_error(error).into())
+            }
+        }
+    }
+    confirm_start().await?;
     let incoming = transport
         .exchange_deriver_a_target_proof_preface_v2(&outbound)
         .await
@@ -2119,6 +2166,7 @@ async fn execute_deriver_b_role(
     pair_binding: Ed25519YaoInputPairBindingV1,
     tenant_root: crate::CloudflareEd25519YaoTenantRootContextV2,
     work: crate::CloudflareEd25519YaoPairWorkV1,
+    prepared_start: Option<crate::registration_pair_connection::Start>,
 ) -> RouterAbProtocolResult<()> {
     let scope = CloudflareDeriverBWalletPairScopeV1 {
         wallet_route: tenant_root.wallet_route,
@@ -2164,6 +2212,20 @@ async fn execute_deriver_b_role(
         )
         .await?;
     validate_expected_root_metadata_digest(expected_root_metadata_digest, root_metadata_digest)?;
+    if let Some(start) = prepared_start {
+        let acknowledgement = crate::registration_pair_connection::Reply::Started {
+            session: start.scope.scope.pair_binding.session(),
+            pair_digest: start.scope.scope.pair_binding.pair_digest().bytes,
+            execution_id: start.execution_id,
+        };
+        socket
+            .send_with_str(
+                &serde_json::to_string(&acknowledgement)
+                    .map_err(|_| invalid_lifecycle("Peer start could not be encoded"))?,
+            )
+            .map_err(|_| invalid_lifecycle("Peer start could not be acknowledged"))?;
+    }
+
     let preface = prepare_cloudflare_ed25519_yao_deriver_b_target_v2(
         role_share,
         &custody_binding,

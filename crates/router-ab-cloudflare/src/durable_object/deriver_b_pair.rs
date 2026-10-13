@@ -161,6 +161,7 @@ pub struct RouterAbDeriverBWalletDurableObject {
     /// preparation reads it and stops waiting. It is never persisted: without
     /// it the connection waits until the run ends.
     failed_preparations: Rc<RefCell<HashMap<[u8; 32], Ed25519YaoOuterBindingV2>>>,
+    prepared_peer: Rc<std::cell::Cell<bool>>,
 }
 
 impl DurableObject for RouterAbDeriverBWalletDurableObject {
@@ -172,6 +173,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
             state: Rc::new(state),
             env,
             failed_preparations: Rc::default(),
+            prepared_peer: Rc::default(),
         }
     }
 
@@ -184,9 +186,60 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
         let result = self.fetch_wallet_request(request).await;
         observation.finish(result)
     }
+
+    async fn alarm(&self) -> worker::Result<Response> {
+        super::registration_preparation::expire(&self.state, &self.sql, &self.env).await
+    }
 }
 
 impl RouterAbDeriverBWalletDurableObject {
+    async fn prepare_registration(&self, mut request: Request) -> worker::Result<Response> {
+        relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+        let socket = request.path() == crate::registration_pair_preparation::SOCKET_PATH;
+        let method = if socket { worker::Method::Get } else { worker::Method::Post };
+        if request.method() != method {
+            return Response::error("Registration preparation method is invalid", 405);
+        }
+        let preparation: crate::registration_pair_preparation::RegistrationPreparation = if socket {
+            serde_json::from_str(
+                &request
+                    .headers()
+                    .get(crate::registration_pair_preparation::PREPARATION_HEADER)?
+                    .ok_or_else(|| pair_error("Prepared peer scope is missing"))?,
+            )
+            .map_err(pair_error)?
+        } else {
+            request.json().await?
+        };
+        let identity = &preparation.request.tenant_root.identity;
+        let owner = DeriverBWalletOwnerV1 {
+            org_id: identity.org_id().into(),
+            project_id: identity.project_id().into(),
+            env_id: identity.env_id().into(),
+            wallet_id: preparation.request.binding.lifecycle.account_id.clone(),
+        };
+        if preparation.wallet_route.addresses.deriver_b.as_str() != self.state.id().to_string() {
+            return Response::error(
+                "Registration preparation addresses another wallet object",
+                409,
+            );
+        }
+        self.check_owner(&owner, true)?;
+        if socket {
+            return crate::ed25519_yao_lifecycle::accept_prepared_peer(
+                self.env.clone(),
+                DeriverBExecutionHostV1::Wallet(self.clone()),
+                self.sql.clone(),
+                preparation,
+                self.prepared_peer.clone(),
+            )
+            .await
+            .map_err(pair_error);
+        }
+        super::registration_preparation::admit(&self.state, &self.sql, &self.env, preparation)
+            .await?;
+        Response::from_json(&true)
+    }
     pub(crate) async fn forward_websocket(request: Request, env: &Env) -> worker::Result<Response> {
         let scope = deriver_b_pair_start_scope(&request)
             .map_err(pair_error)?
@@ -240,6 +293,18 @@ impl RouterAbDeriverBWalletDurableObject {
     }
 
     async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
+        if request.path() == crate::registration_pair_preparation::ROLE_PATH
+            || request.path() == crate::registration_pair_preparation::SOCKET_PATH
+        {
+            self.sql.exec(OWNER_SCHEMA, None)?;
+            self.sql.exec(PAIR_SCHEMA, None)?;
+            self.sql.exec(FENCE_SCHEMA, None)?;
+            self.sql.exec(relocation::SCHEMA, None)?;
+            self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
+            self.sql
+                .exec(super::registration_preparation::SCHEMA, None)?;
+            return self.prepare_registration(request).await;
+        }
         let path = request.path();
         let websocket = path == CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH
             && request.method() == worker::Method::Get;
@@ -259,12 +324,16 @@ impl RouterAbDeriverBWalletDurableObject {
         self.sql.exec(FENCE_SCHEMA, None)?;
         self.sql.exec(relocation::SCHEMA, None)?;
         self.sql.exec(relocation::SOURCE_SCHEMA, None)?;
+        self.sql
+            .exec(super::registration_preparation::SCHEMA, None)?;
         if path == super::wallet_startup::PATH {
             // A first protocol run in an isolate costs several times a later
             // one. Run one in-memory ceremony during the prompt.
             #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
             self.state
-                .wait_until(crate::ed25519_yao_prewarm::prewarm_role_isolate_v1("deriver_b"));
+                .wait_until(crate::ed25519_yao_prewarm::prewarm_role_isolate_v1(
+                    "deriver_b",
+                ));
             return Response::from_json(&true);
         }
         // Any other request is real work: a running prewarm stops for it.

@@ -74,9 +74,15 @@ export type RouterAbEd25519YaoRegistrationBackendResult =
 
 export interface RouterAbEd25519YaoRegistrationBackend {
   takeLastRouterServerTiming?(): string | null;
+  /**
+   * Issues the admission receipt. A registration passes the session that its
+   * setup minted, and the receipt is over that session. Without one the
+   * backend mints the session here.
+   */
   admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ):
     | Promise<RouterAbEd25519YaoRegistrationBackendResult>
     | RouterAbEd25519YaoRegistrationBackendResult;
@@ -94,6 +100,7 @@ export interface RouterAbEd25519YaoRegistrationService {
   admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<
     RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationAdmissionReceiptV1>
   >;
@@ -339,6 +346,39 @@ export function encodeRouterAbEd25519YaoRegistrationAdmissionFingerprintV1(
   return canonicalWireFingerprint(request);
 }
 
+/**
+ * The receipt that `backend` issues for `request` over the session that setup
+ * minted, checked as an admission checks it. It stores nothing and admits
+ * nothing: the admission still follows the verified proof.
+ */
+export async function describeRouterAbEd25519YaoRegistrationAdmissionV1(input: {
+  readonly backend: RouterAbEd25519YaoRegistrationBackend;
+  readonly request: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+  readonly mintedSessionId: RouterAbEd25519YaoBytes32V1;
+}): Promise<
+  RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationAdmissionReceiptV1>
+> {
+  return admissionReceiptFromBackend(
+    input.request,
+    await input.backend.admit(input.request, undefined, input.mintedSessionId),
+  );
+}
+
+function admissionReceiptFromBackend(
+  request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  backendResult: RouterAbEd25519YaoRegistrationBackendResult,
+): RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationAdmissionReceiptV1> {
+  if (!backendResult.ok) return backendFailure(backendResult, 'admission_failed');
+  const parsed = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
+    backendResult.body,
+  );
+  if (!parsed.ok) return invalidBackendResponse(parsed.message);
+  if (!registrationScopeMatchesReceipt(request, parsed.value)) {
+    return invalidBackendResponse('registration admission receipt scope does not match request');
+  }
+  return { ok: true, status: 200, value: parsed.value };
+}
+
 function registrationScopeMatchesReceipt(
   request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
   receipt: RouterAbEd25519YaoRegistrationAdmissionReceiptV1,
@@ -570,6 +610,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
   async admit(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
+    mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<
     RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationAdmissionReceiptV1>
   > {
@@ -584,7 +625,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
         try {
           outcome = {
             kind: 'backend_response',
-            result: await this.backend.admit(request, traceContext),
+            result: await this.backend.admit(request, traceContext, mintedSessionId),
           };
         } catch (error: unknown) {
           outcome = {
@@ -672,21 +713,10 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
         message: input.outcome.message,
       };
     }
-    const backendResult = input.outcome.result;
-    if (!backendResult.ok) {
-      this.admissionClaims.delete(input.claim.lifecycleId);
-      return backendFailure(backendResult, 'admission_failed');
-    }
-    const parsed = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
-      backendResult.body,
-    );
+    const parsed = admissionReceiptFromBackend(input.request, input.outcome.result);
     if (!parsed.ok) {
       this.admissionClaims.delete(input.claim.lifecycleId);
-      return invalidBackendResponse(parsed.message);
-    }
-    if (!registrationScopeMatchesReceipt(input.request, parsed.value)) {
-      this.admissionClaims.delete(input.claim.lifecycleId);
-      return invalidBackendResponse('registration admission receipt scope does not match request');
+      return parsed;
     }
     const key = registrationSessionKey(parsed.value);
     if (this.states.has(key)) {

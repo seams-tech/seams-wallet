@@ -1022,6 +1022,10 @@ function isRequestTraceEntry(entry: TraceEntry): boolean {
   return entry.kind === 'request';
 }
 
+function isRegistrationPostRequest(entry: TraceEntry): boolean {
+  return isRequestTraceEntry(entry) && entry.message.startsWith('POST /wallets/register/');
+}
+
 function isWalletUnlockVerifyRequest(entry: TraceEntry): boolean {
   return entry.url !== undefined && new URL(entry.url).pathname === '/wallet/unlock/verify';
 }
@@ -3087,7 +3091,9 @@ export class IntendedBehaviourHarness {
     if (observedPaths.some((path) => path.startsWith('/wallets/recovery/'))) {
       throw new Error('Passkey cold sync unexpectedly consumed wallet recovery state');
     }
-    if (observedPaths.some((path) => path.startsWith('/wallets/register/'))) {
+    // The SDK warms the setup route with a preflight when its runtime starts.
+    // Only a POST creates registration state.
+    if (this.trace.slice(traceStartIndex).some(isRegistrationPostRequest)) {
       throw new Error('Passkey cold sync unexpectedly created another wallet registration');
     }
     this.currentWarmSigningStage = 'post_unlock';
@@ -4374,6 +4380,10 @@ export class IntendedBehaviourHarness {
       this.handleIntendedYaoFaultRoute.bind(this),
     );
     await this.context.route(
+      '**/wallets/register/respond',
+      this.handleIntendedYaoRespondFaultRoute.bind(this),
+    );
+    await this.context.route(
       `**${WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1}`,
       this.handleIntendedYaoFinalizeFaultRoute.bind(this),
     );
@@ -4672,6 +4682,20 @@ export class IntendedBehaviourHarness {
         [LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1]: current.token,
       },
     });
+  }
+
+  /** A respond that carries its execute request runs the execution that the fault targets. */
+  private async handleIntendedYaoRespondFaultRoute(route: Route): Promise<void> {
+    const request = route.request();
+    if (
+      this.intendedYaoFaultInjection.kind === 'idle' ||
+      request.method() !== 'POST' ||
+      !Object.hasOwn(request.postDataJSON() ?? {}, 'ed25519Execution')
+    ) {
+      await route.fallback();
+      return;
+    }
+    await this.handleIntendedYaoFaultRoute(route);
   }
 
   private async handleIntendedYaoRecoveryFaultRoute(route: Route): Promise<void> {

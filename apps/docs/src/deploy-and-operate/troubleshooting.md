@@ -18,10 +18,10 @@ browser console origin errors. Correct the deployment or origin allowlist. Then 
 ## An older client receives an upgrade-required response
 
 **Boundary:** SDK, hosted wallet assets, and backend release identity. Version
-0.9.0 rejects unsupported wallet-management protocols with HTTP 409 and an
+0.10.0 rejects unsupported wallet-management protocols with HTTP 409 and an
 upgrade message. Display it and reload the matching application and wallet
 assets. Stop automatic retries of the same incompatible request. Follow the
-[0.9.0 cutover instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-9-0).
+[0.10.0 upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-10-0).
 
 ## A regional wallet cannot be routed
 

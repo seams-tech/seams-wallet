@@ -174,8 +174,25 @@ pub use circuit::{
     PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1, PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1,
 };
 pub use circuit::{
+    compile_ml_dsa_eta4_sampling_circuit_v1, MlDsaEta4SamplingCircuitV1,
+    MlDsaEta4SamplingFixtureErrorV1, MlDsaEta4SamplingFixtureOutputV1,
+};
+pub use circuit::{
     compile_ml_dsa_hash_circuit_v1, MlDsaHashCircuitV1, MlDsaHashFixtureErrorV1,
     MlDsaHashWorkloadV1,
+};
+pub use circuit::{
+    compile_ml_dsa_power2round_circuit_v1, MlDsaPower2RoundCircuitV1,
+    MlDsaPower2RoundFixtureErrorV1, MlDsaPower2RoundFixtureFieldV1,
+    MlDsaPower2RoundFixtureOutputV1,
+};
+pub use circuit::{
+    compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,
+    compile_ml_dsa_private_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
+};
+pub use circuit::{
+    compile_ml_dsa_private_signing_mask_circuit_v1, MlDsaPrivateSigningMaskCircuitV1,
+    MlDsaSigningMaskFixtureErrorV1, MlDsaSigningMaskFixtureOutputV1,
 };
 pub use context::{
     ApplicationBindingDigest, NormalizedParticipantIds, ParticipantPosition,

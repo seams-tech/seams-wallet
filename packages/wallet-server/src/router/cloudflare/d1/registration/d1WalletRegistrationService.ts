@@ -108,6 +108,7 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
   sameRouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoExportAuthorizationIdentityV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { deriveRouterAbEd25519YaoRuntimePolicyBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
@@ -117,7 +118,10 @@ import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
+import {
+  createRouterAbTraceContextV1,
+  type RouterAbTraceContextV1,
+} from '@shared/utils/routerAbTraceContext';
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import { deriveThresholdEcdsaKeyHandle } from '@shared/utils/thresholdEcdsaKeyHandle';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -157,6 +161,7 @@ import {
   verifiedRegistrationCeremonyAuthority,
   type StoredRegistrationAuthority,
   type StoredWalletRegistrationCeremony,
+  type StoredWalletRegistrationEd25519YaoMint,
   type StoredWalletRegistrationCeremonyAuthorityState,
   type StoredWalletRegistrationEvmFamilyEcdsaActivatedBranch,
   type StoredWalletRegistrationEvmFamilyEcdsaPendingActivationBranch,
@@ -208,7 +213,6 @@ import {
 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoLifecycleDecision';
 import {
   buildRouterAbEd25519YaoProductAdmissionRequestV1,
-  createRouterAbEd25519YaoMaterialActivationRefV1,
   projectRouterAbEd25519YaoExactWalletSession,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
@@ -221,6 +225,7 @@ import {
   type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
 } from '../../../domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 import type { VerifiedNearRegistrationContinuationV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import { routerAbEd25519YaoRegistrationExecutionTimingEntriesV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import {
   runRouterAbEd25519YaoRegistrationSideEffectV2,
   throwIfRouterAbEd25519YaoRetryableSideEffectFailureV1,
@@ -373,12 +378,14 @@ type FinalizeWalletRegistrationInput =
   | FinalizeWalletRegistrationNearInput
   | FinalizeWalletRegistrationEcdsaInput;
 
+/** The admission request of a NEAR branch, over the identity that setup minted. */
 async function buildRespondEd25519AdmissionRequest(input: {
   readonly ceremony: StoredWalletRegistrationCeremony;
   readonly branch: RegistrationNearEd25519SignerPlan;
   readonly authority: StoredRegistrationAuthority;
   readonly signingWorkerId: string;
 }) {
+  const mint = requireRegistrationEd25519YaoMint(input.ceremony);
   return buildRouterAbEd25519YaoProductAdmissionRequestV1({
     registrationCeremonyId: input.ceremony.registrationCeremonyId,
     walletId: input.ceremony.intent.walletId,
@@ -387,11 +394,21 @@ async function buildRespondEd25519AdmissionRequest(input: {
     authorityScope: registrationEd25519AuthorityScopeFromAuthority(input.authority),
     branch: input.branch,
     signingWorkerId: input.signingWorkerId,
-    materialActivation: createRouterAbEd25519YaoMaterialActivationRefV1({
-      walletId: input.ceremony.intent.walletId,
-      signingWorkerId: input.signingWorkerId,
-    }),
+    materialActivation: mint.materialActivation,
   });
+}
+
+function ignoreRespondExecutionFailure(): null {
+  return null;
+}
+
+function requireRegistrationEd25519YaoMint(
+  ceremony: StoredWalletRegistrationCeremony,
+): StoredWalletRegistrationEd25519YaoMint {
+  if (!ceremony.ed25519YaoMint) {
+    throw new Error('Registration ceremony has no NEAR branch identity');
+  }
+  return ceremony.ed25519YaoMint;
 }
 
 type D1LinkedDeviceEd25519AuthorityReaderV1 = {
@@ -683,29 +700,6 @@ function sameLinkedEcdsaResolvedSignerIdentity(
     ) &&
     sameWalletRuntimePolicyScope(left.runtimePolicyScope, right.runtimePolicyScope)
   );
-}
-
-async function ed25519ExportIdentityFromActiveCapability(
-  descriptor: RouterAbEd25519YaoActiveCapabilityDescriptorV1,
-): Promise<RouterAbEd25519YaoExportAuthorizationIdentityV1> {
-  return {
-    scope: {
-      lifecycle_id: descriptor.lifecycle.lifecycleId,
-      root_share_epoch: descriptor.lifecycle.rootShareEpoch,
-      account_id: descriptor.lifecycle.accountId,
-      threshold_session_id: descriptor.lifecycle.thresholdSessionId,
-      signer_set_id: descriptor.lifecycle.signerSetId,
-      signing_worker_id: descriptor.lifecycle.signingWorkerId,
-      material_activation: descriptor.materialActivation,
-    },
-    application_binding: descriptor.applicationBinding,
-    participant_ids: descriptor.participantIds,
-    registered_public_key: descriptor.registeredPublicKey,
-    state_epoch: descriptor.stateEpoch,
-    runtime_policy_binding: await deriveRouterAbEd25519YaoRuntimePolicyBindingV1(
-      descriptor.runtimePolicyScope,
-    ),
-  };
 }
 
 async function ed25519ExportIdentityFromPersistedCapability(
@@ -2116,63 +2110,21 @@ export class CloudflareD1WalletRegistrationService {
           ),
         };
       }
-      const lookup = {
-        kind: 'router_ab_ed25519_yao_active_capability_lookup_v1' as const,
-        walletId: input.walletId,
-        nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
-        signerSlot: signer.signerSlot,
-        signingWorkerId: signer.signingWorkerId,
-        participantIds: signer.participantIds,
-      };
-      const active =
-        input.signerRead?.resolveActiveCapability(lookup) ??
-        await yaoRuntime.resolveActiveCapability(lookup);
-      if (!active.ok) {
-        if (active.code === 'unknown_capability') {
-          if (
-            !sameRouterAbMpcMaterialActivationRef(
-              signer.activeYaoCapability.activationResult.binding.material_activation,
-              input.materialActivation,
-            )
-          ) {
-            return {
-              ok: false,
-              code: 'not_found',
-              message: 'Ed25519 material activation does not match the persisted capability',
-            };
-          }
-          // Recovery admission suspends the in-memory capability before its
-          // execute request; the persisted signer remains the admitted source.
-          return await activeEd25519MaterialFromPersistedSigner(signer);
-        }
-        return {
-          ok: false,
-          code: 'internal',
-          message: active.message,
-        };
-      }
       if (
         !sameRouterAbMpcMaterialActivationRef(
-          active.capability.materialActivation,
+          signer.activeYaoCapability.activationResult.binding.material_activation,
           input.materialActivation,
         )
       ) {
         return {
           ok: false,
           code: 'not_found',
-          message: 'Ed25519 material activation does not match the active capability',
+          message: 'Ed25519 material activation does not match the persisted capability',
         };
       }
-      return {
-        ok: true,
-        materialActivation: active.capability.materialActivation,
-        nearAccountId: active.capability.nearAccountId,
-        signerSlot: signer.signerSlot,
-        signingWorkerId: signer.signingWorkerId,
-        participantIds: signer.participantIds,
-        runtimePolicyScope: active.capability.runtimePolicyScope,
-        exportIdentity: await ed25519ExportIdentityFromActiveCapability(active.capability),
-      };
+      // The signer row holds the capability. A recovery admission suspends it
+      // in the recovery state only, and the row stays the admitted source.
+      return await activeEd25519MaterialFromPersistedSigner(signer);
     } catch (error: unknown) {
       return {
         ok: false,
@@ -3055,6 +3007,7 @@ export class CloudflareD1WalletRegistrationService {
       reservation: this.registrationAuthority,
       store: this.getRegistrationCeremonyIntentStore(),
       ecdsaStrictRegistration: this.ecdsaStrictRegistration,
+      ed25519Yao: this.getEd25519YaoProductRegistration(),
       startRegistrationWallets: this.startRegistrationWallets,
     });
   }
@@ -3265,8 +3218,18 @@ export class CloudflareD1WalletRegistrationService {
           startedDispatchRoot,
           expectedOrigin,
           waitUntil,
+          ed25519Execution: input.ed25519Execution ?? null,
+          traceContext: traceContext ?? null,
+          serverTiming,
           ...(input.userAgent ? { userAgent: input.userAgent } : {}),
         });
+      }
+      if (input.ed25519Execution) {
+        return {
+          ok: false,
+          code: 'invalid_body',
+          message: 'only an Ed25519-only respond carries its Yao execution',
+        };
       }
       if (!ecdsaBranch) {
         return { ok: false, code: 'invalid_state', message: 'ECDSA branch is required' };
@@ -4454,6 +4417,9 @@ export class CloudflareD1WalletRegistrationService {
     readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
     readonly expectedOrigin: string;
     readonly waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+    readonly ed25519Execution: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'> | null;
+    readonly traceContext: RouterAbTraceContextV1 | null;
+    readonly serverTiming: Array<readonly [string, number]>;
     readonly userAgent?: string;
   }): Promise<WalletRegistrationRespondResponseV2> {
     const ceremony = input.ceremony;
@@ -4549,6 +4515,7 @@ export class CloudflareD1WalletRegistrationService {
               next: authorizedCeremony(bound),
             }),
       input.startedDispatchRoot,
+      requireRegistrationEd25519YaoMint(ceremony).sessionId,
     );
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     // An admission that already existed carried no write of this request.
@@ -4579,15 +4546,37 @@ export class CloudflareD1WalletRegistrationService {
           }),
       );
     }
+    const admission = {
+      admissionRequest: admitted.admissionRequest,
+      admissionReceipt: admitted.value,
+    };
+    /* The client prepared its execute request from the admission that setup
+       described, so the proof and the execution arrive together. The
+       admission above is stored either way. An execution that does not
+       complete here is not an error of respond: the client runs it again
+       through the execute route, which reports it or replays it. */
+    const execution = input.ed25519Execution
+      ? await runtime
+          .executeAdmittedRegistration({
+            request: input.ed25519Execution,
+            credential: input.registrationBearerToken,
+            trace: input.traceContext ?? createRouterAbTraceContextV1(),
+          })
+          .catch(ignoreRespondExecutionFailure)
+      : null;
+    if (execution) {
+      input.serverTiming.push(
+        ...routerAbEd25519YaoRegistrationExecutionTimingEntriesV1(execution.timing),
+      );
+    }
+    const executed = execution?.result ?? null;
     return {
       ok: true,
       registrationCeremonyId: ceremony.registrationCeremonyId,
       kind: 'near_ed25519',
-      ed25519: {
-        status: 'admitted',
-        admissionRequest: admitted.admissionRequest,
-        admissionReceipt: admitted.value,
-      },
+      ed25519: executed?.ok
+        ? { status: 'executed', ...admission, activationResult: executed.value }
+        : { status: 'admitted', ...admission },
     };
   }
 
@@ -4626,14 +4615,19 @@ export class CloudflareD1WalletRegistrationService {
       authority: input.authority,
       signingWorkerId: yaoRuntime.signingWorkerId,
     });
-    const admitted = await yaoRuntime.bindVerifiedIntent({
-      kind: 'verified_registration_intent',
-      ownershipGeneration: input.ownershipGeneration,
-      registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
-      intent: input.ceremony.intent,
-      admissionRequest,
-      expiresAtMs: input.ceremony.expiresAtMs,
-    });
+    const admitted = await yaoRuntime.bindAndAdmitVerifiedRegistration(
+      {
+        kind: 'verified_registration_intent',
+        ownershipGeneration: input.ownershipGeneration,
+        registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
+        intent: input.ceremony.intent,
+        admissionRequest,
+        expiresAtMs: input.ceremony.expiresAtMs,
+      },
+      null,
+      null,
+      requireRegistrationEd25519YaoMint(input.ceremony).sessionId,
+    );
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     return {
       ok: true,

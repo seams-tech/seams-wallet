@@ -11,8 +11,12 @@ import {
 import {
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  type RouterAbEd25519YaoActivationExecuteRequestV1,
+  type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
+import type { RouterAbEd25519YaoTimedRegistrationExecutionResultV1 } from '../registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import {
   routerAbMpcMaterialActivationRefToWire,
   type RouterAbMpcMaterialActivationRefWire,
@@ -56,6 +60,7 @@ import {
   InMemoryRouterAbEd25519YaoRecoveryStateV1,
   type RouterAbEd25519YaoActiveCapabilityLookupResultV1,
   type RouterAbEd25519YaoActiveCapabilityLookupV1,
+  type RouterAbEd25519YaoActiveCapabilityRehydratorV1,
   type RouterAbEd25519YaoActiveCapabilityResolverV1,
   type RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
   type RouterAbEd25519YaoRecoveryAuthorizationAdapter,
@@ -126,7 +131,8 @@ export type RouterAbEd25519YaoWalletSessionMintInputV1 =
 
 export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
   RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
-    RouterAbEd25519YaoActiveCapabilityResolverV1 & {
+    RouterAbEd25519YaoActiveCapabilityResolverV1 &
+    RouterAbEd25519YaoActiveCapabilityRehydratorV1 & {
       readonly kind: 'router_ab_ed25519_yao_product_registration_runtime_v1';
       readonly signingWorkerId: string;
       /**
@@ -138,11 +144,36 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
       startRegistrationDispatchRoot(
         signingRootId: RouterAbEd25519YaoRegistrationSigningRootIdV1,
       ): RouterAbEd25519YaoStartedDispatchRootV1 | null;
+      /** `mintedSessionId` is the session that the registration's setup minted. */
       bindAndAdmitVerifiedRegistration(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
         companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
         startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
+        mintedSessionId: RouterAbEd25519YaoBytes32V1,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
+      /**
+       * The receipt of the admission that a registration gets for `request`
+       * over the session that its setup minted. Nothing is stored and nothing
+       * is admitted: the client may prepare its inputs before the proof, and
+       * the admission still follows the proof.
+       */
+      describeRegistrationAdmission(
+        request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+        mintedSessionId: RouterAbEd25519YaoBytes32V1,
+      ): Promise<
+        RouterAbEd25519YaoRegistrationServiceResult<
+          RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>
+        >
+      >;
+      /**
+       * Runs an admitted registration for the holder of `credential`, as the
+       * execute route does for its bearer.
+       */
+      executeAdmittedRegistration(input: {
+        readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
+        readonly credential: string;
+        readonly trace: RouterAbTraceContextV1;
+      }): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1>;
       bindVerifiedIntent(
         input: RouterAbEd25519YaoVerifiedActivationIntentV1,
       ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
@@ -562,10 +593,17 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
 
   async bindAndAdmitVerifiedRegistration(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
+    _companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
+    _startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
+    mintedSessionId: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     const bound = await this.input.authorization.bindAndAuthorizeAdmission(input);
     if (!bound.ok) return bound;
-    const admitted = await this.input.registrationService.admit(bound.admissionRequest);
+    const admitted = await this.input.registrationService.admit(
+      bound.admissionRequest,
+      undefined,
+      mintedSessionId,
+    );
     if (!admitted.ok) return admitted;
     return {
       ok: true,
@@ -574,6 +612,37 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
       value: admitted.value,
       // This runtime keeps its state in memory and shares no batch.
       companionWrite: 'not_committed',
+    };
+  }
+
+  /** This runtime issues a receipt at its admission only. */
+  async describeRegistrationAdmission(): Promise<
+    Extract<RouterAbEd25519YaoRegistrationServiceResult<never>, { readonly ok: false }>
+  > {
+    return {
+      ok: false,
+      status: 503,
+      code: 'admission_failed',
+      message: 'This runtime describes no admission before its proof',
+    };
+  }
+
+  /** This runtime executes through its registration route only. */
+  async executeAdmittedRegistration(): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
+    return {
+      result: {
+        ok: false,
+        status: 503,
+        code: 'execution_failed',
+        message: 'This runtime executes a registration through its execute route',
+      },
+      timing: {
+        credentialDigestMs: 0,
+        d1AdmissionReadMs: 0,
+        routerExecutionMs: 0,
+        routerServerTiming: null,
+        resultReconstructionMs: 0,
+      },
     };
   }
 
@@ -592,6 +661,13 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
   }
 
   async resolveActiveCapability(
+    input: RouterAbEd25519YaoActiveCapabilityLookupV1,
+  ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
+    return await this.input.capabilityResolver.resolveActiveCapability(input);
+  }
+
+  /** This runtime's recovery state already holds every capability it resolves. */
+  async rehydrateActiveCapability(
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
     return await this.input.capabilityResolver.resolveActiveCapability(input);
@@ -693,6 +769,32 @@ export function createRouterAbEd25519YaoMaterialActivationRefV1(input: {
     lifecycleBinding: `life_${secureRandomBase64Url(24)}`,
     signingWorker: signingWorkerId,
   });
+}
+
+/**
+ * Mints the Yao identity of a registration's NEAR branch: its material
+ * identity and the session of its admission. Setup stores it, and the
+ * admission that follows the proof is issued over it.
+ */
+export function mintRouterAbEd25519YaoRegistrationIdentityV1(input: {
+  readonly walletId: WalletId;
+  readonly signingWorkerId: string;
+}): {
+  readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  readonly sessionId: RouterAbEd25519YaoBytes32V1;
+} {
+  const sessionId = new Uint8Array(32);
+  do {
+    globalThis.crypto.getRandomValues(sessionId);
+  } while (sessionId.every(isZeroByte));
+  return {
+    materialActivation: createRouterAbEd25519YaoMaterialActivationRefV1(input),
+    sessionId: Array.from(sessionId),
+  };
+}
+
+function isZeroByte(byte: number): boolean {
+  return byte === 0;
 }
 
 /**

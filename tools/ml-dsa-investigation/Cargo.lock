@@ -480,7 +480,9 @@ dependencies = [
 name = "ml-dsa-investigation"
 version = "0.1.0"
 dependencies = [
+ "ed25519-yao",
  "ed25519-yao-generator",
+ "getrandom 0.2.17",
  "hex",
  "keccak 0.1.6",
  "ml-dsa",
@@ -489,6 +491,7 @@ dependencies = [
  "sha2",
  "sha3",
  "tempfile",
+ "zeroize",
 ]
 
 [[package]]

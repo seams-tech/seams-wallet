@@ -1,11 +1,27 @@
+import type {
+  RouterAbEd25519YaoActivationAdmissionReceiptV1,
+  RouterAbEd25519YaoActivationExecuteRequestV1,
+  RouterAbEd25519YaoBytes32V1,
+  RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+} from '@shared/utils/routerAbEd25519Yao';
+import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
 import {
+  describeRouterAbEd25519YaoRegistrationAdmissionV1,
   InMemoryRouterAbEd25519YaoRegistrationService,
   type RouterAbEd25519YaoActivationConsumptionRequestV1,
   type RouterAbEd25519YaoActivationConsumptionResultV1,
   type RouterAbEd25519YaoRegistrationBackendResult,
+  type RouterAbEd25519YaoRegistrationServiceResult,
 } from '../registration/routerAbEd25519YaoRegistration';
-import { InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter } from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
+  routerAbEd25519YaoCredentialDigestSha256HexV1,
+} from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  executeRouterAbEd25519YaoAdmittedRegistrationV1,
+  type RouterAbEd25519YaoTimedRegistrationExecutionResultV1,
+} from '../registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import type {
   RouterAbEd25519YaoRegistrationIntentBindingResult,
   RouterAbEd25519YaoVerifiedActivationIntentV1,
@@ -27,7 +43,10 @@ import {
   routerAbEd25519YaoAdmittedRegistrationAuthorityV1,
   type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
-import { rehydrateRouterAbEd25519YaoCapability } from './routerAbEd25519YaoCapabilityCommit';
+import {
+  rehydrateRouterAbEd25519YaoCapability,
+  resolveRouterAbEd25519YaoPersistedActiveCapability,
+} from './routerAbEd25519YaoCapabilityCommit';
 import {
   parseRouterAbEd25519YaoRegistrationRouterAnswerV1,
   type RouterAbEd25519YaoPinnedRegistrationBackend,
@@ -48,7 +67,7 @@ export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   /** The Router, which owns each registration's execution and its consumption. */
   readonly registrationBackend: RouterAbEd25519YaoPinnedRegistrationBackend;
-  /** Loads one canonical signer record for an existing-wallet capability miss. */
+  /** Loads the canonical signer record of a capability lookup. */
   readonly loadPersistedActiveCapability?: (
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ) => Promise<WalletEd25519YaoActiveCapabilityRecord | null>;
@@ -112,13 +131,47 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
     companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
     startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
+    mintedSessionId: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     return await bindAndAdmitVerifiedRegistration({
       input,
       companionWrite,
       startedDispatchRoot,
+      mintedSessionId,
       store: this.input.store,
       backend: this.input.registrationBackend,
+    });
+  }
+
+  async describeRegistrationAdmission(
+    request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    mintedSessionId: RouterAbEd25519YaoBytes32V1,
+  ): Promise<
+    RouterAbEd25519YaoRegistrationServiceResult<
+      RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>
+    >
+  > {
+    return await describeRouterAbEd25519YaoRegistrationAdmissionV1({
+      backend: this.input.registrationBackend,
+      request,
+      mintedSessionId,
+    });
+  }
+
+  async executeAdmittedRegistration(input: {
+    readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
+    readonly credential: string;
+    readonly trace: RouterAbTraceContextV1;
+  }): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
+    return await executeRouterAbEd25519YaoAdmittedRegistrationV1({
+      store: this.input.store,
+      backend: this.input.registrationBackend,
+      request: input.request,
+      credentialDigestSha256Hex: await routerAbEd25519YaoCredentialDigestSha256HexV1(
+        input.credential,
+      ),
+      credentialDigestMs: 0,
+      trace: input.trace,
     });
   }
 
@@ -184,7 +237,37 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     return await rehydrateRouterAbEd25519YaoCapability(this.input.store, input);
   }
 
+  /**
+   * The signer row holds a wallet's capability, and the recovery state says
+   * whether a recovery suspended it. Both are read together and nothing is
+   * written, so a lookup never contends with another wallet.
+   */
   async resolveActiveCapability(
+    input: RouterAbEd25519YaoActiveCapabilityLookupV1,
+  ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
+    const invalid = resolveRouterAbEd25519YaoActiveCapability(NO_CAPABILITIES, input);
+    if (!invalid.ok && invalid.code === 'invalid_lookup') return invalid;
+    const loadPersisted = this.input.loadPersistedActiveCapability;
+    const [loaded, persisted] = await Promise.all([
+      this.input.store.loadCapabilities(),
+      loadPersisted ? loadPersisted(input) : null,
+    ]);
+    const result = resolveRouterAbEd25519YaoActiveCapability(
+      loaded.value.recoveryCapabilities,
+      input,
+    );
+    if (
+      result.ok ||
+      result.code !== 'unknown_capability' ||
+      !persisted ||
+      !routerAbEd25519YaoPersistedCapabilityMatchesLookupV1(persisted, input)
+    ) {
+      return result;
+    }
+    return resolveRouterAbEd25519YaoPersistedActiveCapability(loaded, persisted, input);
+  }
+
+  async rehydrateActiveCapability(
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ): Promise<RouterAbEd25519YaoActiveCapabilityLookupResultV1> {
     const loaded = await this.input.store.loadCapabilities();
@@ -216,6 +299,9 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   }
 }
 
+const NO_CAPABILITIES: Parameters<typeof resolveRouterAbEd25519YaoActiveCapability>[0] =
+  new Map();
+
 /**
  * Binds a verified intent and admits its registration. The tenant root the
  * registration dispatches to is resolved once, for a fresh admission, and
@@ -226,6 +312,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
   readonly companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null;
   readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
+  readonly mintedSessionId: RouterAbEd25519YaoBytes32V1;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
@@ -287,7 +374,11 @@ async function bindAndAdmitVerifiedRegistration(input: {
     }
     if (backendResult === null) {
       try {
-        backendResult = await input.backend.admit(bound.admissionRequest);
+        backendResult = await input.backend.admit(
+          bound.admissionRequest,
+          undefined,
+          input.mintedSessionId,
+        );
       } catch (error: unknown) {
         return {
           ok: false,

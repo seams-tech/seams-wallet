@@ -156,8 +156,10 @@ async function verifyStartedDispatchRoot({ api, database, scope }) {
   const started = runtime.startRegistrationDispatchRoot(early.signingRootId);
   assert.deepEqual(roots.requests, [{ operation: 'registration', ...early.signingRootId }]);
   let settled = false;
+  // Setup minted this session. The admission is issued over it.
+  const mintedSessionId = Array.from({ length: 32 }, (_, index) => index + 1);
   const admission = runtime
-    .bindAndAdmitVerifiedRegistration(early.intent, null, started)
+    .bindAndAdmitVerifiedRegistration(early.intent, null, started, mintedSessionId)
     .finally(() => {
       settled = true;
     });
@@ -168,9 +170,15 @@ async function verifyStartedDispatchRoot({ api, database, scope }) {
   assert.equal(admitted.ok, true, JSON.stringify(admitted));
   assert.equal(roots.requests.length, 1, 'The admission must not read the tenant root again');
   assert.equal(await admissions(early.lifecycleId), 1);
+  assert.deepEqual(admitted.value.binding.session_id, mintedSessionId);
 
   // An exact repeat answers from the stored admission and reads nothing.
-  const repeated = await runtime.bindAndAdmitVerifiedRegistration(early.intent, null, null);
+  const repeated = await runtime.bindAndAdmitVerifiedRegistration(
+    early.intent,
+    null,
+    null,
+    mintedSessionId,
+  );
   assert.equal(repeated.ok, true, JSON.stringify(repeated));
   assert.equal(repeated.companionWrite, 'not_committed');
   assert.deepEqual(repeated.value, admitted.value);
@@ -183,7 +191,12 @@ async function verifyStartedDispatchRoot({ api, database, scope }) {
     signing_root_id: 'another-project:dev',
   });
   await roots.answer();
-  const refused = await runtime.bindAndAdmitVerifiedRegistration(other.intent, null, foreign);
+  const refused = await runtime.bindAndAdmitVerifiedRegistration(
+    other.intent,
+    null,
+    foreign,
+    mintedSessionId,
+  );
   assert.equal(refused.ok, false);
   assert.equal(refused.code, 'admission_failed');
   assert.match(refused.message, /another signing root ID/u);
@@ -193,7 +206,12 @@ async function verifyStartedDispatchRoot({ api, database, scope }) {
   const outage = await verifiedIntent('root-outage');
   const failing = runtime.startRegistrationDispatchRoot(outage.signingRootId);
   roots.fail();
-  const unavailable = await runtime.bindAndAdmitVerifiedRegistration(outage.intent, null, failing);
+  const unavailable = await runtime.bindAndAdmitVerifiedRegistration(
+    outage.intent,
+    null,
+    failing,
+    mintedSessionId,
+  );
   assert.equal(unavailable.ok, false);
   assert.equal(unavailable.code, 'admission_failed');
   assert.match(unavailable.message, /Injected tenant-root outage/u);
@@ -204,6 +222,7 @@ async function verifyStartedDispatchRoot({ api, database, scope }) {
 
   return {
     startedReadIsAwaitedOnce: true,
+    admissionIsOverTheMintedSession: true,
     repeatReadsNoTenantRoot: true,
     foreignSigningRootIdRefused: true,
     failedReadFailsItsAdmissionOnly: true,
