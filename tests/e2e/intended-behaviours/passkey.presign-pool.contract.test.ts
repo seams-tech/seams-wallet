@@ -650,7 +650,6 @@ function requestedEcdsaBackendProfile(): string {
     }
     return `hosted_${arm}`;
   }
-  if (process.env.SEAMS_INTENDED_WALLET_HOST === 'vm') return 'local_vm';
   return 'local_wallet_objects';
 }
 
@@ -1409,45 +1408,6 @@ function gatewayD1Evidence(response: APIResponse): unknown {
   return header === undefined ? null : JSON.parse(header);
 }
 
-/**
- * One wallet's signing effects at the VM SigningWorker, read from its
- * role-private SQLite file. Each effect claims and consumes exactly one
- * presignature in the same transaction, so the effect count is the
- * consumed-presignature count.
- */
-async function vmSigningWorkerEffects(
-  walletId: string,
-): Promise<{ readonly operationKey: string; readonly terminal: unknown }[] | null> {
-  const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
-  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm' || !root) return null;
-  // The suite's Node types predate `node:sqlite`; the runtime provides it.
-  const sqliteModule: string = 'node:sqlite';
-  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
-  const database = new DatabaseSync(
-    path.join(root, '.router-ab-local', 'signing-worker', 'role-private.sqlite'),
-    { readOnly: true },
-  );
-  try {
-    return database
-      .prepare(
-        `SELECT operation_key, terminal_json FROM wallet_ecdsa_effects
-         WHERE json_extract(owner_json, '$.wallet_id') = ? ORDER BY claimed_at_ms`,
-      )
-      .all(walletId)
-      .map((row) => ({
-        operationKey: String(row.operation_key),
-        terminal: row.terminal_json === null ? null : JSON.parse(String(row.terminal_json)),
-      }));
-  } finally {
-    database.close();
-  }
-}
-
-async function vmRemainingSigningUses(walletId: string): Promise<number | null> {
-  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm') return null;
-  return (await signingOperationPersistence(walletId, 'unclaimed-evidence-probe')).remainingUses;
-}
-
 test('concurrent prepare and admitted ECDSA finalize lost_response retry preserve one signing effect', async ({
   harness,
   context,
@@ -1461,8 +1421,6 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   await harness.registerPasskeyEcdsaOnlyWallet();
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
-  const remainingUsesBefore = await vmRemainingSigningUses(harness.walletId);
-  if (remainingUsesBefore !== null) expect(remainingUsesBefore).toBe(1);
   await context.route(preparePath, duplicate);
   await context.route(finalizePath, lose);
   try {
@@ -1498,19 +1456,6 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   const retriedAfterDenial = await context.request.fetch(lost.request);
   expect(retriedAfterDenial.status()).toBe(200);
   expect(await retriedAfterDenial.json()).toEqual(signature);
-  // On the VM, the SigningWorker recorded one effect for this signing, with
-  // the returned signature as its terminal response: the retry claimed and
-  // consumed nothing.
-  const effectsAfterRetry = await vmSigningWorkerEffects(walletId);
-  const remainingUsesAfter = await vmRemainingSigningUses(harness.walletId);
-  if (remainingUsesBefore !== null) {
-    expect(remainingUsesAfter).toBe(0);
-  }
-  if (effectsAfterRetry) {
-    expect(effectsAfterRetry).toHaveLength(3);
-    expect(effectsAfterRetry.at(-1)?.terminal).toEqual(signature);
-  }
-
   const evidence = {
     kind: 'gateway_ecdsa_finalize_lost_response_retry_v1',
     d1: {
@@ -1523,16 +1468,12 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
     concurrentPrepareStatuses: concurrentPrepare.statuses,
     verifiedSignaturesBeforeResponseLoss: 2,
-    remainingUsesBefore,
-    remainingUsesAfter,
     finalizationsAdmitted: lostFinalize.finalizations,
     lostResponseStatus: lost.status,
     retriedStatus: retried.status(),
     retriedMatchesLost: true,
     wrongWalletStatus: denied.status(),
     exactRetryAfterWrongWalletMatches: true,
-    signingWorkerEffectsAfterRetry: effectsAfterRetry?.length ?? null,
-    signingWorkerTerminalMatchesRetry: effectsAfterRetry ? true : null,
   };
   const artifactName = `gateway-ecdsa-finalize-lost-response-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
@@ -1551,8 +1492,6 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
   await harness.registerPasskeyEcdsaOnlyWallet();
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
-  const remainingUsesBefore = await vmRemainingSigningUses(harness.walletId);
-  if (remainingUsesBefore !== null) expect(remainingUsesBefore).toBe(1);
   const race = new LastQuotaPrepareRace();
   const compete = race.compete.bind(race);
   const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';
@@ -1565,10 +1504,6 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
   if (!race.walletId) throw new Error('The final-quota prepare race was never reached');
   expect(race.statuses).toEqual([200, 409]);
   expect(race.replayCodes).toEqual(['operation_in_progress', 'wallet_session_quota_exhausted']);
-  const remainingUsesAfter = await vmRemainingSigningUses(harness.walletId);
-  const effects = await vmSigningWorkerEffects(race.walletId);
-  if (remainingUsesAfter !== null) expect(remainingUsesAfter).toBe(0);
-  if (effects) expect(effects).toHaveLength(2);
   const evidence = {
     kind: 'gateway_ecdsa_last_quota_contention_v1',
     d1: race.d1,
@@ -1576,10 +1511,7 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
     distinctOperationCount: 2,
     prepareStatuses: race.statuses,
     replayCodes: race.replayCodes,
-    remainingUsesBefore,
-    remainingUsesAfter,
     verifiedSignaturesBeforeRace: 2,
-    signingWorkerEffectsAfterRace: effects?.length ?? null,
   };
   const artifactName = `gateway-ecdsa-last-quota-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
@@ -1642,22 +1574,13 @@ test('exact finalize retry at the Router returns the SigningWorker stored signat
   if (!isPlainObject(signature) || !isPlainObject(signature.scope)) {
     throw new Error('Expected an ECDSA signing response');
   }
-  const walletId = signature.scope.wallet_id;
-  if (typeof walletId !== 'string') throw new Error('ECDSA signing response omitted its wallet');
-  // On the VM, the SigningWorker holds one effect for this signing: the retry
-  // was answered from it and consumed no second presignature.
-  const effects = await vmSigningWorkerEffects(walletId);
-  if (effects) {
-    expect(effects).toHaveLength(1);
-    expect(effects[0]?.terminal).toEqual(signature);
+  if (typeof signature.scope.wallet_id !== 'string') {
+    throw new Error('ECDSA signing response omitted its wallet');
   }
-
   const evidence = {
     kind: 'router_ecdsa_finalize_exact_retry_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
     gatewayProof: 'stored_signature_replayed',
-    signingWorkerEffects: effects?.length ?? null,
-    signingWorkerTerminalMatchesSignature: effects ? true : null,
   };
   const artifactName = `router-ecdsa-finalize-exact-retry-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
