@@ -1,6 +1,6 @@
 # R155J — Reduce registration outliers
 
-Status: planned. Date: October 13, 2026.
+Status: startup investigation in progress. Date: October 13, 2026.
 
 Reduce slow NEAR-only registrations on Singapore staging. Diagnose the rare
 Deriver A startup delay first. Keep the gains delivered by release 0.9.3.
@@ -77,6 +77,14 @@ domain types, measurement helpers, and behavioral scenarios.
 
 ## Phase 1 — Locate the startup delay
 
+October 13 findings: [saved trace and local cancellation reproduction](evidence/refactor-155j-slow-startup.md).
+The same A object received startup and execution dispatch. Execution was its first
+handled command, with `prewarm: none`. A local workerd reproduction shows that the
+abort can remove queued startup; disabling it does not shorten the initialization
+wait. Diagnostics now distinguish abort initiation, forwarding completion and
+handler start. They are not deployed. The platform cause remains unresolved.
+
+
 The slowest 0.9.3 registration spent 4.166 seconds in custody execution.
 Setup took 459 ms and finalization took 495 ms. Its background startup reached
 the Gateway's three-second limit. Execution later waited about 2.85 seconds
@@ -93,8 +101,9 @@ before A's object ran. This does not prove that cancellation caused the delay.
 - [ ] Reproduce cancellation with a controlled delayed startup in the composed test.
   Check whether abort cancels downstream work, stops observation, or leaves work running.
 - [ ] Verify startup and execution address the same persisted A object and ownership generation.
-- [ ] Check whether startup completion means handler readiness or completed compute prewarming.
-- [ ] Record a causal finding, or the precise boundary that remains unexplained.
+- [x] Check whether startup completion means handler readiness or completed compute prewarming.
+- [x] Record a causal finding, or the precise boundary that remains unexplained. The
+  unresolved interval precedes A handler entry; see the evidence above.
 
 Use Worker tail wall and CPU measurements alongside application spans.
 Worker application clocks alone can omit CPU time. Do not sum overlapping spans

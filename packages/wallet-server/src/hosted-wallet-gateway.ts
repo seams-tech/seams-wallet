@@ -1347,7 +1347,10 @@ async function startRegistrationRouter(
   registration: WalletObjectIdentity,
 ): Promise<void> {
   const started = Date.now();
-  let outcome: 'success' | 'failure' = 'failure';
+  const signal = AbortSignal.timeout(3_000);
+  const observeAbort = logRegistrationStartupAbort.bind(undefined, registration, started);
+  signal.addEventListener('abort', observeAbort, { once: true });
+  let outcome: 'success' | 'failure' | 'timeout' = 'failure';
   try {
     const scope = stagingTenantScope(env);
     const response = await env.MPC_ROUTER.fetch(
@@ -1371,18 +1374,34 @@ async function startRegistrationRouter(
           },
           ownership_generation: registration.ownershipGeneration,
         }),
-        signal: AbortSignal.timeout(3_000),
+        signal,
       },
     );
     await response.arrayBuffer();
     if (response.ok) outcome = 'success';
   } catch {
-    // Startup has no authority or durable effects. Execution still claims the wallet normally.
+    outcome = signal.aborted ? 'timeout' : 'failure';
+    // A failed warm-up grants no authority. Execution still claims the wallet normally.
+  } finally {
+    signal.removeEventListener('abort', observeAbort);
   }
   console.log(JSON.stringify({
     event: 'registration_router_startup',
+    wallet_id: registration.walletId,
+    ownership_generation: registration.ownershipGeneration,
+    started_ms: started,
     outcome,
     duration_ms: Date.now() - started,
+  }));
+}
+
+function logRegistrationStartupAbort(registration: WalletObjectIdentity, started: number): void {
+  console.log(JSON.stringify({
+    event: 'registration_router_startup_abort',
+    wallet_id: registration.walletId,
+    ownership_generation: registration.ownershipGeneration,
+    started_ms: started,
+    abort_ms: Date.now(),
   }));
 }
 
