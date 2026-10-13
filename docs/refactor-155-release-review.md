@@ -19,8 +19,26 @@ Every deployment remains a separate, authorized step.
 
 ## 0.9.4
 
-Status: **prepared, not published.** Patch release with no wire, schema or
-protocol change. It carries the work on public `dev` since 0.9.3.
+Status: **published October 13, 2026, 07:07 UTC, and deployed to staging.**
+Patch release with no wire, schema or protocol change. It carries the work
+on public `dev` between 0.9.3 and `7f03117d`. Production does not run it.
+
+- **Publication.** CI on [pull request 38](https://github.com/seams-tech/seams-wallet/pull/38)
+  passed on `7f03117d`. `main` is at the merge commit `79423316` with the
+  same tree. `release-wallet-packages.yml` run `38356125919` published both
+  packages. One CI job failed once on a test harness fault: a local Router
+  got a port number above 65535. No release commit touches that crate, and
+  the rerun passed; `188933a2` on `dev` corrects the harness.
+- **Private adoption.** The private repository pins 0.9.4 since `3f4fdb45`.
+  Its check and its build pass.
+- **Staging.** Deployed on October 13, 16:32 JST, with the protected
+  activation. The Yao execution is about 60 ms shorter: the Router's execute
+  request measures 720 ms at the median against 783 ms, and the garbler's
+  CPU 196 ms against 250 ms. Registration after the passkey step measures
+  1,876 ms at the median against 1,915 ms on 0.9.3 in the same hour, which
+  is inside the difference between two runs. The
+  [record](evidence/refactor-155h-release-094-staging.md) holds the
+  measurement and the outliers.
 
 - **Custody Workers.** A wire label is wiped with one volatile write, and the
   garbler hashes its four blocks in one cipher pass (`ab91d575`): garbling
@@ -36,10 +54,11 @@ protocol change. It carries the work on public `dev` since 0.9.3.
   application works with a 0.9.4 backend, and each role Worker works with
   its 0.9.3 peers.
 - **Local validation before the pull request.** On the candidate tree: the
-  bloat check, the lock check, the type check, the Rust tests of the three
-  Router crates and the five strict Worker entrypoints. The Yao and
-  registration contracts pass on release Workers with the engine change. The
-  private console builds against the candidate module build.
+  bloat check, the lock check, the type check, the Rust tests of
+  `router-ab-core`, `router-ab-cloudflare` and `ed25519-yao`, and the five
+  strict Worker entrypoints. The tests of `router-ab-dev` ran in CI only. The
+  Yao and registration contracts pass on release Workers with the engine
+  change. The private console builds against the candidate module build.
 
 ## 0.9.3
 

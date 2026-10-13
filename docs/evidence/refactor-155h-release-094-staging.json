@@ -1,0 +1,1441 @@
+{
+ "schema": "refactor_155h_release_094_staging_v1",
+ "date": "2026-10-13",
+ "lane": "staging-testnet, APAC home in Singapore",
+ "client": "Chromium with a virtual authenticator on a laptop in Tokyo",
+ "sample": "fresh NEAR implicit registration and a first NEP-413 signature per wallet",
+ "before": {
+  "packageVersion": "0.9.3",
+  "wallets": 99,
+  "runs": [
+   {
+    "label": "pre094-093",
+    "release": "0.9.3",
+    "client": "published 0.9.3",
+    "startJst": "16:06",
+    "endJst": "16:16",
+    "wallets": 99,
+    "p50Ms": 1915,
+    "p90Ms": 2455
+   }
+  ],
+  "afterPasskeyDistribution": {
+   "wallets": 99,
+   "minMs": 1450,
+   "p10Ms": 1581,
+   "p50Ms": 1915,
+   "p90Ms": 2455,
+   "p95Ms": 2947,
+   "maxMs": 4090,
+   "lessThan2000MsPercent": 59,
+   "lessThan2500MsPercent": 92,
+   "atLeast3000MsPercent": 5
+  },
+  "browserStagesMs": {
+   "setup": {
+    "n": 99,
+    "p50": 520,
+    "p90": 963,
+    "min": 361,
+    "max": 2276,
+    "mean": 618
+   },
+   "passkey": {
+    "n": 99,
+    "p50": 515,
+    "p90": 647,
+    "min": 70,
+    "max": 794,
+    "mean": 496
+   },
+   "respond": {
+    "n": 99,
+    "p50": 234,
+    "p90": 385,
+    "min": 159,
+    "max": 765,
+    "mean": 263
+   },
+   "custody": {
+    "n": 99,
+    "p50": 1007,
+    "p90": 1398,
+    "min": 676,
+    "max": 1828,
+    "mean": 1055
+   },
+   "finalize": {
+    "n": 99,
+    "p50": 567,
+    "p90": 888,
+    "min": 338,
+    "max": 3005,
+    "mean": 643
+   },
+   "clientRest": {
+    "n": 99,
+    "p50": 53,
+    "p90": 60,
+    "min": 39,
+    "max": 63,
+    "mean": 52
+   },
+   "afterPasskey": {
+    "n": 99,
+    "p50": 1915,
+    "p90": 2455,
+    "min": 1450,
+    "max": 4090,
+    "mean": 2016
+   },
+   "registrationNoPasskey": {
+    "n": 99,
+    "p50": 2544,
+    "p90": 3307,
+    "min": 2066,
+    "max": 5670,
+    "mean": 2724
+   },
+   "signPrepare": {
+    "n": 99,
+    "p50": 88,
+    "p90": 310,
+    "min": 0,
+    "max": 936,
+    "mean": 135
+   },
+   "signFinalize": {
+    "n": 99,
+    "p50": 347,
+    "p90": 500,
+    "min": 209,
+    "max": 1116,
+    "mean": 373
+   },
+   "signature": {
+    "n": 99,
+    "p50": 448,
+    "p90": 791,
+    "min": 214,
+    "max": 1488,
+    "mean": 513
+   },
+   "combinedNoInteraction": {
+    "n": 99,
+    "p50": 3097,
+    "p90": 3917,
+    "min": 2465,
+    "max": 7187,
+    "mean": 3273
+   }
+  },
+  "finalizeServerSpansMs": {
+   "near_finalize_authority": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_authority_reserve": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_custody_commit": {
+    "n": 99,
+    "p50": 22,
+    "p90": 36,
+    "min": 13,
+    "max": 85,
+    "mean": 25
+   },
+   "near_finalize_custody_reserve": {
+    "n": 99,
+    "p50": 91,
+    "p90": 209,
+    "min": 53,
+    "max": 1244,
+    "mean": 132
+   },
+   "near_finalize_fingerprint": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_initial_read": {
+    "n": 99,
+    "p50": 15,
+    "p90": 22,
+    "min": 6,
+    "max": 48,
+    "mean": 16
+   },
+   "near_finalize_router_consume": {
+    "n": 99,
+    "p50": 50,
+    "p90": 110,
+    "min": 26,
+    "max": 410,
+    "mean": 68
+   },
+   "near_finalize_session_issue": {
+    "n": 99,
+    "p50": 35,
+    "p90": 100,
+    "min": 17,
+    "max": 1115,
+    "mean": 73
+   },
+   "near_finalize_session_seal": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_side_effect": {
+    "n": 99,
+    "p50": 290,
+    "p90": 575,
+    "min": 135,
+    "max": 2846,
+    "mean": 366
+   },
+   "near_finalize_source": {
+    "n": 99,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_total": {
+    "n": 99,
+    "p50": 309,
+    "p90": 592,
+    "min": 149,
+    "max": 2856,
+    "mean": 382
+   },
+   "near_finalize_wallet_commit": {
+    "n": 99,
+    "p50": 126,
+    "p90": 290,
+    "min": 62,
+    "max": 620,
+    "mean": 162
+   }
+  },
+  "workerInvocations": {
+   "a.execute_pair": {
+    "wall": {
+     "n": 99,
+     "p50": 598,
+     "p90": 925,
+     "min": 389,
+     "max": 1540,
+     "mean": 661
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 7,
+     "p90": 45,
+     "min": 2,
+     "max": 195,
+     "mean": 19
+    }
+   },
+   "a.execute_work.do": {
+    "wall": {
+     "n": 99,
+     "p50": 580,
+     "p90": 913,
+     "min": 378,
+     "max": 1699,
+     "mean": 652
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 250,
+     "p90": 336,
+     "min": 153,
+     "max": 412,
+     "mean": 257
+    }
+   },
+   "a.wallet_start.do": {
+    "wall": {
+     "n": 99,
+     "p50": 416,
+     "p90": 566,
+     "min": 96,
+     "max": 785,
+     "mean": 434
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 345,
+     "p90": 464,
+     "min": 2,
+     "max": 674,
+     "mean": 350
+    }
+   },
+   "b.duplex.do": {
+    "wall": {
+     "n": 96,
+     "p50": 370,
+     "p90": 726,
+     "min": 257,
+     "max": 1775,
+     "mean": 460
+    },
+    "cpu": {
+     "n": 96,
+     "p50": 207,
+     "p90": 280,
+     "min": 22,
+     "max": 367,
+     "mean": 217
+    }
+   },
+   "b.prepare_pair": {
+    "wall": {
+     "n": 99,
+     "p50": 134,
+     "p90": 355,
+     "min": 60,
+     "max": 1235,
+     "mean": 201
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 5,
+     "p90": 44,
+     "min": 2,
+     "max": 140,
+     "mean": 14
+    }
+   },
+   "b.wallet_pair.do": {
+    "wall": {
+     "n": 98,
+     "p50": 106,
+     "p90": 427,
+     "min": 41,
+     "max": 1223,
+     "mean": 177
+    },
+    "cpu": {
+     "n": 98,
+     "p50": 65,
+     "p90": 100,
+     "min": 0,
+     "max": 280,
+     "mean": 70
+    }
+   },
+   "b.wallet_start.do": {
+    "wall": {
+     "n": 99,
+     "p50": 350,
+     "p90": 510,
+     "min": 101,
+     "max": 2157,
+     "mean": 387
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 339,
+     "p90": 441,
+     "min": 0,
+     "max": 620,
+     "mean": 349
+    }
+   },
+   "console.claim-passkey": {
+    "wall": {
+     "n": 99,
+     "p50": 20,
+     "p90": 40,
+     "min": 11,
+     "max": 573,
+     "mean": 38
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 1,
+     "p90": 2,
+     "min": 0,
+     "max": 5,
+     "mean": 1
+    }
+   },
+   "console.complete": {
+    "wall": {
+     "n": 99,
+     "p50": 23,
+     "p90": 50,
+     "min": 13,
+     "max": 1060,
+     "mean": 56
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 2,
+     "p90": 3,
+     "min": 0,
+     "max": 7,
+     "mean": 2
+    }
+   },
+   "console.publish-routes": {
+    "wall": {
+     "n": 99,
+     "p50": 95,
+     "p90": 164,
+     "min": 75,
+     "max": 1260,
+     "mean": 132
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 2,
+     "p90": 4,
+     "min": 0,
+     "max": 10,
+     "mean": 2
+    }
+   },
+   "console.registration-setup": {
+    "wall": {
+     "n": 99,
+     "p50": 101,
+     "p90": 226,
+     "min": 47,
+     "max": 1749,
+     "mean": 137
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 15,
+     "p90": 42,
+     "min": 5,
+     "max": 139,
+     "mean": 23
+    }
+   },
+   "gw.finalize": {
+    "wall": {
+     "n": 99,
+     "p50": 502,
+     "p90": 825,
+     "min": 245,
+     "max": 2938,
+     "mean": 571
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 108,
+     "p90": 199,
+     "min": 47,
+     "max": 341,
+     "mean": 125
+    }
+   },
+   "gw.respond": {
+    "wall": {
+     "n": 99,
+     "p50": 184,
+     "p90": 381,
+     "min": 96,
+     "max": 825,
+     "mean": 225
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 21,
+     "p90": 42,
+     "min": 7,
+     "max": 89,
+     "mean": 24
+    }
+   },
+   "gw.setup": {
+    "wall": {
+     "n": 99,
+     "p50": 634,
+     "p90": 1129,
+     "min": 321,
+     "max": 2545,
+     "mean": 720
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 16,
+     "p90": 30,
+     "min": 6,
+     "max": 83,
+     "mean": 19
+    }
+   },
+   "gw.sign": {
+    "wall": {
+     "n": 99,
+     "p50": 235,
+     "p90": 367,
+     "min": 105,
+     "max": 1010,
+     "mean": 259
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 39,
+     "p90": 67,
+     "min": 12,
+     "max": 111,
+     "mean": 42
+    }
+   },
+   "gw.sign_prepare": {
+    "wall": {
+     "n": 99,
+     "p50": 241,
+     "p90": 440,
+     "min": 117,
+     "max": 1108,
+     "mean": 284
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 38,
+     "p90": 72,
+     "min": 13,
+     "max": 146,
+     "mean": 43
+    }
+   },
+   "gw.yao_execute": {
+    "wall": {
+     "n": 99,
+     "p50": 855,
+     "p90": 1275,
+     "min": 547,
+     "max": 1692,
+     "mean": 914
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 9,
+     "p90": 21,
+     "min": 3,
+     "max": 40,
+     "mean": 11
+    }
+   },
+   "router.command.do": {
+    "wall": {
+     "n": 290,
+     "p50": 11,
+     "p90": 22,
+     "min": 3,
+     "max": 270,
+     "mean": 16
+    },
+    "cpu": {
+     "n": 290,
+     "p50": 8,
+     "p90": 16,
+     "min": 1,
+     "max": 34,
+     "mean": 8
+    }
+   },
+   "router.consume": {
+    "wall": {
+     "n": 99,
+     "p50": 28,
+     "p90": 62,
+     "min": 15,
+     "max": 199,
+     "mean": 38
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 3,
+     "p90": 8,
+     "min": 1,
+     "max": 115,
+     "mean": 7
+    }
+   },
+   "router.execute": {
+    "wall": {
+     "n": 99,
+     "p50": 783,
+     "p90": 1133,
+     "min": 522,
+     "max": 1661,
+     "mean": 853
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 26,
+     "p90": 113,
+     "min": 10,
+     "max": 166,
+     "mean": 40
+    }
+   },
+   "router.sign": {
+    "wall": {
+     "n": 99,
+     "p50": 69,
+     "p90": 105,
+     "min": 37,
+     "max": 331,
+     "mean": 82
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 4,
+     "p90": 14,
+     "min": 1,
+     "max": 201,
+     "mean": 10
+    }
+   },
+   "router.sign_prepare": {
+    "wall": {
+     "n": 98,
+     "p50": 70,
+     "p90": 149,
+     "min": 35,
+     "max": 496,
+     "mean": 89
+    },
+    "cpu": {
+     "n": 98,
+     "p50": 5,
+     "p90": 26,
+     "min": 2,
+     "max": 150,
+     "mean": 12
+    }
+   },
+   "sw.activation.do": {
+    "wall": {
+     "n": 99,
+     "p50": 635,
+     "p90": 950,
+     "min": 424,
+     "max": 1581,
+     "mean": 700
+    },
+    "cpu": {
+     "n": 99,
+     "p50": 30,
+     "p90": 54,
+     "min": 6,
+     "max": 75,
+     "mean": 33
+    }
+   },
+   "sw.wallet.do": {
+    "wall": {
+     "n": 197,
+     "p50": 29,
+     "p90": 49,
+     "min": 10,
+     "max": 456,
+     "mean": 36
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 25,
+     "p90": 41,
+     "min": 8,
+     "max": 59,
+     "mean": 27
+    }
+   }
+  },
+  "prewarmOutcomes": {
+   "deriver_a": {
+    "completed": 93,
+    "stopped": 2
+   },
+   "deriver_b": {
+    "completed": 94,
+    "stopped": 3
+   }
+  },
+  "servingVersions": {
+   "deriver-a": [
+    "ed28a8ec-5023-4e38-b920-dd18fcdb4f50"
+   ],
+   "deriver-b": [
+    "4cb4288c-6d1d-4923-a814-cfa04a826a42"
+   ],
+   "router": [
+    "5651a97c-80b7-47b3-8a6c-1b8d1f91d99a"
+   ],
+   "signing-worker": [
+    "54ec5b54-6cbe-41b2-856b-19bb6149374c"
+   ],
+   "console": [
+    "51a67111-dfff-4719-97a4-9f21f8fdef99"
+   ],
+   "gateway": [
+    "80edac16-6111-40d9-bc82-ba898c828327"
+   ]
+  }
+ },
+ "after": {
+  "packageVersion": "0.9.4",
+  "wallets": 198,
+  "runs": [
+   {
+    "label": "post094-093",
+    "release": "0.9.4",
+    "client": "published 0.9.3",
+    "startJst": "16:33",
+    "endJst": "16:43",
+    "wallets": 99,
+    "p50Ms": 1890,
+    "p90Ms": 2524
+   },
+   {
+    "label": "post094-094",
+    "release": "0.9.4",
+    "client": "published 0.9.4",
+    "startJst": "16:44",
+    "endJst": "16:53",
+    "wallets": 99,
+    "p50Ms": 1870,
+    "p90Ms": 2401
+   }
+  ],
+  "afterPasskeyDistribution": {
+   "wallets": 198,
+   "minMs": 1420,
+   "p10Ms": 1550,
+   "p50Ms": 1876,
+   "p90Ms": 2468,
+   "p95Ms": 2657,
+   "maxMs": 11039,
+   "lessThan2000MsPercent": 63,
+   "lessThan2500MsPercent": 90,
+   "atLeast3000MsPercent": 3
+  },
+  "browserStagesMs": {
+   "setup": {
+    "n": 198,
+    "p50": 534,
+    "p90": 817,
+    "min": 344,
+    "max": 1715,
+    "mean": 593
+   },
+   "passkey": {
+    "n": 198,
+    "p50": 504,
+    "p90": 634,
+    "min": 67,
+    "max": 792,
+    "mean": 477
+   },
+   "respond": {
+    "n": 198,
+    "p50": 232,
+    "p90": 361,
+    "min": 152,
+    "max": 1292,
+    "mean": 262
+   },
+   "custody": {
+    "n": 198,
+    "p50": 946,
+    "p90": 1320,
+    "min": 593,
+    "max": 2796,
+    "mean": 1016
+   },
+   "finalize": {
+    "n": 198,
+    "p50": 576,
+    "p90": 908,
+    "min": 367,
+    "max": 9234,
+    "mean": 681
+   },
+   "clientRest": {
+    "n": 198,
+    "p50": 55,
+    "p90": 59,
+    "min": 38,
+    "max": 61,
+    "mean": 53
+   },
+   "afterPasskey": {
+    "n": 198,
+    "p50": 1876,
+    "p90": 2468,
+    "min": 1420,
+    "max": 11039,
+    "mean": 2015
+   },
+   "registrationNoPasskey": {
+    "n": 198,
+    "p50": 2517,
+    "p90": 3283,
+    "min": 1927,
+    "max": 12564,
+    "mean": 2696
+   },
+   "signPrepare": {
+    "n": 198,
+    "p50": 64,
+    "p90": 264,
+    "min": 0,
+    "max": 9920,
+    "mean": 151
+   },
+   "signFinalize": {
+    "n": 198,
+    "p50": 341,
+    "p90": 520,
+    "min": 200,
+    "max": 1474,
+    "mean": 376
+   },
+   "signature": {
+    "n": 198,
+    "p50": 443,
+    "p90": 692,
+    "min": 220,
+    "max": 10186,
+    "mean": 533
+   },
+   "combinedNoInteraction": {
+    "n": 198,
+    "p50": 3043,
+    "p90": 3845,
+    "min": 2337,
+    "max": 14158,
+    "mean": 3266
+   }
+  },
+  "finalizeServerSpansMs": {
+   "near_finalize_authority": {
+    "n": 198,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_authority_reserve": {
+    "n": 198,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_custody_commit": {
+    "n": 198,
+    "p50": 22,
+    "p90": 42,
+    "min": 14,
+    "max": 436,
+    "mean": 30
+   },
+   "near_finalize_custody_reserve": {
+    "n": 198,
+    "p50": 101,
+    "p90": 176,
+    "min": 52,
+    "max": 893,
+    "mean": 123
+   },
+   "near_finalize_fingerprint": {
+    "n": 198,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_initial_read": {
+    "n": 198,
+    "p50": 14,
+    "p90": 26,
+    "min": 7,
+    "max": 90,
+    "mean": 17
+   },
+   "near_finalize_router_consume": {
+    "n": 198,
+    "p50": 50,
+    "p90": 85,
+    "min": 18,
+    "max": 2209,
+    "mean": 70
+   },
+   "near_finalize_session_issue": {
+    "n": 198,
+    "p50": 36,
+    "p90": 91,
+    "min": 17,
+    "max": 632,
+    "mean": 63
+   },
+   "near_finalize_session_seal": {
+    "n": 198,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_side_effect": {
+    "n": 198,
+    "p50": 296,
+    "p90": 600,
+    "min": 155,
+    "max": 2472,
+    "mean": 357
+   },
+   "near_finalize_source": {
+    "n": 198,
+    "p50": 0,
+    "p90": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0
+   },
+   "near_finalize_total": {
+    "n": 198,
+    "p50": 308,
+    "p90": 627,
+    "min": 166,
+    "max": 2487,
+    "mean": 374
+   },
+   "near_finalize_wallet_commit": {
+    "n": 198,
+    "p50": 133,
+    "p90": 299,
+    "min": 73,
+    "max": 523,
+    "mean": 166
+   }
+  },
+  "workerInvocations": {
+   "a.execute_pair": {
+    "wall": {
+     "n": 197,
+     "p50": 531,
+     "p90": 822,
+     "min": 262,
+     "max": 1508,
+     "mean": 593
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 6,
+     "p90": 18,
+     "min": 2,
+     "max": 252,
+     "mean": 13
+    }
+   },
+   "a.execute_work.do": {
+    "wall": {
+     "n": 198,
+     "p50": 524,
+     "p90": 839,
+     "min": 244,
+     "max": 1516,
+     "mean": 587
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 196,
+     "p90": 252,
+     "min": 112,
+     "max": 335,
+     "mean": 202
+    }
+   },
+   "a.wallet_start.do": {
+    "wall": {
+     "n": 198,
+     "p50": 362,
+     "p90": 561,
+     "min": 99,
+     "max": 763,
+     "mean": 382
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 283,
+     "p90": 440,
+     "min": 2,
+     "max": 632,
+     "mean": 295
+    }
+   },
+   "b.duplex.do": {
+    "wall": {
+     "n": 194,
+     "p50": 307,
+     "p90": 577,
+     "min": 187,
+     "max": 1335,
+     "mean": 373
+    },
+    "cpu": {
+     "n": 194,
+     "p50": 182,
+     "p90": 248,
+     "min": 26,
+     "max": 325,
+     "mean": 188
+    }
+   },
+   "b.prepare_pair": {
+    "wall": {
+     "n": 197,
+     "p50": 139,
+     "p90": 416,
+     "min": 66,
+     "max": 1244,
+     "mean": 205
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 6,
+     "p90": 21,
+     "min": 2,
+     "max": 204,
+     "mean": 14
+    }
+   },
+   "b.wallet_pair.do": {
+    "wall": {
+     "n": 198,
+     "p50": 114,
+     "p90": 389,
+     "min": 44,
+     "max": 1210,
+     "mean": 180
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 63,
+     "p90": 92,
+     "min": 0,
+     "max": 332,
+     "mean": 66
+    }
+   },
+   "b.wallet_start.do": {
+    "wall": {
+     "n": 198,
+     "p50": 280,
+     "p90": 471,
+     "min": 96,
+     "max": 819,
+     "mean": 310
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 271,
+     "p90": 415,
+     "min": 0,
+     "max": 556,
+     "mean": 281
+    }
+   },
+   "console.claim-passkey": {
+    "wall": {
+     "n": 197,
+     "p50": 20,
+     "p90": 40,
+     "min": 11,
+     "max": 1341,
+     "mean": 38
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 1,
+     "p90": 3,
+     "min": 0,
+     "max": 5,
+     "mean": 1
+    }
+   },
+   "console.complete": {
+    "wall": {
+     "n": 198,
+     "p50": 24,
+     "p90": 63,
+     "min": 14,
+     "max": 576,
+     "mean": 46
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 2,
+     "p90": 3,
+     "min": 0,
+     "max": 6,
+     "mean": 2
+    }
+   },
+   "console.publish-routes": {
+    "wall": {
+     "n": 198,
+     "p50": 112,
+     "p90": 137,
+     "min": 88,
+     "max": 904,
+     "mean": 132
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 1,
+     "p90": 3,
+     "min": 0,
+     "max": 10,
+     "mean": 2
+    }
+   },
+   "console.registration-setup": {
+    "wall": {
+     "n": 198,
+     "p50": 89,
+     "p90": 160,
+     "min": 45,
+     "max": 477,
+     "mean": 104
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 13,
+     "p90": 23,
+     "min": 5,
+     "max": 152,
+     "mean": 17
+    }
+   },
+   "gw.finalize": {
+    "wall": {
+     "n": 198,
+     "p50": 498,
+     "p90": 839,
+     "min": 285,
+     "max": 9165,
+     "mean": 608
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 108,
+     "p90": 197,
+     "min": 50,
+     "max": 311,
+     "mean": 117
+    }
+   },
+   "gw.respond": {
+    "wall": {
+     "n": 197,
+     "p50": 182,
+     "p90": 334,
+     "min": 85,
+     "max": 1490,
+     "mean": 214
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 18,
+     "p90": 36,
+     "min": 7,
+     "max": 107,
+     "mean": 21
+    }
+   },
+   "gw.setup": {
+    "wall": {
+     "n": 198,
+     "p50": 648,
+     "p90": 947,
+     "min": 291,
+     "max": 1617,
+     "mean": 680
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 16,
+     "p90": 28,
+     "min": 5,
+     "max": 79,
+     "mean": 18
+    }
+   },
+   "gw.sign": {
+    "wall": {
+     "n": 197,
+     "p50": 230,
+     "p90": 401,
+     "min": 110,
+     "max": 951,
+     "mean": 258
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 34,
+     "p90": 67,
+     "min": 10,
+     "max": 126,
+     "mean": 39
+    }
+   },
+   "gw.sign_prepare": {
+    "wall": {
+     "n": 198,
+     "p50": 217,
+     "p90": 401,
+     "min": 111,
+     "max": 5878,
+     "mean": 281
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 36,
+     "p90": 64,
+     "min": 14,
+     "max": 975,
+     "mean": 44
+    }
+   },
+   "gw.yao_execute": {
+    "wall": {
+     "n": 197,
+     "p50": 799,
+     "p90": 1149,
+     "min": 461,
+     "max": 2566,
+     "mean": 861
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 9,
+     "p90": 17,
+     "min": 3,
+     "max": 34,
+     "mean": 11
+    }
+   },
+   "router.command.do": {
+    "wall": {
+     "n": 584,
+     "p50": 11,
+     "p90": 22,
+     "min": 3,
+     "max": 2112,
+     "mean": 22
+    },
+    "cpu": {
+     "n": 584,
+     "p50": 8,
+     "p90": 16,
+     "min": 1,
+     "max": 39,
+     "mean": 9
+    }
+   },
+   "router.consume": {
+    "wall": {
+     "n": 198,
+     "p50": 28,
+     "p90": 43,
+     "min": 9,
+     "max": 2125,
+     "mean": 44
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 3,
+     "p90": 7,
+     "min": 1,
+     "max": 88,
+     "mean": 5
+    }
+   },
+   "router.execute": {
+    "wall": {
+     "n": 197,
+     "p50": 720,
+     "p90": 1036,
+     "min": 422,
+     "max": 2513,
+     "mean": 795
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 25,
+     "p90": 54,
+     "min": 10,
+     "max": 293,
+     "mean": 34
+    }
+   },
+   "router.sign": {
+    "wall": {
+     "n": 195,
+     "p50": 67,
+     "p90": 104,
+     "min": 34,
+     "max": 522,
+     "mean": 81
+    },
+    "cpu": {
+     "n": 195,
+     "p50": 4,
+     "p90": 8,
+     "min": 1,
+     "max": 217,
+     "mean": 7
+    }
+   },
+   "router.sign_prepare": {
+    "wall": {
+     "n": 197,
+     "p50": 65,
+     "p90": 109,
+     "min": 29,
+     "max": 3270,
+     "mean": 96
+    },
+    "cpu": {
+     "n": 197,
+     "p50": 4,
+     "p90": 9,
+     "min": 1,
+     "max": 751,
+     "mean": 11
+    }
+   },
+   "sw.activation.do": {
+    "wall": {
+     "n": 198,
+     "p50": 575,
+     "p90": 875,
+     "min": 294,
+     "max": 1540,
+     "mean": 641
+    },
+    "cpu": {
+     "n": 198,
+     "p50": 31,
+     "p90": 48,
+     "min": 6,
+     "max": 72,
+     "mean": 32
+    }
+   },
+   "sw.wallet.do": {
+    "wall": {
+     "n": 396,
+     "p50": 28,
+     "p90": 46,
+     "min": 6,
+     "max": 623,
+     "mean": 35
+    },
+    "cpu": {
+     "n": 396,
+     "p50": 25,
+     "p90": 35,
+     "min": 4,
+     "max": 62,
+     "mean": 26
+    }
+   }
+  },
+  "prewarmOutcomes": {
+   "deriver_a": {
+    "completed": 186,
+    "stopped": 4
+   },
+   "deriver_b": {
+    "completed": 186,
+    "stopped": 2
+   }
+  },
+  "servingVersions": {
+   "deriver-a": [
+    "6931f8e9-0fa1-41f6-8422-20c2c1b54151"
+   ],
+   "deriver-b": [
+    "63c5a32f-d490-4a65-a349-a757abc345bd"
+   ],
+   "router": [
+    "3d805b67-9bd3-4509-b47f-4ca8cb2095d7"
+   ],
+   "signing-worker": [
+    "810d5831-610b-4ef9-b167-44ccf9c3f51c"
+   ],
+   "console": [
+    "bc4dfcaf-9a56-474b-a73d-54805138b76c"
+   ],
+   "gateway": [
+    "17d4c639-7e6a-4d63-8c21-26d239121d28"
+   ]
+  }
+ },
+ "signaturesVerifiedIndependently": {
+  "after": 198,
+  "distinctKeys": 198
+ },
+ "failedSamples": {
+  "before": 0,
+  "after": 0
+ },
+ "servingVersionsAfterDeployment": {
+  "router-ab-deriver-a-staging": "6931f8e9-0fa1-41f6-8422-20c2c1b54151",
+  "router-ab-deriver-b-staging": "63c5a32f-d490-4a65-a349-a757abc345bd",
+  "router-ab-mpc-router-staging": "3d805b67-9bd3-4509-b47f-4ca8cb2095d7",
+  "router-ab-signing-worker-staging": "810d5831-610b-4ef9-b167-44ccf9c3f51c",
+  "router-ab-tenant-root-control-plane-staging": "2ece432f-353a-46ba-b3ad-ca37ab0bd15a",
+  "seams-sdk-d1-console-staging": "bc4dfcaf-9a56-474b-a73d-54805138b76c",
+  "seams-sdk-d1-gateway-staging": "17d4c639-7e6a-4d63-8c21-26d239121d28",
+  "seams-sdk-d1-gateway-staging-oc": "58ce289c-3e48-4c3b-9bd3-7a0c023fde1c",
+  "seams-sdk-d1-gateway-staging-us": "da21d95d-3728-4f53-a731-1aefb1a33634",
+  "seams-sdk-d1-gateway-staging-weur": "c73190e6-0626-437c-82d0-466cf08dd3d9",
+  "seams-sdk-d1-wallet-runtime-staging": "72fa7431-c801-4c24-a0c4-ab28e0ceef93",
+  "seams-sdk-d1-wallet-runtime-staging-oc": "089ed2cc-a1f5-4599-b11c-a89eb2e65dfe",
+  "seams-sdk-d1-wallet-runtime-staging-us": "a62d8da9-6460-4a4f-949c-835a82729986",
+  "seams-sdk-d1-wallet-runtime-staging-weur": "167bd134-3091-4ff7-a960-cb6dd9321b47"
+ },
+ "deployment": {
+  "publicMain": "79423316",
+  "privateCommit": "3f4fdb45",
+  "publishRun": 38356125919,
+  "consoleRun": 38361801956,
+  "backendRun": 38362259221,
+  "activationRun": 38363192264
+ }
+}

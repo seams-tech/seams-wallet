@@ -7,6 +7,9 @@ Singapore staging lane, registration after the passkey step measures
 and 3,044 ms on 0.9.0: 164 and 198 wallets, client in Tokyo. 80% of the
 wallets finish in less than 2.0 s after the passkey step. The
 [record](evidence/refactor-155h-release-093-staging.md) holds the chain.
+Release 0.9.4 carries the engine change of Phase 4 and serves on staging
+since October 13: the Yao execution is about 60 ms shorter, see its
+[record](evidence/refactor-155h-release-094-staging.md).
 Phases 1 and 3 are decided and not implemented. Date: October 13, 2026.
 
 [R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
@@ -792,8 +795,8 @@ work. One item each.
   request at 1,300 ms and 1,464 ms at the 90th percentile, the real protocol
   time at 634 ms and 647 ms, Deriver B's CPU from 286 ms to 239 ms and
   Deriver A's from 344 ms to 314 ms. A first run gains less than a warm run.
-- [x] **Label wipes and a four-block gate hash.** Implemented on October 13,
-  not released. The gate hash was not the largest cost: the wipe of dropped
+- [x] **Label wipes and a four-block gate hash.** Implemented on October 13
+  and released in 0.9.4. The gate hash was not the largest cost: the wipe of dropped
   labels was. The derived wipe of a 16-byte array writes and fences each
   byte, and a ceremony drops several million labels. A label is now a value
   that one volatile write wipes, and the garbler hashes its four blocks in
@@ -804,8 +807,11 @@ work. One item each.
   B's from 146 ms to 123 ms. The transcript is unchanged, and the frozen
   known answers pass. The [record](evidence/refactor-155h-label-wipe-gate-hash.md)
   holds the measurements and the verification. The Yao and registration
-  contracts pass on release Workers. Open: a release and the staging
-  measurement.
+  contracts pass on release Workers. On staging with 0.9.4, the garbler's
+  CPU per execution fell from 250 ms to 196 ms at the median and the
+  evaluator's from 207 ms to 182 ms. The Router's execute request fell from
+  783 ms to 720 ms. The [staging record](evidence/refactor-155h-release-094-staging.md)
+  holds the runs.
 - [ ] **Product work in the protocol span.** The target-proof exchange, the
   commitment checks and the HPKE seal are product additions the benchmark
   pair does not run. Place them with the local profiler and move what does
