@@ -364,22 +364,55 @@ async function describeSetupEd25519Admission(
   ) {
     return { status: 'after_proof' };
   }
-  const admissionRequest = await buildRouterAbEd25519YaoProductAdmissionRequestV1({
-    registrationCeremonyId: ceremony.registrationCeremonyId,
-    walletId: ceremony.intent.walletId,
+  const described = await describedEd25519Admission({
+    ed25519Yao,
+    ceremony,
+    branch,
+    rpId: authMethod.rpId,
+    mint,
     signingRootId,
     signingRootVersion,
-    authorityScope: { kind: 'passkey', rpId: authMethod.rpId },
-    branch,
-    signingWorkerId: ed25519Yao.signingWorkerId,
-    materialActivation: mint.materialActivation,
+  }).catch(withholdEd25519AdmissionDescription);
+  return described ?? { status: 'after_proof' };
+}
+
+/**
+ * Every step that can fail is inside this one promise, so the caller's single
+ * catch covers the request as well as the receipt. A wallet id that cannot
+ * hold the branch's signing key fails here, and respond reports it as before.
+ */
+async function describedEd25519Admission(input: {
+  readonly ed25519Yao: NonNullable<WalletRegistrationSetupDependencies['ed25519Yao']>;
+  readonly ceremony: StoredWalletRegistrationCeremony;
+  readonly branch: NonNullable<
+    ReturnType<typeof registrationSignerBranchesFromPlan>['nearEd25519']
+  >;
+  readonly rpId: Variant<
+    StoredWalletRegistrationCeremony['intent']['authMethod'],
+    'kind',
+    'passkey'
+  >['rpId'];
+  readonly mint: NonNullable<StoredWalletRegistrationCeremony['ed25519YaoMint']>;
+  readonly signingRootId: string;
+  readonly signingRootVersion: string;
+}): Promise<Variant<WalletRegistrationSetupEd25519AdmissionV2, 'status', 'described'> | null> {
+  const admissionRequest = await buildRouterAbEd25519YaoProductAdmissionRequestV1({
+    registrationCeremonyId: input.ceremony.registrationCeremonyId,
+    walletId: input.ceremony.intent.walletId,
+    signingRootId: input.signingRootId,
+    signingRootVersion: input.signingRootVersion,
+    authorityScope: { kind: 'passkey', rpId: input.rpId },
+    branch: input.branch,
+    signingWorkerId: input.ed25519Yao.signingWorkerId,
+    materialActivation: input.mint.materialActivation,
   });
-  const described = await ed25519Yao
-    .describeRegistrationAdmission(admissionRequest, mint.sessionId)
-    .catch(withholdEd25519AdmissionDescription);
-  return described?.ok
+  const described = await input.ed25519Yao.describeRegistrationAdmission(
+    admissionRequest,
+    input.mint.sessionId,
+  );
+  return described.ok
     ? { status: 'described', admissionRequest, admissionReceipt: described.value }
-    : { status: 'after_proof' };
+    : null;
 }
 
 function withholdEd25519AdmissionDescription(): null {
