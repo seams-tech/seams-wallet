@@ -1,6 +1,6 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: complete host threshold signing and deployed private kernels verified. Complete Worker signing in progress, 2026-10-13.
+Status: complete host and deployed Worker key generation and threshold signing verified, 2026-10-13.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -9,7 +9,13 @@ Use current research to find candidates. Publication date does not determine the
 The investigation must cover key generation, signing, recovery, export, and deployment.
 The [experiment contract](ml-dsa-65-experiment-contract.md) defines the first executable slice.
 The [host harness](../../tools/ml-dsa-investigation/README.md) checks references, private key generation, and authorized test export.
-Complete host threshold signing now passes. Four private kernels also execute on deployed Workers.
+Complete host and Worker threshold signing now pass. Independent verifiers accept their standard signatures.
+
+The [preliminary key-generation report](ml-dsa-65-preliminary-keygen-report.md) now measures the complete deployed key-generation flow.
+Five fresh joint keys took 12.44 seconds at the median, with an observed range of 11.79–12.53 seconds.
+These results exceed the provisional five-second generation target.
+The current shared-core native harness records a 1.87-second median across its five key-generation cases.
+The earlier checkpoints below retain their original artifact measurements.
 
 ## Current implementation evidence — October 13, 2026
 
@@ -24,7 +30,8 @@ Four reference seeds and one jointly generated disposable seed pass the complete
 After generation, a separate authorized test recipient reconstructs the seed and every private-key field.
 Its full 4,032-byte expanded encoding matches OpenSSL independently for all five keys.
 Each participant retains 17,472 bytes of disposable seed, `K`, and polynomial shares.
-The recipient's ordinary signatures verify. These are recovery checks. Threshold signing remains unimplemented.
+The recipient's ordinary signatures verify. This early checkpoint establishes recovery.
+The later complete baseline below verifies threshold signatures before authorized recovery.
 
 | Complete private host key generation | Measured bytes |
 | --- | ---: |
@@ -115,8 +122,8 @@ Each deployed bundle embeds four public schedules, totaling 18,014,670 uncompres
 The deployed bundles are approximately 19 MB each and started in 10–12 ms.
 Cloudflare currently permits 64 MiB of uncompressed Worker code and 128 MB of isolate memory.
 See the [Worker limits](https://developers.cloudflare.com/workers/platform/limits/#worker-size).
-The thirteen unique key-generation schedules still occupy 91,254,494 encoded bytes.
-A public nonce input can replace eleven sampling descriptions with one description.
+The earlier thirteen unique key-generation schedules occupied 91,254,494 encoded bytes.
+A public nonce input now replaces eleven sampling descriptions with one description.
 This reduces stored descriptions. It does not remove any private SHAKE computation or table traffic.
 
 Six further signing circuits pass independent cleartext fixtures in the resumable host report.
@@ -163,7 +170,44 @@ A public nonce input now reuses one sampling schedule and one signing-mask sched
 The complete three-key-generation and seven-signing circuit set occupies 33,076,075 encoded bytes.
 All five private mask nonce checks use the same schedule digest and match their independent oracle.
 The nonce change reduces packaged descriptions. It leaves per-candidate table traffic unchanged.
-Complete Worker execution, production admission, persistence, SDK integration, and protocol selection remain open.
+Complete deployed key generation now passes through the same core used by the host harness.
+Production admission, persistence, SDK integration, and protocol selection remain open.
+
+## Complete deployed Worker baseline
+
+The [fixed signing report](../evidence/ml-dsa-65-worker-threshold-fixture-hosted-20261013.json) matches the canonical public key and deterministic signature exactly.
+Its measured complete operation took 74.37 seconds, including key generation and five signing candidates.
+The [joint signing report](../evidence/ml-dsa-65-worker-threshold-joint-hosted-20261013.json) uses independent role-local seed contributions without seed reconstruction.
+Its measured complete operation took 78.36 seconds with four candidates.
+The separate joint warm-up required thirteen candidates and took 214.63 seconds.
+Each group has one measured sample after one excluded warm-up.
+These observations establish successful complete execution. They do not establish a signing latency distribution.
+
+Both Workers verify each standard signature through RustCrypto.
+The client verifies through OpenSSL and rejects altered messages, signatures, and public keys.
+Both roles agree on complete circuit counts, fresh execution bindings, and exact transport counters.
+All runtime traffic remains on a binary WebSocket through the Service Binding.
+The shared consuming [key-generation core](../../crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs) now replaces the host-only orchestration.
+Both adapters also use the same signing core.
+
+The ten unique descriptions occupy 33,076,075 encoded bytes.
+Named static schedule data removes duplicate descriptions from each approximately 34 MB deployed bundle.
+This reduces code size. It leaves cryptographic traffic unchanged.
+Deployed startup observations were 40 ms for A and 30 ms for B.
+The [deployment record](../evidence/ml-dsa-65-worker-complete-deployment-20261013.json) pins both versions and build hashes.
+The [aggregate CPU record](../evidence/ml-dsa-65-worker-complete-cpu-20261013.json) preserves attribution and billing limits.
+The [cleanup record](../evidence/ml-dsa-65-worker-complete-cleanup-20261013.json) verifies deletion of both temporary Workers and the local probe-token file.
+Its sanitized tails match all four completed signing sessions and contain zero Worker exceptions.
+
+An initial signing client connection failed with `EHOSTUNREACH`.
+An unchanged retry passed. Preserved retry logs show successful completion without Worker exceptions.
+The exact initial network cause remains unknown.
+This is an infrastructure failure classification, with no claim that the uncorrelated initial request never reached a Worker.
+
+The baseline establishes feasibility under the accepted passive profile.
+It exceeds the speed targets and requires optimization before protocol selection.
+Prioritize the sampling selection/conversion cost and the complete per-candidate signing cost.
+Keep independent composition review, target constant-time qualification, and production lifecycle integration open.
 
 ## Foundation evidence — October 13, 2026
 

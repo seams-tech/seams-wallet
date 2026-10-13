@@ -1,11 +1,16 @@
 //! Generated public schedules and role-specific fixtures for Worker benchmarks.
 
-use crate::{InvestigationResult, circuit_evidence, digest, garbled_execution, require};
+use crate::{
+    InvestigationResult, circuit_evidence, digest, garbled_execution, private_signing, reference,
+    require,
+};
+use ed25519_yao::ml_dsa_signing::{SigningKernel, keygen::KeygenKernel};
 use ed25519_yao_generator::{
     compile_ml_dsa_eta4_sampling_circuit_v1, compile_ml_dsa_power2round_circuit_v1,
     compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,
     compile_ml_dsa_private_seed_circuit_v1, compile_ml_dsa_private_signing_mask_circuit_v1,
 };
+use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde_json::{Map, Value, json};
 use std::{fs, path::Path};
 
@@ -75,7 +80,7 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
     let sampling_circuit = compile_ml_dsa_private_sampling_circuit_v1();
     save_kernel(
         directory,
-        "sampling-0",
+        "sampling",
         sampling_circuit.canonical_schedule_encoding(),
         RoleFixture {
             input: &sampling_a,
@@ -144,7 +149,7 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
     append_residues(&mut mask_output_b, &mask_output.deriver_b_shares, 23);
     save_kernel(
         directory,
-        "mask-0",
+        "signing-mask",
         mask_circuit.canonical_schedule_encoding(),
         RoleFixture {
             input: &mask_a,
@@ -157,15 +162,35 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         &mut role_a,
         &mut role_b,
     )?;
+    private_signing::compile_schedules(directory)?;
+    let mut schedules = Map::new();
+    for name in KeygenKernel::ALL
+        .iter()
+        .map(|kernel| kernel.name())
+        .chain(SigningKernel::ALL.iter().map(|kernel| kernel.name()))
+    {
+        let bytes = fs::read(directory.join(format!("{name}.bin")))?;
+        schedules.insert(
+            name.into(),
+            json!({"sha256": digest(&bytes), "bytes": bytes.len()}),
+        );
+    }
+    let key = SigningKey::<MlDsa65>::from_seed(&[0; 32].into());
+    let message = reference::public_message();
+    let signature = key
+        .expanded_key()
+        .sign_deterministic(&message, b"")?
+        .encode();
+    let threshold_fixture = json!({"own_seed_share_hex": hex::encode(seed_share), "public_key_hex": hex::encode(key.verifying_key().encode().as_slice()), "message_hex": hex::encode(message), "context_hex": "", "deterministic_signature_hex": hex::encode(signature.as_slice())});
     for (role, kernels) in [("a", role_a), ("b", role_b)] {
-        let fixtures = json!({"schema": "seams.ml-dsa-worker-fixtures.v1", "public_fixtures_only": true, "kernels": kernels});
+        let fixtures = json!({"schema": "seams.ml-dsa-worker-fixtures.v1", "public_fixtures_only": true, "kernels": kernels, "schedules": schedules, "threshold_fixture": threshold_fixture});
         fs::write(
             directory.join(format!("fixtures-{role}.json")),
             serde_json::to_vec_pretty(&fixtures)?,
         )?;
     }
     Ok(
-        json!({"directory": directory, "public_fixtures_only": true, "schedules": ["seed", "sampling-0", "rounding", "mask-0"], "reproduction": "cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- export-worker-fixtures <directory>"}),
+        json!({"directory": directory, "public_fixtures_only": true, "compiled_schedule_count": 10, "fixed_kernel_fixtures": ["seed", "sampling", "rounding", "signing-mask"], "reproduction": "cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- export-worker-fixtures <directory>"}),
     )
 }
 

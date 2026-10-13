@@ -84,3 +84,24 @@ pub(super) fn encode_metrics(metrics: &PrivateRoleMetrics) -> Value {
         "execution_binding_sha256": hex::encode(metrics.execution_binding_sha256),
     })
 }
+
+/// Public core counters without host-specific timing fields.
+pub(super) fn encode_runtime_metrics(
+    metrics: &ed25519_yao::ml_dsa_runtime::RuntimeMetrics,
+) -> Value {
+    json!({
+        "table_bytes": metrics.table_bytes,
+        "frame_count": metrics.frame_count,
+        "garbler_to_evaluator_wire_bytes": metrics.garbler_to_evaluator_wire_bytes,
+        "evaluator_to_garbler_wire_bytes": metrics.evaluator_to_garbler_wire_bytes,
+        "ot_wire_bytes": metrics.ot_wire_bytes,
+        "direct_label_bytes": metrics.direct_label_bytes,
+        "output_translation_bytes": metrics.output_translation_bytes,
+        "public_return_bytes": metrics.public_return_bytes,
+        "label_arena_allocation_bytes": metrics.label_arena_allocation_bytes,
+        "maximum_table_message_bytes": metrics.maximum_table_message_bytes,
+        "maximum_control_message_bytes": metrics.maximum_control_message_bytes,
+        "schedule_bytes": metrics.schedule_bytes,
+        "execution_binding_sha256": hex::encode(metrics.execution_binding_sha256),
+    })
+}

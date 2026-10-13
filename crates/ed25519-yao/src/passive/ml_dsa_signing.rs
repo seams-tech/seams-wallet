@@ -7,6 +7,7 @@
 //! authenticated transport, persistence, or target constant-time qualification.
 
 pub mod arithmetic;
+pub mod keygen;
 
 use core::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
@@ -469,11 +470,11 @@ fn append_polynomial(bits: &mut Vec<bool>, polynomial: &Polynomial) {
     }
 }
 
-fn decode_polynomial(bytes: &[u8]) -> Result<Polynomial> {
+fn decode_polynomial(bytes: &[u8], offset: usize) -> Result<Polynomial> {
     let mut polynomial = [0; N];
     for (index, value) in polynomial.iter_mut().enumerate() {
         for bit in 0..23 {
-            let position = index * 23 + bit;
+            let position = offset + index * 23 + bit;
             *value |= u32::from((bytes[position / 8] >> (position % 8)) & 1) << bit;
         }
         if *value >= Q {
@@ -597,7 +598,7 @@ impl Machine {
             }
             Stage::Mask(index) => {
                 if self.role == SigningRole::B {
-                    self.candidate.y[index] = decode_polynomial(output)?;
+                    self.candidate.y[index] = decode_polynomial(output, 0)?;
                 }
                 if index + 1 == COLUMNS {
                     self.candidate.w =

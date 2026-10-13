@@ -22,7 +22,7 @@ From the repository directory:
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
   --samples 100 --garbled-samples 3 \
-  --output docs/evidence/ml-dsa-65-threshold-host-20261013.json
+  --output docs/evidence/ml-dsa-65-threshold-host-shared-core-20261013.json
 ```
 
 The tool fails when any reference comparison or rejection check fails.
@@ -153,9 +153,9 @@ The test recipient's authorization is an explicit harness action.
 It does not establish an authenticated export flow.
 
 This tool executes an experimental complete threshold signing protocol.
-The separate Worker adapter executes four private kernels with the same resumable cryptographic runtime.
-The [hosted report](../../docs/evidence/ml-dsa-65-worker-kernels-hosted-20261013.json) records those measurements.
-It does not yet measure complete key generation or signing on Cloudflare.
+The host and Worker adapters use the same consuming key-generation and signing state machines.
+The [preliminary report](../../docs/router-ab/ml-dsa-65-preliminary-keygen-report.md) records complete hosted key-generation measurements.
+The [kernel report](../../docs/evidence/ml-dsa-65-worker-kernels-hosted-20261013.json) preserves the earlier component measurements.
 Host timing does not establish Worker CPU time, bandwidth, latency, or cost.
 Cross-implementation agreement does not establish FIPS module validation.
 Classical OT does not establish post-quantum transcript confidentiality.

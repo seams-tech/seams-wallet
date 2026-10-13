@@ -1,0 +1,185 @@
+{
+  "schema": "seams.ml-dsa-cloudflare-complete-cleanup.v1",
+  "created_at": "2026-10-13T10:14:23.670357+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-kernel-20261013-a",
+      "settings_http_status": 404,
+      "errors": [
+        {
+          "code": 10007,
+          "message": "This Worker does not exist on your account."
+        }
+      ],
+      "deletion_verified": true
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-kernel-20261013-b",
+      "settings_http_status": 404,
+      "errors": [
+        {
+          "code": 10007,
+          "message": "This Worker does not exist on your account."
+        }
+      ],
+      "deletion_verified": true
+    }
+  ],
+  "local_probe_token_file_deleted": true,
+  "durable_resources": "These two configurations create no Durable Objects or D1 databases.",
+  "tail_scope": "Sanitized live tails cover authentication controls and four complete signing operations: fixed and joint warm-up plus measured cases. The initial client-network failure predates these tails and has no correlated run ID. Request headers and token values are excluded.",
+  "expected_complete_signing_run_ids": [
+    "28686c25bbf82d4578d7ed18c9bca6f1",
+    "83052e67859ad571491a4683b83edafc",
+    "a0f735539cb406b93554a51767141ee2",
+    "ec17e7ad16b9c682334ad83440d8d828"
+  ],
+  "matched_b_completion_run_ids": [
+    "28686c25bbf82d4578d7ed18c9bca6f1",
+    "83052e67859ad571491a4683b83edafc",
+    "a0f735539cb406b93554a51767141ee2",
+    "ec17e7ad16b9c682334ad83440d8d828"
+  ],
+  "tail_records": [
+    {
+      "role": "a",
+      "script": "ml-dsa-kernel-20261013-a",
+      "script_version": {
+        "id": "33399981-23f4-4f02-82b9-ded71f262c8c"
+      },
+      "event_timestamp": 1791885526455,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": []
+    },
+    {
+      "role": "a",
+      "script": "ml-dsa-kernel-20261013-a",
+      "script_version": {
+        "id": "33399981-23f4-4f02-82b9-ded71f262c8c"
+      },
+      "event_timestamp": 1791885528035,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": []
+    },
+    {
+      "role": "a",
+      "script": "ml-dsa-kernel-20261013-a",
+      "script_version": {
+        "id": "33399981-23f4-4f02-82b9-ded71f262c8c"
+      },
+      "event_timestamp": 1791885603037,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": []
+    },
+    {
+      "role": "a",
+      "script": "ml-dsa-kernel-20261013-a",
+      "script_version": {
+        "id": "33399981-23f4-4f02-82b9-ded71f262c8c"
+      },
+      "event_timestamp": 1791885813316,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": []
+    },
+    {
+      "role": "a",
+      "script": "ml-dsa-kernel-20261013-a",
+      "script_version": {
+        "id": "33399981-23f4-4f02-82b9-ded71f262c8c"
+      },
+      "event_timestamp": 1791885815118,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": []
+    },
+    {
+      "role": "a",
+      "script": "ml-dsa-kernel-20261013-a",
+      "script_version": {
+        "id": "33399981-23f4-4f02-82b9-ded71f262c8c"
+      },
+      "event_timestamp": 1791886030965,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": []
+    },
+    {
+      "role": "b",
+      "script": "ml-dsa-kernel-20261013-b",
+      "script_version": {
+        "id": "f81c35cc-2757-4d8f-9511-e37dc4eb9669"
+      },
+      "event_timestamp": 1791885528050,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": [
+        {
+          "event": "ml-dsa-pipeline-complete",
+          "kernel": "threshold-fixture",
+          "role": "b",
+          "run_id": "ec17e7ad16b9c682334ad83440d8d828"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "script": "ml-dsa-kernel-20261013-b",
+      "script_version": {
+        "id": "f81c35cc-2757-4d8f-9511-e37dc4eb9669"
+      },
+      "event_timestamp": 1791885603040,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": [
+        {
+          "event": "ml-dsa-pipeline-complete",
+          "kernel": "threshold-fixture",
+          "role": "b",
+          "run_id": "83052e67859ad571491a4683b83edafc"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "script": "ml-dsa-kernel-20261013-b",
+      "script_version": {
+        "id": "f81c35cc-2757-4d8f-9511-e37dc4eb9669"
+      },
+      "event_timestamp": 1791885815136,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": [
+        {
+          "event": "ml-dsa-pipeline-complete",
+          "kernel": "threshold-joint",
+          "role": "b",
+          "run_id": "a0f735539cb406b93554a51767141ee2"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "script": "ml-dsa-kernel-20261013-b",
+      "script_version": {
+        "id": "f81c35cc-2757-4d8f-9511-e37dc4eb9669"
+      },
+      "event_timestamp": 1791886030970,
+      "outcome": "ok",
+      "exceptions": [],
+      "completion_events": [
+        {
+          "event": "ml-dsa-pipeline-complete",
+          "kernel": "threshold-joint",
+          "role": "b",
+          "run_id": "28686c25bbf82d4578d7ed18c9bca6f1"
+        }
+      ]
+    }
+  ]
+}

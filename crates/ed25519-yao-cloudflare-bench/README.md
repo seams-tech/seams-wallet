@@ -191,12 +191,13 @@ pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.
 pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.b.jsonc
 ```
 
-## Private ML-DSA kernel probes
+## Private ML-DSA Worker experiments
 
-The ML-DSA role builds execute seed expansion, one sampling polynomial, one
-rounding polynomial, and one signing-mask polynomial. Each build contains only
-its own disposable fixture inputs. Both builds use genuine OT and the same
-resumable cryptographic runtime as the host investigation.
+The ML-DSA role builds execute individual private kernels and complete key generation and signing.
+Both builds use genuine OT and the shared resumable cryptographic core.
+Fixed cases use only each role's own public fixture inputs.
+Joint cases generate fresh independent seed contributions inside each Worker.
+Each Worker receives only its own private signing shares.
 
 Generate the public schedules and role fixtures from the repository root:
 
@@ -221,21 +222,35 @@ Run the local or hosted E2E campaign from the repository root:
 
 ```sh
 node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
-  --local --samples 5 --out /tmp/ml-dsa-kernels-local.json
+  --local --kernel keygen-fixture --samples 1 --out /tmp/ml-dsa-keygen-local.json
 node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
-  --endpoint https://<a-endpoint> --samples 5 --out /tmp/ml-dsa-kernels-hosted.json
+  --endpoint https://<a-endpoint> --kernel keygen-joint --samples 5 --out /tmp/ml-dsa-keygen-hosted.json
+node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
+  --endpoint https://<a-endpoint> --kernel threshold-joint --samples 1 --out /tmp/ml-dsa-signing-hosted.json
 ```
+
+Use `keygen-fixture` or `threshold-fixture` for exact independent reference comparisons.
+Use `seed`, `sampling`, `rounding`, or `signing-mask` to measure one private kernel.
+Omit `--kernel` to run every operation.
+Each complete signing operation also creates its disposable keypair.
+Key-generation-only operations execute eighteen circuits and generate no signature.
+Every operation discards its private material after the benchmark.
 
 The hosted command reads `PROBE_TOKEN` from its environment. Each group contains
 one warm-up and the requested measured samples. The report pins source files,
 role fixtures, schedules, packaged Wasm, configurations, and installed tools.
-It checks each role's expected output, shared execution binding, and exact
-runtime traffic. B sends a separate completion report and closes its socket.
+It checks reference outputs, fresh execution bindings, and exact runtime traffic.
+Both signing roles verify standard signatures independently.
+The client also verifies them through OpenSSL and checks altered messages, signatures, and keys.
+B sends a separate completion report and closes its socket.
 
 Worker `Date.now()` records elapsed observations. Use Cloudflare CPU
 analytics separately. Wasm linear memory is an isolate-wide high-water mark.
-it excludes JavaScript buffers and total Worker memory. This campaign measures
-private kernels, rather than a complete key-generation or signing operation.
+It excludes JavaScript buffers and total Worker memory.
+Client wall time ends after the complete response body arrives.
+The artifact records subsequent client verification time separately.
+The probe excludes wallet admission, durable storage, authenticated recovery, and production peer authentication.
+The current configurations permit up to five minutes of CPU per invocation.
 
 Delete both temporary Workers after collection, from this crate directory:
 

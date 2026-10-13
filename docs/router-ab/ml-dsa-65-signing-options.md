@@ -2,8 +2,8 @@
 
 Reviewed October 13, 2026. This assessment selects no production protocol.
 Continue with the uniformly masked key format in the [experiment contract](ml-dsa-65-experiment-contract.md).
-The complete public-challenge baseline now passes the separate-role host harness.
-Measure its full Worker execution before choosing the production signing composition.
+The complete public-challenge baseline now passes the separate-role host and deployed Worker harnesses.
+Optimize and review its complete composition before choosing the production signing protocol.
 
 Every candidate must preserve the canonical public key from the hidden 32-byte FIPS seed `xi`.
 Neither server may reconstruct `xi` or the complete private key during generation, import, conversion, or signing.
@@ -58,7 +58,7 @@ Any preprocessing comparison must include its generation, storage, conversions, 
 | Boundary | Consequence | Current decision |
 | --- | --- | --- |
 | All intermediates and acceptance remain private | Requires secret products and private selection of the first valid candidate. | Conservative resource baseline. |
-| Only `c_tilde` and one aggregate acceptance result become public | Challenge products become local. Secure hashing and all rejected responses remain private. | Complete host signatures pass. Composition review remains required. |
+| Only `c_tilde` and one aggregate acceptance result become public | Challenge products become local. Secure hashing and all rejected responses remain private. | Complete host and deployed Worker signatures pass. Composition review remains required. |
 | Rejected `w1` becomes public | Hashing becomes local. Ordinary ML-DSA analysis does not establish this disclosure. | Require a proven compatible protocol change. |
 
 The first row needs a fixed public execution schedule to hide the successful attempt's position.
@@ -79,6 +79,11 @@ It produces standard signatures before any authorized reconstruction of the seed
 Deterministic outputs match the ordinary reference exactly. Jointly randomized outputs verify independently.
 Its 81,345,984 garbled table bytes per candidate and 91,498,125 total candidate bytes define the measured comparison baseline.
 Correctness does not complete the share-composition proof or establish production eligibility.
+
+The [deployed baseline](ml-dsa-65-preliminary-keygen-report.md) also produces standard signatures from fresh joint keys on separate Workers.
+Its observed complete key-generation-and-signing operations take approximately 74–215 seconds, depending on the key, attempt count, and observed runtime conditions.
+The sample count does not establish a signing distribution.
+Compare alternatives against the exact circuit and byte totals, with all preprocessing included.
 
 ## Mithril with canonical existing keys
 
@@ -121,8 +126,8 @@ The reported provider-assisted timings do not predict the replacement's cost.
 
 ## Next measurements
 
-1. Repeat the complete, verified host signing state machine on separate Cloudflare Workers.
-2. Measure every candidate, fresh OT, memory, transport, and complete operation latency.
+1. Extend the verified deployed baseline to a controlled repeated signing workload.
+2. Measure each candidate's fresh OT, memory, transport, and complete operation latency.
 3. Specify and review the exact challenge/count disclosure functionality and its share-composition argument.
 4. Measure the conservative private-product path and the justified public-challenge path with identical accounting.
 5. Screen the Quorus algorithm change with two-party kernels separately from its honest-majority implementation.

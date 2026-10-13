@@ -76,7 +76,7 @@ The [kernel artifact](../evidence/ml-dsa-65-kernels-20261013.json) separates thr
 | Public half-gates benchmarks | Separate processes execute actual garbling and evaluation with bounded table frames. | Both evaluator labels transfer openly. No OT protects inputs. |
 | Private key-generation pipeline | Persistent A and B processes execute 18 kernels with genuine passive OT and private outputs. | Shared-host separation provides no operating-system isolation. Composition review remains open. |
 
-The private pipeline compiles 13 distinct schedules and executes these stages for each key:
+The private pipeline reuses three distinct schedules and executes these stages for each key:
 
 1. Expand the XOR-shared seed once. Publish `rho` and retain separate XOR shares of `rho_prime` and `K`.
 2. Execute eleven sampling kernels. Keep `rho_prime` shared and output masked additive coefficients for `s1` and `s2`.
@@ -94,8 +94,8 @@ After both roles finish, a separate test recipient reads their temporary materia
 It reconstructs the seed and verifies the canonical public key.
 It reconstructs `K`, `s1`, `s2`, and `t0`, then compares the complete 4,032-byte private encoding with OpenSSL.
 It signs with the recovered ordinary key and verifies the resulting standard signature.
-No threshold signing protocol currently consumes the generated shares.
-The recovered-key signature does not establish threshold signing feasibility or speed.
+Before recipient reconstruction, separate roles consume their shares and produce standard threshold signatures.
+The recovered-key signature supplies a separate recovery check.
 
 The artifact records each private case once.
 Its four fixed seeds are zero, incrementing bytes, all `ff`, and alternating `aa` and `55`.
@@ -105,7 +105,7 @@ Reproduce the artifact from the repository directory:
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
   --samples 100 --garbled-samples 3 \
-  --output docs/evidence/ml-dsa-65-kernels-20261013.json
+  --output docs/evidence/ml-dsa-65-threshold-host-shared-core-20261013.json
 ```
 
 The sample counts apply to reference operations and successful public garbling workloads respectively.
@@ -144,14 +144,14 @@ Opening `t` is a separate optimization requiring a composition argument alongsid
 Never expose signing masks, rejected candidates, or secret rejection checks to save communication.
 Generate each output mask independently. Consume garbled execution material once.
 
-The proposed general signing circuit must consume these shares directly.
+The shared signing state machine consumes these shares directly.
 Mithril and Trilithium need separate share-conversion and preprocessing analyses.
 Their implementations cannot inherit compatibility merely because their outputs use ML-DSA.
 
 The [signing options](ml-dsa-65-signing-options.md) distinguish commitment `w1` from challenge hash `c_tilde`.
-A possible disclosure of `c_tilde` does not permit disclosure of rejected `w1`.
-The challenge, stopping-count, and share-composition arguments remain unresolved.
-The current key-generation experiment approves no added signing disclosure.
+The implemented baseline opens `c_tilde` and one aggregate acceptance bit per candidate.
+It keeps rejected `w1`, responses, masks, hints, and individual checks private.
+The challenge, stopping-count, and share-composition arguments still need independent review.
 
 ## Roles, authorization, and recovery
 
@@ -161,11 +161,13 @@ The Router receives public operation state and results.
 It receives no seed, signing share, or preprocessing secret.
 The client authorizes the exact wallet, key, message, operation, and recipient.
 
-Use the existing Deriver A and B Worker entrypoints for the first deployed experiment.
+The deployed benchmark uses two temporary Workers connected through a Service Binding.
 Keep each role's credentials and persistence separate.
 This experiment choice does not approve a production signing route.
-The checked manifests declare Rust/WASM Workers and wallet Durable Objects.
-Live versions, physical placement, storage locations, and resource limits still need a deployment record.
+The production manifests declare Rust/WASM Workers and wallet Durable Objects.
+The benchmark excludes those storage and Router admission paths.
+Its [deployment record](../evidence/ml-dsa-65-worker-complete-deployment-20261013.json) pins temporary role versions and local build hashes.
+Physical placement and production storage locations remain unverified.
 
 The local generation experiment creates one key identity.
 The proposed signing protocol must consume fresh one-use material.
@@ -176,13 +178,13 @@ Recovery must reproduce the canonical key before new shares become active.
 Production must satisfy these behaviors. Production authorization and lifecycle flows remain unimplemented.
 
 The private experiment uses a shared host with direct process pipes and temporary files.
-Its parent controls both processes and explicitly starts the test recipient after key generation.
+Its parent controls both processes and starts the test recipient after threshold signing.
 This arrangement establishes no operating-system isolation or production recipient authorization.
 Local arithmetic provides no native constant-time guarantee.
 Transport authentication, production admission, and durable secret storage remain unimplemented.
 Composition privacy remains subject to review under the accepted passive profile.
-The host crypto measurements do not execute Cloudflare cryptography.
-Cloudflare transport measurements remain separate evidence.
+The host crypto measurements do not establish Cloudflare timing.
+The [preliminary report](ml-dsa-65-preliminary-keygen-report.md) records complete deployed key-generation timing separately.
 
 One seed share cannot recover a permanently lost peer's material.
 The first recovery fixture requires both shares.
@@ -214,7 +216,7 @@ Keep full public keys distinct from hashed access-key handles.
 
 | Candidate | Current decision | Required next evidence |
 | --- | --- | --- |
-| Hybrid half-gates plus general 2PC signing | Private key-generation baseline implemented locally | Signing composition, a complete threshold signature, and deployed cryptographic measurements |
+| Hybrid half-gates plus general 2PC signing | Complete host and deployed Worker signatures pass | Independent composition review, target qualification, and optimization |
 | Full Yao | Resource comparison | Exact complete circuit cost |
 | Three-halves garbling | Alternative | Implementation, security parameters, CPU, and total traffic |
 | GMW / ABY2.0 | Alternative | Two-party preprocessing, conversion, communication depth, and WASM execution |
@@ -231,7 +233,7 @@ The local reference timings cannot rank threshold protocols or predict Cloudflar
 
 ## Next executable step
 
-Measure a private commitment-hash kernel against independent public fixtures.
-Specify the complete signing functionality and justify each proposed disclosure with the generated share format.
-Produce an independently verified threshold signature in separate processes before repeating the complete operation on Cloudflare.
-Retain circuit counts and local key-generation measurements as comparison evidence.
+Extend the complete deployed signing measurements to a controlled repeated workload.
+Review each public disclosure against the generated share format.
+Measure the largest sampling and signing costs before selecting the next optimization.
+Retain complete circuit counts, byte totals, and raw latency samples for comparison.

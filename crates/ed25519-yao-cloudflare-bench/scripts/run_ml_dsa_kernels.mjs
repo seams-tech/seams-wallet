@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createPublicKey, randomBytes, verify } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -11,9 +11,11 @@ import { setTimeout as delay } from "node:timers/promises";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WALLET_ROOT = resolve(ROOT, "../..");
 const REQUIRE = createRequire(import.meta.url);
-const KERNELS = ["seed", "sampling-0", "rounding", "mask-0"];
+const KERNELS = ["seed", "sampling", "rounding", "signing-mask", "keygen-fixture", "keygen-joint", "threshold-fixture", "threshold-joint"];
+const SCHEDULES = ["seed", "sampling", "rounding", "signing-seed", "signing-mask", "commitment-high", "commitment-hash", "response-check", "row-check", "aggregate-check"];
 const SOURCES = [
   "src/ml_dsa.rs",
+  "src/ml_dsa/pipeline.rs",
   "src/lib.rs",
   "Cargo.toml",
   "Cargo.lock",
@@ -25,8 +27,21 @@ const SOURCES = [
   "../ed25519-yao/src/passive.rs",
   "../ed25519-yao/src/passive/runtime.rs",
   "../ed25519-yao/src/passive/ml_dsa_runtime.rs",
+  "../ed25519-yao/src/passive/ml_dsa_signing.rs",
+  "../ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
+  "../ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
   "../ed25519-yao/src/passive/gate_aes.rs",
   "../ed25519-yao/src/passive/ot.rs",
+  "../../tools/ml-dsa-investigation/Cargo.toml",
+  "../../tools/ml-dsa-investigation/Cargo.lock",
+  "../../tools/ml-dsa-investigation/src/worker_fixtures.rs",
+  "../../tools/ml-dsa-investigation/src/private_signing.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/keccak.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ir.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/schedule.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
+  "../../tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
 ];
 
 function argumentsFrom(argv) {
@@ -85,7 +100,7 @@ async function provenance() {
   const sources = [];
   for (const source of SOURCES) sources.push(await fileIdentity(resolve(ROOT, source)));
   const schedules = [];
-  for (const kernel of KERNELS) schedules.push(await fileIdentity(resolve(ROOT, `src/ml_dsa_schedules/${kernel}.bin`)));
+  for (const kernel of SCHEDULES) schedules.push(await fileIdentity(resolve(ROOT, `src/ml_dsa_schedules/${kernel}.bin`)));
   const fixtures = [];
   for (const role of ["a", "b"]) fixtures.push(await fileIdentity(resolve(ROOT, `src/ml_dsa_schedules/fixtures-${role}.json`)));
   const packages = [];
@@ -100,9 +115,10 @@ async function provenance() {
     captured_at: new Date().toISOString(),
     sources,
     schedules,
+    threshold_fixture: JSON.parse(await readFile(resolve(ROOT, "src/ml_dsa_schedules/fixtures-a.json"), "utf8")).threshold_fixture,
     fixtures,
     builds,
-    node: { version: process.version, v8: process.versions.v8, platform: process.platform, architecture: process.arch },
+    node: { version: process.version, openssl: process.versions.openssl, v8: process.versions.v8, platform: process.platform, architecture: process.arch },
     packages,
     reproduction: {
       working_directory: process.cwd(),
@@ -150,7 +166,7 @@ function assertRole(role, expectedRole, kernel, runId) {
   assert.match(role.schedule_sha256, /^[a-f0-9]{64}$/);
   assert.equal(role.transport.credit_window_messages, 8);
   assert(role.transport.largest_pending_messages <= 8);
-  assert(role.transport.largest_runtime_message_bytes <= 188_464);
+  assert(role.transport.largest_runtime_message_bytes <= 376_880);
   assert.equal(Object.hasOwn(role, "output"), false);
   assert.equal(Object.hasOwn(role, "output_hex"), false);
 }
@@ -177,7 +193,162 @@ function assertReport(report, kernel, runId, expectedDigest) {
   assert(report.roles.a.transport.received_completion_bytes > 0);
 }
 
-async function oneSample(endpoint, token, kernel, expectedDigest, warmup) {
+function isThreshold(kernel) {
+  return kernel === "threshold-fixture" || kernel === "threshold-joint";
+}
+
+function isKeygen(kernel) {
+  return kernel === "keygen-fixture" || kernel === "keygen-joint";
+}
+
+function isPipeline(kernel) {
+  return isThreshold(kernel) || isKeygen(kernel);
+}
+
+function standardKey(bytes) {
+  // SPKI for OID 2.16.840.1.101.3.4.3.18 and exactly 1,952 raw key bytes.
+  const prefix = Buffer.from("308207b2300b0609608648016503040312038207a100", "hex");
+  return createPublicKey({ key: Buffer.concat([prefix, bytes]), type: "spki", format: "der" });
+}
+
+function assertThresholdRole(role, expectedRole, kernel, runId) {
+  assert.equal(role.schema, "seams.ml-dsa-worker-threshold.v1");
+  assert.equal(role.role, expectedRole);
+  assert.equal(role.kernel, kernel);
+  assert.equal(role.run_id, runId);
+  assert.equal(role.disposable_test_key, true);
+  assert.equal(role.public_fixture_only, kernel === "threshold-fixture");
+  assert.equal(role.standard_signature_verified, true);
+  assert.equal(role.public_key_hex.length, 1952 * 2);
+  assert.equal(role.signature_hex.length, 3309 * 2);
+  assert.equal(role.message_hex.length, 64);
+  assert.equal(role.context_hex, "");
+  assert(Number.isInteger(role.attempts) && role.attempts >= 1 && role.attempts <= 821);
+  assert.equal(role.retry_count, role.attempts - 1);
+  assert.equal(role.challenge_hashes_hex.length, role.attempts);
+  assert.equal(role.runtime.circuit_count, 19 + 24 * role.attempts);
+  assert.equal(role.runtime.fresh_execution_bindings, role.runtime.circuit_count);
+  assert.equal(role.runtime.table_bytes, 118_728_192 + 1_193_984 + 81_345_984 * role.attempts);
+  assert.equal(role.transport.credit_window_messages, 8);
+  assert(role.transport.largest_pending_messages <= 8);
+  assert(role.transport.largest_runtime_message_bytes <= 376_880);
+  assert(Number.isInteger(role.wasm_linear_memory_highwater_bytes));
+  assert(role.wasm_linear_memory_highwater_bytes > 0);
+  for (const name of ["seed", "seed_hex", "own_material", "private_key", "output", "output_hex"]) {
+    assert.equal(Object.hasOwn(role, name), false);
+  }
+}
+
+function assertThresholdReport(report, kernel, runId, fixture) {
+  assert.equal(report.schema, "seams.ml-dsa-worker-threshold.v1");
+  assert.equal(report.ok, true);
+  assert.equal(report.production_eligible, false);
+  assert.equal(report.kernel, kernel);
+  assert.equal(report.run_id, runId);
+  assertThresholdRole(report.roles.a, "a", kernel, runId);
+  assertThresholdRole(report.roles.b, "b", kernel, runId);
+  const a = report.roles.a;
+  const b = report.roles.b;
+  for (const field of ["public_key_hex", "signature_hex", "message_hex", "context_hex", "attempts", "challenge_hashes_hex"]) {
+    assert.deepEqual(a[field], b[field]);
+  }
+  for (const field of ["execution_bindings_sha256", "circuit_count", "table_bytes", "a_to_b_wire_bytes", "b_to_a_wire_bytes", "ot_wire_bytes"]) {
+    assert.deepEqual(a.runtime[field], b.runtime[field]);
+  }
+  assert.equal(a.runtime.a_to_b_wire_bytes, a.transport.sent_runtime_bytes);
+  assert.equal(a.runtime.b_to_a_wire_bytes, a.transport.received_runtime_bytes);
+  assert.equal(b.runtime.a_to_b_wire_bytes, b.transport.received_runtime_bytes);
+  assert.equal(b.runtime.b_to_a_wire_bytes, b.transport.sent_runtime_bytes);
+  assert.equal(a.transport.sent_ack_bytes, b.transport.received_ack_bytes);
+  assert.equal(b.transport.sent_ack_bytes, a.transport.received_ack_bytes);
+  const publicKey = Buffer.from(a.public_key_hex, "hex");
+  const message = Buffer.from(a.message_hex, "hex");
+  const signature = Buffer.from(a.signature_hex, "hex");
+  const key = standardKey(publicKey);
+  assert.equal(key.asymmetricKeyType, "ml-dsa-65");
+  assert.equal(verify(null, message, key, signature), true);
+  const changedMessage = Buffer.from(message);
+  changedMessage[0] ^= 1;
+  const changedSignature = Buffer.from(signature);
+  changedSignature[0] ^= 1;
+  const changedKey = Buffer.from(publicKey);
+  changedKey[0] ^= 1;
+  assert.equal(verify(null, changedMessage, key, signature), false);
+  assert.equal(verify(null, message, key, changedSignature), false);
+  assert.equal(verify(null, message, standardKey(changedKey), signature), false);
+  assert.equal(a.message_hex, fixture.message_hex);
+  if (kernel === "threshold-fixture") {
+    assert.equal(a.public_key_hex, fixture.public_key_hex);
+    assert.equal(a.signature_hex, fixture.deterministic_signature_hex);
+  }
+  return {
+    kind: "standard-ml-dsa-65-signature",
+    verifier: "Node crypto backed by the recorded OpenSSL version",
+    verified: true,
+    changed_message_rejected: true,
+    changed_signature_rejected: true,
+    changed_public_key_rejected: true,
+    fips_context_hex: "",
+    canonical_fixture_bytes_checked: kernel === "threshold-fixture",
+  };
+}
+
+function assertKeygenReport(report, kernel, runId, fixture) {
+  assert.equal(report.schema, "seams.ml-dsa-worker-keygen.v1");
+  assert.equal(report.ok, true);
+  assert.equal(report.production_eligible, false);
+  assert.equal(report.kernel, kernel);
+  assert.equal(report.run_id, runId);
+  const a = report.roles.a;
+  const b = report.roles.b;
+  for (const role of [a, b]) {
+    assert.equal(role.schema, report.schema);
+    assert.equal(role.kernel, kernel);
+    assert.equal(role.run_id, runId);
+    assert.equal(role.disposable_test_key, true);
+    assert.equal(role.public_fixture_only, kernel === "keygen-fixture");
+    assert.equal(role.public_key_hex.length, 1952 * 2);
+    assert.equal(role.own_material_bytes, 17_472);
+    assert.equal(role.runtime.circuit_count, 18);
+    assert.equal(role.runtime.fresh_execution_bindings, 18);
+    assert.equal(role.runtime.table_bytes, 118_728_192);
+    assert.equal(role.runtime.a_to_b_wire_bytes + role.runtime.b_to_a_wire_bytes, 123_166_070);
+    assert.equal(role.runtime.accepted_share_bytes, 0);
+    assert.equal(role.runtime.signature_return_bytes, 0);
+    assert.equal(role.transport.credit_window_messages, 8);
+    assert(role.transport.largest_pending_messages <= 8);
+    assert(role.transport.largest_runtime_message_bytes <= 376_880);
+    assert(Number.isInteger(role.wasm_linear_memory_highwater_bytes));
+    assert(role.wasm_linear_memory_highwater_bytes > 0);
+    for (const name of ["seed", "seed_hex", "own_material", "private_key", "output", "output_hex", "signature_hex"]) {
+      assert.equal(Object.hasOwn(role, name), false);
+    }
+  }
+  assert.equal(a.role, "a");
+  assert.equal(b.role, "b");
+  assert.equal(a.public_key_hex, b.public_key_hex);
+  for (const field of ["execution_bindings_sha256", "circuit_count", "table_bytes", "a_to_b_wire_bytes", "b_to_a_wire_bytes", "ot_wire_bytes"]) {
+    assert.deepEqual(a.runtime[field], b.runtime[field]);
+  }
+  assert.equal(a.runtime.a_to_b_wire_bytes, a.transport.sent_runtime_bytes);
+  assert.equal(a.runtime.b_to_a_wire_bytes, a.transport.received_runtime_bytes);
+  assert.equal(b.runtime.a_to_b_wire_bytes, b.transport.received_runtime_bytes);
+  assert.equal(b.runtime.b_to_a_wire_bytes, b.transport.sent_runtime_bytes);
+  assert.equal(a.transport.sent_ack_bytes, b.transport.received_ack_bytes);
+  assert.equal(b.transport.sent_ack_bytes, a.transport.received_ack_bytes);
+  assert.equal(standardKey(Buffer.from(a.public_key_hex, "hex")).asymmetricKeyType, "ml-dsa-65");
+  if (kernel === "keygen-fixture") assert.equal(a.public_key_hex, fixture.public_key_hex);
+  return {
+    kind: "canonical-ml-dsa-65-key-generation",
+    verifier: "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+    standard_public_key_parsed: true,
+    canonical_fixture_bytes_checked: kernel === "keygen-fixture",
+    role_private_material_bytes: 17_472,
+    signature_generated: false,
+  };
+}
+
+async function oneSample(endpoint, token, kernel, expectedDigest, fixture, warmup) {
   const startedAt = new Date().toISOString();
   const runId = randomBytes(16).toString("hex");
   const url = new URL("/benchmark", endpoint);
@@ -186,14 +357,23 @@ async function oneSample(endpoint, token, kernel, expectedDigest, warmup) {
   const started = performance.now();
   const response = await fetch(url, {
     headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(360_000),
   });
   const responseHeadersMs = performance.now() - started;
   const body = await response.text();
+  const completeMs = performance.now() - started;
   assert.equal(response.status, 200, `Kernel ${kernel} failed: ${body.slice(0, 3000)}`);
   const report = JSON.parse(body);
-  assertReport(report, kernel, runId, expectedDigest);
-  return { warmup, started_at: startedAt, finished_at: new Date().toISOString(), client_response_headers_ms: responseHeadersMs, client_complete_ms: performance.now() - started, report };
+  let clientVerification;
+  if (isThreshold(kernel)) {
+    clientVerification = assertThresholdReport(report, kernel, runId, fixture);
+  } else if (isKeygen(kernel)) {
+    clientVerification = assertKeygenReport(report, kernel, runId, fixture);
+  } else {
+    assertReport(report, kernel, runId, expectedDigest);
+    clientVerification = { kind: "private-kernel-fixture", expected_role_outputs_match: true };
+  }
+  return { warmup, started_at: startedAt, finished_at: new Date().toISOString(), client_response_headers_ms: responseHeadersMs, client_complete_ms: completeMs, client_verification_ms: performance.now() - started - completeMs, client_verification: clientVerification, report };
 }
 
 function median(values) {
@@ -210,11 +390,18 @@ function sampleElapsed(sample) {
   return sample.client_complete_ms;
 }
 
-function assertFreshBinding(sample, bindings) {
-  const binding = sample.report.roles.a.runtime.execution_binding_sha256;
+function assertFreshBinding(sample, bindings, jointPublicKeys) {
+  const binding = isPipeline(sample.report.kernel)
+    ? sample.report.roles.a.runtime.execution_bindings_sha256
+    : sample.report.roles.a.runtime.execution_binding_sha256;
   assert.match(binding, /^[a-f0-9]{64}$/);
   assert.equal(bindings.has(binding), false, "The runtime reused an execution binding");
   bindings.add(binding);
+  if (sample.report.kernel === "keygen-joint" || sample.report.kernel === "threshold-joint") {
+    const publicKey = sample.report.roles.a.public_key_hex;
+    assert.equal(jointPublicKeys.has(publicKey), false, "The pipeline reused a joint key");
+    jointPublicKeys.add(publicKey);
+  }
 }
 
 async function exercise(options, endpoint, token, identity) {
@@ -223,20 +410,21 @@ async function exercise(options, endpoint, token, identity) {
   await unauthorized.arrayBuffer();
   const cases = [];
   const bindings = new Set();
+  const jointPublicKeys = new Set();
   for (const kernel of options.kernels) {
     let expectedDigest = null;
     for (const schedule of identity.schedules) {
       if (schedule.path.endsWith(`/${kernel}.bin`)) expectedDigest = schedule.sha256;
     }
-    assert.equal(typeof expectedDigest, "string", "The local schedule identity is missing");
+    if (!isPipeline(kernel)) assert.equal(typeof expectedDigest, "string", "The local schedule identity is missing");
     if (!options.local) await delay(1200);
-    const warmup = await oneSample(endpoint, token, kernel, expectedDigest, true);
-    assertFreshBinding(warmup, bindings);
+    const warmup = await oneSample(endpoint, token, kernel, expectedDigest, identity.threshold_fixture, true);
+    assertFreshBinding(warmup, bindings, jointPublicKeys);
     const measured = [];
     for (let index = 0; index < options.samples; index += 1) {
       if (!options.local) await delay(1200);
-      const sample = await oneSample(endpoint, token, kernel, expectedDigest, false);
-      assertFreshBinding(sample, bindings);
+      const sample = await oneSample(endpoint, token, kernel, expectedDigest, identity.threshold_fixture, false);
+      assertFreshBinding(sample, bindings, jointPublicKeys);
       measured.push(sample);
     }
     const elapsed = measured.map(sampleElapsed);
@@ -248,7 +436,7 @@ async function exercise(options, endpoint, token, identity) {
     });
     process.stdout.write(`${kernel}: ${median(elapsed).toFixed(1)} ms median (${options.samples} samples)\n`);
   }
-  return { unauthorized_request_rejected: true, unique_execution_bindings: bindings.size, cases };
+  return { unauthorized_request_rejected: true, unique_execution_bindings: bindings.size, unique_joint_public_keys: jointPublicKeys.size, cases };
 }
 
 async function main() {
@@ -262,12 +450,13 @@ async function main() {
     const endpoint = local === null ? options.endpoint : local.endpoint;
     const result = await exercise(options, endpoint, token, identity);
     const artifact = {
-      schema: "seams.ml-dsa-cloudflare-private-kernels.v1",
+      schema: "seams.ml-dsa-cloudflare-threshold-investigation.v1",
       created_at: new Date().toISOString(),
       environment: options.local ? "local-workerd" : "hosted-cloudflare",
       endpoint,
-      public_fixture_only: true,
-      security_scope: "Disposable public fixtures run with genuine Chou-Orlandi and IKNP input OT. This experiment has no wallet secrets, persistent signing shares, production peer authentication, or threshold signatures.",
+      public_fixture_only: !options.kernels.includes("threshold-joint") && !options.kernels.includes("keygen-joint"),
+      disposable_test_keys_only: true,
+      security_scope: "Disposable fixed fixtures and fresh joint keys run with genuine Chou-Orlandi and IKNP OT. Complete key generation and threshold signing use the shared resumable core. No wallet admission, durable shares, production peer authentication, or authorized cloud export flow is implemented.",
       measurement_scope: "Client wall time includes request and response transport. Worker Date.now observations are elapsed markers. CPU billing and actual physical placement require separate platform evidence.",
       sampling_scope: "One warm-up precedes each kernel. The measured samples establish observed latency only; they do not establish a production tail-latency bound.",
       provenance: identity,

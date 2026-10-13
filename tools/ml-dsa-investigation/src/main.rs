@@ -229,6 +229,7 @@ fn generate_report(
         "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
         "crates/ed25519-yao/Cargo.toml",
         "crates/ed25519-yao/Cargo.lock",
     ] {
@@ -237,7 +238,7 @@ fn generate_report(
         );
     }
     Ok(json!({
-        "schema": "seams.ml-dsa-investigation.v5",
+        "schema": "seams.ml-dsa-investigation.v6",
         "benchmark_only": true,
         "production_eligible": false,
         "created_at_unix_ms": SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis(),
