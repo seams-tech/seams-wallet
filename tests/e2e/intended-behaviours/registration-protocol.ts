@@ -68,6 +68,8 @@ class SetupReplayProbe {
   }
 
   async handle(route: Route): Promise<void> {
+    // The SDK warms this route with a preflight before the setup request.
+    if (route.request().method() !== 'POST') return route.continue();
     this.url = route.request().url();
     this.headers = await route.request().allHeaders();
     this.body = route.request().postData() ?? '';
