@@ -1,0 +1,85 @@
+{
+  "status": "passed",
+  "scope": "Node Gateway and VM-launcher removal; current Server build, intended types, D1 fixture invariants and unchanged linked-device contract. Final package-wide acceptance remains a release gate.",
+  "sourceParent": "cff2c085dc35b2ccd2b50856205a0ac96d5b6c7f",
+  "sourceHashes": {
+    "tests/e2e/intended-behaviours/harness.ts": "02819a8fc0b5e12224de491a371a29a1c7b76a9f9c3ac633955c0a1a80d21c18",
+    "tests/e2e/intended-behaviours/linked-device-source-evidence.ts": "fd73ff71ff89e7d5c6a09bb2e7541f41b28c1f25e608f38109f9463235e55383",
+    "tests/e2e/intended-behaviours/local-gateway-database.ts": "6d3385342c65f765cc55b33bf32409359615db0fc072261cd84d2c217e0a28e1",
+    "tests/e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts": "320ad67c372b3e28309057aa1b45a3e6db52c24b1e7ed34fa10e9d287948dd0d",
+    "tests/scripts/start-wallet-intended-services.mjs": "012d98ec2c1cdc4c8f93261598ee976fa03c8d193a15ce53631c806bf467e7dd",
+    "tests/unit/githubOAuth.unit.test.ts": "c2945d958568f7cbaa68309ef16ef16586dcc58aff745efc1cb3ac1ba8d46990",
+    "tests/unit/registrationSetupTransientD1.unit.test.ts": "3e0a0b0097f857fc14c93d58801c129791b8e13d891f8b5e292016ca00e658f8"
+  },
+  "deleted": [
+    "crates/router-ab-dev/scripts/start-vm-wallet-system.mjs",
+    "packages/wallet-server/src/router/node/nodeHostedWalletGateway.ts",
+    "packages/wallet-server/src/router/node/nodeHostedWalletGatewayCheck.ts",
+    "packages/wallet-server/src/router/node/nodeHostedWalletGatewayMain.ts",
+    "packages/wallet-server/src/router/node/nodeHttp.ts",
+    "packages/wallet-server/src/router/node/nodeSqlite.ts",
+    "packages/wallet-server/src/router/node/signerSqlMigrations.ts",
+    "packages/wallet-server/src/storage/syncSqlite.ts",
+    "tests/e2e/node-http-body-limit.e2e.mjs"
+  ],
+  "checks": {
+    "serverBuild": "passed",
+    "intendedTypes": "passed after restoring missing generated Yao WASM declarations",
+    "bloat": "passed",
+    "existingGithubOAuthCases": 2,
+    "existingRegistrationSetupCases": 5,
+    "existingLinkedDeviceContract": [
+      {
+        "title": "a second device links with a passkey, signs NEAR and Tempo, and is revoked",
+        "expectedStatus": "passed",
+        "results": [
+          "passed"
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    "registered-link-source": {
+      "kind": "registered_link_source_evidence_v1",
+      "scope": "Real local registration resolved through production Wallet Session, auth-method, authority and signer readers before linking; regional placement remains a separate gate.",
+      "verified": [
+        {
+          "scope": {
+            "namespace": "seams-local",
+            "orgId": "org_local_wallet",
+            "projectId": "local-smoke-project",
+            "envId": "local-smoke-project:dev"
+          },
+          "walletId": "warm-voyage-shxp55",
+          "keyFamily": "ed25519",
+          "authorityId": "wallet-authority:Aa7zhE4-9JgWIbcX_hTLS_gu1uUkL1-NwDIJGq3NXTA",
+          "authorityDigestB64u": "svUN1uaEGxfWDM8CWWO-AeneJYqGqpMgRsbi2NabM-c",
+          "keyManifestDigestB64u": "0eU_us-bwgfcD0OwDdCbvQfJj-vWIgEpVt81_JdWe0A",
+          "verifiedRevocationEpoch": 0
+        },
+        {
+          "scope": {
+            "namespace": "seams-local",
+            "orgId": "org_local_wallet",
+            "projectId": "local-smoke-project",
+            "envId": "local-smoke-project:dev"
+          },
+          "walletId": "warm-voyage-shxp55",
+          "keyFamily": "ecdsa_secp256k1",
+          "authorityId": "wallet-authority:Aa7zhE4-9JgWIbcX_hTLS_gu1uUkL1-NwDIJGq3NXTA",
+          "authorityDigestB64u": "svUN1uaEGxfWDM8CWWO-AeneJYqGqpMgRsbi2NabM-c",
+          "keyManifestDigestB64u": "9OPMa9B6CmynivP0daG8W6NWaSZnwZSCLDXpHlArgKc",
+          "verifiedRevocationEpoch": 0
+        }
+      ]
+    }
+  },
+  "retainedSqlite": "Test-only inspection of local Workers D1 state. Production source readers still validate persisted records. Inspection refuses D1 write operations.",
+  "retiredBodyLimitTest": "The deleted E2E tested the retired Node listener. Self-hosted HTTPS request limits remain an ingress qualification requirement.",
+  "commands": [
+    "pnpm -C packages/wallet-server build",
+    "pnpm -C tests type-check:intended",
+    "pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/githubOAuth.unit.test.ts unit/registrationSetupTransientD1.unit.test.ts --reporter line",
+    "pnpm report:bloat --check"
+  ]
+}

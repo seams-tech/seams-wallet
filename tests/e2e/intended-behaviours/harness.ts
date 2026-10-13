@@ -5469,14 +5469,9 @@ export function requireLocalIntendedYaoFaultRouterOrigin(routerUrl: string): voi
   throw new Error(`Intended Yao fault injection requires ${expected}; received ${origin}`);
 }
 
-/** A Workers Router ends an execution burned on request only when built with
- * `local-intended-router-burn`, which the dev profile selects. The VM script
- * builds its Router with that feature. A release Router runs the execution. */
+/** A dev-profile Router can burn an execution for the local terminal-failure fault. */
 function requireLocalIntendedRouterBurnBuild(): void {
-  if (
-    process.env.SEAMS_INTENDED_WALLET_HOST === 'vm' ||
-    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
-  ) {
+  if (process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev') {
     return;
   }
   throw new Error(

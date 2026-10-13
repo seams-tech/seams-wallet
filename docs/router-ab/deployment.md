@@ -262,6 +262,9 @@ Use the existing Worker/fetch entrypoints, including `router/cloudflare` and `ho
 The `router/cloudflare` name identifies the Workers API surface used by both hosts.
 No deprecated export or Node HTTP bridge replaces the removed Express entrypoint.
 
-Public Node Gateway and native VM retirement remain in progress on the implementation branch.
+The Node Gateway, its SQLite facade, and the VM Wallet launcher are removed.
+SQLite inspection remains only in test evidence tooling.
+The removed Node listener supplied a 1 MiB request-body cap. Configure and qualify request limits at the self-hosted HTTPS ingress.
+Remaining native VM server removal continues on the implementation branch.
 A local candidate must pass the same lifecycle contracts before release and deployment.
 Deployments with durable state require an inventoried, state-safe cutover; source deletion does not migrate that state.

@@ -9,21 +9,22 @@ import { D1WalletStore } from '@server/core/d1WalletStore';
 import { CloudflareD1AuthorizationStore } from '@server/router/cloudflare/d1/authorization/d1AuthorizationStore';
 import { createD1LinkedDeviceVerifiedLinkSourceReaderV1 } from '@server/router/cloudflare/d1/deviceLinking/d1LinkedDeviceVerifiedLinkSourceReader';
 import { D1WalletAuthorityStore } from '@server/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
-import { loadNodeDatabaseSync, nodeSqliteConnection } from '@server/router/node/nodeSqlite';
-import { createSyncSqliteDatabase } from '@server/storage/syncSqlite';
-import { isolatedGatewayDatabasePath } from './local-gateway-database';
+import { openReadOnlyGatewayD1 } from './local-gateway-database';
 
 export async function verifyRegisteredLinkSource(testInfo: TestInfo): Promise<void> {
-  const DatabaseSync = await loadNodeDatabaseSync();
-  const sqlite = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
+  const opened = await openReadOnlyGatewayD1();
   try {
-    const database = createSyncSqliteDatabase(nodeSqliteConnection(sqlite));
-    const sessions = await database.prepare(`
+    const { database } = opened;
+    const sessions = await database
+      .prepare(
+        `
       SELECT namespace, org_id, project_id, env_id, tenant_id, wallet_id,
              wallet_session_id, authorization_id
         FROM wallet_session_authorizations_v2
        WHERE retired_at_ms IS NULL
-    `).all<Record<string, unknown>>();
+    `,
+      )
+      .all<Record<string, unknown>>();
     expect(sessions.results?.length).toBeGreaterThan(0);
     const verified = [];
     for (const row of sessions.results ?? []) {
@@ -69,18 +70,26 @@ export async function verifyRegisteredLinkSource(testInfo: TestInfo): Promise<vo
         });
       }
     }
-    const evidence = JSON.stringify({
-      kind: 'registered_link_source_evidence_v1',
-      scope: 'Real local registration resolved through production Wallet Session, auth-method, authority and signer readers before linking; regional placement remains a separate gate.',
-      verified,
-    }, null, 2);
-    await testInfo.attach('registered-link-source', { body: evidence, contentType: 'application/json' });
+    const evidence = JSON.stringify(
+      {
+        kind: 'registered_link_source_evidence_v1',
+        scope:
+          'Real local registration resolved through production Wallet Session, auth-method, authority and signer readers before linking; regional placement remains a separate gate.',
+        verified,
+      },
+      null,
+      2,
+    );
+    await testInfo.attach('registered-link-source', {
+      body: evidence,
+      contentType: 'application/json',
+    });
     const traceDirectory = process.env.SEAMS_INTENDED_TRACE_DIR;
     if (traceDirectory) {
       await mkdir(traceDirectory, { recursive: true });
       await writeFile(path.join(traceDirectory, 'registered-link-source.json'), `${evidence}\n`);
     }
   } finally {
-    sqlite.close();
+    opened.close();
   }
 }

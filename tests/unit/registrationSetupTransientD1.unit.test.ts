@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
-import { DatabaseSync } from 'node:sqlite';
+import { openSignerD1 } from '../fixtures/signer-d1.mjs';
+import { isD1DatabaseLike } from '../../packages/wallet-server/src/storage/d1Sql';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import { LocalRegistrationSetupAuthority } from '../../packages/wallet-server/src/localRegistrationSetupAuthority';
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyStore';
@@ -8,9 +8,6 @@ import { executeD1WalletRegistrationSetup } from '../../packages/wallet-server/s
 import type { RouterAbEcdsaStrictRegistrationPort } from '../../packages/wallet-server/src/router/domains/ecdsa/routerAbEcdsaStrictRegistration';
 import type { WalletRegistrationSetupInput } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationInputs';
 import { dispatchWalletRegistrationSetup } from '../../packages/wallet-server/src/router/framework/registrationSetupDispatch';
-import { nodeSqliteConnection } from '../../packages/wallet-server/src/router/node/nodeSqlite';
-import { applySignerSqlMigrationsV1 } from '../../packages/wallet-server/src/router/node/signerSqlMigrations';
-import { createSyncSqliteDatabase } from '../../packages/wallet-server/src/storage/syncSqlite';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -18,10 +15,6 @@ import type {
 
 const CONNECTION_LOST = 'D1_ERROR: Network connection lost.';
 const SCOPE = { namespace: 'namespace', orgId: 'org', projectId: 'project', envId: 'dev' };
-const MIGRATIONS = fileURLToPath(
-  new URL('../../packages/wallet-server/migrations/d1-signer', import.meta.url),
-);
-
 /** `lost_request` fails before the batch runs. `lost_reply` fails after it committed. */
 type BatchFault = { readonly kind: 'none' | 'lost_request' | 'lost_reply'; readonly error?: Error };
 
@@ -94,11 +87,10 @@ function setupInput(operation: string): WalletRegistrationSetupInput {
 }
 
 /** Setup as the Gateway assembles it, with the ceremony store on a faulting database. */
-function setupHarness(faultForCall: (call: number) => BatchFault) {
-  const sqlite = new DatabaseSync(':memory:');
-  const connection = nodeSqliteConnection(sqlite);
-  applySignerSqlMigrationsV1(connection, MIGRATIONS, Date.now());
-  const healthy = createSyncSqliteDatabase(connection);
+async function setupHarness(faultForCall: (call: number) => BatchFault) {
+  const opened = await openSignerD1();
+  const healthy: unknown = opened.database;
+  if (!isD1DatabaseLike(healthy)) throw new Error('Expected the Miniflare D1 database');
   const faulting = new FaultingDatabase(healthy, faultForCall);
   const dependencies = {
     home: { kind: 'direct' as const },
@@ -123,7 +115,7 @@ function setupHarness(faultForCall: (call: number) => BatchFault) {
     },
     startRegistrationWallets: null,
   };
-  const count = (sql: string) => Number(sqlite.prepare(sql).get()?.rows);
+  const count = countD1Rows.bind(null, healthy);
   return {
     faulting,
     setup: (input: WalletRegistrationSetupInput) =>
@@ -143,7 +135,7 @@ function setupHarness(faultForCall: (call: number) => BatchFault) {
           WHERE record_scope LIKE '%ceremony' AND record_scope NOT LIKE '%index'`,
       ),
     homeRows: () => count('SELECT COUNT(*) AS rows FROM wallet_execution_generations'),
-    close: () => sqlite.close(),
+    close: opened.close,
   };
 }
 
@@ -164,7 +156,7 @@ async function withCapturedErrors<T>(
 
 for (const kind of ['lost_request', 'lost_reply'] as const) {
   test(`setup succeeds on the retry after one ${kind} connection fault`, async () => {
-    const harness = setupHarness((call) => ({ kind: call === 1 ? kind : 'none' }));
+    const harness = await setupHarness((call) => ({ kind: call === 1 ? kind : 'none' }));
     try {
       const response = await harness.setup(setupInput(kind));
 
@@ -172,16 +164,16 @@ for (const kind of ['lost_request', 'lost_reply'] as const) {
       expect(response.body).toMatchObject({ ok: true, kind: 'near_ed25519' });
       expect(harness.faulting.batchCalls).toBe(2);
       // The repeat stores nothing twice: one setup snapshot, one ceremony, one home.
-      expect(harness.ceremonyRows()).toBe(2);
-      expect(harness.homeRows()).toBe(1);
+      expect(await harness.ceremonyRows()).toBe(2);
+      expect(await harness.homeRows()).toBe(1);
     } finally {
-      harness.close();
+      await harness.close();
     }
   });
 }
 
 test('a persistent connection fault returns 503 without the driver text', async () => {
-  const harness = setupHarness(() => ({ kind: 'lost_request' }));
+  const harness = await setupHarness(() => ({ kind: 'lost_request' }));
   try {
     const { value: response, logged } = await withCapturedErrors(() =>
       harness.setup(setupInput('persistent')),
@@ -198,15 +190,18 @@ test('a persistent connection fault returns 503 without the driver text', async 
     // Two retries follow the first attempt, and the cause is logged on the server.
     expect(harness.faulting.batchCalls).toBe(3);
     expect(logged).toContain(CONNECTION_LOST);
-    expect(harness.ceremonyRows()).toBe(0);
+    expect(await harness.ceremonyRows()).toBe(0);
   } finally {
-    harness.close();
+    await harness.close();
   }
 });
 
 test('a storage error that is not transient is not retried and returns 500', async () => {
   const driverText = 'D1_ERROR: no such table: registration_ceremony_records';
-  const harness = setupHarness(() => ({ kind: 'lost_request', error: new Error(driverText) }));
+  const harness = await setupHarness(() => ({
+    kind: 'lost_request',
+    error: new Error(driverText),
+  }));
   try {
     const { value: response, logged } = await withCapturedErrors(() =>
       harness.setup(setupInput('permanent')),
@@ -221,12 +216,12 @@ test('a storage error that is not transient is not retried and returns 500', asy
     expect(harness.faulting.batchCalls).toBe(1);
     expect(logged).toContain(driverText);
   } finally {
-    harness.close();
+    await harness.close();
   }
 });
 
 test('a rejected request keeps its client error and its message', async () => {
-  const harness = setupHarness(() => ({ kind: 'none' }));
+  const harness = await setupHarness(() => ({ kind: 'none' }));
   try {
     const input = setupInput('rejected');
     const response = await harness.setup({
@@ -241,6 +236,12 @@ test('a rejected request keeps its client error and its message', async () => {
       message: 'Registration scope differs from the local authority',
     });
   } finally {
-    harness.close();
+    await harness.close();
   }
 });
+
+async function countD1Rows(database: D1DatabaseLike, sql: string): Promise<number> {
+  const row = await database.prepare(sql).first<{ readonly rows: number }>();
+  if (row === null) throw new Error('Expected one D1 count result');
+  return row.rows;
+}

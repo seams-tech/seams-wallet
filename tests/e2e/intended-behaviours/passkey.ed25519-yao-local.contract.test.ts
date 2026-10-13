@@ -12,7 +12,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { isPlainObject, requireNonEmptyString, requireRecord } from '@shared/utils/validation';
-import { loadNodeDatabaseSync } from '@server/router/node/nodeSqlite';
+import { loadIsolatedDatabaseSync } from './local-gateway-database';
 import {
   enableSigningSessionDebugInFrame,
   autoConfirmWalletIframeUntil,
@@ -486,7 +486,7 @@ class RetireSessionBeforePrepare {
     expect(authorization.kind).toBe('reusable_wallet_session');
     const sessionId = requireNonEmptyString(authorization.wallet_session_id, 'session ID');
     const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
-    const DatabaseSync = await loadNodeDatabaseSync();
+    const DatabaseSync = await loadIsolatedDatabaseSync();
     const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
     try {
       const result = database.prepare(`
@@ -700,7 +700,7 @@ test(
 );
 
 async function readNearOperationPersistence(walletId: string, operationId: string) {
-  const DatabaseSync = await loadNodeDatabaseSync();
+  const DatabaseSync = await loadIsolatedDatabaseSync();
   const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
   try {
     const rows = database
@@ -792,7 +792,7 @@ class NearFinalizeReplayEvidence {
     const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
     const sessionId = requireNonEmptyString(authority.wallet_session_id, 'session ID');
     const operationId = requireNonEmptyString(receipt.operation_id, 'operation ID');
-    const DatabaseSync = await loadNodeDatabaseSync();
+    const DatabaseSync = await loadIsolatedDatabaseSync();
     const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
     try {
       const retired = database
@@ -867,7 +867,7 @@ async function setIsolatedNearSigningPolicy(
   walletId: string,
   policy: NearSigningPolicy,
 ): Promise<number> {
-  const DatabaseSync = await loadNodeDatabaseSync();
+  const DatabaseSync = await loadIsolatedDatabaseSync();
   const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
   try {
     const signers = database
