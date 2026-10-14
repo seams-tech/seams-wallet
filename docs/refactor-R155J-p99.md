@@ -19,7 +19,8 @@ CPU/round-trip work, preparation at setup, its cost controls, and transient
 | --- | --- | --- |
 | A startup and caller cancellation | Saved request correlated to the same object; four-case local reproduction; 89-attempt hosted capture; diagnostics removed | Explain the pre-handler delay. Cancellation was not shown to cause its duration |
 | Package-delivery failure propagation | Router no longer waits for held delivery after a terminal failure; five Worker cases and 30 hosted signatures passed | Explain the original producer stall; successful requests do not test the hosted failure path |
-| Setup storage recovery | Bounded replay verified for lost requests/replies, ambiguous commits, and exhausted retries | No new setup retry implementation is needed; respond recovery belongs to R155H Phase 10 |
+| Setup storage recovery | Bounded replay verified for lost requests/replies, ambiguous commits, and exhausted retries | No new setup retry implementation is needed |
+| Respond storage recovery | Server retries and exhausted-fault HTTP 503 mapping committed in `ec08890c` | Retry-specific checks and release belong to R155H Phase 10; SDK transport recovery is outside that commit |
 | Setup exposure and pair preparation | Rate limit, bounded pair admission/connection, expiry, cancellation, and replay implemented; released in 0.10.0 | R155H retains abandoned-setup cost measurement |
 | SDK completion and finalization | Informational parity wait removed; Yao admission batched; 42-wallet combined comparison passed | Publish accumulated changes separately; historical 5.5-second SDK gap is not fully attributed |
 | Founding-read overlap | `f6422f37` committed; explicit-argument cleanup `f36b32a1` and focused checks pass | Hosted contribution is unmeasured; include it in the next accumulated candidate |
@@ -213,10 +214,12 @@ run was slow.
 
 Further durable-write batching, background-work changes, and CPU optimization need
 an observed dependency and lifecycle review. R155H Phase 9 owns routine finalization
-work, including committed founding-read overlap. R155H Phase 10 owns transient
-respond recovery. R155H Phase 3's Console outbox remains deferred; session issue and
-custody persistence already overlap. Keep required ownership and execution claims
-durable; this plan does not authorize `allowUnconfirmed` for them.
+work, including committed founding-read overlap and seal warm-up (`1527b97f`).
+R155H Phase 10 owns verification and release of transient `respond` D1 retries
+(`ec08890c`). Those server retries are implemented; SDK transport recovery remains
+outside their scope. R155H Phase 3's Console outbox remains deferred; session issue
+and custody persistence already overlap. Keep required ownership and execution
+claims durable; this plan does not authorize `allowUnconfirmed` for them.
 
 ## Phase 4 — Final combined acceptance
 
@@ -238,8 +241,10 @@ Completed bounded verification is distinct from acceptance of the tail target:
 Remaining acceptance work:
 
 - [ ] Freeze the next accumulated candidate after its correctness checks. Include
-  accepted changes deliberately, including founding-read overlap if selected.
-  Record the exact release/source set and the available full-suite result.
+  accepted changes deliberately, including founding-read overlap, seal warm-up,
+  and transient `respond` retries if selected. These later changes were outside
+  the 42-wallet comparison. Record the exact release/source set and the available
+  full-suite result.
 - [ ] Coordinate the staging window and capture current versions, database bindings,
   migrations, and activation state. Never restore the deleted Hong Kong databases
   or the old write-fenced Console database.

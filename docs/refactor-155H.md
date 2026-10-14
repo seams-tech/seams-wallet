@@ -22,12 +22,12 @@ retain their dates; they are not current rollout instructions or promised saving
 | 6 — Singapore placement | Staging switched and verified; Console data-preserving move completed October 14 | Production rollout is separate release work; verify its current prerequisites before a cutover |
 | 7 — Outliers | Release metadata stripping and host observations implemented; bounded captures recorded | R155J owns unresolved startup, delivery, signing-503, and B-await causes |
 | 8 — Combined measurement | Published-release comparisons and the October 14 42-wallet comparison recorded | Measure the next accumulated candidate; R155J's 500-attempt p99 acceptance remains open |
-| 9 — Finalization | Shared-record removal released; Yao admission batch and founding-read overlap committed | Profile remaining CPU; hosted benefit of the founding-read overlap is unmeasured |
-| 10 — Combined proof and execution | Implemented and released in 0.10.0 | Recover transient `respond` failures with exact bounded replay and correct error mapping |
+| 9 — Finalization | Shared-record removal released; Yao admission batch, founding-read overlap, and per-isolate seal warm-up committed | Verify warm-up behavior and profile remaining CPU; hosted benefit of the two latest changes is unmeasured |
+| 10 — Combined proof and execution | Combined request released in 0.10.0; transient D1 retries committed in `ec08890c` | Verify failure recovery and publish the retry change; SDK transport recovery is outside that commit |
 
-Next implementation priorities are Phase 9's CPU investigation, Phase 4's
-result-independent product work, and Phase 10's recoverable failures. Implement
-only supported changes, run correctness checks, and measure the accepted bundle.
+Next priorities are Phase 9's warm-up checks and CPU investigation, Phase 4's
+result-independent product work, and Phase 10's recovery checks. Implement only
+supported changes, run correctness checks, and measure the accepted bundle.
 Do not reopen cross-request plaintext caching or the Console outbox as incidental
 cleanup.
 
@@ -1112,6 +1112,9 @@ been made by this reconciliation.
 - [x] Commit SDK completion (`7caae2fa`), Yao admission batching (`8b4dcf5f`), and
   founding-read overlap (`f6422f37`) on `dev`. Each has focused correctness evidence;
   only the first two were in the 42-wallet hosted candidate.
+- [x] Record the later seal warm-up (`1527b97f`) and transient `respond` retries
+  (`ec08890c`). Neither was in that comparison. Their outstanding checks are
+  listed in Phases 9 and 10; no hosted saving is established.
 - [ ] Attach the final broader contract-suite result for the founding-read change
   before release. The plan does not infer it from the commit or an interim count.
 - [ ] Measure the next accumulated release candidate after accepted changes and
@@ -1132,8 +1135,8 @@ requires isolation. The $25 Cloudflare budget remains the cap.
 ## Phase 9 — Finalization on the Singapore lane
 
 The October 13 profile below motivated this phase. Shared-record removal is
-released; two further read-path changes are committed. Remaining CPU work is
-explicitly listed after the completed items.
+released; two further read-path changes and seal warm-up are committed.
+Remaining checks and CPU work follow the completed items.
 
 What a finalization costs at the Gateway, about 380 ms at the median:
 
@@ -1206,9 +1209,13 @@ Items:
 - [ ] Remove demonstrated repeated work within one request or reuse immutable
   per-isolate configuration where valid. Preserve authority freshness and secret
   lifetimes. No saving is claimed yet.
-- [ ] Evaluate per-isolate seal warm-up only if the profile justifies it. The
-  earlier 19 ms cold-versus-warm difference is a historical upper opportunity,
-  not a measured saving on the current build.
+- [x] Implement seal warm-up once per Gateway isolate (`1527b97f`). After a
+  handler completes, `waitUntil` retains initialization and one disposable lock
+  round. It runs only when the seal is configured and uses no wallet secret.
+- [ ] Verify that warm-up preserves first-request behavior and failure handling.
+  Measure its contribution in the next combined candidate, including cold isolates.
+  The earlier 19 ms cold-versus-warm difference is a historical opportunity;
+  no hosted saving is established for this implementation.
 - Phase 3 stays deferred. On Singapore its part is the Console completion and
   the write after it, about 40 ms.
 
@@ -1264,16 +1271,20 @@ admits, and executes.
   936 ms. The [staging record](evidence/refactor-155h-release-0100-staging.md)
   holds the runs. Protocol 4 refuses every earlier SDK; the private Console
   canary and one private test now send 4.
-- [ ] Classify transient `respond` storage failures as recoverable service
-  failures, with a stable error code and no driver text. The route currently maps
-  unsuccessful service results to HTTP 400. A prior 198-wallet run captured one
-  such fault; the merged request now carries proof verification and execution.
-- [ ] Add bounded exact-request recovery using the existing ceremony, execution
-  identity, and encrypted inputs. Preserve terminal refusals and one execution
-  winner. Do not apply generic retries to every error or recreate MPC inputs.
+- [x] Classify exhausted transient `respond` D1 failures as `storage_unavailable`
+  with a fixed message and HTTP 503 (`ec08890c`). Other failure codes retain their
+  previous mapping. A prior 198-wallet run captured one transient D1 fault.
+- [x] Retry transient D1 failures through the existing `retryTransientD1` helper
+  (`ec08890c`). Two additional server attempts follow waits of 25 and 100 ms.
+  They reuse the request, ceremony, execution identity, and encrypted inputs.
+  This change relies on existing exact replay and terminal execution guards.
 - [ ] Exercise a lost request, committed-but-lost reply, exhausted transient
   faults, and terminal execution failure through existing behavioral contracts.
   Setup recovery is already covered by R155J; this item is specifically respond.
+- [ ] Attach the retry-specific correctness evidence before release. The SDK still
+  sends `respond` once; server D1 retries do not recover a lost HTTP reply.
+  Assess any transport-recovery change from these cases and preserve one execution
+  winner. No hosted result or release is established for `ec08890c` yet.
 
 Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
 about half of that for a user in Singapore. The client's input preparation,
