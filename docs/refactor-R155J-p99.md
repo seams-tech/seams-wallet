@@ -227,3 +227,15 @@ An implementation can be complete while a latency target remains unmet.
 
 Production deployment and package publication are separate release work.
 This document authorizes neither a new deployment nor new infrastructure.
+
+## October 14 — SDK completion and finalization follow-up
+
+The [completion evidence](evidence/registration-completion-20261014.md) records two
+accepted changes. Session publication no longer waits for an informational
+startup network diagnostic. Finalization loads immutable Yao admission in its
+initial D1 batch, which removes one later round trip. Router consumption,
+revocation, lock, replay, and durable completion checks remain enforced.
+
+A held-GET browser contract verifies the completion change. The earlier 5.5-second
+outlier remains only partly explained because its browser network trace is missing.
+The bounded staging comparison is separate from this plan's 500-attempt p99 study.
