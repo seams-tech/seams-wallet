@@ -5,11 +5,10 @@ implementation crates, documentation, examples, and recovery CLI.
 
 Published packages:
 
-- `@seams/wallet@0.10.1`
-- `@seams/wallet-server@0.10.1`
-- `@seams/wallet-cli@0.6.0` — the launcher source carries 0.10.1, the Wallet
-  version, and its signed release is pending;
-  see [native release availability](./apps/docs/src/deploy-and-operate/recovery-cli.md).
+- `@seams/wallet@0.10.2`
+- `@seams/wallet-server@0.10.2`
+- `@seams/wallet-cli@0.10.1` — with its signed native release;
+  see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
