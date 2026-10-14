@@ -138,6 +138,8 @@ function checkReport(report, fixture, schedules) {
   assert.equal(b.table_storage.objects_read, online.length);
   assert.equal(b.table_storage.table_bytes_read, readBytes);
   assert.equal(b.table_storage.table_bytes_written, storedBytes);
+  assert.equal(b.table_storage.prefetch_started, 12);
+  assert.equal(b.table_storage.prefetch_hits, 12);
 }
 function matchesSchedule(name, schedule) {
   return schedule.schedule_filename === `${name}.bin`;
@@ -145,6 +147,15 @@ function matchesSchedule(name, schedule) {
 function recordClose(diagnostic, code, reason) {
   diagnostic.code = code;
   diagnostic.reason = reason.toString();
+}
+async function closeCleanly(socket, diagnostic) {
+  if (socket.readyState !== WebSocket.CLOSED) {
+    const closing = once(socket, 'close', { signal: AbortSignal.timeout(10000) });
+    socket.close(1000, 'benchmark complete');
+    const [code] = await closing;
+    assert.equal(code, 1000, 'Worker did not close normally after cleanup');
+  }
+  assert.equal(diagnostic.code, 1000, 'Worker close code was not observed');
 }
 async function sample(endpoint, token, fixture, schedules) {
   const runId = randomBytes(16).toString('hex');
@@ -201,7 +212,10 @@ async function sample(endpoint, token, fixture, schedules) {
         }
         case 'cleaned': {
           assert.equal(state.kind, 'cleaning');
-          return { ...state.result, table_cleanup_acknowledged: true };
+          const result = state.result;
+          await closeCleanly(socket, closed);
+          state = { kind: 'complete' };
+          return { ...result, table_cleanup_acknowledged: true, websocket_close_code: 1000 };
         }
         default:
           throw new Error(`Unexpected message: ${message.type}`);
@@ -212,7 +226,7 @@ async function sample(endpoint, token, fixture, schedules) {
     );
   } finally {
     await events.return();
-    socket.terminate();
+    if (state.kind !== 'complete') socket.terminate();
   }
 }
 function digest(bytes) {

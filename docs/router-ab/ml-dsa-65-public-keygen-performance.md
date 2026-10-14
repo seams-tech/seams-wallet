@@ -2,6 +2,24 @@
 
 Date: October 14, 2026. Branch: `ml-dsa`. Production integration remains paused.
 
+## Final measured result
+
+Prepared key generation reaches a 4.806-second median with read-ahead, while the strict five-second requirement remains unmet.
+Five of eight measured requests finish below five seconds. Two normal requests and the genuine continuation exceed it.
+The excluded warm-up also exceeds five seconds. Including warm-up, four of nine requests miss the deadline.
+
+| Cases | Count | Median | Range | Misses |
+| --- | ---: | ---: | ---: | ---: |
+| All measured | 8 | 4.806 s | 4.012–6.609 s | 3 |
+| Normal measured | 7 | 4.695 s | 4.012–5.468 s | 2 |
+| Genuine continuation | 1 | 6.609 s | — | 1 |
+| Excluded warm-up | 1 | 7.652 s | — | 1 |
+
+The [final hosted artifact](../evidence/ml-dsa-65-public-keygen-prefetch-worker-hosted-20261014.json) records every case.
+All nine match the canonical recovery keys, acknowledge table cleanup, and close with checked WebSocket code 1000.
+Preparation/readiness takes 33.503 seconds at the median. This remains outside the online interval.
+An empty or cold pool therefore has no five-second success claim.
+
 ## Protocol and privacy result
 
 The scoped [privacy review](ml-dsa-65-public-keygen-review.md) passes under the accepted passive server-blind model.
@@ -58,7 +76,7 @@ The completed repeated campaign is the reported distribution. The interrupted ca
   Missing either role prevents a signature.
 - The [local prepared Worker cases](../evidence/ml-dsa-65-public-keygen-worker-local-20261014.json) verify normal and genuine continuation paths in the same packaged bundles.
 - The [complete local Worker signing test](../evidence/ml-dsa-65-public-keygen-threshold-worker-local-20261014.json) verifies the existing signer with the new material and public `t0`.
-  Signing performance is unchanged by this key-generation work and remains outside the five-second goal.
+  Signing circuits and the signing protocol remain unchanged. No five-second signing result is established by this work.
 
 The final 481-byte circuit executes in the component E2E. A natural 481-byte exhaustion is not observed.
 Its terminal error and destruction path received source review. No artificial production override was added to force that event.
@@ -77,8 +95,55 @@ The [sanitized runtime traces](../evidence/ml-dsa-65-public-keygen-worker-traces
 They include preprocessing and cleanup. They must not be reported as online CPU cost.
 Client elapsed time remains the deadline instrument.
 
-## Next controlled measurement
+## Read-ahead comparison
 
-Test bounded read-ahead of the next normal-path table while the current circuit evaluates.
-Keep all R2 reads inside the online interval. Keep circuit bytes, messages, masks, and public disclosures unchanged.
-Measure normal and continuation paths again. Do not infer a five-second result from native timing or gate reduction alone.
+The sequential-read implementation is preserved in commit `95258a02`.
+The new adapter requests one next normal-path table while the current circuit evaluates.
+A public continuation decision retains that pending normal object and reads the selected fallback separately.
+A phase check prohibits table reads before online admission. The final boundary rejects leftover data or unused pending reads.
+The source bounds the adapter to one current table stream and one pending table stream.
+This is a source invariant, not a measurement of runtime buffering or full isolate memory.
+
+Each successful run starts twelve prefetched GETs and later consumes all twelve.
+A consumed prefetch can still require waiting. The counter does not mean that every response was ready without delay.
+Normal requests retain thirteen GETs, 41,701,400 table bytes, and 2,531,394 online protocol bytes in 42 logical messages.
+These messages share one A/B WebSocket. They are not forty-two HTTP requests.
+The continuation retains fourteen GETs and 47,069,352 table bytes.
+All reads stay inside the client online interval. The circuit and private-output boundaries remain unchanged.
+
+The median decreases from 7.820 to 4.806 seconds, an observed 38.54% reduction.
+Every corresponding case is faster in this campaign.
+Deployment time, physical placement, scheduling, and graceful client teardown also differ, so the comparison does not isolate a precise causal contribution.
+The client now waits for normal closure after cleanup, outside online timing, instead of terminating the socket immediately.
+
+The [local read-ahead cases](../evidence/ml-dsa-65-public-keygen-prefetch-worker-local-20261014.json) match the hosted source, fixture, and module hashes.
+The [deployment record](../evidence/ml-dsa-65-public-keygen-prefetch-worker-deployment-20261014.json) retains the actual Cloudflare versions.
+An independent agent reproduced the timing distribution, deadline misses, unchanged protocol counts, and normal close codes.
+
+The [read-ahead runtime traces](../evidence/ml-dsa-65-public-keygen-prefetch-worker-traces-20261014.json) contain whole-invocation CPU and wall times.
+B's nine invocations report successful outcomes. A reports eight successful benchmark outcomes and one cancellation, despite all normal client close codes.
+These runtime outcomes remain distinct from client correctness and latency checks.
+The overlapping GET timing observations cannot be added to stream waits to estimate online CPU or storage cost.
+These small sequential campaigns establish no production percentile or reliable five-second deadline.
+
+## Remaining performance work
+
+- Identify the warm-up overhead with an independent evaluator warm-up experiment. Never evaluate a reserved garbling twice with different inputs.
+- Reduce the remaining per-candidate share-conversion cost, while preserving the reviewed disclosure boundary and canonical recovery.
+- Investigate the continuation delay and require margin below five seconds before production qualification.
+- Design durable pool admission, independent role storage, restart handling, and exhaustion behavior before integrating production Wallet flows.
+
+The requested privacy reductions and adaptive SHAKE are implemented and tested.
+The strict latency target remains open. Production integration remains paused.
+
+## Reproduction and cleanup
+
+Use the commands in [the hosted preprocessing report](ml-dsa-65-prepared-hosted-report.md#reproduce-the-worker-campaign) with the current configurations.
+Regenerate both Worker fixture books and prepared fixture books before building.
+The current client defaults to nine cases, including the real continuation fixture. Local smoke coverage uses `--indices 0,8`.
+The current configurations name `ml-dsa-public-20261014-a`, `ml-dsa-public-20261014-b`, and `ml-dsa-public-20261014-tables`.
+Use fresh temporary resource names for a new campaign and retain its deployment record.
+
+The [cleanup artifact](../evidence/ml-dsa-65-public-keygen-worker-cleanup-20261014.json) verifies deletion of both Workers and the bucket.
+The benchmark token and temporary raw log files were removed. Log capture processes were stopped.
+Only this experiment's resources were removed.

@@ -1,0 +1,235 @@
+{
+  "schema": "seams.ml-dsa-worker-traces.v1",
+  "captured_at": "2026-10-14T09:02:15.966796+00:00",
+  "scope": "Whole invocation CPU/wall times for the read-ahead versions, including preprocessing and cleanup. Request headers and URLs omitted. These are not online CPU measurements.",
+  "records": [
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791967945124,
+      "cpu_ms": 21,
+      "wall_ms": 21,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791967945927,
+      "cpu_ms": 9444,
+      "wall_ms": 40729,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791967987235,
+      "cpu_ms": 9632,
+      "wall_ms": 37365,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968025298,
+      "cpu_ms": 9747,
+      "wall_ms": 37927,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968063904,
+      "cpu_ms": 9772,
+      "wall_ms": 38838,
+      "outcome": "canceled",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968103281,
+      "cpu_ms": 9485,
+      "wall_ms": 37041,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968140871,
+      "cpu_ms": 9923,
+      "wall_ms": 38027,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968179437,
+      "cpu_ms": 9319,
+      "wall_ms": 36318,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968216401,
+      "cpu_ms": 9651,
+      "wall_ms": 40105,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f"
+      },
+      "event_timestamp_ms": 1791968257081,
+      "cpu_ms": 9534,
+      "wall_ms": 40077,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791967946443,
+      "cpu_ms": 4630,
+      "wall_ms": 39693,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791967987879,
+      "cpu_ms": 4653,
+      "wall_ms": 36503,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968025814,
+      "cpu_ms": 4580,
+      "wall_ms": 37020,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968064384,
+      "cpu_ms": 4738,
+      "wall_ms": 38163,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968103762,
+      "cpu_ms": 4551,
+      "wall_ms": 36361,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968141348,
+      "cpu_ms": 4663,
+      "wall_ms": 37337,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968180028,
+      "cpu_ms": 4373,
+      "wall_ms": 35543,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968216911,
+      "cpu_ms": 4576,
+      "wall_ms": 39305,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf"
+      },
+      "event_timestamp_ms": 1791968257589,
+      "cpu_ms": 4630,
+      "wall_ms": 39310,
+      "outcome": "ok",
+      "exceptions": []
+    }
+  ]
+}

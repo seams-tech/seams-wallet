@@ -7,7 +7,8 @@ The first [hosted prepared run](ml-dsa-65-prepared-hosted-report.md) misses the 
 The controlled larger-read follow-up records an 11.57-second median and seven further misses. Its mean does not improve.
 The [public-keygen review and implementation](ml-dsa-65-public-keygen-performance.md) reduce normal online work to 1.30 million AND gates.
 The hosted reduced protocol records 7.82 seconds median, including a real continuation case. All eight measured requests still miss five seconds.
-The canonical wallet-seed recovery identities remain correct. Bounded table read-ahead is the next controlled measurement.
+Bounded read-ahead reduces the hosted median to 4.81 seconds. Three of eight measured requests still exceed five seconds.
+The canonical wallet-seed recovery identities remain correct. Warm-up, continuation latency, and deadline margin remain open.
 Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
 Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery and native custody completion now pass separate-role host E2E checks. Production integration remains open.
 Starting source and research review: 2026-10-05.
