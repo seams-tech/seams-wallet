@@ -5,6 +5,8 @@
 //! the test seed only after both roles finish. Shared-host files provide no
 //! operating-system isolation or production export authorization.
 
+use crate::boolean_engine_evidence::{PipeTransport, run_ready};
+use crate::complete_engine_evidence::{self, Engine};
 use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, hybrid_keygen,
     private_execution, private_signing, reference, require,
@@ -73,6 +75,21 @@ enum Role {
     B,
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum Campaign {
+    CoreEvidence,
+    EngineComparison(Engine),
+}
+
+impl Campaign {
+    const fn engine(self) -> Engine {
+        match self {
+            Self::CoreEvidence => Engine::HalfGates,
+            Self::EngineComparison(engine) => engine,
+        }
+    }
+}
+
 impl Role {
     const fn argument(self) -> &'static str {
         match self {
@@ -90,8 +107,8 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     match mode.as_str() {
         "private-keygen-role-a" | "private-keygen-role-b" => {
             require(
-                arguments.len() == 4,
-                "Key generation role needs schedule, input, and public result paths.",
+                arguments.len() == 5,
+                "Key generation role needs schedule, input, public result paths, and engine.",
             )?;
             let role = if mode == Role::A.argument() {
                 Role::A
@@ -103,6 +120,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                 Path::new(&arguments[1]),
                 Path::new(&arguments[2]),
                 Path::new(&arguments[3]),
+                Engine::parse(&arguments[4])?,
             )?;
         }
         "private-keygen-authorized-test-recipient" => {
@@ -132,9 +150,13 @@ pub(super) fn run() -> InvestigationResult<Value> {
     let compile_wall_ns = compile_started.elapsed().as_nanos();
     let mut cases = Vec::with_capacity(FIXTURE_NAMES.len() + 1);
     for name in FIXTURE_NAMES {
-        cases.push(run_case(schedules.path(), Some(name))?);
+        cases.push(run_case(
+            schedules.path(),
+            Some(name),
+            Campaign::CoreEvidence,
+        )?);
     }
-    cases.push(run_case(schedules.path(), None)?);
+    cases.push(run_case(schedules.path(), None, Campaign::CoreEvidence)?);
     Ok(json!({
         "scope": "Two persistent passive role processes execute one private seed circuit, eleven private sampling circuits, and six private rounding circuits over disposable test keys.",
         "production_eligible": false,
@@ -159,7 +181,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
     }))
 }
 
-fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Value>> {
+pub(super) fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Value>> {
     let mut identities = Vec::with_capacity(3);
     let started = Instant::now();
     let seed = compile_ml_dsa_private_seed_circuit_v1();
@@ -215,7 +237,12 @@ fn save_schedule(
     }))
 }
 
-fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Value> {
+pub(super) fn run_case(
+    schedules: &Path,
+    fixture: Option<&str>,
+    campaign: Campaign,
+) -> InvestigationResult<Value> {
+    let engine = campaign.engine();
     let case = tempfile::tempdir()?;
     let role_a = case.path().join("role-a");
     let role_b = case.path().join("role-b");
@@ -235,12 +262,14 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
             schedules.as_os_str(),
             input_a.as_os_str(),
             result_a.as_os_str(),
+            OsStr::new(engine.name()),
         ],
         &[
             OsStr::new(Role::B.argument()),
             schedules.as_os_str(),
             input_b.as_os_str(),
             result_b.as_os_str(),
+            OsStr::new(engine.name()),
         ],
     )?;
     let keygen_process_wall_ns = started.elapsed().as_nanos();
@@ -260,9 +289,10 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         &role_b.join(MATERIAL_FILENAME),
         &public_path,
         fixture.unwrap_or("joint-random-disposable-key"),
+        engine,
     )?;
-    let lifecycle = match fixture {
-        Some("zero") => crate::signing_lifecycle_evidence::run(
+    let lifecycle = match (campaign, fixture) {
+        (Campaign::CoreEvidence, Some("zero")) => crate::signing_lifecycle_evidence::run(
             schedules,
             &role_a.join(MATERIAL_FILENAME),
             &role_b.join(MATERIAL_FILENAME),
@@ -270,8 +300,8 @@ fn run_case(schedules: &Path, fixture: Option<&str>) -> InvestigationResult<Valu
         )?,
         _ => serde_json::Value::Null,
     };
-    let near_transaction = match fixture {
-        Some("zero") => crate::near_transaction_evidence::run(
+    let near_transaction = match (campaign, fixture) {
+        (Campaign::CoreEvidence, Some("zero")) => crate::near_transaction_evidence::run(
             schedules,
             &role_a.join(MATERIAL_FILENAME),
             &role_b.join(MATERIAL_FILENAME),
@@ -370,7 +400,13 @@ fn own_seed(input: &Path) -> InvestigationResult<Zeroizing<[u8; 32]>> {
     Ok(share)
 }
 
-fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> InvestigationResult<()> {
+fn run_role(
+    role: Role,
+    schedules: &Path,
+    input: &Path,
+    result: &Path,
+    engine: Engine,
+) -> InvestigationResult<()> {
     let started = Instant::now();
     let seed = own_seed(input)?;
     let role = match role {
@@ -393,6 +429,7 @@ fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> Invest
     let mut writer = io::stdout().lock();
     let mut current = begin_keygen(role, &seed)?;
     let mut circuit_wall_ns = Vec::with_capacity(18);
+    let mut observations = Vec::with_capacity(18);
     let output = loop {
         current = match current {
             KeygenStep::Circuit(request) => {
@@ -402,14 +439,26 @@ fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> Invest
                     .find(|entry| entry.circuit_id() == kernel.circuit_id())
                     .ok_or("Missing canonical key-generation schedule.")?;
                 let circuit_started = Instant::now();
-                let output = private_signing::drive_runtime(
-                    request.begin(schedule)?,
-                    &mut reader,
-                    &mut writer,
-                    &mut crate::signing_lifecycle_evidence::WireFault::Direct,
-                )?;
+                let (next, observation) = match engine.boolean() {
+                    None => {
+                        let (output, observation) = private_signing::drive_runtime(
+                            request.begin(schedule)?,
+                            &mut reader,
+                            &mut writer,
+                            &mut crate::signing_lifecycle_evidence::WireFault::Direct,
+                        )?;
+                        (request.accept(output)?, observation)
+                    }
+                    Some(engine) => {
+                        let mut transport = PipeTransport::new(&mut reader, &mut writer);
+                        let next =
+                            run_ready(request.run_boolean(engine, schedule, &mut transport))??;
+                        (next, transport.finish())
+                    }
+                };
+                observations.push(observation);
                 circuit_wall_ns.push(circuit_started.elapsed().as_nanos());
-                request.accept(output)?
+                next
             }
             KeygenStep::Complete(output) => break output,
         };
@@ -419,8 +468,15 @@ fn run_role(role: Role, schedules: &Path, input: &Path, result: &Path) -> Invest
         "Key-generation measurements lost a circuit transition.",
     )?;
     let mut stages = Vec::with_capacity(output.circuits.len());
-    for ((kernel, ordinal, metrics), elapsed) in output.circuits.iter().zip(circuit_wall_ns) {
-        stages.push(json!({"component": kernel.name(), "ordinal": ordinal, "circuit_wall_ns": elapsed, "metrics": private_execution::encode_runtime_metrics(metrics)}));
+    for (((kernel, ordinal, metrics), elapsed), observation) in output
+        .circuits
+        .iter()
+        .zip(circuit_wall_ns)
+        .zip(observations)
+    {
+        let metrics = complete_engine_evidence::encode_metrics(metrics, role);
+        complete_engine_evidence::verify_observation(&metrics, &observation, role)?;
+        stages.push(json!({"component": kernel.name(), "ordinal": ordinal, "circuit_wall_ns": elapsed, "metrics": metrics, "observation": observation}));
     }
     let directory = result
         .parent()
@@ -453,19 +509,10 @@ fn verify_public_metrics(a: &Value, b: &Value) -> InvestigationResult<()> {
             a["component"] == b["component"] && a["ordinal"] == b["ordinal"],
             "Persistent role stage identities disagree.",
         )?;
-        for field in [
-            "table_bytes",
-            "frame_count",
-            "garbler_to_evaluator_wire_bytes",
-            "evaluator_to_garbler_wire_bytes",
-            "ot_wire_bytes",
-            "execution_binding_sha256",
-        ] {
-            require(
-                a["metrics"][field] == b["metrics"][field],
-                "Persistent role transport counters or execution bindings disagree.",
-            )?;
-        }
+        require(
+            a["metrics"] == b["metrics"],
+            "Persistent role engine counters or execution bindings disagree.",
+        )?;
     }
     Ok(())
 }

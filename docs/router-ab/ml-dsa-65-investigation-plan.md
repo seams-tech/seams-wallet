@@ -18,7 +18,8 @@ These results exceed the provisional five-second generation target.
 That baseline's shared-core native harness records a 1.87-second median across its five key-generation cases.
 The earlier checkpoints below retain their original artifact measurements.
 The [arithmetic optimization report](ml-dsa-65-optimization-report.md) records the next implementation and its remaining measurement limits.
-The [engine comparison](ml-dsa-65-engine-comparison.md) now records executed GMW and ABY2.0 kernels with complete private preprocessing.
+The [engine comparison](ml-dsa-65-engine-comparison.md) now includes complete native key generation and signing with half-gates, GMW, and ABY2.0.
+The October 14 campaign includes fresh private preprocessing, exact directional traffic, independent signature checks, and authorized canonical recovery.
 The hardened half-gates implementation records a 3.28-second local Worker key-generation median across five fresh joint keys.
 Its hosted rerun remains pending token approval.
 The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) also verifies a serialized threshold-signed NEAR transaction before authorized recovery.
@@ -688,7 +689,8 @@ State remaining opportunities that could change that ranking.
 2. Measure the revised complete host and Worker flows. Preserve the earlier reports and compare gate counts, bytes, retries, and elapsed time.
 3. Compare GMW, ABY2.0, and smaller garbling with complete preprocessing and conversion costs. Prioritize the largest measured sampling and signing costs.
    The [engine comparison](ml-dsa-65-engine-comparison.md) now measures four GMW and ABY2.0 kernels with genuine two-party preprocessing and exact conversion traffic.
-   Complete alternative pipelines, prepared pools, deployed batching, and smaller-garbling execution remain open.
+   The [complete native comparison](../evidence/ml-dsa-65-complete-engines-host-20261014.json) extends all three engines through identical key-generation and signing state machines.
+   Prepared pools, efficient OT preprocessing, deployed batching, and smaller-garbling execution remain open.
 4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production integration.
    The [source review](ml-dsa-65-privacy-review.md) records these boundaries.
    Division-free local arithmetic passes complete host interoperability and compiled core checks.

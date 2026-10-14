@@ -157,3 +157,18 @@ Authorized export must send each seed share directly to the authorized recipient
 Export authorization and recipient binding remain outside the current harness.
 
 The source review remains open until the composition proof, target qualification, and independent review address these requirements.
+
+## Complete engine composition evidence — October 14, 2026
+
+The [complete native campaign](../evidence/ml-dsa-65-complete-engines-host-20261014.json) runs the same consuming core states with half-gates, GMW, and Boolean ABY2.0.
+Each engine uses fresh private correlations and fresh bindings for each invocation.
+The Boolean adapters require both investigation features and stay outside the default Worker build.
+Each role supplies only its own circuit inputs and receives only its permitted outputs.
+The adapters retain engine-specific counters and check them against actual directional pipe traffic.
+
+All three engines must produce identical canonical public keys and deterministic signature bytes before the test recipient reconstructs any private field.
+Recovery then checks the seed and complete expanded key against the ordinary implementation.
+These checks extend interoperability evidence to the full Boolean compositions, including all rejected signing candidates.
+They establish no composition proof, target timing guarantee, or production authorization boundary.
+The [rebuilt arithmetic audit](../evidence/ml-dsa-65-engine-adapter-arithmetic-audit-20261014.json) still finds no division or remainder in the three private polynomial functions.
+Its AArch64 and Wasm checks retain the same pre-link scope and target-qualification limits.

@@ -139,7 +139,7 @@ Secure continuation for the same seed remains unimplemented.
 
 The private `ExpandMask` benchmark checks five nonce values through separate roles
 with genuine OT. It compares all coefficients with an independent SHAKE oracle.
-A receives no decoded output. Five polynomials require 35,584,000 table bytes
+A receives no decoded output. Five polynomials require 34,068,480 table bytes
 per signing attempt. Six further signing circuits now pass independent cleartext fixtures.
 They check hashing, high bits, norms, hints, and aggregate acceptance.
 The complete private signing composition produces standard signatures in separate role processes.
@@ -217,8 +217,37 @@ Both roles generate private correlations through genuine OT in both directions.
 The artifact includes fresh base OT, batch padding, input conversion, online exchanges, and output decoding.
 It compares exact private outputs with the independent generated fixtures and checks actual directional pipe traffic.
 Every execution begins without prepared correlations. It destroys its correlations after use.
-These experiments provide no complete alternative signer, persistent pool, or Cloudflare performance claim.
+These kernel experiments provide no persistent pool or Cloudflare performance claim.
 The [engine report](../../docs/router-ab/ml-dsa-65-engine-comparison.md) records the costs and remaining comparisons.
+
+## Complete native engine comparison
+
+Run the same canonical key-generation and signing state machines with half-gates, GMW, and Boolean ABY2.0:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  compare-complete-engines docs/evidence/ml-dsa-65-complete-engines-host-20261014.json
+```
+
+Each engine runs one complete excluded warm-up and one measured execution with the zero-seed public fixture.
+Fresh random shares, private preprocessing, and fresh execution bindings remain part of every execution.
+The roles sign before a separate test recipient reconstructs the seed and private fields.
+The recipient checks the complete expanded key against OpenSSL and the deterministic signature against the ordinary implementation.
+The harness requires identical public keys and signature bytes across all three engines.
+Both independent verifiers reject changed messages, contexts, signatures, and public keys.
+A missing participant must return no signature.
+
+Runtime counters must match actual directional pipe traffic for every circuit and final signature exchange.
+Boolean measurements retain preprocessing, input setup, input sharing, gate execution, and output costs separately.
+Phase times include peer waits. The binding phase includes topology construction.
+The output phase also includes the consuming core transition and preparation for the next circuit.
+Complete process times include schedule reads, startup, all signing candidates, and each role's final verification.
+Schedule compilation and authorized test recovery have separate measurements outside those process times.
+
+One measured sample establishes no percentile or sustained throughput.
+The comparison uses sequential polynomial circuits and fresh base OT for every preprocessing batch.
+Prepared pools, reusable base OT, packed-bit OT, polynomial batching, and deployed measurements remain separate work.
+The experimental Boolean adapters require both benchmark features and stay outside the default Worker build.
 
 ## Offline SDK and NEAR transaction contract
 

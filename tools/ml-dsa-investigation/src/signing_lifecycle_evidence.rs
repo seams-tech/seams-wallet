@@ -226,6 +226,7 @@ pub(super) fn run(
 
 fn operation(index: u8) -> Operation {
     Operation {
+        engine: crate::complete_engine_evidence::Engine::HalfGates,
         message: Sha256::digest([b"seams/ml-dsa/core-lifecycle/v1/".as_slice(), &[index]].concat())
             .into(),
         context: b"seams/ml-dsa/core-lifecycle/v1".to_vec(),
