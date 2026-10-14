@@ -859,7 +859,7 @@ export async function applyMigrations(miniflare, binding, workerName, migrations
 /// trigger body is itself a semicolon-terminated statement wrapped in
 /// BEGIN ... END, and a semicolon inside a string literal is not a boundary
 /// either.
-function splitSqlStatements(sql) {
+export function splitSqlStatements(sql) {
   const collapsed = sql
     .split('\n')
     .map((line) => line.replace(/--.*$/u, '').trim())
@@ -885,7 +885,7 @@ function splitSqlStatements(sql) {
       continue;
     }
     if (inString) continue;
-    if (/\bBEGIN$/iu.test(current) && /^[\s(]|^$/u.test(collapsed[index + 1] ?? ' ')) {
+    if (/\b(?:BEGIN|CASE)$/iu.test(current) && /^[\s(]|^$/u.test(collapsed[index + 1] ?? ' ')) {
       blockDepth += 1;
       continue;
     }
