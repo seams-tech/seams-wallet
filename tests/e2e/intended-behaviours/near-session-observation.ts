@@ -1,4 +1,12 @@
-import { expect, type BrowserContext, type Page, type Request, type Route, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  type BrowserContext,
+  type ConsoleMessage,
+  type Page,
+  type Request,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import type { IntendedBehaviourHarness } from './harness';
 
@@ -6,6 +14,7 @@ class HeldParityRead {
   private readonly routes: Route[] = [];
   heldCount = 0;
   failedCount = 0;
+  diagnosticFailures = 0;
   deliveredCount = 0;
 
   async handle(route: Route): Promise<void> {
@@ -16,8 +25,15 @@ class HeldParityRead {
 
   async release(): Promise<void> {
     for (const route of this.routes.splice(0)) {
+      if (route.request().failure() !== null) continue;
       await route.fallback();
       this.deliveredCount += 1;
+    }
+  }
+
+  diagnostic(message: ConsoleMessage): void {
+    if (message.text().includes('[WalletSession] sealed refresh startup parity check failed')) {
+      this.diagnosticFailures += 1;
     }
   }
 
@@ -70,9 +86,11 @@ export async function verifyNearSessionObservation(
   const parity = new HeldParityRead();
   const handleParity = parity.handle.bind(parity);
   const failedParity = parity.failed.bind(parity);
+  const parityDiagnostic = parity.diagnostic.bind(parity);
   const parityPath = '**/.well-known/webauthn';
   await context.route(parityPath, handleParity);
   context.on('requestfailed', failedParity);
+  page.on('console', parityDiagnostic);
   context.on('request', record);
   try {
     // The registration response states the issued session, and signing prepare
@@ -81,6 +99,7 @@ export async function verifyNearSessionObservation(
     // The parent receives the committed session while the informational startup
     // GET is still pending. Required seal operations retain their parity check.
     expect(parity.heldCount).toBeGreaterThan(0);
+    expect(parity.diagnosticFailures).toBe(0);
     expect(parity.failedCount).toBe(0);
     expect(parity.deliveredCount).toBe(0);
     await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute('data-login-state', 'logged_in');
@@ -124,6 +143,7 @@ export async function verifyNearSessionObservation(
     await writeFile(artifact, JSON.stringify({
       registrationReturnedBeforeParityRead: true,
       parityReadFailures: parity.failedCount,
+      parityDiagnosticFailures: parity.diagnosticFailures,
       registrationStatusRequests: evidence.count('registration'),
       firstSignatureStatusRequests: evidence.count('first_signature'),
       laterQueriesReadFreshStatus: true,
@@ -134,7 +154,7 @@ export async function verifyNearSessionObservation(
     }, null, 2));
     await testInfo.attach('near-session-observation', { path: artifact, contentType: 'application/json' });
   } finally {
-    await parity.release();
+    page.off('console', parityDiagnostic);
     context.off('requestfailed', failedParity);
     await context.unroute(parityPath, handleParity);
     context.off('request', record);
