@@ -84,6 +84,7 @@ import {
 } from './d1AuthorizationAssembly';
 import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
+import { createD1Ed25519YaoLifecycleRecords } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
 import { CloudflareD1RegistrationCeremonyIntentStore } from '../registration/d1RegistrationCeremonyStore';
 import { sha256BytesPortable, toRecordValue } from './d1RouterApiAuthBoundary';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
@@ -1388,6 +1389,15 @@ function createCloudflareD1RouterApiAuthAssembly(
       walletRegistrationNearProvisioningSideEffectStore(options),
       getRegistrationCeremonyIntentStore,
       yaoLifecycleDecisions,
+      createD1Ed25519YaoLifecycleRecords({
+        database: options.database,
+        scope: {
+          namespace: options.namespace,
+          orgId: options.orgId,
+          projectId: options.projectId,
+          envId: options.envId,
+        },
+      }),
       walletRegistrationCommitStore,
     ),
     walletRegistrationCommitStore,

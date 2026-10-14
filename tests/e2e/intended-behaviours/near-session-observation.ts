@@ -1,6 +1,46 @@
-import { expect, type BrowserContext, type Page, type Request, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  type BrowserContext,
+  type ConsoleMessage,
+  type Page,
+  type Request,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import type { IntendedBehaviourHarness } from './harness';
+
+class HeldParityRead {
+  private readonly routes: Route[] = [];
+  heldCount = 0;
+  failedCount = 0;
+  diagnosticFailures = 0;
+  deliveredCount = 0;
+
+  async handle(route: Route): Promise<void> {
+    if (route.request().method() !== 'GET') return await route.fallback();
+    this.routes.push(route);
+    this.heldCount += 1;
+  }
+
+  async release(): Promise<void> {
+    for (const route of this.routes.splice(0)) {
+      if (route.request().failure() !== null) continue;
+      await route.fallback();
+      this.deliveredCount += 1;
+    }
+  }
+
+  diagnostic(message: ConsoleMessage): void {
+    if (message.text().includes('[WalletSession] sealed refresh startup parity check failed')) {
+      this.diagnosticFailures += 1;
+    }
+  }
+
+  failed(request: Request): void {
+    if (new URL(request.url()).pathname === '/.well-known/webauthn') this.failedCount += 1;
+  }
+}
 
 class SessionReadEvidence {
   readonly requests: { stage: string; path: string }[] = [];
@@ -43,11 +83,28 @@ export async function verifyNearSessionObservation(
 ): Promise<void> {
   const evidence = new SessionReadEvidence();
   const record = evidence.record.bind(evidence);
+  const parity = new HeldParityRead();
+  const handleParity = parity.handle.bind(parity);
+  const failedParity = parity.failed.bind(parity);
+  const parityDiagnostic = parity.diagnostic.bind(parity);
+  const parityPath = '**/.well-known/webauthn';
+  await context.route(parityPath, handleParity);
+  context.on('requestfailed', failedParity);
+  page.on('console', parityDiagnostic);
   context.on('request', record);
   try {
     // The registration response states the issued session, and signing prepare
     // returns the status it admitted, so neither asks the Gateway for status.
     await harness.registerPasskeyEd25519YaoWallet();
+    // The parent receives the committed session while the informational startup
+    // GET is still pending. Required seal operations retain their parity check.
+    expect(parity.heldCount).toBeGreaterThan(0);
+    expect(parity.diagnosticFailures).toBe(0);
+    expect(parity.failedCount).toBe(0);
+    expect(parity.deliveredCount).toBe(0);
+    await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute('data-login-state', 'logged_in');
+    await parity.release();
+    await expect.poll(parityDelivered.bind(undefined, parity)).toBeGreaterThan(0);
     expect(evidence.setupRequests.map(setupRequestMethod)).toEqual(['OPTIONS', 'POST']);
     expect(evidence.setupRequests[0]).toEqual({
       method: 'OPTIONS',
@@ -84,6 +141,9 @@ export async function verifyNearSessionObservation(
     await harness.assertWalletLocked();
     const artifact = testInfo.outputPath('near-session-observation.json');
     await writeFile(artifact, JSON.stringify({
+      registrationReturnedBeforeParityRead: true,
+      parityReadFailures: parity.failedCount,
+      parityDiagnosticFailures: parity.diagnosticFailures,
       registrationStatusRequests: evidence.count('registration'),
       firstSignatureStatusRequests: evidence.count('first_signature'),
       laterQueriesReadFreshStatus: true,
@@ -94,10 +154,17 @@ export async function verifyNearSessionObservation(
     }, null, 2));
     await testInfo.attach('near-session-observation', { path: artifact, contentType: 'application/json' });
   } finally {
+    page.off('console', parityDiagnostic);
+    context.off('requestfailed', failedParity);
+    await context.unroute(parityPath, handleParity);
     context.off('request', record);
   }
 }
 
 function setupRequestMethod(request: { method: string }): string {
   return request.method;
+}
+
+function parityDelivered(parity: HeldParityRead): number {
+  return parity.deliveredCount;
 }

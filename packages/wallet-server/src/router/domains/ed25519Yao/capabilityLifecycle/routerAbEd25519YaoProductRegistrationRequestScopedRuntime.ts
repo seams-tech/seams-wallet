@@ -37,6 +37,7 @@ import {
   type RouterAbEd25519YaoAdmissionCompanionWriteV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
+  type RouterAbEd25519YaoConsumptionAdmissionV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
 } from './routerAbEd25519YaoProductRegistration';
 import {
@@ -52,6 +53,7 @@ import {
   type RouterAbEd25519YaoPinnedRegistrationBackend,
 } from '../registration/routerAbEd25519YaoHttpRegistrationBackend';
 import {
+  type RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
   pinRouterAbEd25519YaoRegistrationDispatchRootV1,
   routerAbEd25519YaoRegistrationExecuteRequestFromRouterRequestJsonV1,
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
@@ -184,11 +186,23 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
    */
   async consumeActivated(
     input: RouterAbEd25519YaoActivationConsumptionRequestV1,
+    admission: RouterAbEd25519YaoConsumptionAdmissionV1,
   ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1> {
     const lifecycleId = input.reference.lifecycleId;
-    const loaded = await this.input.store.loadRegistration(lifecycleId);
-    const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
-    if (!authority) {
+    let authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
+    switch (admission.kind) {
+      case 'stored': {
+        const loaded = await this.input.store.loadRegistration(lifecycleId);
+        authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
+        break;
+      }
+      case 'snapshot':
+        authority = admission.authority;
+        break;
+      default:
+        return assertNeverConsumptionAdmission(admission);
+    }
+    if (!authority || authority.admissionRequest.scope.lifecycle_id !== lifecycleId) {
       return {
         ok: false,
         code: 'unknown_registration',
@@ -423,3 +437,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
 }
 
 function ignoreUnobservedDispatchRoot(): void {}
+
+function assertNeverConsumptionAdmission(admission: never): never {
+  throw new Error(`Unknown registration admission source: ${String(admission)}`);
+}

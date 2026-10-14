@@ -1,3 +1,5 @@
+import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationExecutionRecord';
+import { isTransientD1Error, retryTransientD1 } from '../../../../storage/d1Retry';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SponsoredNamedNearAccountInput } from '../near/d1SponsoredNearAccount';
 import {
@@ -215,6 +217,7 @@ import {
   buildRouterAbEd25519YaoProductAdmissionRequestV1,
   projectRouterAbEd25519YaoExactWalletSession,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
+  type RouterAbEd25519YaoConsumptionAdmissionV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoWalletSessionCredentialV1,
   type RouterAbEd25519YaoWalletSessionMintInputV1,
@@ -3115,7 +3118,32 @@ export class CloudflareD1WalletRegistrationService {
     }
   }
 
+  /**
+   * Respond replays exactly, so a transient D1 fault runs it again, as a client
+   * retry would. A fault that outlasts the retries reports `storage_unavailable`
+   * without the driver's text.
+   */
   async respondWalletRegistration(
+    input: WalletRegistrationRespondInput,
+    traceContext?: RouterAbTraceContextV1,
+    timingSink?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
+  ): Promise<WalletRegistrationRespondResponseV2> {
+    try {
+      return await retryTransientD1(() =>
+        this.respondWalletRegistrationAttempt(input, traceContext, timingSink, waitUntil),
+      );
+    } catch (error: unknown) {
+      if (!isTransientD1Error(error)) throw error;
+      return {
+        ok: false,
+        code: 'storage_unavailable',
+        message: 'Wallet registration storage is unavailable',
+      };
+    }
+  }
+
+  private async respondWalletRegistrationAttempt(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
     timingSink?: Array<readonly [string, number]>,
@@ -3480,6 +3508,7 @@ export class CloudflareD1WalletRegistrationService {
         ed25519: ed25519Admission.deferred,
       });
     } catch (error: unknown) {
+      if (isTransientD1Error(error)) throw error;
       return {
         ok: false,
         code: 'internal',
@@ -3753,6 +3782,7 @@ export class CloudflareD1WalletRegistrationService {
       readonly lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null;
       /** The passkey claim that respond recorded for this ceremony, when it did. */
       readonly heldPasskeyClaim: HeldRegistrationPasskeyClaim | null;
+      readonly readYaoAdmission: () => RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
@@ -3893,6 +3923,7 @@ export class CloudflareD1WalletRegistrationService {
       initialSessionPlan,
       args.lifecycleDecision,
       args.heldPasskeyClaim,
+      { kind: 'snapshot', authority: args.readYaoAdmission() },
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -4229,6 +4260,7 @@ export class CloudflareD1WalletRegistrationService {
           preparedCeremony: () => preparedCeremony,
           lifecycleDecision: initial.decision,
           heldPasskeyClaim: initial.heldPasskeyClaim,
+          readYaoAdmission: initial.readYaoAdmission,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4520,10 +4552,17 @@ export class CloudflareD1WalletRegistrationService {
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     // An admission that already existed carried no write of this request.
     if (!stored && admitted.companionWrite === 'not_committed') {
-      await ceremonyStore.commitEcdsaClaim({
-        expected: input.snapshot,
-        next: authorizedCeremony(admitted.admissionRequest),
-      });
+      const next = authorizedCeremony(admitted.admissionRequest);
+      try {
+        await ceremonyStore.commitEcdsaClaim({ expected: input.snapshot, next });
+      } catch (error: unknown) {
+        // A lost admission reply can hide an already committed companion write.
+        // Accept only the exact intended ceremony; preserve every other refusal.
+        const committed = await ceremonyStore.getCeremony(ceremony.registrationCeremonyId);
+        if (!committed || alphabetizeStringify(committed) !== alphabetizeStringify(next)) {
+          throw error;
+        }
+      }
     }
     /* The credential is verified and the ceremony holds it. Claim it through
        shared authority while the client runs the Yao execution, so that
@@ -4898,6 +4937,8 @@ export class CloudflareD1WalletRegistrationService {
       [],
       { kind: 'separate' },
       null,
+      null,
+      { kind: 'stored' },
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -5341,7 +5382,8 @@ export class CloudflareD1WalletRegistrationService {
     serverTiming: Array<readonly [string, number]>,
     initialSessionPlan: RegistrationInitialSessionPlan,
     lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null,
-    heldPasskeyClaim: HeldRegistrationPasskeyClaim | null = null,
+    heldPasskeyClaim: HeldRegistrationPasskeyClaim | null,
+    yaoAdmission: RouterAbEd25519YaoConsumptionAdmissionV1,
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5662,13 +5704,16 @@ export class CloudflareD1WalletRegistrationService {
             sink: serverTiming,
             name: 'near_finalize_router_consume',
             startedAtMs: Date.now(),
-            promise: yaoRuntime.consumeActivated({
-              reference: {
-                lifecycleId: activationReference.lifecycle_id,
-                sessionId: activationReference.session_id,
+            promise: yaoRuntime.consumeActivated(
+              {
+                reference: {
+                  lifecycleId: activationReference.lifecycle_id,
+                  sessionId: activationReference.session_id,
+                },
+                consumerBinding: requestFingerprint,
               },
-              consumerBinding: requestFingerprint,
-            }),
+              yaoAdmission,
+            ),
           }),
           recordRegistrationPromiseTiming({
             sink: serverTiming,
@@ -5677,6 +5722,7 @@ export class CloudflareD1WalletRegistrationService {
             promise: this.walletRegistrationCommitStore.reserveAuthority(
               ceremonyAuthority,
               heldPasskeyClaim,
+              prepared,
             ),
           }),
         ]);
@@ -5843,7 +5889,11 @@ export class CloudflareD1WalletRegistrationService {
       } else {
         custodyReservation = reserveCustody();
         startedCustody = custodyReservation;
-        commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority);
+        commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(
+          ceremonyAuthority,
+          null,
+          prepared,
+        );
       }
 
       /* The registration becomes visible with its lifecycle's decision, in

@@ -1,3 +1,5 @@
+import { parseRouterAbEd25519YaoRegistrationAdmissionReadV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
+import type { createD1Ed25519YaoLifecycleRecords } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
 import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import type { WalletRegistrationHomeAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { CloudflareD1RegistrationCeremonyIntentStore } from './d1RegistrationCeremonyStore';
@@ -15,6 +17,7 @@ export class D1WalletRegistrationRead {
     readonly operations: D1WalletOperationStore<D1WalletRegistrationNearProvisioningSideEffectRecord>,
     private readonly getCeremonies: () => CloudflareD1RegistrationCeremonyIntentStore,
     private readonly decisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1,
+    private readonly yaoRecords: ReturnType<typeof createD1Ed25519YaoLifecycleRecords>,
     private readonly passkeyClaims: Pick<
       D1WalletRegistrationCommitStore,
       'prepareHeldPasskeyClaimRead' | 'parseHeldPasskeyClaimRead'
@@ -65,15 +68,17 @@ export class D1WalletRegistrationRead {
       ceremonies.prepareCeremonyRead(home.ceremonyId),
       this.decisions.prepareRead(home.ceremonyId),
       this.passkeyClaims.prepareHeldPasskeyClaimRead(home.ceremonyId),
+      this.yaoRecords.prepareRead(home.ceremonyId),
     ]);
-    const [homeRead, operationRead, ceremonyRead, decisionRead, passkeyClaimRead] = results;
+    const [homeRead, operationRead, ceremonyRead, decisionRead, passkeyClaimRead, yaoRead] = results;
     if (
-      results.length !== 5 ||
+      results.length !== 6 ||
       !homeRead ||
       !operationRead ||
       !ceremonyRead ||
       !decisionRead ||
-      !passkeyClaimRead
+      !passkeyClaimRead ||
+      !yaoRead
     ) {
       throw new Error('Registration finalization D1 batch returned incomplete results');
     }
@@ -92,6 +97,14 @@ export class D1WalletRegistrationRead {
       // A claim that respond already obtained for this ceremony. It never changes.
       heldPasskeyClaim: this.passkeyClaims.parseHeldPasskeyClaimRead(passkeyClaimRead),
       readCeremony: ceremonies.parseCeremonyRead.bind(ceremonies, home.ceremonyId, ceremonyRead),
+      readYaoAdmission: this.parseYaoAdmission.bind(this, home.ceremonyId, yaoRead),
     };
+  }
+
+  private parseYaoAdmission(ceremonyId: string, result: D1ResultLike<Record<string, unknown>>) {
+    return parseRouterAbEd25519YaoRegistrationAdmissionReadV1(
+      ceremonyId,
+      this.yaoRecords.parseReadResult(result),
+    );
   }
 }

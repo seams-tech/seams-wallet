@@ -1749,7 +1749,9 @@ One host observation supplies the exact session state and the complete public
 server-status reads. A lock, wallet-selection change, or authority change during
 that observation makes the host discard it and observe again. Each later explicit
 `getSession` or `refreshSession` request obtains fresh server status.
-Registration publishes that observation before returning. A NEAR-only
+Registration publishes that observation before returning. An informational
+startup parity check cannot delay session observation or registration completion.
+Operations that require sealed-refresh parity still await and enforce it. A NEAR-only
 registration's response states the session the server issued as its last step,
 so this one observation takes the session's status from the response and sends
 no status request. A registration that includes ECDSA observes the server,

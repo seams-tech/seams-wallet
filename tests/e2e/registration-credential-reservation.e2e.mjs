@@ -109,7 +109,7 @@ try {
     decisionStatements: [],
   };
   const before = await snapshot(database);
-  const denied = store.reserveAuthority(authority);
+  const denied = store.reserveAuthority(authority, null, null);
   const rejection = assert.rejects(denied, /belongs to another wallet/);
   assert.equal(directory.requests.length, 1);
   assert.deepEqual(await snapshot(database), before);
@@ -117,13 +117,13 @@ try {
   await rejection;
   assert.deepEqual(await snapshot(database), before);
 
-  const lost = store.reserveAuthority(authority);
+  const lost = store.reserveAuthority(authority, null, null);
   const lostReply = assert.rejects(lost, /lost credential claim reply/);
   directory.loseReply();
   await lostReply;
   assert.deepEqual(await snapshot(database), before);
 
-  const retry = store.reserveAuthority(authority);
+  const retry = store.reserveAuthority(authority, null, null);
   directory.answer(true);
   const commit = await retry;
   const other = api.buildPasskeyRegistrationAuthorityFixture('other-wallet');
@@ -197,7 +197,7 @@ try {
     projectId: 'project',
     envId: 'test',
   });
-  const commitOther = await otherStore.reserveAuthority(other);
+  const commitOther = await otherStore.reserveAuthority(other, null, null);
   traced.pendingCommit = commitOther.bind(undefined, {
     kind: 'passkey_wallet_registration_commit_v1',
     wallet: api.buildD1WalletRecord({ walletId: other.walletId, now }),
@@ -277,7 +277,7 @@ async function verifyEarlyClaim(database) {
   directory.loseReply();
   await lost;
   assert.equal(await readHeld(ceremonyId), null);
-  const unrecorded = store.reserveAuthority(authority, await readHeld(ceremonyId));
+  const unrecorded = store.reserveAuthority(authority, await readHeld(ceremonyId), null);
   assert.equal(directory.requests.length, 3, 'finalization claims when nothing is recorded');
   directory.answer(false);
   await assert.rejects(unrecorded, /belongs to another wallet/);
@@ -296,7 +296,7 @@ async function verifyEarlyClaim(database) {
 
   // The recorded grant replaces finalization's request.
   const requestsBefore = directory.requests.length;
-  await store.reserveAuthority(authority, held);
+  await store.reserveAuthority(authority, held, null);
   assert.equal(directory.requests.length, requestsBefore, 'a recorded grant needs no request');
 
   // A record for another wallet or credential never replaces the request.
@@ -305,7 +305,7 @@ async function verifyEarlyClaim(database) {
     { ...held, rpId: 'another.example' },
     { ...held, credentialIdB64u: 'another-credential' },
   ]) {
-    const reserved = store.reserveAuthority(authority, mismatch);
+    const reserved = store.reserveAuthority(authority, mismatch, null);
     assert.equal(directory.requests.length, requestsBefore + 1);
     directory.requests.pop();
     directory.answer(false);
@@ -354,7 +354,7 @@ async function verifyWalletFences(database, now) {
     ['relocating-wallet', fenceRelocation],
   ]) {
     const authority = api.buildPasskeyRegistrationAuthorityFixture(label);
-    const commit = await store.reserveAuthority(authority);
+    const commit = await store.reserveAuthority(authority, null, null);
     await fence(database, scope, authority.walletId);
     const before = await snapshot(database);
     await assert.rejects(
@@ -480,7 +480,10 @@ async function verifyWalletAndSessionCommit(database, now) {
     credentialClaims: { claim: acceptCredential },
     ...scope,
   });
-  const commit = await store.reserveAuthority(authority);
+  const foundingIds = {
+    walletAuthorityId: founding.authority.authorityId,
+    walletAuthMethodId: founding.authMethod.walletAuthMethodId,
+  };
   const walletInput = {
     kind: 'passkey_wallet_registration_commit_v1',
     wallet: api.buildD1WalletRecord({ walletId: authority.walletId, now }),
@@ -516,16 +519,19 @@ async function verifyWalletAndSessionCommit(database, now) {
     issuedAtMs: now,
     expiresAtMs: now + 3_600_000,
   };
-  const commitWithSession = service.commitDirectWalletSessionAuthorizationV2.bind(
-    service,
-    sessionInput,
-    { kind: 'validated_registration_authority_projection' },
-    { kind: 'registration', ceremonyId },
-    sessionStore.commitRegistrationWalletSessionAuthorizationV2.bind(
-      sessionStore,
-      commit.bind(undefined, walletInput),
-    ),
-  );
+  // Each attempt is one finalization: it reserves, reading the founding records, then commits.
+  const commitWithSession = async () => {
+    const commit = await store.reserveAuthority(authority, null, foundingIds);
+    return service.commitDirectWalletSessionAuthorizationV2(
+      sessionInput,
+      { kind: 'validated_registration_authority_projection' },
+      { kind: 'registration', ceremonyId },
+      sessionStore.commitRegistrationWalletSessionAuthorizationV2.bind(
+        sessionStore,
+        commit.bind(undefined, walletInput),
+      ),
+    );
+  };
   const beforeSessionFailure = await snapshot(database);
   await database
     .prepare(
@@ -547,7 +553,7 @@ async function verifyWalletAndSessionCommit(database, now) {
     state: 'registering',
   });
   const calls = trace(traced).slice(callsBefore);
-  assert.equal(calls.length, 2, 'One founding-record read, then one batch');
+  assert.equal(calls.length, 2, 'The reservation reads the founding records, the commit writes one batch');
   assert.ok(calls[0].statements.every(isRead));
   assert.ok(writesWalletBatch(calls[1]));
   const tables = new Set(calls[1].statements.flatMap(statementTables));

@@ -3,6 +3,7 @@ import type { WalletRegistrationContextResolver } from './router/framework/apiCr
 import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
 import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTITY_HEADER, WALLET_OBJECT_ADDRESSES_HEADER, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+import { warmSigningSessionSealRuntime } from './threshold/session/signingSessionSeal/crypto/shamir3PassWasm';
 import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { parseSessionOrigin } from './authorization/domain';
@@ -934,10 +935,31 @@ export async function handleSplitGatewayRequest(
       dependencies,
     );
     withCors(response.headers, { corsOrigins: readCsvList(env.RELAY_CORS_ORIGINS) }, request);
+    warmSigningSessionSealAfterReply(env, ctx);
     return response;
   }
   const handler = await createSplitGatewayRouterHandler(env, dependencies, ctx);
-  return await handler(request, env, ctx);
+  const response = await handler(request, env, ctx);
+  warmSigningSessionSealAfterReply(env, ctx);
+  return response;
+}
+
+let signingSessionSealWarmUp: Promise<void> | null = null;
+
+/**
+ * Once per isolate, after its first reply. A finalization seldom reaches the
+ * isolate that served an earlier request of the same registration, so the
+ * warm-up runs after whichever request reaches an isolate first.
+ */
+function warmSigningSessionSealAfterReply(
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+): void {
+  if (signingSessionSealWarmUp || !stagingSigningSessionSealOptions(env)) return;
+  signingSessionSealWarmUp = warmSigningSessionSealRuntime().catch((error: unknown) => {
+    console.warn('[signing-session-seal] warm-up failed', error);
+  });
+  ctx.waitUntil(signingSessionSealWarmUp);
 }
 
 function requireStagingRouterAbPublicKeyset(

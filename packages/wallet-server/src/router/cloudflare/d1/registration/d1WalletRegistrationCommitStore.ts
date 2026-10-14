@@ -51,6 +51,7 @@ import {
   type D1WebAuthnStoreScope,
 } from '../webauthn/d1WebAuthnStore';
 import type { D1EmailOtpRegistrationCommitPlan } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
+import type { D1WalletRegistrationOperationPreparedV1 } from './d1WalletRegistrationPreparation';
 
 export type D1RegistrationCommitBatch = (
   statements: readonly D1PreparedStatementLike[],
@@ -102,11 +103,14 @@ export type HeldRegistrationPasskeyClaim = {
 export interface D1WalletRegistrationCommitStore {
   /**
    * Claims the authority's passkey through shared authority, unless `held`
-   * records that the same claim was already granted for this ceremony.
+   * records that the same claim was already granted for this ceremony. With
+   * `founding`, it also reads that authority and auth method as stored, beside
+   * the claim, so the commit writes them without a read of its own.
    */
   reserveAuthority(
     authority: RegistrationAuthority,
-    held?: HeldRegistrationPasskeyClaim | null,
+    held: HeldRegistrationPasskeyClaim | null,
+    founding: FoundingRecordIds | null,
   ): Promise<ReservedWalletRegistrationCommit>;
   /**
    * Claims a verified passkey before finalization and records a granted
@@ -381,20 +385,27 @@ function canExtendFoundingAuthorityWithEd25519(
   );
 }
 
+type FoundingRecordIds = Pick<
+  D1WalletRegistrationOperationPreparedV1,
+  'walletAuthorityId' | 'walletAuthMethodId'
+>;
+
+/** A registration's founding authority and auth method rows, read at its reservation. */
+type StoredFoundingRecords = FoundingRecordIds & {
+  readonly authorityRow: D1RegistrationRecordJsonRow | null;
+  readonly authMethodRow: D1RegistrationRecordJsonRow | null;
+};
+
 type D1RegistrationRecordJsonRow = {
   readonly record_json?: unknown;
 };
 
-async function prepareFoundingStatements(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WalletRegistrationCommitScope;
-  readonly foundingAuthority: ActiveWalletAuthorityV1 | undefined;
-  readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2 | undefined;
-  readonly now: number;
-}): Promise<readonly D1PreparedStatementLike[]> {
-  if (!input.foundingAuthority) return [];
-  const foundingAuthMethod = requireFoundingAuthMethod(input.foundingAuthMethod);
-  const authorityRead = input.database
+async function readStoredFoundingRecords(
+  database: D1DatabaseLike,
+  scope: D1WalletRegistrationCommitScope,
+  ids: FoundingRecordIds,
+): Promise<StoredFoundingRecords> {
+  const authorityRead = database
     .prepare(
       `SELECT record_json
          FROM wallet_authorities
@@ -406,13 +417,13 @@ async function prepareFoundingStatements(input: {
         LIMIT 1`,
     )
     .bind(
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      String(input.foundingAuthority.authorityId),
+      scope.namespace,
+      scope.orgId,
+      scope.projectId,
+      scope.envId,
+      String(ids.walletAuthorityId),
     );
-  const authMethodRead = input.database
+  const authMethodRead = database
     .prepare(
       `SELECT record_json
          FROM wallet_auth_methods
@@ -424,19 +435,44 @@ async function prepareFoundingStatements(input: {
         LIMIT 1`,
     )
     .bind(
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      String(foundingAuthMethod.walletAuthMethodId),
+      scope.namespace,
+      scope.orgId,
+      scope.projectId,
+      scope.envId,
+      String(ids.walletAuthMethodId),
     );
-  const results = await input.database.batch<D1ResultLike<D1RegistrationRecordJsonRow>>([
+  const results = await database.batch<D1ResultLike<D1RegistrationRecordJsonRow>>([
     authorityRead,
     authMethodRead,
   ]);
   assertBatchSucceeded({ expectedStatementCount: 2, results });
-  const authorityRow = results[0]?.results?.[0] ?? null;
-  const authMethodRow = results[1]?.results?.[0] ?? null;
+  return {
+    walletAuthorityId: ids.walletAuthorityId,
+    walletAuthMethodId: ids.walletAuthMethodId,
+    authorityRow: results[0]?.results?.[0] ?? null,
+    authMethodRow: results[1]?.results?.[0] ?? null,
+  };
+}
+
+function prepareFoundingStatements(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1WalletRegistrationCommitScope;
+  readonly foundingAuthority: ActiveWalletAuthorityV1 | undefined;
+  readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2 | undefined;
+  readonly stored: StoredFoundingRecords | null;
+  readonly now: number;
+}): readonly D1PreparedStatementLike[] {
+  if (!input.foundingAuthority) return [];
+  const foundingAuthMethod = requireFoundingAuthMethod(input.foundingAuthMethod);
+  const { stored } = input;
+  if (
+    !stored ||
+    String(stored.walletAuthorityId) !== String(input.foundingAuthority.authorityId) ||
+    String(stored.walletAuthMethodId) !== String(foundingAuthMethod.walletAuthMethodId)
+  ) {
+    throw new Error('A founding commit requires the records that its reservation read');
+  }
+  const { authorityRow, authMethodRow } = stored;
   let persistedAuthority: ActiveWalletAuthorityV1 | null = null;
   if (authorityRow) {
     const parsedAuthority = parseWalletAuthorityV1(
@@ -571,18 +607,22 @@ export class CloudflareD1WalletRegistrationCommitStore
 
   async reserveAuthority(
     authority: RegistrationAuthority,
-    held: HeldRegistrationPasskeyClaim | null = null,
+    held: HeldRegistrationPasskeyClaim | null,
+    founding: FoundingRecordIds | null,
   ): Promise<ReservedWalletRegistrationCommit> {
-    // Shared authority never reassigns a claim, so a recorded grant for this
-    // exact wallet and credential still holds.
-    if (authority.kind === 'passkey' && !heldClaimCovers(held, authority)) {
-      await reservePasskeyCredential(this.credentialClaims, {
-        walletId: authority.walletId,
-        rpId: authority.rpId,
-        credentialIdB64u: authority.credentialIdB64u,
-      });
-    }
-    return this.commit.bind(this, authority);
+    const [, stored] = await Promise.all([
+      // Shared authority never reassigns a claim, so a recorded grant for this
+      // exact wallet and credential still holds.
+      authority.kind === 'passkey' && !heldClaimCovers(held, authority)
+        ? reservePasskeyCredential(this.credentialClaims, {
+            walletId: authority.walletId,
+            rpId: authority.rpId,
+            credentialIdB64u: authority.credentialIdB64u,
+          })
+        : undefined,
+      founding ? readStoredFoundingRecords(this.database, this.scope, founding) : null,
+    ]);
+    return this.commit.bind(this, authority, stored);
   }
 
   async claimPasskeyAhead(input: {
@@ -681,6 +721,7 @@ export class CloudflareD1WalletRegistrationCommitStore
 
   private async commit(
     authority: RegistrationAuthority,
+    stored: StoredFoundingRecords | null,
     input: D1WalletRegistrationCommitInput,
     executeBatch?: D1RegistrationCommitBatch,
   ): Promise<void> {
@@ -716,7 +757,7 @@ export class CloudflareD1WalletRegistrationCommitStore
         ),
       );
     }
-    const prepared = await prepareWalletWrite(this.database, this.scope, authority, input);
+    const prepared = prepareWalletWrite(this.database, this.scope, authority, input, stored);
     const statements = [...fenced, ...prepared.statements];
     const results = executeBatch
       ? await executeBatch(statements)
@@ -728,17 +769,19 @@ export class CloudflareD1WalletRegistrationCommitStore
   }
 }
 
-async function prepareWalletWrite(
+function prepareWalletWrite(
   database: D1DatabaseLike,
   scope: D1WalletRegistrationCommitScope,
   authority: RegistrationAuthority,
   input: D1WalletRegistrationCommitInput,
+  stored: StoredFoundingRecords | null,
 ) {
-  const foundingStatements = await prepareFoundingStatements({
+  const foundingStatements = prepareFoundingStatements({
     database,
     scope,
     foundingAuthority: input.foundingAuthority,
     foundingAuthMethod: input.foundingAuthMethod,
+    stored,
     now: input.now,
   });
   const statements: D1PreparedStatementLike[] = [

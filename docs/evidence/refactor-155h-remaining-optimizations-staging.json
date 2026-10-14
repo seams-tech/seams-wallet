@@ -1,0 +1,398 @@
+{
+  "schema": "refactor_155h_remaining_optimizations_staging_v1",
+  "date": "2026-10-14",
+  "lane": "staging-testnet, APAC home in Singapore",
+  "client": "Chromium with a virtual authenticator on a laptop in Tokyo; every request entered Cloudflare in Tokyo",
+  "sample": "fresh NEAR implicit registration and a first NEP-413 signature per wallet; 99 wallets per arm after one discarded warm-up group of three",
+  "design": "A/B/A/B: control 1, candidate 1, control 2, candidate 2; only the APAC Gateway and the test site change between arms; a protected activation after each switch",
+  "sources": {
+    "control": "9f57952c8f67c56a8fc86a069317cd3a1c4b568e",
+    "candidate": "ec08890ce76dfc01414bacad20ad269729518333",
+    "privateHost": "863978bc4a569136f9adf7228161a2ecc4f17a6e",
+    "publishedWasm": "identical published 0.10.1 WASM binaries in both arms"
+  },
+  "candidateCommits": [
+    "7caae2fa SDK session observation independent of startup diagnostics (Codex)",
+    "8b4dcf5f Yao admission read in the finalization batch (Codex)",
+    "f6422f37 founding records read beside the Router consumption",
+    "1527b97f seal warm-up once per isolate after its first reply",
+    "ec08890c respond retry after a transient D1 fault"
+  ],
+  "gatewayVersions": {
+    "control": "007f559b-17c7-4b31-b71e-41ff3197346f",
+    "candidate": "6578fdc4-e490-4dc5-b670-528298080ae6"
+  },
+  "activationRuns": [
+    38534084275,
+    38535523534,
+    38536920234,
+    38538315048
+  ],
+  "unit": "milliseconds",
+  "arms": {
+    "control-1": {
+      "startJst": "17:07",
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1645,
+          "p90": 1912
+        },
+        "respond": {
+          "n": 99,
+          "p50": 1093,
+          "p90": 1356
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 451,
+          "p90": 705
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 48,
+          "p90": 58
+        },
+        "setup": {
+          "n": 99,
+          "p50": 551,
+          "p90": 875
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 493,
+          "p90": 593
+        },
+        "signature": {
+          "n": 99,
+          "p50": 376,
+          "p90": 546
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2348,
+          "p90": 2740
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 0,
+        "near_finalize_custody_commit": 25,
+        "near_finalize_custody_reserve": 40,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 14,
+        "near_finalize_router_consume": 52,
+        "near_finalize_session_issue": 47,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 218,
+        "near_finalize_source": 0,
+        "near_finalize_total": 232,
+        "near_finalize_wallet_commit": 56
+      },
+      "gatewayFinalize": {
+        "wallP50": 373,
+        "cpuP50": 52,
+        "cpuP90": 89
+      },
+      "gatewayRespond": {
+        "wallP50": 971,
+        "cpuP50": 29
+      },
+      "deriverWriteP50": {
+        "a": 12,
+        "b": 15
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 22,
+        "publish-routes": 24,
+        "complete": 26
+      },
+      "latePreparations": 38
+    },
+    "candidate-1": {
+      "startJst": "17:20",
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1449,
+          "p90": 1866
+        },
+        "respond": {
+          "n": 99,
+          "p50": 962,
+          "p90": 1329
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 419,
+          "p90": 571
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 51,
+          "p90": 58
+        },
+        "setup": {
+          "n": 99,
+          "p50": 524,
+          "p90": 858
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 523,
+          "p90": 636
+        },
+        "signature": {
+          "n": 99,
+          "p50": 351,
+          "p90": 548
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2114,
+          "p90": 2686
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 12,
+        "near_finalize_custody_commit": 25,
+        "near_finalize_custody_reserve": 33,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 15,
+        "near_finalize_router_consume": 36,
+        "near_finalize_session_issue": 35,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 169,
+        "near_finalize_source": 0,
+        "near_finalize_total": 193,
+        "near_finalize_wallet_commit": 38
+      },
+      "gatewayFinalize": {
+        "wallP50": 343,
+        "cpuP50": 47,
+        "cpuP90": 79
+      },
+      "gatewayRespond": {
+        "wallP50": 844,
+        "cpuP50": 26
+      },
+      "deriverWriteP50": {
+        "a": 10,
+        "b": 15.0
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 21,
+        "publish-routes": 24,
+        "complete": 25
+      },
+      "latePreparations": 16
+    },
+    "control-2": {
+      "startJst": "17:31",
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1435,
+          "p90": 1851
+        },
+        "respond": {
+          "n": 99,
+          "p50": 924,
+          "p90": 1235
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 442,
+          "p90": 634
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 54,
+          "p90": 61
+        },
+        "setup": {
+          "n": 99,
+          "p50": 551,
+          "p90": 858
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 489,
+          "p90": 646
+        },
+        "signature": {
+          "n": 99,
+          "p50": 360,
+          "p90": 557
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2108,
+          "p90": 2722
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 0,
+        "near_finalize_custody_commit": 26,
+        "near_finalize_custody_reserve": 32,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 15,
+        "near_finalize_router_consume": 52,
+        "near_finalize_session_issue": 31,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 207,
+        "near_finalize_source": 0,
+        "near_finalize_total": 224,
+        "near_finalize_wallet_commit": 54
+      },
+      "gatewayFinalize": {
+        "wallP50": 383,
+        "cpuP50": 55,
+        "cpuP90": 86
+      },
+      "gatewayRespond": {
+        "wallP50": 807,
+        "cpuP50": 23
+      },
+      "deriverWriteP50": {
+        "a": 9.5,
+        "b": 15
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 18,
+        "publish-routes": 24,
+        "complete": 23
+      },
+      "latePreparations": 21
+    },
+    "candidate-2": {
+      "startJst": "17:43",
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1359,
+          "p90": 1785
+        },
+        "respond": {
+          "n": 99,
+          "p50": 931,
+          "p90": 1244
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 353,
+          "p90": 489
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 55,
+          "p90": 59
+        },
+        "setup": {
+          "n": 99,
+          "p50": 497,
+          "p90": 731
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 541,
+          "p90": 635
+        },
+        "signature": {
+          "n": 99,
+          "p50": 304,
+          "p90": 481
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 1940,
+          "p90": 2529
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 12,
+        "near_finalize_custody_commit": 20,
+        "near_finalize_custody_reserve": 31,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 13,
+        "near_finalize_router_consume": 34,
+        "near_finalize_session_issue": 31,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 148,
+        "near_finalize_source": 0,
+        "near_finalize_total": 164,
+        "near_finalize_wallet_commit": 35
+      },
+      "gatewayFinalize": {
+        "wallP50": 279,
+        "cpuP50": 41,
+        "cpuP90": 71
+      },
+      "gatewayRespond": {
+        "wallP50": 820,
+        "cpuP50": 25
+      },
+      "deriverWriteP50": {
+        "a": 10.0,
+        "b": 14
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 21,
+        "publish-routes": 23,
+        "complete": 23
+      },
+      "latePreparations": 10
+    }
+  },
+  "signaturesVerifiedIndependently": {
+    "verified": 396,
+    "distinctKeys": 396,
+    "failedSamples": 0
+  },
+  "restoration": {
+    "allOriginalVersionsServing": true,
+    "workers": 14
+  },
+  "respondRetryExercised": false,
+  "setupTimeCpuMs": {
+    "source": "tail cpuTime of the setup-time invocations in each arm",
+    "upperBoundForAbandonedSetup": true,
+    "excluded": [
+      "Router (no tail)",
+      "expiry work for an unclaimed session"
+    ],
+    "arms": {
+      "control-1": {
+        "gatewaySetupMedian": 22,
+        "deriverAObjectPrepareMedian": 303,
+        "deriverBObjectPrepareMedian": 293,
+        "deriverBConnectionMedian": 74,
+        "allSetupInvocationsPerWallet": 823.9
+      },
+      "candidate-1": {
+        "gatewaySetupMedian": 19,
+        "deriverAObjectPrepareMedian": 326,
+        "deriverBObjectPrepareMedian": 302,
+        "deriverBConnectionMedian": 55,
+        "allSetupInvocationsPerWallet": 770.2
+      },
+      "control-2": {
+        "gatewaySetupMedian": 23,
+        "deriverAObjectPrepareMedian": 304,
+        "deriverBObjectPrepareMedian": 290,
+        "deriverBConnectionMedian": 54.5,
+        "allSetupInvocationsPerWallet": 709.4
+      },
+      "candidate-2": {
+        "gatewaySetupMedian": 21,
+        "deriverAObjectPrepareMedian": 330,
+        "deriverBObjectPrepareMedian": 287.5,
+        "deriverBConnectionMedian": 55,
+        "allSetupInvocationsPerWallet": 724.7
+      }
+    }
+  }
+}

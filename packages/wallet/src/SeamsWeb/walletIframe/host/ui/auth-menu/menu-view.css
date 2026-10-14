@@ -57,6 +57,7 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-options {
+  --seams-menu-option-radius: max(0px, calc(var(--seams-shape-control, 10px) - 1px));
   border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: var(--seams-shape-control, 10px);
   overflow: hidden;
@@ -69,6 +70,7 @@
   width: 100%;
   padding: 0.375rem 0.5625rem 0.375rem 0.4375rem;
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--seams-colors-textPrimary);
   font: inherit;
@@ -76,6 +78,16 @@
   text-align: start;
   cursor: pointer;
   transition: background-color 160ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-menu-option:first-child {
+  border-start-start-radius: var(--seams-menu-option-radius);
+  border-start-end-radius: var(--seams-menu-option-radius);
+}
+
+:where(.seams-auth-menu-surface) .seams-menu-option:last-child {
+  border-end-start-radius: var(--seams-menu-option-radius);
+  border-end-end-radius: var(--seams-menu-option-radius);
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-option + .seams-menu-option {
@@ -92,6 +104,14 @@
 :where(.seams-auth-menu-surface) .seams-menu-option:focus-visible {
   box-shadow: inset 0 0 0 2px
     color-mix(in srgb, var(--seams-colors-focus, var(--seams-colors-primary)), transparent 40%);
+}
+
+@media (forced-colors: active) {
+  :where(.seams-auth-menu-surface) .seams-menu-option:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    box-shadow: none;
+  }
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-option-icon {

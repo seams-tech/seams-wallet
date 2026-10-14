@@ -29,6 +29,13 @@ the [0.9.4 record](refactor-155h-release-094-staging.md), where 0.9.4
 measured 1,876 ms. Compare the two columns of this table with each other
 only.
 
+**Later finding, October 14.** Both columns include a cost of the private
+Console that grew with the number of wallets in the staging environment:
+151 ms at the median in the 0.9.4 runs and 167 to 185 ms in the 0.10.0
+runs, inside finalization. The difference between the columns stands. The
+[0.10.1 record](refactor-155h-release-0101-staging.md) holds the finding
+and the figures after the correction.
+
 ## Method
 
 - **Lane, client and sample.** As in the earlier records: the Singapore

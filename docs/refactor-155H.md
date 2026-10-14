@@ -1,26 +1,71 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
-Status: **in progress; the target is reached on staging.** Release 0.9.3
-carries Phase 2 and Phase 4's yield, SIMD build and start-up ceremony. On the
-Singapore staging lane, registration after the passkey step measures
-1,734 ms at the median and 2,221 ms at the 90th percentile, against 2,332 ms
-and 3,044 ms on 0.9.0: 164 and 198 wallets, client in Tokyo. 80% of the
-wallets finish in less than 2.0 s after the passkey step. The
-[record](evidence/refactor-155h-release-093-staging.md) holds the chain.
-Release 0.9.4 carries the engine change of Phase 4: the Yao execution is
-about 60 ms shorter, see its
-[record](evidence/refactor-155h-release-094-staging.md).
-Release 0.10.0 serves on staging since October 14. It carries the session
-mint and the pair preparation of Phase 1, the capability record change of
-Phase 9 and the one-request registration of Phase 10. Registration after the
-passkey step measures 1,747 ms at the median against 2,096 ms on 0.9.4 in
-the hour before; see its
-[record](evidence/refactor-155h-release-0100-staging.md).
-Phase 3 is decided and not implemented. Date: October 14, 2026.
+Status, October 14, 2026: **closed.** Each item has its evidence or a recorded
+reason. Release 0.10.2 carries the last finalization and respond changes. The
+median target was met in named runs. Tail acceptance stays open under
+[R155J](refactor-R155J-p99.md). Production rollout, the Console outbox
+(Phase 3) and a profile of the remaining finalization CPU (Phase 9) are
+outside this closure.
 
-[R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup
-outliers and the combined p99 comparison. It reuses this plan's Phase 1 design
-and keeps Phase 3 conditional on measured need.
+## Current work and evidence
+
+This table is the current execution list. Older measurements and estimates below
+retain their dates; they are not current rollout instructions or promised savings.
+
+| Phase | State | Closure |
+| --- | --- | --- |
+| 0 — Measurement | CPU classification and named span/probe records exist | Per-call decomposition of a slow sample moved to R155J |
+| 1 — Preparation at setup | Session mint, pair admission/connection, expiry, and 30 setups/minute per key + IP; released in 0.10.0 | Abandoned-setup cost measured from tails; garbling before execute deferred |
+| 2 — Early passkey claim | Implemented, released in 0.9.3, measured | Done |
+| 3 — Console completion after reply | **Deferred** | Design retained; no outbox now; session issue and custody commit already overlap |
+| 4 — Yao execution | Yield, SIMD, compute prewarm, label wipes, and four-block hashing are released and measured | No result-independent product work to move under the custody rule |
+| 5 — Setup and SDK completion | Preflight, background usage telemetry, and session publication improvements implemented | Accumulated SDK changes publish in 0.10.2 |
+| 6 — Singapore placement | Staging switched and verified; Console data-preserving move completed October 14 | Production rollout is separate release work |
+| 7 — Outliers | Release metadata stripping and host observations implemented; bounded captures recorded | R155J owns unresolved startup, delivery, signing-503, and B-await causes |
+| 8 — Combined measurement | Release comparisons, the 42-wallet comparison, and the 396-wallet A/B/A/B comparison recorded | Done; R155J owns the 500-attempt p99 acceptance |
+| 9 — Finalization | Shared-record removal in 0.10.0; Yao admission batch, founding-read overlap, and per-isolate seal warm-up in 0.10.2, measured together | A profile of the remaining CPU is a follow-up |
+| 10 — Combined proof and execution | Combined request in 0.10.0; respond retry and lost-reply reconciliation in 0.10.2 | Done; SDK transport recovery is not in this plan |
+
+No implementation work remains in this plan. The Phase 9 CPU profile, the
+Phase 3 outbox and production rollout each need a new decision. Do not
+reopen cross-request plaintext caching or the Console outbox as incidental
+cleanup.
+
+### Release and comparison record
+
+- [0.9.3](evidence/refactor-155h-release-093-staging.md): 164 successful wallets;
+  after-passkey median 1,734 ms and p90 2,221 ms, against 2,332/3,044 ms on 0.9.0.
+- [0.9.4](evidence/refactor-155h-release-094-staging.md): engine optimization;
+  staged Yao execution shortened by about 60 ms in that comparison.
+- [0.10.0](evidence/refactor-155h-release-0100-staging.md): early pair preparation,
+  capability-record change, and merged proof/execution; after-passkey median
+  1,747 ms against 2,096 ms on its 0.9.4 control.
+- [0.10.1](evidence/refactor-155h-release-0101-staging.md): setup patch with no
+  latency change of its own. The separate Console scan correction is recorded
+  there; its corrected 0.10.0 run measured 1,383 ms after the passkey step.
+- [October 14 combined candidate](evidence/registration-completion-20261014.md):
+  12 control, 18 candidate, and 12 repeat-control wallets; all 42 signatures
+  verified. Candidate finalization median 480 ms versus 571/566 ms in controls.
+  Full registration excluding passkey interaction measured 2.597 s versus
+  2.676/2.456 s, so no consistent overall gain is established. Candidate maximums
+  were 4.765 s for registration and 5.877 s through its first signature. The
+  candidate contains `7caae2fa` and `8b4dcf5f`, not the later founding-read change.
+- [October 14 A/B/A/B comparison](evidence/refactor-155h-remaining-optimizations-staging.md):
+  99 wallets per arm on candidate `ec08890c`. Finalization fell from 446.5 to
+  386 ms at the median and from 669.5 to 530 ms at p90; all 396 signatures
+  verified.
+- [Close-out checks](evidence/refactor-155h-closeout-checks.md): respond fault
+  scenarios and the lost-reply correction `ddaefdce`.
+- [Deriver B follow-up](evidence/deriver-b-latency-20261014.md): binding-await
+  medians 96.5–120 ms in those arms, followed by 12–21 ms in three unchanged
+  production-path samples. The historical cause remains unresolved. No migration
+  was performed. This shared, variable delay limits attribution of small gains.
+
+The initial control in the 42-wallet run overlapped a local negative test; treat
+it as supporting evidence. Do not pool these distinct builds and diagnostic runs
+into a p99 claim. All 14 original staging versions were restored after that
+comparison. Production deployment and publication remain separately authorized
+release operations.
 
 This plan owns the registration latency work that
 [R155G](refactor-155G-apac-anchor-and-hidden-exchanges.md) does not: the idle
@@ -35,28 +80,23 @@ base oblivious transfers ahead of execute.
 
 ## Objective and ownership
 
-Registration alone must reach **2–3 seconds at the median** from Tokyo,
-including setup, and **2 seconds or less after setup**, which is what a user
-of the hosted auth menu waits for. Report the 90th percentile beside the
-median from here on: a 2–3 second promise is a tail promise. The first
-signature stays a separate metric and stays with R155G. User interaction, test
-automation, funding and blockchain confirmation stay outside the SDK metrics,
-and the inclusive timings are retained.
+Target SDK registration at **2–3 seconds median**, including setup and excluding
+user interaction, and **two seconds or less after the passkey step**. Report p90,
+maximums, and failures beside the median. These are targets, not guarantees.
+R155J owns p99 acceptance. Keep first signature and the combined user flow as
+separate measurements; exclude funding and blockchain confirmation.
 
-The Yao execution has its own objective. The protocol's real time must move
-from about 850 ms to 450 ms or less, and the Router's execute span from
-1,624 ms to under 800 ms. The July probe's 202 ms is not a real duration: the
-Worker clock excludes an invocation's own CPU, and the same pair takes
-520–640 ms of real time today
-([probe record](evidence/refactor-155h-probe-hosted.md)). With one event-loop
-turn per table frame the pair takes 290–350 ms, and that is the reference the
-production protocol can approach. The Router's claim, the Signing Worker
-delivery and the Router's finish, about 250 ms of durable bookkeeping, stay.
-Phase 4 owns this objective; Phase 1 removes the admission and the connection
-from the online path.
+The Yao targets remain at most 450 ms of measured protocol elapsed time and an
+800 ms Router execute request. The October 12 unoptimized pair and clock-only
+figures are historical context in the [probe record](evidence/refactor-155h-probe-hosted.md).
+Use matched caller/Worker wall and CPU evidence; do not infer actual protocol
+elapsed time from a clock-only span. Durable claims, delivery, and completion
+remain required. Phase 1 overlaps early admission and connection with the prompt;
+B's deliberate execution-time admission read remains.
 
-Decisions this plan needed before Phases 1 to 3 start. The first three are
-taken; see "Decided on October 12" below.
+Historical decisions requested before implementation are retained below. Their
+outcomes follow under "Decided on October 12". Phase 1 and Phase 2 are implemented;
+Phase 3 remains deferred, and Phase 6's staging move is complete.
 
 - **Setup may prepare custody before the passkey proves anything.** Setup is
   authenticated by the publishable key only. A prepared pair session costs two
@@ -94,7 +134,10 @@ Decided on October 12:
   what it would have bought, so the comparison is not repeated. Phase 1
   proceeds on Workers.
 
-## Measured starting point
+## Measured starting point — historical October 11–12 baseline
+
+These figures explain the original plan. Later releases and the current work
+table supersede their rollout assumptions and projected savings.
 
 Candidate medians of the
 [combined comparison](evidence/refactor-155g-combined-hosted.md) of
@@ -114,7 +157,7 @@ Client work outside the four requests is about 130 ms. The four requests are
 
 The [final R155G comparison](evidence/refactor-155g-final-staging.md) of
 October 12, on release builds against the verified October 12 staging
-deployment, is the current baseline: registration excluding authentication
+deployment, was the starting baseline: registration excluding authentication
 3.47–3.64 s at the group medians over six wallets each, setup 513–635 ms,
 respond 210–235 ms, Yao execute 1,739–1,887 ms, finalization 806–842 ms, and
 78–108 ms of Gateway CPU per finalization with the release seal. The per-part
@@ -193,18 +236,15 @@ Facts that shape the phases:
 
 ## Execution order
 
-Phase 0 first and alone: it is cheap and it decides Phase 4. Phase 1 is the
-largest and the only one that reaches the target with setup from Tokyo; start
-it as soon as the setup decision is taken. Phase 2 is independent and small;
-it can run beside Phase 1 in different files. Phase 3 waits for the completion
-decision. Phases 5 to 7 are bounded and fill the gaps.
-Phase 8 measures the accumulated changes once, with the warm-up policy.
+The initial phase ordering has been completed. Use the current work table above
+for the remaining work. Keep implementation changes in logical commits and run
+correctness checks during development. Measure accumulated changes together;
+isolate one only when a regression or failure requires diagnosis.
 
-Each phase that changes a wire shape or a lifecycle claim updates the
-specification and its contract test in the same change set. A registration
-wire change moves the wallet-management protocol version with the private
-pins, as the 0.9.0 release did. Keep production fixes, valid test updates and
-stale-test deletions in separate commits.
+A wire or lifecycle change updates its specification and behavioral contract in
+the same change set. A protocol or custody-state change requires the dedicated
+review and verification named by its owning specification. Release planning
+must preserve concurrent work and record the exact frozen source revisions.
 
 ## Phase 0 — Measurement contract and the CPU factor
 
@@ -235,9 +275,9 @@ stale-test deletions in separate commits.
   twenty warm repetitions, and a first ceremony in a new isolate costs
   400–1,000 ms of CPU more. The compute prewarm of Phase 4 reuses this
   finding; no micro-workload ships.
-- [x] Redeploy the phase 9b benchmark pair on today's platform. The
+- [x] Redeploy the phase 9b benchmark pair on October 12. The
   [probe record](evidence/refactor-155h-probe-hosted.md) holds eleven runs.
-  By the July metric the pair reads 250–400 ms today against 202 ms then. The
+  By the July metric the pair read 250–400 ms against 202 ms in July. The
   metric is the Worker clock, which excludes own CPU; the real time is
   520–640 ms. The platform is not the cause of a fourfold gap, because the
   gap was a comparison of a clock span with a real duration. The pair is
@@ -246,14 +286,17 @@ stale-test deletions in separate commits.
   logging: the probe shows the same gap with no durable write and no object,
   equal to Deriver A's CPU. It is the clock's exclusion of own CPU, not a
   write gate or a response path.
-- [ ] Record the finalization span medians per group from the Gateway's server
-  timing beside the browser stages, as the combined run's analysis log already
-  does, so Phases 2 and 3 have a per-span baseline. Staging's serving Gateway
-  does not expose server timing or D1 counts. Take this with the first
-  comparison that serves a measurement Gateway, which is Phase 2's.
-- [ ] Record the staging D1 cost per call type across the run: reads, single
-  writes and batches, with p50 and p90. The chain uses this to separate a slow
-  database from a slow object. Same condition as the item above.
+- [x] Record finalization spans beside browser stages. Release records and the
+  [October 14 comparison](evidence/registration-completion-20261014.md) include
+  initial read, consumption, wallet/custody commits, session issue, and total
+  spans. The serving Gateway exposes Server-Timing.
+- [x] Record available D1 read/write/batch evidence. The
+  [write-pause record](evidence/refactor-155h-write-stalls.md) and
+  [B investigation](evidence/deriver-b-latency-20261014.md) retain timings,
+  SQL metadata, locations, sample counts, and instrument limits.
+- **Moved to R155J.** Complete missing production per-call decomposition only where a slow
+  sample needs it. Existing await spans do not isolate D1 confirmation from
+  transport, preceding work, or continuation scheduling. R155J owns that capture.
 
 Acceptance: one record with the CPU classification, the p90 columns and the
 span baseline. No production change.
@@ -273,24 +316,19 @@ span baseline. No production change.
   `67ac0f5d`; its README holds the toolchain, the local run and the deployed
   run. The record of October 12 is
   `docs/evidence/refactor-155h-probe-hosted.md`.
-- **Clock.** `Date.now()` in a Worker excludes the invocation's own CPU.
-  Read a span as waits only, and add the tail's `cpuTime` for a real
-  duration. `yao-chain.py` prints `protocol_real` this way.
+- **Clock.** Worker clocks advance at I/O boundaries. Use browser elapsed time
+  and matched Worker wall/CPU records for totals. Do not treat a zero as free
+  work or an await span as pure network time. Do not add an invocation's entire
+  CPU time to a narrower span unless the intervals are proven to match. Older
+  `protocol_real` calculations remain historical estimates.
 - **D1 cost per call type.** From each sample's per-request `d1.services` list
   in the run's `lifecycle.json`, and from the role databases' logs
   `bound_root_d1_timing` (`access`, `round_trips`, `batch_ms`,
   `initial_read_and_open_ms`).
-- **The group.** Staging serves the verified October 12 deployment. The
-  latest run against it is `.artifacts/r155g-remaining-20261012/` in
-  `seams-monorepo` (`compare.py`, `analyse.py`, `arms.json`,
-  `current-versions.json`, the role tails); start the Phase 0 folder from
-  it, so the frozen versions match today's originals. The chain scripts in
-  `.artifacts/r155f-yao-chain/` read the folder shape of
-  `.artifacts/r155g-combined-hosted/`; keep `analyze.py`'s `tail()` and
-  `path_of()` available in the new folder. Run `preflight.py`, `build.py`,
-  `prepare.py`, `freeze.py`, `check-baseline.py`, then `launch.sh`, which
-  detaches the driver and restores staging at the end. One arm of nine
-  wallets after a warm-up group. Release builds only.
+- **New comparisons.** Snapshot the actual serving versions and database IDs.
+  The October 12 restore snapshots are obsolete. Use the current Singapore
+  resources, protected activation, and release builds. Keep first-use attempts
+  in the primary population; label any separate warmed cohort.
 
 ## Phase 1 — Custody execution at setup
 
@@ -309,11 +347,12 @@ before protocol material flows. Expiry releases unused admissions and closes
 the socket. Missing or expired preparation uses the online admission path.
 Cancelled admissions and ownership fences refuse execution.
 
-The real Worker test verifies connection reuse, exact replay, expiry fallback,
-abandoned admission cleanup, and cancellation. Gateway D1 tests verify the
+The real Worker test verifies connection reuse, exact replay, execution after
+expiry, abandoned admission cleanup, and cancellation. Gateway D1 tests verify the
 30-request concurrent limit, key/IP separation, window expiry, and failure
 refusal. [Evidence](evidence/refactor-155h-prompt-preparation.md) records commands
-and limits. No deployment or latency saving is claimed for this change.
+and limits for the local implementation. That record predates deployment;
+the hosted 0.10.0 results below establish its later release and measurement.
 
 Hosted measurement, October 14 (release 0.10.0 on staging): the Router's
 preparation request takes 699 ms at the median, in the background of the
@@ -326,11 +365,12 @@ hosted cost of an abandoned setup is not measured yet. The
 [staging record](evidence/refactor-155h-release-0100-staging.md) holds the
 runs.
 
-A binds and rereads its role state in one D1 batch. B binds during its existing
-input preparation and retains its fresh read before running. Removing B's last
-read requires a separate state handoff; this implementation does not cache root
-material between requests. The original one-batch-per-role estimate below is
-therefore still an optimization target.
+A binds and reads its role state in one D1 batch. B binds during input
+preparation and retains its fresh read before execution. That read rechecks
+cancellation, fencing, and root state. Cross-request decrypted-share caching is
+not an accepted optimization. Moving B's bind into its execution-time load is a
+separate, deferred custody-state proposal; its safety is not established here.
+Do not treat the original one-batch-per-role estimate as unfinished Phase 1 work.
 
 
 Before this phase, setup reserved the home and started the four wallet
@@ -389,7 +429,7 @@ execute-time input, so the connection is accepted at setup.
   their wallet objects until the deadline. The wallet-start request stays
   grant-free and storage-free; the prepare is a separate command because it
   writes admissions.
-- [ ] **Garble before execute: deferred.** Take it only if the Phase 8 chain,
+- **Garble before execute: deferred.** Take it only if the Phase 8 chain,
   with the yield and the setup-time admission in place, shows Deriver A's
   garbling ahead of Deriver B's evaluation by more than 150 ms at the median.
   Step one would keep the wire order and stream a buffer built during the
@@ -412,13 +452,21 @@ execute-time input, so the connection is accepted at setup.
 - [x] **One session, one use.** The admitted session binds to one execution
   id at execute. A second claim, a retry after a lost reply, or a relocation
   fence must find it bound or released, never open for a second execution.
-- [ ] **Bound the exposure at setup.** Setup already starts objects and reserves
-  a home for any caller with the publishable key. The prepare adds two D1
-  admissions and one held connection per setup, and no protocol CPU. Enforce
-  the existing setup route policy per publishable key and source IP before
-  the prepare, and cap admitted sessions per wallet to one. The limit and cap
-  are implemented. Record the hosted cost of an abandoned setup before closing
-  this measurement item.
+- [x] **Bound exposure at setup.** The selected limit is 30 setups/minute per
+  publishable key and source IP, with one prepared session per wallet and a
+  30-second maximum lifetime. Tests cover concurrent exhaustion, separation,
+  expiry, and storage failure. Early admission/connection adds no protocol
+  computation itself; the existing compute prewarm still consumes CPU.
+- [x] Measure the hosted cost of an abandoned setup under the released design.
+  In the October 14 comparison, the setup-time invocations used 709 to 824 ms
+  of CPU per wallet, as the mean of each 99-wallet arm. The Gateway's setup
+  used about 20 ms at the median, and the prepare in each Deriver's wallet
+  object 290 to 330 ms. An abandoned setup does the same work, so it costs at
+  most about 0.8 s of CPU. The sum is an upper bound, because a setup-time
+  invocation can also carry later work. The Router has no tail in the sample,
+  and the expiry work for an unclaimed session is not in it. The setup limit, 30 per minute for
+  one key and source address, bounds the exposure. Source:
+  [the comparison record](evidence/refactor-155h-remaining-optimizations-staging.md#setup-time-cost).
 - [x] **Keep the other families online.** Recovery, export and lane
   materialization keep the online path; only fresh registration activation
   prepares at setup. Mixed NEAR and ECDSA registration keeps the same NEAR
@@ -488,128 +536,36 @@ Deriver B Worker's start from the execute path, so the estimate of 0.3 s
 stands. The slow starts and the hold before the first protocol message stay
 at execute.
 
-- [ ] **Place these waits before coding the object states.** One measurement
-  build of the two Deriver Workers on staging, with the user's go-ahead, that
-  logs a clock reading after each await of `execute_work` and of Deriver B's
-  connection handler, the colo of each wallet object, and one extra database
-  read at the start of `execute_work` before any object write. It answers
-  three questions: why a database read from an object costs 53–65 ms, what
-  Deriver B's object waits for before it starts the connection, and how often
-  a stateless role Worker starts cold. Decide Phase 6 first: in Tokyo each
-  durable step of this phase costs a quarter of its Hong Kong price, and the
-  estimate of 0.3 s shrinks with it.
+The proposed pre-implementation measurement is superseded: the object states
+are implemented and measured on Singapore. R155J owns the remaining handler-entry,
+storage, and scheduling investigation. Do not redeploy the old Hong Kong diagnostic
+recipe as a prerequisite to Phase 1.
 
 ### Phase 1 design sheet
 
-Identities today, and where each is created:
+This is the implemented contract; it replaces the original proposed sequence.
 
-| Identity | Created | Where |
-| --- | --- | --- |
-| Registration ceremony, `registrationCeremonyId`, expiry `ceremony.expiresAtMs` | Setup | `setupWalletRegistration` in `d1WalletRegistrationService.ts` |
-| Yao lifecycle `lifecycle_id` and threshold `session_id` | Respond | `authorizeWalletRegistrationNearAdmission`, `d1WalletRegistrationService.ts` line 3056; stored as `descriptor.lifecycle.thresholdSessionId`, lines 693–758 |
-| Admission request and receipt | Respond | `RouterAbEd25519YaoRegistrationAdmissionRequestV1` in `crates/router-ab-core/src/protocol/ed25519_yao_router.rs`; the SDK receives both in the respond reply |
-| Pair binding, `Ed25519YaoInputPairBindingV1` | Execute | Router, from the client's two `Ed25519YaoEncryptedInputV1` values, `crates/router-ab-cloudflare/src/ed25519_yao_pair_protocol.rs`, `authenticate_for_ed25519_yao_v1` |
-| Execution id, `Ed25519YaoExecutionIdV1` | Execute | Router claim, `claim_registration` in `durable_object/router_wallet.rs` |
-| Deriver admission, attempt kind `ed25519_yao_pair_session` | Execute | `tenant_root_role_d1/bound_share.rs`, two D1 round trips, keyed by the pair session |
-| Wallet objects | Setup | Gateway calls the Router's `/router-ab/router/wallet/allocate` (`walletObjectAddresses.ts`); the Router starts each role through `/router-ab/internal/wallet/start` (`wallet_startup.rs`), grant-free and storage-free |
+1. Setup fixes the ceremony, session, material-activation identity, stored object
+   addresses, ownership generation, epoch, and deadline. Exact retries preserve them.
+2. After the setup commit, the Gateway schedules input-free pair preparation.
+   The Router prepares both roles concurrently and A connects to B's exact object.
+3. Each object holds one bounded preparation. This grants no signing execution and
+   carries no encrypted client input or Yao protocol material before the proof.
+4. Respond verifies the proof. Execution binds preparation to the exact input pair
+   and execution identity. Durable claims precede protocol material.
+5. B retains its execution-time admission read. No decrypted root share is cached
+   across requests. A same-request verified result may be reused only under its
+   existing ownership and freshness contract.
+6. Missing or expired preparation uses ordinary online admission. Alarms release
+   unused preparations. Cancellation and relocation fences still refuse execution.
+7. Existing Worker and browser scenarios cover socket reuse, exact replay, expiry,
+   abandoned preparation, cancellation, rate limits, and concurrent requests.
 
-Requests today: Deriver B `CloudflareEd25519YaoPairPrepareRequestV1 {
-pair_binding, tenant_root, work, input }` and Deriver A
-`CloudflareEd25519YaoPairExecuteRequestV1 { pair_binding, tenant_root, work,
-input, deadline_ms }`, both in `ed25519_yao_pair_protocol.rs`. Deriver A's
-object commands are `DeriverAPairDoCommandV1::{Prepare, Complete, Read, ...}`
-at `deriver_a_pair.rs` line 197.
-
-The change, in order. Names are proposals; keep the `V1` suffix convention.
-
-1. **Setup mints the lifecycle and the session.** Move the mint out of
-   `authorizeWalletRegistrationNearAdmission` into `setupWalletRegistration`
-   and store both with the ceremony. Respond reads them and issues the
-   receipt as today. The admission request shape does not change.
-2. **A prepare route on the Router**, internal and Gateway-authenticated like
-   allocate: `/router-ab/router/ed25519-yao/registration/prepare`, body
-   `{ owner, ownership_generation, session, tenant_root, work, deadline_ms }`
-   with `deadline_ms = ceremony.expiresAtMs`. The Gateway sends it after the
-   setup transaction commits, from the same place that calls allocate. The
-   Router does not claim; it dispatches concurrently a new
-   `CloudflareEd25519YaoPairAdmitRequestV1 { session, tenant_root, work,
-   deadline_ms }` to both Derivers, no `pair_binding` and no `input`.
-3. **Deriver B** admits in D1 as today and holds `Admitted { session,
-   deadline }` in its object. It accepts A's upgrade in that state. Its role
-   engine is not constructed yet: the engine needs the client's input.
-4. **Deriver A** admits and opens the connection to B's object. It holds
-   `Admitted { session, socket, deadline }` in memory. It creates no garbler
-   and no protocol material before execute.
-5. **Execute** arrives as today. The Router claims, builds the pair binding
-   from the client's inputs, chooses the execution id, sends B its input
-   through the existing prepare endpoint, now an attach to the admitted
-   session, and sends A the execute request. A verifies the binding against
-   its admitted session, writes the binding digest into its attempt record
-   (this is the admission identity change R155G costed at one D1 write), then
-   runs today's protocol unchanged on the held connection: target proofs,
-   oblivious transfer, garbling with the table-frame yield, returned labels,
-   translation, seal, `Complete`, reply.
-6. **States and one use.** A: `Admitted → Bound(execution_id) → Running →
-   Completed`; a second execution id against `Bound` or `Running` is refused;
-   `Completed` is the durable record that a retry replays. B: `Admitted →
-   Attached(input) → Running → Completed`. A Durable Object alarm at
-   `deadline_ms` releases `Admitted`: close the socket and release the
-   admission. An execute that finds no admitted session runs today's inline
-   path; keep that path.
-7. **No engine change.** The role engines, the transcript, `stream_kats.rs`
-   and `cargo yao-fv all` stay as they are. Any change that alters the
-   transcript needs the user's go-ahead.
-
-The admission identity change, concretely. A Deriver admission is one row in
-its role database, written by `admit` in
-`tenant_root_role_d1/bound_share.rs` in two D1 round trips. Its key is the
-pair session (`TenantRootRootUseAttemptV1::Ed25519YaoPairSession`, `key_hex`
-in `tenant_root_role_d1.rs`). Its `attempt_digest` and `binding_digest` come
-from the `TenantRootCustodyBindingV1` that the Router authenticates for the
-pair, and that binding's outer transcript is the pair digest over the
-client's two encrypted inputs. A later request for the same session with
-another attempt digest is an `AttemptConflict`. At setup the session exists
-under item 1 and the pair digest does not. The change therefore needs:
-
-- a custody binding that the Router can authenticate at setup, bound to the
-  session, the epoch, the wallet objects and the deadline, without a pair
-  digest, under its own attempt kind so it cannot stand in for a pair
-  binding;
-- the setup-time `admit` under that binding, unchanged otherwise;
-- one batch per Deriver at execute that records the pair binding's digest on
-  the admitted row, refuses a row that already holds another pair digest, and
-  reads the share in the same transaction. For Deriver B this batch replaces
-  today's `read_admitted` round trip, so the fresh read at claim time stays.
-
-Execute then costs one D1 round trip per Deriver, in parallel, against two
-for A plus B's preparation and re-read today. Expected at execute: about
-70 ms before the oblivious transfer instead of about 365 ms. No role database
-migration is expected, because the row keeps its columns; confirm that
-against `migrations/deriver-a` and `migrations/deriver-b` before coding, and
-stop if a column is missing.
-8. **Exposure.** `enforceRoutePolicy` in
-   `packages/wallet-server/src/router/framework/enforceRoutePolicy.ts` runs
-   before setup with the publishable-key principal and `sourceIp`. If it has
-   no per-key rate limit, stop and ask before adding one. The object refuses a
-   second prepare while one is live.
-
-   Checked on October 12: it has none. `enforceRoutePolicy` authenticates and
-   nothing else, and the only rate limits in the Gateway belong to Email OTP
-   (`core/authService/rateLimits.ts`). A text search of Console's wallet
-   placement code found no rate limit for registration setup either; an edge
-   rule in the Cloudflare account was not checked. Phase 1 therefore waits for
-   the user's choice of the
-   limit: its key (publishable key, source address, or both), its window, and
-   where its counter lives.
-
-Acceptance: the chain's admission, connect and B re-read columns read 0 on
-the execute path; new spans `router.prepare_pair_at_setup`,
-`deriver_a.admit_at_setup` and `deriver_b.admit_at_setup` appear before
-respond; the real protocol measures 450 ms or less at p50 on staging;
-`pnpm test:intended` passes all cases; `cargo yao-fv all` passes; the
-`router-ab-cloudflare` test target passes; composed scenarios for an
-abandoned setup, an expired prepared session, an execute after expiry and a
-retry after a lost reply pass.
+Migration and coordinated deployment were completed for staging in release 0.10.0.
+The original design's claim of zero online B reads was not delivered and is no
+longer an acceptance condition. Further bind/load consolidation remains deferred.
+Any such proposal must preserve fresh root checks and one execution winner, with
+its specification and tests updated before implementation.
 
 ## Phase 2 — The passkey claim ahead of finalization
 
@@ -676,17 +632,26 @@ check the ceiling when the private repository takes the release.
 
 ## Phase 3 — Completion off the response path
 
-- [ ] Record the completion as pending in the local session transaction, with
+**Deferred; not in the current implementation queue.** Console completion costs
+about 19–35 ms at the median in recent Singapore records. Larger outliers exist,
+but removing this dependency needs durable pending-publication and recovery state.
+Session issue (including completion) already overlaps custody persistence.
+There is no additional simple overlap to implement.
+
+The list below is the retained design for an explicit future reopening.
+It is not part of this plan's closure.
+
+- Record the completion as pending in the local session transaction, with
   the session digest and expiry that the lost-reply reconciliation uses today.
   Reply to the client after that commit and the local receipt.
-- [ ] Write an outbox row in the Gateway's D1 before the reply, so the
+- Write an outbox row in the Gateway's D1 before the reply, so the
   publication is tracked, and send the Console completion from the request's
   background continuation immediately after the reply. Mark the row done when
   Console acknowledges. The Gateway's existing per-minute cron drains rows
   older than its interval with the same idempotent request. The Console's cron
   already runs outbox dispatches for runtime snapshots and webhooks; copy that
   shape.
-- [ ] Decide what waits for the acknowledgement. Cross-region discovery through
+- Decide what waits for the acknowledgement. Cross-region discovery through
   Console and the display row do. Established-session signing does not; R155F
   already keeps it independent of Console. Mixed registration and recovery
   continuations that read the home through Console must tolerate a pending
@@ -696,7 +661,7 @@ check the ceiling when the private repository takes the release.
   with matching outputs. The seal stays synchronous in the reply, and no
   exponent or arithmetic change follows. A constant-time ladder remains a
   side-channel item outside this plan.
-- [ ] Update the intended behaviours: completion follows the reply from a
+- Update the intended behaviours: completion follows the reply from a
   tracked outbox, and the Gateway no longer acknowledges completion before it
   enables ordinary signing. Update R155B's rule 6 wording for the tracked
   outbox. Update the completion scenarios and the lost-reply reconciliation
@@ -706,7 +671,9 @@ Must not regress: a lost finalization reply resumes the same operation; exact
 retries preserve later display updates; one completion per registration; the
 session binding, expiry and durable commit of the seal.
 
-Expected gain: 150–300 ms of finalization.
+Historical estimate: 150–300 ms on the older topology. Do not use it as the
+current expectation. The remaining overlap and current Singapore timings bound
+the available saving; no outbox implementation has been measured.
 
 ### Phase 3 design sheet
 
@@ -858,10 +825,17 @@ work. One item each.
   evaluator's from 207 ms to 182 ms. The Router's execute request fell from
   783 ms to 720 ms. The [staging record](evidence/refactor-155h-release-094-staging.md)
   holds the runs.
-- [ ] **Product work in the protocol span.** The target-proof exchange, the
-  commitment checks and the HPKE seal are product additions the benchmark
-  pair does not run. Place them with the local profiler and move what does
-  not need the execution's result to the admitted session of Phase 1.
+- [x] **Product work around the protocol: no movable candidate.** A code
+  review on October 14 found no result-independent work for the prompt
+  preparation. Target-proof work uses the decrypted root share, and the
+  custody rule allows that share in one request only, after a fresh row
+  check. The other parts consume the execution result. A profile cannot
+  change that, so none was taken.
+- **Not taken: the review above found no candidate.** Move only demonstrated result-independent work into the existing prompt
+  preparation. Reuse verified results within one request where valid. Preserve
+  role separation, one-use state, fresh root checks, and request-scoped plaintext.
+  Do not implement cross-request share caching or change transcript order as a
+  small performance cleanup. Savings are unmeasured.
 - [x] Per-execution CPU of both Derivers with the counter, release 0.9.3 on
   staging: Deriver A 216 ms and Deriver B 178 ms at the median, 263 ms and
   222 ms at the 90th percentile. The Router's execute request measures
@@ -927,13 +901,28 @@ Implementation follow-up, October 13:
   flow 3.537 → 3.356 s. Variation prevents attributing the full difference to this
   batch. See the [combined evidence](evidence/refactor-155h-setup-sdk-completion.md#combined-sdk-and-console-staging-comparison--october-13).
 
-Remaining savings from earlier preflight and deferred usage telemetry are
-unmeasured. The existing Gateway batch is already part of the measured baseline.
+- [x] Remove the informational parity wait from session observation (`7caae2fa`).
+  A held-GET contract proves registration returns while the diagnostic is pending;
+  required operation parity checks remain enforced. The
+  [October 14 record](evidence/registration-completion-20261014.md) includes the
+  production-build check and the combined staging comparison. Normal return was
+  already about 13 ms. The historical 5.5-second gap is not fully attributed.
+
+The preflight/telemetry implementations and combined comparison are complete.
+Their individual end-to-end contributions remain unisolated. The existing Gateway
+setup batch is already in the baseline; do not schedule it again.
 
 ## Phase 6 — Where the APAC home runs
 
-Four exchanges cost about 400 ms from Tokyo and nothing from Hong Kong. This
-phase decides; it implements nothing.
+**Staging placement is implemented and verified.** Singapore replaced the older
+Hong Kong layout on October 13. Console moved again within Singapore on October 14
+with its complete dataset preserved. Its old database is a write-fenced recovery
+copy and must not be rebound by an old restore driver. The private record is
+`docs/evidence/console-d1-migration-20261014.md` in `seams-monorepo`.
+
+The following location study and October 12 inventory are historical context.
+Their database candidates and old restore instructions are not current deployment
+inputs. Production placement and activation remain separate release work.
 
 The location also sets the price of every durable write. The
 [probe of October 12](evidence/refactor-155h-write-hold-by-colo.md) measured
@@ -1030,10 +1019,8 @@ Where each lane stands, from `deployment/wallet-system/targets.json` and a
 
 What moves to reach one Singapore anchor:
 
-- **Staging:** five databases and the Gateway and Console placements. Empty
-  candidates with Singapore primaries are created under
-  `.artifacts/r155h-singapore-anchor/` in `seams-monorepo`; nothing serves
-  them yet.
+- **Staging:** this proposed move was completed on October 13. The October 14
+  Console move preserved data. Use current serving bindings for every new run.
 - **Production testnet:** three role databases and the three role
   placements. Its Gateway, its Gateway database and its Console database are
   in Singapore already.
@@ -1076,127 +1063,101 @@ other regions' custody calls cross to Singapore in either case.
   differ by up to 213 ms, so a claim under 150 ms needs about 100 wallets
   per side. The [record](evidence/refactor-155h-release-093-staging.md)
   holds both sides.
-- [ ] Production testnet, then mainnet. Empty databases exist for both
-  lanes. The deployment is blocked by more than placement: the lanes run
-  September builds, their regional Workers do not exist, the testnet workflow
-  needs an environment id before its Console exists, and mainnet has no
-  tenant activation path. The private record lists the six blockers.
+- **Outside this plan.** Separate release work: production testnet, then mainnet. The last recorded
+  inventory listed old builds, missing regional resources, and activation gaps.
+  Recheck those prerequisites and available databases before a new cutover; this
+  document does not certify current production readiness. The private record
+  retains the original blockers and required release decisions.
 
-- [ ] Count the reads and writes per request from the Phase 0 D1 record.
-  Finalization is write-heavy, so D1 read replication near a regional Gateway
-  cannot carry it. Record the number.
-- [ ] Cost the Tokyo home: a role database set and a Console lane per home,
-  the R155G Phase 1 cutover method per lane, and a hazard list per home.
+- **Not needed.** The count was input to a decision on D1 read replication
+  near a regional Gateway. Finalization is write-heavy, and the decision
+  below puts all components in Singapore, so no decision depends on it.
+- **Deferred alternative:** a separate Tokyo home. The selected anchor is
+  Singapore; no Tokyo provisioning or cost study is active in this plan.
 - [x] Decide: Singapore, one place for all components. The move repeats the
   October 10 method for the three role databases and the October 11 method
   for Console, adds the regional Gateway database, and pins the Gateway to
-  `aws:ap-southeast-1`. A D1 primary cannot be placed by city: a database is
-  created until it reports the wanted primary.
+  `aws:ap-southeast-1`. A location hint is not a city guarantee. Record the actual
+  served primary for the chosen database; any new placement probe must be bounded
+  by the authorized scope and budget.
 
 ## Phase 7 — Tails
 
-- [ ] Module size. Each Deriver module was 15.6 MB with a 1.3 MB name section
-  and 6.2 MB of data. Commit `3f3800a4` now strips the name and `.debug_`
-  sections after `worker-build` in release builds. The data is the embedded
-  circuit schedules in `crates/ed25519-yao/artifacts/passive-benchmark-v1/`:
-  `activation-private-output.schedule.bin` 2.68 MB,
-  `lane-materialization.schedule.bin` 2.82 MB and
-  `export-private-output.schedule.bin` 56 KB; the two test-only schedules are
-  behind `#[cfg(test)]` in `passive/schedule.rs`. R155G's final record shows
-  Cloudflare's upload-time startup metric did not move with the strip, 7 to
-  8 ms for A and 6 ms for B; the open question is the handler-start delay of
-  a new isolate, 91–257 ms in the October 11 runs, which only
-  `isolate-starts.py` on a hosted run measures. Measure that on the stripped
-  module first. If the load cost is the schedules, compare a compressed schedule
-  decoded on first use per isolate against today's; the decode is CPU the
-  prewarm can absorb.
-- [ ] The Deriver B stall. One preparation took 14.6 s after a version switch,
-  with a 506 ms D1 read, and refused the pair as not prepared. Reproduce with a
-  version switch on staging and record the cause. Add no retry without one.
-- [ ] D1 stalls. From the Phase 0 record, report p90 and p99 per call type.
-  Keep the two deliberate admission checks, as R155G records.
-- [ ] Pauses of durable writes. The standing note is
-  [cloudflare-stalls.md](cloudflare-stalls.md). The
-  [record](evidence/refactor-155h-write-stalls.md) gives the cause that is
-  visible from outside: each host pauses write confirmation every 5 s for
-  110–400 ms, and a write that arrives then costs the rest of the pause. The
-  application cannot avoid a pause. It can lower how many it meets and what
-  each one costs:
-  - Count the durable commits that a registration and a signature wait for
-    in series, per object and database, from the measurement build of
-    Phase 1. The 13 is an estimate. Put the writes of one object and one
-    step in one commit.
-  - Overlap commits on different objects and databases. Their hosts pause at
-    different times, so overlapped waits do not add.
-  - Keep background writes off an object while it serves the path. A
-    background write that lands in a pause holds every response of that
-    object.
-  - Add no timeout and retry for a stalled write. A retry goes to the same
-    object and waits behind the same gate. The longest pause measured was
-    3.2 s; keep every timeout of a step with a durable write above that.
-  - Ask the user before any write becomes unconfirmed. `allowUnconfirmed`
-    on a KV-style `put` takes the pause and the hold out of the response;
-    that is measured. A write that follows the response should do the same;
-    that is not measured. In both cases the response leaves before the write
-    is durable. The claim must stay confirmed.
-  - Report the share of clean single-write commands more than 20, 50 and
-    100 ms over their median in every hosted comparison. `staging_tails.py`
-    in the private probe folder computes it.
-  - Make the pause visible in the product's own logs. Done, and on
-    staging since October 13: each wallet object logs `wallet_do_host` with its role, object
-    id, colo and host once per instance, beside its first command and off
-    the response. The host is the `fl` value of
-    `https://cloudflare.com/cdn-cgi/trace`. Four interleaved staging
-    rounds with 48 wallets on each side showed no cost. Open: the objects
-    of a hosted run spread over many hosts, 295 objects on 210 hosts, so the
-    stalled commands of one run cannot give the phase of a host. Run the
-    probe's light streams beside a hosted run to learn the phases, then
-    check each stalled command against its host. Until then the share of a
-    registration's tail that the pause explains is the probe's estimate.
-  - A load test at 02:00 UTC found no effect of the probe's own load on
-    the pause. Repeat it between 15:00 and 18:30 UTC, when the pause grew
-    within three probe rounds in Singapore and Sydney.
-  - Do not measure lateness with the object's clock. `Date.now()` in a
-    timer callback is the scheduled time, and the clock leaves out the
-    object's own CPU time. Use the caller's round trip or a request that is
-    not gated.
-- [ ] Report the pauses to Cloudflare. The user sends it; the draft is
-  `.artifacts/r155h-write-stall-probe/cloudflare-support-draft.md` in
-  `seams-monorepo`. Ask what the hosts do every 5 s and 30 s, and whether
-  the confirmation can stop waiting for it. The D1 team has said in public
-  that storage operations on one machine can starve each other and that the
-  threading is being changed; the record links the threads. Ask whether the
-  pauses are that problem.
-- [ ] Report p90 in every comparison from here on.
+R155J owns the active outlier investigation and p99 acceptance. Keep its status
+there rather than creating a second set of diagnostic tasks here.
+
+- [x] Strip name/debug metadata from release Workers (`3f3800a4`). R155G's
+  measurement found no upload-time startup gain. The actual new-object
+  handler-entry delay remains unresolved; stripping is not a proven tail fix.
+- [x] Record the storage-pause experiments and their limits in
+  [write stalls](evidence/refactor-155h-write-stalls.md). The probe found periodic
+  confirmation pauses, but their share of product latency is not established.
+- [x] Add existing per-object host/colo observations and retain their measured
+  overhead. Use these with role versions and exact object IDs in future captures.
+- [x] Capture startup/cancellation and delivery-failure evidence; remove temporary
+  diagnostics after capture. See [R155J evidence](evidence/refactor-155j-slow-startup.md).
+- [x] Investigate the October 14 B binding-await asymmetry. It later disappeared
+  in three unchanged production samples. The
+  [record](evidence/deriver-b-latency-20261014.md) establishes neither a permanent
+  slow database nor the provider-internal cause. Probe resources were removed.
+- **Moved to R155J.** Explain the original A pre-handler stall, streamed-delivery
+  producer stall, isolated signing 503, and any recurring B delay. The older
+  14.6-second B preparation after a version switch is a separate unresolved event;
+  do not close it from the later fast binding samples.
+- **Moved to R155J.** Correlate genuine product stalls with storage/transport/runtime evidence
+  before changing object layout, deadlines, or write-confirmation behavior.
+
+Do not add a longer timeout or race replacement objects as an assumed speedup.
+Keep required ownership and execution claims durable. Only overlap or batch
+operations whose lifecycle permits it. Profile competing background work before
+changing it. Worker clocks do not measure CPU-only sections reliably.
+
+A Cloudflare support draft exists in the private
+`.artifacts/r155h-write-stall-probe/cloudflare-support-draft.md`. Sending it remains
+an external action for the user or a separately authorized task. No contact has
+been made by this reconciliation.
 
 ## Phase 8 — Measure and record
 
-- [ ] A discarded warm-up group of three wallets before each measured group,
-  and at least six wallets per measured group; nine when a phase claims less
-  than 0.3 s.
-- [ ] Build every candidate with `WASM_SDK_BUILD_MODE=prod` and the release
-  Worker profile. Record the build stamps and the module sizes in the run's
-  frozen inputs. Every hosted comparison before October 12 carried a
-  development build of the seal module.
-- [x] The accumulated changes of release 0.9.3, measured on the Singapore
-  layout from Tokyo on October 13: registration after the passkey step,
-  registration without the passkey step and the first signature with p50,
-  p90, minimum and maximum; the stages; the Worker chain with wall and CPU
-  time and the isolate counter; and the finalization spans. One lane serves
-  one release, so the sides ran one after the other, with six runs before
-  and three after to show the noise. The
-  [record](evidence/refactor-155h-release-093-staging.md) holds it. The
-  spans of Phase 1 do not exist yet.
-- [ ] Prepare the hosted driver against the current database ids. Drivers
-  prepared before the Console move carry the old id.
-- [ ] Verify every signature independently, restore staging, and verify the
-  restoration, as the R155F and R155G drivers do.
-- [ ] Commit accepted changes on `dev`. Link sanitized evidence from this plan.
+- [x] Record the accumulated 0.9.3, 0.9.4, 0.10.0, and 0.10.1 release comparisons,
+  with their exact populations and limitations. Links are in the current work table.
+- [x] Use frozen production builds for the October 14 SDK/admission-batch comparison.
+  Both SDKs used identical published 0.10.1 WASM. No concurrent ML-DSA work was included.
+- [x] Verify all 42 comparison signatures independently and restore all 14 original
+  Worker versions. Protected reactivation succeeded on its second attempt; the
+  failed readiness predicate remains unknown. Twelve restored-lane wallets passed.
+- [x] Commit SDK completion (`7caae2fa`), Yao admission batching (`8b4dcf5f`), and
+  founding-read overlap (`f6422f37`) on `dev`. Each has focused correctness evidence;
+  only the first two were in the 42-wallet hosted candidate.
+- [x] Record the later seal warm-up (`1527b97f`) and transient `respond` retries
+  (`ec08890c`). Neither was in that comparison. The A/B/A/B comparison below
+  measured them together with the other changes.
+- [x] Attach the final broader contract-suite result for the founding-read change
+  before release. On `ddaefdce`, the 0.10.2 candidate, on October 14: 132 of
+  134 cases pass on release Workers, and the two debug-only terminal-execution
+  cases pass on the debug Router.
+- [x] Measure the next accumulated release candidate after accepted changes and
+  correctness checks. The [A/B/A/B comparison](evidence/refactor-155h-remaining-optimizations-staging.md)
+  ran candidate `ec08890c` with 99 wallets per arm. Finalization fell from
+  446.5 to 386 ms at the median and from 669.5 to 530 ms at p90. R155J owns
+  the remaining budgeted p99 acceptance population.
+
+For each new comparison, capture serving versions, bindings, migrations, and source
+revisions afresh. October 12/Hong Kong snapshots and the pre-migration Console
+binding are invalid restore inputs. Use the existing Singapore lane and protected
+activation flow. Keep every attempt in the record; include first-use attempts in
+R155J's primary population. Report separate warmed cohorts explicitly.
+
+Report p50, p90, range, failures, and per-arm results. Include p99 only with its
+sample count and sensitivity. Do not claim individual savings from a noisy combined
+run. Keep analytically sound, verified changes unless a demonstrated regression
+requires isolation. The $25 Cloudflare budget remains the cap.
 
 ## Phase 9 — Finalization on the Singapore lane
 
-Read on October 13 from the 0.9.3 run, two probes and local profiles. No code
-is changed by this phase yet.
+The October 13 profile below motivated this phase. Shared-record removal is
+released in 0.10.0. Two further read-path changes and seal warm-up are in
+0.10.2. A profile of the remaining CPU is a follow-up.
 
 What a finalization costs at the Gateway, about 380 ms at the median:
 
@@ -1248,16 +1209,51 @@ Items:
   median, the finalization total from 372 ms to 261 ms, and the Gateway's
   CPU per finalization from 146 ms to 48 ms. The first signature fell from
   532 ms to 362 ms, because a signing admission no longer reads the record.
-- [ ] Read the Yao registration record in finalization's initial batch
-  instead of in the consume. One round trip, about 13 ms.
-- [ ] Warm the seal once per isolate from the first request's background
-  continuation. Up to 19 ms, less when the isolate sealed before.
+- [x] Read Yao admission in the initial finalization batch (`8b4dcf5f`). The
+  Router retains consumption, replay, and lifecycle enforcement. The combined
+  [October 14 comparison](evidence/registration-completion-20261014.md) is recorded;
+  the stage gain is not an isolated estimate of this one change. In the
+  A/B/A/B comparison the Router consumption span fell from 52 to 35 ms at the
+  median, together with the other changes.
+- [x] Read founding authority/auth-method rows beside Router consumption
+  (`f6422f37`, integrated by `24e93a78`). The commit uses those rows and keeps its
+  duplicate-insert, extension-CAS, and lifecycle-decision guards. Every retry
+  reserves again. The focused credential-reservation scenario and server types
+  pass. In the A/B/A/B comparison the wallet commit span fell from 55 to
+  36.5 ms at the median, together with the other changes.
+- [x] Require explicit founding IDs or `null` in the reservation contract
+  (`f36b32a1`).
+  Keep the omission/`undefined` type fixtures in
+  `tests/typecheck/registration-commit.typecheck.ts`; the preceding held-claim
+  argument is explicit too. This cleanup was restored after the merge reintroduced
+  the defaults. The focused E2E and type checks pass after restoration.
+- **Follow-up, outside this closure.** Profile remaining finalization CPU using the current release build and
+  matched cold/warm samples. The 42-wallet candidate used 72 ms median Gateway
+  CPU; the A/B/A/B candidate used 44 ms against 53.5 ms on its control.
+  Attribute parsing, serialization, key imports, and initialization before editing.
+- **Follows the profile.** Remove demonstrated repeated work within one request or reuse immutable
+  per-isolate configuration where valid. Preserve authority freshness and secret
+  lifetimes. No saving is claimed yet.
+- [x] Implement seal warm-up once per Gateway isolate (`1527b97f`). After a
+  handler completes, `waitUntil` retains initialization and one disposable lock
+  round. It runs only when the seal is configured and uses no wallet secret.
+- [x] Verify that warm-up preserves first-request behavior and failure handling.
+  The warm-up starts after the handler has built its reply, so that reply
+  does not wait for it. A request that arrives in the same isolate during the
+  warm-up can wait for it, once per isolate. A seal awaits the same module
+  initialization as before, so a failed initialization fails a later seal as
+  it would without the warm-up. A failed lock round only logs a warning; it
+  uses its own handle and destroys it. In the A/B/A/B comparison Gateway
+  finalization CPU fell from 53.5 to 44 ms at the median, together with the
+  other changes. Each arm discarded its first group, so the run isolates
+  neither cold isolates nor the warm-up's share.
 - Phase 3 stays deferred. On Singapore its part is the Console completion and
   the write after it, about 40 ms.
 
 ## Phase 10 — One request fewer after the passkey step
 
-Respond and execute are two round trips today. Read on October 13:
+Implemented and released in 0.10.0. The following explains the earlier two-request
+flow and why it was combined:
 
 - Nothing in the respond reply depends on the credential. The admission
   request and receipt hold setup-time values and two values minted at
@@ -1306,9 +1302,24 @@ admits, and executes.
   936 ms. The [staging record](evidence/refactor-155h-release-0100-staging.md)
   holds the runs. Protocol 4 refuses every earlier SDK; the private Console
   canary and one private test now send 4.
-- [ ] Respond does not retry a transient database fault, and it returns the
-  driver's text with HTTP 400. One sample of 198 failed that way. With the
-  execution inside respond, this request carries more of the registration.
+- [x] Classify exhausted transient `respond` D1 failures as `storage_unavailable`
+  with a fixed message and HTTP 503 (`ec08890c`). Other failure codes retain their
+  previous mapping. A prior 198-wallet run captured one transient D1 fault.
+- [x] Retry transient D1 failures through the existing `retryTransientD1` helper
+  (`ec08890c`). Two additional server attempts follow waits of 25 and 100 ms.
+  They reuse the request, ceremony, execution identity, and encrypted inputs.
+  This change relies on existing exact replay and terminal execution guards.
+- [x] Exercise a lost request, committed-but-lost reply, exhausted transient
+  faults, and terminal execution failure. The respond recovery scenario covers
+  the first three and cancellation. It found a lost-reply defect, which
+  `ddaefdce` corrects ([record](evidence/refactor-155h-closeout-checks.md)).
+  The two terminal-execution contract cases pass on the debug Router.
+- [x] Attach the retry-specific correctness evidence before release: the
+  [close-out record](evidence/refactor-155h-closeout-checks.md). The SDK still
+  sends `respond` once; server D1 retries do not recover a lost HTTP reply.
+  A transport-recovery change is not part of this plan, and it must keep one
+  execution winner. In the A/B/A/B comparison no registration of 408 failed.
+  The retry writes no log line, so the run cannot show whether one ran.
 
 Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
 about half of that for a user in Singapore. The client's input preparation,
@@ -1329,34 +1340,33 @@ R155G's Phase 3 reviews; R155F's serial chain record;
 `docs/intended-behaviours.md`; `tests/e2e/hosted-product/README.md` in
 `seams-monorepo`; the scripts of the latest run folder under `.artifacts/`.
 
-Stop and ask the user before any of these:
+Use the user's existing authorization and repository instructions. Do not ask
+again for scope already authorized. Before a live comparison, check for active
+drivers and capture current serving versions. Ask only when a material decision
+or action remains outside that authorization, including:
 
-- Deploying anything to staging, creating a Cloudflare resource, or starting
-  a comparison driver. Staging is shared; check for a running `experiment.py`
-  and for live versions equal to the known originals first.
-- A migration of a role database or the Gateway D1, beyond the two additive
-  tables this plan names.
-- Any change to the transcript order of the Yao protocol, any regenerated
-  golden or vector, and any change to the admission identity beyond item 5
-  of the Phase 1 design sheet.
+- A new role/Gateway database migration beyond the delivered setup and claim work.
+- A change to Yao transcript order, custody claim timing, or admission identity
+  beyond the implemented Phase 1 contract. Follow the owning specification when
+  an intentional protocol change requires regenerating vectors.
 - A new quota, rate limit, environment variable, secret, Worker, route family
   or configuration framework.
-- Any change to R155B's rules or to the intended behaviours beyond the
-  paragraphs each phase names.
-- A failing test whose classification is unclear after one reading, and any
-  production fix that a lower-authority test asks for.
-- A hosted number that moves the wrong way by more than its spread.
-- Anything that touches production or publishes a package.
+- A material change to R155B's rules or intended behaviors outside the accepted scope.
+- Production deployment or package publication.
+
+Classify failures against the current specification and domain types before a
+repair. Do not change behavior for a stale fixture. A noisy latency result alone
+is not a reason to revert a mechanically sound change or request another decision.
 
 Commands, narrowest first:
 
-- Public contracts: `pnpm test:intended` in `seams-wallet`, 133 cases, two of
-  them on debug builds.
+- Public contracts: `pnpm test:intended` in `seams-wallet`. Resolve the current
+  case list from the runner; keep debug-only fault cases on the required build.
 - Yao formal verification and vectors: `cargo yao-fv all`; individual tasks
   `just ed25519-yao-fv-*`.
-- Rust tests: `cargo test --manifest-path crates/router-ab-cloudflare/Cargo.toml`,
-  whose `bindings.rs` target holds 186 cases; `cargo test --manifest-path
-  crates/ed25519-yao/Cargo.toml`.
+- Rust checks from `seams-wallet`: use the narrow relevant target with
+  `cargo test --manifest-path crates/router-ab-cloudflare/Cargo.toml` or
+  `cargo test --manifest-path crates/ed25519-yao/Cargo.toml`.
 - Storage and lifecycle scenarios: `node tests/e2e/<name>.scenario.mjs` and
   `node tests/e2e/<name>.e2e.mjs` in `seams-wallet`.
 - Wallet Server: `pnpm -C packages/wallet-server type-check`,
@@ -1383,24 +1393,27 @@ Evidence and commits:
   staged by name. Messages follow the existing form: `perf(custody): ...`,
   `perf(wallet): ...`, `test: ...`, `docs: ...`. Production fixes, valid
   test updates and stale-test deletions go in separate commits.
-- Every comparison: a discarded warm-up group, at least six wallets per
-  measured group, release builds with recorded build stamps, p50 and p90,
-  independent signature verification, restoration and its verification.
+- Every comparison: a fixed, budgeted population; release builds with recorded
+  inputs; p50/p90 and ranges; independent signature verification; verified
+  restoration. Label warm/cold cohorts and preserve first-use tail samples.
 - Mark each item of this plan done only with its evidence or a recorded
   reason, in the same commit as the change.
 
 ## Scope limits and completion
 
-This plan adds one additive outbox table in the Gateway's existing D1 and uses
-the existing Gateway cron. It adds no Worker, secret, environment-variable
-family, cache layer, queue or configuration framework. It changes no circuit
-and no cryptographic construction: the garbled circuit, the gate hash's
-cipher, the oblivious transfer and the seal's group and exponent stay what
-they are. Only when and where they run changes.
-One-request signing, a Tokyo home, relocation of existing wallets, a native
-custody tier on virtual machines or Cloudflare Containers, and the
-delegate-action early prepare stay outside it. Production rollout and
-publishing remain separate release work.
+The shipped setup and claim migrations are complete on staging. The deferred
+outbox would require a new migration and lifecycle work; no such migration is
+currently scheduled. Add no new Worker, secret, configuration family, cache layer,
+or queue for speculative savings.
+
+Released engine optimizations preserved protocol bytes and have their own vector,
+constant-time, and formal-verification evidence. Further transcript, claim-timing,
+or secret-lifetime changes require dedicated review. The current remaining
+profiling work does not authorize cross-request plaintext retention.
+
+One-request signing, a separate Tokyo home, wallet relocation, a native custody
+service, production rollout, and package publication remain outside this
+implementation work. R155J owns tail acceptance and provider-level unknowns.
 
 Complete the plan when each item has implementation and evidence, or a
 recorded reason. A completed checklist does not establish that the latency

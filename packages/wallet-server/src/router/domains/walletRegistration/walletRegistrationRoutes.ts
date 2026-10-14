@@ -2175,7 +2175,8 @@ export async function handleRouterApiWalletRegistrationRespond(
     serverTiming,
     input.waitUntil,
   );
-  return routeJson(result.ok ? 200 : 400, result, {
+  const status = result.ok ? 200 : result.code === 'storage_unavailable' ? 503 : 400;
+  return routeJson(status, result, {
     headers: ecdsaGatewayServerTimingHeaders(serverTiming),
   });
 }
