@@ -213,7 +213,7 @@ test.describe('account-menu modal responsiveness', () => {
     await expect(unlockButton).toBeVisible();
     await unlockButton.click();
 
-    await expect(dialog.getByRole('heading', { name: 'Add Email OTP' })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Add a method' })).toBeVisible();
     await expect(dialog).toBeFocused();
     const unlockCount = await page.evaluate(() => {
       const read = (
