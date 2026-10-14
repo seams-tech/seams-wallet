@@ -17,10 +17,7 @@ export function RecoveryCodeAcknowledgement({ onDone }: { onDone: () => void }):
           checked={acknowledged}
           onChange={updateAcknowledgement.bind(null, setAcknowledged)}
         />
-        <span>
-          I’ve saved these codes.
-          <small>They won’t be shown again.</small>
-        </span>
+        <span>I’ve saved these codes. They won’t be shown again.</span>
       </label>
       <button
         type="button"
