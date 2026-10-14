@@ -1,0 +1,60 @@
+{
+  "schema": "seams.ml-dsa-prepared-deployment.v1",
+  "captured_at": "2026-10-14T07:37:23.408229+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-prepared-20261014-a",
+      "deployment_id": "eddb0825-3e10-411c-858e-452193982c74",
+      "created_on": "2026-10-14T07:36:36.145629Z",
+      "versions": [
+        {
+          "version_id": "db0ea8a7-8a2a-419e-a7f3-ed7155ff37de",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+          "bytes": 28330,
+          "sha256": "a11c706d0e94efc7ff66fbde1e9be922b78a7e67151482bd200917341cdb5083"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+          "bytes": 36411510,
+          "sha256": "4b5487f8730ec4c1583e68aab94a3449c4496475aa554904f1c95ed92be2b0d9"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-prepared-20261014-b",
+      "deployment_id": "55efa0dc-a171-4839-b9c7-90373be63676",
+      "created_on": "2026-10-14T07:36:18.223138Z",
+      "versions": [
+        {
+          "version_id": "599f9672-efa2-431e-a5f5-01063ec53a18",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+          "bytes": 26175,
+          "sha256": "3908cb8b9fb94b7ac076fda859a7d1539f1a69755ae7946660e3acc81cd96b9c"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+          "bytes": 36323927,
+          "sha256": "c804405e5f569fd3a27631640a1b89f2683358fdb88b242ff982938737f00888"
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "bucket": "ml-dsa-prepared-20261014-tables",
+    "location_hint": "apac",
+    "public_access": false
+  },
+  "scope": "Controlled BYOB readAtLeast comparison. Version IDs come from Cloudflare. Module hashes are local build hashes, without remote readback. Physical placement is unverified."
+}

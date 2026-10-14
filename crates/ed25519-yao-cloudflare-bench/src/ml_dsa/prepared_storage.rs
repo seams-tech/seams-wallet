@@ -1,8 +1,10 @@
 //! R2 stores one bounded table object per prepared circuit. Online reads stream.
 
-use futures_util::StreamExt;
 use serde_json::{json, Value};
-use worker::{Bucket, ByteStream};
+use wasm_bindgen::{JsCast, JsValue};
+use worker::js_sys::{Function, Object, Promise, Reflect, Uint8Array};
+use worker::wasm_bindgen_futures::JsFuture;
+use worker::{Bucket, ResponseBody};
 
 use super::{encode_hex, failure};
 
@@ -23,10 +25,66 @@ enum ReadState {
         binding: [u8; 32],
         next_ordinal: usize,
         remaining: usize,
-        stream: ByteStream,
-        chunk: Vec<u8>,
-        offset: usize,
+        stream: TableReader,
     },
+}
+
+// A normal reader returns 4 KiB chunks on hosted R2. readAtLeast fills one
+// bounded frame before returning to Wasm, without buffering a complete object.
+struct TableReader {
+    reader: JsValue,
+    read_at_least: Function,
+    release_lock: Function,
+}
+impl TableReader {
+    fn new(body: ResponseBody) -> worker::Result<Self> {
+        let ResponseBody::Stream(stream) = body else {
+            return Err(failure("Prepared table body is not a stream."));
+        };
+        let options = Object::new();
+        Reflect::set(&options, &"mode".into(), &"byob".into())?;
+        let get_reader = Reflect::get(&stream, &"getReader".into())?.dyn_into::<Function>()?;
+        let reader = get_reader.call1(&stream, &options)?;
+        let read_at_least = Reflect::get(&reader, &"readAtLeast".into())?.dyn_into::<Function>()?;
+        let release_lock = Reflect::get(&reader, &"releaseLock".into())?.dyn_into::<Function>()?;
+        Ok(Self {
+            reader,
+            read_at_least,
+            release_lock,
+        })
+    }
+    async fn read(&self, length: usize) -> worker::Result<Option<Vec<u8>>> {
+        if length == 0 || length > FRAME_BYTES {
+            return Err(failure("Prepared stream read exceeds one frame."));
+        }
+        // The runtime transfers this buffer. Never expose Wasm linear memory.
+        let buffer = Uint8Array::new_with_length(length as u32);
+        let promise = self
+            .read_at_least
+            .call2(&self.reader, &JsValue::from(length as u32), &buffer)?
+            .dyn_into::<Promise>()?;
+        let result = JsFuture::from(promise).await?;
+        let done = Reflect::get(&result, &"done".into())?
+            .as_bool()
+            .ok_or_else(|| failure("Prepared stream result has no done state."))?;
+        let value = Reflect::get(&result, &"value".into())?;
+        if done && value.is_undefined() {
+            return Ok(None);
+        }
+        let bytes = value.dyn_into::<Uint8Array>()?;
+        if done && bytes.length() == 0 {
+            return Ok(None);
+        }
+        if done || bytes.length() as usize > length {
+            return Err(failure("Prepared stream result has an invalid length."));
+        }
+        Ok(Some(bytes.to_vec()))
+    }
+}
+impl Drop for TableReader {
+    fn drop(&mut self) {
+        let _ = self.release_lock.call0(&self.reader);
+    }
 }
 
 pub(super) struct Tables {
@@ -135,26 +193,24 @@ impl Tables {
             if size == 0 || size > MAX_OBJECT_BYTES {
                 return Err(failure("Prepared table size is invalid."));
             }
-            let stream = object
-                .body()
-                .ok_or_else(|| failure("Prepared table has no body."))?
-                .stream()?;
+            let stream = TableReader::new(
+                object
+                    .body()
+                    .ok_or_else(|| failure("Prepared table has no body."))?
+                    .response_body()?,
+            )?;
             self.gets += 1;
             self.read = ReadState::Streaming {
                 binding,
                 next_ordinal: 0,
                 remaining: size,
                 stream,
-                chunk: Vec::new(),
-                offset: 0,
             };
         }
         let ReadState::Streaming {
             next_ordinal,
             remaining,
             stream,
-            chunk,
-            offset,
             ..
         } = &mut self.read
         else {
@@ -163,31 +219,22 @@ impl Tables {
         if ordinal != *next_ordinal || length > *remaining || length > FRAME_BYTES {
             return Err(failure("Prepared table frame range is invalid."));
         }
-        let mut output = Vec::with_capacity(length);
-        while output.len() < length {
-            if *offset == chunk.len() {
-                let started = super::clock_ms();
-                *chunk = stream
-                    .next()
-                    .await
-                    .ok_or_else(|| failure("Prepared table ended early."))??;
-                self.read_wait_observed_ms += super::clock_ms() - started;
-                *offset = 0;
-                if chunk.is_empty() {
-                    continue;
-                }
-                self.chunks += 1;
-                self.largest_chunk = self.largest_chunk.max(chunk.len());
-            }
-            let amount = (length - output.len()).min(chunk.len() - *offset);
-            output.extend_from_slice(&chunk[*offset..*offset + amount]);
-            *offset += amount;
+        let started = super::clock_ms();
+        let output = stream
+            .read(length)
+            .await?
+            .ok_or_else(|| failure("Prepared table ended early."))?;
+        self.read_wait_observed_ms += super::clock_ms() - started;
+        if output.len() != length {
+            return Err(failure("Prepared table returned a partial frame."));
         }
+        self.chunks += 1;
+        self.largest_chunk = self.largest_chunk.max(output.len());
         *remaining -= length;
         *next_ordinal += 1;
         self.read_bytes += length;
         if *remaining == 0 {
-            if *offset != chunk.len() || stream.next().await.is_some() {
+            if stream.read(1).await?.is_some() {
                 return Err(failure("Prepared table has trailing bytes."));
             }
             self.read = ReadState::Empty;
@@ -199,7 +246,8 @@ impl Tables {
             "table_bytes_written": self.written, "table_bytes_read": self.read_bytes,
             "stream_chunks": self.chunks, "largest_stream_chunk_bytes": self.largest_chunk,
             "get_observed_ms": self.get_observed_ms, "stream_wait_observed_ms": self.read_wait_observed_ms,
-            "maximum_object_bytes": MAX_OBJECT_BYTES,
+            "maximum_object_bytes": MAX_OBJECT_BYTES, "reader": "byob-read-at-least",
+            "maximum_read_bytes": FRAME_BYTES,
             "scope": "One R2 PUT and one streamed GET per circuit. Worker clocks advance with I/O and are not CPU profiles."})
     }
     #[cfg(feature = "ml-dsa-b")]

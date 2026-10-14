@@ -1,0 +1,32 @@
+{
+  "schema": "seams.ml-dsa-prepared-cleanup.v1",
+  "completed_at": "2026-10-14T07:42:30.987174+00:00",
+  "resources": [
+    {
+      "kind": "worker",
+      "name": "ml-dsa-prepared-20261014-a",
+      "delete_exit_code": 0,
+      "delete_confirmed": true,
+      "absence_verified": true,
+      "verification": "Wrangler deployment lookup returned Cloudflare error 10007."
+    },
+    {
+      "kind": "worker",
+      "name": "ml-dsa-prepared-20261014-b",
+      "delete_exit_code": 0,
+      "delete_confirmed": true,
+      "absence_verified": true,
+      "verification": "Wrangler deployment lookup returned Cloudflare error 10007."
+    },
+    {
+      "kind": "r2-bucket",
+      "name": "ml-dsa-prepared-20261014-tables",
+      "delete_exit_code": 0,
+      "delete_output": "\u26c5\ufe0f wrangler 4.111.0 (update available 4.151.0)\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nDeleting bucket ml-dsa-prepared-20261014-tables.\nDeleted bucket ml-dsa-prepared-20261014-tables.",
+      "absence_verified": true,
+      "verification": "Exact bucket name is absent from the authenticated Wrangler bucket list."
+    }
+  ],
+  "benchmark_token_file_removed": true,
+  "scope": "Only resources created for the October 14 prepared-keygen campaign. Both campaigns retained per-run table cleanup acknowledgments."
+}
