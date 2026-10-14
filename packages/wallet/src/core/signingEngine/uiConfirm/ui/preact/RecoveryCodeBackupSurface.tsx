@@ -154,10 +154,19 @@ function statusValue(loadState: SummaryLoadState): string {
   }
 }
 
-function activeCodesValue(loadState: SummaryLoadState): string {
-  return loadState.kind === 'loaded' && loadState.status.kind === 'ready'
-    ? `${loadState.status.activeCodeCount} / ${loadState.status.totalCodeCount}`
-    : '—';
+function activeCodesDetail(loadState: SummaryLoadState): string {
+  switch (loadState.kind) {
+    case 'loading':
+      return 'Checking your codes…';
+    case 'error':
+      return 'Status unavailable';
+    case 'loaded':
+      return loadState.status.kind === 'ready'
+        ? `${loadState.status.activeCodeCount} of ${loadState.status.totalCodeCount} codes left`
+        : 'Status unavailable';
+    default:
+      return assertNever(loadState);
+  }
 }
 
 function safeWalletId(value: string): string {
@@ -450,22 +459,32 @@ export class RecoveryCodeBackupSurface extends Component<
           View and save the recovery codes retained by this wallet after registration.
         </p>
         <div class="recovery-summary-body">
-          <div class="recovery-summary-row">
-            <span class="recovery-summary-label">Wallet</span>
-            <span class="recovery-summary-value">{state.walletId}</span>
+          <h2 class="recovery-summary-section-label">Security</h2>
+          <div class="recovery-summary-item">
+            <span class="recovery-summary-item-icon" aria-hidden="true">
+              <ShieldCheckIcon />
+            </span>
+            <span class="recovery-summary-item-text">
+              <span class="recovery-summary-item-title">Recovery codes</span>
+              <span class="recovery-summary-item-detail">
+                {activeCodesDetail(state.loadState)}
+              </span>
+            </span>
+            <span class="recovery-summary-badge">{statusValue(state.loadState)}</span>
           </div>
-          <div class="recovery-summary-row">
-            <span class="recovery-summary-label">Status</span>
-            <span class="recovery-summary-value">{statusValue(state.loadState)}</span>
-          </div>
-          <div class="recovery-summary-row">
-            <span class="recovery-summary-label">Active codes</span>
-            <span class="recovery-summary-value">{activeCodesValue(state.loadState)}</span>
+          <div class="recovery-summary-item">
+            <span class="recovery-summary-item-icon" aria-hidden="true">
+              <WalletIcon />
+            </span>
+            <span class="recovery-summary-item-text">
+              <span class="recovery-summary-item-title">Wallet</span>
+              <span class="recovery-summary-item-detail">{state.walletId}</span>
+            </span>
           </div>
           {showViewCodesButton && (
             <button
               type="button"
-              class="recovery-backup-button primary recovery-summary-open"
+              class="recovery-backup-button secondary recovery-summary-open"
               disabled={opening}
               onClick={this.openRecoveryCodes}
             >
@@ -561,6 +580,24 @@ export class RecoveryCodeBackupSurface extends Component<
       </>
     );
   }
+}
+
+function ShieldCheckIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+    </svg>
+  );
 }
 
 function CopyIcon() {

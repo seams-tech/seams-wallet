@@ -206,20 +206,18 @@
   overflow-wrap: anywhere;
 }
 
-/* The state chip carries the only status a person needs; colour reinforces the
-   word rather than replacing it. */
+/* The state chip carries the only status a person needs. A normal state is a
+   quiet neutral tag; colour marks only the states that need attention. */
 .seams-linked-devices-modal-standing {
   flex: none;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--seams-colors-textPrimary), transparent 93%);
+  color: var(--seams-colors-textPrimary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
   white-space: nowrap;
-}
-
-.seams-linked-devices-modal-standing.tone-active {
-  background: color-mix(in srgb, oklch(0.62 0.15 155), transparent 88%);
-  color: oklch(0.48 0.14 155);
 }
 
 .seams-linked-devices-modal-standing.tone-pending {
@@ -232,10 +230,6 @@
   color: var(--seams-colors-textSecondary);
 }
 
-.theme-dark .seams-linked-devices-modal-standing.tone-active {
-  color: oklch(0.8 0.14 155);
-}
-
 .theme-dark .seams-linked-devices-modal-standing.tone-pending {
   color: oklch(0.82 0.13 85);
 }
@@ -246,46 +240,73 @@
   font-weight: 500;
 }
 
-/* The device inventory renders as one bordered group with hairline dividers
-   rather than a stack of cards; the auth-methods modal keeps the card look. */
+/* A grouped inventory is a plain list: no box around it, a hairline under
+   every row, so the rows read as entries on the card itself. */
 .seams-linked-devices-modal-list--grouped {
   gap: 0;
-  border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: 0.75rem;
-  background: var(--seams-colors-surface);
-  overflow: hidden;
 }
 
 .seams-linked-devices-modal-item--row {
   position: relative;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 0 0.75rem;
-  padding: 1rem;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 0.875rem;
+  padding: 0.875rem 0;
   border: none;
+  border-bottom: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 0;
   background: transparent;
-}
-
-/* Divider inset to the row padding so the group reads as one card. */
-.seams-linked-devices-modal-item--row + .seams-linked-devices-modal-item--row::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 1rem;
-  right: 1rem;
-  border-top: 1px solid var(--seams-colors-borderPrimary);
 }
 
 .seams-linked-devices-modal-item-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 92%);
+  align-self: start;
+  width: 24px;
+  height: 1.25rem;
+  margin-top: 0.125rem;
   color: var(--seams-colors-textSecondary);
+}
+
+.seams-linked-devices-modal-item-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Section labels name each group of rows, in small caps above it. */
+.seams-account-menu-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.seams-account-menu-section-label {
+  margin: 0;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.seams-account-menu-section > .seams-linked-devices-modal-list--grouped {
+  margin-top: -0.25rem;
+}
+
+/* A section's main action is a full-width outline button; an add action leads
+   with its plus sign. */
+.seams-linked-devices-modal-content .seams-account-menu-wide-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: stretch;
+  gap: 0.5rem;
+  min-height: 44px;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .seams-linked-devices-modal-item-content {
@@ -294,9 +315,9 @@
   min-width: 0;
 }
 
-/* Title and chip sit together on the left; the shared rule spreads them. */
+/* Title on the left, status chip at the end of the row. */
 .seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-main {
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -304,8 +325,15 @@
 }
 
 .seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-name {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   line-height: 1.25rem;
+}
+
+.seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-detail {
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
 }
 
 /* Why this row cannot be removed right now, shaped as part of the row. */
@@ -372,7 +400,8 @@
 .seams-linked-devices-modal-add-method h3 {
   margin: 0;
   color: var(--seams-colors-textPrimary);
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -540,21 +569,6 @@
     align-items: center;
     flex-direction: row;
   }
-
-  .seams-linked-devices-modal-item--row {
-    grid-template-columns: 32px minmax(0, 1fr) auto;
-    padding: 0.85rem;
-  }
-
-  .seams-linked-devices-modal-item-icon {
-    width: 32px;
-    height: 32px;
-  }
-
-  .seams-linked-devices-modal-item--row + .seams-linked-devices-modal-item--row::before {
-    left: 0.85rem;
-    right: 0.85rem;
-  }
 }
 
 @media (max-height: 520px) {
@@ -594,11 +608,6 @@
 .seams-auth-methods-modal-content .seams-linked-devices-modal-body {
   gap: 1.5rem;
 }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-item--row {
-  padding: 1rem;
-  border: 0;
-  background: transparent;
-}
 .seams-auth-methods-modal-content .seams-linked-devices-modal-item-detail {
   font-weight: 400;
   line-height: 1.5;
@@ -606,7 +615,7 @@
 .seams-auth-methods-modal-content .seams-linked-devices-modal-add-method {
   padding: 0;
   border: 0;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form {
   grid-template-columns: minmax(0, 1fr) auto;
