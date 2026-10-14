@@ -1455,7 +1455,7 @@ function emitRegistrationEvent(
 }
 
 /** How long a registration request runs before the user is told that it is slow. */
-const REGISTRATION_DELAY_NOTICE_MS = 3_000;
+const REGISTRATION_DELAY_NOTICE_MS = 5_000;
 
 /**
  * Emits `phase` once if `request` has not settled after

@@ -114,5 +114,5 @@ Current worker behavior:
 - Type guards (`isRegistrationFlowEvent`, `isUnlockFlowEvent`, `isSigningFlowEvent`, `isKeyExportFlowEvent`, etc.) ensure your `onEvent` only receives the expected v2 flow shape.
 - `event.step` is a per-flow ordinal derived from `event.phase`.
 - `event.message` is canonical user-facing copy from `sdkSentEvents.ts` unless a flow deliberately overrides it for context.
-- A passkey registration whose custody execution or wallet account creation has not answered after 3 seconds emits `registration.signer.ed25519.provision.delayed` or `registration.relay.bootstrap.delayed` with status `running`. The request continues; show `event.message` until the next event.
+- A passkey registration whose custody execution or wallet account creation has not answered after 5 seconds emits `registration.signer.ed25519.provision.delayed` or `registration.relay.bootstrap.delayed` with status `running`. The request continues; show `event.message` until the next event.
 - Use `sticky` when a flow should keep receiving status after the main result (e.g., certain device-linking screens and key export viewer lifecycle).
