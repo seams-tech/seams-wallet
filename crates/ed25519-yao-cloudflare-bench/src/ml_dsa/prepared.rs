@@ -176,6 +176,9 @@ impl Transport for Adapter<'_> {
         ordinal: usize,
         length: usize,
     ) -> Result<Vec<u8>, RuntimeError> {
+        if self.phase != 1 {
+            return Err(self.failure(failure("Prepared table read precedes online admission.")));
+        }
         let tables = self.tables.as_mut().ok_or(RuntimeError::TableFrame)?;
         tables
             .load(binding, ordinal, length)
@@ -364,6 +367,11 @@ async fn run_b_session(
         .run(&root, adapter)
         .await
         .map_err(|error| adapter.error(error))?;
+    adapter
+        .tables
+        .as_ref()
+        .ok_or_else(missing_fixture_field)?
+        .finish_reads()?;
     adapter.duplex.flush().await?;
     let mut report = adapter.report(current, &key, offline_ms, clock_ms() - started)?;
     report["incoming_colo"] = json!(colo);

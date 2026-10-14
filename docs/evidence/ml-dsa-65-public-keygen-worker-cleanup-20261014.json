@@ -1,0 +1,33 @@
+{
+  "schema": "seams.ml-dsa-prepared-cleanup.v1",
+  "started_at": "2026-10-14T09:01:49.115198+00:00",
+  "resources": [
+    {
+      "kind": "worker",
+      "name": "ml-dsa-public-20261014-a",
+      "delete_confirmed": true,
+      "absence_verified": true,
+      "verification": "Authenticated deployment lookup returned Cloudflare error10007."
+    },
+    {
+      "kind": "worker",
+      "name": "ml-dsa-public-20261014-b",
+      "delete_confirmed": true,
+      "absence_verified": true,
+      "verification": "Authenticated deployment lookup returned Cloudflare error10007."
+    },
+    {
+      "kind": "r2-bucket",
+      "name": "ml-dsa-public-20261014-tables",
+      "delete_confirmed": true,
+      "absence_verified": true,
+      "verification": "Exact bucket name absent from authenticated bucket list."
+    }
+  ],
+  "completed": true,
+  "scope": "Only resources created for the public-keygen experiment and its read-ahead comparison.",
+  "benchmark_token_file_removed": true,
+  "completed_at": "2026-10-14T09:01:58.698475+00:00",
+  "temporary_log_files_removed": true,
+  "log_capture_processes_stopped": true
+}

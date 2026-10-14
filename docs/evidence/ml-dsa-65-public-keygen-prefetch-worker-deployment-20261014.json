@@ -1,0 +1,60 @@
+{
+  "schema": "seams.ml-dsa-prepared-deployment.v1",
+  "captured_at": "2026-10-14T08:52:24.919706+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-public-20261014-a",
+      "deployment_id": "b2e6152a-72dc-42d3-ba50-9012520d03d2",
+      "created_on": "2026-10-14T08:51:20.237753Z",
+      "versions": [
+        {
+          "version_id": "0d2c43e4-7eae-4dff-b99b-5b8ab3a0bc7f",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+          "bytes": 28330,
+          "sha256": "a11c706d0e94efc7ff66fbde1e9be922b78a7e67151482bd200917341cdb5083"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+          "bytes": 53620346,
+          "sha256": "1022752539f04271b13053d984edbbf3b429427d1678c3ea3c21aad2b3002c56"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-public-20261014-b",
+      "deployment_id": "974de0e6-0c3a-4d4d-a044-00703626c99f",
+      "created_on": "2026-10-14T08:50:56.369445Z",
+      "versions": [
+        {
+          "version_id": "fd9d2c6c-b726-4998-ba89-c7f6470261bf",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+          "bytes": 26175,
+          "sha256": "3908cb8b9fb94b7ac076fda859a7d1539f1a69755ae7946660e3acc81cd96b9c"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+          "bytes": 53543907,
+          "sha256": "371dcbd4d1753ea59073c5b6f35afcdd8df7438da3ebc126b0874eb5d59f99c8"
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "bucket": "ml-dsa-public-20261014-tables",
+    "location_hint": "apac",
+    "public_access": false
+  },
+  "scope": "One normal-path table of read-ahead, with all storage reads online. Circuits unchanged. Client cleanup waits for normal closure outside its online timer. Local module hashes, without remote readback or independent placement proof."
+}

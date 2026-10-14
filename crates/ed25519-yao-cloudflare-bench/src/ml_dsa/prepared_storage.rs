@@ -1,5 +1,6 @@
 //! R2 stores one bounded table object per prepared circuit. Online reads stream.
 
+use futures_channel::oneshot;
 use serde_json::{json, Value};
 use wasm_bindgen::{JsCast, JsValue};
 use worker::js_sys::{Function, Object, Promise, Reflect, Uint8Array};
@@ -10,6 +11,8 @@ use super::{encode_hex, failure};
 
 const MAX_OBJECT_BYTES: usize = 10 * 1024 * 1024;
 const FRAME_BYTES: usize = 65544;
+// Wallet derivation, seed expansion, and eleven two-block samplers precede fallbacks.
+const NORMAL_PATH_TABLES: usize = 13;
 
 enum WriteState {
     Empty,
@@ -87,11 +90,56 @@ impl Drop for TableReader {
     }
 }
 
+struct OpenedTable {
+    size: usize,
+    stream: TableReader,
+    get_observed_ms: f64,
+}
+struct PrefetchedTable {
+    key: String,
+    response: oneshot::Receiver<worker::Result<OpenedTable>>,
+}
+async fn open_table(bucket: &Bucket, key: &str) -> worker::Result<OpenedTable> {
+    let started = super::clock_ms();
+    let object = bucket
+        .get(key)
+        .execute()
+        .await?
+        .ok_or_else(|| failure("Prepared table is absent."))?;
+    let get_observed_ms = super::clock_ms() - started;
+    let size = usize::try_from(object.size()).map_err(super::runtime_failure)?;
+    if size == 0 || size > MAX_OBJECT_BYTES {
+        return Err(failure("Prepared table size is invalid."));
+    }
+    let stream = TableReader::new(
+        object
+            .body()
+            .ok_or_else(|| failure("Prepared table has no body."))?
+            .response_body()?,
+    )?;
+    Ok(OpenedTable {
+        size,
+        stream,
+        get_observed_ms,
+    })
+}
+async fn prefetch_table(
+    bucket: Bucket,
+    key: String,
+    sender: oneshot::Sender<worker::Result<OpenedTable>>,
+) {
+    let result = open_table(&bucket, &key).await;
+    let _ = sender.send(result);
+}
+
 pub(super) struct Tables {
     bucket: Bucket,
     prefix: String,
     write: WriteState,
     read: ReadState,
+    prefetched: Option<PrefetchedTable>,
+    prefetch_started: usize,
+    prefetch_hits: usize,
     keys: Vec<String>,
     puts: usize,
     gets: usize,
@@ -110,6 +158,9 @@ impl Tables {
             prefix: format!("{run_id}/"),
             write: WriteState::Empty,
             read: ReadState::Empty,
+            prefetched: None,
+            prefetch_started: 0,
+            prefetch_hits: 0,
             keys: Vec::new(),
             puts: 0,
             gets: 0,
@@ -181,30 +232,30 @@ impl Tables {
                 return Err(failure("A prepared table read changed before exact EOF."));
             }
             let key = format!("{}{}", self.prefix, encode_hex(&binding));
-            let started = super::clock_ms();
-            let object = self
-                .bucket
-                .get(&key)
-                .execute()
-                .await?
-                .ok_or_else(|| failure("Prepared table is absent."))?;
-            self.get_observed_ms += super::clock_ms() - started;
-            let size = usize::try_from(object.size()).map_err(super::runtime_failure)?;
-            if size == 0 || size > MAX_OBJECT_BYTES {
-                return Err(failure("Prepared table size is invalid."));
-            }
-            let stream = TableReader::new(
-                object
-                    .body()
-                    .ok_or_else(|| failure("Prepared table has no body."))?
-                    .response_body()?,
-            )?;
+            let opened = match self.prefetched.take() {
+                Some(prefetched) if prefetched.key == key => {
+                    self.prefetch_hits += 1;
+                    prefetched
+                        .response
+                        .await
+                        .map_err(super::runtime_failure)??
+                }
+                Some(prefetched) => {
+                    // A rare continuation can interrupt the normal order. Retain
+                    // the prefetched normal table until that polynomial is needed.
+                    self.prefetched = Some(prefetched);
+                    open_table(&self.bucket, &key).await?
+                }
+                None => open_table(&self.bucket, &key).await?,
+            };
+            self.get_observed_ms += opened.get_observed_ms;
+            self.prefetch_next(&key);
             self.gets += 1;
             self.read = ReadState::Streaming {
                 binding,
                 next_ordinal: 0,
-                remaining: size,
-                stream,
+                remaining: opened.size,
+                stream: opened.stream,
             };
         }
         let ReadState::Streaming {
@@ -241,6 +292,37 @@ impl Tables {
         }
         Ok(output)
     }
+    fn prefetch_next(&mut self, current_key: &str) {
+        if self.prefetched.is_some() {
+            return;
+        }
+        let Some(index) = self.keys.iter().position(|key| key == current_key) else {
+            return;
+        };
+        // At most one future GET accompanies the current stream. Do not fetch
+        // a fallback speculatively: its nonce is selected by public decisions.
+        if index + 1 >= NORMAL_PATH_TABLES {
+            return;
+        }
+        let Some(key) = self.keys.get(index + 1).cloned() else {
+            return;
+        };
+        let (sender, response) = oneshot::channel();
+        worker::wasm_bindgen_futures::spawn_local(prefetch_table(
+            self.bucket.clone(),
+            key.clone(),
+            sender,
+        ));
+        self.prefetched = Some(PrefetchedTable { key, response });
+        self.prefetch_started += 1;
+    }
+    #[cfg(feature = "ml-dsa-b")]
+    pub(super) fn finish_reads(&self) -> worker::Result<()> {
+        if !matches!(self.read, ReadState::Empty) || self.prefetched.is_some() {
+            return Err(failure("Prepared table reads did not finish exactly."));
+        }
+        Ok(())
+    }
     pub(super) fn report(&self) -> Value {
         json!({"objects_written": self.puts, "objects_read": self.gets,
             "table_bytes_written": self.written, "table_bytes_read": self.read_bytes,
@@ -248,7 +330,9 @@ impl Tables {
             "get_observed_ms": self.get_observed_ms, "stream_wait_observed_ms": self.read_wait_observed_ms,
             "maximum_object_bytes": MAX_OBJECT_BYTES, "reader": "byob-read-at-least",
             "maximum_read_bytes": FRAME_BYTES,
-            "scope": "One R2 PUT and one streamed GET per circuit. Worker clocks advance with I/O and are not CPU profiles."})
+            "prefetch_started": self.prefetch_started, "prefetch_hits": self.prefetch_hits,
+            "source_bound_open_table_streams": 2, "storage_start_policy": "online",
+            "scope": "One R2 PUT per prepared circuit and one streamed GET per used circuit. One next normal-path GET can overlap current evaluation. All reads begin online. Observed GET intervals can overlap and include CPU; they are not a phase partition."})
     }
     #[cfg(feature = "ml-dsa-b")]
     pub(super) async fn cleanup(&self) -> worker::Result<()> {
