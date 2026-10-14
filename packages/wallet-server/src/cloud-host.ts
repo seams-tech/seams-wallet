@@ -8,6 +8,7 @@ export * from './core/logger';
 export * from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export * from './core/types';
 export * from './delegateAction';
+export { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
 export * from './router/framework/apiCredentialPorts';
 export {
   createWalletRegistrationContextResolver,
