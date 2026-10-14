@@ -17,8 +17,8 @@ pub use transaction::{
     build_transaction_with_actions, calculate_transaction_hash, encode_signed_transaction,
 };
 pub use types::near::{
-    DelegateAction, NearAction, PublicKey, Signature, SignedDelegate, SignedTransaction,
-    Transaction,
+    DelegateAction, NearAction, PublicKey, PublicKeyHandle, Signature, SignedDelegate,
+    SignedTransaction, Transaction,
 };
 // Re-export WASM-friendly wrapper types for TypeScript usage
 pub use types::wasm_to_json::{

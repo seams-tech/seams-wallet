@@ -29,6 +29,8 @@ The [fixed key-generation-and-signing check](../evidence/ml-dsa-65-selected-half
 Both campaigns use the exact Wasm bundles inspected by the [final arithmetic audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json).
 Its hosted rerun remains pending token approval.
 The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) also verifies a serialized threshold-signed NEAR transaction before authorized recovery.
+The [testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) now records successful finalized execution with receipts and checks the SDK access-key handle types.
+This uses separate local signing processes and a public disposable fixture key. The Cloudflare-to-NEAR Wallet route remains open.
 
 ## Current implementation evidence — October 13, 2026
 
@@ -711,7 +713,9 @@ State remaining opportunities that could change that ranking.
    Production integration awaits the custody-model choice: an independent joint seed with protected recovery records, or private derivation from the wallet custody seed.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
-   The public Wallet signing route, RPC full-key/handle behavior, and deployed transaction receipt remain open.
+   Completed: the [threshold-signed testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) reached successful finalized execution and checked the SDK handle types.
+   Access-key lists return hash handles. Single-key queries require the full public key and reject hash-handle inputs.
+   The SDK now has distinct full-key and handle types. The public Wallet signing route and Cloudflare-to-NEAR integration remain open.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
    The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now covers mid-mask interruption, cross-session OT replay, restart, and four concurrent signatures.
    The [request-binding campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) repeats these scenarios and authorized recovery after the new public request exchange.

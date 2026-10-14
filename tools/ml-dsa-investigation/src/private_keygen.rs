@@ -76,15 +76,16 @@ enum Role {
 }
 
 #[derive(Clone, Copy)]
-pub(super) enum Campaign {
+pub(super) enum Campaign<'a> {
     CoreEvidence,
     EngineComparison(Engine),
+    NearTestnet(&'a Path),
 }
 
-impl Campaign {
+impl Campaign<'_> {
     const fn engine(self) -> Engine {
         match self {
-            Self::CoreEvidence => Engine::HalfGates,
+            Self::CoreEvidence | Self::NearTestnet(_) => Engine::HalfGates,
             Self::EngineComparison(engine) => engine,
         }
     }
@@ -240,7 +241,7 @@ fn save_schedule(
 pub(super) fn run_case(
     schedules: &Path,
     fixture: Option<&str>,
-    campaign: Campaign,
+    campaign: Campaign<'_>,
 ) -> InvestigationResult<Value> {
     let engine = campaign.engine();
     let case = tempfile::tempdir()?;
@@ -310,6 +311,16 @@ pub(super) fn run_case(
         _ => serde_json::Value::Null,
     };
     let signing_path = case.path().join("public-threshold-signing.json");
+    let testnet_transaction = match campaign {
+        Campaign::NearTestnet(request) => crate::near_testnet_evidence::sign(
+            request,
+            schedules,
+            &role_a.join(MATERIAL_FILENAME),
+            &role_b.join(MATERIAL_FILENAME),
+            &public_path,
+        )?,
+        _ => serde_json::Value::Null,
+    };
     fs::write(&signing_path, serde_json::to_vec(&threshold_signing)?)?;
     eprintln!(
         "Verified threshold signature for {} in {} attempts.",
@@ -353,6 +364,7 @@ pub(super) fn run_case(
         "threshold_signing": threshold_signing,
         "host_signing_lifecycle": lifecycle,
         "offline_sdk_near_transaction": near_transaction,
+        "testnet_transaction": testnet_transaction,
         "authorized_test_recipient": recovered,
     }))
 }

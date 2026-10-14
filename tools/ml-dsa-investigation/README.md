@@ -158,6 +158,28 @@ The [kernel report](../../docs/evidence/ml-dsa-65-worker-kernels-hosted-20261013
 Host timing does not establish Worker CPU time, bandwidth, latency, or cost.
 Cross-implementation agreement does not establish FIPS module validation.
 
+## NEAR testnet transaction E2E
+
+The test uses `ml-dsa-e2e-20261014-bb976cccc038.testnet` and the existing public zero-seed fixture.
+It creates the account through NEAR's testnet faucet only if the account is absent.
+It transfers one yoctoNEAR to the same account and uses faucet test tokens for fees.
+The fixed account and fixture are public test data.
+
+```sh
+cargo build --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml
+python3 tools/ml-dsa-investigation/scripts/run_near_testnet.py \
+  --out docs/evidence/ml-dsa-65-near-testnet-e2e-20261014.json
+```
+
+The driver records testnet configuration, key-list handles, full-key queries, and rejected handle queries at the same block.
+It checks the SDK's distinct key and handle types, including their text, JSON, and Borsh boundaries.
+Two role processes generate fresh shares of the public fixture key and threshold-sign the actual SDK transaction.
+The authorized test recipient reconstructs the seed only after signing completes.
+The driver submits the signed bytes and requires successful finalized execution with receipts and the expected transaction hash.
+It saves request and response evidence after each network call and never retries a submission automatically.
+If a submission outcome is unknown, query its recorded transaction hash before another run.
+This test supplies no Cloudflare signing, production admission, or protected recovery claim.
+
 ## Compiled arithmetic inspection
 
 The private polynomial arithmetic uses bounded, division-free reduction.
