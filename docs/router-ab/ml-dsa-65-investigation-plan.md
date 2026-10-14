@@ -548,7 +548,8 @@ See [Service Bindings](https://developers.cloudflare.com/workers/runtime-apis/bi
 - [ ] Establish target peak memory and exact per-stage CPU attribution. Current Wasm high-water marks exclude total isolate memory.
 - [x] Verify exact coefficient values and order against the independent reference using public synthetic fixtures.
 - [x] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
-- [ ] Compare GMW on the same workload, including two-party preprocessing generation and all share conversions.
+- [x] Compare GMW on the same workload, including two-party preprocessing generation and all share conversions.
+  The complete native comparison also includes Boolean ABY2.0. Hosted alternative-engine measurements remain optional follow-up work.
 
 Output: executable kernel measurements and a stage-by-stage resource breakdown.
 Exit condition: establish whether hashing, sampling, conversion, transport, or memory creates the largest cost.
@@ -586,7 +587,8 @@ Advance the selected half-gates implementation. Retain it as the baseline for an
 - [ ] Identify each finalist's largest latency costs and optimize those costs before the final comparison.
 - [ ] Measure sustained signing with pool replenishment active and compare results after pool exhaustion.
 - [x] Verify threshold signatures with RustCrypto and OpenSSL, including altered-input rejection checks.
-- [ ] Verify threshold signatures against the pinned NEAR verifier and a deployed NEAR transaction.
+- [x] Verify threshold signatures against the pinned NEAR verifier and a deployed NEAR transaction.
+  The October 14 testnet artifact uses separate local signing roles. The deployed Wallet route remains open.
 - [ ] Evaluate repeated key sharing and refresh for any candidate with short shares.
 - [ ] Document the complete passive privacy argument, including permitted intermediate disclosures.
 
@@ -607,7 +609,8 @@ Use generated cryptographic vectors and type fixtures for their existing normati
 Add no unit tests or source-text guards for this investigation.
 
 - [ ] Generate a key, register it as a NEAR access key, and submit a threshold-signed transaction.
-- [ ] Verify full-key and hashed-handle RPC behavior without assuming an Ed25519 implicit-account identifier.
+- [x] Verify full-key and hashed-handle RPC behavior without assuming an Ed25519 implicit-account identifier.
+  Testnet access-key lists return handles. Single-key queries require full public keys.
 - [ ] Interrupt signing after nonce or preprocessing consumption. Restart through a fresh operation and verify the next signature.
 - [ ] Attempt signing with B unavailable. Verify terminal failure and safe subsequent operation.
 - [ ] Refresh signing shares. Verify the same public key and reject stale operation state.
@@ -626,7 +629,8 @@ Preserve the current domain contract when retiring stale fixtures.
 
 ### 7 Select and integrate the library
 
-- [ ] Select one key-generation engine and one compatible signing protocol.
+- [x] Select one key-generation engine and one compatible signing protocol.
+  Half-gates is selected for both operations. Production qualification remains open.
 - [ ] Select the fastest measured complete combination for the agreed signing workload.
 - [ ] Record the measured costs, privacy assumptions, unresolved limitations, and reasons for rejecting other options.
 - [ ] Implement the smallest Rust core and runtime interfaces that fit the selected protocol and deployment.
@@ -704,7 +708,9 @@ State remaining opportunities that could change that ranking.
    The [source review](ml-dsa-65-privacy-review.md) records these boundaries.
    Division-free local arithmetic passes complete host interoperability and compiled core checks.
    The [final Worker audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json) also finds no division in the three private arithmetic functions of either rebuilt bundle.
-   The complete proof, branch and memory-access review, JIT qualification, and independent review remain open.
+   The [manual data-flow review](ml-dsa-65-privacy-review.md#compiled-arithmetic-data-flow-review--october-14-2026) traces all 21 explicit branches per role and memory addresses in those three Wasm functions.
+   Nineteen secret-dependent value-selection sites per role still require JIT qualification.
+   The complete proof, compiled runtime and primitive review, JIT qualification, and independent review remain open.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
    The core now checks agreement on the operation identifier, public key, message, context, and randomness mode before its first signing circuit.
    The [request-binding E2E campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) rejects five mismatched requests before any private circuit completes.

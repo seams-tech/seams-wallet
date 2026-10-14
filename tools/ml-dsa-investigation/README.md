@@ -187,13 +187,14 @@ Run the compiled-code check from an AArch64 host with the Wasm Rust target and `
 
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
-  inspect-arithmetic docs/evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json
+  inspect-arithmetic docs/evidence/ml-dsa-65-arithmetic-dataflow-audit-20261014.json
 ```
 
 The command compiles the core separately for Wasm and the native host, then rebuilds both Worker role bundles.
 It rejects division or remainder instructions in the three private polynomial functions, including their final packaged Wasm bodies.
 It requires one named body per function and rejects unresolved indirect calls in those bodies.
-It records conditional branches and direct calls for manual review.
+It records complete instruction streams, function signatures, local declarations, conditional branches, direct calls, and value-selection sites for manual review.
+Secret-dependent Wasm `select` instructions still require target JIT qualification.
 The report pins source, compiler, assembly, builder, packaged Wasm, and function-body identities.
 Direct callees require separate review. The check does not inspect JIT-generated machine code or establish a blanket timing guarantee.
 The [composition review](../../docs/router-ab/ml-dsa-65-privacy-review.md) records the arithmetic bounds and the remaining security work.
