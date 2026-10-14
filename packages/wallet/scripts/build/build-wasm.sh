@@ -89,7 +89,7 @@ run_in_dir() {
 build_near_signer() {
   run_in_dir "$SOURCE_WASM_SIGNER" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_SIGNER/Cargo.lock" \
-      wasm-pack build --locked --target web --out-dir pkg --out-name wasm_signer_worker --release
+      wasm-pack build --target web --out-dir pkg --out-name wasm_signer_worker --release --locked
 }
 
 build_shamir3pass_runtime() {
@@ -101,20 +101,20 @@ build_shamir3pass_runtime() {
 build_ed25519_yao_client() {
   run_in_dir "$SOURCE_ED25519_YAO_CLIENT" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/Cargo.lock" \
-      wasm-pack build --locked --target web --out-dir pkg --out-name router_ab_ed25519_yao_client --release
+      wasm-pack build --target web --out-dir pkg --out-name router_ab_ed25519_yao_client --release --locked
 }
 
 build_wallet_custody_ceremony() {
   run_in_dir "$SOURCE_WASM_WALLET_CUSTODY_CEREMONY" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_WALLET_CUSTODY_CEREMONY/Cargo.lock" \
-      wasm-pack build --locked --target web --out-dir pkg --out-name wallet_custody_ceremony --release
+      wasm-pack build --target web --out-dir pkg --out-name wallet_custody_ceremony --release --locked
 }
 
 build_router_ab_ecdsa_client() {
   run_in_dir "$SOURCE_WASM_ECDSA_CLIENT" \
     with_ecdsa_derivation_hot_path_rustflags \
       with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_ECDSA_CLIENT/Cargo.lock" \
-      wasm-pack build --locked --target web --out-dir pkg --out-name router_ab_ecdsa_client --release
+      wasm-pack build --target web --out-dir pkg --out-name router_ab_ecdsa_client --release --locked
 }
 
 with_ecdsa_derivation_hot_path_rustflags() {
@@ -143,7 +143,7 @@ build_profiled_wasm_crate() {
   local out_name="$2"
   run_in_dir "$source_dir" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$source_dir/Cargo.lock" \
-    wasm-pack build --locked --target web --out-dir pkg --out-name "$out_name" "${DEFAULT_WASM_PROFILE_ARGS[@]}"
+    wasm-pack build --target web --out-dir pkg --out-name "$out_name" "${DEFAULT_WASM_PROFILE_ARGS[@]}" --locked
 }
 
 JOB_PIDS=()

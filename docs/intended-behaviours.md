@@ -3493,9 +3493,9 @@ Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
 Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 `tests/wallet-iframe/auth-menu.host.integration.test.ts`.
 
-## Experimental ML-DSA native custody contract
+## Experimental ML-DSA custody contract
 
-The ML-DSA public SDK route is not yet enabled. These requirements govern the native implementation and its E2E evidence.
+The ML-DSA public SDK route is not yet enabled. These requirements govern the native implementation, browser worker boundary, and their E2E evidence.
 
 - Derive the ML-DSA owner root independently from the wallet custody seed and stable wallet/key binding.
 - Keep the complete canonical FIPS seed inside secure computation until authorized ordinary-key export.
@@ -3511,3 +3511,10 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
 Router admission, durable lifecycle behavior, and the public SDK route remain required before production use.
+
+The [Chromium custody campaign](router-ab/ml-dsa-65-experiment-contract.md#browser-custody-boundary) also checks the consuming Wasm handles and typed SDK worker messages.
+Discarded and wrong-step ceremonies must explicitly free their Wasm handles.
+Malformed JavaScript arguments must terminate the affected ceremony without retaining its native state.
+Numeric values must never be coerced into factor-secret byte buffers.
+Browser epochs must remain within the nonnegative JavaScript safe-integer range.
+These browser records still require independent Router admission and durable holder activation before the Wallet can publish signing capability.

@@ -269,7 +269,7 @@ function parseWalletCustodyGeneratedRecoveryWrap(
   };
 }
 
-function parseWalletCustodyGeneratedEstablishedCustody(
+export function parseWalletCustodyGeneratedEstablishedCustody(
   value: unknown,
 ): EstablishedCustodyRecordsPayload {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -341,7 +341,7 @@ function parseWalletCustodyGeneratedEstablishedCustody(
   };
 }
 
-function parseWalletCustodyGeneratedRecoveryReplacementEnvelope(
+export function parseWalletCustodyGeneratedRecoveryReplacementEnvelope(
   value: unknown,
 ): RecoveryReplacementEnvelopePayload {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {

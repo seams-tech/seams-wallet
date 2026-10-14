@@ -723,7 +723,9 @@ State remaining opportunities that could change that ranking.
    Five host E2E cases cover repeated recovery and changed wallet seed, wallet ID, and key ID.
    Completed: native custody preparation/completion, HPKE role delivery, authenticated holder results, and manifest verification.
    The [six-case custody E2E](../evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json) covers fresh establishment, joining, code recovery, ten recovery codes, and fifteen negative cases.
-   Add browser exports, independent Router admission, authenticated recipient-key discovery, and durable replacement activation next.
+   Completed: consuming browser Wasm exports and the existing SDK custody-worker bridge.
+   The [Chromium E2E](../evidence/ml-dsa-65-browser-custody-e2e-20261014.json) passes 22 checks with real separate-role key generation, threshold signing, and ordinary-key export.
+   Add independent Router admission, authenticated recipient-key discovery, role-private storage, and durable replacement activation next.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
    Completed: the [threshold-signed testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) reached successful finalized execution and checked the SDK handle types.
