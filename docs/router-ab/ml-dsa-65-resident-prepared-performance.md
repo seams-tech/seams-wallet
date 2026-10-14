@@ -14,7 +14,9 @@ The [hosted artifact](../evidence/ml-dsa-65-resident-keygen-worker-hosted-202610
 Prepared GMW signing now produces ordinary signatures in native, local Worker, and hosted four-candidate experiments.
 The complete 32-candidate implementation passes native and local Worker checks.
 The smaller hosted build now completes its first 32-candidate request with a verified signature in 0.469 seconds.
-Its preparation takes 429.266 seconds. Repeated hosted measurements remain in progress.
+Its preparation takes 429.266 seconds. The next request reaches online signing and then fails with Worker A reporting `loadShed`.
+The [complete campaign](../evidence/ml-dsa-65-minimal-signing-worker-hosted-20261014.json) therefore contains one verified signature and one failed request; the third requested case never starts.
+The user rejected the roughly 1.4 GB recurring preparation cost. This design remains a latency reference and is excluded from selection.
 Earlier larger-bundle hosted attempts failed before readiness.
 A four-candidate pool cannot establish consistent successful signing because it can exhaust.
 
@@ -122,7 +124,8 @@ A further byte-equivalent base-OT optimization uses `aB - a²G` for the second s
 It removes one variable-base multiplication, keeps one fixed-base multiplication, and adds a scalar square. Both new secret temporaries are wiped.
 The [native complete E2E](../evidence/ml-dsa-65-fixed-base-complete-native-20261014.json) and local Worker both pass.
 The local Worker records 128.3 milliseconds online and 126.129 seconds readiness.
-The smaller hosted comparison now has one completed warm-up at 0.469 seconds online; repeated samples remain in progress.
+The smaller hosted comparison completes one warm-up signature at 0.469 seconds, then fails during the second request’s online phase.
+Successful signing consistently below five seconds remains unestablished.
 The control-message limit is one MiB. Garbled table frames retain their separate 65,544-byte bound.
 The mixed native E2E crosses 32-bit lane boundaries and checks SHAKE, strict bounds, output ownership, and all role traffic.
 A mismatched ordered layout is rejected after a 32-byte exchange per role, before private preprocessing.
@@ -227,3 +230,22 @@ For hosted measurements, replace `--local` with the temporary endpoint and bench
 Keep fixture books, source hashes, binary hashes, deployment versions, failures, and cleanup results.
 The keygen fixture book includes repeated recovery identities, changed wallet inputs, and a real SHAKE continuation.
 The signing runner changes the public message while retaining a canonical wallet-derived fixture key.
+
+## Decision after the communication review
+
+Keep the observed fast online path as a reference. Reject the current complete preparation design.
+A 32-candidate reservation is consumed by one request and must be replenished.
+The native preparation transfers 1,363,722,370 bytes. This excludes initial key creation and includes all 32 candidates.
+Of this total, Boolean OT accounts for 776,437,760 bytes. Nonce preparation and other setup account for the remaining 587,284,610 bytes.
+Removing repeated base OT alone saves about 21 MB, leaving roughly 1.34 GB. It cannot solve the bandwidth problem.
+
+Prioritize lower-communication binary triples, smaller independent consumable batches, and specialized threshold ML-DSA protocols.
+Replacing the online correlation backend alone still leaves substantial Yao nonce preparation.
+A low-communication backend must also be evaluated for mask conversion and private commitment decomposition.
+Report complete recurring work per successful signature, including retries, discarded candidates, setup, conversions, and storage.
+The scoped privacy and wallet-seed recovery contract remains in force.
+
+The user explicitly retained standard FIPS seed/key export.
+The [lower-communication plan](ml-dsa-65-low-communication-plan.md) records corrected native silent-triple measurements, small-batch projections, and the excluded stock Mithril seed path.
+The next prototype keeps canonical key identity and evaluates fresh binary triples for both nonce preparation and online GMW.
+All temporary Workers and the R2 bucket from this campaign were deleted, as recorded in the [cleanup evidence](../evidence/ml-dsa-65-prepared-final-cleanup-20261014.json).
