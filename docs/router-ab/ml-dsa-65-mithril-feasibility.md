@@ -1,4 +1,4 @@
-# Mithril with canonical ML-DSA-65 keys
+# Mithril ML-DSA-65 feasibility, export, and recovery
 
 Date: October 15, 2026. Investigation branch: `ml-dsa`. Production integration remains paused.
 
@@ -17,6 +17,61 @@ It does not require perfect statistical secrecy, but it does require a justified
 Retain GMW with silent OT as the current implementation path.
 Mithril could substantially reduce recurring traffic and dependent network exchanges.
 Its native result justifies further investigation. It does not establish the safety or performance of canonical private import.
+
+## Export options under investigation
+
+Wallet-seed recovery and secret export are separate capabilities.
+Recovery restores the same signer through the wallet's documented derivation procedure.
+Export releases a seed, private key, or recovery package to an authorized recipient.
+All three options below must produce standard ML-DSA-65 signatures that NEAR can verify.
+
+The user requested comparison of these options. No replacement export policy is selected yet.
+Standard FIPS seed/key export remains the active requirement until the user selects a different option.
+The conditional conversion, security analysis, and cost estimates elsewhere in this report apply to option 1.
+They do not establish the provisioning cost of options 2 or 3.
+
+| Option | Supported export | Wallet-seed recovery | Implication for Mithril provisioning |
+| --- | --- | --- | --- |
+| **1. Standard FIPS seed/key export** | A canonical 32-byte FIPS seed that reproduces the same ordinary key, with corresponding standard private-key export | Reproduce the canonical FIPS key from the wallet seed and stable derivation binding | Requires canonical key generation followed by private conversion into Mithril-compatible shares |
+| **2. Mithril-specific export** | A documented derivation seed or recovery package understood by compatible software | Reproduce the same signer through a specified Mithril derivation procedure | Permits Mithril-specific key generation and removes the requirement to convert a predetermined canonical FIPS key |
+| **3. No export interface** | No supported release of signing secrets | Can still restore the same signer through the SDK's wallet-seed recovery procedure | Also permits Mithril-specific key generation. Removing the export interface alone supplies no additional cryptographic speedup |
+
+### Compatibility and security boundaries
+
+Standard verification does not imply standard seed derivation.
+A Mithril-specific seed may reproduce its signer through our algorithm while producing a different key when imported through ordinary FIPS seed APIs.
+The retained native screen demonstrates this difference for the stock constructor.
+
+Standard expanded-private-key export is a separate question from canonical seed import.
+Option 2 might permit reconstruction and export of an ordinary expanded private key despite lacking a corresponding canonical seed export.
+That capability remains unverified. Test the exact encoding, imported coefficient ranges, independent signing, and signature verification before promising it.
+
+Options 2 and 3 still require server-blind provisioning.
+The stock constructor receives the full seed and creates all shares centrally, so it cannot run unchanged on either worker.
+Investigate private deterministic share generation with only the necessary secret operations inside two-party computation.
+Each worker must receive only its own share.
+Keep signing randomness fresh and independent of the deterministic long-lived recovery material.
+
+For Mithril-specific recovery, document the algorithm, parameters, encoding, coefficient order, and stable role assignment.
+A recovery package must contain or identify every non-secret input needed to reproduce the same public key.
+Keep the original derivation specification available for every supported recovery package.
+Review repeated recovery, refresh, role reassignment, and accumulated observations for the selected construction.
+
+The main possible provisioning simplification comes from permitting Mithril-specific derivation.
+Both options 2 and 3 permit that change. Neither option yet has a measured private key-generation cost.
+The stock native signing timings do not establish those costs.
+
+If the wallet seed and documented procedure suffice to recreate the signer, independent reconstruction remains technically possible.
+Under that design, option 3 defines a product interface policy. It cannot guarantee that a seed holder can never reconstruct signing secrets.
+
+### Investigation tasks before policy selection
+
+1. Retain option 1 as the canonical-export baseline and evaluate its private conversion costs.
+2. Specify a deterministic, server-blind Mithril derivation for options 2 and 3. Verify that recovery reproduces the complete public key.
+3. Define the minimum Mithril export package and test restoration without the original service or worker state.
+4. Separately test standard expanded-private-key import and signing for a reconstructed Mithril key.
+5. Measure complete private provisioning, first-signature latency, recurring signing traffic, and recovery for each eligible construction.
+6. Present the compatibility and security tradeoffs for explicit policy selection before changing the implementation contract.
 
 ## Evidence and source limits
 
