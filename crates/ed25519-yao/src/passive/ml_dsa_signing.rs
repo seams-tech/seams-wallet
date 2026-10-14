@@ -26,6 +26,20 @@ const MAX_ATTEMPTS: u16 = 821;
 const GAMMA1: u32 = 1 << 19;
 const BETA: u32 = 196;
 
+/// Measurements retain the identity of the engine that produced them.
+pub enum CircuitMetrics {
+    /// Streaming half-gates execution.
+    HalfGates(RuntimeMetrics),
+    /// Investigation-only Boolean sharing, including private preprocessing.
+    #[cfg(feature = "passive-benchmark")]
+    Boolean {
+        /// The Boolean engine used for this invocation.
+        engine: super::ml_dsa_runtime::boolean_comparison::Engine,
+        /// Directional phase counters from this role's execution.
+        metrics: super::ml_dsa_runtime::boolean_comparison::Metrics,
+    },
+}
+
 /// Exact standard ML-DSA-65 public-key size.
 pub const PUBLIC_KEY_BYTES: usize = 1952;
 /// Exact standard ML-DSA-65 signature size.
@@ -194,7 +208,7 @@ impl SigningKernel {
 #[derive(Default)]
 pub struct SigningMetrics {
     /// Exact metrics for every fresh private circuit invocation.
-    pub circuits: Vec<(SigningKernel, RuntimeMetrics)>,
+    pub circuits: Vec<(SigningKernel, CircuitMetrics)>,
     /// Public challenge hash for each candidate, including rejections.
     pub challenge_hashes: Vec<[u8; 48]>,
     /// Final accepted-share message bytes, excluding transport framing.
@@ -251,23 +265,57 @@ impl SigningCircuit {
     }
 
     /// Consumes the decoded role output and advances the signing state.
-    pub fn accept(mut self, output: RuntimeOutput) -> Result<SigningStep> {
+    pub fn accept(self, output: RuntimeOutput) -> Result<SigningStep> {
+        self.accept_output(output.output, CircuitMetrics::HalfGates(output.metrics))
+    }
+
+    /// Executes the same transition with an investigation-only Boolean engine.
+    #[cfg(feature = "passive-benchmark")]
+    pub async fn run_boolean(
+        self,
+        engine: super::ml_dsa_runtime::boolean_comparison::Engine,
+        schedule: &TrustedMlDsaSchedule<'_>,
+        transport: &mut impl super::ml_dsa_runtime::boolean_comparison::Transport,
+    ) -> Result<SigningStep> {
+        if schedule.circuit_id() != self.kernel.circuit_id() {
+            return Err(SigningError::Schedule);
+        }
+        let output = super::ml_dsa_runtime::boolean_comparison::run(
+            engine,
+            self.machine.role,
+            schedule,
+            &self.input,
+            transport,
+        )
+        .await
+        .map_err(|_| SigningError::CircuitRuntime)?;
+        self.accept_output(
+            output.own_output,
+            CircuitMetrics::Boolean {
+                engine,
+                metrics: output.metrics,
+            },
+        )
+    }
+
+    fn accept_output(
+        mut self,
+        output: Zeroizing<Vec<u8>>,
+        metrics: CircuitMetrics,
+    ) -> Result<SigningStep> {
         let expected_bits = if self.machine.role == SigningRole::A && !self.kernel.is_public() {
             0
         } else {
             self.kernel.output_bits()
         };
-        if output.output.len() != expected_bits.div_ceil(8)
+        if output.len() != expected_bits.div_ceil(8)
             || (!expected_bits.is_multiple_of(8)
-                && output.output[output.output.len() - 1] >> (expected_bits % 8) != 0)
+                && output[output.len() - 1] >> (expected_bits % 8) != 0)
         {
             return Err(SigningError::CircuitOutput);
         }
-        self.machine
-            .metrics
-            .circuits
-            .push((self.kernel, output.metrics));
-        self.machine.accept_circuit(&output.output)?;
+        self.machine.metrics.circuits.push((self.kernel, metrics));
+        self.machine.accept_circuit(&output)?;
         self.machine.next()
     }
 }

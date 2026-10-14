@@ -50,6 +50,7 @@ pub(super) fn run(
         own_b,
         public_key_path,
         Operation {
+            engine: crate::complete_engine_evidence::Engine::HalfGates,
             message: message.0,
             context: Vec::new(),
             randomness: Randomness::JointRandom,

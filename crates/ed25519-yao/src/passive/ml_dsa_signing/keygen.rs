@@ -8,11 +8,11 @@ use super::arithmetic::{
     COLUMNS, N, ROWS,
 };
 use super::{
-    append_bytes, append_polynomial, append_word, decode_polynomial, fill_uniform, SigningRole,
-    MATERIAL_BYTES, PUBLIC_KEY_BYTES,
+    append_bytes, append_polynomial, append_word, decode_polynomial, fill_uniform, CircuitMetrics,
+    SigningRole, MATERIAL_BYTES, PUBLIC_KEY_BYTES,
 };
 use crate::passive::ml_dsa_runtime::{
-    begin_evaluator, begin_garbler, RuntimeMetrics, RuntimeOutput, Step, TrustedMlDsaSchedule,
+    begin_evaluator, begin_garbler, RuntimeOutput, Step, TrustedMlDsaSchedule,
 };
 
 /// Fixed canonical key-generation circuit set.
@@ -93,7 +93,7 @@ pub struct KeygenOutput {
     /// Only this role's seed, K, s1, s2, and t0 shares. Wiped when dropped.
     pub own_material: Zeroizing<Vec<u8>>,
     /// Public measurements for all eighteen circuit invocations.
-    pub circuits: Vec<(KeygenKernel, usize, RuntimeMetrics)>,
+    pub circuits: Vec<(KeygenKernel, usize, CircuitMetrics)>,
 }
 
 /// Each role advances only through the prescribed private circuit sequence.
@@ -136,18 +136,54 @@ impl KeygenCircuit {
     }
 
     /// Consumes the permitted output and advances without revealing other shares.
-    pub fn accept(mut self, output: RuntimeOutput) -> Result<KeygenStep> {
+    pub fn accept(self, output: RuntimeOutput) -> Result<KeygenStep> {
+        self.accept_output(output.output, CircuitMetrics::HalfGates(output.metrics))
+    }
+
+    /// Executes the same transition with an investigation-only Boolean engine.
+    #[cfg(feature = "passive-benchmark")]
+    pub async fn run_boolean(
+        self,
+        engine: crate::passive::ml_dsa_runtime::boolean_comparison::Engine,
+        schedule: &TrustedMlDsaSchedule<'_>,
+        transport: &mut impl crate::passive::ml_dsa_runtime::boolean_comparison::Transport,
+    ) -> Result<KeygenStep> {
+        if schedule.circuit_id() != self.kernel.circuit_id() {
+            return Err(KeygenError::Schedule);
+        }
+        let output = crate::passive::ml_dsa_runtime::boolean_comparison::run(
+            engine,
+            self.machine.role,
+            schedule,
+            &self.input,
+            transport,
+        )
+        .await
+        .map_err(|_| KeygenError::CircuitRuntime)?;
+        self.accept_output(
+            output.own_output,
+            CircuitMetrics::Boolean {
+                engine,
+                metrics: output.metrics,
+            },
+        )
+    }
+
+    fn accept_output(
+        mut self,
+        output: Zeroizing<Vec<u8>>,
+        metrics: CircuitMetrics,
+    ) -> Result<KeygenStep> {
         let bits = self.kernel.output_bits(self.machine.role);
-        if output.output.len() != bits.div_ceil(8)
-            || (!bits.is_multiple_of(8)
-                && output.output[output.output.len() - 1] >> (bits % 8) != 0)
+        if output.len() != bits.div_ceil(8)
+            || (!bits.is_multiple_of(8) && output[output.len() - 1] >> (bits % 8) != 0)
         {
             return Err(KeygenError::CircuitOutput);
         }
         self.machine
             .circuits
-            .push((self.kernel, self.ordinal, output.metrics));
-        self.machine.accept_circuit(&output.output)?;
+            .push((self.kernel, self.ordinal, metrics));
+        self.machine.accept_circuit(&output)?;
         self.machine.next()
     }
 }
@@ -176,7 +212,7 @@ struct Machine {
     rho: [u8; 32],
     t1: [Polynomial; ROWS],
     stage: Stage,
-    circuits: Vec<(KeygenKernel, usize, RuntimeMetrics)>,
+    circuits: Vec<(KeygenKernel, usize, CircuitMetrics)>,
 }
 
 /// Starts canonical generation from exactly one role's 32-byte contribution.

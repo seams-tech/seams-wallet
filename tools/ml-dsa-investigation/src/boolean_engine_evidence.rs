@@ -195,7 +195,7 @@ fn run_pair(engine: &str, kernel: &str, fixtures: &Path) -> InvestigationResult<
     )
 }
 
-struct PipeTransport<R, W> {
+pub(super) struct PipeTransport<R, W> {
     reader: R,
     writer: W,
     phase: Phase,
@@ -203,6 +203,24 @@ struct PipeTransport<R, W> {
     times: [u128; 6],
     sent: usize,
     received: usize,
+}
+impl<R, W> PipeTransport<R, W> {
+    pub(super) fn new(reader: R, writer: W) -> Self {
+        Self {
+            reader,
+            writer,
+            phase: Phase::Binding,
+            started: Instant::now(),
+            times: [0; 6],
+            sent: 0,
+            received: 0,
+        }
+    }
+
+    pub(super) fn finish(mut self) -> Value {
+        self.times[self.phase.index()] += self.started.elapsed().as_nanos();
+        json!({"phase_wall_ns_including_peer_wait": self.times, "actual_pipe_sent_bytes": self.sent, "actual_pipe_received_bytes": self.received})
+    }
 }
 impl<R: Read, W: Write> Transport for PipeTransport<R, W> {
     async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
@@ -230,7 +248,7 @@ impl<R: Read, W: Write> Transport for PipeTransport<R, W> {
     }
 }
 
-fn run_ready<F: Future>(future: F) -> InvestigationResult<F::Output> {
+pub(super) fn run_ready<F: Future>(future: F) -> InvestigationResult<F::Output> {
     let mut future = pin!(future);
     match future
         .as_mut()
@@ -289,15 +307,7 @@ fn run_role(
     .map_err(|_| "Invalid schedule digest size.")?;
     let artifact = fs::read(fixtures.join(format!("{kernel}.bin")))?;
     let schedule = TrustedMlDsaSchedule::parse(&artifact, digest_bytes)?;
-    let mut transport = PipeTransport {
-        reader: io::stdin().lock(),
-        writer: io::stdout().lock(),
-        phase: Phase::Binding,
-        started: Instant::now(),
-        times: [0; 6],
-        sent: 0,
-        received: 0,
-    };
+    let mut transport = PipeTransport::new(io::stdin().lock(), io::stdout().lock());
     let output = run_ready(boolean_comparison::run(
         engine,
         role,

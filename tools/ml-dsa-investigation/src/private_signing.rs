@@ -1,5 +1,7 @@
 //! Complete threshold signatures from role-local disposable key material.
 
+use crate::boolean_engine_evidence::{PipeTransport, run_ready};
+use crate::complete_engine_evidence::{self, Engine};
 use crate::signing_lifecycle_evidence::{RoleExecution, WireFault};
 use crate::{InvestigationResult, digest, private_execution, reference, require};
 use ed25519_yao::{
@@ -48,6 +50,7 @@ impl Randomness {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Operation {
+    pub engine: Engine,
     pub message: [u8; 32],
     pub context: Vec<u8>,
     pub randomness: Randomness,
@@ -147,8 +150,10 @@ pub(super) fn run_case(
     own_b: &Path,
     public_key: &Path,
     case_name: &str,
+    engine: Engine,
 ) -> InvestigationResult<Value> {
     let operation = Operation {
+        engine,
         message: reference::public_message(),
         context: match case_name {
             "incrementing" | "alternating" => reference::CONTEXTS[1].to_vec(),
@@ -321,6 +326,11 @@ fn run_role(
         .try_into()
         .map_err(|_| "Signing public key has the wrong size.")?;
     let operation: Operation = serde_json::from_slice(&fs::read(operation_path)?)?;
+    require(
+        matches!(execution, RoleExecution::Complete(_))
+            || matches!(operation.engine, Engine::HalfGates),
+        "Fault-injection commands require the half-gates engine.",
+    )?;
     let mut artifact_bytes = Vec::with_capacity(SigningKernel::ALL.len());
     for kernel in SigningKernel::ALL {
         artifact_bytes.push(fs::read(schedules.join(format!("{}.bin", kernel.name())))?);
@@ -344,6 +354,8 @@ fn run_role(
     let mut reader = io::stdin().lock();
     let mut writer = io::stdout().lock();
     let mut circuit_wall_ns = Vec::new();
+    let mut observations = Vec::new();
+    let mut final_message_bytes = (0, 0);
     let mut fault = execution.wire_fault(result_path);
     let signature = loop {
         current = match current {
@@ -355,24 +367,38 @@ fn run_role(
                     .ok_or("Missing signing schedule.")?;
                 let circuit_started = Instant::now();
                 fault.start_kernel(kernel);
-                let output = drive_runtime(
-                    request.begin(schedule)?,
-                    &mut reader,
-                    &mut writer,
-                    &mut fault,
-                )?;
+                let (next, observation) = match operation.engine.boolean() {
+                    None => {
+                        let (output, observation) = drive_runtime(
+                            request.begin(schedule)?,
+                            &mut reader,
+                            &mut writer,
+                            &mut fault,
+                        )?;
+                        (request.accept(output)?, observation)
+                    }
+                    Some(engine) => {
+                        let mut transport = PipeTransport::new(&mut reader, &mut writer);
+                        let next =
+                            run_ready(request.run_boolean(engine, schedule, &mut transport))??;
+                        (next, transport.finish())
+                    }
+                };
+                observations.push(observation);
                 circuit_wall_ns.push(circuit_started.elapsed().as_nanos());
                 execution.after_kernel(kernel, result_path)?;
-                request.accept(output)?
+                next
             }
             SigningStep::Send(send) => {
                 writer.write_all(send.bytes())?;
                 writer.flush()?;
+                final_message_bytes.0 += send.bytes().len();
                 send.resume()
             }
             SigningStep::Receive(receive) => {
                 let mut bytes = Zeroizing::new(vec![0; receive.expected_bytes()]);
                 reader.read_exact(&mut bytes)?;
+                final_message_bytes.1 += bytes.len();
                 receive.accept(&bytes)?
             }
             SigningStep::Complete(signature) => break signature,
@@ -394,9 +420,11 @@ fn run_role(
             role,
             &signature,
             circuit_wall_ns,
+            observations,
+            final_message_bytes,
             schedule_preparation_wall_ns,
             role_protocol_wall_ns,
-        ))?,
+        )?)?,
     )?;
     Ok(())
 }
@@ -406,20 +434,29 @@ pub(super) fn drive_runtime<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
     fault: &mut WireFault,
-) -> InvestigationResult<RuntimeOutput> {
+) -> InvestigationResult<(RuntimeOutput, Value)> {
+    let mut sent = 0;
+    let mut received = 0;
     loop {
         current = match current {
             Step::Send(send) => {
                 fault.write_message(send.kind(), send.bytes(), writer)?;
                 writer.flush()?;
+                sent += send.bytes().len();
                 send.resume()?
             }
             Step::Receive(receive) => {
                 let mut bytes = Zeroizing::new(vec![0; receive.expected_bytes()]);
                 reader.read_exact(&mut bytes)?;
+                received += bytes.len();
                 receive.accept(&bytes)?
             }
-            Step::Complete(output) => return Ok(output),
+            Step::Complete(output) => {
+                return Ok((
+                    output,
+                    json!({"actual_pipe_sent_bytes": sent, "actual_pipe_received_bytes": received}),
+                ));
+            }
         };
     }
 }
@@ -428,20 +465,49 @@ fn encode_result(
     role: SigningRole,
     signature: &ThresholdSignature,
     circuit_wall_ns: Vec<u128>,
+    observations: Vec<Value>,
+    final_message_bytes: (usize, usize),
     preparation_wall_ns: u128,
     protocol_wall_ns: u128,
-) -> Value {
+) -> InvestigationResult<Value> {
     let mut circuits = Vec::with_capacity(signature.metrics.circuits.len());
     let mut table_bytes = 0;
     let mut a_to_b = signature.metrics.accepted_share_bytes;
     let mut b_to_a = signature.metrics.signature_return_bytes;
-    for (kernel, metrics) in &signature.metrics.circuits {
-        table_bytes += metrics.table_bytes;
-        a_to_b += metrics.garbler_to_evaluator_wire_bytes;
-        b_to_a += metrics.evaluator_to_garbler_wire_bytes;
-        circuits.push(json!({"kernel": kernel.name(), "table_bytes": metrics.table_bytes, "garbler_to_evaluator_wire_bytes": metrics.garbler_to_evaluator_wire_bytes, "evaluator_to_garbler_wire_bytes": metrics.evaluator_to_garbler_wire_bytes, "ot_wire_bytes": metrics.ot_wire_bytes, "frame_count": metrics.frame_count, "schedule_bytes": metrics.schedule_bytes, "execution_binding_sha256": hex::encode(metrics.execution_binding_sha256)}));
+    let expected_final_bytes = match role {
+        SigningRole::A => (
+            signature.metrics.accepted_share_bytes,
+            signature.metrics.signature_return_bytes,
+        ),
+        SigningRole::B => (
+            signature.metrics.signature_return_bytes,
+            signature.metrics.accepted_share_bytes,
+        ),
+    };
+    require(
+        final_message_bytes == expected_final_bytes,
+        "Final signing messages disagree with actual pipe traffic.",
+    )?;
+    require(
+        signature.metrics.circuits.len() == observations.len(),
+        "Signing measurements lost a circuit observation.",
+    )?;
+    for ((kernel, metrics), observation) in signature.metrics.circuits.iter().zip(&observations) {
+        if let ed25519_yao::ml_dsa_signing::CircuitMetrics::HalfGates(metrics) = metrics {
+            table_bytes += metrics.table_bytes;
+        }
+        let mut metrics = complete_engine_evidence::encode_metrics(metrics, role);
+        complete_engine_evidence::verify_observation(&metrics, observation, role)?;
+        a_to_b += metrics["a_to_b_wire_bytes"]
+            .as_u64()
+            .ok_or("Missing A-to-B counter.")? as usize;
+        b_to_a += metrics["b_to_a_wire_bytes"]
+            .as_u64()
+            .ok_or("Missing B-to-A counter.")? as usize;
+        metrics["kernel"] = json!(kernel.name());
+        circuits.push(metrics);
     }
-    json!({
+    Ok(json!({
         "role": role_argument(role),
         "signature_hex": hex::encode(signature.signature),
         "attempts": signature.attempts,
@@ -454,10 +520,12 @@ fn encode_result(
         "signature_return_bytes": signature.metrics.signature_return_bytes,
         "circuits": circuits,
         "circuit_wall_ns": circuit_wall_ns,
+        "circuit_observations": observations,
+        "final_message_observation": {"actual_pipe_sent_bytes": final_message_bytes.0, "actual_pipe_received_bytes": final_message_bytes.1},
         "schedule_preparation_wall_ns": preparation_wall_ns,
         "role_protocol_wall_ns_before_independent_verification": protocol_wall_ns,
         "ordinary_rustcrypto_verification": true,
-    })
+    }))
 }
 
 pub(super) fn compare_authorized_reference(

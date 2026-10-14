@@ -1,11 +1,54 @@
 # ML-DSA-65 engine comparison
 
-Date: October 13, 2026. Branch: `ml-dsa`.
+Updated: October 14, 2026. Branch: `ml-dsa`.
 
-GMW and Boolean ABY2.0 now execute four private kernels with genuine two-party preprocessing.
-Both engines match the same independently generated fixtures as the half-gates baseline.
-Their short online phases require much larger setup work with the current OT primitive.
-These kernel results select no complete signing design.
+Half-gates, GMW, and Boolean ABY2.0 now execute complete canonical key generation and threshold signing through the same core states.
+All three produce identical public keys and deterministic signature bytes in the native comparison.
+Half-gates has the lowest complete time and traffic in this small sample.
+Private preprocessing dominates the current Boolean alternatives. These results select no production signing design.
+
+## Complete native comparison
+
+The [complete campaign](../evidence/ml-dsa-65-complete-engines-host-20261014.json) uses separate A/B processes for every operation.
+Each engine runs one complete excluded warm-up and one measured execution with the same zero-seed public fixture and message.
+All six executions require five signing candidates.
+Each execution starts without prepared correlations and includes fresh base OT for every batch.
+
+| Engine | Key generation | Signing, five candidates | Key-generation traffic | Signing traffic |
+| --- | ---: | ---: | ---: | ---: |
+| Half-gates | 2.59 s | 8.68 s | 116.75 MB | 417.42 MB |
+| GMW | 40.83 s | 109.72 s | 357.64 MB | 1,157.83 MB |
+| Boolean ABY2.0 | 31.57 s | 117.20 s | 356.81 MB | 1,155.38 MB |
+
+MB means 1,000,000 bytes. Traffic includes both directions, every circuit invocation, and the final accepted-share and signature messages.
+Times measure each complete process pair, including startup, schedule reads, private preprocessing, conversions, retries, and role verification.
+They exclude schedule compilation, the parent's independent verification, and subsequent authorized recovery.
+One measured sample establishes neither a percentile nor sustained throughput. It cannot resolve small differences between the Boolean engines.
+These native observations establish no Cloudflare speed or cost result.
+
+Both Boolean engines transfer 1,507,921,152 bytes for private preprocessing across key generation and signing.
+At A, preprocessing takes 149.08 seconds for GMW and 147.37 seconds for ABY2.0.
+This is approximately 99% of each complete pair's combined elapsed time.
+Their gate-execution phases transfer 7,486,732 and 3,746,500 bytes respectively, across 14,445 dependent AND layers.
+Their corresponding gate-execution phase times at A are 0.58 and 0.52 seconds.
+Those phase times exclude binding, topology construction, input sharing, output handling, and preparation of correlations.
+They are not measurements of a deployed prepared pool.
+
+The complete circuits retain up to 53.50 MB of expanded public topology per native role.
+This amount excludes schedule bytes, private values, OT temporaries, and total process memory.
+Worker peak memory remains unmeasured for the Boolean engines.
+
+Every engine passes ordinary RustCrypto and OpenSSL signature verification and changed-input rejection checks.
+Neither participant produces a signature when its peer is absent.
+The separate test recipient then reconstructs the canonical seed and checks every expanded private-key field against OpenSSL.
+All 834 circuit execution bindings differ across the six complete executions.
+Runtime counters match actual directional pipe traffic for every circuit and the final signature exchange.
+The artifact preserves raw phase counters, timings, circuit identities, source digests, and reproduction arguments.
+
+The [adapter E2E campaign](../evidence/ml-dsa-65-engine-adapter-e2e-host-20261014.json) also repeats the existing five-key half-gates scenarios after integration.
+It passes fixed and jointly generated keys, deterministic and hedged signing, authorized recovery, interruptions, replay rejection, restart, and four concurrent signatures.
+The SDK-encoded threshold transaction also passes NEAR's pinned AWS-LC verification algorithm.
+This campaign uses one reference and public-garbling sample per case for correctness. Its timings supply no additional performance ranking.
 
 ## Executed comparison
 
@@ -66,6 +109,9 @@ Online bytes alone would conceal that cost.
 Investigate packed-bit or correlated OT, reusable base OT, and reviewed portable silent OT before selecting a prepared-pool design.
 Measure replenishment and exhausted-pool behavior alongside online latency.
 The current comparison discards its correlations after each execution and cannot reuse them.
+Keep half-gates as the executable baseline while these preprocessing experiments proceed.
+Repeat complete measurements after changing preprocessing.
+A short gate-execution phase alone cannot select a design.
 
 Interaction depth also matters on Cloudflare.
 Independent polynomial invocations can share communication layers.

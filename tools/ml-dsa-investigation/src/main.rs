@@ -1,6 +1,7 @@
 mod arithmetic_audit;
 mod boolean_engine_evidence;
 mod circuit_evidence;
+mod complete_engine_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
 mod near_transaction_evidence;
@@ -22,6 +23,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    CompareCompleteEngines {
+        output: PathBuf,
+    },
     CompareBooleanEngines {
         output: PathBuf,
     },
@@ -65,6 +69,7 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::CompareCompleteEngines { output } => complete_engine_evidence::run(&output)?,
         Invocation::CompareBooleanEngines { output } => boolean_engine_evidence::run(&output)?,
         Invocation::InspectArithmetic { output } => arithmetic_audit::run(&output)?,
         Invocation::ExportWorkerFixtures { directory } => {
@@ -100,6 +105,17 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "compare-complete-engines" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A complete comparison output path is required.")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected complete comparison argument.",
+            )?;
+            return Ok(Invocation::CompareCompleteEngines { output });
+        }
         if first == "compare-boolean-engines" {
             let output = PathBuf::from(
                 args.next()
@@ -231,6 +247,7 @@ fn generate_report(
         "src/main.rs",
         "src/arithmetic_audit.rs",
         "src/boolean_engine_evidence.rs",
+        "src/complete_engine_evidence.rs",
         "src/reference.rs",
         "src/circuit_evidence.rs",
         "src/sampler_evidence.rs",
