@@ -9,7 +9,11 @@ Wallet-seed recovery remains required. Export is unchanged.
 
 The first [hosted streamed-storage campaign](ml-dsa-65-prepared-hosted-report.md) misses the five-second target.
 Seven measured requests take 10.08–15.40 seconds online, with a 12.65-second median.
-Canonical wallet-seed recovery checks pass. A controlled stream-reader comparison is next.
+Canonical wallet-seed recovery fixture checks pass. The controlled stream-reader comparison is complete.
+
+The controlled larger-read follow-up records an 11.57-second median and seven further deadline misses.
+Its mean does not improve. The experiment establishes no consistent latency gain from larger reads.
+Both hosted campaigns retain the same canonical recovery keys and private disclosures.
 
 ## Preliminary local result
 
@@ -143,11 +147,14 @@ An empty pool must report unavailable or preparing, and trigger refill. That req
 
 Next experiments, in order:
 
-1. Run the prepared path on two temporary Cloudflare Workers with streamed prepared storage and actual transport counters.
-2. Include storage reads, admission overhead, and complete client elapsed time. Measure placement rather than assuming co-location.
-3. Repeat enough independent requests to report a latency distribution, deadline misses, memory, offline refill rate, and burst exhaustion.
-4. Apply the same preparation to the existing signing circuits before changing nonce generation.
-5. If needed, compare batched prepared GMW/ABY2.0 and the reviewed fresh-mask proposal.
+1. Review public sampler decisions and public `t0` against the threshold transcript. Keep canonical wallet-seed recovery unchanged.
+2. Design adaptive SHAKE consumption with a FIPS-compliant continuation. Do not replace the allowed cap with 408 bytes.
+3. Measure the reviewed smaller keygen circuits on Workers with the same storage and client timing boundary.
+4. Review fresh prepared signing masks and public commitment computation. Keep extra disclosure assumptions explicit before implementation.
+5. Measure admission, actual placement, pool exhaustion, throughput, and interruptions after a design passes the preliminary deadline.
+
+The hosted storage experiment is complete. Larger reads reduce application callbacks but still miss five seconds.
+Applying preparation to the unchanged signing circuits is no longer the next optimization priority.
 
 Production integration remains paused. No five-second hosted result or prepared-signing result is claimed yet.
 
