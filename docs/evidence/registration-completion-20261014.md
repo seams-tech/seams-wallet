@@ -166,3 +166,11 @@ and signing after restoration.
 All 14 original Worker versions were restored. Twelve further registrations and
 signatures passed on the restored lane. The candidate is committed locally and
 has not been published. No additional Cloudflare resource was created.
+
+## Deriver B follow-up
+
+The [B investigation](deriver-b-latency-20261014.md) found binding-batch medians of
+108, 120, and 96.5 ms across these arms, against A's 8, 11, and 9 ms. The shared,
+variable delay limits attribution of small end-to-end differences. A later
+unchanged production control recorded B at 12–21 ms. The precise historical cause
+remains unresolved; the evidence does not justify migrating B's database.

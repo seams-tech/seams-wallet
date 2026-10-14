@@ -239,3 +239,12 @@ revocation, lock, replay, and durable completion checks remain enforced.
 A held-GET browser contract verifies the completion change. The earlier 5.5-second
 outlier remains only partly explained because its browser network trace is missing.
 The bounded staging comparison is separate from this plan's 500-attempt p99 study.
+
+## October 14 — Deriver B binding delay
+
+The [investigation](evidence/deriver-b-latency-20261014.md) records the historical
+96.5–120 ms binding-batch medians, fast isolated writes, and a subsequent unchanged
+production control at 12–21 ms. The delay is transient or condition-dependent.
+Database confirmation, transport, runtime scheduling, and clock attribution remain
+unseparated. No database migration or speculative product fix was applied. Both
+probe tables and the temporary Worker were removed.
