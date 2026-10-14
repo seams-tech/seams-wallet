@@ -1,0 +1,10 @@
+{
+  "schema": "seams.ml-dsa-public-keygen-deployment-size.v1",
+  "captured_at": "2026-10-14T08:21:09.678749+00:00",
+  "worker": "ml-dsa-public-20261014-b",
+  "cloudflare_error_code": 10027,
+  "error": "Worker exceeded the uncompressed size limit of 64 MiB.",
+  "wasm_bytes": 70730300,
+  "wasm_sha256": "5973a650c70fe91b75d369dd285e89a24b5515f2704d321560743bd538b5581c",
+  "action": "Replace duplicate include_bytes embeddings in pipeline and prepared adapters with shared static schedules. No cryptographic changes."
+}

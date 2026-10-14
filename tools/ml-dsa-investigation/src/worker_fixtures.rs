@@ -164,12 +164,14 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         &mut role_a,
         &mut role_b,
     )?;
+    crate::private_keygen::compile_schedules(directory)?;
     private_signing::compile_schedules(directory)?;
     let mut schedules = Map::new();
     for name in KeygenKernel::ALL
         .iter()
         .map(|kernel| kernel.name())
         .chain(SigningKernel::ALL.iter().map(|kernel| kernel.name()))
+        .chain(["sampling", "rounding"])
     {
         let bytes = fs::read(directory.join(format!("{name}.bin")))?;
         let schedule = TrustedMlDsaSchedule::parse(&bytes, Sha256::digest(&bytes).into())?;
@@ -193,7 +195,7 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<Value> {
         )?;
     }
     Ok(
-        json!({"directory": directory, "public_fixtures_only": true, "compiled_schedule_count": 10, "fixed_kernel_fixtures": ["seed", "sampling", "rounding", "signing-mask"], "reproduction": "cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- export-worker-fixtures <directory>"}),
+        json!({"directory": directory, "public_fixtures_only": true, "compiled_schedule_count": schedules.len(), "fixed_kernel_fixtures": ["seed", "sampling", "rounding", "signing-mask"], "reproduction": "cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- export-worker-fixtures <directory>"}),
     )
 }
 

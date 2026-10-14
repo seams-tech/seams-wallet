@@ -1,0 +1,307 @@
+{
+  "schema": "seams.ml-dsa-worker-traces.v1",
+  "captured_at": "2026-10-14T08:40:58.020122+00:00",
+  "scope": "Whole invocation timings from Wrangler tail, including preparation, online execution, and cleanup. Captures the diagnostic and repeated campaign. Request headers and URLs are omitted. These are not online CPU timings. The client terminates its socket after cleanup acknowledgment, which may affect terminal trace outcomes.",
+  "records": [
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966594672,
+      "cpu_ms": 13,
+      "wall_ms": 14,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966595232,
+      "cpu_ms": 10330,
+      "wall_ms": 42802,
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "Network connection lost.",
+          "timestamp": 1791966638417
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966683387,
+      "cpu_ms": 1,
+      "wall_ms": 1,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966683449,
+      "cpu_ms": 9495,
+      "wall_ms": 41874,
+      "outcome": "canceled",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966725965,
+      "cpu_ms": 9159,
+      "wall_ms": 41365,
+      "outcome": "canceled",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966768007,
+      "cpu_ms": 15878,
+      "wall_ms": 59577,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966828535,
+      "cpu_ms": 9852,
+      "wall_ms": 40410,
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "Network connection lost.",
+          "timestamp": 1791966869200
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966869604,
+      "cpu_ms": 9754,
+      "wall_ms": 42231,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966912421,
+      "cpu_ms": 9389,
+      "wall_ms": 41959,
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "Network connection lost.",
+          "timestamp": 1791966954701
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966954967,
+      "cpu_ms": 9917,
+      "wall_ms": 42245,
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "Network connection lost.",
+          "timestamp": 1791966997480
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791966997863,
+      "cpu_ms": 9711,
+      "wall_ms": 44148,
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "Network connection lost.",
+          "timestamp": 1791967042293
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "script_name": "ml-dsa-public-20261014-a",
+      "script_version": {
+        "id": "988aec77-18de-4a46-bd6f-163e60fb31da"
+      },
+      "event_timestamp_ms": 1791967042567,
+      "cpu_ms": 9574,
+      "wall_ms": 42057,
+      "outcome": "exception",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "Network connection lost.",
+          "timestamp": 1791967084410
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966595833,
+      "cpu_ms": 4783,
+      "wall_ms": 42051,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966684033,
+      "cpu_ms": 4663,
+      "wall_ms": 41130,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966726570,
+      "cpu_ms": 4515,
+      "wall_ms": 40743,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966768878,
+      "cpu_ms": 7282,
+      "wall_ms": 58283,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966829149,
+      "cpu_ms": 4690,
+      "wall_ms": 39562,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966870144,
+      "cpu_ms": 4579,
+      "wall_ms": 41450,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966912976,
+      "cpu_ms": 4467,
+      "wall_ms": 41140,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966955571,
+      "cpu_ms": 4639,
+      "wall_ms": 41497,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791966998375,
+      "cpu_ms": 4545,
+      "wall_ms": 43359,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "role": "b",
+      "script_name": "ml-dsa-public-20261014-b",
+      "script_version": {
+        "id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6"
+      },
+      "event_timestamp_ms": 1791967042573,
+      "cpu_ms": 4726,
+      "wall_ms": 41248,
+      "outcome": "ok",
+      "exceptions": []
+    }
+  ]
+}

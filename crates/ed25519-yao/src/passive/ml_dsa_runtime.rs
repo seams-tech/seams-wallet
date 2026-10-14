@@ -36,7 +36,7 @@ const STREAM_MAGIC: &[u8; 8] = b"MLDSAP01";
 /// Maximum AND-table payload, excluding its eight-byte length/ordinal envelope.
 pub const TABLE_PAYLOAD_BYTES: usize = 65_536;
 /// Largest exact control message among the admitted investigation workloads.
-pub const MAX_MESSAGE_BYTES: usize = 376_880;
+pub const MAX_MESSAGE_BYTES: usize = 378_880;
 
 /// Recoverable failures at the fixed runtime boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,6 +83,9 @@ enum Workload {
     WalletSeed,
     Seed,
     Sampling,
+    SamplingTwoBlocks,
+    SamplingThreeBlocks,
+    SamplingFinalBound,
     Rounding,
     ExpandMask,
     SigningSeed,
@@ -99,6 +102,9 @@ impl Workload {
             Self::WalletSeed => 512,
             Self::Seed => 1024,
             Self::Sampling | Self::ExpandMask => 6416,
+            Self::SamplingTwoBlocks => 13040,
+            Self::SamplingThreeBlocks => 19296,
+            Self::SamplingFinalBound => 22654,
             Self::SigningSeed => 1536,
             Self::CommitmentHighBits => 6912,
             Self::CommitmentHash => 6656,
@@ -112,7 +118,11 @@ impl Workload {
         match self {
             Self::FreshMaskConversion => 5120,
             Self::WalletSeed | Self::Seed => 256,
-            Self::Sampling | Self::ExpandMask => 512,
+            Self::Sampling
+            | Self::ExpandMask
+            | Self::SamplingTwoBlocks
+            | Self::SamplingThreeBlocks
+            | Self::SamplingFinalBound => 512,
             Self::Rounding | Self::CommitmentHighBits | Self::ResponseCheck => 5888,
             Self::SigningSeed => 512,
             Self::CommitmentHash => 6144,
@@ -125,6 +135,9 @@ impl Workload {
             Self::Seed => 32,
             Self::Sampling | Self::AggregateCheck => 1,
             Self::Rounding => 320,
+            Self::SamplingTwoBlocks => 68,
+            Self::SamplingThreeBlocks => 102,
+            Self::SamplingFinalBound => 121,
             Self::CommitmentHash => 48,
             Self::FreshMaskConversion
             | Self::WalletSeed
@@ -138,9 +151,12 @@ impl Workload {
     fn public_output(self, output: &[u8]) -> Zeroizing<Vec<u8>> {
         Zeroizing::new(match self {
             Self::Sampling | Self::AggregateCheck => vec![output[0] & 1],
-            Self::Seed | Self::Rounding | Self::CommitmentHash => {
-                output[..self.public_bytes()].to_vec()
-            }
+            Self::Seed
+            | Self::Rounding
+            | Self::CommitmentHash
+            | Self::SamplingTwoBlocks
+            | Self::SamplingThreeBlocks
+            | Self::SamplingFinalBound => output[..self.public_bytes()].to_vec(),
             Self::FreshMaskConversion
             | Self::WalletSeed
             | Self::ExpandMask
@@ -183,6 +199,9 @@ impl<'a> TrustedMlDsaSchedule<'a> {
         let workload = match (bytes[8], inputs, outputs) {
             (0x92, 16128, 5888) => Workload::FreshMaskConversion,
             (0x91, 768, 256) => Workload::WalletSeed,
+            (0x93, 13552, 13056) => Workload::SamplingTwoBlocks,
+            (0x94, 19808, 19584) => Workload::SamplingThreeBlocks,
+            (0x95, 23166, 23094) => Workload::SamplingFinalBound,
             (0x87, 1280, 1024) => Workload::Seed,
             (0x88, 6928, 5889) => Workload::Sampling,
             (0x89, 17664, 8448) => Workload::Rounding,
@@ -255,6 +274,10 @@ impl<'a> TrustedMlDsaSchedule<'a> {
     /// Returns the exact B input count.
     pub const fn evaluator_input_bits(&self) -> usize {
         self.workload.b_inputs()
+    }
+    /// Bytes explicitly released to both roles, including public padding.
+    pub const fn public_output_bytes(&self) -> usize {
+        self.workload.public_bytes()
     }
     /// Returns the full B output count, including public bits.
     pub const fn evaluator_output_bits(&self) -> usize {
@@ -1031,7 +1054,12 @@ fn sender_begin_payloads(
     match workload {
         Workload::FreshMaskConversion => begin!(MlDsaFreshMaskOtFamily, FreshMask),
         Workload::WalletSeed | Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
-        Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
+        Workload::Sampling
+        | Workload::SamplingTwoBlocks
+        | Workload::SamplingThreeBlocks
+        | Workload::SamplingFinalBound
+        | Workload::ExpandMask
+        | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
         }
         Workload::Rounding | Workload::CommitmentHighBits | Workload::ResponseCheck => {
@@ -1083,7 +1111,12 @@ fn receiver_begin(
     match workload {
         Workload::FreshMaskConversion => begin!(MlDsaFreshMaskOtFamily, FreshMask),
         Workload::WalletSeed | Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
-        Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
+        Workload::Sampling
+        | Workload::SamplingTwoBlocks
+        | Workload::SamplingThreeBlocks
+        | Workload::SamplingFinalBound
+        | Workload::ExpandMask
+        | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
         }
         Workload::Rounding | Workload::CommitmentHighBits | Workload::ResponseCheck => {

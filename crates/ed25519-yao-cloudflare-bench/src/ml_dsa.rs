@@ -33,6 +33,12 @@ const ACK: u8 = 1;
 const COMPLETE: u8 = 2;
 const SCHEMA: &str = "seams.ml-dsa-worker-kernel.v1";
 static SEED_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/seed.bin");
+static SAMPLING_TWO_BLOCKS_SCHEDULE: &[u8] =
+    include_bytes!("ml_dsa_schedules/sampling-two-blocks.bin");
+static SAMPLING_THREE_BLOCKS_SCHEDULE: &[u8] =
+    include_bytes!("ml_dsa_schedules/sampling-three-blocks.bin");
+static SAMPLING_FINAL_BOUND_SCHEDULE: &[u8] =
+    include_bytes!("ml_dsa_schedules/sampling-final-bound.bin");
 static SAMPLING_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/sampling.bin");
 static ROUNDING_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/rounding.bin");
 static MASK_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/signing-mask.bin");

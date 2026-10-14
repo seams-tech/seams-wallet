@@ -5,6 +5,12 @@ Production integration is paused at the user's request.
 The target is under five seconds for key generation and online signing, with preprocessing permitted.
 Wallet-seed recovery remains required. Export is unchanged.
 
+## Current reduced protocol
+
+The [public-decision reduction](ml-dsa-65-public-keygen-performance.md) passes the scoped privacy review and canonical recovery checks.
+It reduces normal online table reads to 41.7 MB, with a 7.82-second hosted median across eight measured requests.
+The five-second target remains unmet. The earlier sections below describe the private-selection baseline from commit `08af3354`.
+
 ## Hosted follow-up
 
 The first [hosted streamed-storage campaign](ml-dsa-65-prepared-hosted-report.md) misses the five-second target.

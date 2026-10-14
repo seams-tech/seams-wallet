@@ -25,7 +25,13 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const SCHEDULES: [&str; 4] = ["wallet-seed", "seed", "sampling", "rounding"];
+const SCHEDULES: [&str; 5] = [
+    "wallet-seed",
+    "seed",
+    "sampling-two-blocks",
+    "sampling-three-blocks",
+    "sampling-final-bound",
+];
 
 #[derive(Default)]
 struct Counts {
@@ -197,6 +203,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         &schedule_dir,
     )?);
     let signing_schedules = private_signing::compile_schedules(&schedule_dir)?;
+    let sampler_evidence = crate::public_sampling_evidence::run(&schedule_dir)?;
     let root = [0x42u8; 32];
     let mut seed_input = b"seams/ml-dsa-65/canonical-seed/v1".to_vec();
     seed_input.extend_from_slice(&root);
@@ -261,7 +268,8 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
             )?;
         }
         require(
-            a["circuits"] == 19 && b["circuits"] == 19,
+            a["circuits"] == b["circuits"]
+                && (13..=35).contains(&a["circuits"].as_u64().ok_or("Missing circuit count")?),
             "Prepared keygen missed a circuit.",
         )?;
         eprintln!(
@@ -320,6 +328,8 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
         "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
+        "tools/ml-dsa-investigation/src/public_sampling_evidence.rs",
+        "tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs",
     ] {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(root.join(path))?)}));
     }
@@ -329,7 +339,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         serde_json::to_vec_pretty(&json!({
             "schema": "seams.ml-dsa-prepared-keygen-native.v1", "production_eligible": false,
             "scope": "Input-independent fresh garbling and random OT, followed by wallet-derived canonical keygen. Separate native roles, role-local disk tables, and private input correction. No production storage or hosted latency claim.",
-            "cases": cases, "schedules": identities, "signing_schedules": signing_schedules, "sources": sources,
+            "cases": cases, "sampler_evidence": sampler_evidence, "schedules": identities, "signing_schedules": signing_schedules, "sources": sources,
             "executable_sha256": digest(&fs::read(env::current_exe()?)?), "temporary_files_removed": true,
             "limits": ["Three zero-delay measured samples follow warm-up. Delay cases inject half the declared RTT before each outgoing online message; they do not emulate a real network.", "Native timings do not predict Wasm or Cloudflare latency. Tables are read from local disk, not remote object storage.", "The consuming handles enforce single use in memory. No durable pool, rollback protection, peer authentication, or admission is implemented."]
         }))?,

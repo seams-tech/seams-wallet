@@ -5,7 +5,7 @@ use ed25519_yao::{
         prepared::{keygen::prepare_keygen, Phase, Transport},
         RuntimeError, TrustedMlDsaSchedule,
     },
-    ml_dsa_signing::SigningRole,
+    ml_dsa_signing::{keygen::KeygenOutput, SigningRole},
 };
 #[cfg(feature = "ml-dsa-a")]
 use futures_util::StreamExt;
@@ -47,8 +47,18 @@ fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule<'static>>>
             include_bytes!("../ml_dsa_schedules/wallet-seed.bin").as_slice(),
         ),
         ("seed.bin", super::SEED_SCHEDULE),
-        ("sampling.bin", super::SAMPLING_SCHEDULE),
-        ("rounding.bin", super::ROUNDING_SCHEDULE),
+        (
+            "sampling-two-blocks.bin",
+            super::SAMPLING_TWO_BLOCKS_SCHEDULE,
+        ),
+        (
+            "sampling-three-blocks.bin",
+            super::SAMPLING_THREE_BLOCKS_SCHEDULE,
+        ),
+        (
+            "sampling-final-bound.bin",
+            super::SAMPLING_FINAL_BOUND_SCHEDULE,
+        ),
     ] {
         let record = records
             .iter()
@@ -106,19 +116,20 @@ impl Adapter<'_> {
     fn report(
         &self,
         fixture: &Value,
-        key: &[u8],
+        key: &KeygenOutput,
         offline_ms: f64,
         online_ms: f64,
     ) -> worker::Result<Value> {
-        if encode_hex(key) != required_string(fixture, "public_key_hex")? {
+        if encode_hex(&key.public_key) != required_string(fixture, "public_key_hex")? {
             return Err(failure(
                 "Prepared keygen differs from the canonical wallet fixture.",
             ));
         }
         Ok(
             json!({"role": ROLE, "fixture_index": fixture["index"], "wallet_id": fixture["wallet_id"],
-            "signing_key_id": fixture["signing_key_id"], "public_key_hex": encode_hex(key),
+            "signing_key_id": fixture["signing_key_id"], "public_key_hex": encode_hex(&key.public_key),
             "key_manifest_digest_hex": fixture["key_manifest_digest_hex"], "canonical_key_verified": true,
+            "executed_circuits": key.circuits.iter().map(|(kernel, ordinal, _)| json!({"name": kernel.name(), "ordinal": ordinal})).collect::<Vec<_>>(),
             "offline_observed_ms": offline_ms, "online_observed_ms": online_ms,
             "offline": self.counts[0].report(), "online": self.counts[1].report(),
             "table_storage": self.tables.as_ref().map(Tables::report),
@@ -248,7 +259,7 @@ async fn run_a(
         .map_err(|error| adapter.error(error))?;
     let peer = adapter.duplex.peer_completion().await?;
     let online_ms = clock_ms() - started;
-    let a = adapter.report(current, &key.public_key, offline_ms, online_ms)?;
+    let a = adapter.report(current, &key, offline_ms, online_ms)?;
     if peer["public_key_hex"] != a["public_key_hex"] {
         return Err(failure("Prepared roles returned different keys."));
     }
@@ -288,7 +299,7 @@ async fn receive_start(events: &mut EventStream<'_>) -> worker::Result<usize> {
     let index = value["fixture_index"]
         .as_u64()
         .ok_or_else(missing_fixture_field)?;
-    if index >= 8 {
+    if index >= 9 {
         return Err(failure("Fixture index is outside the disposable book."));
     }
     Ok(index as usize)
@@ -354,7 +365,7 @@ async fn run_b_session(
         .await
         .map_err(|error| adapter.error(error))?;
     adapter.duplex.flush().await?;
-    let mut report = adapter.report(current, &key.public_key, offline_ms, clock_ms() - started)?;
+    let mut report = adapter.report(current, &key, offline_ms, clock_ms() - started)?;
     report["incoming_colo"] = json!(colo);
     adapter.duplex.send_completion(&report)?;
     if adapter

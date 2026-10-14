@@ -185,6 +185,9 @@ impl CircuitBuilder {
     ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
         let (expected_inputs, expected_outputs) = match component {
             0x91 => (768, 256),
+            0x93 => (13552, 13056),
+            0x94 => (19808, 19584),
+            0x95 => (23166, 23094),
             0x87 => (1_280, 1_024),
             0x88 => (6_928, 5_889),
             0x89 => (17_664, 8_448),

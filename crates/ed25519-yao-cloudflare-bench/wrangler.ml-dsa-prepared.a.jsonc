@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "ml-dsa-prepared-20261014-a",
+  "name": "ml-dsa-public-20261014-a",
   "main": "build/ml-dsa-a/index.js",
   "compatibility_date": "2026-07-02",
   "workers_dev": true,
@@ -15,7 +15,7 @@
   "services": [
     {
       "binding": "ML_DSA_B",
-      "service": "ml-dsa-prepared-20261014-b"
+      "service": "ml-dsa-public-20261014-b"
     }
   ],
   "observability": {

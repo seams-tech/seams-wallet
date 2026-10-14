@@ -14,6 +14,7 @@ mod prepared_worker_fixtures;
 mod private_execution;
 mod private_keygen;
 mod private_signing;
+mod public_sampling_evidence;
 mod reference;
 mod request_binding_evidence;
 mod rounding_evidence;
@@ -81,6 +82,9 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if public_sampling_evidence::try_run_child()? {
+        return Ok(());
+    }
     if boolean_engine_evidence::try_run_child()? {
         return Ok(());
     }

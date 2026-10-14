@@ -6,7 +6,7 @@ use ed25519_yao::{
     ml_dsa_runtime::{RuntimeMetrics, TrustedMlDsaSchedule},
     ml_dsa_signing::{
         begin_signing,
-        keygen::{begin_keygen, KeygenKernel, KeygenOutput, KeygenStep},
+        keygen::{begin_keygen, KeygenKernel, KeygenOutput, KeygenStep, SamplingPrefix},
         OwnSigningShare, SigningKernel, SigningMode, SigningRole, SigningStep, ThresholdSignature,
         PUBLIC_KEY_BYTES, SIGNATURE_BYTES,
     },
@@ -76,10 +76,11 @@ enum Circuit {
 }
 
 impl Circuit {
-    const ALL: [Self; 10] = [
+    const ALL: [Self; 11] = [
         Self::Keygen(KeygenKernel::Seed),
-        Self::Keygen(KeygenKernel::Sampling),
-        Self::Keygen(KeygenKernel::Rounding),
+        Self::Keygen(KeygenKernel::Sampling(SamplingPrefix::TwoBlocks)),
+        Self::Keygen(KeygenKernel::Sampling(SamplingPrefix::ThreeBlocks)),
+        Self::Keygen(KeygenKernel::Sampling(SamplingPrefix::FinalBound)),
         Self::Signing(SigningKernel::SigningSeed),
         Self::Signing(SigningKernel::ExpandMask),
         Self::Signing(SigningKernel::CommitmentHighBits),
@@ -99,8 +100,15 @@ impl Circuit {
     fn bytes(self) -> &'static [u8] {
         match self {
             Self::Keygen(KeygenKernel::Seed) => super::Kernel::Seed.schedule(),
-            Self::Keygen(KeygenKernel::Sampling) => super::Kernel::Sampling.schedule(),
-            Self::Keygen(KeygenKernel::Rounding) => super::Kernel::Rounding.schedule(),
+            Self::Keygen(KeygenKernel::Sampling(SamplingPrefix::TwoBlocks)) => {
+                super::SAMPLING_TWO_BLOCKS_SCHEDULE
+            }
+            Self::Keygen(KeygenKernel::Sampling(SamplingPrefix::ThreeBlocks)) => {
+                super::SAMPLING_THREE_BLOCKS_SCHEDULE
+            }
+            Self::Keygen(KeygenKernel::Sampling(SamplingPrefix::FinalBound)) => {
+                super::SAMPLING_FINAL_BOUND_SCHEDULE
+            }
             Self::Signing(SigningKernel::SigningSeed) => {
                 include_bytes!("../ml_dsa_schedules/signing-seed.bin")
             }
@@ -447,6 +455,27 @@ async fn generate_key(
                         .await?;
                 accounting.record(kernel.name(), &output.metrics)?;
                 request.accept(output).map_err(runtime_failure)?
+            }
+            KeygenStep::OpenPublicT(opening) => {
+                let own = opening.own_message();
+                let peer = match own_role() {
+                    SigningRole::A => {
+                        transport.send(&own).await?;
+                        transport.receive(own.len()).await?
+                    }
+                    SigningRole::B => {
+                        let peer = transport.receive(own.len()).await?;
+                        transport.send(&own).await?;
+                        peer
+                    }
+                };
+                accounting.a_to_b_bytes += own.len() as u64;
+                accounting.b_to_a_bytes += own.len() as u64;
+                let entry = accounting.kernels.entry("public-power2round").or_default();
+                entry.calls += 1;
+                entry.a_to_b_bytes += own.len() as u64;
+                entry.b_to_a_bytes += own.len() as u64;
+                opening.accept(&peer).map_err(runtime_failure)?
             }
             KeygenStep::Complete(key) => return Ok(key),
         };

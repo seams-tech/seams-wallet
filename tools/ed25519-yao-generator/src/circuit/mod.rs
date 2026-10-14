@@ -8,6 +8,7 @@ mod keccak;
 mod lane_materialization;
 mod ml_dsa_arithmetic;
 mod ml_dsa_keygen;
+mod ml_dsa_public_sampling;
 mod ml_dsa_rounding;
 mod ml_dsa_sampling;
 mod ml_dsa_signing;
@@ -21,33 +22,37 @@ use ir::CanonicalBooleanCircuitV1;
 
 pub use ir::BooleanCircuitMetricsV1;
 pub use keccak::{
-    compile_ml_dsa_hash_circuit_v1, MlDsaHashCircuitV1, MlDsaHashFixtureErrorV1,
-    MlDsaHashWorkloadV1,
+    MlDsaHashCircuitV1, MlDsaHashFixtureErrorV1, MlDsaHashWorkloadV1,
+    compile_ml_dsa_hash_circuit_v1,
 };
 pub use ml_dsa_keygen::{
-    compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,
-    compile_ml_dsa_private_seed_circuit_v1, compile_ml_dsa_wallet_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
+    MlDsaPrivateKeygenCircuitV1, compile_ml_dsa_private_rounding_circuit_v1,
+    compile_ml_dsa_private_sampling_circuit_v1, compile_ml_dsa_private_seed_circuit_v1,
+    compile_ml_dsa_wallet_seed_circuit_v1,
+};
+pub use ml_dsa_public_sampling::{
+    MlDsaSamplingPrefixV1, compile_ml_dsa_public_sampling_circuit_v1,
 };
 pub use ml_dsa_rounding::{
-    compile_ml_dsa_power2round_circuit_v1, MlDsaPower2RoundCircuitV1,
-    MlDsaPower2RoundFixtureErrorV1, MlDsaPower2RoundFixtureFieldV1,
-    MlDsaPower2RoundFixtureOutputV1,
+    MlDsaPower2RoundCircuitV1, MlDsaPower2RoundFixtureErrorV1, MlDsaPower2RoundFixtureFieldV1,
+    MlDsaPower2RoundFixtureOutputV1, compile_ml_dsa_power2round_circuit_v1,
 };
 pub use ml_dsa_sampling::{
-    compile_ml_dsa_eta4_sampling_circuit_v1, MlDsaEta4SamplingCircuitV1,
-    MlDsaEta4SamplingFixtureErrorV1, MlDsaEta4SamplingFixtureOutputV1,
+    MlDsaEta4SamplingCircuitV1, MlDsaEta4SamplingFixtureErrorV1, MlDsaEta4SamplingFixtureOutputV1,
+    compile_ml_dsa_eta4_sampling_circuit_v1,
 };
 pub use ml_dsa_signing::{
-    compile_ml_dsa_private_signing_circuit_v1, MlDsaPrivateSigningCircuitV1, MlDsaSigningWorkloadV1,
+    MlDsaPrivateSigningCircuitV1, MlDsaSigningWorkloadV1, compile_ml_dsa_private_signing_circuit_v1,
 };
 pub use ml_dsa_signing_mask::{
-    compile_ml_dsa_private_signing_mask_circuit_v1, MlDsaPrivateSigningMaskCircuitV1,
-    MlDsaSigningMaskFixtureErrorV1, MlDsaSigningMaskFixtureOutputV1,
+    MlDsaPrivateSigningMaskCircuitV1, MlDsaSigningMaskFixtureErrorV1,
+    MlDsaSigningMaskFixtureOutputV1, compile_ml_dsa_private_signing_mask_circuit_v1,
 };
 pub use schedule::ProvisionalScheduleMetricsV1;
 
 pub use families::{
-    compile_provisional_activation_core_v1, compile_provisional_export_core_v1,
+    PROVISIONAL_ACTIVATION_CORE_INPUT_SCHEMA_V1, PROVISIONAL_ACTIVATION_CORE_OUTPUT_SCHEMA_V1,
+    PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1, PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1,
     ProvisionalActivationCoreDigest32V1, ProvisionalActivationCoreV1,
     ProvisionalActivationScheduleDigest32V1, ProvisionalExportCoreDigest32V1,
     ProvisionalExportCoreV1, ProvisionalExportScheduleDigest32V1,
@@ -56,12 +61,13 @@ pub use families::{
     PublicSyntheticDeriverAExportInputsV1, PublicSyntheticDeriverBActivationInputsV1,
     PublicSyntheticDeriverBExportInputsV1, PublicSyntheticExportCoreInputsV1,
     PublicSyntheticExportCoreOutputV1, PublicSyntheticTauFieldV1,
-    PROVISIONAL_ACTIVATION_CORE_INPUT_SCHEMA_V1, PROVISIONAL_ACTIVATION_CORE_OUTPUT_SCHEMA_V1,
-    PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1, PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1,
+    compile_provisional_activation_core_v1, compile_provisional_export_core_v1,
 };
 
 pub use phase4_families::{
-    compile_phase4_private_output_activation_core_v1, compile_phase4_private_output_export_core_v1,
+    PHASE4_PRIVATE_OUTPUT_ACTIVATION_INPUT_SCHEMA_V1,
+    PHASE4_PRIVATE_OUTPUT_ACTIVATION_OUTPUT_SCHEMA_V1,
+    PHASE4_PRIVATE_OUTPUT_EXPORT_INPUT_SCHEMA_V1, PHASE4_PRIVATE_OUTPUT_EXPORT_OUTPUT_SCHEMA_V1,
     Phase4PrivateOutputActivationCoreDigest32V1, Phase4PrivateOutputActivationCoreV1,
     Phase4PrivateOutputActivationScheduleDigest32V1, Phase4PrivateOutputExportCoreDigest32V1,
     Phase4PrivateOutputExportCoreV1, Phase4PrivateOutputExportScheduleDigest32V1,
@@ -75,15 +81,13 @@ pub use phase4_families::{
     PublicSyntheticPhase4DeriverBExportShareV1,
     PublicSyntheticPhase4DeriverBSigningWorkerScalarCoinV1, PublicSyntheticPhase4ExportInputsV1,
     PublicSyntheticPhase4ExportOutputsV1, PublicSyntheticPhase4ScalarCoinErrorV1,
-    PHASE4_PRIVATE_OUTPUT_ACTIVATION_INPUT_SCHEMA_V1,
-    PHASE4_PRIVATE_OUTPUT_ACTIVATION_OUTPUT_SCHEMA_V1,
-    PHASE4_PRIVATE_OUTPUT_EXPORT_INPUT_SCHEMA_V1, PHASE4_PRIVATE_OUTPUT_EXPORT_OUTPUT_SCHEMA_V1,
+    compile_phase4_private_output_activation_core_v1, compile_phase4_private_output_export_core_v1,
 };
 
 pub use lane_materialization::{
-    compile_lane_materialization_v1, LaneMaterializationCoreDigest32V1, LaneMaterializationCoreV1,
-    LaneMaterializationScheduleDigest32V1, LANE_MATERIALIZATION_INPUT_SCHEMA_V1,
-    LANE_MATERIALIZATION_OUTPUT_SCHEMA_V1,
+    LANE_MATERIALIZATION_INPUT_SCHEMA_V1, LANE_MATERIALIZATION_OUTPUT_SCHEMA_V1,
+    LaneMaterializationCoreDigest32V1, LaneMaterializationCoreV1,
+    LaneMaterializationScheduleDigest32V1, compile_lane_materialization_v1,
 };
 
 pub use sha512::{

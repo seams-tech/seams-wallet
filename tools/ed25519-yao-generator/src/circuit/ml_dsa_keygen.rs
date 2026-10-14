@@ -181,7 +181,7 @@ pub fn compile_ml_dsa_private_rounding_circuit_v1() -> MlDsaPrivateKeygenCircuit
     )
 }
 
-fn finish_private_circuit(
+pub(super) fn finish_private_circuit(
     builder: CircuitBuilder,
     outputs: Vec<super::ir::BuilderBit>,
     component: u8,

@@ -1,0 +1,60 @@
+{
+  "schema": "seams.ml-dsa-prepared-deployment.v1",
+  "captured_at": "2026-10-14T08:26:57.407882+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-public-20261014-a",
+      "deployment_id": "77296927-c0c8-4632-8eb1-e6ef92976fd4",
+      "created_on": "2026-10-14T08:26:15.443221Z",
+      "versions": [
+        {
+          "version_id": "988aec77-18de-4a46-bd6f-163e60fb31da",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+          "bytes": 28330,
+          "sha256": "a11c706d0e94efc7ff66fbde1e9be922b78a7e67151482bd200917341cdb5083"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+          "bytes": 53613931,
+          "sha256": "7679845c9950845b60df242602a4cc5d050a5c131f27e129ef47cc14cdfa5dc5"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-public-20261014-b",
+      "deployment_id": "21d9b321-dc7a-47cd-99cd-b7082dd3dd87",
+      "created_on": "2026-10-14T08:25:53.369322Z",
+      "versions": [
+        {
+          "version_id": "8514f8ab-abb8-47f4-ab6f-f5c0965099e6",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+          "bytes": 26175,
+          "sha256": "3908cb8b9fb94b7ac076fda859a7d1539f1a69755ae7946660e3acc81cd96b9c"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+          "bytes": 53535610,
+          "sha256": "5545626a937a9700aad8db40320b61cebc130437ff2595f9b481aa0c4e20bc45"
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "bucket": "ml-dsa-public-20261014-tables",
+    "location_hint": "apac",
+    "public_access": false
+  },
+  "scope": "Scoped public-decision and public-t0 experiment. Actual Cloudflare deployment IDs and local build hashes, without remote module readback or independent placement proof."
+}
