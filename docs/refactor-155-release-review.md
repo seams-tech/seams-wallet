@@ -47,8 +47,19 @@ October 14.
   and 14.
 - **Recovery CLI.** Pull request 41 moves the launcher package and the
   `seams-cli` crate from 0.6.0 to 0.10.1, so one number names a release of
-  the SDK, the server and the CLI. Launcher 0.10.1 is not published: its
-  release needs the signed native assets of the private release workflow.
+  the SDK, the server and the CLI. Launcher 0.10.1 is published on npm and
+  is the `latest` version. The user approved a new release-signing root,
+  `seams-release-root-production-2026-10`, after the previous private key
+  could not be located. Native build run `38512902381` passed for source
+  `264e70b1eabdcdf2ec48341c5cc78556ea36e49d` on macOS Apple Silicon,
+  macOS Intel, and Linux x86_64. The signed binaries and manifest are in
+  [the CLI release](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.10.1).
+  All five manifest entries verified, and altered binaries and signatures
+  were rejected. Three local manifest tests passed. The npm registry tarball
+  matched the verified local package byte for byte, including its public
+  signing root. `npm exec --yes --package=@seams/wallet-cli@0.10.1 -- seams-wallet version`
+  returned `seams-wallet 0.10.1`. Publication used the user's interactive npm
+  passkey approval. Wallet custody and recovery-authority keys were unchanged.
 
 ## 0.10.0
 
