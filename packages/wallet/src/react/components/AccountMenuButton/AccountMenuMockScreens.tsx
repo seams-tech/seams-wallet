@@ -1,32 +1,40 @@
 import React from 'react';
+import {
+  DeviceAuthenticationOptions,
+  type DeviceAuthenticationChoice,
+} from './DeviceAuthenticationOptions';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import { QRCodeScannerCamera } from '../QRCodeScannerCamera';
+import { MailIcon } from './icons/MailIcon';
 import { AccountsSection } from './AccountsSection';
 import type { AccountsSectionRow } from './types';
 
-type PreviewDevice = { id: string; name: string; description: string; lastUsed: string };
+export type PreviewDeviceMethods = Record<
+  'macbook' | 'iphone' | 'pixel',
+  DeviceAuthenticationChoice
+>;
+type PreviewDevice = { id: keyof PreviewDeviceMethods; name: string; lastUsed: string };
 export type AccountPreviewScreen =
   | { kind: 'overview' }
   | { kind: 'accounts' }
+  | { kind: 'transactions' }
   | { kind: 'methods' }
   | { kind: 'linked' }
   | { kind: 'device'; device: PreviewDevice; parent: 'methods' | 'linked' }
   | { kind: 'scanner' }
   | { kind: 'recovery'; revealed: boolean };
 const devices: readonly PreviewDevice[] = [
-  { id: 'macbook', name: 'MacBook Pro', description: 'Touch ID · This device', lastUsed: 'Now' },
+  { id: 'macbook', name: 'MacBook Pro', lastUsed: 'Now' },
   {
     id: 'iphone',
     name: 'iPhone',
-    description: 'Face ID · iCloud Keychain',
     lastUsed: 'Today, 09:41',
   },
   {
     id: 'pixel',
     name: 'Pixel 9',
-    description: 'Fingerprint · Google Password Manager',
     lastUsed: 'Yesterday',
   },
 ];
@@ -37,17 +45,30 @@ function selectDevice(
 ): void {
   setScreen({ kind: 'device', device, parent });
 }
+function methodLabel(choice: DeviceAuthenticationChoice): string {
+  switch (choice) {
+    case 'passkey':
+      return 'Passkey';
+    case 'email_otp':
+      return 'Email OTP';
+    case 'both':
+      return 'Passkey + Email OTP';
+    default:
+      return assertNever(choice);
+  }
+}
 function deviceRow(
   setScreen: (screen: AccountPreviewScreen) => void,
   parent: 'methods' | 'linked',
+  deviceMethods: Readonly<PreviewDeviceMethods>,
   device: PreviewDevice,
 ): React.JSX.Element {
   return (
     <AuthenticationMethodRow
       key={device.id}
-      kind="passkey"
+      kind={deviceMethods[device.id] === 'email_otp' ? 'email_otp' : 'passkey'}
       title={device.name}
-      description={device.description}
+      description={methodLabel(deviceMethods[device.id])}
       onSelect={selectDevice.bind(null, setScreen, parent, device)}
     />
   );
@@ -63,15 +84,30 @@ export function AccountMenuMockScreens({
   screen,
   setScreen,
   accounts,
+  transactionSettings,
+  deviceMethods,
+  onDeviceMethodsChange,
 }: {
   screen: AccountPreviewScreen;
   setScreen: (screen: AccountPreviewScreen) => void;
   accounts: AccountsSectionRow[];
+  transactionSettings: React.ReactNode;
+  deviceMethods: Readonly<PreviewDeviceMethods>;
+  onDeviceMethodsChange: (
+    deviceId: keyof PreviewDeviceMethods,
+    choice: DeviceAuthenticationChoice,
+  ) => void;
 }): React.JSX.Element | null {
   const back = setScreen.bind(null, { kind: 'overview' });
   switch (screen.kind) {
     case 'overview':
       return null;
+    case 'transactions':
+      return (
+        <AccountMenuScreen title="Transaction settings" onBack={back}>
+          {transactionSettings}
+        </AccountMenuScreen>
+      );
     case 'accounts':
       return (
         <AccountMenuScreen title="Accounts" onBack={back}>
@@ -87,7 +123,7 @@ export function AccountMenuMockScreens({
           onBack={back}
         >
           <p className="seams-account-description">Manage how your devices unlock your wallet.</p>
-          <ul>{devices.map(deviceRow.bind(null, setScreen, screen.kind))}</ul>
+          <ul>{devices.map(deviceRow.bind(null, setScreen, screen.kind, deviceMethods))}</ul>
           <button
             type="button"
             className="seams-account-action primary"
@@ -104,14 +140,23 @@ export function AccountMenuMockScreens({
           onBack={setScreen.bind(null, { kind: screen.parent })}
         >
           <AccountMenuDeviceDetails
+            icon={
+              deviceMethods[screen.device.id] === 'email_otp' ? (
+                <MailIcon size={30} strokeWidth={1.5} />
+              ) : undefined
+            }
             title={screen.device.name}
-            description={screen.device.description}
+            description={methodLabel(deviceMethods[screen.device.id])}
             details={[
               { label: 'Status', value: 'Active' },
               { label: 'Last used', value: screen.device.lastUsed },
-              { label: 'Unlock method', value: 'Passkey' },
             ]}
-          />
+          >
+            <DeviceAuthenticationOptions
+              value={deviceMethods[screen.device.id]}
+              onChange={onDeviceMethodsChange.bind(null, screen.device.id)}
+            />
+          </AccountMenuDeviceDetails>
         </AccountMenuScreen>
       );
     case 'scanner':
@@ -145,7 +190,7 @@ export function AccountMenuMockScreens({
           </p>
           {screen.revealed ? (
             <div className="seams-account-recovery-slots" aria-label="Example recovery code">
-              {'48217396205816439827461052938476'.split('').map(recoverySlot)}
+              {'4821739620581643'.split('').map(recoverySlot)}
             </div>
           ) : null}
           <div className="seams-account-inset">

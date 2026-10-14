@@ -1,7 +1,6 @@
-import React, { Fragment } from 'react';
+import React from 'react';
 import { MenuItem } from './MenuItem';
 import { LockMenuItem } from './LockMenuItem';
-import { TransactionSettingsSection } from './TransactionSettingsSection';
 import type { ProfileDropdownProps, MenuItem as MenuItemModel } from './types';
 import './ProfileDropdown.css';
 
@@ -47,28 +46,13 @@ function MenuGroup({
 function renderItem(props: ProfileDropdownProps, item: MenuItemModel): React.JSX.Element {
   const index = props.menuItems.indexOf(item);
   return (
-    <Fragment key={item.id}>
-      <MenuItem
-        ref={storeMenuRef.bind(null, props.menuItemsRef, index)}
-        item={item}
-        onClose={props.onClose}
-        isHighlighted={item.id === props.highlightedMenuItemId}
-      />
-      {item.id === 'transaction-settings' &&
-      props.transactionSettingsOpen &&
-      props.currentConfirmConfig &&
-      props.onToggleSkipClick &&
-      props.onSetDelay ? (
-        <TransactionSettingsSection
-          currentConfirmConfig={props.currentConfirmConfig}
-          onSetUiMode={props.onSetUiMode}
-          onToggleSkipClick={props.onToggleSkipClick}
-          onSetDelay={props.onSetDelay}
-          isOpen
-          theme={props.theme}
-        />
-      ) : null}
-    </Fragment>
+    <MenuItem
+      key={item.id}
+      ref={storeMenuRef.bind(null, props.menuItemsRef, index)}
+      item={item}
+      onClose={props.onClose}
+      isHighlighted={item.id === props.highlightedMenuItemId}
+    />
   );
 }
 export function ProfileDropdown(props: ProfileDropdownProps): React.JSX.Element {

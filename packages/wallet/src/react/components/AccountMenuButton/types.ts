@@ -116,12 +116,6 @@ export interface ProfileDropdownProps {
   onClose: () => void;
   toggleColors?: ToggleColorProps;
   theme?: ThemeMode;
-  currentConfirmConfig?: ConfirmationConfig | null;
-  onSetUiMode?: (mode: 'none' | 'modal' | 'drawer') => void;
-  onToggleShowDetails?: () => void;
-  onToggleSkipClick?: () => void;
-  onSetDelay?: (delay: number) => void;
-  transactionSettingsOpen?: boolean;
   menuItemsRef: React.MutableRefObject<(HTMLElement | null)[]>;
   // Optional ARIA linkage
   menuId?: string;

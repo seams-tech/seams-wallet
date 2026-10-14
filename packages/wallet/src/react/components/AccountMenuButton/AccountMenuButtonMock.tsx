@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Theme } from '../theme/ThemeProvider';
 import type { ThemeMode } from '../theme/ThemeProvider';
 import type { ConfirmationConfig, ConfirmationUIMode } from '../../../core/types/signer-worker';
-import { AccountMenuMockScreens, type AccountPreviewScreen } from './AccountMenuMockScreens';
+import {
+  AccountMenuMockScreens,
+  type AccountPreviewScreen,
+  type PreviewDeviceMethods,
+} from './AccountMenuMockScreens';
+import { TransactionSettingsSection } from './TransactionSettingsSection';
+import type { DeviceAuthenticationChoice } from './DeviceAuthenticationOptions';
 import { AccountMenuButtonView } from './AccountMenuButtonView';
 import { useProfileState } from './hooks/useProfileState';
 import type { AccountsSectionRow, MenuItem, ProfileSettingsMenuItemId } from './types';
@@ -73,6 +79,21 @@ function previewAction(
   onAction?.(action);
 }
 
+function updateDeviceMethods(
+  setMethods: React.Dispatch<React.SetStateAction<PreviewDeviceMethods>>,
+  deviceId: keyof PreviewDeviceMethods,
+  choice: DeviceAuthenticationChoice,
+): void {
+  setMethods(replaceDeviceMethods.bind(null, deviceId, choice));
+}
+function replaceDeviceMethods(
+  deviceId: keyof PreviewDeviceMethods,
+  choice: DeviceAuthenticationChoice,
+  current: PreviewDeviceMethods,
+): PreviewDeviceMethods {
+  return { ...current, [deviceId]: choice };
+}
+
 function resetPreviewNavigation(
   isOpen: boolean,
   setScreen: React.Dispatch<React.SetStateAction<AccountPreviewScreen>>,
@@ -91,7 +112,11 @@ function AccountMenuPreview({
 }: AccountMenuButtonMockProps): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
   const [screen, setScreen] = useState<AccountPreviewScreen>({ kind: 'overview' });
-  const [transactionsOpen, setTransactionsOpen] = useState(false);
+  const [deviceMethods, setDeviceMethods] = useState<PreviewDeviceMethods>({
+    macbook: 'passkey',
+    iphone: 'both',
+    pixel: 'email_otp',
+  });
   const [confirmation, setConfirmation] = useState<ConfirmationConfig>({
     uiMode: 'modal',
     behavior: 'requireClick',
@@ -164,7 +189,7 @@ function AccountMenuPreview({
       description: 'Customize confirmation behavior',
       disabled: false,
       keepOpenOnClick: true,
-      onClick: setTransactionsOpen.bind(null, !transactionsOpen),
+      onClick: setScreen.bind(null, { kind: 'transactions' }),
     },
   ];
   return (
@@ -187,16 +212,27 @@ function AccountMenuPreview({
         menuItemsRef: refs.menuItemsRef,
         onClose: handleClose,
         onLock: handleClose,
-        transactionSettingsOpen: transactionsOpen,
-        currentConfirmConfig: confirmation,
-        onSetUiMode: selectMode.bind(null, setConfirmation),
-        onToggleSkipClick: toggleClick.bind(null, setConfirmation, confirmation),
-        onSetDelay: setDelay.bind(null, setConfirmation, confirmation),
         theme,
       }}
     >
       {screen.kind === 'overview' ? null : (
-        <AccountMenuMockScreens screen={screen} setScreen={setScreen} accounts={accounts} />
+        <AccountMenuMockScreens
+          screen={screen}
+          setScreen={setScreen}
+          accounts={accounts}
+          deviceMethods={deviceMethods}
+          onDeviceMethodsChange={updateDeviceMethods.bind(null, setDeviceMethods)}
+          transactionSettings={
+            <TransactionSettingsSection
+              currentConfirmConfig={confirmation}
+              onSetUiMode={selectMode.bind(null, setConfirmation)}
+              onToggleSkipClick={toggleClick.bind(null, setConfirmation, confirmation)}
+              onSetDelay={setDelay.bind(null, setConfirmation, confirmation)}
+              isOpen
+              theme={theme}
+            />
+          }
+        />
       )}
     </AccountMenuButtonView>
   );

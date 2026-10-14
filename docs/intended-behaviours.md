@@ -143,7 +143,7 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 - `AccountMenuButton` uses one fixed-width panel for overview, account addresses,
   export selection, recovery entry, authentication methods, linked devices, and
   QR scanning. Back returns to the previous screen. Transaction preferences
-  expand inline. Closing the panel resets navigation to the overview.
+  have their own resizing screen. Closing the panel resets navigation to the overview.
 - Screen changes animate the panel's measured height. Interruptions retarget from
   the current height. Reduced motion disables resizing motion and keeps a content
   fade. The panel does not introduce an overlay backdrop for its nested screens.
@@ -151,6 +151,8 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   confirmation. The account menu never renders secret material in host-origin React.
 - `AccountMenuButtonMock` shares the panel, navigation, and display components. All
   sample actions stay local; it makes no wallet requests and opens no camera.
+  Its recovery preview has 16 digits. Each sample device independently retains
+  a Passkey, Email OTP, or combined selection.
 
 - `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
   full-page sidebar and a selected settings panel. Signed-out users authenticate

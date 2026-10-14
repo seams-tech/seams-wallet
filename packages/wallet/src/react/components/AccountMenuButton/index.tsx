@@ -43,7 +43,8 @@ type AccountMenuRoute =
   | 'recovery-codes'
   | 'authentication-methods'
   | 'scan-link-device'
-  | 'linked-devices';
+  | 'linked-devices'
+  | 'transaction-settings';
 function resetNavigation(
   isOpen: boolean,
   setScreen: React.Dispatch<React.SetStateAction<AccountMenuRoute>>,
@@ -210,7 +211,6 @@ const AccountMenuButtonInner: React.FC<
   const [screen, setScreen] = useState<AccountMenuRoute>('overview');
   const [recoveryCodesOpen, setRecoveryCodesOpen] = useState(false);
   const [exportLoadingChain, setExportLoadingChain] = useState<ExportChain | null>(null);
-  const [transactionSettingsOpen, setTransactionSettingsOpen] = useState(false);
   const [currentConfirmConfig, setCurrentConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -510,7 +510,7 @@ const AccountMenuButtonInner: React.FC<
       label: 'Transaction settings',
       description: 'Customize confirmation behavior',
       disabled: !loginState.isLoggedIn,
-      onClick: () => setTransactionSettingsOpen((v) => !v),
+      onClick: setScreen.bind(null, 'transaction-settings'),
       keepOpenOnClick: true,
     });
     return items;
@@ -559,6 +559,22 @@ const AccountMenuButtonInner: React.FC<
   const backToMenu = setScreen.bind(null, 'overview');
   const screens: Record<typeof screen, React.ReactNode> = {
     overview: null,
+    'transaction-settings': (
+      <AccountMenuScreen title="Transaction settings" onBack={backToMenu}>
+        {currentConfirmConfig ? (
+          <TransactionSettingsSection
+            currentConfirmConfig={currentConfirmConfig}
+            onSetUiMode={handleSetUiMode}
+            onToggleSkipClick={handleToggleSkipClick}
+            onSetDelay={handleSetDelay}
+            isOpen
+            theme={theme}
+          />
+        ) : (
+          <p role="status">Loading transaction settings…</p>
+        )}
+      </AccountMenuScreen>
+    ),
     accounts: (
       <AccountMenuScreen title="Accounts" onBack={backToMenu}>
         <p className="seams-account-description">Your addresses across networks.</p>
@@ -727,11 +743,6 @@ const AccountMenuButtonInner: React.FC<
         onClose: handleClose,
         menuItemsRef: refs.menuItemsRef,
         toggleColors,
-        currentConfirmConfig,
-        onSetUiMode: handleSetUiMode,
-        onToggleSkipClick: handleToggleSkipClick,
-        onSetDelay: handleSetDelay,
-        transactionSettingsOpen,
         theme,
         highlightedMenuItemId,
       }}

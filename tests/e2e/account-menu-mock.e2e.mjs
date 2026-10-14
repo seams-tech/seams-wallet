@@ -70,10 +70,28 @@ try {
     'Width must stay fixed',
   );
   await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
-  await page.getByRole('button', { name: /iPhone Face ID/ }).click();
+  await page.getByRole('button', { name: /iPhone Passkey/ }).click();
   await expect(page.getByRole('heading', { name: 'Device details' })).toBeFocused();
   await expect(page.getByText('Today, 09:41', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Both', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Email OTP', exact: true }).click();
   await page.screenshot({ path: `${artifacts}/device-details.png` });
+  await back(page);
+  await page.getByRole('button', { name: /MacBook Pro Passkey/ }).click();
+  await expect(page.getByRole('button', { name: 'Passkey', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Both', exact: true }).click();
+  await back(page);
+  await page.getByRole('button', { name: /iPhone Email OTP/ }).click();
+  await expect(page.getByRole('button', { name: 'Email OTP', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await back(page);
   await page.getByRole('button', { name: 'Link a device', exact: true }).click();
   await expect(page.locator('.qr-scanner-camera-container')).toBeVisible();
@@ -83,12 +101,17 @@ try {
   await back(page);
   await page.locator('[data-account-menu-item="recovery-codes"]').click();
   await page.getByRole('button', { name: 'Reveal with passkey' }).click();
-  await expect(page.locator('.seams-account-recovery-slots span')).toHaveCount(32);
+  await expect(page.locator('.seams-account-recovery-slots span')).toHaveCount(16);
+  await page.screenshot({ path: `${artifacts}/recovery-16-digits.png` });
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.locator('[data-account-menu-item="accounts"]').click();
   await expect(page.getByRole('link', { name: /Base/ })).toBeVisible();
   await back(page);
   await page.locator('[data-account-menu-item="transaction-settings"]').click();
+  await expect(
+    page.getByRole('heading', { name: 'Transaction settings', exact: true }),
+  ).toBeFocused();
+  await expect(page.locator('[data-account-menu-item]')).toHaveCount(0);
   await page.getByRole('button', { name: 'drawer', exact: true }).click();
   await expect(page.getByRole('button', { name: 'drawer', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -99,6 +122,8 @@ try {
     'aria-pressed',
     'true',
   );
+  await page.screenshot({ path: `${artifacts}/transaction-screen.png` });
+  await back(page);
   await page.locator('[data-account-menu-item="linked-devices"]').click();
   await expect(page.getByRole('heading', { name: 'Linked devices' })).toBeVisible();
   await back(page);
