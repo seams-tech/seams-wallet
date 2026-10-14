@@ -17,11 +17,60 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.10.1
+
+Status: **prepared, not published.** Patch release with no wire, schema or
+protocol change. It carries one correction on public `dev` since 0.10.0.
+The user ordered the release on October 14.
+
+- **Setup with a provided wallet id.** On 0.10.0, setup answered 500 for a
+  provided wallet id that is not in the server-allocated format, where 0.9.4
+  answered 200 and left the refusal to respond. Setup builds the Yao
+  admission description, and the step that computes the signing key id was
+  outside the guard that withholds a failed description. `1ae2df5b` puts
+  every step inside one guard. The private Console's activation canary sent
+  such an id; it found the defect on staging.
+- **Compatibility.** A 0.10.0 application works with a 0.10.1 backend, and
+  each role Worker works with its 0.10.0 peers. No Rust file changed.
+- **Local validation.** On the candidate: the setup scenario; a setup with a
+  provided wallet id answers 500 before the fix and 200 with
+  `ed25519.status = after_proof` after it; the server, contract and
+  wallet-state type checks.
+
 ## 0.10.0
 
-Status: **prepared, not published.** Minor release with a registration wire
-change and three schema additions. It carries the work on public `dev` since
-0.9.4. The user decided the version number and the release on October 13.
+Status: **published October 13, 2026, 14:26 UTC, and deployed to staging.**
+Minor release with a registration wire change and three schema additions. It
+carries the work on public `dev` between 0.9.4 and `c84636a5`. The user
+decided the version number and the release on October 13. Production does
+not run it.
+
+- **Publication.** CI on [pull request 39](https://github.com/seams-tech/seams-wallet/pull/39)
+  passed on `c84636a5`. `main` is at the merge commit `96cf6d85` with the
+  same tree. `release-wallet-packages.yml` run `38406958758` published both
+  packages. The first CI run failed in `router-ab-dev`: its two migration
+  lists lacked Deriver migration `0020`; `c84636a5` adds it. The server
+  package was on the registry within 15 minutes and the SDK package after
+  56 minutes.
+- **Local validation before the pull request.** On `7f2afa86`: the contract
+  suite (132 of 134 cases on release Workers, the two debug-build cases on
+  the debug Router), the bloat check, the lock check, four type checks, the
+  setup scenario, 1,151 Rust tests of `router-ab-cloudflare`,
+  `router-ab-core` and `ed25519-yao`, 106 tests of `router-ab-dev` with the
+  fix, the private server type check and the private console build against
+  the candidate.
+- **Private adoption.** The private repository pins the server package
+  since `c245e0a7` and the SDK package since `c7ec1df3`. Its check and its
+  build pass.
+- **Staging.** Activated on October 14, 00:50 JST. Registration after the
+  passkey step measures 1,747 ms at the median against 2,096 ms on 0.9.4 in
+  the hour before, and the first signature 362 ms against 532 ms. The
+  [record](evidence/refactor-155h-release-0100-staging.md) holds the
+  measurement, the cutover proof and the faults.
+- **Open after the release.** Release 0.10.1 corrects a setup failure for a
+  provided wallet id that is not in the server-allocated format (500 on
+  0.10.0, 200 on 0.9.4). Respond does not retry a transient database fault.
+  The staging frontends were deployed on October 14, after this release.
 
 - **Protocol.** The wallet-management protocol is 4. The setup reply of a
   registration has a new field, and the client parsers accept exact keys, so
@@ -72,13 +121,12 @@ change and three schema additions. It carries the work on public `dev` since
 - **Private Console.** Its registration canary sends the protocol number as
   a literal (`packages/wallet-console-server-ts/src/tenantDeployment/provisioning.ts`),
   and `tests/relayer/tenant-home-challenge.e2e.test.ts` sends it too. The
-  pin commit must change both to 4, or the staging activation fails.
+  pin commit changed both to 4. The canary also sent a provided wallet id
+  that 0.10.0 refuses at setup; private `ade5e075` changed it to the request
+  of a real client.
 - **Cutover proof.** The contract suite has no published-client check any
-  more (`f736824e`). After the staging deployment, the test site built from
-  the published 0.9.4 package must show the upgrade message.
-- **Measurement.** The 0.9.4 baseline on staging is taken in the hour before
-  the deployment. A 0.9.4 test site does not work against a 0.10.0 backend,
-  so each side runs its own client.
+  more (`f736824e`). On staging, the test site built from the published
+  0.9.4 package gets HTTP 409 and shows the upgrade message.
 
 ## 0.9.4
 
