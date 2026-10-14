@@ -6427,7 +6427,9 @@ export async function getWalletSession(
     });
     reportNonSettledEcdsaActivationReconciliation(reconciliation);
   }
-  await context.signingEngine.assertSealedRefreshStartupParity().catch((error: unknown) => {
+  // Session observation reports existing authority. The startup diagnostic must
+  // not delay it; operations that require parity await their own check.
+  void context.signingEngine.assertSealedRefreshStartupParity().catch((error: unknown) => {
     console.warn(
       '[WalletSession] sealed refresh startup parity check failed during session read; continuing with cached login state',
       error instanceof Error ? error.message : String(error || 'unknown error'),
