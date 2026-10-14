@@ -28,7 +28,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 25px 24px 0;
+  padding: 16px 20px 0;
   font-size: 13px;
   color: var(--seams-colors-textSecondary);
 }
@@ -50,11 +50,11 @@
   cursor: pointer;
 }
 .seams-account-main {
-  padding: 25px 24px 22px;
+  padding: 16px 20px;
 }
 .seams-account-heading h2 {
   font: inherit;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.8px;
   line-height: 1.15;
@@ -65,7 +65,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .seams-account-heading h2:focus {
   outline: none;
@@ -87,7 +87,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 13px;
+  padding: 10px;
   margin-top: 0;
   border-radius: 12px;
   background: var(--seams-colors-surface2);
@@ -125,7 +125,7 @@
   justify-content: center;
   align-items: center;
   gap: 8px;
-  height: 53px;
+  height: 44px;
   color: var(--seams-colors-textSecondary);
   font-size: 12px;
 }
@@ -138,7 +138,7 @@
   font-size: 14px;
   line-height: 1.5;
   color: var(--seams-colors-textSecondary);
-  margin: 0 0 24px;
+  margin: 0 0 16px;
 }
 .seams-account-action {
   display: flex;
@@ -146,8 +146,8 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  min-height: 45px;
-  padding: 12px;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 11px;
   font: inherit;
@@ -155,7 +155,7 @@
   background: var(--seams-colors-colorBackground);
   color: inherit;
   cursor: pointer;
-  margin-top: 20px;
+  margin-top: 14px;
 }
 .seams-account-action.primary {
   background: var(--seams-colors-textPrimary);
@@ -170,10 +170,10 @@
   color: var(--seams-colors-textSecondary);
   font-size: 12px;
   line-height: 1.5;
-  margin: 15px 0 0;
+  margin: 10px 0 0;
 }
 .seams-account-inset {
-  padding: 15px;
+  padding: 10px 12px;
   background: var(--seams-colors-surface2);
   border-radius: 12px;
   font-size: 13px;
@@ -183,7 +183,7 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 0;
+  padding: 6px 0;
 }
 .seams-account-detail-row dt {
   color: var(--seams-colors-textSecondary);
@@ -195,13 +195,13 @@
 }
 .seams-account-device-hero {
   text-align: center;
-  padding: 17px 0 22px;
+  padding: 8px 0 12px;
 }
 .seams-account-device-hero .seams-account-avatar {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
-  margin: 0 auto 15px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin: 0 auto 8px;
 }
 .seams-account-device-hero h3 {
   font-size: 24px;
@@ -220,7 +220,7 @@
   align-items: center;
   gap: 12px;
   text-align: left;
-  padding: 17px 0;
+  padding: 12px 0;
   border: 0;
   border-bottom: 1px solid var(--seams-colors-borderPrimary);
   background: none;
@@ -291,13 +291,13 @@
 }
 .seams-account-screen .qr-scanner-camera-container {
   width: 100%;
-  height: 245px;
+  height: 208px;
   aspect-ratio: auto;
   border-radius: 15px;
   overflow: hidden;
 }
 .seams-account-screen .qr-scanner-video {
-  height: 245px;
+  height: 208px;
   object-fit: cover;
 }
 .seams-account-screen .qr-scanner-instructions {
@@ -313,7 +313,7 @@
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 6px;
-  margin: 20px 0;
+  margin: 14px 0;
 }
 .seams-account-recovery-slots span {
   display: grid;
@@ -378,18 +378,27 @@
   border: 0;
   border-radius: 12px;
   overflow: hidden;
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .seams-account-method-tiles {
   list-style: none;
   padding: 0;
-  margin: 24px 0 0;
+  margin: 16px 0 0;
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 .seams-account-method-tiles .seams-linked-devices-modal-item {
   border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 12px;
-  padding: 14px;
+  padding: 10px;
+}
+
+.seams-account-screen .seams-dropdown-toggle-tx-settings-content {
+  padding: 8px 0;
+}
+@media (pointer: coarse) {
+  .seams-account-action {
+    min-height: 44px;
+  }
 }

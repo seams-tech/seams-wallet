@@ -1,10 +1,10 @@
 .seams-account-menu-group {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 .seams-account-menu-group + .seams-account-menu-group {
   border-top: 1px solid var(--seams-colors-borderPrimary);
-  padding-top: 17px;
-  margin-top: 14px;
+  padding-top: 12px;
+  margin-top: 10px;
 }
 .seams-account-menu-group h3 {
   font-size: 10px;
@@ -12,15 +12,15 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--seams-colors-textSecondary);
-  margin: 0 0 8px;
+  margin: 0 0 4px;
 }
 .seams-profile-dropdown-menu {
   --seams-expander-surface: var(--seams-colors-surface2);
 }
 .seams-profile-dropdown-menu .seams-dropdown-menu-item {
-  min-height: 44px;
-  padding: 9px 0;
-  gap: 12px;
+  min-height: 40px;
+  padding: 6px 0;
+  gap: 10px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -65,7 +65,7 @@
   border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 11px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 12px;
 }
 .seams-lock-menu-item .seams-dropdown-menu-item-content {
   flex: 0 1 auto;
@@ -74,5 +74,11 @@
   .seams-profile-dropdown-menu .seams-dropdown-menu-item:not(:disabled):hover {
     color: var(--seams-colors-textSecondary);
     background: transparent;
+  }
+}
+
+@media (pointer: coarse) {
+  .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+    min-height: 44px;
   }
 }
