@@ -1233,7 +1233,7 @@ export class AuthMenuSession {
         // prompt and the OTP form.
         status: {
           kind: 'busy',
-          headline: 'Waiting for Google SSO authentication…',
+          headline: 'Waiting for Google login…',
           detail: 'Starting Google sign-in',
         },
       },
@@ -1336,7 +1336,7 @@ export class AuthMenuSession {
         // round trip.
         status: {
           kind: 'busy',
-          headline: 'Waiting for Google SSO authentication…',
+          headline: 'Waiting for Google login…',
           detail: 'Waiting for Google sign-in',
         },
       },
@@ -1443,7 +1443,7 @@ export class AuthMenuSession {
         target: state.operation.target,
         status: {
           kind: 'busy',
-          headline: 'Waiting for Google SSO authentication…',
+          headline: 'Waiting for Google login…',
           detail: 'Waiting for Google sign-in',
         },
       }),
@@ -1488,7 +1488,7 @@ export class AuthMenuSession {
         }),
         status: {
           kind: 'busy',
-          headline: 'Waiting for Google SSO authentication…',
+          headline: 'Waiting for Google login…',
           detail: 'Waiting for Google sign-in',
         },
       },
