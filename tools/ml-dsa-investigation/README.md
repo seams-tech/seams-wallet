@@ -161,18 +161,19 @@ Cross-implementation agreement does not establish FIPS module validation.
 ## Compiled arithmetic inspection
 
 The private polynomial arithmetic uses bounded, division-free reduction.
-Run the compiled-code check from an AArch64 host with the Wasm Rust target installed:
+Run the compiled-code check from an AArch64 host with the Wasm Rust target and `worker-build` installed:
 
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
-  inspect-arithmetic docs/evidence/ml-dsa-65-division-free-arithmetic-audit-20261013.json
+  inspect-arithmetic docs/evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json
 ```
 
-The command compiles the core separately for Wasm and the native host.
-It rejects division or remainder instructions in the three private polynomial functions.
-It records conditional branches for manual review and pins the source, compiler, and assembly identities.
-This check precedes final Worker optimization and native JIT compilation.
-It supplies no blanket timing guarantee.
+The command compiles the core separately for Wasm and the native host, then rebuilds both Worker role bundles.
+It rejects division or remainder instructions in the three private polynomial functions, including their final packaged Wasm bodies.
+It requires one named body per function and rejects unresolved indirect calls in those bodies.
+It records conditional branches and direct calls for manual review.
+The report pins source, compiler, assembly, builder, packaged Wasm, and function-body identities.
+Direct callees require separate review. The check does not inspect JIT-generated machine code or establish a blanket timing guarantee.
 The [composition review](../../docs/router-ab/ml-dsa-65-privacy-review.md) records the arithmetic bounds and the remaining security work.
 
 ## Core lifecycle scenarios

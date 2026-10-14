@@ -113,7 +113,14 @@ The [compiled audit](../evidence/ml-dsa-65-division-free-arithmetic-audit-202610
 It checks release Wasm and the recorded AArch64 host assembly.
 The report records conditional branch sites separately for data-flow review.
 Loop controls and array indices in these functions depend on public dimensions.
-Final Worker optimization, Cloudflare JIT behavior, other primitives, and hardware timing still require qualification.
+The [final Worker audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json) extends this check through `worker-build` for both roles.
+Each final bundle retains all three named functions, with zero division or remainder instructions and no indirect calls in their bodies.
+The report pins exact Wasm bytes, function offsets, body digests, branch sites, and direct calls.
+Each role has 21 conditional control-flow sites across these functions.
+Direct calls reach the inspected NTT functions or Rust's bounds-check panic handler.
+The source uses fixed public dimensions for these bounds checks.
+This inspection does not prove the compiled branch conditions or memory addresses independent of secrets.
+Cloudflare JIT behavior, other primitives, and hardware timing still require qualification.
 
 Public matrix expansion and challenge sampling branch on public hash streams.
 Uniform output-mask generation rejects fresh random candidates independently of retained masks.

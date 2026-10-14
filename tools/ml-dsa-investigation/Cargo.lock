@@ -860,6 +860,7 @@ dependencies = [
  "sha3",
  "tempfile",
  "wasm_signer_worker",
+ "wasmparser",
  "zeroize",
 ]
 
@@ -1490,6 +1491,16 @@ dependencies = [
  "signer-core",
  "wasm-bindgen",
  "zeroize",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.214.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5309c1090e3e84dad0d382f42064e9933fdaedb87e468cc239f0eabea73ddcb6"
+dependencies = [
+ "bitflags",
+ "indexmap",
 ]
 
 [[package]]
