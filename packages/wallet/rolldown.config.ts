@@ -518,6 +518,9 @@ const configs = [
       // Keep recovery continuity internals stable for focused browser tests.
       'src/SeamsWeb/operations/authMethods/passkey/localPasskeyProjection.ts',
       'src/SeamsWeb/operations/recovery/walletRecovery.ts',
+      // Only the iframe host bundles reach the recovery-code dialog; its browser test
+      // imports it and its lazy surface module by path.
+      'src/SeamsWeb/operations/recovery/walletRecoveryCodeBackup.ts',
       // Keep Email OTP device-local escrow store as a stable deep import for worker wiring/tests.
       // Keep sealed signing-session persistence stable for worker wiring/tests.
       'src/core/signingEngine/session/persistence/sealedSessionStore.ts',
