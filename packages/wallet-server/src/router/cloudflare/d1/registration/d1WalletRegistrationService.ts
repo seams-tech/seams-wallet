@@ -1,4 +1,5 @@
 import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationExecutionRecord';
+import { isTransientD1Error, retryTransientD1 } from '../../../../storage/d1Retry';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SponsoredNamedNearAccountInput } from '../near/d1SponsoredNearAccount';
 import {
@@ -3117,7 +3118,32 @@ export class CloudflareD1WalletRegistrationService {
     }
   }
 
+  /**
+   * Respond replays exactly, so a transient D1 fault runs it again, as a client
+   * retry would. A fault that outlasts the retries reports `storage_unavailable`
+   * without the driver's text.
+   */
   async respondWalletRegistration(
+    input: WalletRegistrationRespondInput,
+    traceContext?: RouterAbTraceContextV1,
+    timingSink?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
+  ): Promise<WalletRegistrationRespondResponseV2> {
+    try {
+      return await retryTransientD1(() =>
+        this.respondWalletRegistrationAttempt(input, traceContext, timingSink, waitUntil),
+      );
+    } catch (error: unknown) {
+      if (!isTransientD1Error(error)) throw error;
+      return {
+        ok: false,
+        code: 'storage_unavailable',
+        message: 'Wallet registration storage is unavailable',
+      };
+    }
+  }
+
+  private async respondWalletRegistrationAttempt(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
     timingSink?: Array<readonly [string, number]>,
@@ -3482,6 +3508,7 @@ export class CloudflareD1WalletRegistrationService {
         ed25519: ed25519Admission.deferred,
       });
     } catch (error: unknown) {
+      if (isTransientD1Error(error)) throw error;
       return {
         ok: false,
         code: 'internal',
