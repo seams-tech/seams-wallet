@@ -7,6 +7,7 @@
 
 use crate::boolean_engine_evidence::{PipeTransport, run_ready};
 use crate::complete_engine_evidence::{self, Engine};
+use crate::custody_delivery_evidence::WalletRecoveryCase;
 use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, hybrid_keygen,
     private_execution, private_signing, reference, require,
@@ -27,6 +28,10 @@ use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use signer_core::ml_dsa_custody::{
+    MlDsaCeremonyBindingV1, MlDsaRoleReplyV1, MlDsaRoleV1, SealedMlDsaRoleInputV1,
+    SealedMlDsaRoleResultV1, open_ml_dsa_role_input_v1,
+};
 use std::{
     env,
     ffi::OsStr,
@@ -37,6 +42,7 @@ use std::{
     process::Command,
     time::Instant,
 };
+use wallet_custody_ceremony::ceremony::ml_dsa::MlDsaCeremonyPreparedV1;
 use zeroize::{Zeroize, Zeroizing};
 
 const MODULUS: u32 = 8_380_417;
@@ -57,14 +63,25 @@ struct AuthorizedTestMaterial {
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 enum SeedInput {
-    FixedPublicShare { share: [u8; 32] },
+    FixedPublicShare {
+        share: [u8; 32],
+    },
     JointRandom,
-    WalletOwnerRootShare { share: [u8; 32] },
+    SealedWalletOwnerRoot {
+        binding: MlDsaCeremonyBindingV1,
+        sealed_input: SealedMlDsaRoleInputV1,
+        holder_secret: [u8; 32],
+    },
 }
 
 impl Drop for SeedInput {
     fn drop(&mut self) {
-        if let Self::FixedPublicShare { share } | Self::WalletOwnerRootShare { share } = self {
+        if let Self::FixedPublicShare { share }
+        | Self::SealedWalletOwnerRoot {
+            holder_secret: share,
+            ..
+        } = self
+        {
             share.zeroize();
         }
     }
@@ -81,7 +98,7 @@ pub(super) enum Campaign<'a> {
     CoreEvidence,
     EngineComparison(Engine),
     NearTestnet(&'a Path),
-    WalletRecovery([u8; 32]),
+    WalletRecovery(&'a WalletRecoveryCase<'a>),
 }
 
 impl Campaign<'_> {
@@ -248,6 +265,24 @@ pub(super) fn run_case(
     campaign: Campaign<'_>,
 ) -> InvestigationResult<Value> {
     let engine = campaign.engine();
+    let (case_name, seed_generation) = match (campaign, fixture) {
+        (Campaign::WalletRecovery(_), Some(name)) => (
+            name,
+            "Public wallet fixture opened inside the custody ceremony. Encrypted role inputs carry fresh owner-root shares.",
+        ),
+        (Campaign::WalletRecovery(_), None) => (
+            "fresh-wallet-custody",
+            "The custody ceremony generates a fresh wallet seed. Only encrypted owner-root shares leave it before authorized test recovery.",
+        ),
+        (_, Some(name)) => (
+            name,
+            "Known public canonical seed, split with a fresh random XOR mask before role launch.",
+        ),
+        (_, None) => (
+            "joint-random-disposable-key",
+            "Each role independently generates one OS-random 32-byte coin. The parent receives no full canonical seed before authorized test export.",
+        ),
+    };
     let case = tempfile::tempdir()?;
     let role_a = case.path().join("role-a");
     let role_b = case.path().join("role-b");
@@ -257,7 +292,7 @@ pub(super) fn run_case(
     }
     let input_a = role_a.join("own-seed-input.json");
     let input_b = role_b.join("own-seed-input.json");
-    write_seed_inputs(fixture, campaign, &input_a, &input_b)?;
+    let client = write_seed_inputs(fixture, campaign, &input_a, &input_b)?;
     let result_a = role_a.join("public-result.json");
     let result_b = role_b.join("public-result.json");
     let started = Instant::now();
@@ -296,6 +331,30 @@ pub(super) fn run_case(
         )?;
     }
     let public_key = hex::decode(a["public_key_hex"].as_str().ok_or("Missing public key.")?)?;
+    let client_completion = match client {
+        KeygenClient::Canonical => Value::Null,
+        KeygenClient::Wallet(client) => {
+            let sealed_a: SealedMlDsaRoleResultV1 =
+                serde_json::from_value(a["sealed_keygen_result"].clone())?;
+            let sealed_b: SealedMlDsaRoleResultV1 =
+                serde_json::from_value(b["sealed_keygen_result"].clone())?;
+            let verified = client
+                .complete(&sealed_a, &sealed_b)
+                .map_err(|error| error.message().to_string())?;
+            require(
+                verified.key().public_key().as_slice() == public_key,
+                "Authenticated holder result differs from the public key.",
+            )?;
+            let mut completion = json!({"holder_replies_authenticated": true, "key_set": verified.key().manifest().key_set().as_str(), "manifest_digest_hex": hex::encode(verified.key().manifest().digest()), "material_epoch": verified.key().binding().material_epoch()});
+            let recovering = matches!(campaign, Campaign::WalletRecovery(case) if matches!(case.continuity, signer_core::ml_dsa_custody::MlDsaKeyContinuityV1::Recover { .. }));
+            completion["custody_commit"] = crate::custody_delivery_evidence::finish_ceremony(
+                verified,
+                recovering,
+                fixture.is_none(),
+            )?;
+            completion
+        }
+    };
     let public_path = case.path().join("public-key.bin");
     fs::write(&public_path, &public_key)?;
     let threshold_signing = private_signing::run_case(
@@ -303,7 +362,7 @@ pub(super) fn run_case(
         &role_a.join(MATERIAL_FILENAME),
         &role_b.join(MATERIAL_FILENAME),
         &public_path,
-        fixture.unwrap_or("joint-random-disposable-key"),
+        case_name,
         engine,
     )?;
     let lifecycle = match (campaign, fixture) {
@@ -338,8 +397,7 @@ pub(super) fn run_case(
     fs::write(&signing_path, serde_json::to_vec(&threshold_signing)?)?;
     eprintln!(
         "Verified threshold signature for {} in {} attempts.",
-        fixture.unwrap_or("joint-random-disposable-key"),
-        threshold_signing["role_a"]["attempts"]
+        case_name, threshold_signing["role_a"]["attempts"]
     );
     let recipient_result = case.path().join("authorized-test-recipient-result.json");
     let started = Instant::now();
@@ -360,12 +418,24 @@ pub(super) fn run_case(
     )?;
     let recipient_process_wall_ns = started.elapsed().as_nanos();
     let recovered: Value = serde_json::from_slice(&fs::read(&recipient_result)?)?;
+    let custody_export = if matches!(campaign, Campaign::WalletRecovery(_)) {
+        crate::custody_delivery_evidence::verify_custody_export(
+            &client_completion,
+            &recovered,
+            fixture,
+        )?
+    } else {
+        Value::Null
+    };
     if let Some(name) = fixture {
         require(
             recovered["public_test_seed_hex"]
                 == hex::encode(match campaign {
-                    Campaign::WalletRecovery(binding) => {
-                        crate::wallet_recovery_evidence::canonical_seed(name, &binding)?
+                    Campaign::WalletRecovery(case) => {
+                        crate::wallet_recovery_evidence::canonical_seed(
+                            name,
+                            &case.application_binding()?,
+                        )?
                     }
                     _ => reference::fixture_bytes(name, 32)?,
                 }),
@@ -373,9 +443,11 @@ pub(super) fn run_case(
         )?;
     }
     Ok(json!({
-        "case": fixture.unwrap_or("joint-random-disposable-key"),
+        "case": case_name,
+        "client_completion": client_completion,
+        "custody_export_verification": custody_export,
         "wallet_seed_derivation": matches!(campaign, Campaign::WalletRecovery(_)),
-        "seed_generation": if matches!(campaign, Campaign::WalletRecovery(_)) { "Known public wallet seed derives a purpose-separated owner root in the client fixture. A/B derive the canonical seed privately from fresh root shares." } else if fixture.is_some() { "Known public fixture, split with a fresh random XOR mask before role launch." } else { "Each role independently generates one OS-random 32-byte coin. No parent receives a full seed before authorized test export." },
+        "seed_generation": seed_generation,
         "public_key_bytes": public_key.len(),
         "public_key_sha256": digest(&public_key),
         "keygen_process_wall_ns_including_schedule_reads_and_startup": keygen_process_wall_ns,
@@ -390,42 +462,60 @@ pub(super) fn run_case(
     }))
 }
 
+enum KeygenClient {
+    Canonical,
+    Wallet(Box<MlDsaCeremonyPreparedV1>),
+}
+
 fn write_seed_inputs(
     fixture: Option<&str>,
     campaign: Campaign<'_>,
     a: &Path,
     b: &Path,
-) -> InvestigationResult<()> {
+) -> InvestigationResult<KeygenClient> {
+    if let Campaign::WalletRecovery(case) = campaign {
+        let (client, holder_secrets) =
+            crate::custody_delivery_evidence::prepare_delivery(fixture, case)?;
+        for (role, path, secret) in [
+            (MlDsaRoleV1::A, a, &holder_secrets[0]),
+            (MlDsaRoleV1::B, b, &holder_secrets[1]),
+        ] {
+            let input = SeedInput::SealedWalletOwnerRoot {
+                binding: client.binding().clone(),
+                sealed_input: client.input(role).clone(),
+                holder_secret: *secret,
+            };
+            write_private_file(path, &Zeroizing::new(serde_json::to_vec(&input)?))?;
+        }
+        return Ok(KeygenClient::Wallet(Box::new(client)));
+    }
     let (input_a, input_b) = match fixture {
         Some(name) => {
-            let seed = match campaign {
-                Campaign::WalletRecovery(binding) => {
-                    crate::wallet_recovery_evidence::owner_root(name, &binding)?.to_vec()
-                }
-                _ => reference::fixture_bytes(name, 32)?,
-            };
+            let seed = reference::fixture_bytes(name, 32)?;
             let mut share_a = [0; 32];
             getrandom::getrandom(&mut share_a)?;
             let mut share_b = [0; 32];
             for index in 0..32 {
                 share_b[index] = seed[index] ^ share_a[index];
             }
-            match campaign {
-                Campaign::WalletRecovery(_) => (
-                    SeedInput::WalletOwnerRootShare { share: share_a },
-                    SeedInput::WalletOwnerRootShare { share: share_b },
-                ),
-                _ => (
-                    SeedInput::FixedPublicShare { share: share_a },
-                    SeedInput::FixedPublicShare { share: share_b },
-                ),
-            }
+            (
+                SeedInput::FixedPublicShare { share: share_a },
+                SeedInput::FixedPublicShare { share: share_b },
+            )
         }
         None => (SeedInput::JointRandom, SeedInput::JointRandom),
     };
     write_private_file(a, &Zeroizing::new(serde_json::to_vec(&input_a)?))?;
     write_private_file(b, &Zeroizing::new(serde_json::to_vec(&input_b)?))?;
-    Ok(())
+    Ok(KeygenClient::Canonical)
+}
+
+enum RoleCompletion {
+    Canonical,
+    Wallet {
+        reply: MlDsaRoleReplyV1,
+        holder_secret: Zeroizing<[u8; 32]>,
+    },
 }
 
 fn write_private_file(path: &Path, bytes: &[u8]) -> InvestigationResult<()> {
@@ -466,25 +556,52 @@ fn run_role(
     let schedule_preparation_wall_ns = started.elapsed().as_nanos();
     let mut reader = io::stdin().lock();
     let mut writer = io::stdout().lock();
-    let (mut current, wallet_seed_stage) = match &input {
-        SeedInput::FixedPublicShare { share } => (begin_keygen(role, share)?, Value::Null),
+    let (mut current, wallet_seed_stage, completion) = match &input {
+        SeedInput::FixedPublicShare { share } => (
+            begin_keygen(role, share)?,
+            Value::Null,
+            RoleCompletion::Canonical,
+        ),
         SeedInput::JointRandom => {
             let mut seed = Zeroizing::new([0; 32]);
             getrandom::getrandom(seed.as_mut())?;
-            (begin_keygen(role, &seed)?, Value::Null)
+            (
+                begin_keygen(role, &seed)?,
+                Value::Null,
+                RoleCompletion::Canonical,
+            )
         }
-        SeedInput::WalletOwnerRootShare { share } => {
+        SeedInput::SealedWalletOwnerRoot {
+            binding,
+            sealed_input,
+            holder_secret,
+        } => {
             require(
                 engine.boolean().is_none(),
                 "Wallet derivation uses the selected half-gates engine.",
             )?;
-            crate::wallet_recovery_evidence::begin_role(
+            let holder_role = match role {
+                SigningRole::A => MlDsaRoleV1::A,
+                SigningRole::B => MlDsaRoleV1::B,
+            };
+            let opened =
+                open_ml_dsa_role_input_v1(sealed_input, binding, holder_role, holder_secret)?;
+            let (root_share, reply) = opened.into_parts();
+            let (next, stage) = crate::wallet_recovery_evidence::begin_role(
                 role,
-                share,
+                &root_share,
                 schedules,
                 &mut reader,
                 &mut writer,
-            )?
+            )?;
+            (
+                next,
+                stage,
+                RoleCompletion::Wallet {
+                    reply,
+                    holder_secret: Zeroizing::new(*holder_secret),
+                },
+            )
         }
     };
     drop(input);
@@ -539,6 +656,13 @@ fn run_role(
         complete_engine_evidence::verify_observation(&metrics, &observation, role)?;
         stages.push(json!({"component": kernel.name(), "ordinal": ordinal, "circuit_wall_ns": elapsed, "metrics": metrics, "observation": observation}));
     }
+    let sealed_keygen_result = match completion {
+        RoleCompletion::Canonical => Value::Null,
+        RoleCompletion::Wallet {
+            reply,
+            holder_secret,
+        } => serde_json::to_value(reply.seal_result(&holder_secret, &output.public_key)?)?,
+    };
     let directory = result
         .parent()
         .ok_or("Role result has no parent directory.")?;
@@ -554,6 +678,7 @@ fn run_role(
             "role_pipeline_wall_ns_including_schedule_reads": started.elapsed().as_nanos(),
             "stages": stages,
             "wallet_seed_stage": wallet_seed_stage,
+            "sealed_keygen_result": sealed_keygen_result,
         }))?,
     )?;
     Ok(())

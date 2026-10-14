@@ -50,8 +50,8 @@ use signer_core::ed25519_yao_derivation::Ed25519YaoClientRootV1;
 use signer_core::passkey_custody::{
     open_wallet_custody_seed_envelope_v1, seal_wallet_custody_seed_envelope_v1, sha256_digest,
     PasskeyCustodyEnvelopeBindingV1, PasskeyCustodyEnvelopeOwnershipV1,
-    PasskeyCustodySecretBindingV1, WalletCustodyEnvelopeFactorV1,
-    PASSKEY_CUSTODY_KEY_LEN, WALLET_SEED_DERIVATION_SCHEME_V1,
+    PasskeyCustodySecretBindingV1, WalletCustodyEnvelopeFactorV1, PASSKEY_CUSTODY_KEY_LEN,
+    WALLET_SEED_DERIVATION_SCHEME_V1,
 };
 use signer_core::wallet_recovery_custody::{
     derive_wallet_recovery_key_id_v1, encode_recovery_entry_aad_v1,
@@ -68,6 +68,10 @@ use signer_core::wallet_seed_derivation::{
 };
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
+
+/// ML-DSA custody preparation and verified manifest completion.
+#[path = "ml_dsa.rs"]
+pub mod ml_dsa;
 
 pub const PASSKEY_CUSTODY_NONCE_LEN: usize = 12;
 

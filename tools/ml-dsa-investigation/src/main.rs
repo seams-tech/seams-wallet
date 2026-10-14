@@ -2,6 +2,7 @@ mod arithmetic_audit;
 mod boolean_engine_evidence;
 mod circuit_evidence;
 mod complete_engine_evidence;
+mod custody_delivery_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
 mod near_testnet_evidence;

@@ -1,5 +1,6 @@
 //! Repeat wallet-seed derivation with fresh private shares before authorized export.
 
+use crate::custody_delivery_evidence::WalletRecoveryCase;
 use crate::{
     InvestigationResult, command_text, digest, private_keygen, private_signing, reference, require,
 };
@@ -12,6 +13,7 @@ use ed25519_yao::{
 use ed25519_yao_generator::compile_ml_dsa_wallet_seed_circuit_v1;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use signer_core::ml_dsa_custody::MlDsaKeyContinuityV1;
 use signer_core::wallet_seed_derivation::{
     compute_ml_dsa65_application_binding_digest_v1, derive_ecdsa_client_root_share_from_seed_v1,
     derive_ed25519_yao_client_root_from_seed_v1, derive_ml_dsa65_owner_root_from_seed_v1,
@@ -90,10 +92,6 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     drop(circuit);
     let binding =
         compute_ml_dsa65_application_binding_digest_v1("ml-dsa-wallet-fixture", "near-key-1")?;
-    let other_wallet =
-        compute_ml_dsa65_application_binding_digest_v1("ml-dsa-other-wallet", "near-key-1")?;
-    let other_key =
-        compute_ml_dsa65_application_binding_digest_v1("ml-dsa-wallet-fixture", "near-key-2")?;
     require(
         compute_ml_dsa65_application_binding_digest_v1("", "near-key-1").is_err()
             && compute_ml_dsa65_application_binding_digest_v1("ml-dsa-wallet-fixture", "").is_err(),
@@ -106,21 +104,56 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
             && *root != *derive_ecdsa_client_root_share_from_seed_v1(&seed, &binding)?,
         "ML-DSA root collided with another signing root in the fixture.",
     )?;
-    let mut cases = Vec::new();
-    for (name, context) in [
-        ("zero", binding),
-        ("zero", binding),
-        ("incrementing", binding),
-        ("zero", other_wallet),
-        ("zero", other_key),
-    ] {
+    let mut cases: Vec<Value> = Vec::new();
+    for (index, (name, wallet_id, signing_key_id)) in [
+        ("zero", "ml-dsa-wallet-fixture", "near-key-1"),
+        ("zero", "ml-dsa-wallet-fixture", "near-key-1"),
+        ("incrementing", "ml-dsa-wallet-fixture", "near-key-1"),
+        ("zero", "ml-dsa-other-wallet", "near-key-1"),
+        ("zero", "ml-dsa-wallet-fixture", "near-key-2"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let continuity = if index == 1 {
+            let digest = cases[0]["result"]["client_completion"]["manifest_digest_hex"]
+                .as_str()
+                .ok_or("Missing recorded manifest.")?;
+            MlDsaKeyContinuityV1::Recover {
+                recorded_manifest_digest: hex::decode(digest)?
+                    .try_into()
+                    .map_err(|_| "Invalid manifest length")?,
+            }
+        } else {
+            MlDsaKeyContinuityV1::Create
+        };
+        let case = WalletRecoveryCase {
+            wallet_id,
+            signing_key_id,
+            continuity,
+            material_epoch: index as u64,
+        };
         let result = private_keygen::run_case(
             schedules.path(),
             Some(name),
-            private_keygen::Campaign::WalletRecovery(context),
+            private_keygen::Campaign::WalletRecovery(&case),
         )?;
-        cases.push(json!({"wallet_seed_fixture": name, "application_binding_digest_hex": hex::encode(context), "result": result}));
+        cases.push(json!({"wallet_seed_fixture": name, "application_binding_digest_hex": hex::encode(case.application_binding()?), "result": result}));
     }
+    let fresh = WalletRecoveryCase {
+        wallet_id: "ml-dsa-fresh-custody",
+        signing_key_id: "near-key-1",
+        continuity: MlDsaKeyContinuityV1::Create,
+        material_epoch: 0,
+    };
+    let result = private_keygen::run_case(
+        schedules.path(),
+        None,
+        private_keygen::Campaign::WalletRecovery(&fresh),
+    )?;
+    cases.push(json!({"wallet_seed_fixture": "fresh-custody", "application_binding_digest_hex": hex::encode(fresh.application_binding()?), "result": result}));
+    let delivery_rejections =
+        crate::custody_delivery_evidence::verify_rejections(&cases[0]["result"])?;
     require(
         cases[0]["result"]["public_key_sha256"] == cases[1]["result"]["public_key_sha256"],
         "Fresh wallet recovery changed the key.",
@@ -148,6 +181,13 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     let mut sources = Vec::new();
     for path in [
         "crates/signer-core/src/wallet_seed_derivation.rs",
+        "crates/signer-core/src/ml_dsa_custody.rs",
+        "crates/signer-core/Cargo.toml",
+        "wasm/wallet_custody_ceremony/src/ml_dsa.rs",
+        "wasm/wallet_custody_ceremony/src/ceremony.rs",
+        "wasm/wallet_custody_ceremony/Cargo.toml",
+        "wasm/wallet_custody_ceremony/Cargo.lock",
+        "tools/ml-dsa-investigation/src/custody_delivery_evidence.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
@@ -162,13 +202,14 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(repository.join(path))?)}));
     }
     let report = json!({
-        "schema": "seams.ml-dsa-wallet-seed-recovery.v1", "public_fixture_only": true, "production_eligible": false,
+        "schema": "seams.ml-dsa-wallet-seed-recovery.v2", "public_fixture_only": false, "disposable_test_keys_only": true, "production_eligible": false,
         "source_revision": command_text(Command::new("git").args(["rev-parse", "HEAD"]).current_dir(repository))?,
         "sources": sources, "keygen_schedules": keygen, "signing_schedules": signing, "wallet_seed_schedule": wallet_seed,
         "same_wallet_seed_and_binding_reproduce_key": true, "changed_seed_or_binding_changes_key": true,
         "fixture_owner_root_separated_from_ed25519_and_ecdsa": true,
-        "scope": "Separate roles derive the canonical seed privately, generate key shares, and sign before authorized fixture export. Repeated recovery uses fresh root sharing, seed masks, and OT. This is a shared-host protocol check with no production admission, role delivery, durable activation, or storage claim.",
+        "scope": "Separate roles derive the canonical seed privately, generate key shares, and sign before authorized fixture export. Repeated recovery uses fresh root sharing, seed masks, and OT. Encrypted role delivery and authenticated results use fixture holder keys. Native custody states cover establishment, joining, and code recovery. This shared-host check supplies no production admission, durable activation, or storage claim.",
         "cases": cases,
+        "delivery_and_manifest_rejections": delivery_rejections,
     });
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;

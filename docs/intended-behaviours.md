@@ -3492,3 +3492,22 @@ renders inside it.
 Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
 Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 `tests/wallet-iframe/auth-menu.host.integration.test.ts`.
+
+## Experimental ML-DSA native custody contract
+
+The ML-DSA public SDK route is not yet enabled. These requirements govern the native implementation and its E2E evidence.
+
+- Derive the ML-DSA owner root independently from the wallet custody seed and stable wallet/key binding.
+- Keep the complete canonical FIPS seed inside secure computation until authorized ordinary-key export.
+- Deliver one encrypted owner-root share to each holder. Bind delivery to the wallet/key digest, operation, epoch, and role.
+- Check holder admission independently before decrypting input. Obtain holder public keys through authenticated discovery.
+- Authenticate both holder results and check their exact public-key agreement before establishing or verifying the key manifest.
+- Require the recorded manifest for recovery. Worker replacement and fresh sharing must preserve its key identity.
+- Joining existing custody must preserve its seed envelope and recovery set.
+- Code recovery must preserve the wallet seed when sealing the replacement factor.
+- Initial custody establishment must seal the wallet seed and ten distinct recovery codes.
+- Treat native custody output as proposed commit data. Publish signing capability only after both role stores confirm durable activation.
+- Keep durable replay rejection, cancellation, and epoch transitions at the admitted storage boundary.
+
+The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
+Router admission, durable lifecycle behavior, and the public SDK route remain required before production use.
