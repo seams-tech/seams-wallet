@@ -1,0 +1,257 @@
+{
+  "schema": "seams.refactor155j.acceptance0102.v1",
+  "release": "0.10.2",
+  "lane": "staging-testnet (Singapore)",
+  "client": "Tokyo laptop, Chromium virtual authenticator",
+  "window": "2026-10-15 00:00-01:41 JST",
+  "stopped": "after group 2 on the user decision; target missed; staging Console build changed 07:05 JST",
+  "frozenServing": [
+    {
+      "worker": "router-ab-deriver-a-staging",
+      "serving": [
+        {
+          "version_id": "ae0841d7-59ab-4387-806d-32c0dc75fc5d",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "ae0841d7-59ab-4387-806d-32c0dc75fc5d",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:46:14.086715Z"
+    },
+    {
+      "worker": "router-ab-deriver-b-staging",
+      "serving": [
+        {
+          "version_id": "a6c77fd4-381b-492a-8895-f47dee556699",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "a6c77fd4-381b-492a-8895-f47dee556699",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:46:15.193527Z"
+    },
+    {
+      "worker": "router-ab-mpc-router-staging",
+      "serving": [
+        {
+          "version_id": "c5b8b4d9-b54c-4ec3-adb7-10d20a4f6215",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "c5b8b4d9-b54c-4ec3-adb7-10d20a4f6215",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:47:40.309515Z"
+    },
+    {
+      "worker": "router-ab-signing-worker-staging",
+      "serving": [
+        {
+          "version_id": "1c578b23-70e2-4176-b178-3d06d1e7ff1a",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "1c578b23-70e2-4176-b178-3d06d1e7ff1a",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:46:09.255383Z"
+    },
+    {
+      "worker": "router-ab-tenant-root-control-plane-staging",
+      "serving": [
+        {
+          "version_id": "9e8654b3-93b8-4cf6-81aa-3add13cb3533",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "9e8654b3-93b8-4cf6-81aa-3add13cb3533",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:46:59.029672Z"
+    },
+    {
+      "worker": "seams-sdk-d1-console-staging",
+      "serving": [
+        {
+          "version_id": "bca0ebd4-ae0d-457e-9d1a-c4bfb6753fda",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "bca0ebd4-ae0d-457e-9d1a-c4bfb6753fda",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:42:34.646915Z"
+    },
+    {
+      "worker": "seams-sdk-d1-gateway-staging",
+      "serving": [
+        {
+          "version_id": "793d1777-2fc3-4391-a8bf-574012a61fa2",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "793d1777-2fc3-4391-a8bf-574012a61fa2",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:49:35.735746Z"
+    },
+    {
+      "worker": "seams-sdk-d1-gateway-staging-oc",
+      "serving": [
+        {
+          "version_id": "cc4ec8cd-9927-4de4-b23a-2e75fb142b9f",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "cc4ec8cd-9927-4de4-b23a-2e75fb142b9f",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:49:43.05482Z"
+    },
+    {
+      "worker": "seams-sdk-d1-gateway-staging-us",
+      "serving": [
+        {
+          "version_id": "425ebcc8-61c2-4eab-b23f-3a2b6a741e72",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "425ebcc8-61c2-4eab-b23f-3a2b6a741e72",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:49:22.11516Z"
+    },
+    {
+      "worker": "seams-sdk-d1-gateway-staging-weur",
+      "serving": [
+        {
+          "version_id": "41bad937-c0ad-42bb-af9b-eb849f67c0a0",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "41bad937-c0ad-42bb-af9b-eb849f67c0a0",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:49:29.294749Z"
+    },
+    {
+      "worker": "seams-sdk-d1-wallet-runtime-staging",
+      "serving": [
+        {
+          "version_id": "70e1a3e1-ad82-4819-9d2a-00674a00ef6e",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "70e1a3e1-ad82-4819-9d2a-00674a00ef6e",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:48:34.288742Z"
+    },
+    {
+      "worker": "seams-sdk-d1-wallet-runtime-staging-oc",
+      "serving": [
+        {
+          "version_id": "f79081e0-236e-4fe0-a839-6c794cb79378",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "f79081e0-236e-4fe0-a839-6c794cb79378",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:48:40.216811Z"
+    },
+    {
+      "worker": "seams-sdk-d1-wallet-runtime-staging-us",
+      "serving": [
+        {
+          "version_id": "a068b49a-77bc-4189-bee8-6b11111ed4fa",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "a068b49a-77bc-4189-bee8-6b11111ed4fa",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:48:22.59472Z"
+    },
+    {
+      "worker": "seams-sdk-d1-wallet-runtime-staging-weur",
+      "serving": [
+        {
+          "version_id": "48f65bb2-a921-4afe-bdfb-98e7c0788db3",
+          "percentage": 100
+        }
+      ],
+      "latestUpload": "48f65bb2-a921-4afe-bdfb-98e7c0788db3",
+      "latestIsServing": true,
+      "latestCreatedOn": "2026-10-14T11:48:28.58458Z"
+    }
+  ],
+  "groups": {
+    "group-1": {
+      "attempts": 102,
+      "succeeded": 102,
+      "failed": 0,
+      "p50": 2454,
+      "p90": 3603,
+      "max": 8017,
+      "start": "00:00 JST",
+      "entry": "NRT 3/3"
+    },
+    "group-2": {
+      "attempts": 102,
+      "succeeded": 101,
+      "failed": 1,
+      "p50": 2139,
+      "p90": 3459,
+      "max": 6050,
+      "start": "01:30 JST",
+      "entry": "NRT 3/3"
+    }
+  },
+  "withoutPasskeyStep": {
+    "all": {
+      "n": 203,
+      "p50": 2307,
+      "p90": 3508,
+      "p95": 4032,
+      "p99": 5966,
+      "p99NearestRank": 5975,
+      "max": 8017,
+      "over4s": 11,
+      "over5s": 5,
+      "over6s": 2,
+      "afterPasskeyP50": 1619,
+      "afterPasskeyP99": 4138
+    },
+    "firstBatchOfEachGroup": {
+      "n": 6,
+      "p50": 5127,
+      "p90": 6996,
+      "p95": 7507,
+      "p99": 7915,
+      "p99NearestRank": 8017,
+      "max": 8017,
+      "over4s": 5,
+      "over5s": 3,
+      "over6s": 1,
+      "afterPasskeyP50": 3231,
+      "afterPasskeyP99": 5665
+    },
+    "otherBatches": {
+      "n": 197,
+      "p50": 2272,
+      "p90": 3275,
+      "p95": 3863,
+      "p99": 4941,
+      "p99NearestRank": 5045,
+      "max": 6050,
+      "over4s": 6,
+      "over5s": 2,
+      "over6s": 1,
+      "afterPasskeyP50": 1611,
+      "afterPasskeyP99": 3738
+    }
+  },
+  "failedAttempts": [
+    {
+      "sample": "group-2/group-14/registration-1",
+      "timeToFailureMs": 4089,
+      "cause": "Deriver A start delay 2.4 s; execution prepared inline and lost ConflictingPair to the setup preparation; 503; respond admitted; execute 409 execution_in_progress (Router claim lease held)"
+    }
+  ],
+  "signaturesVerifiedIndependently": {
+    "verified": 203,
+    "distinctKeys": 203,
+    "samplesWithoutSuccess": 1
+  },
+  "percentileMethod": "linear interpolation at (n-1)*p; nearest rank given separately"
+}
