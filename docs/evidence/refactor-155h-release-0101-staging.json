@@ -68,15 +68,16 @@
         "complete": 380
       },
       "deriverA": {
-        "databaseBatchP50": 6,
         "executeWorkWallP50": 372,
         "executeWorkCpuP50": 163,
         "preparationWallP50": 438,
         "preparationCpuP50": 283,
-        "pairConnectionsInsideExecution": 13
+        "pairConnectionsInsideExecution": 13,
+        "writeBatchAtRegistrationP50": 9
       },
       "deriverB": {
-        "databaseBatchP50": 14
+        "writeBatchAtRegistrationP50": 51,
+        "readOfAdmissionP50": 13
       },
       "gatewayFinalizeWallP50": 583,
       "gatewayRespondWallP50": 670
@@ -143,15 +144,16 @@
         "complete": 104
       },
       "deriverA": {
-        "databaseBatchP50": 56.0,
         "executeWorkWallP50": 466,
         "executeWorkCpuP50": 178,
         "preparationWallP50": 499,
         "preparationCpuP50": 295,
-        "pairConnectionsInsideExecution": 23
+        "pairConnectionsInsideExecution": 23,
+        "writeBatchAtRegistrationP50": 62
       },
       "deriverB": {
-        "databaseBatchP50": 16.0
+        "writeBatchAtRegistrationP50": 55,
+        "readOfAdmissionP50": 14
       },
       "gatewayFinalizeWallP50": 339,
       "gatewayRespondWallP50": 755
@@ -218,15 +220,16 @@
         "complete": 167
       },
       "deriverA": {
-        "databaseBatchP50": 50,
         "executeWorkWallP50": 628,
         "executeWorkCpuP50": 173,
         "preparationWallP50": 645,
         "preparationCpuP50": 296,
-        "pairConnectionsInsideExecution": 48
+        "pairConnectionsInsideExecution": 48,
+        "writeBatchAtRegistrationP50": 56
       },
       "deriverB": {
-        "databaseBatchP50": 16.0
+        "writeBatchAtRegistrationP50": 56,
+        "readOfAdmissionP50": 15
       },
       "gatewayFinalizeWallP50": 449,
       "gatewayRespondWallP50": 929
@@ -293,15 +296,16 @@
         "complete": 427
       },
       "deriverA": {
-        "databaseBatchP50": 52,
         "executeWorkWallP50": 701,
         "executeWorkCpuP50": 178,
         "preparationWallP50": 677,
         "preparationCpuP50": 300,
-        "pairConnectionsInsideExecution": 55
+        "pairConnectionsInsideExecution": 55,
+        "writeBatchAtRegistrationP50": 57.5
       },
       "deriverB": {
-        "databaseBatchP50": 19
+        "writeBatchAtRegistrationP50": 57,
+        "readOfAdmissionP50": 16
       },
       "gatewayFinalizeWallP50": 460,
       "gatewayRespondWallP50": 993
@@ -368,15 +372,16 @@
         "complete": 590
       },
       "deriverA": {
-        "databaseBatchP50": 44,
         "executeWorkWallP50": 498,
         "executeWorkCpuP50": 184,
         "preparationWallP50": 510,
         "preparationCpuP50": 311,
-        "pairConnectionsInsideExecution": 20
+        "pairConnectionsInsideExecution": 20,
+        "writeBatchAtRegistrationP50": 57
       },
       "deriverB": {
-        "databaseBatchP50": 17.0
+        "writeBatchAtRegistrationP50": 57,
+        "readOfAdmissionP50": 16
       },
       "gatewayFinalizeWallP50": 422,
       "gatewayRespondWallP50": 789
@@ -481,5 +486,17 @@
     "backendRun": 38502490077,
     "activationRun": 38503380240,
     "activatedJst": "11:54"
+  },
+  "laterCheck": {
+    "at": "2026-10-14 13:23 JST",
+    "registrations": 6,
+    "deriverAWriteBatchAtRegistrationP50": 10,
+    "deriverBWriteBatchAtRegistrationP50": 11.5,
+    "consoleWriteCallP50": [
+      18,
+      23,
+      22
+    ],
+    "note": "7 of 11 requests entered Cloudflare in Dallas and Denver, so the stage times of this check are not comparable"
   }
 }
