@@ -1,3 +1,4 @@
+import { parseRegistrationFoundingRead } from './d1WalletRegistrationCommitStore';
 import { parseRouterAbEd25519YaoRegistrationAdmissionReadV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import type { createD1Ed25519YaoLifecycleRecords } from '../ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
 import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
@@ -69,16 +70,20 @@ export class D1WalletRegistrationRead {
       this.decisions.prepareRead(home.ceremonyId),
       this.passkeyClaims.prepareHeldPasskeyClaimRead(home.ceremonyId),
       this.yaoRecords.prepareRead(home.ceremonyId),
+      ceremonies.prepareFoundingRecordsRead(home.ceremonyId),
     ]);
-    const [homeRead, operationRead, ceremonyRead, decisionRead, passkeyClaimRead, yaoRead] = results;
+    const [
+      homeRead, operationRead, ceremonyRead, decisionRead, passkeyClaimRead, yaoRead, foundingRead,
+    ] = results;
     if (
-      results.length !== 6 ||
+      results.length !== 7 ||
       !homeRead ||
       !operationRead ||
       !ceremonyRead ||
       !decisionRead ||
       !passkeyClaimRead ||
-      !yaoRead
+      !yaoRead ||
+      !foundingRead
     ) {
       throw new Error('Registration finalization D1 batch returned incomplete results');
     }
@@ -91,6 +96,7 @@ export class D1WalletRegistrationRead {
     return {
       ok: true as const,
       operation,
+      readFounding: parseRegistrationFoundingRead.bind(undefined, foundingRead),
       // A decision never changes. A competing insert still fails the wallet
       // transaction's decision guard before any companion write can commit.
       decision: this.decisions.parseRead(home.ceremonyId, decisionRead),

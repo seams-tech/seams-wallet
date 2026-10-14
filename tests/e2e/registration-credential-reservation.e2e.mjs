@@ -44,6 +44,8 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { D1RegistrationCeremonyRecordStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+      export { parseRegistrationFoundingRead } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
       export { CloudflareD1WalletRegistrationCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
       export { buildD1WalletRecord } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords';
       export { buildPasskeyRegistrationAuthorityFixture } from './tests/unit/helpers/nearRegistration.fixtures';
@@ -519,9 +521,30 @@ async function verifyWalletAndSessionCommit(database, now) {
     issuedAtMs: now,
     expiresAtMs: now + 3_600_000,
   };
-  // Each attempt is one finalization: it reserves, reading the founding records, then commits.
+  const ceremonies = new api.D1RegistrationCeremonyRecordStore({
+    database: traced,
+    scope,
+    keyPrefix: 'registration:',
+  });
+  // Only the two indexed identity fields participate in this storage projection.
+  // The browser contracts exercise the complete ceremony parser and lifecycle.
+  await ceremonies.putExact({
+    scope: 'ceremony',
+    id: ceremonyId,
+    expiresAtMs: now + 3_600_000,
+    value: {
+      foundingWalletAuthorityId: foundingIds.walletAuthorityId,
+      foundingWalletAuthMethodId: foundingIds.walletAuthMethodId,
+    },
+  });
+  const staleRead = await readFoundingSnapshot(traced, ceremonies, ceremonyId);
+  const countBeforeReservation = trace(traced).length;
+  await store.reserveAuthority(authority, null, staleRead);
+  assert.equal(trace(traced).length, countBeforeReservation);
+  // The initial read includes founding records; reservation makes no second read.
   const commitWithSession = async () => {
-    const commit = await store.reserveAuthority(authority, null, foundingIds);
+    const foundingRead = await readFoundingSnapshot(traced, ceremonies, ceremonyId);
+    const commit = await store.reserveAuthority(authority, null, foundingRead);
     return service.commitDirectWalletSessionAuthorizationV2(
       sessionInput,
       { kind: 'validated_registration_authority_projection' },
@@ -553,7 +576,7 @@ async function verifyWalletAndSessionCommit(database, now) {
     state: 'registering',
   });
   const calls = trace(traced).slice(callsBefore);
-  assert.equal(calls.length, 2, 'The reservation reads the founding records, the commit writes one batch');
+  assert.equal(calls.length, 2, 'One snapshot read and one wallet/session commit');
   assert.ok(calls[0].statements.every(isRead));
   assert.ok(writesWalletBatch(calls[1]));
   const tables = new Set(calls[1].statements.flatMap(statementTables));
@@ -571,6 +594,9 @@ async function verifyWalletAndSessionCommit(database, now) {
     assert.ok(tables.has(table), `${table} must share the wallet/session transaction`);
   }
   const committed = await snapshot(database);
+  const staleCommit = await store.reserveAuthority(authority, null, staleRead);
+  await assert.rejects(staleCommit(walletInput), /UNIQUE constraint/);
+  assert.deepEqual(await snapshot(database), committed);
   // Ignore the successful response. Two retries must preserve its credential and quota.
   const replay = await Promise.all([commitWithSession(), commitWithSession()]);
   assert.ok(replay.every(sessionWasAlreadyCommitted));
@@ -578,6 +604,8 @@ async function verifyWalletAndSessionCommit(database, now) {
   return {
     initialSessionFailureRollsBackWallet: true,
     concurrentLostReplyRetriesPreserveCredentialAndQuota: true,
+    snapshotReservationAddsNoRead: true,
+    staleSnapshotCannotOverwriteCommittedIdentity: true,
     walletAndSessionD1Calls: calls.length,
     calls,
   };
@@ -648,4 +676,11 @@ function writesWalletBatch(call) {
 
 async function acceptCredential() {
   return true;
+}
+
+async function readFoundingSnapshot(database, ceremonies, ceremonyId) {
+  const [result] = await database.batch([ceremonies.prepareFoundingRecordsRead(ceremonyId)]);
+  const founding = api.parseRegistrationFoundingRead(result);
+  assert.equal(founding.kind, 'snapshot');
+  return founding;
 }

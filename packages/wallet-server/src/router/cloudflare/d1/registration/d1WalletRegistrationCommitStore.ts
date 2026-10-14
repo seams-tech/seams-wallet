@@ -12,9 +12,10 @@ import {
   type ActiveWalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
-import { mpcMaterialActivationRefsEqual, parseWalletId } from '@shared/utils/domainIds';
+import { mpcMaterialActivationRefsEqual, parseWalletId, parseWalletAuthorityId, parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import type { Variant } from '@shared/utils/variant';
 import { buildWalletSessionCapabilitySubjectsV1 } from '../../../../authorization/domain';
 import {
   prepareD1WalletAuthMethodV2PutStatement,
@@ -103,14 +104,14 @@ export type HeldRegistrationPasskeyClaim = {
 export interface D1WalletRegistrationCommitStore {
   /**
    * Claims the authority's passkey through shared authority, unless `held`
-   * records that the same claim was already granted for this ceremony. With
-   * `founding`, it also reads that authority and auth method as stored, beside
-   * the claim, so the commit writes them without a read of its own.
+   * records that the same claim was already granted for this ceremony. Uses
+   * the founding snapshot when supplied; otherwise reads the named records
+   * beside the claim. The returned commit performs no additional read.
    */
   reserveAuthority(
     authority: RegistrationAuthority,
     held: HeldRegistrationPasskeyClaim | null,
-    founding: FoundingRecordIds | null,
+    founding: RegistrationFoundingRead | null,
   ): Promise<ReservedWalletRegistrationCommit>;
   /**
    * Claims a verified passkey before finalization and records a granted
@@ -390,7 +391,47 @@ type FoundingRecordIds = Pick<
   'walletAuthorityId' | 'walletAuthMethodId'
 >;
 
-/** A registration's founding authority and auth method rows, read at its reservation. */
+export type RegistrationFoundingRead =
+  | { readonly kind: 'read'; readonly ids: FoundingRecordIds; readonly records?: never }
+  | { readonly kind: 'snapshot'; readonly records: StoredFoundingRecords; readonly ids?: never };
+
+export type RegistrationFoundingSnapshot = Variant<RegistrationFoundingRead, 'kind', 'snapshot'>;
+
+export function parseRegistrationFoundingRead(
+  result: D1ResultLike<Record<string, unknown>>,
+): RegistrationFoundingSnapshot | null {
+  if (!result.success) throw new Error('Registration founding records read failed');
+  const row = result.results?.[0];
+  if (!row) return null;
+  const authorityId = parseWalletAuthorityId(row.authority_id);
+  const authMethodId = parseWalletAuthMethodId(row.auth_method_id);
+  if (!authorityId.ok || !authMethodId.ok) throw new Error('Registration founding identity is invalid');
+  return {
+    kind: 'snapshot',
+    records: {
+      walletAuthorityId: authorityId.value,
+      walletAuthMethodId: authMethodId.value,
+      authorityRow: row.authority_json === null ? null : { record_json: row.authority_json },
+      authMethodRow: row.auth_method_json === null ? null : { record_json: row.auth_method_json },
+    },
+  };
+}
+
+function readFoundingRecords(
+  database: D1DatabaseLike,
+  scope: D1WalletRegistrationCommitScope,
+  founding: RegistrationFoundingRead | null,
+): Promise<StoredFoundingRecords | null> {
+  if (founding === null) return Promise.resolve(null);
+  switch (founding.kind) {
+    case 'read':
+      return readStoredFoundingRecords(database, scope, founding.ids);
+    case 'snapshot':
+      return Promise.resolve(founding.records);
+  }
+}
+
+/** A registration's founding authority and auth method rows from one database snapshot. */
 type StoredFoundingRecords = FoundingRecordIds & {
   readonly authorityRow: D1RegistrationRecordJsonRow | null;
   readonly authMethodRow: D1RegistrationRecordJsonRow | null;
@@ -544,6 +585,7 @@ function prepareFoundingStatements(input: {
         database: input.database,
         scope: input.scope,
         record: foundingAuthMethod,
+        insertOnly: true,
       }),
     );
   }
@@ -608,7 +650,7 @@ export class CloudflareD1WalletRegistrationCommitStore
   async reserveAuthority(
     authority: RegistrationAuthority,
     held: HeldRegistrationPasskeyClaim | null,
-    founding: FoundingRecordIds | null,
+    founding: RegistrationFoundingRead | null,
   ): Promise<ReservedWalletRegistrationCommit> {
     const [, stored] = await Promise.all([
       // Shared authority never reassigns a claim, so a recorded grant for this
@@ -620,7 +662,7 @@ export class CloudflareD1WalletRegistrationCommitStore
             credentialIdB64u: authority.credentialIdB64u,
           })
         : undefined,
-      founding ? readStoredFoundingRecords(this.database, this.scope, founding) : null,
+      readFoundingRecords(this.database, this.scope, founding),
     ]);
     return this.commit.bind(this, authority, stored);
   }

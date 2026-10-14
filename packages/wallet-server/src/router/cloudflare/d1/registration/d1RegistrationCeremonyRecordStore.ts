@@ -97,6 +97,26 @@ export class D1RegistrationCeremonyRecordStore {
     return this.prepareRead(this.normalizeKey(scope, id));
   }
 
+  /** Load the ceremony's immutable founding identities and their current records together. */
+  prepareFoundingRecordsRead(id: string): D1PreparedStatementLike {
+    const key = this.normalizeKey('ceremony', id);
+    return this.database.prepare(`
+      SELECT json_extract(ceremony.record_json, '$.foundingWalletAuthorityId') AS authority_id,
+             json_extract(ceremony.record_json, '$.foundingWalletAuthMethodId') AS auth_method_id,
+             (SELECT record_json FROM wallet_authorities
+               WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+                 AND authority_id = json_extract(ceremony.record_json, '$.foundingWalletAuthorityId'))
+               AS authority_json,
+             (SELECT record_json FROM wallet_auth_methods
+               WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+                 AND wallet_auth_method_id = json_extract(ceremony.record_json, '$.foundingWalletAuthMethodId'))
+               AS auth_method_json
+        FROM registration_ceremony_records AS ceremony
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND record_scope = ?5 AND record_id = ?6
+    `).bind(...this.bindKey(key));
+  }
+
   async parseGet(
     scope: string,
     id: string,

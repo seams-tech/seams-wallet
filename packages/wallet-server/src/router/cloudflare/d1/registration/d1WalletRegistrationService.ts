@@ -3783,6 +3783,7 @@ export class CloudflareD1WalletRegistrationService {
       /** The passkey claim that respond recorded for this ceremony, when it did. */
       readonly heldPasskeyClaim: HeldRegistrationPasskeyClaim | null;
       readonly readYaoAdmission: () => RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
+      readonly readFounding: () => Parameters<D1WalletRegistrationCommitStore['reserveAuthority']>[2];
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
@@ -3924,6 +3925,7 @@ export class CloudflareD1WalletRegistrationService {
       args.lifecycleDecision,
       args.heldPasskeyClaim,
       { kind: 'snapshot', authority: args.readYaoAdmission() },
+      args.readFounding(),
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -4192,38 +4194,38 @@ export class CloudflareD1WalletRegistrationService {
       }
       const admissionStartedAtMs = Date.now();
       const operationKey = `near-provisioning:${input.registrationCeremonyId}:${input.idempotencyKey}`;
-      const initial = await this.registrationRead.readFinalization(
-        {
-          ceremonyId: verified.claims.registrationCeremonyId,
-          walletId: walletIdFromString(verified.claims.walletId),
-        },
-        operationKey,
-      );
-      recordRegistrationServerTiming(
-        serverTiming,
-        'near_finalize_initial_read',
-        admissionStartedAtMs,
-      );
+      const [initial, requestFingerprintBytes] = await Promise.all([
+        recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_initial_read',
+          startedAtMs: admissionStartedAtMs,
+          promise: this.registrationRead.readFinalization(
+            {
+              ceremonyId: verified.claims.registrationCeremonyId,
+              walletId: walletIdFromString(verified.claims.walletId),
+            },
+            operationKey,
+          ),
+        }),
+        recordRegistrationPromiseTiming({
+          sink: serverTiming,
+          name: 'near_finalize_fingerprint',
+          startedAtMs: Date.now(),
+          promise: sha256BytesUtf8(
+            alphabetizeStringify({
+              version: 'wallet_registration_near_provisioning_digest_v1',
+              registrationCeremonyId: input.registrationCeremonyId,
+              setupDigestB64u: verified.claims.setupDigestB64u,
+              idempotencyKey: input.idempotencyKey,
+              ed25519: input.ed25519,
+              emailOtpEnrollment: input.emailOtpEnrollment,
+            }),
+          ),
+        }),
+      ]);
       if (!initial.ok) return initial;
       // NEAR finalization owns its claim, uncertainty state and replay receipt.
-      const fingerprintStartedAtMs = Date.now();
-      const requestFingerprint = base64UrlEncode(
-        await sha256BytesUtf8(
-          alphabetizeStringify({
-            version: 'wallet_registration_near_provisioning_digest_v1',
-            registrationCeremonyId: input.registrationCeremonyId,
-            setupDigestB64u: verified.claims.setupDigestB64u,
-            idempotencyKey: input.idempotencyKey,
-            ed25519: input.ed25519,
-            emailOtpEnrollment: input.emailOtpEnrollment,
-          }),
-        ),
-      );
-      recordRegistrationServerTiming(
-        serverTiming,
-        'near_finalize_fingerprint',
-        fingerprintStartedAtMs,
-      );
+      const requestFingerprint = base64UrlEncode(requestFingerprintBytes);
       const sideEffectStartedAtMs = Date.now();
       // Set only when this request prepares the operation. A resumed execution reads for itself.
       let preparedCeremony: StoredWalletRegistrationCeremony | null = null;
@@ -4261,6 +4263,7 @@ export class CloudflareD1WalletRegistrationService {
           lifecycleDecision: initial.decision,
           heldPasskeyClaim: initial.heldPasskeyClaim,
           readYaoAdmission: initial.readYaoAdmission,
+          readFounding: initial.readFounding,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4939,6 +4942,7 @@ export class CloudflareD1WalletRegistrationService {
       null,
       null,
       { kind: 'stored' },
+      null,
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -5384,6 +5388,7 @@ export class CloudflareD1WalletRegistrationService {
     lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null,
     heldPasskeyClaim: HeldRegistrationPasskeyClaim | null,
     yaoAdmission: RouterAbEd25519YaoConsumptionAdmissionV1,
+    founding: Parameters<D1WalletRegistrationCommitStore['reserveAuthority']>[2],
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5722,7 +5727,7 @@ export class CloudflareD1WalletRegistrationService {
             promise: this.walletRegistrationCommitStore.reserveAuthority(
               ceremonyAuthority,
               heldPasskeyClaim,
-              prepared,
+              founding ?? { kind: 'read', ids: prepared },
             ),
           }),
         ]);
@@ -5892,7 +5897,7 @@ export class CloudflareD1WalletRegistrationService {
         commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(
           ceremonyAuthority,
           null,
-          prepared,
+          { kind: 'read', ids: prepared },
         );
       }
 
