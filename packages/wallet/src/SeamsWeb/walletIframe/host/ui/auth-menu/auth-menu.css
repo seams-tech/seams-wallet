@@ -55,7 +55,11 @@
 :where(.seams-auth-menu-surface) .seams-signup-menu-root {
   /* CSS sentinel (used by tests/diagnostics to confirm stylesheet is applied) */
   --seams-auth-menu-css-ready: 1;
-  --seams-auth-menu-padding-top: calc(var(--seams-spacing-lg) + 4px);
+  /* The origin row opens every view, so the card's top padding stays tight
+     around it and never changes between views. */
+  --seams-auth-menu-padding-top: 1.125rem;
+  /* The origin row's line plus its gap to the view below. */
+  --seams-menu-origin-block-size: 1.875rem;
   --seams-auth-menu-padding-inline: var(--seams-spacing-lg);
   position: relative;
   box-sizing: border-box;
@@ -97,7 +101,8 @@
 /* Back button */
 :where(.seams-auth-menu-surface) .seams-back-button {
   position: absolute;
-  top: 1rem;
+  /* Below the origin row, level with the first line of the view. */
+  top: calc(var(--seams-auth-menu-padding-top) + var(--seams-menu-origin-block-size) - 0.75rem);
   left: 1rem;
   width: 40px;
   height: 40px;
@@ -273,10 +278,6 @@
   width: 100%;
 }
 
-:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-signin-menu {
-  padding-block-start: calc(var(--seams-spacing-md) + 0rem);
-}
-
 :where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-title,
 :where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-subhead {
   text-align: center;
@@ -286,8 +287,9 @@
   justify-content: center;
 }
 
-:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-back-button {
-  top: calc(var(--seams-auth-menu-padding-top) + var(--seams-spacing-md));
+/* The title sits on the same line as the main view's, so a switch only swaps it. */
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-title {
+  margin-top: 0;
 }
 
 :where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-header > div {
@@ -1206,7 +1208,8 @@
   min-height: 260px;
   width: min(100%, 360px);
   margin-inline: auto;
-  padding: 1.5rem 0.5rem 0.5rem;
+  /* No top inset: the back button sits beside the title, under the origin row. */
+  padding: 0 0.5rem 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -745,6 +745,10 @@ export class AuthMenuSurface extends Component<
           tabIndex={-1}
           onKeyDown={this.onKeydown}
         >
+          {/* The site asking stays put in every view, so switching views never moves it. */}
+          <div class="seams-menu-origin">
+            <PadlockIcon /> <span>{viewModel.hostname}</span>
+          </div>
           <div class="seams-content-switcher">
             <button
               class={`seams-back-button ${
@@ -809,9 +813,6 @@ export class AuthMenuSurface extends Component<
     const eyebrow = modeLabel(viewModel.mode);
     return (
       <div class="seams-menu-header">
-        <div class="seams-menu-origin">
-          <PadlockIcon /> <span>{viewModel.hostname}</span>
-        </div>
         {/* An app that titles the menu with the mode itself needs no second copy of it. */}
         {eyebrow === viewModel.heading ? null : <div class="seams-menu-eyebrow">{eyebrow}</div>}
         <div class="seams-title" id={AUTH_MENU_TITLE_ID}>
