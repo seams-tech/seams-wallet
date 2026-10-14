@@ -1324,6 +1324,9 @@ export class AuthMenuSurface extends Component<
           ) : null}
           <div class="seams-waiting-message">
             <span class="seams-waiting-text">{waitingText}</span>
+            {status.illustration === 'passkey' ? (
+              <span class="seams-passkey-instruction">Complete the prompt on your device.</span>
+            ) : null}
             {viewModel.showProgress && status.detail && status.detail !== waitingText ? (
               <>
                 <span class="seams-waiting-sdk-events">{status.detail}</span>

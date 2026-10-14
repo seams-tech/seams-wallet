@@ -1895,14 +1895,34 @@
 
 :where(.seams-auth-menu-surface) [data-dot-index="11"] { --dot-index: 11; }
 
+:where(.seams-auth-menu-surface) .seams-signup-menu-root:has(.seams-passkey-prompt) {
+  --seams-menu-min-block-size: 220px;
+}
+
 :where(.seams-auth-menu-surface) .seams-passkey-prompt {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  box-sizing: border-box;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 2px;
+  border: 1px solid color-mix(in srgb, var(--seams-colors-textPrimary) 8%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-textPrimary) 4%);
   color: var(--seams-colors-textPrimary);
 }
 :where(.seams-auth-menu-surface) .seams-passkey-prompt svg {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
+}
+:where(.seams-auth-menu-surface) .seams-passkey-prompt svg path {
+  stroke-width: 1.5;
+}
+:where(.seams-auth-menu-surface) .seams-passkey-instruction {
+  max-width: 240px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--seams-colors-textSecondary);
+  text-wrap: balance;
 }
