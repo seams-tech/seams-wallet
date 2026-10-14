@@ -19,9 +19,9 @@ Every deployment remains a separate, authorized step.
 
 ## 0.10.2
 
-Status: **prepared, not published.** Patch release with no wire, schema or
-protocol change. It carries the R155H finalization work on public `dev`
-since 0.10.1. Codex's R155H close-out handoff, which the user forwarded on
+Status: **published October 14, 2026, 11:37 UTC, and deployed to staging.**
+Patch release with no wire, schema or protocol change. It carries the R155H
+finalization work on public `dev` since 0.10.1. Codex's R155H close-out handoff, which the user forwarded on
 October 14, names this release.
 
 - **Finalization reads.** `8b4dcf5f` reads the Yao admission in the
@@ -60,6 +60,15 @@ October 14, names this release.
   percentile; all 396 signatures verify
   ([record](evidence/refactor-155h-remaining-optimizations-staging.md)).
   `ddaefdce` adds no request, query or wait to a successful registration.
+- **Publication.** CI on [pull request 42](https://github.com/seams-tech/seams-wallet/pull/42)
+  passed on `3914b864`. `main` is at the merge commit `70f5674f` with the
+  same tree. Publish run `38551794394`; npm showed both packages when the
+  run ended.
+- **Staging.** Activated at 20:54 JST on October 14. The server-side spans
+  match the A/B/A/B candidate; all 198 signatures of two runs verify. Most
+  requests of those runs entered Cloudflare in Seattle, so their browser
+  totals are not comparable; the
+  [record](evidence/refactor-155h-release-0102-staging.md) separates them.
 
 ## 0.10.1
 

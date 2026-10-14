@@ -1,0 +1,543 @@
+{
+  "schema": "seams.refactor155h.release0102Staging.v1",
+  "date": "2026-10-14",
+  "lane": "staging-testnet (Singapore)",
+  "client": "Tokyo laptop, Chromium virtual authenticator",
+  "release": {
+    "version": "0.10.2",
+    "main": "70f5674f6ec2e58b6f4df057787889da51600b59",
+    "pullRequest": 42,
+    "publishRun": 38551794394,
+    "npmPublished": {
+      "@seams/wallet-server": "2026-10-14T11:37:09Z",
+      "@seams/wallet": "2026-10-14T11:36:37Z"
+    }
+  },
+  "deployment": {
+    "privatePins": "80dfe17337b98427080f29171d0c0e5a9625fd9c",
+    "consoleRun": 38558168414,
+    "backendRun": 38558593639,
+    "activationRun": 38559792947,
+    "activatedAt": "2026-10-14T11:54:46Z",
+    "frontendRun": 38560001842,
+    "allLatestUploadsServing": true,
+    "workers": 14
+  },
+  "runs": {
+    "run-a": {
+      "start": "21:26 JST"
+    },
+    "run-b": {
+      "start": "21:38 JST"
+    }
+  },
+  "entryLocationsAfterPasskey": {
+    "run-a": {
+      "SEA": 156,
+      "NRT": 30,
+      "PDX": 12
+    },
+    "run-b": {
+      "SEA": 157,
+      "NRT": 40
+    }
+  },
+  "japanEntryWallets": {
+    "run-a": {
+      "n": 15,
+      "afterPasskeyP50": 1780,
+      "afterPasskeyP90": 2478,
+      "respondP50": 1201,
+      "finalizeP50": 436,
+      "signatureP50": 456
+    },
+    "run-b": {
+      "n": 20,
+      "afterPasskeyP50": 1480,
+      "afterPasskeyP90": 2241,
+      "respondP50": 1014,
+      "finalizeP50": 363,
+      "signatureP50": 323
+    }
+  },
+  "arms": {
+    "control-1-run": {
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1645,
+          "p90": 1912
+        },
+        "respond": {
+          "n": 99,
+          "p50": 1093,
+          "p90": 1356
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 451,
+          "p90": 705
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 48,
+          "p90": 58
+        },
+        "setup": {
+          "n": 99,
+          "p50": 551,
+          "p90": 875
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 493,
+          "p90": 593
+        },
+        "signature": {
+          "n": 99,
+          "p50": 376,
+          "p90": 546
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2348,
+          "p90": 2740
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 0,
+        "near_finalize_custody_commit": 25,
+        "near_finalize_custody_reserve": 40,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 14,
+        "near_finalize_router_consume": 52,
+        "near_finalize_session_issue": 47,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 218,
+        "near_finalize_source": 0,
+        "near_finalize_total": 232,
+        "near_finalize_wallet_commit": 56
+      },
+      "gatewayFinalize": {
+        "wallP50": 373,
+        "cpuP50": 52,
+        "cpuP90": 89
+      },
+      "gatewayRespond": {
+        "wallP50": 971,
+        "cpuP50": 29
+      },
+      "deriverWriteP50": {
+        "a": 12,
+        "b": 15
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 22,
+        "publish-routes": 24,
+        "complete": 26
+      },
+      "latePreparations": 38
+    },
+    "candidate-1-run": {
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1449,
+          "p90": 1866
+        },
+        "respond": {
+          "n": 99,
+          "p50": 962,
+          "p90": 1329
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 419,
+          "p90": 571
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 51,
+          "p90": 58
+        },
+        "setup": {
+          "n": 99,
+          "p50": 524,
+          "p90": 858
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 523,
+          "p90": 636
+        },
+        "signature": {
+          "n": 99,
+          "p50": 351,
+          "p90": 548
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2114,
+          "p90": 2686
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 12,
+        "near_finalize_custody_commit": 25,
+        "near_finalize_custody_reserve": 33,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 15,
+        "near_finalize_router_consume": 36,
+        "near_finalize_session_issue": 35,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 169,
+        "near_finalize_source": 0,
+        "near_finalize_total": 193,
+        "near_finalize_wallet_commit": 38
+      },
+      "gatewayFinalize": {
+        "wallP50": 343,
+        "cpuP50": 47,
+        "cpuP90": 79
+      },
+      "gatewayRespond": {
+        "wallP50": 844,
+        "cpuP50": 26
+      },
+      "deriverWriteP50": {
+        "a": 10,
+        "b": 15.0
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 21,
+        "publish-routes": 24,
+        "complete": 25
+      },
+      "latePreparations": 16
+    },
+    "control-2-run": {
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1435,
+          "p90": 1851
+        },
+        "respond": {
+          "n": 99,
+          "p50": 924,
+          "p90": 1235
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 442,
+          "p90": 634
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 54,
+          "p90": 61
+        },
+        "setup": {
+          "n": 99,
+          "p50": 551,
+          "p90": 858
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 489,
+          "p90": 646
+        },
+        "signature": {
+          "n": 99,
+          "p50": 360,
+          "p90": 557
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2108,
+          "p90": 2722
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 0,
+        "near_finalize_custody_commit": 26,
+        "near_finalize_custody_reserve": 32,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 15,
+        "near_finalize_router_consume": 52,
+        "near_finalize_session_issue": 31,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 207,
+        "near_finalize_source": 0,
+        "near_finalize_total": 224,
+        "near_finalize_wallet_commit": 54
+      },
+      "gatewayFinalize": {
+        "wallP50": 383,
+        "cpuP50": 55,
+        "cpuP90": 86
+      },
+      "gatewayRespond": {
+        "wallP50": 807,
+        "cpuP50": 23
+      },
+      "deriverWriteP50": {
+        "a": 9.5,
+        "b": 15
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 18,
+        "publish-routes": 24,
+        "complete": 23
+      },
+      "latePreparations": 21
+    },
+    "candidate-2-run": {
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1359,
+          "p90": 1785
+        },
+        "respond": {
+          "n": 99,
+          "p50": 931,
+          "p90": 1244
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 353,
+          "p90": 489
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 55,
+          "p90": 59
+        },
+        "setup": {
+          "n": 99,
+          "p50": 497,
+          "p90": 731
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 541,
+          "p90": 635
+        },
+        "signature": {
+          "n": 99,
+          "p50": 304,
+          "p90": 481
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 1940,
+          "p90": 2529
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 12,
+        "near_finalize_custody_commit": 20,
+        "near_finalize_custody_reserve": 31,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 13,
+        "near_finalize_router_consume": 34,
+        "near_finalize_session_issue": 31,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 148,
+        "near_finalize_source": 0,
+        "near_finalize_total": 164,
+        "near_finalize_wallet_commit": 35
+      },
+      "gatewayFinalize": {
+        "wallP50": 279,
+        "cpuP50": 41,
+        "cpuP90": 71
+      },
+      "gatewayRespond": {
+        "wallP50": 820,
+        "cpuP50": 25
+      },
+      "deriverWriteP50": {
+        "a": 10.0,
+        "b": 14
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 21,
+        "publish-routes": 23,
+        "complete": 23
+      },
+      "latePreparations": 10
+    },
+    "run-a": {
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 2009,
+          "p90": 2690
+        },
+        "respond": {
+          "n": 99,
+          "p50": 1298,
+          "p90": 1812
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 625,
+          "p90": 930
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 55,
+          "p90": 59
+        },
+        "setup": {
+          "n": 99,
+          "p50": 698,
+          "p90": 1222
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 459,
+          "p90": 693
+        },
+        "signature": {
+          "n": 99,
+          "p50": 810,
+          "p90": 1188
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2951,
+          "p90": 3838
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 13,
+        "near_finalize_custody_commit": 27,
+        "near_finalize_custody_reserve": 37,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 16,
+        "near_finalize_router_consume": 39,
+        "near_finalize_session_issue": 39,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 182,
+        "near_finalize_source": 0,
+        "near_finalize_total": 200,
+        "near_finalize_wallet_commit": 40
+      },
+      "gatewayFinalize": {
+        "wallP50": 345,
+        "cpuP50": 48,
+        "cpuP90": 79
+      },
+      "gatewayRespond": {
+        "wallP50": 981,
+        "cpuP50": 25
+      },
+      "deriverWriteP50": {
+        "a": 11,
+        "b": 17
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 21,
+        "publish-routes": 26,
+        "complete": 28
+      },
+      "latePreparations": 16
+    },
+    "run-b": {
+      "browser": {
+        "afterPasskey": {
+          "n": 99,
+          "p50": 1900,
+          "p90": 2527
+        },
+        "respond": {
+          "n": 99,
+          "p50": 1173,
+          "p90": 1679
+        },
+        "finalize": {
+          "n": 99,
+          "p50": 589,
+          "p90": 906
+        },
+        "clientRest": {
+          "n": 99,
+          "p50": 55,
+          "p90": 59
+        },
+        "setup": {
+          "n": 99,
+          "p50": 639,
+          "p90": 1112
+        },
+        "passkey": {
+          "n": 99,
+          "p50": 458,
+          "p90": 658
+        },
+        "signature": {
+          "n": 99,
+          "p50": 766,
+          "p90": 1185
+        },
+        "registrationNoPasskey": {
+          "n": 99,
+          "p50": 2640,
+          "p90": 3597
+        }
+      },
+      "finalizeSpansP50": {
+        "near_finalize_authority": 0,
+        "near_finalize_authority_reserve": 14,
+        "near_finalize_custody_commit": 25,
+        "near_finalize_custody_reserve": 35,
+        "near_finalize_fingerprint": 0,
+        "near_finalize_initial_read": 15,
+        "near_finalize_router_consume": 34,
+        "near_finalize_session_issue": 37,
+        "near_finalize_session_seal": 0,
+        "near_finalize_side_effect": 167,
+        "near_finalize_source": 0,
+        "near_finalize_total": 182,
+        "near_finalize_wallet_commit": 37
+      },
+      "gatewayFinalize": {
+        "wallP50": 314,
+        "cpuP50": 42,
+        "cpuP90": 62
+      },
+      "gatewayRespond": {
+        "wallP50": 872,
+        "cpuP50": 20
+      },
+      "deriverWriteP50": {
+        "a": 10.0,
+        "b": 16
+      },
+      "consoleWriteP50": {
+        "claim-passkey": 20,
+        "publish-routes": 25,
+        "complete": 23
+      },
+      "latePreparations": 17
+    }
+  },
+  "signaturesVerifiedIndependently": {
+    "verified": 198,
+    "distinctKeys": 198,
+    "failedSamples": 0
+  },
+  "gatewayTail": {
+    "non200Posts": 0,
+    "exceptions": 0,
+    "sealWarmUpFailures": 0
+  }
+}
