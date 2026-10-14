@@ -74,6 +74,21 @@ function previewAction(
   onAction?.(action);
 }
 
+function lockPreview(
+  setStatus: React.Dispatch<React.SetStateAction<'ready' | 'logged_out'>>,
+  close: () => void,
+): void {
+  setStatus('logged_out');
+  close();
+}
+function openPreview(
+  setStatus: React.Dispatch<React.SetStateAction<'ready' | 'logged_out'>>,
+  toggle: () => void,
+): void {
+  setStatus('ready');
+  toggle();
+}
+
 function resetPreviewNavigation(
   isOpen: boolean,
   setScreen: React.Dispatch<React.SetStateAction<AccountPreviewScreen>>,
@@ -91,6 +106,7 @@ function AccountMenuPreview({
   onAction,
 }: AccountMenuButtonMockProps): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
+  const [status, setStatus] = useState<'ready' | 'logged_out'>('ready');
   const [screen, setScreen] = useState<AccountPreviewScreen>({ kind: 'overview' });
   const [confirmation, setConfirmation] = useState<ConfirmationConfig>({
     uiMode: 'modal',
@@ -174,11 +190,12 @@ function AccountMenuPreview({
       className={className}
       style={style}
       trigger={{
+        label: status === 'logged_out' ? 'Logged out' : 'Settings',
         username,
         fullAccountId: walletId,
         hideUsername: false,
         isOpen,
-        onClick: handleToggle,
+        onClick: openPreview.bind(null, setStatus, handleToggle),
         theme,
       }}
       dropdown={{
@@ -186,7 +203,7 @@ function AccountMenuPreview({
         menuItems,
         menuItemsRef: refs.menuItemsRef,
         onClose: handleClose,
-        onLock: handleClose,
+        onLock: lockPreview.bind(null, setStatus, handleClose),
         theme,
       }}
     >

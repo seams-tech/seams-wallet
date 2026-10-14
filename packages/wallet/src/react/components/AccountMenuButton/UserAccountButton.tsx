@@ -3,6 +3,7 @@ import TouchIcon from './icons/TouchIcon';
 import type { UserAccountButtonProps } from './types';
 
 export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
+  label = 'Settings',
   username,
   hideUsername,
   fullAccountId,
@@ -48,6 +49,7 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
           </div>
           {!hideWhenClosed && (
             <UserAccountId
+              label={label}
               username={username}
               fullAccountId={fullAccountId}
               emailAddress={emailAddress}
@@ -62,11 +64,13 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
 };
 
 const UserAccountId = ({
+  label,
   username,
   fullAccountId,
   emailAddress,
   isOpen,
 }: {
+  label: string;
   username: string;
   fullAccountId?: string;
   emailAddress?: string;
@@ -79,8 +83,9 @@ const UserAccountId = ({
      Accounts section of the dropdown */
   return (
     <div className="seams-user-account--user-details">
-      <p className="seams-user-account--username">Settings</p>
+      <p className="seams-user-account--username">{label}</p>
       <span
+        aria-hidden={!isOpen}
         title={displayAccountId || undefined}
         className={`seams-user-account--account-id ${isOpen ? 'visible' : 'hidden'}`}
       >
@@ -88,6 +93,7 @@ const UserAccountId = ({
       </span>
       {emailAddress && (
         <span
+          aria-hidden={!isOpen}
           title={emailAddress}
           className={`seams-user-account--email ${isOpen ? 'visible' : 'hidden'}`}
         >

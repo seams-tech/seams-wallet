@@ -99,7 +99,7 @@ export function AccountMenuButtonView({
     <div
       ref={buttonRef}
       className={`seams-profile-button-morphable ${trigger.isOpen ? 'open' : 'closed'} ${className ?? ''}`}
-      style={style}
+      style={trigger.isOpen ? style : { ...style, width: 'fit-content' }}
       data-state={trigger.isOpen ? 'open' : 'closed'}
     >
       {trigger.isOpen ? (

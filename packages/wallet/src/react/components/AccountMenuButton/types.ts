@@ -95,6 +95,7 @@ export interface AccountMenuButtonProps {
 export type ProfileSettingsButtonProps = AccountMenuButtonProps;
 
 export interface UserAccountButtonProps {
+  label?: string;
   username: string;
   hideUsername: boolean;
   fullAccountId?: string;

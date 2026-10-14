@@ -125,7 +125,16 @@ try {
     Math.abs(fit.frame - fit.content) < 1,
     'Interrupted resize must settle to the current screen',
   );
+  await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Lock Wallet', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Logged out', exact: true })).toBeVisible();
+  const loggedOutWidth = await page
+    .locator('.seams-profile-button-morphable')
+    .evaluate((element) => element.getBoundingClientRect().width);
+  assert.ok(loggedOutWidth < 240, 'Logged-out trigger must shrink to its content');
+  await page.screenshot({ path: `${artifacts}/logged-out.png` });
   await page.locator('[aria-haspopup="menu"]').click();
   await expect(page.getByRole('group', { name: 'Wallet account' })).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'reduce' });

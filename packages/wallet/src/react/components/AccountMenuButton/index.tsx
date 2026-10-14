@@ -730,6 +730,7 @@ const AccountMenuButtonInner: React.FC<
       className={className}
       style={style}
       trigger={{
+        label: loginState.isLoggedIn ? 'Settings' : 'Logged out',
         username: accountName,
         hideUsername,
         fullAccountId: walletId || undefined,
