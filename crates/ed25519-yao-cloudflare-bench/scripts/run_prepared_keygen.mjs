@@ -179,6 +179,7 @@ async function sample(endpoint, token, fixture, schedules, operation) {
   socket.once('close', recordClose.bind(null, closed));
   const events = on(socket, 'message', { signal: AbortSignal.timeout(900000), close: ['close'] });
   let state = { kind: 'preparing' };
+  const progress = [];
   try {
     await once(socket, 'open');
     for await (const [bytes] of events) {
@@ -186,6 +187,35 @@ async function sample(endpoint, token, fixture, schedules, operation) {
       if (message.type === 'error') throw new Error(message.error);
       assert.equal(message.run_id, runId);
       switch (message.type) {
+        case 'preparation-progress': {
+          assert.equal(state.kind, 'preparing');
+          assert.equal(message.role, 'a');
+          assert(
+            ['ml-dsa-signing-key-ready', 'ml-dsa-boolean-preparation-progress'].includes(
+              message.event,
+            ),
+          );
+          for (const field of [
+            'instances_started',
+            'wasm_linear_memory_bytes',
+            'sent_bytes',
+            'received_bytes',
+          ])
+            assert(Number.isSafeInteger(message[field]) && message[field] >= 0);
+          const observed = {
+            event: message.event,
+            instances_started: message.instances_started,
+            wasm_linear_memory_bytes: message.wasm_linear_memory_bytes,
+            sent_bytes: message.sent_bytes,
+            received_bytes: message.received_bytes,
+            client_elapsed_ms: performance.now() - started,
+          };
+          progress.push(observed);
+          console.log(
+            `Fixture ${fixture.index}: ${message.event}, instances ${message.instances_started}, elapsed ${(observed.client_elapsed_ms / 1000).toFixed(1)} s`,
+          );
+          break;
+        }
         case 'ready': {
           assert.equal(state.kind, 'preparing');
           const onlineStart = performance.now();
@@ -214,6 +244,7 @@ async function sample(endpoint, token, fixture, schedules, operation) {
               under_five_seconds: onlineMs < 5000,
               successful: operation === 'keygen' || message.roles.a.status === 'signed',
               ready: state.ready,
+              preparation_progress: progress,
               report: message,
             },
           };
@@ -232,6 +263,10 @@ async function sample(endpoint, token, fixture, schedules, operation) {
     }
     throw new Error(
       `Worker closed before cleanup confirmation: run=${runId}, phase=${state.kind}, code=${closed.code}, reason=${closed.reason}, elapsed_ms=${(performance.now() - started).toFixed(1)}`,
+    );
+  } catch (error) {
+    throw new Error(
+      `${String(error)}; last_preparation_progress=${JSON.stringify(progress.at(-1) ?? null)}`,
     );
   } finally {
     await events.return();

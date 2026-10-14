@@ -1,4 +1,4 @@
-//! Disposable public-fixture ML-DSA kernels on two isolated Worker roles.
+//! Disposable prepared ML-DSA protocols on two isolated Worker roles.
 //!
 //! Each build embeds only its own fixture inputs and expected outputs. B checks
 //! its output locally and sends only the check result and public measurements.
@@ -14,13 +14,7 @@ mod prepared_storage;
 
 use std::collections::VecDeque;
 
-#[cfg(feature = "ml-dsa-b")]
-use ed25519_yao::ml_dsa_runtime::begin_evaluator;
-#[cfg(feature = "ml-dsa-a")]
-use ed25519_yao::ml_dsa_runtime::begin_garbler;
-use ed25519_yao::ml_dsa_runtime::{
-    RuntimeMetrics, RuntimeOutput, Step, TrustedMlDsaSchedule, MAX_MESSAGE_BYTES,
-};
+use ed25519_yao::ml_dsa_runtime::{RuntimeOutput, Step, MAX_MESSAGE_BYTES};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
 use wasm_bindgen::JsCast;
@@ -32,7 +26,6 @@ const MAX_COMPLETION_BYTES: usize = 262_144;
 const DATA: u8 = 0;
 const ACK: u8 = 1;
 const COMPLETE: u8 = 2;
-const SCHEMA: &str = "seams.ml-dsa-worker-kernel.v1";
 static COMMITMENT_HASH_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/commitment-hash.bin");
 static RESPONSE_CHECK_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/response-check.bin");
 static SEED_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/seed.bin");
@@ -42,95 +35,19 @@ static SAMPLING_THREE_BLOCKS_SCHEDULE: &[u8] =
     include_bytes!("ml_dsa_schedules/sampling-three-blocks.bin");
 static SAMPLING_FINAL_BOUND_SCHEDULE: &[u8] =
     include_bytes!("ml_dsa_schedules/sampling-final-bound.bin");
-static SAMPLING_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/sampling.bin");
-static ROUNDING_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/rounding.bin");
-static MASK_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/signing-mask.bin");
-
 #[cfg(feature = "ml-dsa-a")]
 const ROLE: &str = "a";
 #[cfg(feature = "ml-dsa-b")]
 const ROLE: &str = "b";
-#[cfg(feature = "ml-dsa-a")]
-const FIXTURES: &str = include_str!("ml_dsa_schedules/fixtures-a.json");
-#[cfg(feature = "ml-dsa-b")]
-const FIXTURES: &str = include_str!("ml_dsa_schedules/fixtures-b.json");
-
-#[derive(Clone, Copy)]
-enum Kernel {
-    Seed,
-    Sampling,
-    Rounding,
-    ExpandMask,
-}
-
-impl Kernel {
-    fn parse(name: &str) -> worker::Result<Self> {
-        match name {
-            "seed" => Ok(Self::Seed),
-            "sampling" => Ok(Self::Sampling),
-            "rounding" => Ok(Self::Rounding),
-            "signing-mask" => Ok(Self::ExpandMask),
-            _ => Err(failure("Unknown ML-DSA kernel.")),
-        }
+fn operation(name: &str) -> worker::Result<prepared::Operation> {
+    match name {
+        "prepared-keygen" => Ok(prepared::Operation::Keygen),
+        "prepared-signing" => Ok(prepared::Operation::Signing(
+            prepared_signing::Backend::HalfGates,
+        )),
+        "prepared-gmw-signing" => Ok(prepared::Operation::Signing(prepared_signing::Backend::Gmw)),
+        _ => Err(failure("Unknown prepared ML-DSA operation.")),
     }
-
-    const fn name(self) -> &'static str {
-        match self {
-            Self::Seed => "seed",
-            Self::Sampling => "sampling",
-            Self::Rounding => "rounding",
-            Self::ExpandMask => "signing-mask",
-        }
-    }
-
-    fn schedule(self) -> &'static [u8] {
-        match self {
-            Self::Seed => SEED_SCHEDULE,
-            Self::Sampling => SAMPLING_SCHEDULE,
-            Self::Rounding => ROUNDING_SCHEDULE,
-            Self::ExpandMask => MASK_SCHEDULE,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum ProbeOperation {
-    Prepared(prepared::Operation),
-    Kernel(Kernel),
-    Pipeline(pipeline::Operation),
-}
-
-impl ProbeOperation {
-    fn parse(value: &str) -> worker::Result<Self> {
-        match value {
-            "prepared-keygen" => Ok(Self::Prepared(prepared::Operation::Keygen)),
-            "prepared-signing" => Ok(Self::Prepared(prepared::Operation::Signing(
-                prepared_signing::Backend::HalfGates,
-            ))),
-            "prepared-gmw-signing" => Ok(Self::Prepared(prepared::Operation::Signing(
-                prepared_signing::Backend::Gmw,
-            ))),
-            "keygen-fixture" => Ok(Self::Pipeline(pipeline::Operation::Keygen(
-                pipeline::ThresholdMode::Fixture,
-            ))),
-            "keygen-joint" => Ok(Self::Pipeline(pipeline::Operation::Keygen(
-                pipeline::ThresholdMode::Joint,
-            ))),
-            "threshold-fixture" => Ok(Self::Pipeline(pipeline::Operation::Threshold(
-                pipeline::ThresholdMode::Fixture,
-            ))),
-            "threshold-joint" => Ok(Self::Pipeline(pipeline::Operation::Threshold(
-                pipeline::ThresholdMode::Joint,
-            ))),
-            name => Ok(Self::Kernel(Kernel::parse(name)?)),
-        }
-    }
-}
-
-struct Fixture {
-    digest: [u8; 32],
-    input: Zeroizing<Vec<bool>>,
-    expected_output: Zeroizing<Vec<u8>>,
 }
 
 fn failure(message: &str) -> worker::Error {
@@ -179,58 +96,6 @@ fn encode_hex(bytes: &[u8]) -> String {
         encoded.push(char::from(DIGITS[usize::from(byte & 15)]));
     }
     encoded
-}
-
-fn fixture(kernel: Kernel) -> worker::Result<Fixture> {
-    let root: Value = serde_json::from_str(FIXTURES).map_err(runtime_failure)?;
-    if required_string(&root, "schema")? != "seams.ml-dsa-worker-fixtures.v1" {
-        return Err(failure("The generated fixture schema is incorrect."));
-    }
-    let kernels = root
-        .get("kernels")
-        .and_then(Value::as_object)
-        .ok_or_else(missing_fixture_field)?;
-    let record = kernels
-        .get(kernel.name())
-        .ok_or_else(missing_fixture_field)?;
-    if root.get("public_fixtures_only") != Some(&Value::Bool(true)) {
-        return Err(failure("The fixture is not marked as public test data."));
-    }
-    let digest = decode_hex(required_string(record, "schedule_sha256")?)?
-        .try_into()
-        .map_err(invalid_digest)?;
-    let input_bits = record
-        .get("input_bits")
-        .and_then(Value::as_u64)
-        .and_then(convert_usize)
-        .ok_or_else(missing_fixture_field)?;
-    let packed = Zeroizing::new(decode_hex(required_string(record, "input_hex")?)?);
-    if packed.len() != input_bits.div_ceil(8) {
-        return Err(failure("The fixture input byte length is incorrect."));
-    }
-    if !input_bits.is_multiple_of(8) && packed[packed.len() - 1] >> (input_bits % 8) != 0 {
-        return Err(failure("The fixture input has nonzero padding bits."));
-    }
-    let mut input = Zeroizing::new(Vec::with_capacity(input_bits));
-    for index in 0..input_bits {
-        input.push((packed[index / 8] >> (index % 8)) & 1 != 0);
-    }
-    Ok(Fixture {
-        digest,
-        input,
-        expected_output: Zeroizing::new(decode_hex(required_string(
-            record,
-            "expected_output_hex",
-        )?)?),
-    })
-}
-
-fn invalid_digest(_: Vec<u8>) -> worker::Error {
-    failure("The schedule digest must contain 32 bytes.")
-}
-
-fn convert_usize(value: u64) -> Option<usize> {
-    usize::try_from(value).ok()
 }
 
 fn clock_ms() -> f64 {
@@ -462,19 +327,6 @@ fn binary_required() -> worker::Error {
     failure("The peer sent a non-binary message.")
 }
 
-async fn drive(
-    step: Step<'_>,
-    transport: &mut Duplex<'_>,
-    expected: &[u8],
-) -> worker::Result<(bool, RuntimeMetrics)> {
-    let output = drive_runtime(step, transport).await?;
-    let matched = output.output.as_slice() == expected;
-    if !matched {
-        return Err(failure("The role fixture output check failed."));
-    }
-    Ok((matched, output.metrics))
-}
-
 async fn drive_runtime(
     step: Step<'_>,
     transport: &mut Duplex<'_>,
@@ -495,67 +347,11 @@ async fn drive_runtime(
     }
 }
 
-fn role_report(
-    kernel: Kernel,
-    digest: &[u8; 32],
-    matched: bool,
-    metrics: RuntimeMetrics,
-    transport: &Duplex<'_>,
-    colo: Option<String>,
-    run_id: &str,
-) -> Value {
-    json!({
-        "schema": SCHEMA,
-        "role": ROLE,
-        "kernel": kernel.name(),
-        "run_id": run_id,
-        "schedule_sha256": encode_hex(digest),
-        "public_fixture_only": true,
-        "fixture_output_matches": matched,
-        "wasm_linear_memory_highwater_bytes": wasm_linear_memory_highwater_bytes(),
-        "linear_memory_scope": "Current isolate-wide Wasm linear memory. Memory can grow across earlier operations. JavaScript buffers and total Worker memory are excluded.",
-        "incoming_colo": colo,
-        "runtime": metrics_json(metrics),
-        "transport": transport.measurements(),
-    })
-}
-
 fn wasm_linear_memory_highwater_bytes() -> u32 {
     let memory = wasm_bindgen::memory()
         .dyn_into::<worker::js_sys::WebAssembly::Memory>()
         .expect("wasm_bindgen exposes this module's linear memory");
     worker::js_sys::Uint8Array::new(&memory.buffer()).byte_length()
-}
-
-fn metrics_json(metrics: RuntimeMetrics) -> Value {
-    json!({
-        "table_bytes": metrics.table_bytes,
-        "and_gates": metrics.table_bytes / 32,
-        "frame_count": metrics.frame_count,
-        "garbler_to_evaluator_wire_bytes": metrics.garbler_to_evaluator_wire_bytes,
-        "evaluator_to_garbler_wire_bytes": metrics.evaluator_to_garbler_wire_bytes,
-        "ot_wire_bytes": metrics.ot_wire_bytes,
-        "direct_label_bytes": metrics.direct_label_bytes,
-        "output_translation_bytes": metrics.output_translation_bytes,
-        "public_return_bytes": metrics.public_return_bytes,
-        "label_arena_allocation_bytes": metrics.label_arena_allocation_bytes,
-        "maximum_table_message_bytes": metrics.maximum_table_message_bytes,
-        "maximum_control_message_bytes": metrics.maximum_control_message_bytes,
-        "schedule_bytes": metrics.schedule_bytes,
-        "execution_binding_sha256": encode_hex(&metrics.execution_binding_sha256),
-        "memory_scope": "Only the label arena is an allocation measurement. Message byte fields are maximum lengths. OT state, Wasm linear memory, and host queues are excluded.",
-    })
-}
-
-fn own_inputs_match(schedule: &TrustedMlDsaSchedule<'_>, fixture: &Fixture) -> worker::Result<()> {
-    #[cfg(feature = "ml-dsa-a")]
-    let expected = schedule.garbler_input_bits();
-    #[cfg(feature = "ml-dsa-b")]
-    let expected = schedule.evaluator_input_bits();
-    if fixture.input.len() != expected {
-        return Err(failure("The fixture has the wrong role input bit count."));
-    }
-    Ok(())
 }
 
 fn authenticated(request: &worker::web_sys::Request, env: &Env) -> worker::Result<bool> {
@@ -582,7 +378,7 @@ fn authenticated(request: &worker::web_sys::Request, env: &Env) -> worker::Resul
 fn request_parameters(
     request: &worker::web_sys::Request,
     path: &str,
-) -> worker::Result<(ProbeOperation, String, Option<String>)> {
+) -> worker::Result<(prepared::Operation, String, Option<String>)> {
     let url = url::Url::parse(&request.url()).map_err(runtime_failure)?;
     if request.method() != "GET" || url.path() != path {
         return Err(failure("The ML-DSA benchmark endpoint is unknown."));
@@ -591,7 +387,7 @@ fn request_parameters(
     let mut run_id = None;
     for (name, value) in url.query_pairs() {
         match name.as_ref() {
-            "kernel" if kernel.is_none() => kernel = Some(ProbeOperation::parse(&value)?),
+            "kernel" if kernel.is_none() => kernel = Some(operation(&value)?),
             "run_id" if run_id.is_none() => run_id = Some(value.into_owned()),
             _ => return Err(failure("The benchmark query is invalid.")),
         }
@@ -646,110 +442,7 @@ async fn connect_b(env: &Env, operation: &str, run_id: &str) -> worker::Result<W
         .ok_or_else(peer_closed)
 }
 
-#[cfg(feature = "ml-dsa-a")]
-async fn run_a(
-    env: &Env,
-    kernel: Kernel,
-    run_id: &str,
-    colo: Option<String>,
-) -> worker::Result<Value> {
-    let started_ms = clock_ms();
-    let fixture = fixture(kernel)?;
-    let schedule =
-        TrustedMlDsaSchedule::parse(kernel.schedule(), fixture.digest).map_err(runtime_failure)?;
-    own_inputs_match(&schedule, &fixture)?;
-    let schedule_prepared_ms = clock_ms() - started_ms;
-    let socket = connect_b(env, kernel.name(), run_id).await?;
-    let result = run_a_session(&socket, kernel, run_id, colo, &fixture, &schedule).await;
-    let close_code = if result.is_ok() { 1000 } else { 1011 };
-    let closed = socket.close(Some(close_code), Some("session ended"));
-    let roles = match result {
-        Ok(roles) => {
-            closed?;
-            roles
-        }
-        Err(error) => return Err(error),
-    };
-    worker::console_log!(
-        "{}",
-        json!({"event": "ml-dsa-kernel-complete", "role": ROLE, "run_id": run_id, "kernel": kernel.name()})
-    );
-    Ok(json!({
-        "schema": SCHEMA,
-        "ok": true,
-        "public_fixture_only": true,
-        "run_id": run_id,
-        "kernel": kernel.name(),
-        "schedule_prepared_ms": schedule_prepared_ms,
-        "worker_observed_total_ms": clock_ms() - started_ms,
-        "placement": "Incoming colo identifies the request entry point. It does not prove equal physical placement of both Workers.",
-        "scope": "One private kernel, genuine OT, disposable public fixtures. This is not a threshold signing protocol.",
-        "roles": roles,
-    }))
-}
-
-#[cfg(feature = "ml-dsa-a")]
-async fn run_a_session(
-    socket: &WebSocket,
-    kernel: Kernel,
-    run_id: &str,
-    colo: Option<String>,
-    fixture: &Fixture,
-    schedule: &TrustedMlDsaSchedule<'_>,
-) -> worker::Result<Value> {
-    let mut transport = Duplex::new(socket)?;
-    let step = begin_garbler(schedule, &fixture.input).map_err(runtime_failure)?;
-    let (matched, metrics) = drive(step, &mut transport, &fixture.expected_output).await?;
-    let b = transport.peer_completion().await?;
-    if b.get("fixture_output_matches") != Some(&Value::Bool(true)) {
-        return Err(failure("The peer fixture output check failed."));
-    }
-    let a = role_report(
-        kernel,
-        &fixture.digest,
-        matched,
-        metrics,
-        &transport,
-        colo,
-        run_id,
-    );
-    Ok(json!({ "a": a, "b": b }))
-}
-
-#[cfg(feature = "ml-dsa-b")]
-async fn run_b(
-    socket: WebSocket,
-    kernel: Kernel,
-    run_id: String,
-    colo: Option<String>,
-) -> worker::Result<()> {
-    let fixture = fixture(kernel)?;
-    let schedule =
-        TrustedMlDsaSchedule::parse(kernel.schedule(), fixture.digest).map_err(runtime_failure)?;
-    own_inputs_match(&schedule, &fixture)?;
-    let mut transport = Duplex::new(&socket)?;
-    let step = begin_evaluator(&schedule, &fixture.input).map_err(runtime_failure)?;
-    let (matched, metrics) = drive(step, &mut transport, &fixture.expected_output).await?;
-    transport.flush().await?;
-    let report = role_report(
-        kernel,
-        &fixture.digest,
-        matched,
-        metrics,
-        &transport,
-        colo,
-        &run_id,
-    );
-    transport.send_completion(&report)?;
-    socket.close(Some(1000), Some("kernel complete"))?;
-    worker::console_log!(
-        "{}",
-        json!({"event": "ml-dsa-kernel-complete", "role": ROLE, "run_id": run_id, "kernel": kernel.name()})
-    );
-    Ok(())
-}
-
-/// Runs one disposable ML-DSA kernel for this build's fixed role.
+/// Runs a disposable prepared protocol for this build's fixed role.
 #[worker::event(fetch)]
 pub async fn main(
     request: worker::web_sys::Request,
@@ -765,29 +458,13 @@ pub async fn main(
     #[cfg(feature = "ml-dsa-a")]
     {
         let (operation, run_id, colo) = request_parameters(&request, "/benchmark")?;
-        if let ProbeOperation::Prepared(prepared_operation) = operation {
-            if request.headers().get("upgrade")?.as_deref() != Some("websocket") {
-                return json_response(
-                    &json!({"ok": false, "error": "WebSocket upgrade required."}),
-                    426,
-                );
-            }
-            return prepared::accept_a(env, context, run_id, colo, prepared_operation);
+        if request.headers().get("upgrade")?.as_deref() != Some("websocket") {
+            return json_response(
+                &json!({"ok": false, "error": "WebSocket upgrade required."}),
+                426,
+            );
         }
-        let result = match operation {
-            ProbeOperation::Prepared(_) => unreachable!("handled above"),
-            ProbeOperation::Kernel(kernel) => run_a(&env, kernel, &run_id, colo).await,
-            ProbeOperation::Pipeline(operation) => {
-                pipeline::run_a(&env, operation, &run_id, colo).await
-            }
-        };
-        match result {
-            Ok(report) => json_response(&report, 200),
-            Err(error) => json_response(
-                &json!({"ok": false, "error": error.to_string(), "run_id": run_id}),
-                500,
-            ),
-        }
+        prepared::accept_a(env, context, run_id, colo, operation)
     }
     #[cfg(feature = "ml-dsa-b")]
     {
@@ -803,15 +480,9 @@ pub async fn main(
         let for_error = server.clone();
         context.wait_until(async move {
             let result = match operation {
-                ProbeOperation::Prepared(prepared::Operation::Keygen) => {
-                    prepared::run_b(env, server, run_id, colo).await
-                }
-                ProbeOperation::Prepared(prepared::Operation::Signing(backend)) => {
+                prepared::Operation::Keygen => prepared::run_b(env, server, run_id, colo).await,
+                prepared::Operation::Signing(backend) => {
                     Box::pin(prepared_signing::run_b(env, server, run_id, colo, backend)).await
-                }
-                ProbeOperation::Kernel(kernel) => run_b(server, kernel, run_id, colo).await,
-                ProbeOperation::Pipeline(operation) => {
-                    pipeline::run_b(server, operation, run_id, colo).await
                 }
             };
             if let Err(error) = result {
