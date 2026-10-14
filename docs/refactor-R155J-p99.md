@@ -1,17 +1,41 @@
 # R155J — Reduce registration outliers
 
-Status: startup investigation in progress. Date: October 13, 2026.
+Status, October 14, 2026: **targeted fixes and bounded captures are complete;
+the original causes and final p99 acceptance remain open.**
 
-Reduce slow NEAR-only registrations on Singapore staging. Diagnose the rare
-Deriver A startup delay first. Keep the gains delivered by release 0.9.3.
+The last verified staging release is 0.10.1. The October 14 SDK/finalization
+candidate was measured temporarily, then all original Worker versions were restored.
+Do not confuse an implemented fix, a successful bounded check, a published release,
+and acceptance of the tail target.
 
-This plan extends [R155H](refactor-155H.md). It owns the startup investigation,
-targeted fixes, and combined tail measurement. A tail is the slowest part of
-the latency distribution. R155H retains the preparation-at-setup design,
-setup cost controls, and the deferred Console completion design.
-Record their implementation once and cross-reference the evidence here.
+This plan extends [R155H](refactor-155H.md). It owns outlier diagnosis, supported
+failure-path fixes, and combined tail acceptance. R155H owns routine registration
+CPU/round-trip work, preparation at setup, its cost controls, and transient
+`respond` recovery. Console completion remains deferred there.
+
+## Current status
+
+| Work | Established result | What remains |
+| --- | --- | --- |
+| A startup and caller cancellation | Saved request correlated to the same object; four-case local reproduction; 89-attempt hosted capture; diagnostics removed | Explain the pre-handler delay. Cancellation was not shown to cause its duration |
+| Package-delivery failure propagation | Router no longer waits for held delivery after a terminal failure; five Worker cases and 30 hosted signatures passed | Explain the original producer stall; successful requests do not test the hosted failure path |
+| Setup storage recovery | Bounded replay verified for lost requests/replies, ambiguous commits, and exhausted retries | No new setup retry implementation is needed; respond recovery belongs to R155H Phase 10 |
+| Setup exposure and pair preparation | Rate limit, bounded pair admission/connection, expiry, cancellation, and replay implemented; released in 0.10.0 | R155H retains abandoned-setup cost measurement |
+| SDK completion and finalization | Informational parity wait removed; Yao admission batched; 42-wallet combined comparison passed | Publish accumulated changes separately; historical 5.5-second SDK gap is not fully attributed |
+| Founding-read overlap | `f6422f37` committed; explicit-argument cleanup `f36b32a1` and focused checks pass | Hosted contribution is unmeasured; include it in the next accumulated candidate |
+| B binding-await delay | All three arms showed the asymmetry; an unchanged three-wallet control later ran in 12–21 ms | Separate database, transport, runtime, and clock effects if it recurs; no migration is justified now |
+| First-signature HTTP 503 | One diagnostic capture recorded it | Cause remains unresolved |
+| Final p99 acceptance | Several bounded populations have evidence | A matched, budgeted acceptance population is still missing; do not pool different builds to reach 500 |
+
+The next diagnostic work is the unexplained startup/delivery/503 behavior, using
+matched boundaries and current serving versions. Apply a fix only when the evidence
+supports it. Keep accepted call reductions even when a small noisy comparison does
+not establish their individual saving. No production deployment is part of this plan.
 
 ## Baseline and target
+
+The release table below is the historical starting population. Later bounded
+comparisons retain their own builds and sample counts; they do not replace it.
 
 The [0.9.3 staging record](evidence/refactor-155h-release-093-staging.md)
 covers a Tokyo browser calling Singapore. It contains 164 successful
@@ -77,146 +101,168 @@ domain types, measurement helpers, and behavioral scenarios.
 
 ## Phase 1 — Locate the startup delay
 
-October 13 findings: [saved trace and local cancellation reproduction](evidence/refactor-155j-slow-startup.md).
-The same A object received startup and execution dispatch. Execution was its first
-handled command, with `prewarm: none`. A local workerd reproduction shows that the
-abort can remove queued startup; disabling it does not shorten the initialization
-wait. Diagnostics now distinguish abort initiation, forwarding completion and
-handler start. A bounded staging capture ran 89 attempts: 87 signatures verified,
-two attempts failed. The three-second startup stall did not recur. Temporary
-diagnostics were removed from source after capture. The platform cause remains unresolved.
-The capture found a separate 30-second package-delivery failure. A body timeout
-is strongly inferred; the producer cause remains unresolved. See the evidence.
+The [saved trace and local reproduction](evidence/refactor-155j-slow-startup.md)
+show that startup and execution selected the same A object. Execution was its first
+handled command, with `prewarm: none`. The missing interval precedes handler entry.
 
+- [x] Correlate the saved Gateway startup/abort, A Worker dispatch, selected object,
+  and execution entry. The historical record preserves timestamps and missing data.
+- [x] Reuse existing correlation identifiers and add the missing diagnostic boundaries
+  for one bounded capture. No secret inputs or protocol material were logged.
+- [x] Reproduce caller cancellation with real local workerd bindings. Four cases
+  distinguish queued initialization from an entered asynchronous handler, with and
+  without abort. An abort can remove queued startup; removing it did not shorten
+  the roughly 3.5-second execution wait. This is a transport/initialization fixture,
+  not a reproduction of the hosted provider delay.
+- [x] Verify stable object IDs and distinguish handler readiness from completed
+  compute prewarming. The existing three-second startup timeout remains unchanged.
+- [x] Run the bounded hosted diagnostic capture: 89 attempts, 87 signatures verified,
+  two failures retained. The original three-second startup stall did not recur.
+  The capture found a separate delivery failure and an isolated signing 503.
+- [x] Remove temporary diagnostics and verify restoration. Persistent role/host
+  observations already present in the product remain available.
+- [ ] Capture the missing pre-handler boundary when the real slow startup recurs.
+  Separate dispatch, handler entry, initialization/storage, and reply. Label any
+  interval the available tools cannot observe instead of assigning it to transit.
+- [ ] Explain the older 14.6-second B preparation failure after a version switch,
+  if reproduced. The October 14 binding-await samples are a different observation.
 
-The slowest 0.9.3 registration spent 4.166 seconds in custody execution.
-Setup took 459 ms and finalization took 495 ms. Its background startup reached
-the Gateway's three-second limit. Execution later waited about 2.85 seconds
-before A's object ran. This does not prove that cancellation caused the delay.
+Use browser/caller elapsed time and matched Worker wall/CPU records. Worker clocks
+advance at I/O boundaries; zero-valued spans and whole-await durations do not identify
+SQL time or a provider-internal confirmation wait. Do not sum overlapping work.
 
-- [ ] Correlate that sample from Gateway startup through Router, role Worker,
-  object entry, prewarm, admission, and execution completion.
-- [x] Use existing correlation identifiers. Add only missing timing boundaries.
-  Never record secret inputs, credentials, protocol material, or raw authorization headers.
-- [ ] Record dispatch, handler entry, first storage operation, and reply for each role.
-  Record abort initiation and downstream completion separately.
-- [ ] Distinguish pre-handler delay, initialization, queued work, prewarm CPU,
-  storage confirmation, and transport failure. Mark missing observations explicitly.
-- [ ] Reproduce cancellation with a controlled delayed startup in the composed test.
-  Check whether abort cancels downstream work, stops observation, or leaves work running.
-- [x] Verify startup and execution address the same persisted A object and ownership generation.
-- [x] Check whether startup completion means handler readiness or completed compute prewarming.
-- [x] Record a causal finding, or the precise boundary that remains unexplained. The
-  unresolved interval precedes A handler entry; see the evidence above.
+Investigation result: the original A cause is unresolved. The local abort result
+explains a possible missing startup handler, not the duration of the hosted stall.
 
-Use Worker tail wall and CPU measurements alongside application spans.
-Worker application clocks alone can omit CPU time. Do not sum overlapping spans
-or infer transit time from unsynchronized clocks.
+## Phase 2 — Apply only a demonstrated startup fix
 
-Exit: identify the largest unexplained interval and the effect of cancellation.
-If the delay precedes handler entry, retain that fact in the platform evidence.
+No causal fix for the original A startup stall is established. The tested control
+keeps the initialization delay after the abort is removed, so a longer startup
+timeout is not an accepted latency fix.
 
-## Phase 2 — Apply the demonstrated startup fix
+- [x] Keep the existing timeout and stable stored object IDs. Do not add replacement
+  objects, races, or retries solely because an object starts slowly.
+- [ ] If a matched capture shows initialization, queued work, or prewarm interference,
+  remove that demonstrated interference using the existing continuation mechanism.
+- [ ] If preparation is unnecessarily repeated within its permitted lifetime,
+  reuse it with the exact wallet, home, generation, ceremony, and expiry. Preserve
+  cancellation, fresh root checks, and the single execution winner. Cross-request
+  decrypted-share caching remains excluded under R155H.
+- [ ] For any resulting fix, exercise delayed startup, concurrent execution, lost
+  replies, expiry, cancellation, ownership mismatch, and object restart.
 
-- [ ] If cancellation interrupts useful startup, preserve its bounded background
-  lifetime through the existing continuation mechanism.
-- [ ] If cancellation only stops observation, retain the timeout unless another
-  demonstrated reason supports changing it. A larger timeout alone is not a speedup.
-- [ ] If initialization or prewarm blocks execution, remove that interference.
-  Keep prewarm cooperative and subordinate to real wallet work.
-- [ ] If execution repeats preparation, reuse the existing admitted state with
-  exact wallet, home, generation, expiry, and ceremony binding.
-- [ ] Preserve one execution winner and exact retry behavior. Keep claims durable
-  before protocol material leaves either role.
-- [ ] Exercise slow startup followed by immediate execution, lost startup reply,
-  cancellation, expiry, duplicate execution, and an object restart.
+These are conditional follow-ups, not instructions to invent another startup
+refactor. If the remaining interval belongs to an opaque platform service, preserve
+its evidence and state that limit. A support draft may be prepared; sending it
+requires the user's instruction. Do not change a database merely because a previous
+run was slow.
 
-Use the smallest fix supported by Phase 1. Keep stored object IDs stable.
-Do not introduce object pools, duplicate executions, relocation, or replacement
-objects to race a slow request. A retry against the same object may queue behind
-the same delay.
+## Phase 3 — Completed fixes and remaining failure investigations
 
-If the cause is entirely outside handler execution, prepare a sanitized support
-bundle. Include version IDs, times, location evidence, request correlation, and
-the successful control. The user sends it to Cloudflare unless separately authorized.
+- [x] Fix package-delivery failure propagation. The Router observes delivery failure
+  without waiting for a held ceremony/delivery join. All five actual-Worker cases
+  pass; the parent native-binding control stayed pending at five seconds while the
+  candidate answered that case in 205 ms. This is local correctness evidence.
+- [x] Verify the delivered fix on staging: all 30 registrations and signatures
+  succeeded. The failure itself did not recur, so no hosted failure-path or p99
+  saving is claimed. The historical Router version in that record is not a current
+  restore target. See [delivery evidence](evidence/refactor-155j-slow-startup.md#delivery-failure-propagation)
+  and its [hosted check](evidence/refactor-155j-slow-startup.md#hosted-check-of-the-delivery-fix).
+- [ ] Diagnose the producer behind the captured 30-second streamed-delivery wait.
+  The existing trace strongly suggests a body timeout but does not show its producer
+  cause. Capture producer completion/failure and consumer timeout in the same attempt.
+- [ ] Diagnose the isolated first-signature HTTP 503. Do not infer its cause from
+  the unrelated delivery failure or the later B binding-await recovery.
 
-## Phase 3 — Remove additional waits and close setup recovery
+- [x] Verify the existing setup retry implementation (`b8de6715`) against the current
+  lifecycle. The original 0.9.3 baseline did not contain it; that historical fact
+  does not make setup recovery an unimplemented task today.
+- [x] Exercise lost batch requests, committed-but-lost replies, exhausted retries,
+  exact setup replay, cancellation, wrong tenant, and generation checks through
+  the assembled service. Preserve the wallet, ceremony, and object identities.
+- [x] Verify exhausted transient faults return `storage_unavailable` with HTTP 503
+  and fixed public text. [Setup recovery evidence](evidence/refactor-155j-slow-startup.md#setup-recovery-verification)
+  is local correctness evidence; it does not claim hosted fault-injection savings.
 
-- [x] Propagate package-delivery failures without waiting for a stalled ceremony.
-  Preserve terminal supersession and exact replay. Five actual-Worker E2E cases
-  passed; the parent Router remained pending in the native-binding control.
-  Staging now serves the fix in Router `5651a97c`; 30 registrations and their
-  first signatures passed independent verification.
-  [Hosted check](evidence/refactor-155j-slow-startup.md#hosted-check-of-the-delivery-fix).
-  [Failure-propagation evidence](evidence/refactor-155j-slow-startup.md#delivery-failure-propagation).
-- [ ] Diagnose the producer stall behind the captured 30-second package-delivery
-  failure. The deployed fix addresses propagation; the failure did not recur in
-  the 30-attempt hosted check. No hosted failure-path or p99 gain is established.
-  The original slow startup and first-signature HTTP 503 also remain unresolved.
+- [x] Close the setup-rate-limit implementation item through R155H Phase 1:
+  30 setups/minute per publishable key and source IP, refusal before custody work,
+  one prepared session per wallet, and a 30-second maximum lifetime.
+- [x] Implement and test input-free pair admission and connection during the prompt.
+  Release 0.10.0 contains it. Expiry, abandonment, cancellation, and exact replay
+  have evidence. See [local checks](evidence/refactor-155h-prompt-preparation.md)
+  and the [hosted release](evidence/refactor-155h-release-0100-staging.md).
 
-- [x] Review commit `b8de6715` against the current setup lifecycle. Reuse its bounded
-  retry implementation and error mapping. Published 0.9.3 resolves to `e4f883f7`,
-  which does not contain this fix.
-- [x] Exercise a transient D1 failure, an ambiguous write result, and a lost setup reply.
-  The assembled setup service passes request loss, committed-batch reply loss,
-  exhausted retries, and exact setup replay with stable identity and addresses.
-  [Recovery evidence](evidence/refactor-155j-slow-startup.md#setup-recovery-verification).
-- [x] Verify exhausted transient failures return a recoverable server response.
-  Keep database driver text out of the public response.
-- [ ] Resolve R155H's setup cost control before moving more work before authentication.
-  Reuse an existing applicable policy. If none exists, present concrete limits
-  for user approval. Do not invent a separate quota framework.
-- [ ] Implement R155H Phase 1 once: prepare the exact wallet during setup and
-  let immediate execution reuse that work. Validate expiry and abandoned setup cleanup.
-- [ ] Inventory confirmed writes on the slow registration path. Identify which
-  writes must precede another operation and which can overlap.
-- [ ] Batch related writes within an existing object or database transaction.
-  Overlap independent commits only when the lifecycle permits it.
-- [ ] Keep nonessential background writes away from an object serving registration.
-  An object's pending writes can hold outgoing responses behind its output gate.
-- [ ] Preserve durable ownership, replay, and execution claims. Do not use
-  `allowUnconfirmed` to acknowledge these writes early.
+- [x] Remove the informational startup parity await from SDK session publication
+  (`7caae2fa`, contract refinement `e97be4be`). A production-build held-GET case
+  returns success before the diagnostic completes, then signs and respects lock.
+  The historical 5.5-second gap remains partly unexplained.
+- [x] Batch immutable Yao admission into finalization's initial D1 read (`8b4dcf5f`).
+  Router consumption, replay, cancellation, and lifecycle guards remain enforced.
+- [x] Record the combined 42-wallet comparison, with all signatures verified and
+  all 14 original Worker versions restored. Finalization was faster in that sample;
+  full registration did not improve consistently. See the
+  [completion record](evidence/registration-completion-20261014.md).
+- [x] Record the October 14 B asymmetry and the later unchanged production control.
+  Historical binding-await medians were 96.5–120 ms; the three later samples were
+  21, 12, and 20 ms. Isolated B writes measured 12 ms median. The
+  [investigation](evidence/deriver-b-latency-20261014.md) retains the instrument and
+  probe limitations. Its temporary Worker and both diagnostic tables were removed.
+- [ ] If the B delay recurs, use a matched first-primary-session probe and real
+  batch metadata to separate SQL, database/transport waiting, preceding CPU, and
+  runtime resumption. Do not label the historical delay a proven Cloudflare defect.
 
-Console completion after the reply remains deferred under R155H Phase 3.
-Revisit it only if the new traces show a material remaining contribution.
-Do not create an outbox solely to complete this checklist.
+Further durable-write batching, background-work changes, and CPU optimization need
+an observed dependency and lifecycle review. R155H Phase 9 owns routine finalization
+work, including committed founding-read overlap. R155H Phase 10 owns transient
+respond recovery. R155H Phase 3's Console outbox remains deferred; session issue and
+custody persistence already overlap. Keep required ownership and execution claims
+durable; this plan does not authorize `allowUnconfirmed` for them.
 
-## Phase 4 — Verify the combined implementation
+## Phase 4 — Final combined acceptance
 
-Complete correctness checks during implementation. Keep logical commits.
-Measure the accepted changes together. Isolate a change only when a failure
-or regression requires diagnosis.
+Completed bounded verification is distinct from acceptance of the tail target:
 
-- [ ] Extend existing behavioral tests for delayed startup, concurrent requests,
-  retry, cancellation, ownership mismatch, and failure recovery.
-- [ ] Classify every failing test against current types and the intended-behavior specification.
-- [ ] Update the specification with any intended lifecycle change. Remove replaced paths.
-- [ ] Freeze matching SDK, Gateway, Runtime, Console, and custody versions.
-  Record migrations and the serving baseline before staging changes.
-- [ ] Coordinate the staging window with active experiments. Use the current
-  Singapore databases and activation flow. Retire old restore snapshots.
-- [ ] Build release artifacts and run the relevant checks. Deploy the coordinated
-  candidate to existing staging resources, then activate and verify readiness.
-- [ ] Run at least 500 registration attempts across five or more time-separated groups.
-  Use fresh wallets and the same Tokyo client, origins, confirmation policy, and workload.
-- [ ] Include first-use samples in the primary population. Label naturally cold
-  starts and prewarm outcomes. Report controlled post-deployment runs separately.
-- [ ] Record every attempt, including failed, cancelled, and incomplete attempts.
-  Do not replace a failed sample silently or omit its retry time.
-- [ ] Report p50, p90, p95, p99, maximum, failure rate, and counts above four,
-  five, and six seconds. Retain inclusive interaction timings separately.
-- [ ] Use the existing percentile method. Include nearest-rank p99 and sample counts
-  so readers can see the sensitivity to individual outliers.
-- [ ] Retain per-run results. A pooled improvement must not hide a slow run.
-- [ ] Verify every completed signature independently and retain repeatable artifacts.
-- [ ] Attribute the ten slowest registrations to stages and supported causes.
-  Compare object-entry delay, storage waits, CPU, prewarm completion, and request counts.
-- [ ] Export sanitized evidence and link it from this plan and R155H.
+- [x] Keep repeatable behavioral artifacts for cancellation, delivery failure,
+  setup recovery, SDK completion, retries, and lock/ownership checks of accepted
+  changes. Their scope and exclusions are recorded beside each result.
+- [x] Record frozen sources, serving baselines, release builds, and cleanup for the
+  completed captures. They used the existing Singapore lane; diagnostics were
+  removed and original serving versions restored where the run was temporary.
+- [x] Retain failures and per-arm data, and verify completed signatures independently:
+  87/89 in the diagnostic capture, 30/30 in the delivery check, 42/42 in the SDK/
+  finalization comparison, and 3/3 in the later B control. These populations use
+  different conditions and must not be pooled into one p99 estimate.
+- [x] Link the sanitized evidence from this plan and R155H. The available records
+  identify several slow stages; they do not establish all underlying causes.
 
-Check expected Cloudflare cost before starting the run. Stay within the user's
-$25 Cloudflare budget. Use existing resources and impose a fixed attempt cap.
-If the remaining budget cannot support 500 attempts, report the smaller sample
-and its uncertainty. Do not run an unbounded benchmark to improve confidence.
+Remaining acceptance work:
+
+- [ ] Freeze the next accumulated candidate after its correctness checks. Include
+  accepted changes deliberately, including founding-read overlap if selected.
+  Record the exact release/source set and the available full-suite result.
+- [ ] Coordinate the staging window and capture current versions, database bindings,
+  migrations, and activation state. Never restore the deleted Hong Kong databases
+  or the old write-fenced Console database.
+- [ ] Run at least 500 attempts across five or more time-separated groups if the
+  remaining $25 budget supports it. Use fresh wallets, the same Tokyo client,
+  origins, confirmation policy, and workload. Otherwise record the smaller
+  population and the resulting uncertainty explicitly.
+- [ ] Include first-use attempts in the primary population. Label separate warmed
+  cohorts and post-deployment runs. Retain every failed, cancelled, or incomplete
+  attempt and its retry time; do not silently replace it.
+- [ ] Report p50, p90, p95, interpolated p99, nearest-rank p99, maximums, failures,
+  and counts above four, five, and six seconds. Keep inclusive interaction timings
+  and individual group results. Use the existing `(n - 1) * p` interpolation.
+- [ ] Attribute the ten slowest attempts using matched request, object, CPU, storage,
+  and placement evidence. State missing boundaries. Verify every completed
+  signature, remove temporary diagnostics/probes, and verify the final serving state.
+- [ ] Compare against the stated targets and write the final acceptance decision.
+  A correct optimization or a fast three-wallet control does not establish p99.
+
+Check expected cost before the run and impose a fixed attempt cap. Do not run an
+unbounded benchmark to improve confidence. Implement accepted improvements together
+and isolate only demonstrated regressions. No standalone run is required for each
+small structural saving.
 
 ## Completion
 
@@ -228,23 +274,13 @@ An implementation can be complete while a latency target remains unmet.
 Production deployment and package publication are separate release work.
 This document authorizes neither a new deployment nor new infrastructure.
 
-## October 14 — SDK completion and finalization follow-up
+## Ownership and release boundary
 
-The [completion evidence](evidence/registration-completion-20261014.md) records two
-accepted changes. Session publication no longer waits for an informational
-startup network diagnostic. Finalization loads immutable Yao admission in its
-initial D1 batch, which removes one later round trip. Router consumption,
-revocation, lock, replay, and durable completion checks remain enforced.
+R155H owns finalization CPU, result-independent preparation work, and respond
+recovery. R155J owns the unresolved slow-attempt causes and final p99 acceptance.
+Setup admission, rate limiting, earlier preflight, and the delivered failure-
+propagation fix are completed implementations, not duplicate tasks to start again.
 
-A held-GET browser contract verifies the completion change. The earlier 5.5-second
-outlier remains only partly explained because its browser network trace is missing.
-The bounded staging comparison is separate from this plan's 500-attempt p99 study.
-
-## October 14 — Deriver B binding delay
-
-The [investigation](evidence/deriver-b-latency-20261014.md) records the historical
-96.5–120 ms binding-batch medians, fast isolated writes, and a subsequent unchanged
-production control at 12–21 ms. The delay is transient or condition-dependent.
-Database confirmation, transport, runtime scheduling, and clock attribution remain
-unseparated. No database migration or speculative product fix was applied. Both
-probe tables and the temporary Worker were removed.
+Use the user's existing authorization for live work; ask only for unresolved
+material scope or actions outside it. This reconciliation authorizes no new
+resource, migration, publication, or production deployment.
