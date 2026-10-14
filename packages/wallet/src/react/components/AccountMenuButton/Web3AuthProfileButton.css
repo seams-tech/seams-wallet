@@ -424,10 +424,13 @@
   margin-top: 0;
 }
 .seams-recovery-code-action-status {
-  min-height: 1.4em;
-  margin: 6px 0 10px;
+  margin: 6px 0 0;
   font-size: 12px;
   color: var(--seams-colors-textSecondary);
+}
+
+.seams-recovery-code-action-status:empty {
+  margin: 0;
 }
 
 .seams-account-recovery-acknowledgement {
@@ -435,6 +438,8 @@
   align-items: flex-start;
   gap: 10px;
   margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--seams-colors-borderPrimary);
   font-size: 13px;
   line-height: 1.45;
   cursor: pointer;

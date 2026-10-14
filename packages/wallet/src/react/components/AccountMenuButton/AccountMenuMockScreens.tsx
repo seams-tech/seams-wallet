@@ -262,9 +262,11 @@ export function AccountMenuMockScreens({
             </ol>
           ) : null}
           {screen.revealed ? <RecoveryCodeActions codes={recoveryCodes} /> : null}
-          <div className="seams-account-inset">
-            Keep these codes private. Anyone with a code can start recovering your wallet.
-          </div>
+          {!screen.revealed ? (
+            <div className="seams-account-inset">
+              Keep these codes private. Anyone with a code can start recovering your wallet.
+            </div>
+          ) : null}
           {screen.revealed ? (
             <RecoveryCodeAcknowledgement onDone={back} />
           ) : (

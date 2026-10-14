@@ -18,8 +18,8 @@ export function RecoveryCodeAcknowledgement({ onDone }: { onDone: () => void }):
           onChange={updateAcknowledgement.bind(null, setAcknowledged)}
         />
         <span>
-          I’ve saved these codes somewhere safe.
-          <small>They won’t be shown again after you finish.</small>
+          I’ve saved these codes.
+          <small>They won’t be shown again.</small>
         </span>
       </label>
       <button
