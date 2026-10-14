@@ -140,3 +140,21 @@ The code preserves fixed public indexing and masked choice selection.
 
 The complete mixed-batch and signing E2Es must pass with the smaller messages before hosted selection.
 Existing full-label-family vector checks remain required because the codec implementation is shared.
+
+## Fresh base-OT arithmetic
+
+The receiver computes the same two shared points with one fewer variable-base multiplication:
+
+```text
+shared_zero = aB
+shared_one  = a(B - aG) = aB - (a² mod l)G
+```
+
+Here `l` is the prime group order. Dalek reduces scalar multiplication modulo `l`.
+The fixed-base multiplication uses Dalek's existing constant-time precomputed table.
+Equal Ristretto points have equal canonical compressed bytes, so the base-seed KDF inputs remain identical.
+The new scalar square and point offset are wiped immediately after use.
+Both shared points, derived seeds, and retained offer scalars retain their existing wipes.
+This changes local arithmetic only. Base OTs remain fresh and their wire format remains unchanged.
+Independent source review and the existing OT checks pass. The complete native and local Worker signers also pass.
+This source review does not establish a generated-Wasm timing certification.

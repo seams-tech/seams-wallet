@@ -788,10 +788,14 @@ impl<F: OtFamily> ReceiverAwaitBaseChoices<F> {
         let mut row_one = vec![0_u8; F::ROW_BYTES];
         let mut row_index = 0_usize;
         while row_index < SECURITY_PARAMETER {
-            let offer = RistrettoPoint::mul_base(&self.offer_scalars[row_index]);
             let mut shared_zero = &message.points[row_index] * &self.offer_scalars[row_index];
-            let mut shared_one =
-                (&message.points[row_index] - &offer) * &self.offer_scalars[row_index];
+            // a(B - aG) = aB - a^2 G. Fixed-base multiplication uses the
+            // constant-time table instead of a second variable-base product.
+            let mut scalar_square = self.offer_scalars[row_index] * self.offer_scalars[row_index];
+            let mut offset = RistrettoPoint::mul_base(&scalar_square);
+            scalar_square.zeroize();
+            let mut shared_one = shared_zero - offset;
+            offset.zeroize();
             let mut seed_zero = derive_base_seed::<F>(self.session, row_index, 0, &shared_zero);
             let mut seed_one = derive_base_seed::<F>(self.session, row_index, 1, &shared_one);
             shared_zero.zeroize();

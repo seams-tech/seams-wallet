@@ -8,11 +8,12 @@ Resident prepared key generation meets the five-second target in all nine hosted
 The eight measured requests have a 1.308-second median and a 1.129–2.003-second range.
 The warm-up takes 1.069 seconds. The genuine SHAKE continuation takes 1.613 seconds.
 All requests reproduce their canonical wallet-seed recovery keys and close normally after acknowledged cleanup.
+This interval creates the key shares. It does not include preparing the first signing pool for that new key.
 The [hosted artifact](../evidence/ml-dsa-65-resident-keygen-worker-hosted-20261014.json) retains every request.
 
 Prepared GMW signing now produces ordinary signatures in native, local Worker, and hosted four-candidate experiments.
 The complete 32-candidate implementation passes native and local Worker checks.
-The first hosted 32-candidate setup failed before readiness. A controlled allocation follow-up is in progress.
+The first hosted 32-candidate setup failed before readiness. The allocation-only hosted follow-up also fails during setup.
 A four-candidate pool cannot establish consistent successful signing because it can exhaust.
 
 ## Key-generation storage changes
@@ -115,7 +116,11 @@ The remaining preparation includes fresh-mask conversion, private commitment dec
 Native online signing takes 42.1 milliseconds in that run. This is one sample, with no percentile claim.
 The local byte-message Worker passes at 123.3 milliseconds online and 144.759 seconds readiness.
 Its measured Wasm highwater is 97,714,176 bytes at A and 97,779,712 bytes at B.
-Hosted byte-message performance remains unmeasured at this checkpoint.
+A further byte-equivalent base-OT optimization uses `aB - a²G` for the second shared point.
+It removes one variable-base multiplication, keeps one fixed-base multiplication, and adds a scalar square. Both new secret temporaries are wiped.
+The [native complete E2E](../evidence/ml-dsa-65-fixed-base-complete-native-20261014.json) and local Worker both pass.
+The local Worker records 128.3 milliseconds online and 126.129 seconds readiness.
+The latest hosted comparison remains in progress at this checkpoint.
 The control-message limit is one MiB. Garbled table frames retain their separate 65,544-byte bound.
 The mixed native E2E crosses 32-bit lane boundaries and checks SHAKE, strict bounds, output ownership, and all role traffic.
 A mismatched ordered layout is rejected after a 32-byte exchange per role, before private preprocessing.
@@ -153,6 +158,12 @@ The second pass preserves the original gate traversal, wire identifiers, depth r
 Independent review passes this control. Native and local Worker E2Es still pass.
 Fewer allocations can also change scheduling and CPU work, so a successful follow-up alone would not prove memory pressure.
 Cloudflare documents separate `exceededMemory` and `exceededCpu` outcomes in its [limits reference](https://developers.cloudflare.com/workers/platform/limits/).
+
+The [allocation-only hosted follow-up](../evidence/ml-dsa-65-gmw32-exact-topology-worker-hosted-20261014.json) also produces no ready pool.
+The [sanitized version-pinned traces](../evidence/ml-dsa-65-prepared-worker-traces-20261014.json) report A as `loadShed` at 236.884 seconds CPU and 880.973 seconds wall time.
+B reports `loadShed` at 238.839 seconds CPU and 880.187 seconds wall time.
+The client reaches its 900-second timeout. The lower allocation did not remove the observed failure.
+The coarse cause remains unresolved; this result does not prove a memory threshold.
 
 The benchmark is not the production Router path. Production parity remains unestablished.
 Phase-level hosted memory observations and repeated complete runs would narrow the remaining causes.

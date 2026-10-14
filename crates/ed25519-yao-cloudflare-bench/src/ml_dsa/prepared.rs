@@ -103,6 +103,7 @@ pub(super) struct Adapter<'a> {
     phase: usize,
     counts: [Counts; 2],
     last_error: Option<String>,
+    boolean_preparations: usize,
 }
 impl Adapter<'_> {
     pub(super) fn new(duplex: Duplex<'_>, tables: Option<Tables>) -> Adapter<'_> {
@@ -112,6 +113,7 @@ impl Adapter<'_> {
             phase: 0,
             counts: Default::default(),
             last_error: None,
+            boolean_preparations: 0,
         }
     }
     pub(super) fn counts_report(&self, phase: usize) -> Value {
@@ -263,6 +265,7 @@ async fn run_a(
         phase: 0,
         counts: Default::default(),
         last_error: None,
+        boolean_preparations: 0,
     };
     let prepared = prepare_keygen(role(), &schedules, &mut adapter)
         .await
@@ -358,6 +361,7 @@ pub(super) async fn run_b(
         phase: 0,
         counts: Default::default(),
         last_error: None,
+        boolean_preparations: 0,
     };
     let result = run_b_session(&book, &schedules, &mut adapter, colo).await;
     if result.is_err() {
@@ -445,7 +449,26 @@ impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> 
     async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
         Transport::receive(self, length).await
     }
-    fn phase(&mut self, _: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {
+    fn phase(&mut self, phase: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {
         // The client admission boundary owns complete offline/online accounting.
+        if matches!(
+            phase,
+            ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase::Preprocessing
+        ) {
+            self.boolean_preparations += 1;
+            if self.boolean_preparations == 1 || self.boolean_preparations.is_multiple_of(64) {
+                worker::console_log!(
+                    "{}",
+                    json!({
+                        "event": "ml-dsa-boolean-preparation-progress",
+                        "role": ROLE,
+                        "instances_started": self.boolean_preparations,
+                        "wasm_linear_memory_bytes": wasm_linear_memory_highwater_bytes(),
+                        "sent_bytes": self.counts[0].sent,
+                        "received_bytes": self.counts[0].received,
+                    })
+                );
+            }
+        }
     }
 }
