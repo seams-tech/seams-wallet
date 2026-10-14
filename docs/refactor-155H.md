@@ -16,6 +16,10 @@ Phase 9 and the one-request registration of Phase 10. Registration after the
 passkey step measures 1,747 ms at the median against 2,096 ms on 0.9.4 in
 the hour before; see its
 [record](evidence/refactor-155h-release-0100-staging.md).
+Release 0.10.1 is a patch release with no latency change. Its
+[record](evidence/refactor-155h-release-0101-staging.md) holds a private
+Console cost that was in every staging figure of October 13 and 14: with it
+removed, 0.10.0 measured 1,383 ms after the passkey step.
 Phase 3 is decided and not implemented. Date: October 14, 2026.
 
 [R155J](refactor-R155J-p99.md) owns the follow-up investigation of startup

@@ -19,9 +19,10 @@ Every deployment remains a separate, authorized step.
 
 ## 0.10.1
 
-Status: **prepared, not published.** Patch release with no wire, schema or
-protocol change. It carries one correction on public `dev` since 0.10.0.
-The user ordered the release on October 14.
+Status: **published October 14, 2026, 02:13 UTC, and deployed to staging.**
+Patch release with no wire, schema or protocol change. It carries one
+correction on public `dev` since 0.10.0. The user ordered the release on
+October 14.
 
 - **Setup with a provided wallet id.** On 0.10.0, setup answered 500 for a
   provided wallet id that is not in the server-allocated format, where 0.9.4
@@ -36,6 +37,18 @@ The user ordered the release on October 14.
   provided wallet id answers 500 before the fix and 200 with
   `ed25519.status = after_proof` after it; the server, contract and
   wallet-state type checks.
+- **Publication.** Pull request 40, `main` `c2589335`, publish run
+  `38496003374`. npm showed both packages 8 minutes after the run ended.
+- **Staging.** Activated at 11:54 JST on October 14. The same setup request
+  answers 200 with `after_proof` on the hosted lane. All 495 signatures of
+  five runs verify. The release has no latency effect of its own; the
+  [record](evidence/refactor-155h-release-0101-staging.md) holds the runs
+  and a private Console cost that was in every staging figure of October 13
+  and 14.
+- **Recovery CLI.** Pull request 41 moves the launcher package and the
+  `seams-cli` crate from 0.6.0 to 0.10.1, so one number names a release of
+  the SDK, the server and the CLI. Launcher 0.10.1 is not published: its
+  release needs the signed native assets of the private release workflow.
 
 ## 0.10.0
 
