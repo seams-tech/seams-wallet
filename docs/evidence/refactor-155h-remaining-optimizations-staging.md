@@ -66,10 +66,29 @@ the others. Count only the finalization part as an effect.
 - The full contract suite passes on `ec08890c`: 132 of 134 cases on release
   Workers, and the two debug-only cases on the debug Router.
 
+## Setup-time cost
+
+The tails of the same arms give the CPU of the work that runs at setup,
+before the passkey step. An abandoned setup does this work too.
+
+| CPU, from tail `cpuTime` | Control 1 | Candidate 1 | Control 2 | Candidate 2 |
+| --- | ---: | ---: | ---: | ---: |
+| Gateway setup, median | 22 ms | 19 ms | 23 ms | 21 ms |
+| Deriver A wallet object prepare, median | 303 ms | 326 ms | 304 ms | 330 ms |
+| Deriver B wallet object prepare, median | 293 ms | 302 ms | 290 ms | 287.5 ms |
+| Deriver B connection, median | 74 ms | 55 ms | 54.5 ms | 55 ms |
+| All setup-time invocations, per wallet | 824 ms | 770 ms | 709 ms | 725 ms |
+
+The last row sums every setup-time invocation of the arm, the wallet starts
+and the prewarm requests included, and divides by 99. It is an upper bound
+for an abandoned setup: an invocation that starts at setup can also carry
+later work. The Router has no tail in these runs. The table also leaves out
+the expiry work for a session that no execution claims.
+
 ## Open
 
 - The seal warm-up's own share is not isolated. A comparison with and
   without only that commit would isolate it.
-- The respond retry needs its own fault evidence: a scenario that injects a
-  transient D1 fault into respond.
-- None of these commits is published.
+- The respond fault evidence is in the
+  [close-out checks](refactor-155h-closeout-checks.md).
+- Release 0.10.2 carries these commits.
