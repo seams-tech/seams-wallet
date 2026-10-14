@@ -1,5 +1,6 @@
 import React from 'react';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
+import { RecoveryCodeAcknowledgement } from './RecoveryCodeAcknowledgement';
 import { RecoveryCodeActions } from './RecoveryCodeActions';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
@@ -264,15 +265,17 @@ export function AccountMenuMockScreens({
           <div className="seams-account-inset">
             Keep these codes private. Anyone with a code can start recovering your wallet.
           </div>
-          <button
-            type="button"
-            className="seams-account-action primary"
-            onClick={
-              screen.revealed ? back : setScreen.bind(null, { kind: 'recovery', revealed: true })
-            }
-          >
-            {screen.revealed ? 'Done' : 'Reveal with passkey'}
-          </button>
+          {screen.revealed ? (
+            <RecoveryCodeAcknowledgement onDone={back} />
+          ) : (
+            <button
+              type="button"
+              className="seams-account-action primary"
+              onClick={setScreen.bind(null, { kind: 'recovery', revealed: true })}
+            >
+              Reveal with passkey
+            </button>
+          )}
         </AccountMenuScreen>
       );
     default:

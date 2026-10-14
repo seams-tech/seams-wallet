@@ -115,6 +115,13 @@ try {
   assert.equal(await readFile(`${artifacts}/recovery-codes.txt`, 'utf8'), `${codes.join('\n')}\n`);
   await expect(page.getByRole('status')).toHaveText('Downloaded all codes.');
   await page.screenshot({ path: `${artifacts}/recovery-16-digits.png` });
+  await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeDisabled();
+  await page.getByRole('checkbox', { name: /I’ve saved these codes/ }).check();
+  await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeEnabled();
+  await page.getByRole('checkbox', { name: /I’ve saved these codes/ }).uncheck();
+  await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeDisabled();
+  await page.getByRole('checkbox', { name: /I’ve saved these codes/ }).check();
+  await page.screenshot({ path: `${artifacts}/recovery-acknowledged.png` });
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.locator('[data-account-menu-item="accounts"]').click();
   await expect(page.getByRole('link', { name: /Base/ })).toBeVisible();
