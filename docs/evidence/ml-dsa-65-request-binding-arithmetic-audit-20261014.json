@@ -1,0 +1,554 @@
+{
+  "arithmetic_source_sha256": "d8bd0416e0ed2948b0813ec5ab1b3643543e6f0e2e3c115253134c2a7c4df40c",
+  "audit_source_sha256": "aa640cf4673eb77e09dd923bfbff9e3554e8f1e34c0ebe5add9b940abf896235",
+  "compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+  "final_workers": {
+    "audit_source_sha256": "155857c50132ab12e040cd8dff87bb8e73b5ceb128888158ac88ecd2449dfdc0",
+    "roles": [
+      {
+        "build_argv": [
+          "worker-build",
+          "--release",
+          "--out-dir",
+          "build/ml-dsa-a",
+          "--features",
+          "ml-dsa-a"
+        ],
+        "private_functions": [
+          {
+            "body_range": {
+              "end": 575036,
+              "start": 574511
+            },
+            "body_sha256": "ce75d3749130175e108761f05480c71ea0574f69ff2e2b309d0365b6822c25ae",
+            "conditional_branch_sites_requiring_review": [
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 574555
+              },
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 574596
+              },
+              {
+                "operator": "BrIf { relative_depth: 2 }",
+                "wasm_offset": 574660
+              },
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 574673
+              },
+              {
+                "operator": "BrIf { relative_depth: 4 }",
+                "wasm_offset": 574838
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 574902
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 574912
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 575021
+              }
+            ],
+            "direct_calls_requiring_review": [
+              {
+                "function_index": 682,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 574854
+              },
+              {
+                "function_index": 682,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 574869
+              },
+              {
+                "function_index": 682,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 574884
+              }
+            ],
+            "division_or_remainder_sites": [],
+            "function": "inverse_ntt",
+            "function_index": 327,
+            "operator_count": 265,
+            "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::inverse_ntt"
+          },
+          {
+            "body_range": {
+              "end": 430253,
+              "start": 429100
+            },
+            "body_sha256": "acf3550d10772f04f26afd6450370199d762bbd44e1a8c331efdc269354ed87f",
+            "conditional_branch_sites_requiring_review": [
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 429485
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 429629
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 429773
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 429917
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 430063
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 430204
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 430241
+              }
+            ],
+            "direct_calls_requiring_review": [
+              {
+                "function_index": 386,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 429144
+              },
+              {
+                "function_index": 386,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 429179
+              },
+              {
+                "function_index": 386,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 429220
+              },
+              {
+                "function_index": 386,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 429261
+              },
+              {
+                "function_index": 386,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 429302
+              },
+              {
+                "function_index": 327,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::inverse_ntt",
+                "wasm_offset": 430076
+              }
+            ],
+            "division_or_remainder_sites": [],
+            "function": "matrix_product_plus_error",
+            "function_index": 200,
+            "operator_count": 566,
+            "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::matrix_product_plus_error"
+          },
+          {
+            "body_range": {
+              "end": 609640,
+              "start": 609279
+            },
+            "body_sha256": "3b74c0b40c92286cac58978a5acdaed74a634d6b21de0371f8c9e125fcc595ce",
+            "conditional_branch_sites_requiring_review": [
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 609321
+              },
+              {
+                "operator": "BrIf { relative_depth: 3 }",
+                "wasm_offset": 609358
+              },
+              {
+                "operator": "BrIf { relative_depth: 5 }",
+                "wasm_offset": 609403
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 609564
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 609583
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 609594
+              }
+            ],
+            "direct_calls_requiring_review": [
+              {
+                "function_index": 682,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 609620
+              },
+              {
+                "function_index": 682,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 609635
+              }
+            ],
+            "division_or_remainder_sites": [],
+            "function": "ntt",
+            "function_index": 386,
+            "operator_count": 186,
+            "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt"
+          }
+        ],
+        "role": "a",
+        "script_sha256": "0cff0132bd89390438e1f4a0bd4df5ab7911b13006113d9b995782c6d76d9dc2",
+        "wasm_bytes": 34890063,
+        "wasm_path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+        "wasm_sha256": "b726817b9c2550501866f47f687dd13bc4b74a091ddd7b80326c56f10da84588"
+      },
+      {
+        "build_argv": [
+          "worker-build",
+          "--release",
+          "--out-dir",
+          "build/ml-dsa-b",
+          "--features",
+          "ml-dsa-b"
+        ],
+        "private_functions": [
+          {
+            "body_range": {
+              "end": 535150,
+              "start": 534625
+            },
+            "body_sha256": "d0945ed9446d82344633209fe94c25b89e265bf70bc4b02f758214d6267f0cc2",
+            "conditional_branch_sites_requiring_review": [
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 534669
+              },
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 534710
+              },
+              {
+                "operator": "BrIf { relative_depth: 2 }",
+                "wasm_offset": 534774
+              },
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 534787
+              },
+              {
+                "operator": "BrIf { relative_depth: 4 }",
+                "wasm_offset": 534952
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 535016
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 535026
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 535135
+              }
+            ],
+            "direct_calls_requiring_review": [
+              {
+                "function_index": 602,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 534968
+              },
+              {
+                "function_index": 602,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 534983
+              },
+              {
+                "function_index": 602,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 534998
+              }
+            ],
+            "division_or_remainder_sites": [],
+            "function": "inverse_ntt",
+            "function_index": 292,
+            "operator_count": 265,
+            "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::inverse_ntt"
+          },
+          {
+            "body_range": {
+              "end": 407348,
+              "start": 406195
+            },
+            "body_sha256": "61f7061ac76b77be6c7de3a7938746dfdf599a3b58b57353a91ad061e0104efc",
+            "conditional_branch_sites_requiring_review": [
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 406580
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 406724
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 406868
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 407012
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 407158
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 407299
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 407336
+              }
+            ],
+            "direct_calls_requiring_review": [
+              {
+                "function_index": 344,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 406239
+              },
+              {
+                "function_index": 344,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 406274
+              },
+              {
+                "function_index": 344,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 406315
+              },
+              {
+                "function_index": 344,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 406356
+              },
+              {
+                "function_index": 344,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt",
+                "wasm_offset": 406397
+              },
+              {
+                "function_index": 292,
+                "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::inverse_ntt",
+                "wasm_offset": 407171
+              }
+            ],
+            "division_or_remainder_sites": [],
+            "function": "matrix_product_plus_error",
+            "function_index": 171,
+            "operator_count": 566,
+            "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::matrix_product_plus_error"
+          },
+          {
+            "body_range": {
+              "end": 562502,
+              "start": 562141
+            },
+            "body_sha256": "bc506bff4be906f6d7e1d32822d7b82e51c2020d415e5e1b01ee64051b031f43",
+            "conditional_branch_sites_requiring_review": [
+              {
+                "operator": "If { blockty: Empty }",
+                "wasm_offset": 562183
+              },
+              {
+                "operator": "BrIf { relative_depth: 3 }",
+                "wasm_offset": 562220
+              },
+              {
+                "operator": "BrIf { relative_depth: 5 }",
+                "wasm_offset": 562265
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 562426
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 562445
+              },
+              {
+                "operator": "BrIf { relative_depth: 0 }",
+                "wasm_offset": 562456
+              }
+            ],
+            "direct_calls_requiring_review": [
+              {
+                "function_index": 602,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 562482
+              },
+              {
+                "function_index": 602,
+                "symbol": "core[9b3796e30d99ddb7]::panicking::panic_bounds_check",
+                "wasm_offset": 562497
+              }
+            ],
+            "division_or_remainder_sites": [],
+            "function": "ntt",
+            "function_index": 344,
+            "operator_count": 186,
+            "symbol": "ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::arithmetic::ntt"
+          }
+        ],
+        "role": "b",
+        "script_sha256": "edca40bbf12671b51d5da1cd5e9c724bfd20be6eaab0e2118636668b0409e3bc",
+        "wasm_bytes": 34813733,
+        "wasm_path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+        "wasm_sha256": "8fcee50fa3cc5861b87d484af327b012a5562dda70b882cf640619b3221d26ee"
+      }
+    ],
+    "scope": "Final packaged Wasm function bodies, including inlined instructions. Calls and conditional control flow are recorded for separate data-flow review.",
+    "worker_build_version": "0.8.4",
+    "worker_lockfile_sha256": "76ec976d4e1adda57709f4792a143c81d0a67c9997368fef9ee4212f263c4f43",
+    "worker_manifest_sha256": "0c61f638429447e4d0cc752918b2324a3a9b7b6fa0a76a009b06ce8efcb4e4ba"
+  },
+  "limits": [
+    "The check covers the compiled core's three private polynomial arithmetic functions and their inlined reductions.",
+    "Conditional branches require manual data-flow review. Their count alone proves no timing property.",
+    "Public matrix expansion and public-length hashing can retain division or remainder instructions.",
+    "The final Worker check rebuilds both role bundles and parses their packaged Wasm function bodies. It records direct calls without recursively checking callees.",
+    "Cloudflare JIT behavior, other cryptographic primitives, secret-dependent memory access, and hardware timing remain outside this check."
+  ],
+  "profile": "release",
+  "reproduce_argv": [
+    "cargo",
+    "run",
+    "--release",
+    "--locked",
+    "--manifest-path",
+    "tools/ml-dsa-investigation/Cargo.toml",
+    "--",
+    "inspect-arithmetic",
+    "docs/evidence/ml-dsa-65-request-binding-arithmetic-audit-20261014.json"
+  ],
+  "result": "no-division-in-private-arithmetic; target-qualification-open",
+  "schema": "seams.ml-dsa-arithmetic-audit.v2",
+  "source_revision": "69e1dafed6fbd4d65ce7c764aa2444944d73ed57",
+  "targets": [
+    {
+      "assembly_sha256": "570ead90f3602191aa7a3a967035ae893952a85116286ab506539460555e91bf",
+      "private_functions": [
+        {
+          "body_sha256": "a89c0e22f4c96d8c37a9f525a6948ef38e35475fdc9d59aa2d235e603999028f",
+          "conditional_branch_sites_requiring_review": [
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t2",
+            "br_if   \t0",
+            "br_if   \t4",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "inverse_ntt",
+          "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic11inverse_ntt"
+        },
+        {
+          "body_sha256": "e9d630fb2322c83f367fabf294e0b76ad2f9bb6b1a28ebaec5e239cc25cf9fc0",
+          "conditional_branch_sites_requiring_review": [
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "matrix_product_plus_error",
+          "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic25matrix_product_plus_error"
+        },
+        {
+          "body_sha256": "c349921bcd9c077c1fbca161c15122889a1994af28cd66624dc5dba8d81ffb77",
+          "conditional_branch_sites_requiring_review": [
+            "br_if   \t0",
+            "br_if   \t3",
+            "br_if   \t5",
+            "br_if   \t0",
+            "br_if   \t0",
+            "br_if   \t0"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "ntt",
+          "symbol": "_RNvNtNtNtCs11eMmHLjhbR_11ed25519_yao7passive14ml_dsa_signing10arithmetic3ntt"
+        }
+      ],
+      "target": "wasm32-unknown-unknown"
+    },
+    {
+      "assembly_sha256": "b709b5e1d85eb94405d2d1f4a3d1a1f978e525d61b06e7edb3dc16990c3309eb",
+      "private_functions": [
+        {
+          "body_sha256": "c92aef60597fc273ca28b8e515bff21e48a144c66b2c8c8b0f9c1ab3692b2b1b",
+          "conditional_branch_sites_requiring_review": [
+            "b.hs\tLBB123_14",
+            "b.eq\tLBB123_1",
+            "b.hi\tLBB123_19",
+            "b.ls\tLBB123_9",
+            "b.lo\tLBB123_9",
+            "b.ne\tLBB123_8",
+            "b.hi\tLBB123_18",
+            "b.hs\tLBB123_17",
+            "b.ne\tLBB123_10",
+            "cbnz\tx17, LBB123_4",
+            "b.ne\tLBB123_15"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "inverse_ntt",
+          "symbol": "__RNvNtNtNtCs7vd0WjNvbCL_11ed25519_yao7passive14ml_dsa_signing10arithmetic11inverse_ntt"
+        },
+        {
+          "body_sha256": "7d59cdee7ce2995f751514e278ff3408585df3620668d1e1bffcd499130edd61",
+          "conditional_branch_sites_requiring_review": [
+            "b.ne\tLBB126_2",
+            "b.ne\tLBB126_4",
+            "b.ne\tLBB126_6",
+            "b.ne\tLBB126_8",
+            "b.ne\tLBB126_10",
+            "b.ne\tLBB126_12",
+            "b.ne\tLBB126_1"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "matrix_product_plus_error",
+          "symbol": "__RNvNtNtNtCs7vd0WjNvbCL_11ed25519_yao7passive14ml_dsa_signing10arithmetic25matrix_product_plus_error"
+        },
+        {
+          "body_sha256": "c412d7eb23ec0acfc97ac8a43085f1b35755b4ca938012940ccef948ad3bbcb5",
+          "conditional_branch_sites_requiring_review": [
+            "cbz\tx10, LBB127_13",
+            "b.eq\tLBB127_1",
+            "b.hi\tLBB127_15",
+            "b.ls\tLBB127_9",
+            "b.lo\tLBB127_9",
+            "b.ne\tLBB127_8",
+            "b.hs\tLBB127_14",
+            "b.ne\tLBB127_10",
+            "cbnz\tx17, LBB127_4"
+          ],
+          "division_or_remainder_sites": [],
+          "function": "ntt",
+          "symbol": "__RNvNtNtNtCs7vd0WjNvbCL_11ed25519_yao7passive14ml_dsa_signing10arithmetic3ntt"
+        }
+      ],
+      "target": "aarch64-apple-darwin"
+    }
+  ]
+}

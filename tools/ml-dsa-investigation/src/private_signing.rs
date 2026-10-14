@@ -47,13 +47,20 @@ impl Randomness {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Operation {
+    pub operation_id: [u8; 32],
     pub engine: Engine,
     pub message: [u8; 32],
     pub context: Vec<u8>,
     pub randomness: Randomness,
+}
+
+pub(super) fn fresh_operation_id() -> InvestigationResult<[u8; 32]> {
+    let mut id = [0; 32];
+    getrandom::getrandom(&mut id)?;
+    Ok(id)
 }
 
 pub(super) fn try_run_child() -> InvestigationResult<bool> {
@@ -153,6 +160,7 @@ pub(super) fn run_case(
     engine: Engine,
 ) -> InvestigationResult<Value> {
     let operation = Operation {
+        operation_id: fresh_operation_id()?,
         engine,
         message: reference::public_message(),
         context: match case_name {
@@ -254,6 +262,7 @@ pub(super) fn run_operation(
         "scope": "Two separate role processes sign before authorized test recovery. Neither role reads peer material or reconstructs a seed or expanded key.",
         "production_eligible": false,
         "randomness": operation.randomness,
+        "operation_id_hex": hex::encode(operation.operation_id),
         "message_hex": hex::encode(operation.message),
         "context_hex": hex::encode(&operation.context),
         "signature_hex": hex::encode(&signature),
@@ -350,6 +359,7 @@ fn run_role(
         &operation.message,
         &operation.context,
         operation.randomness.mode(),
+        &operation.operation_id,
     )?;
     let mut reader = io::stdin().lock();
     let mut writer = io::stdout().lock();
@@ -393,13 +403,27 @@ fn run_role(
                 writer.write_all(send.bytes())?;
                 writer.flush()?;
                 final_message_bytes.0 += send.bytes().len();
-                send.resume()
+                send.resume()?
             }
             SigningStep::Receive(receive) => {
                 let mut bytes = Zeroizing::new(vec![0; receive.expected_bytes()]);
                 reader.read_exact(&mut bytes)?;
                 final_message_bytes.1 += bytes.len();
-                receive.accept(&bytes)?
+                match receive.accept(&bytes) {
+                    Ok(next) => next,
+                    Err(error) => {
+                        fs::write(
+                            result_path.with_extension("failure.json"),
+                            serde_json::to_vec(&json!({
+                                "error": format!("{error:?}"),
+                                "completed_private_circuits": observations.len(),
+                                "non_circuit_sent_bytes": final_message_bytes.0,
+                                "non_circuit_received_bytes": final_message_bytes.1,
+                            }))?,
+                        )?;
+                        return Err(error.into());
+                    }
+                }
             }
             SigningStep::Complete(signature) => break signature,
         };
@@ -472,21 +496,16 @@ fn encode_result(
 ) -> InvestigationResult<Value> {
     let mut circuits = Vec::with_capacity(signature.metrics.circuits.len());
     let mut table_bytes = 0;
-    let mut a_to_b = signature.metrics.accepted_share_bytes;
-    let mut b_to_a = signature.metrics.signature_return_bytes;
+    let binding_bytes = signature.metrics.binding_bytes_per_direction;
+    let mut a_to_b = signature.metrics.accepted_share_bytes + binding_bytes;
+    let mut b_to_a = signature.metrics.signature_return_bytes + binding_bytes;
     let expected_final_bytes = match role {
-        SigningRole::A => (
-            signature.metrics.accepted_share_bytes,
-            signature.metrics.signature_return_bytes,
-        ),
-        SigningRole::B => (
-            signature.metrics.signature_return_bytes,
-            signature.metrics.accepted_share_bytes,
-        ),
+        SigningRole::A => (a_to_b, b_to_a),
+        SigningRole::B => (b_to_a, a_to_b),
     };
     require(
         final_message_bytes == expected_final_bytes,
-        "Final signing messages disagree with actual pipe traffic.",
+        "Signing binding and final messages disagree with actual pipe traffic.",
     )?;
     require(
         signature.metrics.circuits.len() == observations.len(),
@@ -517,11 +536,12 @@ fn encode_result(
         "a_to_b_wire_bytes": a_to_b,
         "b_to_a_wire_bytes": b_to_a,
         "accepted_share_bytes": signature.metrics.accepted_share_bytes,
+        "binding_bytes_per_direction": binding_bytes,
         "signature_return_bytes": signature.metrics.signature_return_bytes,
         "circuits": circuits,
         "circuit_wall_ns": circuit_wall_ns,
         "circuit_observations": observations,
-        "final_message_observation": {"actual_pipe_sent_bytes": final_message_bytes.0, "actual_pipe_received_bytes": final_message_bytes.1},
+        "binding_and_final_message_observation": {"actual_pipe_sent_bytes": final_message_bytes.0, "actual_pipe_received_bytes": final_message_bytes.1},
         "schedule_preparation_wall_ns": preparation_wall_ns,
         "role_protocol_wall_ns_before_independent_verification": protocol_wall_ns,
         "ordinary_rustcrypto_verification": true,

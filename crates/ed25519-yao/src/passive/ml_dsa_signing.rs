@@ -25,6 +25,8 @@ const ACCEPTED_SHARE_BYTES: usize = COLUMNS * N * 4 + ROWS * N / 8;
 const MAX_ATTEMPTS: u16 = 821;
 const GAMMA1: u32 = 1 << 19;
 const BETA: u32 = 196;
+const BINDING_BYTES: usize = 73;
+const BINDING_MAGIC: &[u8; 8] = b"MLDSAS01";
 
 /// Measurements retain the identity of the engine that produced them.
 pub enum CircuitMetrics {
@@ -80,6 +82,8 @@ pub enum SigningError {
     CircuitRuntime,
     /// A peer message has an invalid exact encoding.
     MessageEncoding,
+    /// The peer supplied a different signing request or the wrong role.
+    RequestBinding,
     /// No candidate passed within the configured FIPS loop bound.
     AttemptLimit,
     /// The accepted candidate cannot use the standard signature encoding.
@@ -207,6 +211,8 @@ impl SigningKernel {
 /// Public operation counters. Every attempted candidate remains in accounting.
 #[derive(Default)]
 pub struct SigningMetrics {
+    /// Public request agreement bytes in each direction.
+    pub binding_bytes_per_direction: usize,
     /// Exact metrics for every fresh private circuit invocation.
     pub circuits: Vec<(SigningKernel, CircuitMetrics)>,
     /// Public challenge hash for each candidate, including rejections.
@@ -231,9 +237,9 @@ pub struct ThresholdSignature {
 pub enum SigningStep {
     /// Execute the requested private circuit through the shared runtime.
     Circuit(SigningCircuit),
-    /// Send an accepted-candidate share message or a standard signature.
+    /// Send a public request binding, accepted share, or standard signature.
     Send(SigningSend),
-    /// Receive the next exact accepted-candidate message.
+    /// Receive the next exact request-binding or accepted-candidate message.
     Receive(SigningReceive),
     /// Both participants contributed and produced the standard signature.
     Complete(Box<ThresholdSignature>),
@@ -320,7 +326,7 @@ impl SigningCircuit {
     }
 }
 
-/// One final outbound message. Rejected candidates can never reach this state.
+/// One outbound message. Candidate shares leave only after acceptance.
 pub struct SigningSend {
     machine: Box<Machine>,
     bytes: Zeroizing<Vec<u8>>,
@@ -328,6 +334,8 @@ pub struct SigningSend {
 }
 
 enum SendNext {
+    ReceiveBinding,
+    StartSigning,
     ReceiveSignature,
     Complete(Box<[u8; SIGNATURE_BYTES]>),
 }
@@ -339,24 +347,30 @@ impl SigningSend {
     }
 
     /// Advances after the adapter has sent the complete message.
-    pub fn resume(self) -> SigningStep {
+    pub fn resume(self) -> Result<SigningStep> {
         match self.next {
-            SendNext::ReceiveSignature => SigningStep::Receive(SigningReceive {
+            SendNext::ReceiveBinding => Ok(SigningStep::Receive(SigningReceive {
+                machine: self.machine,
+                next: ReceiveNext::Binding,
+            })),
+            SendNext::StartSigning => self.machine.next(),
+            SendNext::ReceiveSignature => Ok(SigningStep::Receive(SigningReceive {
                 machine: self.machine,
                 next: ReceiveNext::Signature,
-            }),
-            SendNext::Complete(signature) => self.machine.complete(*signature),
+            })),
+            SendNext::Complete(signature) => Ok(self.machine.complete(*signature)),
         }
     }
 }
 
-/// One final inbound message with an exact schema.
+/// One inbound message with an exact schema.
 pub struct SigningReceive {
     machine: Box<Machine>,
     next: ReceiveNext,
 }
 
 enum ReceiveNext {
+    Binding,
     AcceptedShare,
     Signature,
 }
@@ -365,6 +379,7 @@ impl SigningReceive {
     /// Returns the required exact payload length.
     pub const fn expected_bytes(&self) -> usize {
         match self.next {
+            ReceiveNext::Binding => BINDING_BYTES,
             ReceiveNext::AcceptedShare => ACCEPTED_SHARE_BYTES,
             ReceiveNext::Signature => SIGNATURE_BYTES,
         }
@@ -376,6 +391,22 @@ impl SigningReceive {
             return Err(SigningError::MessageEncoding);
         }
         match self.next {
+            ReceiveNext::Binding => {
+                let expected_role = match self.machine.role {
+                    SigningRole::A => 1,
+                    SigningRole::B => 0,
+                };
+                if &bytes[..8] != BINDING_MAGIC
+                    || bytes[8] != expected_role
+                    || bytes[9..] != self.machine.request_binding
+                {
+                    return Err(SigningError::RequestBinding);
+                }
+                match self.machine.role {
+                    SigningRole::A => self.machine.next(),
+                    SigningRole::B => Ok(self.machine.send_binding(SendNext::StartSigning)),
+                }
+            }
             ReceiveNext::Signature => Ok(self
                 .machine
                 .complete(bytes.try_into().expect("validated standard signature size"))),
@@ -434,6 +465,7 @@ enum Stage {
 
 struct Machine {
     role: SigningRole,
+    request_binding: [u8; 64],
     own: OwnSigningShare,
     matrix: PublicMatrix,
     twiddles: Polynomial,
@@ -447,8 +479,10 @@ struct Machine {
 }
 
 /// Starts one complete passive signing operation on one participant's shares.
-/// The caller must bind both roles to the same public key, message, context,
-/// randomness mode, and trusted circuit set before starting either role.
+/// Both roles check their public requests before the first private circuit.
+/// The caller must authenticate the operation ID and bind it to the wallet,
+/// key, material epoch, and trusted circuit set. This exchange is no admission
+/// check or durable replay ledger. It requires authenticated peer transport.
 pub fn begin_signing(
     role: SigningRole,
     own: OwnSigningShare,
@@ -456,17 +490,29 @@ pub fn begin_signing(
     message: &[u8],
     context: &[u8],
     mode: SigningMode,
+    operation_id: &[u8; 32],
 ) -> Result<SigningStep> {
     let context_length = u8::try_from(context.len()).map_err(|_| SigningError::ContextLength)?;
     let tr: [u8; 64] = shake256(&[public_key]);
     let mu = shake256(&[&tr, &[0, context_length], context, message]);
+    let mode_byte = match mode {
+        SigningMode::Deterministic => 0,
+        SigningMode::JointRandom => 1,
+    };
+    let request_binding = shake256(&[
+        b"seams/ml-dsa-65/signing-request/v1",
+        operation_id,
+        &mu,
+        &[mode_byte],
+    ]);
     let mut rnd = Zeroizing::new([0; 32]);
     if mode == SigningMode::JointRandom {
         random_bytes(rnd.as_mut())?;
     }
     let (matrix, _) = expand_a(&public_key[..32]);
-    Box::new(Machine {
+    let machine = Box::new(Machine {
         role,
+        request_binding,
         own,
         matrix,
         twiddles: ntt_twiddles(),
@@ -476,9 +522,18 @@ pub fn begin_signing(
         candidate: Zeroizing::new(Candidate::empty()),
         stage: Stage::Seed,
         attempt: 1,
-        metrics: SigningMetrics::default(),
+        metrics: SigningMetrics {
+            binding_bytes_per_direction: BINDING_BYTES,
+            ..SigningMetrics::default()
+        },
+    });
+    Ok(match role {
+        SigningRole::A => machine.send_binding(SendNext::ReceiveBinding),
+        SigningRole::B => SigningStep::Receive(SigningReceive {
+            machine,
+            next: ReceiveNext::Binding,
+        }),
     })
-    .next()
 }
 
 fn random_bytes(bytes: &mut [u8]) -> Result<()> {
@@ -537,6 +592,21 @@ fn packed_bit(bytes: &[u8], bit: usize) -> bool {
 }
 
 impl Machine {
+    fn send_binding(self: Box<Self>, next: SendNext) -> SigningStep {
+        let mut bytes = Zeroizing::new(Vec::with_capacity(BINDING_BYTES));
+        bytes.extend_from_slice(BINDING_MAGIC);
+        bytes.push(match self.role {
+            SigningRole::A => 0,
+            SigningRole::B => 1,
+        });
+        bytes.extend_from_slice(&self.request_binding);
+        SigningStep::Send(SigningSend {
+            machine: self,
+            bytes,
+            next,
+        })
+    }
+
     fn next(mut self: Box<Self>) -> Result<SigningStep> {
         if matches!(self.stage, Stage::Accepted) {
             self.metrics.accepted_share_bytes = ACCEPTED_SHARE_BYTES;

@@ -19,6 +19,10 @@ Defer GMW, ABY2.0 preprocessing improvements, and three-halves implementation to
 These alternatives do not block half-gates integration.
 Reconsider the engine if complete target measurements establish a better design under the same security and recovery contract.
 The current evidence does not establish the fastest possible protocol or a production latency guarantee.
+The subsequent request-agreement exchange adds 146 public bytes per signing operation to every engine.
+It leaves circuits, key generation, signature bytes, and the arithmetic comparison unchanged.
+The complete comparison below records the implementation before that exchange.
+The [new host campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) rechecks half-gates correctness after the change.
 
 ## Complete native comparison
 

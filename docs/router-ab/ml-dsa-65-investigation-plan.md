@@ -704,12 +704,17 @@ State remaining opportunities that could change that ranking.
    The [final Worker audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json) also finds no division in the three private arithmetic functions of either rebuilt bundle.
    The complete proof, branch and memory-access review, JIT qualification, and independent review remain open.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
+   The core now checks agreement on the operation identifier, public key, message, context, and randomness mode before its first signing circuit.
+   The [request-binding E2E campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) rejects five mismatched requests before any private circuit completes.
+   The [local Worker campaign](../evidence/ml-dsa-65-request-binding-worker-local-20261014.json) also passes complete canonical key generation and signing with the new exchange.
+   This exchange adds 146 public bytes per signature. Authentication, stored-key binding, and durable replay control remain outside the core.
    Production integration awaits the custody-model choice: an independent joint seed with protected recovery records, or private derivation from the wallet custody seed.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
    The public Wallet signing route, RPC full-key/handle behavior, and deployed transaction receipt remain open.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
    The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now covers mid-mask interruption, cross-session OT replay, restart, and four concurrent signatures.
+   The [request-binding campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) repeats these scenarios and authorized recovery after the new public request exchange.
    Router admission, durable replay control, refresh, protected restore, and deployed lifecycle scenarios remain open.
 8. Qualify and package the selected half-gates library, then consume exact releases in the private application.
    Report complete latency and throughput under one workload, with unresolved limits and any evidence that changes the engine decision.

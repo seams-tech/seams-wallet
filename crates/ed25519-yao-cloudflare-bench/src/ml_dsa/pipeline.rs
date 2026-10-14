@@ -235,6 +235,7 @@ struct Accounting {
     largest_arena_bytes: usize,
     largest_control_bytes: usize,
     accepted_share_bytes: usize,
+    binding_bytes_per_direction: usize,
     signature_return_bytes: usize,
 }
 
@@ -297,6 +298,7 @@ impl Accounting {
             "largest_label_arena_allocation_bytes": self.largest_arena_bytes,
             "largest_control_message_bytes": self.largest_control_bytes,
             "accepted_share_bytes": self.accepted_share_bytes,
+            "binding_bytes_per_direction": self.binding_bytes_per_direction,
             "signature_return_bytes": self.signature_return_bytes,
             "per_kernel": kernels,
         })
@@ -324,6 +326,7 @@ enum Outcome {
 
 async fn execute(
     operation: Operation,
+    run_id: &str,
     transport: &mut Duplex<'_>,
 ) -> worker::Result<PipelineResult> {
     let mode = operation.mode();
@@ -371,6 +374,7 @@ async fn execute(
         &inputs.message,
         b"",
         mode.signing_mode(),
+        &Sha256::digest(run_id.as_bytes()).into(),
     )
     .map_err(runtime_failure)?;
     let signature = loop {
@@ -386,7 +390,7 @@ async fn execute(
             }
             SigningStep::Send(send) => {
                 transport.send(send.bytes()).await?;
-                send.resume()
+                send.resume().map_err(runtime_failure)?
             }
             SigningStep::Receive(receive) => {
                 let bytes = Zeroizing::new(transport.receive(receive.expected_bytes()).await?);
@@ -395,8 +399,11 @@ async fn execute(
             SigningStep::Complete(signature) => break signature,
         };
     };
-    accounting.a_to_b_bytes += signature.metrics.accepted_share_bytes as u64;
-    accounting.b_to_a_bytes += signature.metrics.signature_return_bytes as u64;
+    accounting.binding_bytes_per_direction = signature.metrics.binding_bytes_per_direction;
+    accounting.a_to_b_bytes += (signature.metrics.accepted_share_bytes
+        + signature.metrics.binding_bytes_per_direction) as u64;
+    accounting.b_to_a_bytes += (signature.metrics.signature_return_bytes
+        + signature.metrics.binding_bytes_per_direction) as u64;
     accounting.accepted_share_bytes = signature.metrics.accepted_share_bytes;
     accounting.signature_return_bytes = signature.metrics.signature_return_bytes;
     accounting.check_transport(transport)?;
@@ -582,7 +589,7 @@ async fn run_a_session(
     colo: Option<String>,
 ) -> worker::Result<Value> {
     let mut transport = Duplex::new(socket)?;
-    let result = execute(operation, &mut transport).await?;
+    let result = execute(operation, run_id, &mut transport).await?;
     let b = transport.peer_completion().await?;
     let a = role_report(&result, operation, &transport, run_id, colo);
     for field in ["schema", "kernel", "run_id", "public_key_hex"] {
@@ -633,7 +640,7 @@ pub(super) async fn run_b(
     colo: Option<String>,
 ) -> worker::Result<()> {
     let mut transport = Duplex::new(&socket)?;
-    let result = execute(operation, &mut transport).await?;
+    let result = execute(operation, &run_id, &mut transport).await?;
     transport.flush().await?;
     let report = role_report(&result, operation, &transport, &run_id, colo);
     transport.send_completion(&report)?;
