@@ -1,0 +1,107 @@
+{
+  "account_before": {
+    "http_status": 200,
+    "body": {
+      "jsonrpc": "2.0",
+      "error": {
+        "name": "HANDLER_ERROR",
+        "cause": {
+          "info": {
+            "block_hash": "Gh5cghTMtWXQYBAvw5gmkp58C67WN4zgBPaZthA9vAG1",
+            "block_height": 272971121,
+            "requested_account_id": "ml-dsa-e2e-20261014-bb976cccc038.testnet"
+          },
+          "name": "UNKNOWN_ACCOUNT"
+        },
+        "code": -32000,
+        "message": "Server error",
+        "data": "account ml-dsa-e2e-20261014-bb976cccc038.testnet does not exist while viewing"
+      },
+      "id": "ml-dsa-disposable-testnet"
+    }
+  },
+  "faucet": {
+    "http_status": 200,
+    "body": {
+      "final_execution_status": "EXECUTED_OPTIMISTIC",
+      "receipts_outcome": [
+        {
+          "block_hash": "CjtnfR8LnMfVbMByJKeRmfagnP3hwcLfmb1aU4iVPwz1",
+          "id": "HgZwcmW1u5Dp3DzubLmrG419qH4tFd7QpZDQ6PbQeCFk",
+          "outcome": {
+            "executor_id": "ml-dsa-e2e-20261014-bb976cccc038.testnet",
+            "gas_burnt": 7524947687500,
+            "logs": [],
+            "metadata": {
+              "contracts": [
+                null,
+                null,
+                null
+              ],
+              "gas_profile": [],
+              "version": 4
+            },
+            "receipt_ids": [
+              "B1gypfNqsdgMY4pVAUAokZytV1EhwEF2fXBGVCmQgGvP"
+            ],
+            "status": {
+              "SuccessValue": ""
+            },
+            "tokens_burnt": "7032494768750000000000"
+          },
+          "proof": []
+        }
+      ],
+      "status": {
+        "SuccessValue": ""
+      },
+      "transaction": {
+        "actions": [
+          "CreateAccount",
+          {
+            "Transfer": {
+              "deposit": "10000000000000000000000000"
+            }
+          },
+          {
+            "AddKey": {
+              "access_key": {
+                "nonce": 0,
+                "permission": "FullAccess"
+              },
+              "public_key": "ml-dsa-65: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"
+            }
+          }
+        ],
+        "hash": "wzv2VwyEGwuN72UMLghYmAH5jgwwL1sE2rRW5B8ty7y",
+        "nonce": 51910170664053,
+        "priority_fee": 0,
+        "public_key": "ed25519:AvD69JGCj9Ae461SUK9Tv9Jq1unSFkB7feaE2jjJkvjS",
+        "receiver_id": "ml-dsa-e2e-20261014-bb976cccc038.testnet",
+        "signature": "ed25519:33HjJYb1jfbaJu7Y8EUUqmwRbawP5kiPyy5UpwvTHintNcb2ikrjNTrpvdaDTNyNwvYTSxA9KmAvRDhhu1m1C8NJ",
+        "signer_id": "testnet"
+      },
+      "transaction_outcome": {
+        "block_hash": "DQmnXoDu44pxrAyxPEdAHQcou6QdzBMyVP1udWoj5ZMN",
+        "id": "wzv2VwyEGwuN72UMLghYmAH5jgwwL1sE2rRW5B8ty7y",
+        "outcome": {
+          "executor_id": "testnet",
+          "gas_burnt": 824947687500,
+          "logs": [],
+          "metadata": {
+            "gas_profile": null,
+            "version": 1
+          },
+          "receipt_ids": [
+            "HgZwcmW1u5Dp3DzubLmrG419qH4tFd7QpZDQ6PbQeCFk"
+          ],
+          "status": {
+            "SuccessReceiptId": "HgZwcmW1u5Dp3DzubLmrG419qH4tFd7QpZDQ6PbQeCFk"
+          },
+          "tokens_burnt": "82494768750000000000"
+        },
+        "proof": []
+      }
+    }
+  }
+}

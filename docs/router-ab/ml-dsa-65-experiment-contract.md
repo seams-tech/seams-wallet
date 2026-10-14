@@ -206,25 +206,33 @@ sets `PostQuantumSignatures` at protocol version 85.
 Its [transaction implementation](https://github.com/near/nearcore/blob/a45238b883d23673e7eac94549126bbb6f0d9307/core/primitives/src/transaction.rs)
 hashes serialized transaction bytes before signing.
 The signature path uses the ordinary AWS-LC signing API without an explicit context argument.
-The eventual interoperability test must check empty-context behavior against that verifier.
+The offline and testnet E2E checks now verify empty-context threshold signatures.
 
 The [read-only network observations](../evidence/ml-dsa-near-network-20261013.json) record mainnet protocol 86 and testnet protocol 87 on October 13, 2026.
 Both exceed the pinned source's protocol-85 feature gate.
 This version comparison does not exercise either deployed verifier.
 
-The host harness verifies standard ML-DSA signatures through OpenSSL.
-It does not execute the pinned NEAR verifier, encode a NEAR transaction, or prove network activation.
-Record active protocol configuration from the selected RPC before enrollment.
-Keep full public keys distinct from hashed access-key handles.
+The host harness encodes SDK transactions and verifies signatures through RustCrypto, OpenSSL, and the pinned AWS-LC algorithm.
+The [testnet E2E report](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) records successful finalized execution of a threshold-signed one-yocto self-transfer.
+Its account uses the public zero-seed fixture. This test establishes interoperability and supplies no production custody claim.
+The two local roles complete canonical key generation and signing before the test recipient reconstructs the seed.
+The network driver records protocol configuration before it signs or submits a transaction.
 
-## Candidate decisions still open
+Testnet's RPC returns `ml-dsa-65-hash:` handles in `view_access_key_list`.
+The `view_access_key` request accepts the full `ml-dsa-65:` key and rejects the hash handle with a parse error.
+Transactions, AddKey, and DeleteKey also require the full key.
+Retain the full public key in wallet metadata. The hash handle cannot recover it.
+The Rust SDK exposes distinct `PublicKey` and `PublicKeyHandle` types, with ML-DSA Borsh tags 2 and 3 respectively.
+The SDK provides conversion from a full key to its handle.
+
+## Engine selection and deferred alternatives
 
 | Candidate | Current decision | Required next evidence |
 | --- | --- | --- |
-| Hybrid half-gates plus general 2PC signing | Complete host and deployed Worker signatures pass | Independent composition review, target qualification, and optimization |
+| Hybrid half-gates plus general 2PC signing | Selected for integration | Independent composition review, target qualification, and revised hosted measurements |
 | Full Yao | Resource comparison | Exact complete circuit cost |
 | Three-halves garbling | Alternative | Implementation, security parameters, CPU, and total traffic |
-| GMW / ABY2.0 | Alternative | Two-party preprocessing, conversion, communication depth, and WASM execution |
+| GMW / ABY2.0 | Complete native comparison favors half-gates | Improved private preprocessing and deployed comparison, deferred |
 | Mithril with canonical-key sharing | Alternative | Selected revision, short-share privacy loss, repeated sharing, licensing, and complete cost |
 | Trilithium | Alternative | Selected revision and a two-party replacement for its randomness provider |
 | THED | Screen before implementation | A concrete Worker/WASM resource case |

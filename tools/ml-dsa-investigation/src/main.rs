@@ -4,6 +4,7 @@ mod circuit_evidence;
 mod complete_engine_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
+mod near_testnet_evidence;
 mod near_transaction_evidence;
 mod private_execution;
 mod private_keygen;
@@ -25,6 +26,10 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    SignNearTestnet {
+        request: PathBuf,
+        output: PathBuf,
+    },
     CompareCompleteEngines {
         output: PathBuf,
     },
@@ -71,6 +76,9 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::SignNearTestnet { request, output } => {
+            near_testnet_evidence::run(&request, &output)?
+        }
         Invocation::CompareCompleteEngines { output } => complete_engine_evidence::run(&output)?,
         Invocation::CompareBooleanEngines { output } => boolean_engine_evidence::run(&output)?,
         Invocation::InspectArithmetic { output } => arithmetic_audit::run(&output)?,
@@ -107,6 +115,15 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "sign-near-testnet" {
+            let request = PathBuf::from(args.next().ok_or("A testnet request path is required.")?);
+            let output = PathBuf::from(args.next().ok_or("A testnet evidence path is required.")?);
+            require(
+                args.next().is_none(),
+                "Unexpected testnet signing argument.",
+            )?;
+            return Ok(Invocation::SignNearTestnet { request, output });
+        }
         if first == "compare-complete-engines" {
             let output = PathBuf::from(
                 args.next()
@@ -258,6 +275,7 @@ fn generate_report(
         "src/garbled_execution.rs",
         "src/hybrid_keygen.rs",
         "src/near_transaction_evidence.rs",
+        "src/near_testnet_evidence.rs",
         "src/private_execution.rs",
         "src/private_keygen.rs",
         "src/private_signing.rs",

@@ -185,6 +185,11 @@ Restoring an old backup must require that transition before signing.
 Authorized export must send each seed share directly to the authorized recipient through separately bound encrypted delivery.
 Export authorization and recipient binding remain outside the current harness.
 
+The [testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) records finalized execution of an SDK transaction signed by separate local roles.
+The account uses a public fixture seed and faucet test tokens.
+The test checks full public keys against distinct access-key handles, including the actual RPC request and response formats.
+This establishes network interoperability. It supplies no production authorization, durable storage, or recovery guarantee.
+
 The source review remains open until the composition proof, target qualification, and independent review address these requirements.
 
 ## Complete engine composition evidence — October 14, 2026

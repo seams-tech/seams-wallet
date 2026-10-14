@@ -8,8 +8,9 @@ use sha2::{Digest, Sha256};
 use sha3::Sha3_256;
 use std::{fs, path::Path};
 use wasm_signer_worker::{
-    ActionParams, NearAction, PublicKey, Signature, SignedTransaction, Transaction,
-    build_transaction_with_actions, calculate_transaction_hash, encode_signed_transaction,
+    ActionParams, NearAction, PublicKey, PublicKeyHandle, Signature, SignedTransaction,
+    Transaction, build_transaction_with_actions, calculate_transaction_hash,
+    encode_signed_transaction,
 };
 
 const SIGNER: &str = "ml-dsa-investigation.testnet";
@@ -97,21 +98,14 @@ pub(super) fn run(
         verifier.verify(&message.0, &changed_signature).is_err(),
         "NEAR verifier accepted an altered signature.",
     )?;
-    let mut handle_hash = Sha3_256::new();
-    handle_hash.update(b"near:ml-dsa-65-pubkey-hash:v1");
-    handle_hash.update(public_bytes);
-    let handle_bytes: [u8; 32] = handle_hash.finalize().into();
-    let handle_string = format!(
-        "ml-dsa-65-hash:{}",
-        bs58::encode(handle_bytes).into_string()
-    );
+    let handle_string = verify_access_key_handle(&public_key)?;
     require(
         handle_string.parse::<PublicKey>().is_err(),
         "SDK accepted a hash identifier as a full transaction public key.",
     )?;
     require(
         serde_json::from_value::<PublicKey>(json!({"keyType": 2, "keyData": vec![0; 32]})).is_err()
-            && serde_json::from_value::<PublicKey>(json!({"keyType": 3, "keyData": handle_bytes}))
+            && serde_json::from_value::<PublicKey>(json!({"keyType": 3, "keyData": vec![0; 32]}))
                 .is_err(),
         "SDK accepted a malformed or hashed full-key encoding.",
     )?;
@@ -191,6 +185,53 @@ pub(super) fn run(
         "add_and_delete_key_full_key_encodings_match": true, "ed25519_encoding_preserved": true,
         "threshold_signing": signing,
     }))
+}
+
+pub(super) fn verify_access_key_handle(public_key: &PublicKey) -> InvestigationResult<String> {
+    let handle = PublicKeyHandle::from(public_key);
+    let text = handle.to_string();
+    let mut hash = Sha3_256::new();
+    hash.update(b"near:ml-dsa-65-pubkey-hash:v1");
+    hash.update(public_key.as_bytes());
+    let expected: [u8; 32] = hash.finalize().into();
+    let mut expected_borsh = vec![3];
+    expected_borsh.extend_from_slice(&expected);
+    require(
+        text == format!("ml-dsa-65-hash:{}", bs58::encode(expected).into_string())
+            && text.parse::<PublicKeyHandle>()? == handle
+            && serde_json::from_value::<PublicKeyHandle>(json!(text))? == handle
+            && serde_json::to_value(&handle)? == json!(text)
+            && borsh::to_vec(&handle)? == expected_borsh
+            && borsh::from_slice::<PublicKeyHandle>(&expected_borsh)? == handle,
+        "SDK access-key handle does not match the NEAR hash, text, JSON, or Borsh contract.",
+    )?;
+    require(
+        public_key.to_string().parse::<PublicKeyHandle>().is_err()
+            && text.parse::<PublicKey>().is_err()
+            && borsh::from_slice::<PublicKey>(&expected_borsh).is_err()
+            && borsh::from_slice::<PublicKeyHandle>(&borsh::to_vec(public_key)?).is_err(),
+        "SDK confused full public keys with hash handles.",
+    )?;
+    for length in [0, 31, 33, 1952] {
+        let malformed = format!(
+            "ml-dsa-65-hash:{}",
+            bs58::encode(vec![0; length]).into_string()
+        );
+        require(
+            malformed.parse::<PublicKeyHandle>().is_err(),
+            "SDK accepted a wrong-length ML-DSA handle.",
+        )?;
+    }
+    for key in [PublicKey::Ed25519([7; 32]), PublicKey::Secp256k1([9; 64])] {
+        let key_handle = PublicKeyHandle::from(&key);
+        require(
+            key_handle.to_string() == key.to_string()
+                && borsh::to_vec(&key_handle)? == borsh::to_vec(&key)?
+                && key_handle.to_string().parse::<PublicKeyHandle>()? == key_handle,
+            "SDK Ed25519 or secp256k1 handle encoding differs from its full key.",
+        )?;
+    }
+    Ok(text)
 }
 
 fn build_fixture_transaction(

@@ -5,6 +5,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
+use sha3::{Digest, Sha3_256};
 use std::{fmt, str::FromStr};
 
 #[repr(u8)]
@@ -105,6 +106,79 @@ impl From<PublicKey> for PublicKeyWire {
             key_type: key.key_type(),
             key_data: key.as_bytes().to_vec(),
         }
+    }
+}
+
+/// Identifier returned by NEAR access-key lists. ML-DSA handles cannot verify
+/// signatures or replace full keys in transactions or single-key RPC queries.
+#[repr(u8)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[borsh(use_discriminant = true)]
+#[serde(try_from = "String", into = "String")]
+pub enum PublicKeyHandle {
+    Ed25519([u8; 32]) = 0,
+    Secp256k1([u8; 64]) = 1,
+    MlDsa65Hash([u8; 32]) = 3,
+}
+
+impl From<&PublicKey> for PublicKeyHandle {
+    fn from(key: &PublicKey) -> Self {
+        match key {
+            PublicKey::Ed25519(bytes) => Self::Ed25519(*bytes),
+            PublicKey::Secp256k1(bytes) => Self::Secp256k1(*bytes),
+            PublicKey::MlDsa65(bytes) => {
+                let mut hash = Sha3_256::new();
+                hash.update(b"near:ml-dsa-65-pubkey-hash:v1");
+                hash.update(bytes.as_slice());
+                Self::MlDsa65Hash(hash.finalize().into())
+            }
+        }
+    }
+}
+
+impl FromStr for PublicKeyHandle {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (scheme, encoded) = value
+            .split_once(':')
+            .ok_or("A NEAR key-handle scheme is required.")?;
+        let bytes = bs58::decode(encoded)
+            .into_vec()
+            .map_err(|error| format!("Invalid NEAR key-handle base58: {error}"))?;
+        match scheme {
+            "ed25519" => Ok(Self::Ed25519(fixed_bytes(bytes)?)),
+            "secp256k1" => Ok(Self::Secp256k1(fixed_bytes(bytes)?)),
+            "ml-dsa-65-hash" => Ok(Self::MlDsa65Hash(fixed_bytes(bytes)?)),
+            _ => Err(
+                "A NEAR key handle requires ed25519, secp256k1, or ml-dsa-65-hash encoding.".into(),
+            ),
+        }
+    }
+}
+
+impl fmt::Display for PublicKeyHandle {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (scheme, bytes): (&str, &[u8]) = match self {
+            Self::Ed25519(bytes) => ("ed25519", bytes),
+            Self::Secp256k1(bytes) => ("secp256k1", bytes),
+            Self::MlDsa65Hash(bytes) => ("ml-dsa-65-hash", bytes),
+        };
+        write!(formatter, "{scheme}:{}", bs58::encode(bytes).into_string())
+    }
+}
+
+impl TryFrom<String> for PublicKeyHandle {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+impl From<PublicKeyHandle> for String {
+    fn from(handle: PublicKeyHandle) -> Self {
+        handle.to_string()
     }
 }
 

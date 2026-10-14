@@ -1488,6 +1488,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "sha2",
+ "sha3",
  "signer-core",
  "wasm-bindgen",
  "zeroize",

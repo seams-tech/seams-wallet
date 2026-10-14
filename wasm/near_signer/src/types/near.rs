@@ -1,5 +1,5 @@
 use super::deserializers::serde_array_32;
-pub use super::near_keys::{PublicKey, Signature};
+pub use super::near_keys::{PublicKey, PublicKeyHandle, Signature};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
