@@ -57,7 +57,12 @@ import {
 } from './passkey';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import { createReadableWalletId } from '@shared/utils/registrationIds';
-import { classifyLinkDeviceFlowEvent, type LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
+import {
+  classifyLinkDeviceFlowEvent,
+  RegistrationEventPhase,
+  type LinkDeviceFlowEvent,
+  type RegistrationFlowEvent,
+} from '@/core/types/sdkSentEvents';
 import type {
   LinkedDeviceTargetEmailOtpActivationV1,
   LinkedDeviceTargetFactorActivationV1,
@@ -253,6 +258,7 @@ type PreparePasskey = (
 type PrepareRegistration = (
   registrationValue: string,
   cancellation: Extract<WebAuthnPromptCancellation, { kind: 'abort_signal' }>,
+  onEvent: (event: RegistrationFlowEvent) => void,
 ) => Promise<HostedPasskeyMenuPrepared>;
 type BeginGoogleEmailOtp = (args: {
   readonly idToken: string;
@@ -1040,7 +1046,7 @@ export class AuthMenuSession {
     this.schedulePreparationDeadline(generation, cancellationController);
     const preparation = Promise.resolve().then(() =>
       registrationPreparation
-        ? registrationPreparation(this.registrationValue(), cancellation)
+        ? registrationPreparation(this.registrationValue(), cancellation, this.showRegistrationDelay)
         : prepare!(cancellation),
     );
     void preparation.then(
@@ -3361,6 +3367,25 @@ export class AuthMenuSession {
     this.outcomeResolver = null;
     resolver?.(outcome);
   }
+
+  /** A slow registration request names the wait in the busy headline. */
+  private readonly showRegistrationDelay = (event: RegistrationFlowEvent): void => {
+    if (
+      event.phase !== RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED &&
+      event.phase !== RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED
+    ) {
+      return;
+    }
+    const state = this.stateValue;
+    if (state.kind !== 'performing') return;
+    const viewModel = state.viewModel;
+    if (viewModel.kind !== 'passkey' || viewModel.status.kind !== 'busy') return;
+    this.stateValue = {
+      ...state,
+      viewModel: { ...viewModel, status: { ...viewModel.status, headline: event.message } },
+    };
+    this.updateElement();
+  };
 
   private performPreparedPasskey(prepared: HostedPasskeyMenuPrepared): void {
     this.prepared = null;
