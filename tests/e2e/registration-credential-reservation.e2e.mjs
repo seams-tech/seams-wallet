@@ -480,7 +480,10 @@ async function verifyWalletAndSessionCommit(database, now) {
     credentialClaims: { claim: acceptCredential },
     ...scope,
   });
-  const commit = await store.reserveAuthority(authority);
+  const foundingIds = {
+    walletAuthorityId: founding.authority.authorityId,
+    walletAuthMethodId: founding.authMethod.walletAuthMethodId,
+  };
   const walletInput = {
     kind: 'passkey_wallet_registration_commit_v1',
     wallet: api.buildD1WalletRecord({ walletId: authority.walletId, now }),
@@ -516,16 +519,19 @@ async function verifyWalletAndSessionCommit(database, now) {
     issuedAtMs: now,
     expiresAtMs: now + 3_600_000,
   };
-  const commitWithSession = service.commitDirectWalletSessionAuthorizationV2.bind(
-    service,
-    sessionInput,
-    { kind: 'validated_registration_authority_projection' },
-    { kind: 'registration', ceremonyId },
-    sessionStore.commitRegistrationWalletSessionAuthorizationV2.bind(
-      sessionStore,
-      commit.bind(undefined, walletInput),
-    ),
-  );
+  // Each attempt is one finalization: it reserves, reading the founding records, then commits.
+  const commitWithSession = async () => {
+    const commit = await store.reserveAuthority(authority, null, foundingIds);
+    return service.commitDirectWalletSessionAuthorizationV2(
+      sessionInput,
+      { kind: 'validated_registration_authority_projection' },
+      { kind: 'registration', ceremonyId },
+      sessionStore.commitRegistrationWalletSessionAuthorizationV2.bind(
+        sessionStore,
+        commit.bind(undefined, walletInput),
+      ),
+    );
+  };
   const beforeSessionFailure = await snapshot(database);
   await database
     .prepare(
@@ -547,7 +553,7 @@ async function verifyWalletAndSessionCommit(database, now) {
     state: 'registering',
   });
   const calls = trace(traced).slice(callsBefore);
-  assert.equal(calls.length, 2, 'One founding-record read, then one batch');
+  assert.equal(calls.length, 2, 'The reservation reads the founding records, the commit writes one batch');
   assert.ok(calls[0].statements.every(isRead));
   assert.ok(writesWalletBatch(calls[1]));
   const tables = new Set(calls[1].statements.flatMap(statementTables));

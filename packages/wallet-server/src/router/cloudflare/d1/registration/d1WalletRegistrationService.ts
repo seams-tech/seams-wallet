@@ -5688,6 +5688,7 @@ export class CloudflareD1WalletRegistrationService {
             promise: this.walletRegistrationCommitStore.reserveAuthority(
               ceremonyAuthority,
               heldPasskeyClaim,
+              prepared,
             ),
           }),
         ]);
@@ -5854,7 +5855,11 @@ export class CloudflareD1WalletRegistrationService {
       } else {
         custodyReservation = reserveCustody();
         startedCustody = custodyReservation;
-        commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(ceremonyAuthority);
+        commitWallet = await this.walletRegistrationCommitStore.reserveAuthority(
+          ceremonyAuthority,
+          null,
+          prepared,
+        );
       }
 
       /* The registration becomes visible with its lifecycle's decision, in
