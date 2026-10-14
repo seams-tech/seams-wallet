@@ -10,6 +10,7 @@ mod material_storage_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
 mod prepared_keygen_evidence;
+mod prepared_worker_fixtures;
 mod private_execution;
 mod private_keygen;
 mod private_signing;
@@ -31,6 +32,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    ExportPreparedFixtures {
+        directory: PathBuf,
+    },
     PreparedKeygen {
         output: PathBuf,
     },
@@ -99,6 +103,9 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::ExportPreparedFixtures { directory } => {
+            prepared_worker_fixtures::export(&directory)?
+        }
         Invocation::PreparedKeygen { output } => prepared_keygen_evidence::run(&output)?,
         Invocation::FreshMask { output } => fresh_mask_evidence::run(&output)?,
         Invocation::ExportCustodySchedules { directory } => {
@@ -163,6 +170,17 @@ fn parse_invocation() -> InvestigationResult<Invocation> {
                 "Unexpected custody schedule argument.",
             )?;
             return Ok(Invocation::ExportCustodySchedules { directory });
+        }
+        if first == "export-prepared-fixtures" {
+            let directory = PathBuf::from(
+                args.next()
+                    .ok_or("A prepared fixture directory is required.")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected prepared fixture argument.",
+            )?;
+            return Ok(Invocation::ExportPreparedFixtures { directory });
         }
         if first == "prepared-keygen" {
             let output = PathBuf::from(

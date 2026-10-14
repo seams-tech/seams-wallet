@@ -5,7 +5,13 @@ Production integration is paused at the user's request.
 The target is under five seconds for key generation and online signing, with preprocessing permitted.
 Wallet-seed recovery remains required. Export is unchanged.
 
-## Preliminary result
+## Hosted follow-up
+
+The first [hosted streamed-storage campaign](ml-dsa-65-prepared-hosted-report.md) misses the five-second target.
+Seven measured requests take 10.08–15.40 seconds online, with a 12.65-second median.
+Canonical wallet-seed recovery checks pass. A controlled stream-reader comparison is next.
+
+## Preliminary local result
 
 Prepared canonical key generation passes separate-role native and Node/V8 Wasm experiments.
 The Wasm online phase takes 1.23–1.51 seconds across three measured zero-delay cases after one warm-up.

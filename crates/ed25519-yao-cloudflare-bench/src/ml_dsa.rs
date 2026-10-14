@@ -8,6 +8,8 @@
 //! remains a disposable investigation with no production eligibility claim.
 
 mod pipeline;
+mod prepared;
+mod prepared_storage;
 
 use std::collections::VecDeque;
 
@@ -84,6 +86,7 @@ impl Kernel {
 
 #[derive(Clone, Copy)]
 enum ProbeOperation {
+    PreparedKeygen,
     Kernel(Kernel),
     Pipeline(pipeline::Operation),
 }
@@ -91,6 +94,7 @@ enum ProbeOperation {
 impl ProbeOperation {
     fn parse(value: &str) -> worker::Result<Self> {
         match value {
+            "prepared-keygen" => Ok(Self::PreparedKeygen),
             "keygen-fixture" => Ok(Self::Pipeline(pipeline::Operation::Keygen(
                 pipeline::ThresholdMode::Fixture,
             ))),
@@ -745,9 +749,18 @@ pub async fn main(
     }
     #[cfg(feature = "ml-dsa-a")]
     {
-        let _ = context;
         let (operation, run_id, colo) = request_parameters(&request, "/benchmark")?;
+        if matches!(operation, ProbeOperation::PreparedKeygen) {
+            if request.headers().get("upgrade")?.as_deref() != Some("websocket") {
+                return json_response(
+                    &json!({"ok": false, "error": "WebSocket upgrade required."}),
+                    426,
+                );
+            }
+            return prepared::accept_a(env, context, run_id, colo);
+        }
         let result = match operation {
+            ProbeOperation::PreparedKeygen => unreachable!("handled above"),
             ProbeOperation::Kernel(kernel) => run_a(&env, kernel, &run_id, colo).await,
             ProbeOperation::Pipeline(operation) => {
                 pipeline::run_a(&env, operation, &run_id, colo).await
@@ -775,6 +788,7 @@ pub async fn main(
         let for_error = server.clone();
         context.wait_until(async move {
             let result = match operation {
+                ProbeOperation::PreparedKeygen => prepared::run_b(env, server, run_id, colo).await,
                 ProbeOperation::Kernel(kernel) => run_b(server, kernel, run_id, colo).await,
                 ProbeOperation::Pipeline(operation) => {
                     pipeline::run_b(server, operation, run_id, colo).await
