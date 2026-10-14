@@ -273,6 +273,7 @@ function assertThresholdRole(role, expectedRole, kernel, runId, schedules) {
     "aggregate-check": role.attempts,
   }, schedules);
   assert.equal(role.runtime.accepted_share_bytes, 5312);
+  assert.equal(role.runtime.binding_bytes_per_direction, 73);
   assert.equal(role.runtime.signature_return_bytes, 3309);
   assert.equal(role.transport.credit_window_messages, 8);
   assert(role.transport.largest_pending_messages <= 8);
@@ -356,6 +357,7 @@ function assertKeygenReport(report, kernel, runId, fixture, schedules) {
     assert.equal(role.own_material_bytes, 17_472);
     assertKernelResources(role, { seed: 1, sampling: 11, rounding: 6 }, schedules);
     assert.equal(role.runtime.accepted_share_bytes, 0);
+    assert.equal(role.runtime.binding_bytes_per_direction, 0);
     assert.equal(role.runtime.signature_return_bytes, 0);
     assert.equal(role.transport.credit_window_messages, 8);
     assert(role.transport.largest_pending_messages <= 8);

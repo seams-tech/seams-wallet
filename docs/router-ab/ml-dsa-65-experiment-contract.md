@@ -1,9 +1,9 @@
 # ML-DSA-65 experiment contract
 
-Status: private host key generation, threshold signing, authorized recovery, and deployed private kernels. Reviewed October 13, 2026.
+Status: experimental canonical key generation, threshold signing, and authorized recovery. Reviewed October 14, 2026.
 This contract defines the current implementation boundaries in the
 [investigation plan](ml-dsa-65-investigation-plan.md).
-It defines experiment boundaries. It does not select a production protocol.
+It defines experiment boundaries. Half-gates is the selected engine for integration, subject to the remaining production qualification.
 
 ## Canonical key identity
 
@@ -145,6 +145,11 @@ Never expose signing masks, rejected candidates, or secret rejection checks to s
 Generate each output mask independently. Consume garbled execution material once.
 
 The shared signing state machine consumes these shares directly.
+Before its first private signing circuit, each role checks a public digest of the operation identifier and FIPS signing request.
+The request includes the public key, message, context, and randomness mode.
+The exchange adds 73 bytes in each direction and rejects mismatches without a signature.
+The caller must authenticate the operation and bind it to the wallet, key, material epoch, and trusted circuits.
+This agreement check supplies no admission or durable replay guarantee.
 Mithril and Trilithium need separate share-conversion and preprocessing analyses.
 Their implementations cannot inherit compatibility merely because their outputs use ML-DSA.
 

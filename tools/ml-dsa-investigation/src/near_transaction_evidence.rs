@@ -50,6 +50,7 @@ pub(super) fn run(
         own_b,
         public_key_path,
         Operation {
+            operation_id: private_signing::fresh_operation_id()?,
             engine: crate::complete_engine_evidence::Engine::HalfGates,
             message: message.0,
             context: Vec::new(),

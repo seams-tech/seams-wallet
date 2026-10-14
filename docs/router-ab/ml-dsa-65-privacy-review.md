@@ -1,6 +1,6 @@
 # ML-DSA-65 composition review
 
-Reviewed October 13, 2026. Branch: `ml-dsa`.
+Reviewed October 14, 2026. Branch: `ml-dsa`.
 
 The prototype preserves canonical key identity and produces standard signatures through separate role processes and Workers.
 This source review identifies the privacy argument and the remaining integration requirements.
@@ -64,6 +64,27 @@ For deterministic reference checks, both contributions are zero.
 `mu` binds the public key, FIPS context, and message.
 Each role must receive the same admitted public operation before execution.
 
+The core now checks public request agreement before the first signing circuit.
+Each role computes `SHAKE256(domain || operation_id || mu || mode, 64 bytes)`.
+The domain is `seams/ml-dsa-65/signing-request/v1` and the operation identifier has exactly 32 bytes.
+The mode byte is zero for deterministic signing or one for joint randomness.
+Each direction sends exactly 73 bytes: `MLDSAS01`, one role byte, and the 64-byte digest.
+A sends first. B checks A's binding before it returns its own binding.
+A checks B's binding before it starts the signing-seed circuit.
+The role bytes reject reflected headers. A different request aborts without a signature.
+
+This exchange detects disagreement under the collision-resistance assumption of SHAKE256.
+It does not authenticate the operation or prove that stored shares belong to the stated public key.
+The caller must bind the operation identifier to an admitted wallet, key, material epoch, and trusted circuit set.
+Authenticated peer transport must preserve each operation's ordered message stream.
+Repeated execution of the same admitted identifier still needs a durable replay ledger.
+
+The [request-binding campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) changes one request field at a time between separate role processes.
+It covers operation identifier, public key, message, context, and randomness mode.
+B rejects each case after receiving A's 73-byte header, with zero completed private circuits and no outbound protocol bytes.
+Neither role writes a signature result.
+The same campaign repeats canonical recovery, interruption, OT replay rejection, restart, concurrent signing, and offline SDK transaction verification.
+
 For each candidate, five private mask invocations produce uniform additive shares of `y`.
 Local linear computation produces shares of `w = A*y`.
 Six private rounding invocations produce XOR shares of the encoded high bits `w1`.
@@ -114,6 +135,7 @@ It checks release Wasm and the recorded AArch64 host assembly.
 The report records conditional branch sites separately for data-flow review.
 Loop controls and array indices in these functions depend on public dimensions.
 The [final Worker audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json) extends this check through `worker-build` for both roles.
+The [request-binding rebuild](../evidence/ml-dsa-65-request-binding-arithmetic-audit-20261014.json) repeats this inspection with the new public request exchange.
 Each final bundle retains all three named functions, with zero division or remainder instructions and no indirect calls in their bodies.
 The report pins exact Wasm bytes, function offsets, body digests, branch sites, and direct calls.
 Each role has 21 conditional control-flow sites across these functions.

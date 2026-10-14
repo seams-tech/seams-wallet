@@ -145,6 +145,8 @@ pub(super) fn run(
     own_b: &Path,
     public_key: &Path,
 ) -> InvestigationResult<Value> {
+    let request_binding =
+        crate::request_binding_evidence::run(schedules, own_a, own_b, public_key)?;
     let mut faults = Vec::new();
     for (mode, expected_injection, expected_failure) in [
         (
@@ -169,19 +171,14 @@ pub(super) fn run(
         )?);
     }
     let restarted =
-        private_signing::run_operation(schedules, own_a, own_b, public_key, operation(0))?;
+        private_signing::run_operation(schedules, own_a, own_b, public_key, operation(0)?)?;
     let concurrent = thread::scope(|scope| {
         let mut handles = Vec::new();
         for index in 1..=4 {
+            let operation = operation(index)?;
             handles.push(scope.spawn(move || {
-                private_signing::run_operation(
-                    schedules,
-                    own_a,
-                    own_b,
-                    public_key,
-                    operation(index),
-                )
-                .map_err(|error| error.to_string())
+                private_signing::run_operation(schedules, own_a, own_b, public_key, operation)
+                    .map_err(|error| error.to_string())
             }));
         }
         let mut reports = Vec::new();
@@ -216,6 +213,7 @@ pub(super) fn run(
         "scope": "Host core execution with separate processes and role-local files. No production admission, durable replay ledger, refresh, backup restore, or Cloudflare lifecycle claim.",
         "production_eligible": false,
         "faults": faults,
+        "request_binding": request_binding,
         "restart_after_faults": restarted,
         "concurrency": 4,
         "concurrent_operations": concurrent,
@@ -224,14 +222,15 @@ pub(super) fn run(
     }))
 }
 
-fn operation(index: u8) -> Operation {
-    Operation {
+fn operation(index: u8) -> InvestigationResult<Operation> {
+    Ok(Operation {
+        operation_id: private_signing::fresh_operation_id()?,
         engine: crate::complete_engine_evidence::Engine::HalfGates,
         message: Sha256::digest([b"seams/ml-dsa/core-lifecycle/v1/".as_slice(), &[index]].concat())
             .into(),
         context: b"seams/ml-dsa/core-lifecycle/v1".to_vec(),
         randomness: Randomness::JointRandom,
-    }
+    })
 }
 
 fn run_fault(
@@ -245,7 +244,7 @@ fn run_fault(
 ) -> InvestigationResult<Value> {
     let directory = tempfile::tempdir()?;
     let operation_path = directory.path().join("public-operation.json");
-    fs::write(&operation_path, serde_json::to_vec(&operation(5))?)?;
+    fs::write(&operation_path, serde_json::to_vec(&operation(5)?)?)?;
     let result_a = directory.path().join("public-a.json");
     let result_b = directory.path().join("public-b.json");
     let error = private_execution::run_duplex_children(

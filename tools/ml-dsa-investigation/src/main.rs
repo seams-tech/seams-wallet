@@ -9,6 +9,7 @@ mod private_execution;
 mod private_keygen;
 mod private_signing;
 mod reference;
+mod request_binding_evidence;
 mod rounding_evidence;
 mod sampler_evidence;
 mod signing_circuit_evidence;
@@ -248,6 +249,7 @@ fn generate_report(
         "src/main.rs",
         "src/arithmetic_audit.rs",
         "src/worker_arithmetic_audit.rs",
+        "src/request_binding_evidence.rs",
         "src/boolean_engine_evidence.rs",
         "src/complete_engine_evidence.rs",
         "src/reference.rs",

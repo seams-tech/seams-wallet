@@ -179,6 +179,12 @@ The [composition review](../../docs/router-ab/ml-dsa-65-privacy-review.md) recor
 ## Core lifecycle scenarios
 
 The full report also exercises lifecycle behavior on the zero-seed disposable fixture before authorized recovery.
+Each signing request includes a required 32-byte operation identifier.
+The core checks agreement on that identifier, public key, message, FIPS context, and randomness mode before the first private signing circuit.
+The exchange adds 73 bytes in each direction. Runtime reports count those bytes separately from accepted shares and signature return bytes.
+Five mismatch scenarios run separate role processes and require rejection before any private circuit completes.
+They check that neither role writes a signature result.
+This check establishes peer request agreement. Admission, transport authentication, and durable replay rejection remain deployment requirements.
 Separate role processes use the same persistent role-local material files for these scenarios:
 
 1. A exits after the first private signing-mask circuit. Neither role returns a signature.
