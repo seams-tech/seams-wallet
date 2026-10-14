@@ -1632,39 +1632,29 @@
   margin: 0 0 6px;
 }
 
-:where(.seams-auth-menu-surface) .seams-recovery-input {
-  box-sizing: border-box;
-  inline-size: 100%;
-  min-block-size: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: var(--seams-shape-control, 10px);
-  outline: none;
-  background: var(--seams-colors-surface);
-  color: var(--seams-colors-textPrimary);
-  font: inherit;
-  font-size: 16px;
+:where(.seams-auth-menu-surface) .seams-recovery-code-slots {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px 4px;
 }
 
-:where(.seams-auth-menu-surface) .seams-recovery-code-input {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+:where(.seams-auth-menu-surface) .seams-recovery-code-slots .seams-otp-slot {
+  aspect-ratio: auto;
+  min-height: 40px;
+  font-size: clamp(1rem, 4vw, 1.2rem);
 }
 
-:where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible {
-  border-color: var(--seams-colors-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+:where(.seams-auth-menu-surface)
+  .seams-recovery-code-field:has([aria-invalid='true'])
+  .seams-otp-slot {
+  border-color: var(--seams-colors-error);
 }
 
 @media (forced-colors: active) {
-  :where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible,
+  :where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within,
   :where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
   }
-}
-
-:where(.seams-auth-menu-surface) .seams-recovery-input[aria-invalid='true'] {
-  border-color: var(--seams-colors-error);
 }
 
 :where(.seams-auth-menu-surface) .seams-recovery-error,

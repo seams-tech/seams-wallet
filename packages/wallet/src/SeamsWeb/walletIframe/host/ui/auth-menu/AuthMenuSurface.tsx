@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { Component, Fragment, type ComponentChildren } from 'preact';
+import { WALLET_RECOVERY_CODE_CHAR_LENGTH } from '@shared/wallet-recovery/recoveryCodes';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import {
   isAuthMenuActionReady,
@@ -49,8 +50,12 @@ function renderDemoEmailCode(delivery: EmailOtpChallengeDelivery): ComponentChil
 const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
 const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
 
-function otpCodeDigits(code: string): readonly string[] {
-  return code.padEnd(6, ' ').slice(0, 6).split('');
+function otpCodeDigits(code: string, length = 6): readonly string[] {
+  return code.padEnd(length, ' ').slice(0, length).split('');
+}
+
+function recoveryInputCharacters(code: string): string {
+  return code.replace(/[\s\-\u2010-\u2015\u2212]/g, '').toUpperCase();
 }
 
 function renderOtpCodeDigit(digit: string): ComponentChildren {
@@ -631,7 +636,18 @@ export class AuthMenuSurface extends Component<
 
   private onRecoveryCodeInput = (event: Event): void => {
     if (!(event.currentTarget instanceof HTMLInputElement)) return;
-    this.emitIntent({ kind: 'recovery_code_changed', recoveryCode: event.currentTarget.value });
+    const viewModel = this.viewModel;
+    if (viewModel.kind !== 'recovery') return;
+    const input = event.currentTarget;
+    const length = viewModel.recoveryCodeSlotCount ?? WALLET_RECOVERY_CODE_CHAR_LENGTH;
+    const raw = input.value;
+    const caret = recoveryInputCharacters(raw.slice(0, input.selectionStart ?? raw.length)).length;
+    const code = recoveryInputCharacters(raw).slice(0, length);
+    if (input.value !== code) {
+      input.value = code;
+      input.setSelectionRange(Math.min(caret, code.length), Math.min(caret, code.length));
+    }
+    this.emitIntent({ kind: 'recovery_code_changed', recoveryCode: code });
   };
 
   private onRecoverySubmit = (event: SubmitEvent): void => {
@@ -854,10 +870,7 @@ export class AuthMenuSurface extends Component<
           <div class="seams-passkey-row">
             <div class="seams-input-pill">
               <div class="seams-input-wrap">
-                <div
-                  class="seams-account-menu-account seams-selected-account"
-                  aria-hidden="true"
-                >
+                <div class="seams-account-menu-account seams-selected-account" aria-hidden="true">
                   <span class="seams-account-menu-account-primary">
                     {selectedAccountPrimaryText(selected)}
                   </span>
@@ -1069,6 +1082,9 @@ export class AuthMenuSurface extends Component<
 
   private renderRecovery(viewModel: AuthMenuRecoveryViewModel): ComponentChildren {
     if (viewModel.stage === 'enter_code') {
+      const codeLength = viewModel.recoveryCodeSlotCount ?? WALLET_RECOVERY_CODE_CHAR_LENGTH;
+      const code = recoveryInputCharacters(viewModel.recoveryCode).slice(0, codeLength);
+      const digits = otpCodeDigits(code, codeLength);
       const statusMessage = viewModel.status.kind === 'recoverable' ? viewModel.status.message : '';
       const feedbackMessage = viewModel.recoveryCodeError ?? statusMessage;
       const feedbackIsError = feedbackMessage.length > 0;
@@ -1088,21 +1104,29 @@ export class AuthMenuSurface extends Component<
               <label class="seams-field-label" for="seams-recovery-code">
                 Recovery code
               </label>
-              <input
-                id="seams-recovery-code"
-                class="seams-recovery-input seams-recovery-code-input"
-                data-recovery-code
-                name="recoveryCode"
-                type="text"
-                autocomplete="one-time-code"
-                autocapitalize="characters"
-                autocorrect="off"
-                spellcheck={false}
-                aria-invalid={viewModel.recoveryCodeError ? 'true' : 'false'}
-                aria-describedby={viewModel.recoveryCodeError ? 'seams-recovery-code-feedback' : ''}
-                value={viewModel.recoveryCode}
-                onInput={this.onRecoveryCodeInput}
-              />
+              <div class="seams-otp-code-field seams-recovery-code-field">
+                <input
+                  id="seams-recovery-code"
+                  class="seams-otp-input"
+                  data-recovery-code
+                  name="recoveryCode"
+                  type="text"
+                  inputmode={codeLength === 16 ? 'numeric' : 'text'}
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  autocorrect="off"
+                  spellcheck={false}
+                  aria-invalid={viewModel.recoveryCodeError ? 'true' : 'false'}
+                  aria-describedby={
+                    viewModel.recoveryCodeError ? 'seams-recovery-code-feedback' : undefined
+                  }
+                  value={code}
+                  onInput={this.onRecoveryCodeInput}
+                />
+                <div class="seams-otp-slots seams-recovery-code-slots" aria-hidden="true">
+                  {digits.map(renderOtpCodeDigit)}
+                </div>
+              </div>
             </div>
             <div class="seams-secondary-actions">
               <button

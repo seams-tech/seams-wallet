@@ -293,6 +293,8 @@ export type AuthMenuRecoveryViewModel = AuthMenuViewModelCommon & {
   readonly kind: 'recovery';
   readonly mode: 'login';
   readonly recoveryCode: string;
+  /** Preview display length; live recovery defaults to the protocol code length. */
+  readonly recoveryCodeSlotCount?: 16 | 32;
   readonly recoveryCodeError: string | null;
   readonly passkeyName?: never;
   readonly passkeyNameLabel?: never;
