@@ -414,3 +414,18 @@
     min-height: 44px;
   }
 }
+
+.seams-recovery-code-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.seams-recovery-code-actions .seams-account-action {
+  margin-top: 0;
+}
+.seams-recovery-code-action-status {
+  min-height: 1.4em;
+  margin: 6px 0 10px;
+  font-size: 12px;
+  color: var(--seams-colors-textSecondary);
+}

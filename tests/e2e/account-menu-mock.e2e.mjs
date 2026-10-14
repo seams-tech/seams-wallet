@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 
 const artifacts = '.artifacts/account-menu-mock';
@@ -34,6 +34,9 @@ const browser = await chromium.launch({ channel: 'chrome' });
 const context = await browser.newContext({
   viewport: { width: 460, height: 1050 },
   recordVideo: { dir: artifacts },
+});
+await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
+  origin: new URL(url).origin,
 });
 await context.tracing.start({ screenshots: true, snapshots: true });
 try {
@@ -102,6 +105,15 @@ try {
   assert.equal(codes.length, 4);
   assert.equal(new Set(codes).size, 4);
   for (const code of codes) assert.match(code.replaceAll('–', ''), /^\d{16}$/);
+  await page.getByRole('button', { name: 'Copy all', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText('Copied all codes.');
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${codes.join('\n')}\n`);
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download all', exact: true }).click();
+  const download = await downloading;
+  await download.saveAs(`${artifacts}/recovery-codes.txt`);
+  assert.equal(await readFile(`${artifacts}/recovery-codes.txt`, 'utf8'), `${codes.join('\n')}\n`);
+  await expect(page.getByRole('status')).toHaveText('Downloaded all codes.');
   await page.screenshot({ path: `${artifacts}/recovery-16-digits.png` });
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.locator('[data-account-menu-item="accounts"]').click();

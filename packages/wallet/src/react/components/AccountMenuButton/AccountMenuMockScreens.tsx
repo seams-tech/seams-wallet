@@ -1,5 +1,6 @@
 import React from 'react';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
+import { RecoveryCodeActions } from './RecoveryCodeActions';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
@@ -259,6 +260,7 @@ export function AccountMenuMockScreens({
               {recoveryCodes.map(recoveryCodeRow)}
             </ol>
           ) : null}
+          {screen.revealed ? <RecoveryCodeActions codes={recoveryCodes} /> : null}
           <div className="seams-account-inset">
             Keep these codes private. Anyone with a code can start recovering your wallet.
           </div>
