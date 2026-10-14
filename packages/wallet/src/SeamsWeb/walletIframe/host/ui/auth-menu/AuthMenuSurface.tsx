@@ -58,6 +58,22 @@ function recoveryInputCharacters(code: string): string {
   return code.replace(/[\s\-\u2010-\u2015\u2212]/g, '').toUpperCase();
 }
 
+function recoveryCodeGroups(digits: readonly string[]): string[][] {
+  const groups: string[][] = [];
+  for (let index = 0; index < digits.length; index += 4) {
+    groups.push(digits.slice(index, index + 4));
+  }
+  return groups;
+}
+
+function renderRecoveryCodeGroup(digits: string[], index: number): ComponentChildren {
+  return (
+    <div class="seams-recovery-code-group" key={index}>
+      {digits.map(renderOtpCodeDigit)}
+    </div>
+  );
+}
+
 function renderOtpCodeDigit(digit: string): ComponentChildren {
   return (
     <>
@@ -1124,7 +1140,7 @@ export class AuthMenuSurface extends Component<
                   onInput={this.onRecoveryCodeInput}
                 />
                 <div class="seams-otp-slots seams-recovery-code-slots" aria-hidden="true">
-                  {digits.map(renderOtpCodeDigit)}
+                  {recoveryCodeGroups(digits).map(renderRecoveryCodeGroup)}
                 </div>
               </div>
             </div>
@@ -1301,6 +1317,11 @@ export class AuthMenuSurface extends Component<
     return (
       <>
         <div class="seams-waiting" role="status" aria-live="polite">
+          {status.illustration === 'passkey' ? (
+            <span class="seams-passkey-prompt" role="img" aria-label="Passkey authentication">
+              {fingerprintIcon()}
+            </span>
+          ) : null}
           <div class="seams-waiting-message">
             <span class="seams-waiting-text">{waitingText}</span>
             {viewModel.showProgress && status.detail && status.detail !== waitingText ? (
@@ -1309,7 +1330,9 @@ export class AuthMenuSurface extends Component<
               </>
             ) : null}
           </div>
-          <div aria-label="Loading" class="seams-spinner"></div>
+          {status.illustration !== 'passkey' ? (
+            <div aria-label="Loading" class="seams-spinner"></div>
+          ) : null}
         </div>
       </>
     );

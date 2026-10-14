@@ -43,6 +43,18 @@ try {
     page.getByRole('button', { name: 'Recover with Passkey', exact: true }),
   ).toBeFocused();
   await page.setViewportSize({ width: 320, height: 800 });
+  await input.focus();
+  const groups = page.locator('.seams-recovery-code-group');
+  await expect(groups).toHaveCount(4);
+  const tops = await groups.evaluateAll((elements) =>
+    elements.map((element) => element.getBoundingClientRect().top),
+  );
+  if (Math.max(...tops) - Math.min(...tops) > 1)
+    throw new Error('Recovery groups must fit on one line');
+  await expect(page.locator('.seams-recovery-code-slots .seams-otp-slot').first()).toHaveCSS(
+    'box-shadow',
+    'none',
+  );
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     .toBe(true);

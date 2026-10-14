@@ -3403,6 +3403,7 @@ export class AuthMenuSession {
               status: {
                 kind: 'busy',
                 headline: passkeyCeremonyHeadline('login'),
+                illustration: 'passkey',
                 detail: 'Continue with your passkey',
               },
             })
@@ -3411,6 +3412,7 @@ export class AuthMenuSession {
               status: {
                 kind: 'busy',
                 headline: passkeyCeremonyHeadline(viewModel.mode),
+                illustration: 'passkey',
                 detail: 'Continue with your passkey',
               },
             },
