@@ -313,14 +313,14 @@ fn tenant_root_creation_fixture() -> Result<TenantRootCreationFixture, Box<dyn s
     let identity = TenantRootIdentityV1::new(
         "org-miniflare",
         "project-r120",
-        "test",
+        "test:dev",
         "project:local",
         "v1",
     )?;
     let second_tenant_identity = TenantRootIdentityV1::new(
         "org-miniflare-second",
         "project-r120-second",
-        "test",
+        "test:dev",
         "project:local",
         "v1",
     )?;

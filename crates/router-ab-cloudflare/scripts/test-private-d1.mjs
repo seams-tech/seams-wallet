@@ -2010,7 +2010,7 @@ export async function testEcdsaNormalSigning(
         false,
         'The previous ownership generation cannot reserve destination material',
       );
-      assert.match(await rejected.text(), /Wallet relocation has closed ECDSA pool admission|ECDSA wallet activation material is missing/);
+      assert.match(await rejected.text(), /ECDSA execution ownership generation differs/);
     }
     const prepareResponse = await postWorkerJson(
       router,
