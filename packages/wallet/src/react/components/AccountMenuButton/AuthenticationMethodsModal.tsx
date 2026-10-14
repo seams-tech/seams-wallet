@@ -1,3 +1,4 @@
+import { AuthenticationMethodsView } from './AuthenticationMethodsView';
 import React, { useEffect } from 'react';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import type {
@@ -195,6 +196,18 @@ function methodDescription(method: AuthenticationMethodView): string {
   }
 }
 
+function inventoryStatus(state: LoadState): string {
+  switch (state.kind) {
+    case 'idle':
+    case 'loading':
+      return 'Checking methods…';
+    case 'error':
+      return 'Unavailable';
+    case 'loaded':
+      return state.inventory.kind === 'local_selection' ? 'Unlock to manage' : 'Active';
+  }
+}
+
 export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProps> = ({
   walletId,
   isOpen,
@@ -383,193 +396,192 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       title="Authentication methods"
       closeLabel="Close authentication methods"
     >
-      <p className="seams-auth-methods-modal-intro">Authentication methods for this wallet.</p>
+      <AuthenticationMethodsView
+        walletLabel={walletId ?? 'Wallet'}
+        status={inventoryStatus(loadState)}
+        onLinkDevice={onLinkDevice}
+      >
+        <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
+          {loadState.kind === 'idle' ? (
+            <div className="seams-linked-devices-modal-placeholder" role="status">
+              Checking authentication methods…
+            </div>
+          ) : null}
 
-      <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
-        {loadState.kind === 'idle' ? (
-          <div className="seams-linked-devices-modal-placeholder" role="status">
-            Checking authentication methods…
-          </div>
-        ) : null}
+          {loadState.kind === 'error' ? (
+            <div className="seams-linked-devices-modal-placeholder" role="alert">
+              <span>Unable to load authentication methods: {loadState.message}</span>
+              <button
+                type="button"
+                className="seams-linked-devices-modal-secondary"
+                onClick={() => void loadInventory()}
+              >
+                Try again
+              </button>
+            </div>
+          ) : null}
 
-        {loadState.kind === 'error' ? (
-          <div className="seams-linked-devices-modal-placeholder" role="alert">
-            <span>Unable to load authentication methods: {loadState.message}</span>
-            <button
-              type="button"
-              className="seams-linked-devices-modal-secondary"
-              onClick={() => void loadInventory()}
+          {inventory ? (
+            <section
+              className="seams-account-menu-section"
+              aria-label="Active authentication methods"
             >
-              Try again
-            </button>
-          </div>
-        ) : null}
-
-        {inventory ? (
-          <section
-            className="seams-account-menu-section"
-            aria-labelledby="seams-auth-methods-active"
-          >
-            <h3 id="seams-auth-methods-active" className="seams-account-menu-section-label">
-              Active methods
-            </h3>
-            <ul className="seams-linked-devices-modal-list seams-linked-devices-modal-list--grouped">
-              {methods.map((method) => {
-                const confirming =
-                  actionState.kind === 'confirming_revoke' &&
-                  actionState.method.walletAuthMethodId === method.walletAuthMethodId;
-                const revoking =
-                  actionState.kind === 'revoking' &&
-                  actionState.method.walletAuthMethodId === method.walletAuthMethodId;
-                return (
-                  <AuthenticationMethodRow
-                    key={method.walletAuthMethodId}
-                    kind={method.kind}
-                    title={methodTitle(method)}
-                    description={methodDescription(method)}
-                    action={
-                      !confirming && canManageMethods && methods.length > 1 ? (
-                        <button
-                          type="button"
-                          className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
-                          disabled={actionInProgress}
-                          aria-label={`Remove ${methodTitle(method)}`}
-                          onClick={() => setActionState({ kind: 'confirming_revoke', method })}
-                        >
-                          {revoking ? 'Removing…' : 'Remove'}
-                        </button>
-                      ) : null
-                    }
-                  >
-                    {confirming ? (
-                      <div className="seams-linked-devices-modal-confirm">
-                        <span>
-                          Remove {methodTitle(method)} from this device? You will need the other
-                          active method to unlock it.
-                        </span>
-                        <div className="seams-linked-devices-modal-confirm-actions">
+              <ul className="seams-account-method-tiles">
+                {methods.map((method) => {
+                  const confirming =
+                    actionState.kind === 'confirming_revoke' &&
+                    actionState.method.walletAuthMethodId === method.walletAuthMethodId;
+                  const revoking =
+                    actionState.kind === 'revoking' &&
+                    actionState.method.walletAuthMethodId === method.walletAuthMethodId;
+                  return (
+                    <AuthenticationMethodRow
+                      key={method.walletAuthMethodId}
+                      kind={method.kind}
+                      title={methodTitle(method)}
+                      description={methodDescription(method)}
+                      action={
+                        !confirming && canManageMethods && methods.length > 1 ? (
                           <button
                             type="button"
-                            className="seams-linked-devices-modal-secondary"
-                            onClick={() => setActionState({ kind: 'idle' })}
+                            className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
+                            disabled={actionInProgress}
+                            aria-label={`Remove ${methodTitle(method)}`}
+                            onClick={() => setActionState({ kind: 'confirming_revoke', method })}
                           >
-                            Keep it
+                            {revoking ? 'Removing…' : 'Remove'}
                           </button>
-                          <button
-                            type="button"
-                            className="seams-linked-devices-modal-danger"
-                            onClick={() => void revokeMethod()}
-                          >
-                            Remove method
-                          </button>
+                        ) : null
+                      }
+                    >
+                      {confirming ? (
+                        <div className="seams-linked-devices-modal-confirm">
+                          <span>
+                            Remove {methodTitle(method)} from this device? You will need the other
+                            active method to unlock it.
+                          </span>
+                          <div className="seams-linked-devices-modal-confirm-actions">
+                            <button
+                              type="button"
+                              className="seams-linked-devices-modal-secondary"
+                              onClick={() => setActionState({ kind: 'idle' })}
+                            >
+                              Keep it
+                            </button>
+                            <button
+                              type="button"
+                              className="seams-linked-devices-modal-danger"
+                              onClick={() => void revokeMethod()}
+                            >
+                              Remove method
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : methods.length > 1 ? null : (
-                      <span className="seams-linked-devices-modal-item-detail">
-                        Add another method before removing this one.
-                      </span>
-                    )}
-                  </AuthenticationMethodRow>
-                );
-              })}
-            </ul>
-          </section>
-        ) : null}
+                      ) : methods.length > 1 ? null : (
+                        <span className="seams-linked-devices-modal-item-detail">
+                          Add another method before removing this one.
+                        </span>
+                      )}
+                    </AuthenticationMethodRow>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
 
-        {inventory && (!hasPasskey || !hasEmailOtp) ? (
-          <section className="seams-account-menu-section" aria-labelledby="seams-auth-methods-add">
-            <h3 id="seams-auth-methods-add" className="seams-account-menu-section-label">
-              Add a method
-            </h3>
-            {!hasPasskey ? (
-              <div className="seams-linked-devices-modal-add-method">
-                <button
-                  type="button"
-                  className="seams-linked-devices-modal-secondary seams-account-menu-wide-button"
-                  disabled={actionInProgress || !canManageMethods}
-                  onClick={() => void addMethod('passkey')}
-                >
-                  <PlusIcon size={18} strokeWidth={1.75} />
-                  {actionState.kind === 'adding' && actionState.method === 'passkey'
-                    ? 'Adding…'
-                    : 'Add passkey'}
-                </button>
-                <p className="seams-linked-devices-modal-security-note">
-                  Use a passkey from this device to unlock the wallet.
-                </p>
-              </div>
-            ) : null}
-
-            {!hasEmailOtp ? (
-              <div className="seams-linked-devices-modal-add-method">
-                <form
-                  className="seams-linked-devices-modal-otp-form"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void addMethod('email_otp');
-                  }}
-                >
-                  <label htmlFor={emailInputId}>Email address</label>
-                  <input
-                    id={emailInputId}
-                    className="seams-linked-devices-modal-otp-input"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={emailAddress}
-                    disabled={actionInProgress || !canManageMethods}
-                    onChange={(event) => {
-                      setEmailAddress(event.currentTarget.value);
-                      if (actionState.kind === 'error') setActionState({ kind: 'idle' });
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    className="seams-linked-devices-modal-secondary"
-                    disabled={actionInProgress || !canManageMethods}
-                  >
-                    {actionState.kind === 'adding' && actionState.method === 'email_otp'
-                      ? 'Adding…'
-                      : 'Add Email OTP'}
-                  </button>
-                </form>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {loadState.kind === 'loaded' && inventory?.kind === 'local_selection' ? (
-          <section className="seams-linked-devices-modal-add-method">
-            <h3>Unlock to manage methods</h3>
-            <p className="seams-linked-devices-modal-security-note">
-              Confirm your current authentication method to add or remove methods.
-            </p>
-            <button
-              type="button"
-              className="seams-linked-devices-modal-secondary seams-account-menu-wide-button"
-              disabled={actionInProgress}
-              onClick={() => void unlockOwnerSession()}
+          {inventory && (!hasPasskey || !hasEmailOtp) ? (
+            <section
+              className="seams-account-menu-section"
+              aria-labelledby="seams-auth-methods-add"
             >
-              {actionState.kind === 'unlocking' ? 'Unlocking…' : 'Unlock wallet'}
-            </button>
-          </section>
-        ) : null}
+              <h3 id="seams-auth-methods-add" className="seams-account-menu-section-label">
+                Add a method
+              </h3>
+              {!hasPasskey ? (
+                <div className="seams-linked-devices-modal-add-method">
+                  <button
+                    type="button"
+                    className="seams-linked-devices-modal-secondary seams-account-menu-wide-button"
+                    disabled={actionInProgress || !canManageMethods}
+                    onClick={() => void addMethod('passkey')}
+                  >
+                    <PlusIcon size={18} strokeWidth={1.75} />
+                    {actionState.kind === 'adding' && actionState.method === 'passkey'
+                      ? 'Adding…'
+                      : 'Add passkey'}
+                  </button>
+                  <p className="seams-linked-devices-modal-security-note">
+                    Use a passkey from this device to unlock the wallet.
+                  </p>
+                </div>
+              ) : null}
 
-        {actionState.kind === 'error' ? (
-          <div className="seams-linked-devices-modal-error" role="alert">
-            {actionState.message}
+              {!hasEmailOtp ? (
+                <div className="seams-linked-devices-modal-add-method">
+                  <form
+                    className="seams-linked-devices-modal-otp-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void addMethod('email_otp');
+                    }}
+                  >
+                    <label htmlFor={emailInputId}>Email address</label>
+                    <input
+                      id={emailInputId}
+                      className="seams-linked-devices-modal-otp-input"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={emailAddress}
+                      disabled={actionInProgress || !canManageMethods}
+                      onChange={(event) => {
+                        setEmailAddress(event.currentTarget.value);
+                        if (actionState.kind === 'error') setActionState({ kind: 'idle' });
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      className="seams-linked-devices-modal-secondary"
+                      disabled={actionInProgress || !canManageMethods}
+                    >
+                      {actionState.kind === 'adding' && actionState.method === 'email_otp'
+                        ? 'Adding…'
+                        : 'Add Email OTP'}
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {loadState.kind === 'loaded' && inventory?.kind === 'local_selection' ? (
+            <section className="seams-linked-devices-modal-add-method">
+              <h3>Unlock to manage methods</h3>
+              <p className="seams-linked-devices-modal-security-note">
+                Confirm your current authentication method to add or remove methods.
+              </p>
+              <button
+                type="button"
+                className="seams-linked-devices-modal-secondary seams-account-menu-wide-button"
+                disabled={actionInProgress}
+                onClick={() => void unlockOwnerSession()}
+              >
+                {actionState.kind === 'unlocking' ? 'Unlocking…' : 'Unlock wallet'}
+              </button>
+            </section>
+          ) : null}
+
+          {actionState.kind === 'error' ? (
+            <div className="seams-linked-devices-modal-error" role="alert">
+              {actionState.message}
+            </div>
+          ) : null}
+
+          <div className="seams-linked-devices-modal-live" role="status" aria-live="polite">
+            {announcement}
           </div>
-        ) : null}
-
-        {onLinkDevice ? (
-          <button type="button" className="seams-account-action primary" onClick={onLinkDevice}>
-            Link a device
-          </button>
-        ) : null}
-        <div className="seams-linked-devices-modal-live" role="status" aria-live="polite">
-          {announcement}
         </div>
-      </div>
+      </AuthenticationMethodsView>
     </AccountMenuDialogFrame>
   );
 };

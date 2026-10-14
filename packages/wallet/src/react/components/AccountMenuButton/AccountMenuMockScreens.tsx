@@ -1,4 +1,5 @@
 import React from 'react';
+import { AuthenticationMethodsView } from './AuthenticationMethodsView';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
@@ -127,19 +128,13 @@ export function AccountMenuMockScreens({
     case 'methods':
       return (
         <AccountMenuScreen title="Authentication methods" onBack={back}>
-          <AccountMenuDeviceDetails
-            title={walletId}
-            description="This wallet"
-            details={[{ label: 'Status', value: 'Active' }]}
-          />
-          <MethodTiles methods="both" />
-          <button
-            type="button"
-            className="seams-account-action primary"
-            onClick={setScreen.bind(null, { kind: 'scanner' })}
+          <AuthenticationMethodsView
+            walletLabel={walletId}
+            status="Active"
+            onLinkDevice={setScreen.bind(null, { kind: 'scanner' })}
           >
-            Link a device
-          </button>
+            <MethodTiles methods="both" />
+          </AuthenticationMethodsView>
         </AccountMenuScreen>
       );
     case 'linked':

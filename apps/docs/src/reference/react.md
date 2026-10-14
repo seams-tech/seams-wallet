@@ -65,7 +65,9 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
 `AccountMenuButtonMock` is an interactive, provider-free account-menu preview.
-It shares the connected `AccountMenuButton` renderer. Navigation, confirmation
+It shares the connected `AccountMenuButton` renderer, including the authentication-methods
+view and enrollment rows. The connected menu supplies its live wallet inventory and
+authenticated actions; the preview supplies sample data. Navigation, confirmation
 preferences, device details, recovery previews, and locking use local state.
 It never creates a wallet session, signs, exports keys, requests camera access,
 or accesses wallet storage. Key export is disabled unless `onAction` supplies
