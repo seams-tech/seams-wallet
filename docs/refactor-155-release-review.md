@@ -17,6 +17,26 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.10.1
+
+Status: **prepared, not published.** Patch release with no wire, schema or
+protocol change. It carries one correction on public `dev` since 0.10.0.
+The user ordered the release on October 14.
+
+- **Setup with a provided wallet id.** On 0.10.0, setup answered 500 for a
+  provided wallet id that is not in the server-allocated format, where 0.9.4
+  answered 200 and left the refusal to respond. Setup builds the Yao
+  admission description, and the step that computes the signing key id was
+  outside the guard that withholds a failed description. `1ae2df5b` puts
+  every step inside one guard. The private Console's activation canary sent
+  such an id; it found the defect on staging.
+- **Compatibility.** A 0.10.0 application works with a 0.10.1 backend, and
+  each role Worker works with its 0.10.0 peers. No Rust file changed.
+- **Local validation.** On the candidate: the setup scenario; a setup with a
+  provided wallet id answers 500 before the fix and 200 with
+  `ed25519.status = after_proof` after it; the server, contract and
+  wallet-state type checks.
+
 ## 0.10.0
 
 Status: **published October 13, 2026, 14:26 UTC, and deployed to staging.**
@@ -47,10 +67,10 @@ not run it.
   the hour before, and the first signature 362 ms against 532 ms. The
   [record](evidence/refactor-155h-release-0100-staging.md) holds the
   measurement, the cutover proof and the faults.
-- **Open after the release.** `1ae2df5b` on `dev` corrects a setup failure
-  for a provided wallet id that is not in the server-allocated format
-  (500 on 0.10.0, 200 on 0.9.4). Respond does not retry a transient
-  database fault. The staging frontends were not deployed.
+- **Open after the release.** Release 0.10.1 corrects a setup failure for a
+  provided wallet id that is not in the server-allocated format (500 on
+  0.10.0, 200 on 0.9.4). Respond does not retry a transient database fault.
+  The staging frontends were deployed on October 14, after this release.
 
 - **Protocol.** The wallet-management protocol is 4. The setup reply of a
   registration has a new field, and the client parsers accept exact keys, so

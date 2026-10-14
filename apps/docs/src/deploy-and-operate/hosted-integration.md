@@ -34,20 +34,21 @@ same compatible release.
 
 ## Upgrading to 0.10.0
 
-Pin the application package and backend package to **0.10.0** and build the
+Pin the application package and backend package to **0.10.1**, the current patch
+release of 0.10, and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 
 ```sh
 # Application
-pnpm add @seams/wallet@0.10.0
+pnpm add @seams/wallet@0.10.1
 
 # Backend deployment
-pnpm add @seams/wallet-server@0.10.0
+pnpm add @seams/wallet-server@0.10.1
 ```
 
 This release changes the registration contract. The wallet-management protocol is `4`.
 The iframe protocol stays `15.0.0`. An already-open 0.9 client receives an HTTP 409
-upgrade-required response from a 0.10.0 backend. Show the reload or upgrade message.
+upgrade-required response from a 0.10 backend. Show the reload or upgrade message.
 Stop the attempt. Reload with matching application and wallet assets. Retrying the old
 payload cannot fix a version mismatch. Release the application, the wallet origin and
 the backend together.
@@ -68,8 +69,13 @@ Deploy the Gateway, wallet runtime, Router, both Derivers, and the Signing Worke
 the same release, and apply its complete D1 migration set before the new versions
 serve. Gateway migration `0079` adds three indexes, and `0080` adds the table of the
 setup rate limit. Migration `0020` of each Deriver database adds one column to the
-root-use admissions. A registration that started on 0.9 does not continue on 0.10.0:
+root-use admissions. A registration that started on 0.9 does not continue on 0.10:
 start it again.
+
+Release 0.10.1 has no wire, schema or protocol change: a 0.10.0 application works with
+a 0.10.1 backend. On 0.10.0, registration setup answered HTTP 500 for a provided wallet
+id that is not in the server-allocated format. Release 0.10.1 accepts that setup again
+and leaves the refusal to the proof step, as 0.9.4 did.
 
 ## Upgrading from 0.8.0 to 0.9
 
