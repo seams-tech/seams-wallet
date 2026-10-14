@@ -95,7 +95,13 @@ try {
   await back(page);
   await page.locator('[data-account-menu-item="recovery-codes"]').click();
   await page.getByRole('button', { name: 'Reveal with passkey' }).click();
-  await expect(page.locator('.seams-account-recovery-slots span')).toHaveCount(16);
+  await expect(
+    page.getByRole('heading', { name: 'Your recovery codes', exact: true }),
+  ).toBeVisible();
+  const codes = await page.locator('.seams-account-recovery-codes code').allTextContents();
+  assert.equal(codes.length, 4);
+  assert.equal(new Set(codes).size, 4);
+  for (const code of codes) assert.match(code.replaceAll('–', ''), /^\d{16}$/);
   await page.screenshot({ path: `${artifacts}/recovery-16-digits.png` });
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.locator('[data-account-menu-item="accounts"]').click();

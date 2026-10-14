@@ -85,7 +85,7 @@ there is no overlay backdrop. The panel animates its measured height between scr
 and respects reduced-motion preferences. Authentication methods opens directly for the current wallet, with separate
 Passkey and Email OTP rows. Device linking is available from the main menu.
 Transaction settings open in a separate resizing screen. The scanner is a static
-camera preview. The recovery preview contains 16 digits. Method rows display enrollment rather than selectable preferences.
+camera preview. The recovery preview shows four distinct 16-digit sample codes. Method rows display enrollment rather than selectable preferences.
 Live enrollment and removal retain authenticated SDK operations.
 The preview never starts wallet operations or reveals real signing keys.
 

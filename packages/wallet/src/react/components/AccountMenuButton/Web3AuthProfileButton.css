@@ -309,19 +309,31 @@
 .seams-account-screen .qr-scanner-overlay {
   animation: none;
 }
-.seams-account-recovery-slots {
+.seams-account-recovery-codes {
+  list-style: none;
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
+  padding: 0;
   margin: 14px 0;
 }
-.seams-account-recovery-slots span {
-  display: grid;
-  place-items: center;
+.seams-account-recovery-codes li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: 7px;
-  min-height: 36px;
-  font-family: monospace;
+  border-radius: 8px;
+}
+.seams-account-recovery-codes li > span {
+  color: var(--seams-colors-textSecondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.seams-account-recovery-codes code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 @media (prefers-reduced-motion: no-preference) {
   .seams-account-resize {

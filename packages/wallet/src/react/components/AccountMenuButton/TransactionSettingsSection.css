@@ -44,6 +44,8 @@
 }
 
 .seams-account-seg {
+  box-sizing: border-box;
+  min-width: 0;
   position: relative;
   min-height: 54px;
   overflow: hidden;

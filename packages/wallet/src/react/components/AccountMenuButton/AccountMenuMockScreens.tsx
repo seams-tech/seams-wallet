@@ -97,8 +97,19 @@ function selectExportKey(
 ): void {
   setScreen({ kind: 'export-key', chain });
 }
-function recoverySlot(value: string, index: number): React.JSX.Element {
-  return <span key={index}>{value}</span>;
+const recoveryCodes = [
+  '4821–7396–2058–1643',
+  '9164–3082–7541–6290',
+  '3579–1468–8023–5916',
+  '6208–9531–4672–1805',
+];
+function recoveryCodeRow(code: string, index: number): React.JSX.Element {
+  return (
+    <li key={code} aria-label={`Recovery code ${index + 1}`}>
+      <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+      <code>{code}</code>
+    </li>
+  );
 }
 function assertNever(value: never): never {
   throw new Error(`Unknown account preview screen: ${String(value)}`);
@@ -233,23 +244,23 @@ export function AccountMenuMockScreens({
     case 'recovery':
       return (
         <AccountMenuScreen
-          title={screen.revealed ? 'Your recovery code' : 'Recovery codes'}
+          title={screen.revealed ? 'Your recovery codes' : 'Recovery codes'}
           onBack={
             screen.revealed ? setScreen.bind(null, { kind: 'recovery', revealed: false }) : back
           }
         >
           <p className="seams-account-description">
             {screen.revealed
-              ? 'Save this code in your password manager or another secure place.'
-              : 'Keep a recovery code somewhere safe. Use it to restore access to your wallet.'}
+              ? 'Save these codes in your password manager or another secure place.'
+              : 'Keep your recovery codes somewhere safe. Use a code to restore access to your wallet.'}
           </p>
           {screen.revealed ? (
-            <div className="seams-account-recovery-slots" aria-label="Example recovery code">
-              {'4821739620581643'.split('').map(recoverySlot)}
-            </div>
+            <ol className="seams-account-recovery-codes" aria-label="Recovery codes">
+              {recoveryCodes.map(recoveryCodeRow)}
+            </ol>
           ) : null}
           <div className="seams-account-inset">
-            Only you should have this code. Anyone with it can start recovering your wallet.
+            Keep these codes private. Anyone with a code can start recovering your wallet.
           </div>
           <button
             type="button"

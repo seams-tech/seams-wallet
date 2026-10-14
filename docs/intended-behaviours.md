@@ -151,7 +151,7 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   confirmation. The account menu never renders secret material in host-origin React.
 - `AccountMenuButtonMock` shares the panel, navigation, and display components. All
   sample actions stay local; it makes no wallet requests and opens no camera.
-  Its recovery preview has 16 digits. Authentication methods opens directly for
+  Its recovery preview shows four distinct 16-digit sample codes. Authentication methods opens directly for
   the current wallet and displays each enrolled method as its own row. Device
   inventory stays under Linked devices; methods are never a preference toggle.
   Export keys opens shared NEAR/EVM selection; preview choices display an
