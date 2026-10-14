@@ -63,7 +63,7 @@ function isKeyReady(progress) {
 function validIndex(index) {
   return Number.isInteger(index) && index >= 0 && index < 9;
 }
-async function localRuntime(token) {
+export async function localRuntime(token, profile = false) {
   const { Miniflare, Log, LogLevel } = await import('miniflare');
   const { unstable_readConfig } = await import('wrangler');
   const workers = [];
@@ -90,6 +90,7 @@ async function localRuntime(token) {
   const runtime = new Miniflare({
     host: '127.0.0.1',
     port: 0,
+    ...(profile ? { inspectorPort: 0 } : {}),
     log: new Log(LogLevel.ERROR),
     workers,
   });
@@ -170,7 +171,7 @@ async function closeCleanly(socket, diagnostic) {
   }
   assert.equal(diagnostic.code, 1000, 'Worker close code was not observed');
 }
-async function sample(endpoint, token, fixture, schedules, operation) {
+export async function sample(endpoint, token, fixture, schedules, operation) {
   const runId = randomBytes(16).toString('hex');
   const url = new URL('/benchmark', endpoint);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -244,7 +245,10 @@ async function sample(endpoint, token, fixture, schedules, operation) {
           if (operation === 'gmw-signing') {
             const generic = progress.findIndex(isGenericReady);
             const key = progress.findIndex(isKeyReady);
-            assert(generic >= 0 && key > generic, 'Generic preparation must precede key generation');
+            assert(
+              generic >= 0 && key > generic,
+              'Generic preparation must precede key generation',
+            );
           }
           state = {
             kind: 'cleaning',
@@ -343,16 +347,22 @@ async function appendRustSources(directory, sources) {
     }
   }
 }
-async function provenance() {
+export async function provenance() {
   const sources = [];
   for (const path of [
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa.rs',
+    'crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa-prepared.a.jsonc',
+    'crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa-prepared.b.jsonc',
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared.rs',
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_signing.rs',
+    'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pool.rs',
+    'crates/ed25519-yao-cloudflare-bench/scripts/run_ready_pool.mjs',
+    'crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs',
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/nonce.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/pool.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs',
     'crates/ed25519-yao/Cargo.toml',
@@ -527,8 +537,10 @@ function checkSigningReport(report, fixture, schedules) {
       assert.equal(a.online_and_exchanges, 340);
       assert.equal(b.online_and_exchanges, 340);
       assert.equal(a.online_and_gates, b.online_and_gates);
-      assert.equal(a.online_and_gates,
-        a.gmw_preparation_batches[1].and_gates + a.gmw_batches.reduce(sumBatchGates, 0));
+      assert.equal(
+        a.online_and_gates,
+        a.gmw_preparation_batches[1].and_gates + a.gmw_batches.reduce(sumBatchGates, 0),
+      );
       for (let batch = 0; batch < 3; batch += 1) {
         for (let phase = 0; phase < 6; phase += 1) {
           const left = a.gmw_batches[batch].phases[phase];
@@ -576,4 +588,4 @@ function checkSigningReport(report, fixture, schedules) {
   changed[0] ^= 1;
   assert.equal(verify(null, changed, key, signature), false);
 }
-await main();
+if (resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

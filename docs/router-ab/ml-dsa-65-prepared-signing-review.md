@@ -180,4 +180,5 @@ The targeted Wasm review confirms public operands at the three division/remainde
 It does not qualify all generated control flow, addresses, or V8 timing.
 
 Complete native signing precedes authorized canonical recovery. Hosted profiles include every exhaustion.
-No reusable production pool, automatic reservation rollover, or first-key activation measurement exists yet.
+The [ready-pool follow-up](ml-dsa-65-ready-pool-report.md) adds in-memory automatic rollover and complete registration measurements.
+Durable production pools and full target-runtime qualification remain open.

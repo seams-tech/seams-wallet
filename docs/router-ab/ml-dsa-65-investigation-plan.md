@@ -1,24 +1,26 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: production integration paused for the five-second product target, 2026-10-15.
+Status: feasibility and integration work active; production release remains gated, 2026-10-15.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [silent-correlation prototype report](ml-dsa-65-silent-prototype-report.md) records the initial silent-correlation campaign.
-Prepared canonical key creation takes 0.914–1.604 seconds in four hosted requests, including a real sampler continuation.
-Four-candidate signing produces three signatures in 0.197–1.116 seconds and three exhausted requests.
-Eight-candidate signing produces five signatures in 0.202–0.569 seconds and one exhausted request.
-Preparation/readiness takes 40.9–68.3 seconds for four candidates and 86.6–158.3 seconds for eight.
-Successful reservation payloads total 6.89 MB and 12.22 MB respectively, excluding initial key creation and transport envelopes.
-The earlier 7–8 MB model uses a different correlation bootstrap and does not price this implementation.
+The [ready-pool report](ml-dsa-65-ready-pool-report.md) records the latest complete hosted pool campaign.
+Prepared registration takes 1.978–2.676 seconds across four sessions.
+Twenty-three successful signing requests take 0.214–1.321 seconds, including eleven automatic rollovers.
+Three of twenty-six nonempty-pool requests exhaust all available candidates.
+Ten-batch initial pools reach their first signature within 2.287–3.414 seconds after registration starts.
+A one-batch pool exhausts and needs 206.728 seconds through its first signature, including refill.
+The campaign establishes observed prepared latency, without a production percentile or empty-pool guarantee.
 
-Silent correlations now support nonce conversion, private commitment decomposition, hashing, and bounds in GMW.
-Canonical key generation remains prepared half-gates. The user-rejected 1.4 GB design is excluded from selection.
-Key-independent preparation and consuming key/epoch activation are implemented and reviewed.
-The [generic-preparation report](ml-dsa-65-generic-preparation-report.md) records three hosted activation-plus-signing successes in 0.174–0.196 seconds and three exhausted reservations.
-Native key/epoch mismatch checks reject before commitment evaluation, and canonical recovery still passes.
-The next prototype must compact retained state, share public topology, and consume multiple independent ready reservations.
-A first usable signer, empty-pool behavior, durable admission, replenishment, interruptions, concurrency, and production tail latency remain unqualified.
-These small campaigns do not establish a successful-signing percentile or a product-ready service.
-The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) records the disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
+Canonical key generation uses prepared half-gates. Signing uses GMW with fresh silent correlations.
+Generic preparation, compact private state, shared public topology, bounded ready pools, and automatic rollover are implemented.
+The [generic-preparation report](ml-dsa-65-generic-preparation-report.md) records the earlier key-independent activation boundary.
+Canonical wallet-seed recovery and standard FIPS seed/key export continue to pass native E2E checks.
+The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) records the passive disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
+
+The user accepts approximately 10–20 seconds of preparation for now and defers further optimization.
+Hosted refill currently measures 19.26–22.24 seconds per four-candidate batch and 203.22 seconds for ten sequential batches.
+One batch does not guarantee one signature. A larger server or GPU remains a future option, with no current deployment change.
+Preprocessing stays on Workers. Integration must expose empty pools and include replenishment in capacity and cost measurements.
+Durable one-use state, Router admission, concurrent operation handling, and the public Wallet signing route remain open.
 Earlier dated checkpoints below retain their original measurements.
 Starting source and research review: 2026-10-05.
 
@@ -40,7 +42,7 @@ The [engine comparison](ml-dsa-65-engine-comparison.md) now includes complete na
 The October 14 campaign includes fresh private preprocessing, exact directional traffic, independent signature checks, and authorized canonical recovery.
 Half-gates took 2.59 seconds for key generation and 8.68 seconds for five-candidate signing in one measured native execution.
 The [engine decision](ml-dsa-65-engine-comparison.md#decision--october-14-2026) retains half-gates as the comparison baseline.
-Prepared execution and alternative engines now take priority over production integration.
+That dated checkpoint prioritized prepared execution. The current work queue below now prioritizes feasibility and integration.
 The [selected half-gates Worker campaign](../evidence/ml-dsa-65-selected-halfgates-keygen-local-20261014.json) records a 3.38-second median across five fresh joint keys.
 The [fixed key-generation-and-signing check](../evidence/ml-dsa-65-selected-halfgates-threshold-local-20261014.json) takes 17.41 seconds for one measured five-candidate execution.
 Both campaigns use the exact Wasm bundles inspected by the [final arithmetic audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json).
@@ -716,11 +718,46 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-The user paused production integration and requested sub-five-second key generation and online signing.
-Preprocessing is allowed. Keep wallet-seed recovery and canonical key identity unchanged.
-The prepared keygen prototype passes native and Node/V8 Wasm checks, with 3.62 MB online traffic.
-Its local Wasm median is 1.36 seconds. Hosted storage, real network latency, and prepared signing remain unmeasured.
-Follow the [preprocessing experiment sequence](ml-dsa-65-preprocessing-report.md#pool-behavior-and-remaining-measurements) before resuming integration items below.
+Preparation optimization is deferred. Keep wallet-seed recovery, canonical FIPS export, and the passive server-blind model.
+Keep the five-second target for admitted registration and successful online signing when prepared capacity is available.
+Define and measure empty-pool behavior separately. Do not count exhaustion as successful signing.
+
+1. **Freeze and qualify the selected protocol.** Use prepared half-gates for canonical key generation and silent-correlation GMW for signing.
+   Complete independent composition review of public sampler decisions, public `t0`, nonce generation, correlations, rejection disclosure, and export.
+   Review generated Wasm and target-runtime secret branches, addresses, and zeroization. Document the LPN and classical base-OT assumptions.
+   Output: a versioned protocol contract, qualified schedules and dependencies, and explicit release blockers.
+2. **Make prepared material durable and single-use.** Give each role separate encrypted storage and atomic reservation/consumption transitions.
+   Bind material to its protocol version, role, pool/reservation ID, key, and epoch at the appropriate lifecycle boundary.
+   Burn material before activation or signing. Define cancellation, peer loss, restart, expiry, rollback, and refill failure behavior.
+   Add low-water refill and explicit empty-pool admission. Separate refill work from online signing where the storage and transport model permits it.
+   Output: durable pool E2E evidence, including concurrent claims and interruption without reuse.
+3. **Add Router A/B admission and operation handling.** Reuse the existing authenticated wallet, session, capability, recipient-key, and budget boundaries.
+   Bind both role requests to the same key, epoch, operation ID, message, context, and protocol version.
+   Prevent replay and duplicate completion across Workers. Keep role-private material separate throughout registration and signing.
+   Output: admitted registration and signing through both production-shaped Router paths using disposable keys.
+4. **Complete Wallet SDK custody and recovery integration.** Connect existing custody ceremony, Wasm bridge, key manifest, encrypted role delivery, and ML-DSA encodings.
+   Wire public registration, unlock, signing, authorized standard export, and wallet-seed recovery to the admitted routes.
+   Recovery must reproduce the same public key while provisioning fresh role state and invalidating old prepared material.
+   Output: browser-to-Router lifecycle E2E evidence with recovery and ordinary-library import of the exported FIPS seed.
+5. **Complete the deployed NEAR path.** Reuse existing full-public-key and access-key-handle encodings.
+   Send a threshold-signed transaction from the SDK through the Workers to NEAR testnet and verify finalized execution.
+   The earlier testnet success used separate local signing processes. It does not qualify this deployed path.
+   Output: a repeatable transaction artifact with transaction hash, final status, and independent signature verification.
+6. **Qualify failures and sustained operation.** Exercise refresh, recovery, restart, replay, interrupted signing/refill, concurrent requests, and pool exhaustion.
+   Measure complete registration through first usable signature and all signing outcomes with background replenishment active.
+   Report p50/p95/p99 only with adequate samples. Include admission, persistence, network, rejection attempts, memory, and recurring CPU/traffic costs.
+   Output: an E2E qualification report and a bounded supported workload on Workers.
+7. **Package the selected library.** Stabilize consuming APIs, error states, protocol/schedule versions, and recovery/export formats.
+   Remove superseded runtime paths, publish exact package versions, and consume those releases in the wallet and private application.
+   Output: a reviewed release with security limits, capacity limits, and reproducible interoperability evidence.
+
+Do the protocol and durable-pool work first. Router/SDK integration can proceed against those explicit contracts.
+No new preparation-speed experiment is required before this integration work.
+Production release remains gated on the review and lifecycle qualification above.
+
+## Earlier integration checkpoint
+
+The dated implementation checklist below retains prior evidence. The immediate work queue above controls current priorities.
 
 1. Completed: reduce arithmetic circuits with one-AND carry and borrow identities. Canonical key generation, signing, and recovery checks pass.
 2. Completed: compare complete native half-gates, GMW, and ABY2.0 executions with fresh private preprocessing and exact traffic counters.
@@ -762,7 +799,7 @@ Follow the [preprocessing experiment sequence](ml-dsa-65-preprocessing-report.md
    The [request-binding campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) repeats these scenarios and authorized recovery after the new public request exchange.
    The [encrypted-record lifecycle campaign](../evidence/ml-dsa-65-sealed-material-lifecycle-host-20261014.json) repeats interruption, replay, restart, concurrency, and offline NEAR verification after storage integration.
    Router admission, durable replay control, refresh, protected restore, and deployed lifecycle scenarios remain open.
-8. Qualify and package the selected half-gates library, then consume exact releases in the private application.
+8. Qualify and package the selected library, then consume exact releases in the private application.
    Report complete latency and throughput under one workload, with unresolved limits and any evidence that changes the engine decision.
 
 The deployed baseline passed before the arithmetic optimization and hardening.
@@ -770,3 +807,68 @@ The revised implementation passes host and local Worker checks with the same can
 The native engine comparison supports the current selection. Hosted measurements now include complete operation latency and paired CPU evidence.
 The wallet-seed recovery prelude currently has host evidence only. Production workload latency and throughput remain open.
 Keep implementation and benchmark reports linked from this document as the investigation proceeds.
+
+
+## Deferred research: GPU signing preparation — October 15, 2026
+
+Priority: deferred until signer feasibility and integration work establish the complete Wallet lifecycle.
+The user accepts approximately 10–20 seconds of preparation for now.
+The current implementation keeps preprocessing on Workers. GPU preparation is a future deployment option, with no measured speedup or adoption decision.
+Wallet-seed recovery, canonical FIPS seed/key export, standard signatures, and the passive server-blind model remain required.
+
+### Scope and possible architecture
+
+Investigate GPU acceleration for key-independent signing preparation, sometimes called presignature preparation.
+Each prepared batch contains signature candidates. Rejection can consume several candidates or complete batches before a signature succeeds.
+Report cost and throughput per successful signature, including exhausted batches.
+Canonical key derivation and online signing can remain on Workers.
+This research does not change the canonical seed or the current nonce-generation and disclosure rules.
+
+Candidate GPU work includes:
+
+- AES hashing and pseudorandom expansion across independent blocks.
+- Silent-OT correlation generation, including tree expansion and supported linear-code operations.
+- Independent preparation batches processed concurrently.
+
+The current encoder contains sequential dependencies and irregular memory access. Measure each stage before deciding which operations to move.
+A GPU does not remove network exchanges, persistence costs, admission work, or pool-consumption rules.
+Batching on one CPU remains distinct from parallel execution on a GPU.
+
+A suitable architecture would use **two separate GPU preprocessing services**, one within each participant's trust boundary.
+Service A delivers only A's private preparation material to Worker A. Service B delivers only B's material to Worker B.
+The services communicate through the reviewed two-party protocol and fill separate ready pools.
+Generic preparation needs no wallet seed or long-term signing share.
+Its masks and correlations remain secret because their later use can expose signing inputs if both sides become known.
+A common service that learns both participants' private preparation material would change the trust model and is excluded from this option.
+
+Cloudflare's documented [Workers AI interface](https://developers.cloudflare.com/workers-ai/) serves model inference.
+It does not establish support for the custom GPU kernels this option needs.
+Recheck platform capabilities when research resumes. Plan for separate GPU hosts unless suitable supported access becomes available.
+Keep the current preparation boundary clear without introducing an unused backend framework or request-selected protocol flags.
+
+### Research and acceptance steps
+
+1. Profile the complete preparation pipeline and identify the fraction that GPU kernels can accelerate.
+   Compare against both the Workers baseline and an optimized native CPU implementation with hardware AES where available.
+2. Inspect existing GPU OT implementations, their licenses, security assumptions, and supported parameters.
+   [cuOT](https://github.com/Andrew-Gan/cuOT) demonstrates GPU silent-OT and Ferret implementations.
+   Its repository is archived, and its constructions do not establish compatibility with our current encoder or protocol.
+   Treat it as research evidence. Review any protocol substitution separately before adoption.
+3. Prototype one expensive stage with synthetic inputs and differential checks against the current implementation.
+   Preserve cryptographic parameters, fresh randomness, exact correlation identities, and required secret-data access behavior.
+   Review GPU branches, memory access, host/device copies, and cleanup of private buffers.
+4. Measure groups of 1, 10, and 100 batches where resources permit.
+   Report cold and warm elapsed time, queue time, transfers, network traffic, peak host/device memory, and preparation throughput.
+   Include provisioning, idle capacity, and delivery costs when calculating cost per successful signature.
+   Distinguish single-batch latency from the average cost of a large group.
+5. Exercise two separate preprocessing participants and authenticated delivery to their corresponding Worker pools.
+   Preserve reservation identity and enforce key/epoch binding at activation.
+   Test duplicate delivery, cancellation, partial completion, restart, and concurrent consumption.
+   Durably consume material before use. Never restore consumed material after a crash or retry.
+6. Run complete registration, successful signing, wallet-seed recovery, and ordinary-library export checks with GPU-prepared material.
+   Include pool exhaustion, refill during demand, independent signature verification, and the existing NEAR transaction flow.
+7. Adopt GPU preparation only if complete measurements justify its cost, latency, throughput, and added operational complexity.
+   Record the trust boundaries, implementation review, operating limits, and backend decision before production deployment.
+
+Exit condition: evidence shows a useful complete-system gain while preserving recovery, privacy, standard interoperability, and single-use lifecycle guarantees.
+A fast isolated GPU kernel is insufficient to qualify the complete signer.

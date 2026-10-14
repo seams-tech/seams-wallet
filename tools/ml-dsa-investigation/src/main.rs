@@ -9,6 +9,7 @@ mod hybrid_keygen;
 mod material_storage_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
+mod pool_evidence;
 mod prepared_gmw_evidence;
 mod prepared_keygen_evidence;
 mod prepared_signing_evidence;

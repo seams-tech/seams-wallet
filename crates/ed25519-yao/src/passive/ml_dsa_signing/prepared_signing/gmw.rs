@@ -1,17 +1,22 @@
 //! Key-independent preparation and one-use signing with private commitments.
 
 mod nonce;
+/// Bounded ready reservations with automatic rollover and consuming lifecycle.
+pub mod pool;
+
+use std::rc::Rc;
 
 use super::*;
 use crate::passive::ml_dsa_runtime::boolean_comparison::{
-    prepared::{prepare_batch, BatchMetrics, PreparedGmwBatch},
+    prepared::{prepare_batch, BatchMetrics, PreparedGmwBatch, PublicTopologies},
     silent::CorrelationStream,
     Transport as BooleanTransport,
 };
 
 /// One-use candidate batch bound to a key and epoch.
 pub struct PreparedGmwSigner<'a> {
-    key: Box<SigningKeyState>,
+    key: Rc<Box<SigningKeyState>>,
+    binding: [u8; 64],
     values: Vec<Zeroizing<Candidate>>,
     hashes: PreparedGmwBatch<'a>,
     bounds: PreparedGmwBatch<'a>,
@@ -48,6 +53,26 @@ pub struct GmwSignature {
     pub public_rejections: u16,
 }
 
+/// Complete private-check work from an exhausted reservation.
+pub struct GmwExhaustion {
+    /// Every candidate consumed by this batch.
+    pub evaluated_candidates: u16,
+    /// Online challenge, bounds, and decision measurements.
+    pub batches: [BatchMetrics; 3],
+    /// Nonce conversion and commitment activation measurements.
+    pub preparation_batches: [BatchMetrics; 2],
+    /// Opened candidates rejected by public hint checks.
+    pub public_rejections: u16,
+}
+
+/// Every consumed batch returns its measurements, including rejection.
+pub enum GmwBatchResult {
+    /// A standard signature passed all private and public checks.
+    Signed(GmwSignature),
+    /// No candidate passed; all private handles have been destroyed.
+    Exhausted(GmwExhaustion),
+}
+
 /// Prepares nonce shares and correlations before a wallet key exists.
 /// Both roles must use the same fresh preparation identifier.
 pub async fn prepare_gmw_reservation<'a>(
@@ -55,6 +80,7 @@ pub async fn prepare_gmw_reservation<'a>(
     id: [u8; 32],
     candidates: u16,
     schedules: &'a [TrustedMlDsaSchedule<'a>],
+    topologies: &mut PublicTopologies,
     transport: &mut impl BooleanTransport,
 ) -> Result<PreparedGmwReservation<'a>> {
     if candidates == 0 || candidates > 32 {
@@ -78,17 +104,30 @@ pub async fn prepare_gmw_reservation<'a>(
         &correlation_binding,
         schedules,
         &mut correlations,
+        topologies,
         transport,
     )
     .await?;
     let commitment_schedules = vec![schedule(schedules, 0x96)?; count * ROWS];
-    let commitments = prepare_batch(role, &commitment_schedules, &mut correlations, transport)
-        .await
-        .map_err(runtime_error)?;
+    let commitments = prepare_batch(
+        role,
+        &commitment_schedules,
+        &mut correlations,
+        topologies,
+        transport,
+    )
+    .await
+    .map_err(runtime_error)?;
     let hash_schedules = vec![schedule(schedules, 0x8d)?; count];
-    let hashes = prepare_batch(role, &hash_schedules, &mut correlations, transport)
-        .await
-        .map_err(runtime_error)?;
+    let hashes = prepare_batch(
+        role,
+        &hash_schedules,
+        &mut correlations,
+        topologies,
+        transport,
+    )
+    .await
+    .map_err(runtime_error)?;
     let mut bound_schedules = Vec::with_capacity(count * (COLUMNS + ROWS));
     for _ in 0..count {
         for index in 0..COLUMNS + ROWS {
@@ -98,13 +137,25 @@ pub async fn prepare_gmw_reservation<'a>(
             )?);
         }
     }
-    let bounds = prepare_batch(role, &bound_schedules, &mut correlations, transport)
-        .await
-        .map_err(runtime_error)?;
+    let bounds = prepare_batch(
+        role,
+        &bound_schedules,
+        &mut correlations,
+        topologies,
+        transport,
+    )
+    .await
+    .map_err(runtime_error)?;
     let decision_schedules = vec![schedule(schedules, 0x98)?; count];
-    let decisions = prepare_batch(role, &decision_schedules, &mut correlations, transport)
-        .await
-        .map_err(runtime_error)?;
+    let decisions = prepare_batch(
+        role,
+        &decision_schedules,
+        &mut correlations,
+        topologies,
+        transport,
+    )
+    .await
+    .map_err(runtime_error)?;
     Ok(PreparedGmwReservation {
         role,
         id,
@@ -128,6 +179,36 @@ impl<'a> PreparedGmwReservation<'a> {
         epoch: [u8; 32],
         transport: &mut T,
     ) -> Result<PreparedGmwSigner<'a>> {
+        let reservation = Reservation {
+            id: self.id,
+            epoch,
+            candidates: self.values.len() as u16,
+        };
+        let key = prepare_key_state(
+            self.role,
+            own,
+            public_key,
+            &reservation,
+            SigningEngine::Gmw,
+            transport,
+        )
+        .await?;
+        self.activate_for_key(Rc::new(key), transport).await
+    }
+
+    fn private_bytes(&self) -> usize {
+        self.values.capacity() * core::mem::size_of::<Zeroizing<Candidate>>()
+            + self.commitments.private_bytes()
+            + self.hashes.private_bytes()
+            + self.bounds.private_bytes()
+            + self.decisions.private_bytes()
+    }
+
+    async fn activate_for_key<T: Transport + BooleanTransport>(
+        self,
+        key: Rc<Box<SigningKeyState>>,
+        transport: &mut T,
+    ) -> Result<PreparedGmwSigner<'a>> {
         let Self {
             role,
             id,
@@ -138,23 +219,20 @@ impl<'a> PreparedGmwReservation<'a> {
             decisions,
             masks,
         } = self;
-        let reservation = Reservation {
-            id,
-            epoch,
-            candidates: values.len() as u16,
-        };
-        let key = prepare_key_state(
-            role,
-            own,
-            public_key,
-            &reservation,
-            SigningEngine::Gmw,
-            transport,
-        )
-        .await?;
-        let commitments = nonce::activate_values(&mut values, &key, commitments, transport).await?;
+        if role != key.role {
+            return Err(SigningError::RequestBinding);
+        }
+        let binding = shake256(&[
+            b"seams/ml-dsa/gmw-activated-reservation/v1",
+            &key.binding,
+            &id,
+            &(values.len() as u16).to_le_bytes(),
+        ]);
+        let commitments =
+            nonce::activate_values(&mut values, &key, &binding, commitments, transport).await?;
         Ok(PreparedGmwSigner {
             key,
+            binding,
             values,
             hashes,
             bounds,
@@ -173,9 +251,10 @@ impl PreparedGmwSigner<'_> {
         context: &[u8],
         operation_id: &[u8; 32],
         transport: &mut T,
-    ) -> Result<GmwSignature> {
+    ) -> Result<GmwBatchResult> {
         let Self {
             key,
+            binding,
             mut values,
             hashes,
             bounds,
@@ -189,7 +268,7 @@ impl PreparedGmwSigner<'_> {
         let mu: [u8; 64] = shake256(&[&tr, &[0, context_length], context, message]);
         let operation: [u8; 64] = shake256(&[
             b"seams/ml-dsa-65/prepared-signing/operation/v1",
-            &key.binding,
+            &binding,
             operation_id,
             &mu,
         ]);
@@ -280,15 +359,20 @@ impl PreparedGmwSigner<'_> {
             let signature = encode_accepted_signature(&value, &[0; ACCEPTED_SHARE_BYTES])?;
             let completed: [u8; 64] = shake256(&[&operation, &signature]);
             agree(key.role, &completed, transport).await?;
-            return Ok(GmwSignature {
+            return Ok(GmwBatchResult::Signed(GmwSignature {
                 signature,
                 accepted_candidate: (candidate + 1) as u16,
                 evaluated_candidates: count as u16,
                 batches: [hashes.metrics, bounds.metrics, decisions.metrics],
                 preparation_batches: nonce_batches,
                 public_rejections,
-            });
+            }));
         }
-        Err(SigningError::PreparedPoolExhausted)
+        Ok(GmwBatchResult::Exhausted(GmwExhaustion {
+            evaluated_candidates: count as u16,
+            batches: [hashes.metrics, bounds.metrics, decisions.metrics],
+            preparation_batches: nonce_batches,
+            public_rejections,
+        }))
     }
 }

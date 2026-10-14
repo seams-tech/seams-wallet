@@ -213,3 +213,57 @@ python3 tools/ml-dsa-investigation/research/summarize_generic_preparation.py \
 
 The summary includes exhausted requests in payload and CPU totals.
 Generic preparation still runs for every benchmark request; no persistent ready pool is implied.
+
+## Ready pool, rollover, and refill
+
+The [pool report](../../../docs/router-ab/ml-dsa-65-ready-pool-report.md) separates registration, signing, exhaustion, and replenishment.
+Preparation optimization is deferred. The integration queue lives in the investigation plan.
+The native `prepared-keygen` command above also runs drain, refill, replay, and cancellation scenarios.
+
+Build each role from `crates/ed25519-yao-cloudflare-bench`:
+
+```sh
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+simd128' \
+  worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+simd128' \
+  worker-build --release --out-dir build/ml-dsa-a --features ml-dsa-a
+```
+
+From the repository root, run the complete local pool scenario:
+
+```sh
+node crates/ed25519-yao-cloudflare-bench/scripts/run_ready_pool.mjs \
+  --local --initial-batches 10 --refill-batches 1 --indices 0,1,8 \
+  --output /private/tmp/ml-dsa-ready-pool-local.json
+```
+
+For hosted runs, deploy the two temporary prepared configs from their crate directory.
+Supply an approved disposable `PROBE_TOKEN` to both Workers.
+Replace `--local` with `--endpoint URL --secrets-file PATH`.
+The private JSON file contains the token and must never enter an evidence artifact.
+Use `--initial-batches 1 --refill-batches 10 --indices 2` to exercise ten-batch refill.
+Collect both Wrangler JSON tails, sanitize them with `collect_worker_traces.py`, and remove the temporary Workers and R2 bucket afterward.
+
+Regenerate the frozen hosted summary:
+
+```sh
+python3 tools/ml-dsa-investigation/research/summarize_ready_pool.py \
+  --campaigns docs/evidence/ml-dsa-65-ready-pool-hosted-ten-20261015.json \
+    docs/evidence/ml-dsa-65-ready-pool-hosted-refill-ten-20261015.json \
+  --traces docs/evidence/ml-dsa-65-ready-pool-worker-traces-20261015.json \
+  --native docs/evidence/ml-dsa-65-ready-pool-native-20261015.json \
+  --versions 9bac490b-4b82-453d-ac61-fad56389f427 72956410-1b8c-48dc-b30d-a33efa5e493b \
+  --output /private/tmp/ml-dsa-ready-pool-summary.json
+```
+
+The current source includes the later public encoder iteration change, with native and local evidence only.
+The hosted summary pins its earlier exact binaries and source hashes.
+A profiler is available for deferred optimization work:
+
+```sh
+node crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs \
+  /private/tmp/ml-dsa-preparation-profile.json
+```
+
+Fat-LTO trials use the same build and harness with `CARGO_PROFILE_RELEASE_LTO=fat` and `CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1`.
+The bulk-copy trial has a retained patch in the report. Neither trial is enabled in the selected source.

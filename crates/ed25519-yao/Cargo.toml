@@ -19,7 +19,7 @@ required-features = ["passive-benchmark"]
 [features]
 default = []
 passive-benchmark = []
-ml-dsa-runtime-benchmark = ["dep:sha3", "dep:cryprot-codes", "dep:cryprot-core", "dep:getrandom04", "dep:generic-array"]
+ml-dsa-runtime-benchmark = ["dep:sha3", "dep:cryprot-codes", "dep:cryprot-core", "dep:getrandom04", "dep:aes09", "dep:cipher05"]
 passive-wasm-benchmark = []
 phase9-role-benchmark = []
 local-protocol = []
@@ -36,4 +36,5 @@ zeroize = { version = "=1.9.0", default-features = false, features = ["zeroize_d
 cryprot-codes = { path = "vendor/cryprot-codes", optional = true }
 cryprot-core = { path = "vendor/cryprot-core", optional = true }
 getrandom04 = { package = "getrandom", version = "=0.4.3", features = ["wasm_js"], optional = true }
-generic-array = { version = "=0.14.7", features = ["zeroize"], optional = true }
+aes09 = { package = "aes", version = "=0.9.1", default-features = false, features = ["zeroize"], optional = true }
+cipher05 = { package = "cipher", version = "=0.5.2", default-features = false, features = ["zeroize"], optional = true }

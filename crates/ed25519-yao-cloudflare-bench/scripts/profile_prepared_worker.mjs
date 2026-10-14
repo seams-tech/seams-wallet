@@ -1,0 +1,119 @@
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { once, on } from 'node:events';
+import { readFile, writeFile } from 'node:fs/promises';
+import WebSocket from 'ws';
+import { localRuntime, sample, provenance } from './run_prepared_keygen.mjs';
+
+async function command(socket, id, method, params = {}) {
+  const events = on(socket, 'message', { signal: AbortSignal.timeout(30000) });
+  socket.send(JSON.stringify({ id, method, params }));
+  try {
+    for await (const [bytes] of events) {
+      const response = JSON.parse(bytes.toString());
+      if (response.id !== id) continue;
+      if (response.error) throw new Error(JSON.stringify(response.error));
+      return response.result;
+    }
+    throw new Error('Inspector closed before response');
+  } finally {
+    await events.return();
+  }
+}
+
+function userWorker(target) {
+  return new URL(target.webSocketDebuggerUrl).pathname.startsWith('/core:user:');
+}
+function descending(left, right) {
+  return right.microseconds - left.microseconds;
+}
+function rows(totals, nodes) {
+  const rows = [];
+  for (const [id, microseconds] of totals)
+    rows.push({ microseconds, frame: nodes.get(id).callFrame });
+  return rows.sort(descending).slice(0, 40);
+}
+function summarize(profile) {
+  const nodes = new Map();
+  const parents = new Map();
+  for (const node of profile.nodes) {
+    nodes.set(node.id, node);
+    for (const child of node.children ?? []) parents.set(child, node.id);
+  }
+  const own = new Map();
+  const inclusive = new Map();
+  for (let index = 0; index < profile.samples.length; index += 1) {
+    let id = profile.samples[index];
+    const delta = profile.timeDeltas[index];
+    own.set(id, (own.get(id) ?? 0) + delta);
+    while (id !== undefined) {
+      inclusive.set(id, (inclusive.get(id) ?? 0) + delta);
+      id = parents.get(id);
+    }
+  }
+  return {
+    sampled_us: profile.endTime - profile.startTime,
+    self: rows(own, nodes),
+    inclusive: rows(inclusive, nodes),
+  };
+}
+
+async function main() {
+  const output = process.argv[2];
+  assert(output, 'Output path required');
+  const token = randomBytes(32).toString('hex');
+  const local = await localRuntime(token, true);
+  const connections = [];
+  const identities = await provenance();
+  try {
+    const oracle = JSON.parse(
+      await readFile(new URL('../src/ml_dsa_schedules/prepared-client.json', import.meta.url)),
+    );
+    const fixture = { ...oracle.cases[0], index: 0 };
+    await sample(local.endpoint, token, fixture, oracle.signing_schedules, 'gmw-signing');
+    const inspector = await local.runtime.getInspectorURL();
+    inspector.protocol = 'http:';
+    const targets = (await (await fetch(new URL('/json/list', inspector))).json()).filter(
+      userWorker,
+    );
+    assert.equal(targets.length, 2);
+    for (const target of targets) {
+      const socket = new WebSocket(target.webSocketDebuggerUrl, { origin: 'http://localhost' });
+      await once(socket, 'open');
+      await command(socket, 1, 'Profiler.enable');
+      await command(socket, 2, 'Profiler.setSamplingInterval', { interval: 2000 });
+      await command(socket, 3, 'Profiler.start');
+      connections.push({ socket, title: target.title });
+    }
+    const result = await sample(
+      local.endpoint,
+      token,
+      { ...fixture, index: 1 },
+      oracle.signing_schedules,
+      'gmw-signing',
+    );
+    const profiles = [];
+    for (const connection of connections) {
+      const { profile } = await command(connection.socket, 4, 'Profiler.stop');
+      profiles.push({ title: connection.title, summary: summarize(profile), profile });
+    }
+    await writeFile(
+      output,
+      JSON.stringify({
+        scope:
+          'Local workerd V8 sampling after one warmup. Whole request includes preparation, fixture key creation, activation, signing, and peer wait. Sampling is diagnostic and can perturb latency; this is not hosted CPU attribution.',
+        result,
+        profiles,
+        provenance: identities,
+      }),
+    );
+    for (const profile of profiles)
+      console.log(
+        JSON.stringify({ title: profile.title, self: profile.summary.self.slice(0, 12) }),
+      );
+  } finally {
+    for (const connection of connections) connection.socket.close();
+    await local.runtime.dispose();
+  }
+}
+await main();

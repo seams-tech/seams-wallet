@@ -9,7 +9,7 @@
     "cpu_ms": 300000,
   },
   "build": {
-    "command": "worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b",
+    "command": "CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+simd128' worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b",
     "watch_dir": "src",
   },
   "observability": {

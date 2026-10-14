@@ -92,6 +92,10 @@ pub enum SigningError {
     AttemptLimit,
     /// The single-use prepared reservation ran out of fresh candidates.
     PreparedPoolExhausted,
+    /// This operation identifier has already consumed a pool reservation.
+    PreparedPoolReplay,
+    /// A failed or canceled pool operation destroyed its remaining reservations.
+    PreparedPoolUnavailable,
     /// The accepted candidate cannot use the standard signature encoding.
     SignatureEncoding,
 }

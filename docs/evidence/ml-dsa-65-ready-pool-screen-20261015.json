@@ -1,0 +1,590 @@
+{
+  "schema": "seams.ml-dsa-ready-pool-screen.v1",
+  "production_eligible": false,
+  "created_at": "2026-10-14T23:10:06.643204+00:00",
+  "sources": [
+    {
+      "file": "ml-dsa-65-ready-pool-hosted-ten-20261015.json",
+      "sha256": "2d0bd2e666313c3cb98ddc7a4fc98c863f009f69a31923fad961d57526b73588"
+    },
+    {
+      "file": "ml-dsa-65-ready-pool-hosted-refill-ten-20261015.json",
+      "sha256": "7848a4d185197a0f521912a47c76328b890a9b16aee2a974d5ee040421534e12"
+    },
+    {
+      "file": "ml-dsa-65-ready-pool-worker-traces-20261015.json",
+      "sha256": "c43f7c6c958d2a0d2bc06c377eda50695358dc0992f2a21038cd82251d187043"
+    },
+    {
+      "file": "ml-dsa-65-ready-pool-native-20261015.json",
+      "sha256": "385a6e5549731724983f6c88cf5e922a7a23080ee76680cc517018800e97f327"
+    }
+  ],
+  "versions": {
+    "a": "9bac490b-4b82-453d-ac61-fad56389f427",
+    "b": "72956410-1b8c-48dc-b30d-a33efa5e493b"
+  },
+  "campaigns": [
+    {
+      "source": "ml-dsa-65-ready-pool-hosted-ten-20261015.json",
+      "environment": "hosted-cloudflare",
+      "initial_batches": 10,
+      "refill_batches": 1,
+      "completed_sessions": 3,
+      "failed_sessions": 0,
+      "registration_ms": {
+        "minimum": 1978.3214999999618,
+        "median": 1986.116417000012,
+        "maximum": 2091.605749999988
+      },
+      "successful_signing_ms": {
+        "minimum": 214.37900000001537,
+        "median": 290.4652500000084,
+        "maximum": 1320.9776249999995
+      },
+      "verified_signatures": 17,
+      "signing_requests_exhausting_all_available_batches": 2,
+      "successful_automatic_rollovers": 7,
+      "first_signature_from_registration_start_ms": {
+        "minimum": 2286.573583999998,
+        "median": 2648.270541999984,
+        "maximum": 3414.1860839999863
+      },
+      "all_observed_registrations_under_five_seconds": true,
+      "all_successful_signatures_under_five_seconds": true,
+      "all_admitted_signing_requests_succeeded_under_five_seconds": false,
+      "all_complete_sessions_first_signature_under_five_seconds": true,
+      "maximum_observed_wasm_bytes": 112918528,
+      "refills": [
+        {
+          "kind": "refill",
+          "status": "refilled",
+          "client_ms": 19256.123374999966,
+          "protocol_payload_bytes": 4483008,
+          "remaining_batches": 1,
+          "batches": 1,
+          "average_ms_per_batch": 19256.123374999966
+        },
+        {
+          "kind": "refill",
+          "status": "refilled",
+          "client_ms": 22114.056458000035,
+          "protocol_payload_bytes": 4483008,
+          "remaining_batches": 1,
+          "batches": 1,
+          "average_ms_per_batch": 22114.056458000035
+        },
+        {
+          "kind": "refill",
+          "status": "refilled",
+          "client_ms": 22244.51129200007,
+          "protocol_payload_bytes": 4483008,
+          "remaining_batches": 1,
+          "batches": 1,
+          "average_ms_per_batch": 22244.51129200007
+        }
+      ],
+      "samples": [
+        {
+          "fixture_index": 0,
+          "status": "complete",
+          "operations": [
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 658.3562499999825,
+              "protocol_payload_bytes": 7156940,
+              "remaining_batches": 7,
+              "exhausted_batches": 2
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 680.8369160000002,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 5,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 236.65166700002737,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 4,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 284.1211250000051,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 3,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 214.37900000001537,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 2,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 428.86712499998976,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 0,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 10.278707999968901,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 11.056166999973357,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "refill",
+              "status": "refilled",
+              "client_ms": 19256.123374999966,
+              "protocol_payload_bytes": 4483008,
+              "remaining_batches": 1,
+              "batches": 1,
+              "average_ms_per_batch": 19256.123374999966
+            },
+            {
+              "kind": "refill-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 9.45712499995716,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "empty",
+              "client_ms": 193.75370800000383,
+              "protocol_payload_bytes": 2382276,
+              "remaining_batches": 0,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 10.162749999959487,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 8.862750000029337,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            }
+          ],
+          "registration_ms": 1986.116417000012,
+          "first_signature_from_registration_start_ms": 2648.270541999984,
+          "initial_preparation_ms": 259336.160167,
+          "initial_preparation_payload_bytes": 222516709,
+          "registration_payload_bytes": 2543806
+        },
+        {
+          "fixture_index": 1,
+          "status": "complete",
+          "operations": [
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 1320.9776249999995,
+              "protocol_payload_bytes": 11921236,
+              "remaining_batches": 5,
+              "exhausted_batches": 4
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 768.6118329999736,
+              "protocol_payload_bytes": 7156940,
+              "remaining_batches": 2,
+              "exhausted_batches": 2
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 273.50379099999554,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 1,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 251.2387919999892,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 0,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 9.67316700000083,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 11.056792000017595,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "refill",
+              "status": "refilled",
+              "client_ms": 22114.056458000035,
+              "protocol_payload_bytes": 4483008,
+              "remaining_batches": 1,
+              "batches": 1,
+              "average_ms_per_batch": 22114.056458000035
+            },
+            {
+              "kind": "refill-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 9.51949999993667,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "empty",
+              "client_ms": 212.80837500002235,
+              "protocol_payload_bytes": 2382276,
+              "remaining_batches": 0,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 10.678208000026643,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 10.433624999946915,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            }
+          ],
+          "registration_ms": 2091.605749999988,
+          "first_signature_from_registration_start_ms": 3414.1860839999863,
+          "initial_preparation_ms": 226146.617708,
+          "initial_preparation_payload_bytes": 222516709,
+          "registration_payload_bytes": 2543806
+        },
+        {
+          "fixture_index": 8,
+          "status": "complete",
+          "operations": [
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 306.05329199996777,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 9,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 268.95208299998194,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 8,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 768.9749999999767,
+              "protocol_payload_bytes": 9539088,
+              "remaining_batches": 4,
+              "exhausted_batches": 3
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 530.1112499999581,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 2,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 231.40641599998344,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 1,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 290.4652500000084,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 0,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 9.140790999983437,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 16.1423749999376,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "refill",
+              "status": "refilled",
+              "client_ms": 22244.51129200007,
+              "protocol_payload_bytes": 4483008,
+              "remaining_batches": 1,
+              "batches": 1,
+              "average_ms_per_batch": 22244.51129200007
+            },
+            {
+              "kind": "refill-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 9.312334000016563,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 260.57808399992064,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 0,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 10.092334000044502,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 12.386959000024945,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            }
+          ],
+          "registration_ms": 1978.3214999999618,
+          "first_signature_from_registration_start_ms": 2286.573583999998,
+          "initial_preparation_ms": 224772.28587500006,
+          "initial_preparation_payload_bytes": 222516709,
+          "registration_payload_bytes": 2869188
+        }
+      ]
+    },
+    {
+      "source": "ml-dsa-65-ready-pool-hosted-refill-ten-20261015.json",
+      "environment": "hosted-cloudflare",
+      "initial_batches": 1,
+      "refill_batches": 10,
+      "completed_sessions": 1,
+      "failed_sessions": 0,
+      "registration_ms": {
+        "minimum": 2676.1844999999958,
+        "median": 2676.1844999999958,
+        "maximum": 2676.1844999999958
+      },
+      "successful_signing_ms": {
+        "minimum": 221.6913329999952,
+        "median": 470.69041650000145,
+        "maximum": 539.627999999997
+      },
+      "verified_signatures": 6,
+      "signing_requests_exhausting_all_available_batches": 1,
+      "successful_automatic_rollovers": 4,
+      "first_signature_from_registration_start_ms": {
+        "minimum": 206727.725125,
+        "median": 206727.725125,
+        "maximum": 206727.725125
+      },
+      "all_observed_registrations_under_five_seconds": true,
+      "all_successful_signatures_under_five_seconds": true,
+      "all_admitted_signing_requests_succeeded_under_five_seconds": false,
+      "all_complete_sessions_first_signature_under_five_seconds": false,
+      "maximum_observed_wasm_bytes": 103022592,
+      "refills": [
+        {
+          "kind": "refill",
+          "status": "refilled",
+          "client_ms": 203219.292959,
+          "protocol_payload_bytes": 44827776,
+          "remaining_batches": 10,
+          "batches": 10,
+          "average_ms_per_batch": 20321.9292959
+        }
+      ],
+      "samples": [
+        {
+          "fixture_index": 2,
+          "status": "complete",
+          "operations": [
+            {
+              "kind": "sign",
+              "status": "empty",
+              "client_ms": 293.43195800000103,
+              "protocol_payload_bytes": 2382276,
+              "remaining_batches": 0,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 11.95850000000064,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 10.779042000001937,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "refill",
+              "status": "refilled",
+              "client_ms": 203219.292959,
+              "protocol_payload_bytes": 44827776,
+              "remaining_batches": 10,
+              "batches": 10,
+              "average_ms_per_batch": 20321.9292959
+            },
+            {
+              "kind": "refill-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 16.238666999997804,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 10
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 497.83024999999907,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 8,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 539.627999999997,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 6,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 514.5866659999883,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 4,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 443.5505830000038,
+              "protocol_payload_bytes": 4774792,
+              "remaining_batches": 2,
+              "exhausted_batches": 1
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 251.15566600000602,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 1,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "sign",
+              "status": "signed",
+              "client_ms": 221.6913329999952,
+              "protocol_payload_bytes": 2392644,
+              "remaining_batches": 0,
+              "exhausted_batches": 0
+            },
+            {
+              "kind": "empty-probe",
+              "status": "empty",
+              "client_ms": 11.731250000011642,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            },
+            {
+              "kind": "operation-replay-probe",
+              "status": "replay-rejected",
+              "client_ms": 10.840291000000434,
+              "protocol_payload_bytes": 128,
+              "remaining_batches": 0
+            }
+          ],
+          "registration_ms": 2676.1844999999958,
+          "first_signature_from_registration_start_ms": 206727.725125,
+          "initial_preparation_ms": 49540.471958,
+          "initial_preparation_payload_bytes": 182171941,
+          "registration_payload_bytes": 2543806
+        }
+      ]
+    }
+  ],
+  "cpu": {
+    "status": "complete",
+    "observed_invocations_by_role": {
+      "a": 4,
+      "b": 4
+    },
+    "whole_campaign_cpu_ms_both_roles": 950691,
+    "all_platform_outcomes_ok": true
+  },
+  "native": {
+    "all_canonical_keys_verified": true,
+    "pool": {
+      "successful_automatic_rollovers": 3,
+      "verified_signatures": 8
+    },
+    "empty_replay_and_cancellation_checks_passed": true
+  },
+  "limits": [
+    "All timing intervals use external client clocks. Registration starts only after keygen tables and generic signing reservations are prepared.",
+    "Successful signing includes lazy commitment activation, every exhausted batch, and both Worker verifiers. Explicit empty/replay probes are separated from admitted nonempty-pool requests.",
+    "A group refill divided by its batch count is an average. It does not prove each batch completes within ten seconds.",
+    "Payload uses differences of cumulative role counters. It excludes transport envelopes, command frames, and R2 network traffic. Initial keygen preparation is reported separately.",
+    "CPU includes whole sessions: preparation, registration, all signs, exhaustion, refills, replay probes, and cleanup. Redacted request IDs are not used for joins.",
+    "The pool is in memory and serializes operations. Concurrent signing during refill, durable state, production admission, and sustained throughput remain unqualified.",
+    "Wasm high-water marks exclude JavaScript and other isolate allocations. Ten ready batches were tested; larger capacities are unqualified.",
+    "These finite samples establish observed latency, not a production percentile or universal five-second guarantee."
+  ]
+}

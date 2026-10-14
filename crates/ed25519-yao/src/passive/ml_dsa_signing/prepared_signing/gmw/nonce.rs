@@ -8,6 +8,7 @@ pub(super) async fn prepare_masks<'a>(
     preparation: &[u8; 32],
     schedules: &'a [TrustedMlDsaSchedule<'a>],
     correlations: &mut CorrelationStream,
+    topologies: &mut PublicTopologies,
     transport: &mut impl BooleanTransport,
 ) -> Result<(Vec<Zeroizing<Candidate>>, BatchMetrics)> {
     let mut values = Vec::with_capacity(count);
@@ -28,7 +29,7 @@ pub(super) async fn prepare_masks<'a>(
         values.push(value);
     }
     let mask_schedules = vec![schedule(schedules, 0x92)?; count * COLUMNS];
-    let masks = prepare_batch(role, &mask_schedules, correlations, transport)
+    let masks = prepare_batch(role, &mask_schedules, correlations, topologies, transport)
         .await
         .map_err(runtime_error)?;
     let mask_binding = shake256(&[preparation, b"gmw-nonce-masks"]);
@@ -51,6 +52,7 @@ pub(super) async fn prepare_masks<'a>(
 pub(super) async fn activate_values(
     values: &mut [Zeroizing<Candidate>],
     key: &SigningKeyState,
+    binding: &[u8; 64],
     commitments: PreparedGmwBatch<'_>,
     transport: &mut impl BooleanTransport,
 ) -> Result<BatchMetrics> {
@@ -71,7 +73,7 @@ pub(super) async fn activate_values(
             inputs.push(bits);
         }
     }
-    let commitment_binding = shake256(&[&key.binding, b"gmw-nonce-commitments"]);
+    let commitment_binding = shake256(&[binding, b"gmw-nonce-commitments"]);
     let commitments = commitments
         .run(&inputs, &commitment_binding, transport)
         .await

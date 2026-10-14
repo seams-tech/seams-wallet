@@ -6,7 +6,10 @@ License: MIT. Each package retains its license and original source.
 
 Only the core primitives and Expand-Convolute encoder are included.
 Two upstream dead-code suppression attributes are removed to satisfy repository policy.
-All functional source remains unchanged. Manifests resolve workspace fields locally,
+The scalar accumulator visits set bits in each public matrix byte with `trailing_zeros`.
+It preserves the selected coordinates and their order. No input coefficient controls
+the branches or addresses. The SIMD SSE path remains unchanged.
+Manifests resolve workspace fields locally,
 disable publishing, and restrict CPU feature detection to its supported targets.
 The unused code-package CPU detection dependency is removed.
 These changes let the portable encoder compile for `wasm32-unknown-unknown`.

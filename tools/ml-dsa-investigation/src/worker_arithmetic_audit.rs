@@ -149,6 +149,8 @@ fn inspect(bytes: &[u8], subject: Subject) -> InvestigationResult<Vec<Value>> {
                     && symbol.contains("::boolean_comparison::silent::"))
                     || symbol.starts_with("cryprot_codes[")
                     || (symbol.starts_with("aes[") && symbol.contains("::soft::fixslice::"))
+                    || symbol.contains("::gate_aes::sub_bytes")
+                    || symbol.contains("::gate_aes::bitslice")
                 {
                     selected.push((*symbol, *index, *symbol));
                 }

@@ -23,6 +23,7 @@ dependencies = [
  "cipher 0.5.2",
  "cpubits",
  "cpufeatures 0.3.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -62,6 +63,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
 dependencies = [
  "hybrid-array",
+ "zeroize",
 ]
 
 [[package]]
@@ -133,8 +135,10 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8cf2a2c93cd704877c0858356ed03480ff301ee950b43f1cbe4573b088bfa6c"
 dependencies = [
+ "block-buffer 0.12.1",
  "crypto-common 0.2.2",
  "inout 0.2.2",
+ "zeroize",
 ]
 
 [[package]]
@@ -288,10 +292,11 @@ name = "ed25519-yao"
 version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
+ "aes 0.9.1",
+ "cipher 0.5.2",
  "cryprot-codes",
  "cryprot-core",
  "curve25519-dalek",
- "generic-array",
  "getrandom 0.2.17",
  "getrandom 0.4.3",
  "sha2",
@@ -350,7 +355,6 @@ checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
- "zeroize",
 ]
 
 [[package]]
@@ -388,6 +392,7 @@ checksum = "27f864f10dfb56725ce5ce5472bc52252c8f93a4ab86327122cebf62c5f59a17"
 dependencies = [
  "bytemuck",
  "typenum",
+ "zeroize",
 ]
 
 [[package]]
