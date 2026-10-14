@@ -7,6 +7,7 @@ import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { verifyRegistrationRespondRecovery } from './registration-respond-recovery.scenario.mjs';
 
 class AddressAllocator {
   calls = 0;
@@ -194,6 +195,8 @@ const bundle = await build({
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
       export { consumeRegistrationSetupRateLimit } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationSetupRateLimit';
       export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
+      export { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './packages/shared-ts/src/tenant-root/tenantRootIdentity';
+      export { tenantRootIdentityDigestB64uV1 } from './packages/wallet-server/src/router/cloudflare/runtime/tenantRootCreationGrant';
     `,
   },
 });
@@ -581,12 +584,14 @@ try {
   starter.failPreparation = false;
 
   const setupRecovery = await verifySetupRecovery(database, options, starter, addresses, input);
+  const respondRecovery = await verifyRegistrationRespondRecovery({ api, database, options, input });
 
   await writeFile(
     resolve(output, 'result.json'),
     `${JSON.stringify(
       {
         setupRecovery,
+        respondRecovery,
         unavailablePreparationPreservesSetup: true,
         rateLimitEvidence,
         replayUsesStoredAddresses: true,

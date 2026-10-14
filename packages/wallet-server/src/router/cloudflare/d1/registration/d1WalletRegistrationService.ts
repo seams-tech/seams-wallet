@@ -4552,10 +4552,17 @@ export class CloudflareD1WalletRegistrationService {
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     // An admission that already existed carried no write of this request.
     if (!stored && admitted.companionWrite === 'not_committed') {
-      await ceremonyStore.commitEcdsaClaim({
-        expected: input.snapshot,
-        next: authorizedCeremony(admitted.admissionRequest),
-      });
+      const next = authorizedCeremony(admitted.admissionRequest);
+      try {
+        await ceremonyStore.commitEcdsaClaim({ expected: input.snapshot, next });
+      } catch (error: unknown) {
+        // A lost admission reply can hide an already committed companion write.
+        // Accept only the exact intended ceremony; preserve every other refusal.
+        const committed = await ceremonyStore.getCeremony(ceremony.registrationCeremonyId);
+        if (!committed || alphabetizeStringify(committed) !== alphabetizeStringify(next)) {
+          throw error;
+        }
+      }
     }
     /* The credential is verified and the ceremony holds it. Claim it through
        shared authority while the client runs the Yao execution, so that
