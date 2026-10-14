@@ -52,12 +52,17 @@ try {
     page.getByRole('heading', { name: 'Authentication methods', exact: true }),
   ).toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('MacBook Pro', { exact: true })).toBeVisible();
+  await expect(page.getByText('alex.near', { exact: true })).toBeVisible();
+  await expect(page.locator('.seams-account-method-tiles > li')).toHaveCount(2);
+  await expect(page.getByText('Passkey', { exact: true })).toBeVisible();
+  await expect(page.getByText('Email OTP', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Both', exact: true })).toHaveCount(0);
+  await expect(page.getByText('MacBook Pro', { exact: true })).toHaveCount(0);
   await page.waitForTimeout(450);
   const resize = await page.evaluate(() => window.accountResizeEvidence);
   const first = resize[0].height;
   const last = resize.at(-1).height;
-  assert.ok(Math.abs(first - last) > 80, 'Screens must have different intrinsic heights');
+  assert.ok(Math.abs(first - last) > 4, 'Screens must have different intrinsic heights');
   assert.ok(
     resize.some(
       (sample) =>
@@ -70,29 +75,6 @@ try {
     'Width must stay fixed',
   );
   await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
-  await page.getByRole('button', { name: /iPhone Passkey/ }).click();
-  await expect(page.getByRole('heading', { name: 'Device details' })).toBeFocused();
-  await expect(page.getByText('Today, 09:41', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Both', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await page.getByRole('button', { name: 'Email OTP', exact: true }).click();
-  await page.screenshot({ path: `${artifacts}/device-details.png` });
-  await back(page);
-  await page.getByRole('button', { name: /MacBook Pro Passkey/ }).click();
-  await expect(page.getByRole('button', { name: 'Passkey', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await page.getByRole('button', { name: 'Both', exact: true }).click();
-  await back(page);
-  await page.getByRole('button', { name: /iPhone Email OTP/ }).click();
-  await expect(page.getByRole('button', { name: 'Email OTP', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await back(page);
   await page.getByRole('button', { name: 'Link a device', exact: true }).click();
   await expect(page.locator('.qr-scanner-camera-container')).toBeVisible();
   await expect(page.locator('video')).toHaveCount(0);

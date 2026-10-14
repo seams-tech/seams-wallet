@@ -1,5 +1,4 @@
 import React from 'react';
-import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import TouchIcon from './icons/TouchIcon';
 import { MailIcon } from './icons/MailIcon';
 
@@ -9,7 +8,6 @@ type AuthenticationMethodRowProps = {
   description: string;
   action?: React.ReactNode;
   onSelect?: () => void;
-  detail?: boolean;
   children?: React.ReactNode;
 };
 
@@ -19,7 +17,6 @@ export function AuthenticationMethodRow({
   description,
   action,
   onSelect,
-  detail = false,
   children,
 }: AuthenticationMethodRowProps): React.JSX.Element {
   if (onSelect) {
@@ -47,23 +44,6 @@ export function AuthenticationMethodRow({
             <path d="m9 6 6 6-6 6" />
           </svg>
         </button>
-      </li>
-    );
-  }
-  if (detail) {
-    return (
-      <li className="seams-account-method-list-item">
-        <AccountMenuDeviceDetails
-          title={title}
-          description={description}
-          details={[
-            { label: 'Status', value: 'Active' },
-            { label: 'Unlock method', value: kind === 'passkey' ? 'Passkey' : 'Email OTP' },
-          ]}
-        >
-          {children}
-          {action}
-        </AccountMenuDeviceDetails>
       </li>
     );
   }

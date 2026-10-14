@@ -151,8 +151,9 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   confirmation. The account menu never renders secret material in host-origin React.
 - `AccountMenuButtonMock` shares the panel, navigation, and display components. All
   sample actions stay local; it makes no wallet requests and opens no camera.
-  Its recovery preview has 16 digits. Each sample device independently retains
-  a Passkey, Email OTP, or combined selection.
+  Its recovery preview has 16 digits. Authentication methods opens directly for
+  the current wallet and displays each enrolled method as its own row. Device
+  inventory stays under Linked devices; methods are never a preference toggle.
 
 - `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
   full-page sidebar and a selected settings panel. Signed-out users authenticate

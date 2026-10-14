@@ -619,6 +619,7 @@ const AccountMenuButtonInner: React.FC<
         isOpen
         presentation="embedded"
         onClose={backToMenu}
+        onLinkDevice={setScreen.bind(null, 'scan-link-device')}
       />
     ),
     'linked-devices': (
@@ -678,6 +679,7 @@ const AccountMenuButtonInner: React.FC<
                 isOpen
                 presentation="page"
                 onClose={remainOnSettingsPage}
+                onLinkDevice={setShowQRScanner.bind(null, true)}
               />
             ),
             'scan-link-device': (

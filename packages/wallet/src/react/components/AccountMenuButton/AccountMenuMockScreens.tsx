@@ -1,8 +1,4 @@
 import React from 'react';
-import {
-  DeviceAuthenticationOptions,
-  type DeviceAuthenticationChoice,
-} from './DeviceAuthenticationOptions';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
@@ -11,41 +7,40 @@ import { MailIcon } from './icons/MailIcon';
 import { AccountsSection } from './AccountsSection';
 import type { AccountsSectionRow } from './types';
 
-export type PreviewDeviceMethods = Record<
-  'macbook' | 'iphone' | 'pixel',
-  DeviceAuthenticationChoice
->;
-type PreviewDevice = { id: keyof PreviewDeviceMethods; name: string; lastUsed: string };
+type DeviceMethods = 'passkey' | 'email_otp' | 'both';
+type PreviewDevice = { id: string; name: string; lastUsed: string; methods: DeviceMethods };
 export type AccountPreviewScreen =
   | { kind: 'overview' }
   | { kind: 'accounts' }
   | { kind: 'transactions' }
   | { kind: 'methods' }
   | { kind: 'linked' }
-  | { kind: 'device'; device: PreviewDevice; parent: 'methods' | 'linked' }
+  | { kind: 'device'; device: PreviewDevice; parent: 'linked' }
   | { kind: 'scanner' }
   | { kind: 'recovery'; revealed: boolean };
 const devices: readonly PreviewDevice[] = [
-  { id: 'macbook', name: 'MacBook Pro', lastUsed: 'Now' },
+  { id: 'macbook', name: 'MacBook Pro', lastUsed: 'Now', methods: 'both' },
   {
     id: 'iphone',
     name: 'iPhone',
     lastUsed: 'Today, 09:41',
+    methods: 'passkey',
   },
   {
     id: 'pixel',
     name: 'Pixel 9',
     lastUsed: 'Yesterday',
+    methods: 'email_otp',
   },
 ];
 function selectDevice(
   setScreen: (screen: AccountPreviewScreen) => void,
-  parent: 'methods' | 'linked',
+  parent: 'linked',
   device: PreviewDevice,
 ): void {
   setScreen({ kind: 'device', device, parent });
 }
-function methodLabel(choice: DeviceAuthenticationChoice): string {
+function methodLabel(choice: DeviceMethods): string {
   switch (choice) {
     case 'passkey':
       return 'Passkey';
@@ -59,18 +54,37 @@ function methodLabel(choice: DeviceAuthenticationChoice): string {
 }
 function deviceRow(
   setScreen: (screen: AccountPreviewScreen) => void,
-  parent: 'methods' | 'linked',
-  deviceMethods: Readonly<PreviewDeviceMethods>,
+  parent: 'linked',
   device: PreviewDevice,
 ): React.JSX.Element {
   return (
     <AuthenticationMethodRow
       key={device.id}
-      kind={deviceMethods[device.id] === 'email_otp' ? 'email_otp' : 'passkey'}
+      kind={device.methods === 'email_otp' ? 'email_otp' : 'passkey'}
       title={device.name}
-      description={methodLabel(deviceMethods[device.id])}
+      description={methodLabel(device.methods)}
       onSelect={selectDevice.bind(null, setScreen, parent, device)}
     />
+  );
+}
+function MethodTiles({ methods }: { methods: DeviceMethods }): React.JSX.Element {
+  return (
+    <ul className="seams-account-method-tiles" aria-label="Authentication methods">
+      {methods !== 'email_otp' ? (
+        <AuthenticationMethodRow
+          kind="passkey"
+          title="Passkey"
+          description="Touch ID · This device"
+        />
+      ) : null}
+      {methods !== 'passkey' ? (
+        <AuthenticationMethodRow
+          kind="email_otp"
+          title="Email OTP"
+          description="alex@example.com"
+        />
+      ) : null}
+    </ul>
   );
 }
 function recoverySlot(value: string, index: number): React.JSX.Element {
@@ -85,18 +99,13 @@ export function AccountMenuMockScreens({
   setScreen,
   accounts,
   transactionSettings,
-  deviceMethods,
-  onDeviceMethodsChange,
+  walletId,
 }: {
   screen: AccountPreviewScreen;
   setScreen: (screen: AccountPreviewScreen) => void;
   accounts: AccountsSectionRow[];
   transactionSettings: React.ReactNode;
-  deviceMethods: Readonly<PreviewDeviceMethods>;
-  onDeviceMethodsChange: (
-    deviceId: keyof PreviewDeviceMethods,
-    choice: DeviceAuthenticationChoice,
-  ) => void;
+  walletId: string;
 }): React.JSX.Element | null {
   const back = setScreen.bind(null, { kind: 'overview' });
   switch (screen.kind) {
@@ -116,14 +125,28 @@ export function AccountMenuMockScreens({
         </AccountMenuScreen>
       );
     case 'methods':
+      return (
+        <AccountMenuScreen title="Authentication methods" onBack={back}>
+          <AccountMenuDeviceDetails
+            title={walletId}
+            description="This wallet"
+            details={[{ label: 'Status', value: 'Active' }]}
+          />
+          <MethodTiles methods="both" />
+          <button
+            type="button"
+            className="seams-account-action primary"
+            onClick={setScreen.bind(null, { kind: 'scanner' })}
+          >
+            Link a device
+          </button>
+        </AccountMenuScreen>
+      );
     case 'linked':
       return (
-        <AccountMenuScreen
-          title={screen.kind === 'methods' ? 'Authentication methods' : 'Linked devices'}
-          onBack={back}
-        >
+        <AccountMenuScreen title="Linked devices" onBack={back}>
           <p className="seams-account-description">Manage how your devices unlock your wallet.</p>
-          <ul>{devices.map(deviceRow.bind(null, setScreen, screen.kind, deviceMethods))}</ul>
+          <ul>{devices.map(deviceRow.bind(null, setScreen, screen.kind))}</ul>
           <button
             type="button"
             className="seams-account-action primary"
@@ -141,21 +164,18 @@ export function AccountMenuMockScreens({
         >
           <AccountMenuDeviceDetails
             icon={
-              deviceMethods[screen.device.id] === 'email_otp' ? (
+              screen.device.methods === 'email_otp' ? (
                 <MailIcon size={30} strokeWidth={1.5} />
               ) : undefined
             }
             title={screen.device.name}
-            description={methodLabel(deviceMethods[screen.device.id])}
+            description={methodLabel(screen.device.methods)}
             details={[
               { label: 'Status', value: 'Active' },
               { label: 'Last used', value: screen.device.lastUsed },
             ]}
           >
-            <DeviceAuthenticationOptions
-              value={deviceMethods[screen.device.id]}
-              onChange={onDeviceMethodsChange.bind(null, screen.device.id)}
-            />
+            <MethodTiles methods={screen.device.methods} />
           </AccountMenuDeviceDetails>
         </AccountMenuScreen>
       );

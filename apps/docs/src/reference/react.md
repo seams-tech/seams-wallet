@@ -80,11 +80,11 @@ import '@seams/wallet/react/styles';
 
 Use `defaultOpen={false}` to start collapsed. All screens stay inside one panel;
 there is no overlay backdrop. The panel animates its measured height between screens,
-and respects reduced-motion preferences. Authentication methods open device details.
+and respects reduced-motion preferences. Authentication methods opens directly for the current wallet, with separate
+Passkey and Email OTP rows and a Link a device action.
 Transaction settings open in a separate resizing screen. The scanner is a static
-camera preview. The recovery preview contains 16 digits. Each sample device retains
-its own Passkey, Email OTP, or combined selection. These selections only change
-preview state; live enrollment and removal retain authenticated SDK operations.
+camera preview. The recovery preview contains 16 digits. Method rows display enrollment rather than selectable preferences.
+Live enrollment and removal retain authenticated SDK operations.
 `onAction` receives key-export selections; the preview never starts wallet operations.
 
 `WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
