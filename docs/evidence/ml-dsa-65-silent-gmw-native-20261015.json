@@ -1,0 +1,190 @@
+{
+  "a": {
+    "batch": {
+      "and_exchanges": 168,
+      "and_gates": 2467738,
+      "instances": 105,
+      "phases": [
+        {
+          "received_bytes": 672,
+          "sent_bytes": 8442
+        },
+        {
+          "received_bytes": 533440,
+          "sent_bytes": 2089920
+        },
+        {
+          "received_bytes": 0,
+          "sent_bytes": 0
+        },
+        {
+          "received_bytes": 32,
+          "sent_bytes": 32
+        },
+        {
+          "received_bytes": 1103568,
+          "sent_bytes": 1103568
+        },
+        {
+          "received_bytes": 131,
+          "sent_bytes": 199
+        }
+      ],
+      "private_state_allocation_bytes": 12084984,
+      "topology_allocation_bytes": 50600024
+    },
+    "matched": true,
+    "offline_ns": 6615285375,
+    "online_ns": 19552250,
+    "outputs": 105,
+    "transport": {
+      "actual_pipe_received_bytes": 1637844,
+      "actual_pipe_sent_bytes": 3202162,
+      "phase_wall_ns_including_peer_wait": [
+        16071791,
+        6599803544,
+        0,
+        853500,
+        13510250,
+        5231083
+      ]
+    }
+  },
+  "b": {
+    "batch": {
+      "and_exchanges": 168,
+      "and_gates": 2467738,
+      "instances": 105,
+      "phases": [
+        {
+          "received_bytes": 8442,
+          "sent_bytes": 672
+        },
+        {
+          "received_bytes": 2089920,
+          "sent_bytes": 533440
+        },
+        {
+          "received_bytes": 0,
+          "sent_bytes": 0
+        },
+        {
+          "received_bytes": 32,
+          "sent_bytes": 32
+        },
+        {
+          "received_bytes": 1103568,
+          "sent_bytes": 1103568
+        },
+        {
+          "received_bytes": 199,
+          "sent_bytes": 131
+        }
+      ],
+      "private_state_allocation_bytes": 12084984,
+      "topology_allocation_bytes": 50600024
+    },
+    "matched": true,
+    "offline_ns": 6614594750,
+    "online_ns": 19767417,
+    "outputs": 105,
+    "transport": {
+      "actual_pipe_received_bytes": 3202162,
+      "actual_pipe_sent_bytes": 1637844,
+      "phase_wall_ns_including_peer_wait": [
+        794716793,
+        5820534294,
+        0,
+        813625,
+        13483625,
+        5480958
+      ]
+    }
+  },
+  "executable_sha256": "8b86182df7f513d3a5694a67c2d07b7144c91b2c0fb78c21d2a7afde73b456f3",
+  "mismatched_count_rejected_before_private_preprocessing": [
+    {
+      "status": "layout-rejected",
+      "transport": {
+        "actual_pipe_received_bytes": 32,
+        "actual_pipe_sent_bytes": 32,
+        "phase_wall_ns_including_peer_wait": [
+          44041,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "status": "layout-rejected",
+      "transport": {
+        "actual_pipe_received_bytes": 32,
+        "actual_pipe_sent_bytes": 32,
+        "phase_wall_ns_including_peer_wait": [
+          262167,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "production_eligible": false,
+  "schedules": [
+    {
+      "a_input_bits": 11008,
+      "and_gates": 21760,
+      "b_input_bits": 5120,
+      "name": "fresh-mask",
+      "schedule_bytes": 798522,
+      "schedule_sha256": "f9c8027fbd968d55fa0418d0473e11eb511c19b2418d4ea356a79bd29c72a5ed"
+    },
+    {
+      "a_input_bits": 12800,
+      "and_gates": 50688,
+      "b_input_bits": 5888,
+      "name": "prepared-commitment",
+      "schedule_bytes": 1572922,
+      "schedule_sha256": "b579f57b089e7ed31abe7a96940ea8787502f3029972f5436f666d5b2440432e"
+    },
+    {
+      "a_input_bits": 6656,
+      "and_gates": 267584,
+      "b_input_bits": 6144,
+      "name": "commitment-hash",
+      "schedule_bytes": 9454746,
+      "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+    },
+    {
+      "a_input_bits": 5889,
+      "and_gates": 28415,
+      "b_input_bits": 5888,
+      "name": "response-check",
+      "schedule_bytes": 808252,
+      "schedule_sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506"
+    },
+    {
+      "a_input_bits": 5889,
+      "and_gates": 28415,
+      "b_input_bits": 5888,
+      "name": "low-response-check",
+      "schedule_bytes": 802876,
+      "schedule_sha256": "c25c91d486d6fc1c52dfd4ad3c81536814f6080b94990567cf2ed907d7a05695"
+    },
+    {
+      "a_input_bits": 1664,
+      "and_gates": 10,
+      "b_input_bits": 1664,
+      "name": "bounds-decision",
+      "schedule_bytes": 207,
+      "schedule_sha256": "dbe96ab2435584c3082ec4f2bddf59bbd059af039497d14cf345003786c214b1"
+    }
+  ],
+  "schema": "seams.ml-dsa-prepared-gmw-mixed.v1",
+  "scope": "Separate processes with genuine private OT. Two hashes,33 response checks,35 low checks,and35 decisions match independent public synthetic oracles. This is an engine test,not a complete signer or hosted timing result."
+}

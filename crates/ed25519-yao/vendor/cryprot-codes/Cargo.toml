@@ -1,0 +1,40 @@
+[package]
+publish = false
+description = "Linear codes for Silent OT."
+edition = "2024"
+keywords = ["expand-convolute"]
+license = "MIT"
+name = "cryprot-codes"
+version = "0.2.5"
+
+authors = ["Robin Hundt"]
+repository = "https://github.com/robinhundt/CryProt"
+
+[features]
+bench-libote = ["dep:libote-codes"]
+libote-compat = ["dep:libote-codes"]
+
+[lints.clippy]
+unwrap_used = "warn"
+
+[lib]
+bench = false
+
+[dependencies]
+aes = { version = "=0.9.1", features = ["hazmat"] }
+bytemuck = { version = "1.25.0", features = ["must_cast"] }
+cryprot-core = { version = "=0.3.4", path = "../cryprot-core" }
+fastdivide = "0.4.2"
+hybrid-array = { version = "0.4.12", features = ["bytemuck"] }
+rand = "0.10.0"
+seq-macro = "=0.3.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libote-codes = { version = "0.1.0", git = "https://github.com/robinhundt/libote-codes.git", optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["async_tokio", "html_reports"] }
+
+[[bench]]
+harness = false
+name = "bench"

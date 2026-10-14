@@ -1,0 +1,170 @@
+{
+  "schema": "seams.ml-dsa-silent-product-screen.v1",
+  "production_eligible": false,
+  "sources": [
+    {
+      "file": "ml-dsa-65-silent-four-worker-hosted-20261015.json",
+      "sha256": "899e58951f820862da3d1970774127ebe21e60ca383a1c3930a2200a7814e117"
+    },
+    {
+      "file": "ml-dsa-65-silent-eight-worker-hosted-20261015.json",
+      "sha256": "b8022fd3f569e4bf5cb330f79dbf7c630e12072369d733539a2699e2b067feec"
+    },
+    {
+      "file": "ml-dsa-65-silent-keygen-worker-hosted-20261015.json",
+      "sha256": "0cf32989a080ea9be9dd35255ee80988eed82fdae1324299b23b7c5c0cef5030"
+    },
+    {
+      "file": "ml-dsa-65-silent-worker-traces-20261015.json",
+      "sha256": "adbdff3a8869b42ae457e9aca0a8f6d7748aa19f33992ededd0b8e04af3054ba"
+    }
+  ],
+  "four": {
+    "candidates_per_reservation": 4,
+    "completed_requests_including_warmup": 6,
+    "verified_signatures_including_warmup": 3,
+    "exhausted_requests_including_warmup": 3,
+    "infrastructure_failures": 0,
+    "all_requested_completed": true,
+    "successful_online_ms_including_warmup": {
+      "minimum": 196.57308300000295,
+      "median": 241.44324999999662,
+      "maximum": 1115.879209000006
+    },
+    "successful_online_ms_excluding_warmup": {
+      "minimum": 241.44324999999662,
+      "median": 678.6612295000014,
+      "maximum": 1115.879209000006
+    },
+    "readiness_ms_including_warmup": {
+      "minimum": 40868.55891700002,
+      "median": 46951.75291699999,
+      "maximum": 68266.85725
+    },
+    "all_verified_signatures_under_five_seconds": true,
+    "all_requests_returned_signature_under_five_seconds": false,
+    "preparation_protocol_bytes": {
+      "minimum": 5124225,
+      "median": 5124225.0,
+      "maximum": 5124225
+    },
+    "successful_online_protocol_bytes": {
+      "minimum": 1763464,
+      "median": 1763464,
+      "maximum": 1763464
+    },
+    "successful_total_protocol_bytes": {
+      "minimum": 6887689,
+      "median": 6887689,
+      "maximum": 6887689
+    },
+    "maximum_observed_wasm_bytes": 89653248,
+    "cpu": {
+      "status": "complete",
+      "observed_invocations_by_role": {
+        "a": 6,
+        "b": 6
+      },
+      "all_platform_outcomes_ok": true,
+      "whole_campaign_cpu_ms_both_roles": 309217,
+      "whole_invocation_cpu_ms_per_role": {
+        "minimum": 19631,
+        "median": 22795.5,
+        "maximum": 33545
+      },
+      "whole_campaign_cpu_overage_usd": 0.006184340000000001,
+      "observed_cpu_overage_usd_per_verified_signature": 0.002061446666666667,
+      "scope": "Includes warmup, exhausted reservations, repeated disposable fixture key creation, preparation, online work, and cleanup. Excludes account minimums, included allowances, storage, and other product services. Aggregate version-filtered counts avoid joining Cloudflare-redacted request IDs."
+    },
+    "versions": {
+      "a": "2b453983-71b2-4f46-845f-f97dc9702b4d",
+      "b": "b92763b2-bc83-479c-b94f-a398530cc1cf"
+    }
+  },
+  "eight": {
+    "candidates_per_reservation": 8,
+    "completed_requests_including_warmup": 6,
+    "verified_signatures_including_warmup": 5,
+    "exhausted_requests_including_warmup": 1,
+    "infrastructure_failures": 0,
+    "all_requested_completed": true,
+    "successful_online_ms_including_warmup": {
+      "minimum": 201.64016700000502,
+      "median": 256.72395800001686,
+      "maximum": 568.7848750000121
+    },
+    "successful_online_ms_excluding_warmup": {
+      "minimum": 235.56516599992756,
+      "median": 282.5379580000008,
+      "maximum": 568.7848750000121
+    },
+    "readiness_ms_including_warmup": {
+      "minimum": 86603.093958,
+      "median": 91273.74050050003,
+      "maximum": 158296.124459
+    },
+    "all_verified_signatures_under_five_seconds": true,
+    "all_requests_returned_signature_under_five_seconds": false,
+    "preparation_protocol_bytes": {
+      "minimum": 9886081,
+      "median": 9886081.0,
+      "maximum": 9886081
+    },
+    "successful_online_protocol_bytes": {
+      "minimum": 2332200,
+      "median": 2332200,
+      "maximum": 2332200
+    },
+    "successful_total_protocol_bytes": {
+      "minimum": 12218281,
+      "median": 12218281,
+      "maximum": 12218281
+    },
+    "maximum_observed_wasm_bytes": 90046464,
+    "cpu": {
+      "status": "complete",
+      "observed_invocations_by_role": {
+        "a": 6,
+        "b": 6
+      },
+      "all_platform_outcomes_ok": true,
+      "whole_campaign_cpu_ms_both_roles": 606377,
+      "whole_invocation_cpu_ms_per_role": {
+        "minimum": 42747,
+        "median": 45426.0,
+        "maximum": 76870
+      },
+      "whole_campaign_cpu_overage_usd": 0.012127540000000001,
+      "observed_cpu_overage_usd_per_verified_signature": 0.0024255080000000003,
+      "scope": "Includes warmup, exhausted reservations, repeated disposable fixture key creation, preparation, online work, and cleanup. Excludes account minimums, included allowances, storage, and other product services. Aggregate version-filtered counts avoid joining Cloudflare-redacted request IDs."
+    },
+    "versions": {
+      "a": "21436376-aec4-4329-a716-8561aa67b2b6",
+      "b": "0b3cd47b-d198-4e2b-9db2-8126f10d8460"
+    }
+  },
+  "keygen": {
+    "completed_requests_including_warmup": 4,
+    "infrastructure_failures": 0,
+    "all_requested_completed": true,
+    "online_ms_including_warmup": {
+      "minimum": 914.0699580000073,
+      "median": 1247.2951040000007,
+      "maximum": 1603.5490409999911
+    },
+    "readiness_ms_including_warmup": {
+      "minimum": 37783.04404200001,
+      "median": 38777.234146,
+      "maximum": 43736.46525000001
+    },
+    "all_online_under_five_seconds": true,
+    "scope": "Prepared canonical key shares. The interval excludes precomputation and first-signature readiness."
+  },
+  "billing_source": "https://developers.cloudflare.com/workers/platform/pricing/",
+  "limits": [
+    "Signing payload counters exclude initial fixture key creation and transport envelopes; raw transport counters retain those costs.",
+    "Readiness includes repeated disposable fixture key creation and key-specific signing preparation.",
+    "This small sequential campaign establishes no production percentile, throughput under load, or cross-account performance.",
+    "No automatic rollover to another reservation or durable production pool is implemented."
+  ]
+}

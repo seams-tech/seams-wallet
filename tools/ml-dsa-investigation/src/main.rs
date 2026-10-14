@@ -24,6 +24,7 @@ mod sampler_evidence;
 mod signing_circuit_evidence;
 mod signing_lifecycle_evidence;
 mod signing_mask_evidence;
+mod silent_correlation_evidence;
 mod wallet_recovery_evidence;
 mod worker_arithmetic_audit;
 mod worker_fixtures;
@@ -35,6 +36,12 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    InspectSilentWasm {
+        output: PathBuf,
+    },
+    SilentCorrelations {
+        output: PathBuf,
+    },
     PreparedGmw {
         output: PathBuf,
     },
@@ -87,6 +94,9 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if silent_correlation_evidence::try_run_child()? {
+        return Ok(());
+    }
     if prepared_gmw_evidence::try_run_child()? {
         return Ok(());
     }
@@ -118,6 +128,10 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::InspectSilentWasm { output } => {
+            worker_arithmetic_audit::inspect_silent(&output)?
+        }
+        Invocation::SilentCorrelations { output } => silent_correlation_evidence::run(&output)?,
         Invocation::PreparedGmw { output } => prepared_gmw_evidence::run(&output)?,
         Invocation::ExportPreparedFixtures { directory } => {
             prepared_worker_fixtures::export(&directory)?
@@ -197,6 +211,25 @@ fn parse_invocation() -> InvestigationResult<Invocation> {
                 "Unexpected prepared fixture argument.",
             )?;
             return Ok(Invocation::ExportPreparedFixtures { directory });
+        }
+        if first == "inspect-silent-wasm" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A Wasm instruction report path is required")?,
+            );
+            require(args.next().is_none(), "Unexpected Wasm inspection argument")?;
+            return Ok(Invocation::InspectSilentWasm { output });
+        }
+        if first == "silent-correlations" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A silent-correlation report path is required")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected silent-correlation argument",
+            )?;
+            return Ok(Invocation::SilentCorrelations { output });
         }
         if first == "prepared-gmw" {
             let output = PathBuf::from(

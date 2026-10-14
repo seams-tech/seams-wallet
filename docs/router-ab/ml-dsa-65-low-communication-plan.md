@@ -1,6 +1,11 @@
 # ML-DSA-65 preparation with lower communication
 
-Date: October 14, 2026. Branch: `ml-dsa`. Production integration remains paused.
+Original investigation: October 14, 2026. Updated October 15, 2026. Branch: `ml-dsa`.
+Production integration remains paused.
+The [implemented prototype and hosted profiles](ml-dsa-65-silent-prototype-report.md) supersede the forecasts below for product decisions.
+The current full-block IKNP bootstrap transfers more than the libOTe native screen.
+Its complete successful four- and eight-candidate reservations use 6.89 MB and 12.22 MB of protocol payload.
+Exhaustion and repeated reservations add cost. First-signature readiness remains unqualified.
 
 ## Decision
 
@@ -13,7 +18,8 @@ Its one completed hosted signature takes 0.469 seconds online after 429.266 seco
 The next request fails during online signing. These results establish neither reliable service nor a production latency percentile.
 The [hosted report](ml-dsa-65-resident-prepared-performance.md) retains the complete campaign.
 
-Prototype silent-OT binary triples next, with independent four- and eight-candidate reservations.
+The first prototype now uses silent-OT binary triples with four- and eight-candidate reservations.
+The next prototype needs a ready pool and a measured key-activation stage.
 A binary triple supplies private random bits whose shared product supports one Boolean AND operation.
 Silent OT generates many such triples with a small exchange and local expansion.
 It adds an LPN assumption, which concerns decoding noisy linear equations.
@@ -61,7 +67,7 @@ Each row contains three measured fresh-process samples. Warm-up and an unaligned
 RSS measures the process memory peak for both logical roles together. It cannot be divided by two to establish Worker fit.
 The transport is an in-process coroutine socket. Timing excludes socket creation, OS randomness initialization, and verification.
 This screen measures neither complete signing nor network latency.
-Use the 262,144-triple chunk for the next bounded prototype. The million-triple case provides no Worker memory qualification.
+The implemented adapter retains the 262,144-triple chunk and uses a separately documented parameter profile. The million-triple case provides no Worker memory qualification.
 
 The selected [Expand-Convolute construction](https://eprint.iacr.org/2023/882) uses an LPN-based correlation generator.
 That work identifies attacks against Silver codes. This prototype excludes Silver.
@@ -128,22 +134,24 @@ Keep [SoftSpokenOT](https://eprint.iacr.org/2022/192) as a secondary correlation
 Its communication/computation tradeoff avoids adding LPN. Evaluate small-field choices 2 and 4 after measuring the complete silent-OT cost.
 FOLEAGE and other field-correlation generators remain later alternatives. We did not measure their conversion or Wasm costs.
 
-## Next bounded prototype
+## Prototype checklist
 
-1. Preserve the canonical key generator, uniform share format, and accepted disclosure boundary.
-2. Port a bounded correlation chunk to the Worker runtime with role-local randomness and explicit protocol parameters.
-3. Replace secret-indexed AES lookups before treating the Wasm port as hardened.
-4. Bind each fresh chunk to its session, epoch, circuit layout, and reservation. Reject mismatched layouts before secret evaluation.
-5. Use the triples for nonce conversion, commitment decomposition, private hashing, and bounds. Verify a complete signature before any recovery reconstruction.
-6. Compare four- and eight-candidate reservations. Share immutable public topology across reservations to avoid duplicate memory costs.
-7. Test separate role processes, canonical export, interrupted preparation, uncertain consumption, replay, and concurrent requests.
-8. Run the complete Cloudflare campaign only after native and local Worker checks pass.
+- [x] Preserve canonical key generation, uniform shares, and the accepted disclosure boundary.
+- [x] Implement bounded Rust/Wasm correlations with explicit dimensions and genuine full-block base OT.
+- [x] Use RustCrypto AES and masked receiver scans for the new adapter.
+- [x] Bind chunks and consume each correlation once across all five GMW stages.
+- [x] Verify a complete signature before authorized canonical recovery.
+- [x] Compare four- and eight-candidate hosted reservations, including all exhaustions.
+- [ ] Separate generic preparation from key-specific activation and measure a first usable signer.
+- [ ] Share public topology and compact private state for multiple ready reservations.
+- [ ] Test durable consumption, interruptions, replay, concurrency, replenishment, and production Router transport.
+- [ ] Complete target timing and independent production security review.
 
 The current cryptoTools AES source has secret-indexed substitution tables, including ARM key expansion.
 The [pinned AES source](https://github.com/ladnir/cryptoTools/blob/cc54d946a7643795b5f523fe235392de8271a5b3/cryptoTools/Crypto/AES.cpp) is the concrete porting issue.
 The native screen is not constant-time qualification. Reuse a reviewed constant-time AES implementation where practical.
 The port also needs bounded memory, secure random input, transport suspension, and secret erasure.
-No reviewed Wasm adapter currently exists in this worktree.
+The worktree now contains a reviewed experimental Wasm adapter. Production timing qualification remains open.
 
 Only untouched independent reservations may remain available for another message.
 Burn every reservation that starts message-bound evaluation, including unused candidates after an earlier success.
@@ -160,4 +168,4 @@ Do not select a protocol from one successful warm request.
 The [research harness instructions](../../tools/ml-dsa-investigation/research/README.md) reproduce the native screens and model.
 Cleanup removed all temporary Workers and the R2 bucket from the preceding campaign.
 The [cleanup record](../evidence/ml-dsa-65-prepared-final-cleanup-20261014.json) retains the deletion results.
-This screen deployed no lower-communication implementation.
+The original October 14 screen had no hosted implementation. The October 15 report records the completed Worker campaigns and cleanup.

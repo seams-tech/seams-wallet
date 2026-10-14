@@ -34,7 +34,7 @@ impl Backend {
     fn capacity(self) -> u16 {
         match self {
             Self::HalfGates => 12,
-            Self::Gmw => 32,
+            Self::Gmw => 4,
         }
     }
     #[cfg(feature = "ml-dsa-a")]
@@ -239,6 +239,11 @@ fn report(
                 }
                 Output::Gmw(output) => {
                     report["evaluated_candidates"] = json!(output.evaluated_candidates);
+                    report["gmw_preparation_batches"] = json!(output
+                        .preparation_batches
+                        .iter()
+                        .map(batch_metrics)
+                        .collect::<Vec<_>>());
                     report["gmw_batches"] =
                         json!(output.batches.iter().map(batch_metrics).collect::<Vec<_>>());
                     report["online_and_gates"] = json!(output

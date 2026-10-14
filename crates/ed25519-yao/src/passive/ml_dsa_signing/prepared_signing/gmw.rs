@@ -1,8 +1,11 @@
 //! Complete prepared signing with all online candidates evaluated in three batches.
 
+mod nonce;
+
 use super::*;
 use crate::passive::ml_dsa_runtime::boolean_comparison::{
     prepared::{prepare_batch, BatchMetrics, PreparedGmwBatch},
+    silent::CorrelationStream,
     Transport as BooleanTransport,
 };
 
@@ -13,6 +16,7 @@ pub struct PreparedGmwSigner<'a> {
     hashes: PreparedGmwBatch<'a>,
     bounds: PreparedGmwBatch<'a>,
     decisions: PreparedGmwBatch<'a>,
+    nonce_batches: [BatchMetrics; 2],
 }
 
 /// A standard signature with every evaluated candidate included in its metrics.
@@ -25,6 +29,8 @@ pub struct GmwSignature {
     pub evaluated_candidates: u16,
     /// Challenge, private bounds, and combined-decision batch measurements.
     pub batches: [BatchMetrics; 3],
+    /// Complete nonce conversion and decomposition measurements.
+    pub preparation_batches: [BatchMetrics; 2],
     /// Candidates opened after private checks and rejected by public hint checks.
     pub public_rejections: u16,
 }
@@ -52,12 +58,20 @@ pub async fn prepare_gmw_signer<'a, T: Transport + BooleanTransport>(
     )
     .await?;
     let count = usize::from(reservation.candidates);
-    let mut values = Vec::with_capacity(count);
-    for _ in 0..count {
-        values.push(prepare_values(role, &key.matrix, &key.twiddles, schedules, transport).await?);
+    let mut circuit_set = Vec::with_capacity(schedules.len() * 32);
+    for schedule in schedules {
+        circuit_set.extend_from_slice(&schedule.schedule_digest());
     }
+    let correlation_binding: [u8; 32] = shake256(&[
+        b"seams/ml-dsa/gmw-correlations/v1",
+        &key.binding,
+        &circuit_set,
+    ]);
+    let mut correlations = CorrelationStream::new(role, correlation_binding);
+    let (values, nonce_batches) =
+        nonce::prepare_values(role, count, &key, schedules, &mut correlations, transport).await?;
     let hash_schedules = vec![schedule(schedules, 0x8d)?; count];
-    let hashes = prepare_batch(role, &hash_schedules, transport)
+    let hashes = prepare_batch(role, &hash_schedules, &mut correlations, transport)
         .await
         .map_err(runtime_error)?;
     let mut bound_schedules = Vec::with_capacity(count * (COLUMNS + ROWS));
@@ -69,11 +83,11 @@ pub async fn prepare_gmw_signer<'a, T: Transport + BooleanTransport>(
             )?);
         }
     }
-    let bounds = prepare_batch(role, &bound_schedules, transport)
+    let bounds = prepare_batch(role, &bound_schedules, &mut correlations, transport)
         .await
         .map_err(runtime_error)?;
     let decision_schedules = vec![schedule(schedules, 0x98)?; count];
-    let decisions = prepare_batch(role, &decision_schedules, transport)
+    let decisions = prepare_batch(role, &decision_schedules, &mut correlations, transport)
         .await
         .map_err(runtime_error)?;
     Ok(PreparedGmwSigner {
@@ -82,6 +96,7 @@ pub async fn prepare_gmw_signer<'a, T: Transport + BooleanTransport>(
         hashes,
         bounds,
         decisions,
+        nonce_batches,
     })
 }
 
@@ -101,6 +116,7 @@ impl PreparedGmwSigner<'_> {
             hashes,
             bounds,
             decisions,
+            nonce_batches,
         } = self;
         let count = values.len();
         let context_length =
@@ -205,6 +221,7 @@ impl PreparedGmwSigner<'_> {
                 accepted_candidate: (candidate + 1) as u16,
                 evaluated_candidates: count as u16,
                 batches: [hashes.metrics, bounds.metrics, decisions.metrics],
+                preparation_batches: nonce_batches,
                 public_rejections,
             });
         }

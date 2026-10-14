@@ -37,7 +37,7 @@ pub(super) fn build_and_inspect(repository: &Path) -> InvestigationResult<Value>
             "wasm_bytes": bytes.len(),
             "wasm_sha256": digest(&bytes),
             "script_sha256": digest(&fs::read(script_path)?),
-            "private_functions": inspect(&bytes)?,
+            "private_functions": inspect(&bytes, Subject::Arithmetic)?,
         }));
     }
     Ok(json!({
@@ -50,7 +50,34 @@ pub(super) fn build_and_inspect(repository: &Path) -> InvestigationResult<Value>
     }))
 }
 
-fn inspect(bytes: &[u8]) -> InvestigationResult<Vec<Value>> {
+#[derive(Clone, Copy)]
+enum Subject {
+    Arithmetic,
+    SilentCorrelations,
+}
+
+pub(super) fn inspect_silent(output: &Path) -> InvestigationResult<()> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("Missing repository")?;
+    let mut roles = Vec::new();
+    for role in ["a", "b"] {
+        let path = format!("crates/ed25519-yao-cloudflare-bench/build/ml-dsa-{role}/index_bg.wasm");
+        let bytes = fs::read(root.join(&path))?;
+        roles.push(json!({"role":role, "path":path, "wasm_sha256":digest(&bytes), "functions":inspect(&bytes, Subject::SilentCorrelations)?}));
+    }
+    fs::write(
+        output,
+        serde_json::to_vec_pretty(&json!({
+            "schema":"seams.ml-dsa-silent-wasm-instructions.v1", "production_eligible":false, "roles":roles,
+            "scope":"Instruction inventory of final packaged silent-correlation, public encoder, portable AES functions, and immediate callers containing inlined PPRF code. Branches and addresses need manual secret-data-flow review. This inventory alone does not prove constant-time execution."
+        }))?,
+    )?;
+    Ok(())
+}
+
+fn inspect(bytes: &[u8], subject: Subject) -> InvestigationResult<Vec<Value>> {
     let mut types = Vec::new();
     let mut function_types = Vec::new();
     let mut names = BTreeMap::new();
@@ -98,24 +125,71 @@ fn inspect(bytes: &[u8]) -> InvestigationResult<Vec<Value>> {
             _ => {}
         }
     }
+    let mut selected = Vec::new();
+    match subject {
+        Subject::Arithmetic => {
+            for name in PRIVATE_FUNCTIONS {
+                let suffix = format!("::passive::ml_dsa_signing::arithmetic::{name}");
+                let mut matches = Vec::new();
+                for (index, symbol) in &names {
+                    if symbol.starts_with("ed25519_yao[") && symbol.ends_with(&suffix) {
+                        matches.push((*index, *symbol));
+                    }
+                }
+                require(
+                    matches.len() == 1,
+                    &format!("Expected one final Worker function for {name}"),
+                )?;
+                selected.push((name, matches[0].0, matches[0].1));
+            }
+        }
+        Subject::SilentCorrelations => {
+            for (index, symbol) in &names {
+                if (symbol.starts_with("ed25519_yao[")
+                    && symbol.contains("::boolean_comparison::silent::"))
+                    || symbol.starts_with("cryprot_codes[")
+                    || (symbol.starts_with("aes[") && symbol.contains("::soft::fixslice::"))
+                {
+                    selected.push((*symbol, *index, *symbol));
+                }
+            }
+            let mut primitive_indices = Vec::new();
+            for (_, index, symbol) in &selected {
+                if symbol.contains("::silent::pprf::expand_level")
+                    || symbol.contains("::silent::hash")
+                {
+                    primitive_indices.push(*index);
+                }
+            }
+            // Async PPRF recovery and compression can inline into their caller.
+            // Retain those containing bodies for manual data-flow inspection.
+            for (index, body) in &bodies {
+                let mut reader = body.get_operators_reader()?;
+                let mut calls_primitive = false;
+                while !reader.eof() {
+                    if let Operator::Call { function_index } = reader.read()? {
+                        calls_primitive |= primitive_indices.contains(&function_index);
+                    }
+                }
+                if calls_primitive && !selected.iter().any(|entry| entry.1 == *index) {
+                    let symbol = names.get(index).copied().ok_or("Unnamed silent caller")?;
+                    selected.push((symbol, *index, symbol));
+                }
+            }
+            require(
+                !selected.is_empty(),
+                "Silent functions missing from final Wasm",
+            )?;
+        }
+    }
     let mut functions = Vec::new();
-    for name in PRIVATE_FUNCTIONS {
-        let suffix = format!("::passive::ml_dsa_signing::arithmetic::{name}");
-        let matches: Vec<_> = names
-            .iter()
-            .filter(|(_, symbol)| symbol.starts_with("ed25519_yao[") && symbol.ends_with(&suffix))
-            .collect();
-        require(
-            matches.len() == 1,
-            &format!("Expected exactly one final Worker function for {name}."),
-        )?;
-        let (index, symbol) = matches[0];
+    for (name, index, symbol) in selected {
         let body = bodies
-            .get(index)
-            .ok_or("Private arithmetic symbol has no Wasm body.")?;
-        let signature = &types[function_types[*index as usize] as usize];
+            .get(&index)
+            .ok_or("Selected function has no Wasm body")?;
+        let signature = &types[function_types[index as usize] as usize];
         functions.push(inspect_body(
-            bytes, body, *index, name, symbol, &names, signature,
+            bytes, body, index, name, symbol, &names, signature, subject,
         )?);
     }
     Ok(functions)
@@ -129,6 +203,7 @@ fn inspect_body(
     symbol: &str,
     names: &BTreeMap<u32, &str>,
     signature: &FuncType,
+    subject: Subject,
 ) -> InvestigationResult<Value> {
     let range = body.range();
     let mut operators = body.get_operators_reader()?;
@@ -136,6 +211,7 @@ fn inspect_body(
     let mut branches = Vec::new();
     let mut selections = Vec::new();
     let mut calls = Vec::new();
+    let mut indirect_calls = Vec::new();
     let mut instructions = Vec::new();
     let locals = body
         .get_locals_reader()?
@@ -176,18 +252,23 @@ fn inspect_body(
             Operator::CallIndirect { .. }
             | Operator::ReturnCallIndirect { .. }
             | Operator::CallRef { .. }
-            | Operator::ReturnCallRef { .. } => {
-                return Err(
-                    format!("Unresolved indirect call in private arithmetic {name}.").into(),
-                );
-            }
+            | Operator::ReturnCallRef { .. } => match subject {
+                Subject::Arithmetic => {
+                    return Err(
+                        format!("Unresolved indirect call in private arithmetic {name}.").into(),
+                    );
+                }
+                Subject::SilentCorrelations => indirect_calls.push(site),
+            },
             _ => {}
         }
     }
-    require(
-        divisions.is_empty(),
-        &format!("Division or remainder remains in final Worker {name}: {divisions:?}"),
-    )?;
+    if matches!(subject, Subject::Arithmetic) {
+        require(
+            divisions.is_empty(),
+            &format!("Division or remainder remains in final Worker {name}: {divisions:?}"),
+        )?;
+    }
     Ok(json!({
         "function": name,
         "symbol": symbol,
@@ -202,6 +283,7 @@ fn inspect_body(
         "division_or_remainder_sites": divisions,
         "conditional_branch_sites_requiring_review": branches,
         "direct_calls_requiring_review": calls,
+        "indirect_calls_requiring_review": indirect_calls,
         "value_selection_sites_requiring_target_review": selections,
     }))
 }

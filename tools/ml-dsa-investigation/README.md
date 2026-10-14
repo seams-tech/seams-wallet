@@ -12,7 +12,8 @@ The separate public recovery command accepts a fixture name.
 
 The [native research screens](research/README.md) compare silent binary triples and specialized threshold ML-DSA.
 They also reproduce the current [communication model](../../docs/router-ab/ml-dsa-65-low-communication-plan.md).
-These primitive screens do not establish hosted signing performance.
+The [implemented silent prototype](../../docs/router-ab/ml-dsa-65-silent-prototype-report.md) adds complete native and hosted profiles.
+Its single reservations can exhaust. Production pool behavior remains unimplemented.
 
 ## Run
 
@@ -403,7 +404,7 @@ API sources:
 
 ## Prepared key generation and signing
 
-The [current report](../../docs/router-ab/ml-dsa-65-resident-prepared-performance.md) records the native, local Worker, and hosted evidence.
+The [current report](../../docs/router-ab/ml-dsa-65-silent-prototype-report.md) records the native, local Worker, and hosted evidence.
 The complete prepared E2E uses separate processes, genuine OT, canonical wallet-derived keys, threshold signatures, and authorized recovery.
 It checks public samplers at all three prefixes, private commitment decomposition, strict response boundaries, and all combined-check patterns.
 Prepared Yao and packed GMW signing use fresh joint masks and private commitments.

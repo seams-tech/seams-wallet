@@ -12,6 +12,7 @@ use ed25519_yao::{
         boolean_comparison::{
             Transport,
             prepared::{BatchMetrics, prepare_batch},
+            silent::CorrelationStream,
         },
     },
     ml_dsa_signing::SigningRole,
@@ -59,8 +60,14 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         requested.push(&schedules[index]);
     }
     let mut transport = PipeTransport::new(io::stdin().lock(), io::stdout().lock());
+    let mut correlations = CorrelationStream::new(role, [0x47; 32]);
     let started = Instant::now();
-    let prepared = match run_ready(prepare_batch(role, &requested, &mut transport))? {
+    let prepared = match run_ready(prepare_batch(
+        role,
+        &requested,
+        &mut correlations,
+        &mut transport,
+    ))? {
         Ok(prepared) => prepared,
         Err(ed25519_yao::ml_dsa_runtime::RuntimeError::SessionBinding) => {
             fs::write(
