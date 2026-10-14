@@ -154,6 +154,8 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   Its recovery preview has 16 digits. Authentication methods opens directly for
   the current wallet and displays each enrolled method as its own row. Device
   inventory stays under Linked devices; methods are never a preference toggle.
+  Export keys opens shared NEAR/EVM selection; preview choices display an
+  authentication-required summary without exporting secrets.
 
 - `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
   full-page sidebar and a selected settings panel. Signed-out users authenticate

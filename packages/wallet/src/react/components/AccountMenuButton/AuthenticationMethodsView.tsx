@@ -5,12 +5,10 @@ import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 export function AuthenticationMethodsView({
   walletLabel,
   status,
-  onLinkDevice,
   children,
 }: {
   walletLabel: string;
   status: string;
-  onLinkDevice?: () => void;
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
@@ -21,11 +19,6 @@ export function AuthenticationMethodsView({
         details={[{ label: 'Status', value: status }]}
       />
       {children}
-      {onLinkDevice ? (
-        <button type="button" className="seams-account-action primary" onClick={onLinkDevice}>
-          Link a device
-        </button>
-      ) : null}
     </>
   );
 }

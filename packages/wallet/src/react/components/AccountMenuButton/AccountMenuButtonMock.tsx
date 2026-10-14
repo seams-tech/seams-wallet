@@ -6,7 +6,7 @@ import { AccountMenuMockScreens, type AccountPreviewScreen } from './AccountMenu
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { AccountMenuButtonView } from './AccountMenuButtonView';
 import { useProfileState } from './hooks/useProfileState';
-import type { AccountsSectionRow, MenuItem, ProfileSettingsMenuItemId } from './types';
+import type { AccountsSectionRow, MenuItem } from './types';
 import { GlobeIcon } from './icons/GlobeIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { KeyIcon } from './icons/KeyIcon';
@@ -23,8 +23,6 @@ export interface AccountMenuButtonMockProps {
   defaultOpen?: boolean;
   className?: string;
   style?: React.CSSProperties;
-  /** Optional preview navigation. Key export is disabled without this callback. */
-  onAction?: (action: ProfileSettingsMenuItemId) => void;
 }
 
 const accounts: AccountsSectionRow[] = [
@@ -67,13 +65,6 @@ function setDelay(
   setConfig({ uiMode: current.uiMode, behavior: current.behavior, autoProceedDelay });
 }
 
-function previewAction(
-  onAction: AccountMenuButtonMockProps['onAction'],
-  action: ProfileSettingsMenuItemId,
-): void {
-  onAction?.(action);
-}
-
 function lockPreview(
   setStatus: React.Dispatch<React.SetStateAction<'ready' | 'logged_out'>>,
   close: () => void,
@@ -103,7 +94,6 @@ function AccountMenuPreview({
   defaultOpen = true,
   className,
   style,
-  onAction,
 }: AccountMenuButtonMockProps): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
   const [status, setStatus] = useState<'ready' | 'logged_out'>('ready');
@@ -117,7 +107,6 @@ function AccountMenuPreview({
     onOpenChange: setOpen,
   });
   useEffect(resetPreviewNavigation.bind(null, isOpen, setScreen), [isOpen]);
-  const externalDisabled = onAction === undefined;
   const menuItems: MenuItem[] = [
     {
       id: 'accounts',
@@ -133,9 +122,9 @@ function AccountMenuPreview({
       icon: <KeyIcon />,
       label: 'Export keys',
       description: 'Export wallet signing keys',
-      disabled: externalDisabled,
+      disabled: false,
       keepOpenOnClick: true,
-      onClick: previewAction.bind(null, onAction, 'export-keys'),
+      onClick: setScreen.bind(null, { kind: 'export-keys' }),
     },
     {
       id: 'recovery-codes',
@@ -230,8 +219,8 @@ function AccountMenuPreview({
 }
 
 /** Provider-free interactive preview using the connected AccountMenuButton's renderer.
- * Navigation, confirmation preferences, devices, recovery preview and locking stay local. Key export
- * emits onAction; this component never opens a camera, signs, exports keys or accesses storage.
+ * Navigation, confirmation preferences, devices, recovery and export previews stay local.
+ * This component never opens a camera, signs, exports keys or accesses storage.
  */
 export function AccountMenuButtonMock(props: AccountMenuButtonMockProps): React.JSX.Element {
   return (

@@ -5,14 +5,17 @@ import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import { QRCodeScannerCamera } from '../QRCodeScannerCamera';
 import { MailIcon } from './icons/MailIcon';
+import { ExportKeysScreen } from './ExportKeysScreen';
 import { AccountsSection } from './AccountsSection';
-import type { AccountsSectionRow } from './types';
+import type { AccountsSectionRow, ExportChain } from './types';
 
 type DeviceMethods = 'passkey' | 'email_otp' | 'both';
 type PreviewDevice = { id: string; name: string; lastUsed: string; methods: DeviceMethods };
 export type AccountPreviewScreen =
   | { kind: 'overview' }
   | { kind: 'accounts' }
+  | { kind: 'export-keys' }
+  | { kind: 'export-key'; chain: ExportChain }
   | { kind: 'transactions' }
   | { kind: 'methods' }
   | { kind: 'linked' }
@@ -88,6 +91,12 @@ function MethodTiles({ methods }: { methods: DeviceMethods }): React.JSX.Element
     </ul>
   );
 }
+function selectExportKey(
+  setScreen: (screen: AccountPreviewScreen) => void,
+  chain: ExportChain,
+): void {
+  setScreen({ kind: 'export-key', chain });
+}
 function recoverySlot(value: string, index: number): React.JSX.Element {
   return <span key={index}>{value}</span>;
 }
@@ -118,6 +127,41 @@ export function AccountMenuMockScreens({
           {transactionSettings}
         </AccountMenuScreen>
       );
+    case 'export-keys':
+      return (
+        <ExportKeysScreen
+          onBack={back}
+          loadingChain={null}
+          canExportNearKey
+          canExportEvmKeys
+          onSelectChain={selectExportKey.bind(null, setScreen)}
+        />
+      );
+    case 'export-key':
+      return (
+        <AccountMenuScreen
+          title={screen.chain === 'near' ? 'Export NEAR key' : 'Export EVM keys'}
+          onBack={setScreen.bind(null, { kind: 'export-keys' })}
+        >
+          <p className="seams-account-description">
+            Your wallet requires authentication before revealing this signing key.
+          </p>
+          <dl className="seams-account-inset">
+            <div className="seams-account-detail-row">
+              <dt>Wallet</dt>
+              <dd>{walletId}</dd>
+            </div>
+            <div className="seams-account-detail-row">
+              <dt>Key type</dt>
+              <dd>{screen.chain === 'near' ? 'Ed25519' : 'ECDSA'}</dd>
+            </div>
+            <div className="seams-account-detail-row">
+              <dt>Protection</dt>
+              <dd>Authentication required</dd>
+            </div>
+          </dl>
+        </AccountMenuScreen>
+      );
     case 'accounts':
       return (
         <AccountMenuScreen title="Accounts" onBack={back}>
@@ -128,11 +172,7 @@ export function AccountMenuMockScreens({
     case 'methods':
       return (
         <AccountMenuScreen title="Authentication methods" onBack={back}>
-          <AuthenticationMethodsView
-            walletLabel={walletId}
-            status="Active"
-            onLinkDevice={setScreen.bind(null, { kind: 'scanner' })}
-          >
+          <AuthenticationMethodsView walletLabel={walletId} status="Active">
             <MethodTiles methods="both" />
           </AuthenticationMethodsView>
         </AccountMenuScreen>

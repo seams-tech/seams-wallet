@@ -43,7 +43,17 @@ try {
   page.on('pageerror', recordError.bind(null, errors));
   await page.goto(url);
   await expect(page.locator('[data-account-menu-item]')).toHaveCount(7);
-  await expect(page.locator('[data-account-menu-item="export-keys"]')).toBeDisabled();
+  await page.locator('[data-account-menu-item="export-keys"]').click();
+  await expect(page.getByRole('heading', { name: 'Export keys', exact: true })).toBeVisible();
+  await page.screenshot({ path: `${artifacts}/export-keys.png` });
+  await page.getByRole('button', { name: /Export NEAR Key/ }).click();
+  await expect(page.getByRole('heading', { name: 'Export NEAR key', exact: true })).toBeVisible();
+  await expect(page.getByText('Ed25519', { exact: true })).toBeVisible();
+  await back(page);
+  await page.getByRole('button', { name: /Export EVM Keys/ }).click();
+  await expect(page.getByText('ECDSA', { exact: true })).toBeVisible();
+  await back(page);
+  await back(page);
   await page.screenshot({ path: `${artifacts}/overview.png` });
   await page.addScriptTag({ content: sampleResize.toString() });
   await page.evaluate(recordResize);
@@ -75,7 +85,9 @@ try {
     'Width must stay fixed',
   );
   await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
-  await page.getByRole('button', { name: 'Link a device', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Link a device', exact: true })).toHaveCount(0);
+  await back(page);
+  await page.locator('[data-account-menu-item="scan-link-device"]').click();
   await expect(page.locator('.qr-scanner-camera-container')).toBeVisible();
   await expect(page.locator('video')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);

@@ -31,6 +31,7 @@ import { parseVerifiedEmailAddress } from '@shared/utils/domainIds';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { WalletSettingsLayout, WalletSettingsHeader } from './WalletSettingsLayout';
 import { AccountsSection } from './AccountsSection';
+import { ExportKeysScreen } from './ExportKeysScreen';
 import { ExportKeysSection } from './ExportKeysSection';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { HostedSeamsAuthMenu } from '../HostedSeamsAuthMenu/public';
@@ -582,18 +583,13 @@ const AccountMenuButtonInner: React.FC<
       </AccountMenuScreen>
     ),
     'export-keys': (
-      <AccountMenuScreen title="Export keys" onBack={backToMenu}>
-        <p className="seams-account-description">
-          Choose the signing key to export. Your wallet will ask you to authenticate.
-        </p>
-        <ExportKeysSection
-          isOpen
-          loadingChain={exportLoadingChain}
-          canExportNearKey={canExportNearKey}
-          canExportEvmKeys={canExportEvmKeys}
-          onSelectChain={startExportKeyFlow}
-        />
-      </AccountMenuScreen>
+      <ExportKeysScreen
+        onBack={backToMenu}
+        loadingChain={exportLoadingChain}
+        canExportNearKey={canExportNearKey}
+        canExportEvmKeys={canExportEvmKeys}
+        onSelectChain={startExportKeyFlow}
+      />
     ),
     'recovery-codes': (
       <AccountMenuScreen title="Recovery codes" onBack={backToMenu}>
@@ -619,7 +615,6 @@ const AccountMenuButtonInner: React.FC<
         isOpen
         presentation="embedded"
         onClose={backToMenu}
-        onLinkDevice={setScreen.bind(null, 'scan-link-device')}
       />
     ),
     'linked-devices': (
@@ -679,7 +674,6 @@ const AccountMenuButtonInner: React.FC<
                 isOpen
                 presentation="page"
                 onClose={remainOnSettingsPage}
-                onLinkDevice={setShowQRScanner.bind(null, true)}
               />
             ),
             'scan-link-device': (

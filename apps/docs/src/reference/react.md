@@ -70,8 +70,8 @@ view and enrollment rows. The connected menu supplies its live wallet inventory 
 authenticated actions; the preview supplies sample data. Navigation, confirmation
 preferences, device details, recovery previews, and locking use local state.
 It never creates a wallet session, signs, exports keys, requests camera access,
-or accesses wallet storage. Key export is disabled unless `onAction` supplies
-preview navigation.
+or accesses wallet storage. Export keys opens the shared key-selection screen. Its sample NEAR and EVM
+choices show an authentication-required summary.
 
 ```tsx
 import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
@@ -83,11 +83,11 @@ import '@seams/wallet/react/styles';
 Use `defaultOpen={false}` to start collapsed. All screens stay inside one panel;
 there is no overlay backdrop. The panel animates its measured height between screens,
 and respects reduced-motion preferences. Authentication methods opens directly for the current wallet, with separate
-Passkey and Email OTP rows and a Link a device action.
+Passkey and Email OTP rows. Device linking is available from the main menu.
 Transaction settings open in a separate resizing screen. The scanner is a static
 camera preview. The recovery preview contains 16 digits. Method rows display enrollment rather than selectable preferences.
 Live enrollment and removal retain authenticated SDK operations.
-`onAction` receives key-export selections; the preview never starts wallet operations.
+The preview never starts wallet operations or reveals real signing keys.
 
 `WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
 export, and transaction-preference settings. It uses the same provider and

@@ -17,7 +17,6 @@ interface AuthenticationMethodsModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly presentation?: 'modal' | 'page' | 'embedded';
-  readonly onLinkDevice?: () => void;
 }
 
 type AuthenticationMethodView = {
@@ -213,7 +212,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   isOpen,
   onClose,
   presentation = 'modal',
-  onLinkDevice,
 }) => {
   const { seams, loginState, refreshSession } = useSeams();
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
@@ -399,7 +397,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       <AuthenticationMethodsView
         walletLabel={walletId ?? 'Wallet'}
         status={inventoryStatus(loadState)}
-        onLinkDevice={onLinkDevice}
       >
         <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
           {loadState.kind === 'idle' ? (
