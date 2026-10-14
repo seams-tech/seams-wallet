@@ -19,11 +19,10 @@ use ed25519_yao::{
         SigningRole,
         keygen::{KeygenKernel, KeygenStep, begin_keygen},
     },
-    phase5_benchmark::ml_dsa_private::PrivateKernelSchedule,
 };
 use ed25519_yao_generator::{
-    MlDsaPrivateKeygenCircuitV1, compile_ml_dsa_private_rounding_circuit_v1,
-    compile_ml_dsa_private_sampling_circuit_v1, compile_ml_dsa_private_seed_circuit_v1,
+    MlDsaPrivateKeygenCircuitV1, MlDsaSamplingPrefixV1, compile_ml_dsa_private_seed_circuit_v1,
+    compile_ml_dsa_public_sampling_circuit_v1,
 };
 use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde::{Deserialize, Serialize};
@@ -37,7 +36,7 @@ use std::{
     env,
     ffi::OsStr,
     fs::{self, OpenOptions},
-    io::{self, Write},
+    io::{self, Read, Write},
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::Path,
     process::Command,
@@ -180,7 +179,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
     }
     cases.push(run_case(schedules.path(), None, Campaign::CoreEvidence)?);
     Ok(json!({
-        "scope": "Two persistent passive role processes execute one private seed circuit, eleven private sampling circuits, and six private rounding circuits over disposable test keys.",
+        "scope": "Two persistent passive role processes execute private seed expansion, adaptive public-decision samplers, and public Power2Round over disposable test keys.",
         "production_eligible": false,
         "security_limits": [
             "This is a shared-host benchmark. File permissions and process separation provide no operating-system isolation claim.",
@@ -193,8 +192,8 @@ pub(super) fn run() -> InvestigationResult<Value> {
         ],
         "implementation_source_sha256": digest(&fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/src/private_keygen.rs"))?),
         "schedule_compile_wall_ns": compile_wall_ns,
-        "compiled_unique_schedules": 3,
-        "executed_kernels_per_case": 18,
+        "compiled_unique_schedules": 4,
+        "executed_kernels_per_case": "12 normally, up to 34 with same-seed continuation",
         "schedule_identities": identities,
         "signing_schedule_identities": signing_identities,
         "material_shape_per_role": {"bytes": MATERIAL_BYTES, "seed_xor_share_bytes": 32, "k_xor_share_bytes": 32, "s1_s2_additive_residues": SECRET_POLYNOMIALS * COEFFICIENTS, "t0_additive_residues": ROWS * COEFFICIENTS, "residue_encoding": "u32 little-endian, reduced modulo 8380417", "persistence": "HPKE-authenticated role-local ciphertext. Separate disposable wrapping key and public context files. All files are deleted with the case temporary directory."},
@@ -204,7 +203,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
 }
 
 pub(super) fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Value>> {
-    let mut identities = Vec::with_capacity(3);
+    let mut identities = Vec::with_capacity(4);
     let started = Instant::now();
     let seed = compile_ml_dsa_private_seed_circuit_v1();
     identities.push(save_schedule(
@@ -215,25 +214,21 @@ pub(super) fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Val
         started,
     )?);
     drop(seed);
-    let started = Instant::now();
-    let sampling = compile_ml_dsa_private_sampling_circuit_v1();
-    identities.push(save_schedule(
-        directory,
-        "sampling.bin",
-        "expand-s-and-sampling",
-        &sampling,
-        started,
-    )?);
-    drop(sampling);
-    let started = Instant::now();
-    let rounding = compile_ml_dsa_private_rounding_circuit_v1();
-    identities.push(save_schedule(
-        directory,
-        "rounding.bin",
-        "power2round",
-        &rounding,
-        started,
-    )?);
+    for (prefix, name) in [
+        (MlDsaSamplingPrefixV1::TwoBlocks, "sampling-two-blocks"),
+        (MlDsaSamplingPrefixV1::ThreeBlocks, "sampling-three-blocks"),
+        (MlDsaSamplingPrefixV1::FinalBound, "sampling-final-bound"),
+    ] {
+        let started = Instant::now();
+        let circuit = compile_ml_dsa_public_sampling_circuit_v1(prefix);
+        identities.push(save_schedule(
+            directory,
+            &format!("{name}.bin"),
+            name,
+            &circuit,
+            started,
+        )?);
+    }
     Ok(identities)
 }
 
@@ -245,7 +240,7 @@ pub(super) fn save_schedule(
     started: Instant,
 ) -> InvestigationResult<Value> {
     let bytes = circuit.canonical_schedule_encoding();
-    PrivateKernelSchedule::parse(bytes)?;
+    let parsed = TrustedMlDsaSchedule::parse(bytes, Sha256::digest(bytes).into())?;
     fs::write(directory.join(filename), bytes)?;
     Ok(json!({
         "component": component,
@@ -253,6 +248,9 @@ pub(super) fn save_schedule(
         "schedule_bytes": bytes.len(),
         "and_gates": circuit.metrics().and_gate_count(),
         "half_gate_table_bytes": circuit.metrics().and_gate_count() * 32,
+        "garbler_input_bits": parsed.garbler_input_bits(),
+        "evaluator_input_bits": parsed.evaluator_input_bits(),
+        "public_output_bytes": parsed.public_output_bytes(),
         "component_sha256": hex::encode(circuit.benchmark_component_digest().expose_public_bytes()),
         "schedule_sha256": hex::encode(circuit.benchmark_schedule_digest().expose_public_bytes()),
         "compile_parse_and_cache_wall_ns": started.elapsed().as_nanos(),
@@ -619,8 +617,9 @@ fn run_role(
     };
     drop(input);
     drop(input_bytes);
-    let mut circuit_wall_ns = Vec::with_capacity(18);
-    let mut observations = Vec::with_capacity(18);
+    let mut circuit_wall_ns = Vec::with_capacity(12);
+    let mut observations = Vec::with_capacity(12);
+    let mut public_t_exchange = Value::Null;
     let output = loop {
         current = match current {
             KeygenStep::Circuit(request) => {
@@ -650,6 +649,25 @@ fn run_role(
                 observations.push(observation);
                 circuit_wall_ns.push(circuit_started.elapsed().as_nanos());
                 next
+            }
+            KeygenStep::OpenPublicT(opening) => {
+                let started = Instant::now();
+                let own = opening.own_message();
+                let mut peer = vec![0; own.len()];
+                match role {
+                    SigningRole::A => {
+                        writer.write_all(&own)?;
+                        writer.flush()?;
+                        reader.read_exact(&mut peer)?;
+                    }
+                    SigningRole::B => {
+                        reader.read_exact(&mut peer)?;
+                        writer.write_all(&own)?;
+                        writer.flush()?;
+                    }
+                }
+                public_t_exchange = json!({"sent_bytes": own.len(), "received_bytes": peer.len(), "wall_ns": started.elapsed().as_nanos()});
+                opening.accept(&peer)?
             }
             KeygenStep::Complete(output) => break output,
         };
@@ -697,6 +715,7 @@ fn run_role(
             "schedule_preparation_wall_ns": schedule_preparation_wall_ns,
             "role_pipeline_wall_ns_including_schedule_reads": started.elapsed().as_nanos(),
             "stages": stages,
+            "public_t_exchange": public_t_exchange,
             "wallet_seed_stage": wallet_seed_stage,
             "sealed_keygen_result": sealed_keygen_result,
         }))?,
@@ -708,8 +727,8 @@ fn verify_public_metrics(a: &Value, b: &Value) -> InvestigationResult<()> {
     let stages_a = a["stages"].as_array().ok_or("Missing A stages.")?;
     let stages_b = b["stages"].as_array().ok_or("Missing B stages.")?;
     require(
-        stages_a.len() == 18 && stages_b.len() == 18,
-        "Persistent role stage count differs from eighteen.",
+        stages_a.len() == stages_b.len() && (12..=34).contains(&stages_a.len()),
+        "Persistent role adaptive stage counts disagree.",
     )?;
     for (a, b) in stages_a.iter().zip(stages_b) {
         require(

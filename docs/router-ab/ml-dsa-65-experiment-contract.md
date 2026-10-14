@@ -36,12 +36,12 @@ The algorithm baseline needs these interpretations:
   The sheet updates the ML-DSA-65 expected attempt count to 5.14.
 
 The reviewed corrections do not change Algorithm 6's seed expansion.
-The sampler fixes each polynomial stream at 481 bytes.
-It selects the first 256 accepted coefficients in their original order and converts them into additive shares.
-It reports aggregate success or failure without exposing acceptance positions.
-Prefix exhaustion aborts the operation and destroys intermediate outputs.
-The experiment never substitutes a new seed to obtain success.
-Secure continuation for the same canonical seed remains unimplemented.
+The sampler starts with 272 SHAKE bytes and continues to 408 and 481 bytes only when required.
+Each continuation recomputes the same stream prefix with fresh masks and preprocessing.
+Public acceptance positions select the first 256 additive coefficient shares in canonical order.
+The final 481-byte exhaustion aborts and destroys incomplete state. It never replaces the seed.
+The [disclosure review](ml-dsa-65-public-keygen-review.md) permits public sampler decisions and `t0` under the passive server-blind model.
+Full `t` opens between the workers; Power2Round runs outside Yao. The wire public key remains unchanged.
 
 ## Wallet-seed recovery decision — October 14, 2026
 
@@ -180,18 +180,18 @@ The [kernel artifact](../evidence/ml-dsa-65-kernels-20261013.json) separates thr
 | --- | --- | --- |
 | Cleartext reference and hybrid composition | Canonical encodings agree with RustCrypto and OpenSSL. | The host process holds complete fixture secrets. |
 | Public half-gates benchmarks | Separate processes execute actual garbling and evaluation with bounded table frames. | Both evaluator labels transfer openly. No OT protects inputs. |
-| Private key-generation pipeline | Persistent A and B processes execute 18 kernels with genuine passive OT and private outputs. | Shared-host separation provides no operating-system isolation. Composition review remains open. |
+| Private key-generation pipeline | Persistent A and B processes execute adaptive samplers with genuine passive OT, then public Power2Round. | Shared-host separation provides no operating-system isolation. Composition review remains open. |
 
-The private pipeline reuses three distinct schedules and executes these stages for each key:
+The private pipeline uses four distinct schedules and executes these stages for each key:
 
 1. Expand the XOR-shared seed once. Publish `rho` and retain separate XOR shares of `rho_prime` and `K`.
-2. Execute eleven sampling kernels. Keep `rho_prime` shared and output masked additive coefficients for `s1` and `s2`.
+2. Execute eleven adaptive samplers. Keep `rho_prime` shared, open acceptance positions, and select private coefficient shares outside Yao.
 3. Expand public `A` and compute each share of `t = A*s1+s2` locally.
-4. Execute six rounding kernels. Publish `t1` and retain additive shares of `t0`.
+4. Open `t` and run Power2Round publicly. Encode `t0_A=t0` and `t0_B=0` in the existing additive layout.
 5. Encode the same ordinary 1,952-byte public key at both roles.
 
 Each kernel uses fresh garbling material and an execution domain.
-The private pipeline never opens complete `rho_prime` or `t`.
+The private pipeline keeps complete `rho_prime` secret. Full `t` is an explicitly permitted disclosure.
 Each role discards its `rho_prime` share after sampling.
 A samples independent uniform residue masks below `q` using fresh random bytes.
 The deterministic masks in the cleartext reference checks serve only as boundary probes.
@@ -221,7 +221,7 @@ Random masks, execution domains, the disposable seed, and timings vary between r
 ## First compatible share format
 
 The first signing baseline is general two-party computation with local linear arithmetic.
-Use uniformly masked shares, without short-share leakage or a randomness provider.
+Use uniformly masked shares for secret coefficients, without short-share leakage or a randomness provider.
 The private pipeline emits the following format into temporary role-local files.
 The format has no production persistence or protocol-compatibility approval.
 
@@ -231,7 +231,7 @@ The format has no production persistence or protocol-compatibility approval.
 | `K` | One independently masked 32-byte XOR share | `K_A XOR K_B` |
 | `s1` | Five polynomials, each with 256 uniformly masked residues | Add the two shares modulo `q = 8,380,417` |
 | `s2` | Six polynomials with the same residue representation | Add the two shares modulo `q` |
-| `t0` | Six polynomials with the same residue representation | Add the two shares modulo `q` |
+| `t0` | Six public polynomials, initially full residues at A and zeros at B | Add the two values modulo `q` |
 | `rho`, `tr`, public key | Public bytes | No secret reconstruction |
 
 A polynomial is a fixed array of coefficients in the ML-DSA ring.
@@ -245,8 +245,7 @@ The harness deletes the case directory after verification.
 This deletion provides no secure-erasure guarantee.
 
 Keep `rho_prime` inside secure computation and discard it after sampling.
-The baseline also keeps `t` private and computes its rounding securely.
-Opening `t` is a separate optimization requiring a composition argument alongside these shares.
+Open `t` under the scoped composition argument in the public-keygen review. Its rounding is public computation.
 Never expose signing masks, rejected candidates, or secret rejection checks to save communication.
 Generate each output mask independently. Consume garbled execution material once.
 

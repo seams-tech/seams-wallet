@@ -32,29 +32,28 @@ The seed circuit computes `H(xi || [6, 5], 128)` inside secure computation.
 It opens `rho` and returns XOR shares of `rho_prime` and `K`.
 See [FIPS 204, Algorithm 6](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf).
 
-Eleven sampling invocations consume the same shared `rho_prime` with public nonces zero through ten.
-Each invocation privately selects the first 256 accepted coefficients in their specified order.
-A chooses independent uniform masks in the field modulo `q`.
-B receives the sampled coefficients minus those masks.
-An individual role's resulting polynomial shares therefore have the uniform marginal distribution required by the intended sharing contract.
+The [public-keygen review](ml-dsa-65-public-keygen-review.md) now permits public sampler decisions and full `t` under the accepted passive model.
+Eleven samplers consume the shared `rho_prime` with public nonces zero through ten.
+Each starts with 272 bytes and recomputes the same prefix at 408 and 481 bytes only when needed.
+Each circuit opens acceptance bits and gives A and B independent additive shares for all candidate coefficients.
+Both roles select the first 256 accepted positions outside the circuit using the public bitmap.
+A draws new uniform masks per candidate and branch. Discarded candidates and masks are wiped.
 
-Each role computes its share of `A*s1+s2` locally.
-This computation is linear over the field and uses a public matrix.
-Six rounding invocations open `t1` and return newly masked additive shares of `t0`.
-The opened `rho` and `t1` comprise the ordinary public key.
-The rounding outputs reuse neither the sample masks nor one another's masks.
+Each role computes its share of `t = A*s1+s2` locally, then exchanges it through the ordered role channel.
+The roles reconstruct public `t` and execute canonical Power2Round outside Yao.
+The peer t-share is determined by public `t` and the receiver's own share, so it adds no independent equation.
+The ordinary public key remains `(rho,t1)`. The newly public `t0` remains outside that wire encoding.
 
-The bounded sampler opens one success bit per polynomial.
-Prefix exhaustion aborts generation and destroys incomplete state.
-That event belongs in the permitted leakage and failure contract.
-The implementation does not replace the seed after exhaustion.
-Same-seed secure continuation remains open.
+Final exhaustion at 481 bytes aborts without replacing the seed. Earlier exhaustion continues with the same seed and nonce.
+Every possible branch is prepared independently before admission. Unused branches are discarded when the reservation ends.
+Repeated recovery preserves the canonical key and uses fresh masks and preprocessing.
+The public bitmaps are deterministic seed fingerprints. Their protection is computational under the random-oracle assumption.
 
-The resulting role material contains one seed share, one `K` share, and seventeen uniformly shared polynomials.
-Its encoded size is 17,472 bytes per role.
-Neither normal role holds the complete seed or expanded key.
-Correctness evidence compares every reconstructed private field with an independent ordinary implementation after threshold signing.
-This reconstruction occurs only in the disposable test recipient.
+The material layout remains 17,472 bytes per role.
+It contains one seed share, one `K` share, eleven uniformly shared secret polynomials, and six additively encoded public `t0` polynomials.
+A initially stores `t0`; B stores zeros. Refresh can randomize that public sharing without changing the key.
+Neither normal role holds the complete seed, secret coefficient vectors, or expanded private key.
+The disposable recipient verifies every reconstructed private field against the ordinary implementation after threshold signing.
 
 ## Wallet-derived seed composition
 

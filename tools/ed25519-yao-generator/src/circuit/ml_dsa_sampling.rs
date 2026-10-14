@@ -2,8 +2,8 @@ use core::fmt;
 
 use super::ir::{BuilderBit, CanonicalBooleanCircuitV1, CircuitBuilder};
 use super::ml_dsa_arithmetic::{
-    add_bits, add_conditional_modulus, or_bits, select_bit, subtract_bits, MODULUS, RESIDUE_BITS,
-    ZERO,
+    MODULUS, RESIDUE_BITS, ZERO, add_bits, add_conditional_modulus, or_bits, select_bit,
+    subtract_bits,
 };
 use super::schedule::CanonicalLivenessScheduleV1;
 use super::{
@@ -281,7 +281,7 @@ fn merge_compacted_nibbles(
     }
 }
 
-fn coefficient_residue(builder: &mut CircuitBuilder, nibble: Nibble) -> Vec<BuilderBit> {
+pub(super) fn coefficient_residue(builder: &mut CircuitBuilder, nibble: Nibble) -> Vec<BuilderBit> {
     let four = [ZERO, ZERO, BuilderBit::Constant(true), ZERO];
     let (mut signed_coefficient, negative) = subtract_bits(builder, &four, &nibble);
     signed_coefficient.resize(RESIDUE_BITS, negative);

@@ -5,7 +5,9 @@ Preprocessing is permitted. Wallet-seed recovery remains required.
 The [preprocessing prototype](ml-dsa-65-preprocessing-report.md) records the current experiment and its limits.
 The first [hosted prepared run](ml-dsa-65-prepared-hosted-report.md) misses the deadline: 12.65 seconds median across seven measured requests.
 The controlled larger-read follow-up records an 11.57-second median and seven further misses. Its mean does not improve.
-The canonical wallet-seed recovery identities remain correct. Smaller circuits require review and a new hosted measurement.
+The [public-keygen review and implementation](ml-dsa-65-public-keygen-performance.md) reduce normal online work to 1.30 million AND gates.
+The hosted reduced protocol records 7.82 seconds median, including a real continuation case. All eight measured requests still miss five seconds.
+The canonical wallet-seed recovery identities remain correct. Bounded table read-ahead is the next controlled measurement.
 Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
 Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery and native custody completion now pass separate-role host E2E checks. Production integration remains open.
 Starting source and research review: 2026-10-05.

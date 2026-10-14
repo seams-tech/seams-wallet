@@ -542,7 +542,7 @@ fn random_bytes(bytes: &mut [u8]) -> Result<()> {
     getrandom::getrandom(bytes).map_err(|_| SigningError::Randomness)
 }
 
-fn fill_uniform(polynomial: &mut Polynomial) -> Result<()> {
+fn fill_uniform(polynomial: &mut [u32]) -> Result<()> {
     for coefficient in polynomial {
         loop {
             let mut bytes = [0; 4];

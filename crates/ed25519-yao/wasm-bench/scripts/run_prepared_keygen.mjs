@@ -128,7 +128,7 @@ async function roleMain(args) {
   };
   globalThis.preparedHost = { send, receive, store, load, phase };
   const buffers = [];
-  for (const name of ['wallet-seed', 'seed', 'sampling', 'rounding']) {
+  for (const name of ['wallet-seed', 'seed', 'sampling-two-blocks', 'sampling-three-blocks', 'sampling-final-bound']) {
     buffers.push(await readFile(join(schedules, `${name}.bin`)));
   }
   const ownRoot = await readFile(input);
@@ -212,8 +212,8 @@ async function runCase(directory, schedules, index, rttMs, expectedKey) {
     assert.equal(bReport[phase].sent_bytes, aReport[phase].received_bytes);
     assert.equal(aReport[phase].sent_messages, bReport[phase].received_messages);
   }
-  assert.equal(aReport.online.sent_messages, 19);
-  assert.equal(bReport.online.sent_messages, 38);
+  assert(aReport.online.sent_messages >= 14 && aReport.online.sent_messages <= 36);
+  assert.equal(bReport.online.sent_messages, 2 * (aReport.online.sent_messages - 1) + 1);
   console.error(
     `Prepared keygen Wasm case ${index}, injected RTT ${rttMs} ms: B online ${bReport.online_ms.toFixed(1)} ms`,
   );

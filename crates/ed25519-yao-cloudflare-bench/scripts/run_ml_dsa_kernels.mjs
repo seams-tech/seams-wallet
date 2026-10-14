@@ -12,7 +12,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WALLET_ROOT = resolve(ROOT, "../..");
 const REQUIRE = createRequire(import.meta.url);
 const KERNELS = ["seed", "sampling", "rounding", "signing-mask", "keygen-fixture", "keygen-joint", "threshold-fixture", "threshold-joint"];
-const SCHEDULES = ["seed", "sampling", "rounding", "signing-seed", "signing-mask", "commitment-high", "commitment-hash", "response-check", "row-check", "aggregate-check"];
+const SCHEDULES = ["seed", "sampling", "rounding", "sampling-two-blocks", "sampling-three-blocks", "sampling-final-bound", "signing-seed", "signing-mask", "commitment-high", "commitment-hash", "response-check", "row-check", "aggregate-check"];
 const SOURCES = [
   "src/ml_dsa.rs",
   "src/ml_dsa/pipeline.rs",
@@ -180,7 +180,7 @@ function assertRole(role, expectedRole, kernel, runId) {
   assert.match(role.schedule_sha256, /^[a-f0-9]{64}$/);
   assert.equal(role.transport.credit_window_messages, 8);
   assert(role.transport.largest_pending_messages <= 8);
-  assert(role.transport.largest_runtime_message_bytes <= 376_880);
+  assert(role.transport.largest_runtime_message_bytes <= 378_880);
   assert.equal(Object.hasOwn(role, "output"), false);
   assert.equal(Object.hasOwn(role, "output_hex"), false);
 }
@@ -225,6 +225,21 @@ function standardKey(bytes) {
   return createPublicKey({ key: Buffer.concat([prefix, bytes]), type: "spki", format: "der" });
 }
 
+function keygenCalls(role) {
+  const calls = { seed: 1, "sampling-two-blocks": 11, "public-power2round": 1 };
+  for (const name of ["sampling-three-blocks", "sampling-final-bound"]) {
+    const entry = role.runtime.per_kernel.find(kernelNameMatches.bind(null, name));
+    if (entry) {
+      assert(Number.isInteger(entry.calls) && entry.calls >= 1 && entry.calls <= 11);
+      calls[name] = entry.calls;
+    }
+  }
+  assert((calls["sampling-final-bound"] ?? 0) <= (calls["sampling-three-blocks"] ?? 0));
+  return calls;
+}
+function kernelNameMatches(name, entry) {
+  return entry.kernel === name;
+}
 function assertKernelResources(role, expectedCalls, schedules) {
   const observed = new Set();
   let circuitCount = 0;
@@ -233,8 +248,14 @@ function assertKernelResources(role, expectedCalls, schedules) {
     assert.equal(observed.has(kernel.kernel), false);
     observed.add(kernel.kernel);
     assert.equal(kernel.calls, expectedCalls[kernel.kernel]);
-    assert.equal(kernel.table_bytes, schedules[kernel.kernel].table_bytes * kernel.calls);
-    circuitCount += kernel.calls;
+    if (kernel.kernel === "public-power2round") {
+      assert.equal(kernel.table_bytes, 0);
+      assert.equal(kernel.a_to_b_wire_bytes, 6185);
+      assert.equal(kernel.b_to_a_wire_bytes, 6185);
+    } else {
+      assert.equal(kernel.table_bytes, schedules[kernel.kernel].table_bytes * kernel.calls);
+      circuitCount += kernel.calls;
+    }
     tableBytes += kernel.table_bytes;
   }
   assert.deepEqual([...observed].sort(), Object.keys(expectedCalls).sort());
@@ -261,9 +282,7 @@ function assertThresholdRole(role, expectedRole, kernel, runId, schedules) {
   assert.equal(role.retry_count, role.attempts - 1);
   assert.equal(role.challenge_hashes_hex.length, role.attempts);
   assertKernelResources(role, {
-    seed: 1,
-    sampling: 11,
-    rounding: 6,
+    ...keygenCalls(role),
     "signing-seed": 1,
     "signing-mask": 5 * role.attempts,
     "commitment-high": 6 * role.attempts,
@@ -277,7 +296,7 @@ function assertThresholdRole(role, expectedRole, kernel, runId, schedules) {
   assert.equal(role.runtime.signature_return_bytes, 3309);
   assert.equal(role.transport.credit_window_messages, 8);
   assert(role.transport.largest_pending_messages <= 8);
-  assert(role.transport.largest_runtime_message_bytes <= 376_880);
+  assert(role.transport.largest_runtime_message_bytes <= 378_880);
   assert(Number.isInteger(role.wasm_linear_memory_highwater_bytes));
   assert(role.wasm_linear_memory_highwater_bytes > 0);
   for (const name of ["seed", "seed_hex", "own_material", "private_key", "output", "output_hex"]) {
@@ -355,13 +374,13 @@ function assertKeygenReport(report, kernel, runId, fixture, schedules) {
     assert.equal(role.public_fixture_only, kernel === "keygen-fixture");
     assert.equal(role.public_key_hex.length, 1952 * 2);
     assert.equal(role.own_material_bytes, 17_472);
-    assertKernelResources(role, { seed: 1, sampling: 11, rounding: 6 }, schedules);
+    assertKernelResources(role, keygenCalls(role), schedules);
     assert.equal(role.runtime.accepted_share_bytes, 0);
     assert.equal(role.runtime.binding_bytes_per_direction, 0);
     assert.equal(role.runtime.signature_return_bytes, 0);
     assert.equal(role.transport.credit_window_messages, 8);
     assert(role.transport.largest_pending_messages <= 8);
-    assert(role.transport.largest_runtime_message_bytes <= 376_880);
+    assert(role.transport.largest_runtime_message_bytes <= 378_880);
     assert(Number.isInteger(role.wasm_linear_memory_highwater_bytes));
     assert(role.wasm_linear_memory_highwater_bytes > 0);
     for (const name of ["seed", "seed_hex", "own_material", "private_key", "output", "output_hex", "signature_hex"]) {

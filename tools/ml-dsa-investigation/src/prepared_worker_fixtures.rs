@@ -22,27 +22,33 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<()> {
     let mut a = Vec::new();
     let mut b = Vec::new();
     let mut public = Vec::new();
-    for index in 0..8 {
+    let continuation_seed = find_continuation_seed()?;
+    for index in 0..9 {
         let wallet_id = if index == 7 {
             "prepared-other-wallet"
         } else {
             "prepared-wallet-fixture"
         };
         let key_id = "near-ml-dsa-65";
-        let seed = if index == 6 { [1u8; 32] } else { [0u8; 32] };
+        let seed = match index {
+            6 => [1u8; 32],
+            8 => continuation_seed,
+            _ => [0u8; 32],
+        };
         let binding = compute_ml_dsa65_application_binding_digest_v1(wallet_id, key_id)?;
         let root = derive_ml_dsa65_owner_root_from_seed_v1(&seed, &binding)?;
         let mut share_a = Zeroizing::new([0u8; 32]);
         getrandom::getrandom(share_a.as_mut())?;
         let mut share_b = Zeroizing::new(*root);
-        for bit in 0..32 {
-            share_b[bit] ^= share_a[bit];
+        for index in 0..32 {
+            share_b[index] ^= share_a[index];
         }
         let mut encoded = b"seams/ml-dsa-65/canonical-seed/v1".to_vec();
         encoded.extend_from_slice(root.as_ref());
         let xi: [u8; 32] = reference_shake256(&encoded, 32)
             .try_into()
             .expect("fixed seed");
+        let sampler_prefixes = sampler_prefixes(&xi)?;
         let pair = SigningKey::<MlDsa65>::from_seed(&xi.into());
         let public_key: [u8; 1952] = pair.verifying_key().encode().as_slice().try_into()?;
         let manifest =
@@ -53,7 +59,7 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<()> {
             })?;
         let record = json!({"index": index, "wallet_id": wallet_id, "signing_key_id": key_id,
             "public_key_hex": hex::encode(public_key), "key_manifest_digest_hex": hex::encode(manifest.digest()),
-            "application_binding_digest_hex": hex::encode(binding)});
+            "application_binding_digest_hex": hex::encode(binding), "sampler_prefix_bytes": sampler_prefixes});
         let mut own_a = record.clone();
         own_a["own_root_share_hex"] = json!(hex::encode(share_a.as_ref()));
         let mut own_b = record.clone();
@@ -75,4 +81,50 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<()> {
         )?;
     }
     Ok(())
+}
+
+fn sampler_prefixes(xi: &[u8; 32]) -> InvestigationResult<Vec<usize>> {
+    let mut seed_message = xi.to_vec();
+    seed_message.extend_from_slice(&[6, 5]);
+    let expanded = reference_shake256(&seed_message, 128);
+    let mut result = Vec::with_capacity(11);
+    for nonce in 0_u16..11 {
+        let mut message = expanded[32..96].to_vec();
+        message.extend_from_slice(&nonce.to_le_bytes());
+        let stream = reference_shake256(&message, 481);
+        let prefix = [272, 408, 481]
+            .into_iter()
+            .find(|length| {
+                stream[..*length]
+                    .iter()
+                    .map(|byte| usize::from(byte & 15 < 9) + usize::from(byte >> 4 < 9))
+                    .sum::<usize>()
+                    >= 256
+            })
+            .ok_or("Disposable fixture exhausted the FIPS sampler cap")?;
+        result.push(prefix);
+    }
+    Ok(result)
+}
+
+// Search only known public fixtures. This never handles a real wallet seed.
+fn find_continuation_seed() -> InvestigationResult<[u8; 32]> {
+    let binding = compute_ml_dsa65_application_binding_digest_v1(
+        "prepared-wallet-fixture",
+        "near-ml-dsa-65",
+    )?;
+    for counter in 2_u64..1_000_000 {
+        let mut seed = [0; 32];
+        seed[..8].copy_from_slice(&counter.to_le_bytes());
+        let root = derive_ml_dsa65_owner_root_from_seed_v1(&seed, &binding)?;
+        let mut message = b"seams/ml-dsa-65/canonical-seed/v1".to_vec();
+        message.extend_from_slice(root.as_ref());
+        let xi: [u8; 32] = reference_shake256(&message, 32)
+            .try_into()
+            .expect("fixed seed");
+        if sampler_prefixes(&xi)?.contains(&408) {
+            return Ok(seed);
+        }
+    }
+    Err("No public continuation fixture found within the search bound".into())
 }

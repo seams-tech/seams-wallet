@@ -4,58 +4,90 @@ use core::fmt;
 use zeroize::{Zeroize, Zeroizing};
 
 use super::arithmetic::{
-    encode_public_key, expand_a, matrix_product_plus_error, ntt_twiddles, Polynomial, SecretVector,
-    COLUMNS, N, ROWS,
+    add_mod, encode_public_key, expand_a, matrix_product_plus_error, ntt_twiddles, subtract_mod,
+    Polynomial, SecretVector, COLUMNS, N, Q, ROWS,
 };
 use super::{
-    append_bytes, append_polynomial, append_word, decode_polynomial, fill_uniform, CircuitMetrics,
-    SigningRole, MATERIAL_BYTES, PUBLIC_KEY_BYTES,
+    append_bytes, append_word, fill_uniform, CircuitMetrics, SigningRole, MATERIAL_BYTES,
+    PUBLIC_KEY_BYTES,
 };
 use crate::passive::ml_dsa_runtime::{
     begin_evaluator, begin_garbler, RuntimeOutput, Step, TrustedMlDsaSchedule,
 };
 
-/// Fixed canonical key-generation circuit set.
+/// Public prefix choice. Only the final bound can terminate with exhaustion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SamplingPrefix {
+    /// Two SHAKE blocks, sufficient for almost every polynomial.
+    TwoBlocks,
+    /// Same stream extended through three blocks.
+    ThreeBlocks,
+    /// Same stream extended through the FIPS 481-byte cap.
+    FinalBound,
+}
+impl SamplingPrefix {
+    /// Canonical byte count, always from the start of the same stream.
+    pub const fn bytes(self) -> usize {
+        match self {
+            Self::TwoBlocks => 272,
+            Self::ThreeBlocks => 408,
+            Self::FinalBound => 481,
+        }
+    }
+    const fn public_bits(self) -> usize {
+        (self.bytes() * 2).div_ceil(8) * 8
+    }
+    fn next(self) -> Result<Self> {
+        match self {
+            Self::TwoBlocks => Ok(Self::ThreeBlocks),
+            Self::ThreeBlocks => Ok(Self::FinalBound),
+            Self::FinalBound => Err(KeygenError::SamplerPrefix),
+        }
+    }
+}
+
+/// Canonical seed expansion and adaptive public-decision samplers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeygenKernel {
     /// XOR seed shares to public rho and masked rho-prime/K outputs.
     Seed,
-    /// Shared rho-prime and public nonce to masked eta=4 samples.
-    Sampling,
-    /// Shared A*s1+s2 to public high bits and masked low bits.
-    Rounding,
+    /// Shared rho-prime to public decisions and private candidate shares.
+    Sampling(SamplingPrefix),
 }
-
 impl KeygenKernel {
-    /// All key-generation schedules, loaded once per operation.
-    pub const ALL: [Self; 3] = [Self::Seed, Self::Sampling, Self::Rounding];
-
-    /// Returns the public schedule filename stem.
+    /// All schedules, including both prepared continuation branches.
+    pub const ALL: [Self; 4] = [
+        Self::Seed,
+        Self::Sampling(SamplingPrefix::TwoBlocks),
+        Self::Sampling(SamplingPrefix::ThreeBlocks),
+        Self::Sampling(SamplingPrefix::FinalBound),
+    ];
+    /// Public schedule filename stem.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Seed => "seed",
-            Self::Sampling => "sampling",
-            Self::Rounding => "rounding",
+            Self::Sampling(SamplingPrefix::TwoBlocks) => "sampling-two-blocks",
+            Self::Sampling(SamplingPrefix::ThreeBlocks) => "sampling-three-blocks",
+            Self::Sampling(SamplingPrefix::FinalBound) => "sampling-final-bound",
         }
     }
-
-    /// Returns the only admitted circuit identifier.
+    /// Exact circuit identifier admitted for this transition.
     pub const fn circuit_id(self) -> u8 {
         match self {
             Self::Seed => 0x87,
-            Self::Sampling => 0x88,
-            Self::Rounding => 0x89,
+            Self::Sampling(SamplingPrefix::TwoBlocks) => 0x93,
+            Self::Sampling(SamplingPrefix::ThreeBlocks) => 0x94,
+            Self::Sampling(SamplingPrefix::FinalBound) => 0x95,
         }
     }
-
     const fn output_bits(self, role: SigningRole) -> usize {
         match (self, role) {
             (Self::Seed, SigningRole::A) => 256,
             (Self::Seed, SigningRole::B) => 1024,
-            (Self::Sampling, SigningRole::A) => 1,
-            (Self::Sampling, SigningRole::B) => 5889,
-            (Self::Rounding, SigningRole::A) => 2560,
-            (Self::Rounding, SigningRole::B) => 8448,
+            (Self::Sampling(prefix), SigningRole::A) => prefix.public_bits(),
+            (Self::Sampling(prefix), SigningRole::B) => {
+                prefix.public_bits() + prefix.bytes() * 2 * 23
+            }
         }
     }
 }
@@ -90,9 +122,9 @@ type Result<T> = core::result::Result<T, KeygenError>;
 pub struct KeygenOutput {
     /// Ordinary FIPS ML-DSA-65 public-key bytes.
     pub public_key: [u8; PUBLIC_KEY_BYTES],
-    /// Only this role's seed, K, s1, s2, and t0 shares. Wiped when dropped.
+    /// This role's seed/K/s1/s2 shares and additive public t0 encoding. Wiped on drop.
     pub own_material: Zeroizing<Vec<u8>>,
-    /// Public measurements for all eighteen circuit invocations.
+    /// Public measurements for the circuits actually evaluated.
     pub circuits: Vec<(KeygenKernel, usize, CircuitMetrics)>,
 }
 
@@ -100,8 +132,70 @@ pub struct KeygenOutput {
 pub enum KeygenStep {
     /// Execute one private circuit with this role's inputs.
     Circuit(KeygenCircuit),
+    /// Open t and perform canonical Power2Round outside secure computation.
+    OpenPublicT(KeygenPublicT),
     /// The canonical public key and this role's private material are complete.
     Complete(Box<KeygenOutput>),
+}
+
+/// Consuming opening of the permitted public t vector on the ordered role channel.
+pub struct KeygenPublicT {
+    machine: Box<Machine>,
+}
+impl KeygenPublicT {
+    /// Exactly this role's t share with a phase, role, and public-rho binding.
+    pub fn own_message(&self) -> Zeroizing<Vec<u8>> {
+        let mut message = Zeroizing::new(Vec::with_capacity(41 + ROWS * N * 4));
+        message.extend_from_slice(b"MLDSAT01");
+        message.push(match self.machine.role {
+            SigningRole::A => 0,
+            SigningRole::B => 1,
+        });
+        message.extend_from_slice(&self.machine.rho);
+        for polynomial in &self.machine.private.t {
+            for value in polynomial {
+                message.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+        message
+    }
+    /// Reconstructs public t, rounds it, and keeps the standard public-key format.
+    pub fn accept(mut self, peer: &[u8]) -> Result<KeygenStep> {
+        let peer_role = match self.machine.role {
+            SigningRole::A => 1,
+            SigningRole::B => 0,
+        };
+        if peer.len() != 41 + ROWS * N * 4
+            || &peer[..8] != b"MLDSAT01"
+            || peer[8] != peer_role
+            || peer[9..41] != self.machine.rho
+        {
+            return Err(KeygenError::CircuitOutput);
+        }
+        for row in 0..ROWS {
+            for index in 0..N {
+                let offset = 41 + (row * N + index) * 4;
+                let value = u32::from_le_bytes(
+                    peer[offset..offset + 4]
+                        .try_into()
+                        .map_err(|_| KeygenError::CircuitOutput)?,
+                );
+                if value >= Q {
+                    return Err(KeygenError::CircuitOutput);
+                }
+                let t = add_mod(self.machine.private.t[row][index], value);
+                let high = (t + 4095) >> 13;
+                self.machine.t1[row][index] = high;
+                self.machine.private.t0[row][index] = match self.machine.role {
+                    SigningRole::A => subtract_mod(t, high << 13),
+                    SigningRole::B => 0,
+                };
+            }
+        }
+        self.machine.private.t.zeroize();
+        self.machine.stage = Stage::Complete;
+        self.machine.next()
+    }
 }
 
 /// A consuming request for one private key-generation circuit.
@@ -211,6 +305,7 @@ struct PrivateMaterial {
     rho_prime: [u8; 64],
     k: [u8; 32],
     samples: SecretVector,
+    candidate_masks: Vec<u32>,
     t: [Polynomial; ROWS],
     t0: [Polynomial; ROWS],
 }
@@ -218,8 +313,11 @@ struct PrivateMaterial {
 #[derive(Clone, Copy)]
 enum Stage {
     Seed,
-    Sampling(usize),
-    Rounding(usize),
+    Sampling {
+        index: usize,
+        prefix: SamplingPrefix,
+    },
+    OpenT,
     Complete,
 }
 
@@ -242,13 +340,14 @@ pub fn begin_keygen(role: SigningRole, own_seed_share: &[u8; 32]) -> Result<Keyg
             rho_prime: [0; 64],
             k: [0; 32],
             samples: [[0; N]; COLUMNS + ROWS],
+            candidate_masks: Vec::new(),
             t: [[0; N]; ROWS],
             t0: [[0; N]; ROWS],
         }),
         rho: [0; 32],
         t1: [[0; N]; ROWS],
         stage: Stage::Seed,
-        circuits: Vec::with_capacity(18),
+        circuits: Vec::with_capacity(12),
     })
     .next()
 }
@@ -269,24 +368,20 @@ impl Machine {
                 }
                 (KeygenKernel::Seed, 0)
             }
-            Stage::Sampling(index) => {
+            Stage::Sampling { index, prefix } => {
                 append_bytes(&mut input, &self.private.rho_prime);
                 if self.role == SigningRole::A {
-                    fill_uniform(&mut self.private.samples[index])
+                    self.private.candidate_masks.resize(prefix.bytes() * 2, 0);
+                    fill_uniform(&mut self.private.candidate_masks)
                         .map_err(|_| KeygenError::Randomness)?;
-                    append_polynomial(&mut input, &self.private.samples[index]);
+                    for value in &self.private.candidate_masks {
+                        append_word(&mut input, *value, 23);
+                    }
                     append_word(&mut input, index as u32, 16);
                 }
-                (KeygenKernel::Sampling, index)
+                (KeygenKernel::Sampling(prefix), index)
             }
-            Stage::Rounding(row) => {
-                append_polynomial(&mut input, &self.private.t[row]);
-                if self.role == SigningRole::A {
-                    fill_uniform(&mut self.private.t0[row]).map_err(|_| KeygenError::Randomness)?;
-                    append_polynomial(&mut input, &self.private.t0[row]);
-                }
-                (KeygenKernel::Rounding, row)
-            }
+            Stage::OpenT => return Ok(KeygenStep::OpenPublicT(KeygenPublicT { machine: self })),
             Stage::Complete => {
                 let public_key = encode_public_key(&self.rho, &self.t1)
                     .map_err(|_| KeygenError::CircuitOutput)?;
@@ -321,45 +416,62 @@ impl Machine {
                     self.private.rho_prime.copy_from_slice(&output[32..96]);
                     self.private.k.copy_from_slice(&output[96..128]);
                 }
-                Stage::Sampling(0)
+                Stage::Sampling {
+                    index: 0,
+                    prefix: SamplingPrefix::TwoBlocks,
+                }
             }
-            Stage::Sampling(index) => {
-                if output[0] & 1 != 1 {
-                    return Err(KeygenError::SamplerPrefix);
+            Stage::Sampling { index, prefix } => {
+                let count = prefix.bytes() * 2;
+                // Padding separates public bitmap bytes from private output bits.
+                if !count.is_multiple_of(8) && output[count / 8] >> (count % 8) != 0 {
+                    return Err(KeygenError::CircuitOutput);
                 }
-                if self.role == SigningRole::B {
-                    self.private.samples[index] =
-                        decode_polynomial(output, 1).map_err(|_| KeygenError::CircuitOutput)?;
+                let mut selected = 0;
+                for candidate in 0..count {
+                    let accepted = output[candidate / 8] >> (candidate % 8) & 1 == 1;
+                    if accepted && selected < N {
+                        let value = match self.role {
+                            SigningRole::A => self.private.candidate_masks[candidate],
+                            SigningRole::B => {
+                                let offset = prefix.public_bits() + candidate * 23;
+                                let mut value = 0;
+                                for bit in 0..23 {
+                                    value |= u32::from(
+                                        (output[(offset + bit) / 8] >> ((offset + bit) % 8)) & 1,
+                                    ) << bit;
+                                }
+                                if value >= Q {
+                                    return Err(KeygenError::CircuitOutput);
+                                }
+                                value
+                            }
+                        };
+                        self.private.samples[index][selected] = value;
+                        selected += 1;
+                    }
                 }
-                if index + 1 == COLUMNS + ROWS {
+                self.private.candidate_masks.zeroize();
+                if selected != N {
+                    self.private.samples[index].zeroize();
+                    Stage::Sampling {
+                        index,
+                        prefix: prefix.next()?,
+                    }
+                } else if index + 1 == COLUMNS + ROWS {
                     self.private.rho_prime.zeroize();
                     let (matrix, _) = expand_a(&self.rho);
                     self.private.t =
                         matrix_product_plus_error(&matrix, &self.private.samples, &ntt_twiddles());
-                    Stage::Rounding(0)
+                    Stage::OpenT
                 } else {
-                    Stage::Sampling(index + 1)
-                }
-            }
-            Stage::Rounding(row) => {
-                for index in 0..N {
-                    let mut value = 0;
-                    for bit in 0..10 {
-                        let position = index * 10 + bit;
-                        value |= u32::from((output[position / 8] >> (position % 8)) & 1) << bit;
+                    Stage::Sampling {
+                        index: index + 1,
+                        prefix: SamplingPrefix::TwoBlocks,
                     }
-                    self.t1[row][index] = value;
-                }
-                if self.role == SigningRole::B {
-                    self.private.t0[row] = decode_polynomial(output, N * 10)
-                        .map_err(|_| KeygenError::CircuitOutput)?;
-                }
-                if row + 1 == ROWS {
-                    Stage::Complete
-                } else {
-                    Stage::Rounding(row + 1)
                 }
             }
+            Stage::OpenT => return Err(KeygenError::CircuitOutput),
             Stage::Complete => return Err(KeygenError::CircuitOutput),
         };
         Ok(())

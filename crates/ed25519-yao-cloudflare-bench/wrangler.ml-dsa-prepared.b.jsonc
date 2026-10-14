@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "ml-dsa-prepared-20261014-b",
+  "name": "ml-dsa-public-20261014-b",
   "main": "build/ml-dsa-b/index.js",
   "compatibility_date": "2026-07-02",
   "workers_dev": false,
@@ -19,7 +19,7 @@
   "r2_buckets": [
     {
       "binding": "PREPARED_TABLES",
-      "bucket_name": "ml-dsa-prepared-20261014-tables"
+      "bucket_name": "ml-dsa-public-20261014-tables"
     }
   ]
 }

@@ -17,7 +17,7 @@ function parseOptions() {
     endpoint: '',
     secretsFile: '',
     output: '',
-    indices: [0, 1, 2, 3, 4, 5, 6, 7],
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8],
   };
   while (args.length) {
     const argument = args.shift();
@@ -50,7 +50,7 @@ function parseOptions() {
   return options;
 }
 function validIndex(index) {
-  return Number.isInteger(index) && index >= 0 && index < 8;
+  return Number.isInteger(index) && index >= 0 && index < 9;
 }
 async function localRuntime(token) {
   const { Miniflare, Log, LogLevel } = await import('miniflare');
@@ -82,7 +82,19 @@ async function localRuntime(token) {
   });
   return { runtime, endpoint: String(await runtime.ready) };
 }
-function checkReport(report, fixture) {
+function tableBytes(schedule) {
+  return schedule.half_gate_table_bytes + 8 * Math.ceil(schedule.half_gate_table_bytes / 65536);
+}
+function expectedCircuits(fixture) {
+  const circuits = [{ name: 'seed', ordinal: 0 }];
+  for (const [ordinal, prefix] of fixture.sampler_prefix_bytes.entries()) {
+    circuits.push({ name: 'sampling-two-blocks', ordinal });
+    if (prefix >= 408) circuits.push({ name: 'sampling-three-blocks', ordinal });
+    if (prefix === 481) circuits.push({ name: 'sampling-final-bound', ordinal });
+  }
+  return circuits;
+}
+function checkReport(report, fixture, schedules) {
   assert.equal(report.type, 'complete');
   for (const role of ['a', 'b']) {
     const value = report.roles[role];
@@ -99,15 +111,42 @@ function checkReport(report, fixture) {
     assert.equal(b[phase].sent_bytes, a[phase].received_bytes);
     assert.equal(a[phase].sent_messages, b[phase].received_messages);
   }
-  assert.equal(a.online.sent_messages, 20);
-  assert.equal(b.online.sent_messages, 38);
-  assert.equal(a.online.sent_bytes + b.online.sent_bytes, 3620367);
-  assert.equal(b.table_storage.objects_written, 19);
-  assert.equal(b.table_storage.objects_read, 19);
-  assert.equal(b.table_storage.table_bytes_read, 113514952);
-  assert.equal(b.table_storage.table_bytes_read, b.table_storage.table_bytes_written);
+  const circuits = expectedCircuits(fixture);
+  assert.deepEqual(a.executed_circuits, circuits);
+  assert.deepEqual(b.executed_circuits, circuits);
+  const online = [{ name: 'wallet-seed', ordinal: 0 }, ...circuits];
+  let aBytes = 4 + 6185;
+  let bBytes = 6185;
+  let readBytes = 0;
+  for (const circuit of online) {
+    const schedule = schedules.find(matchesSchedule.bind(null, circuit.name));
+    assert(schedule);
+    aBytes += 32 + 16 * schedule.garbler_input_bits + 32 * schedule.evaluator_input_bits;
+    bBytes += 64 + schedule.evaluator_input_bits / 8 + schedule.public_output_bytes;
+    readBytes += tableBytes(schedule);
+  }
+  let storedBytes = 0;
+  for (const schedule of schedules) {
+    const count = schedule.schedule_filename.startsWith('sampling-') ? 11 : 1;
+    storedBytes += count * tableBytes(schedule);
+  }
+  assert.equal(a.online.sent_messages, online.length + 2);
+  assert.equal(b.online.sent_messages, online.length * 2 + 1);
+  assert.equal(a.online.sent_bytes, aBytes);
+  assert.equal(b.online.sent_bytes, bBytes);
+  assert.equal(b.table_storage.objects_written, 35);
+  assert.equal(b.table_storage.objects_read, online.length);
+  assert.equal(b.table_storage.table_bytes_read, readBytes);
+  assert.equal(b.table_storage.table_bytes_written, storedBytes);
 }
-async function sample(endpoint, token, fixture) {
+function matchesSchedule(name, schedule) {
+  return schedule.schedule_filename === `${name}.bin`;
+}
+function recordClose(diagnostic, code, reason) {
+  diagnostic.code = code;
+  diagnostic.reason = reason.toString();
+}
+async function sample(endpoint, token, fixture, schedules) {
   const runId = randomBytes(16).toString('hex');
   const url = new URL('/benchmark', endpoint);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -118,7 +157,9 @@ async function sample(endpoint, token, fixture) {
     headers: { authorization: `Bearer ${token}` },
     handshakeTimeout: 30000,
   });
-  const events = on(socket, 'message', { signal: AbortSignal.timeout(360000) });
+  const closed = { code: null, reason: '' };
+  socket.once('close', recordClose.bind(null, closed));
+  const events = on(socket, 'message', { signal: AbortSignal.timeout(360000), close: ['close'] });
   let state = { kind: 'preparing' };
   try {
     await once(socket, 'open');
@@ -142,7 +183,7 @@ async function sample(endpoint, token, fixture) {
         case 'complete': {
           assert.equal(state.kind, 'online');
           const onlineMs = performance.now() - state.started;
-          checkReport(message, fixture);
+          checkReport(message, fixture, schedules);
           state = {
             kind: 'cleaning',
             result: {
@@ -166,7 +207,9 @@ async function sample(endpoint, token, fixture) {
           throw new Error(`Unexpected message: ${message.type}`);
       }
     }
-    throw new Error('Worker closed before cleanup confirmation');
+    throw new Error(
+      `Worker closed before cleanup confirmation: run=${runId}, phase=${state.kind}, code=${closed.code}, reason=${closed.reason}, elapsed_ms=${(performance.now() - started).toFixed(1)}`,
+    );
   } finally {
     await events.return();
     socket.terminate();
@@ -215,6 +258,9 @@ async function provenance() {
     'crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa-prepared.b.jsonc',
     'crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/keygen.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_runtime.rs',
+    'tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs',
     'tools/ml-dsa-investigation/src/prepared_worker_fixtures.rs',
   ])
     sources.push({ path, sha256: digest(await readFile(resolve(REPOSITORY, path))) });
@@ -254,13 +300,14 @@ async function main() {
     latency_target_ms: 5000,
     provenance: await provenance(),
     public_recovery_oracle: oracle.cases,
+    public_schedules: oracle.schedules,
     samples: [],
     failures: [],
     scope:
-      'Two separate Worker roles. Fresh input-independent preprocessing, nineteen R2 object writes, then a client-controlled online request with nineteen streamed R2 reads. Each deployed bundle receives only its own root shares.',
+      'Two separate Worker roles. Fresh input-independent preprocessing, thirty-five R2 object writes including all fallback branches, then a client-controlled online request with streamed R2 reads for the used branches and public Power2Round. Each deployed bundle receives only its own root shares.',
     limits: [
       'Client online time includes the start message, R2 reads, protocol exchanges, and the returned public key. Offline preparation and cleanup are separate.',
-      'This tests known disposable wallet seeds and the actual wallet-root derivation. Production custody envelopes, admission, durable activation, and pool restart are not implemented.',
+      'Native fixture generation derives owner roots from known disposable wallet seeds. Workers receive only their root shares and execute root-to-canonical-key derivation. Production custody envelopes, admission, durable activation, and pool restart are not implemented.',
       'Cf colo fields describe request metadata. They do not independently establish each physical compute or storage placement.',
       'These samples establish observed latency only. They are not a production percentile or successful-signature deadline guarantee.',
     ],
@@ -276,7 +323,7 @@ async function main() {
     artifact.unauthorized_request_rejected = true;
     for (const index of options.indices) {
       try {
-        const result = await sample(endpoint, token, oracle.cases[index]);
+        const result = await sample(endpoint, token, oracle.cases[index], oracle.schedules);
         artifact.samples.push(result);
         console.log(
           `Fixture ${index}: online ${result.client_online_ms.toFixed(1)} ms, ready ${result.client_ready_ms.toFixed(1)} ms`,
