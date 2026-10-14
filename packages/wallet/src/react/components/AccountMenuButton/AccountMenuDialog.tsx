@@ -73,8 +73,10 @@ export const AccountMenuDialogFrame: React.FC<{
   readonly title: string;
   readonly closeLabel: string;
   readonly children: React.ReactNode;
+  readonly backdrop?: 'dimmed' | 'none';
 }> = ({
   presentation,
+  backdrop = 'dimmed',
   onClose,
   dialogRef,
   contentClassName,
@@ -93,6 +95,7 @@ export const AccountMenuDialogFrame: React.FC<{
       <div
         className={`seams-linked-devices-modal-backdrop theme-${theme}`}
         data-presentation={presentation}
+        data-backdrop={backdrop}
         role="presentation"
         onMouseDown={(event) => {
           if (presentation === 'modal' && event.target === event.currentTarget) onClose();

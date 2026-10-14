@@ -21,6 +21,8 @@ export interface AccountMenuButtonMockProps {
   walletId?: string;
   theme?: ThemeMode;
   defaultOpen?: boolean;
+  /** Backdrop treatment for preview overlays. Defaults to dimmed. */
+  backdrop?: 'dimmed' | 'none';
   className?: string;
   style?: React.CSSProperties;
   /** Optional preview navigation. Wallet-operation rows are disabled without this callback. */
@@ -88,6 +90,7 @@ function AccountMenuPreview({
   walletId = 'alex.near',
   theme = 'light',
   defaultOpen = true,
+  backdrop = 'dimmed',
   className,
   style,
   onAction,
@@ -203,7 +206,11 @@ function AccountMenuPreview({
     >
       {overlay !== 'none' &&
         createPortal(
-          <AccountMenuMockOverlay kind={overlay} onClose={setOverlay.bind(null, 'none')} />,
+          <AccountMenuMockOverlay
+            backdrop={backdrop}
+            kind={overlay}
+            onClose={setOverlay.bind(null, 'none')}
+          />,
           document.body,
         )}
     </AccountMenuButtonView>

@@ -9,9 +9,11 @@ type PreviewOverlay = 'methods' | 'scanner';
 
 export function AccountMenuMockOverlay({
   kind,
+  backdrop,
   onClose,
 }: {
   kind: PreviewOverlay;
+  backdrop: 'dimmed' | 'none';
   onClose: () => void;
 }): React.JSX.Element {
   const { theme, tokens } = useTheme();
@@ -28,6 +30,7 @@ export function AccountMenuMockOverlay({
       <Theme theme={theme} tokens={theme === 'light' ? { light: tokens } : { dark: tokens }}>
         <div
           className="qr-scanner-modal"
+          data-backdrop={backdrop}
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
@@ -67,6 +70,7 @@ export function AccountMenuMockOverlay({
   return (
     <AccountMenuDialogFrame
       presentation="modal"
+      backdrop={backdrop}
       onClose={onClose}
       dialogRef={dialogRef}
       contentClassName="seams-auth-methods-modal-content"

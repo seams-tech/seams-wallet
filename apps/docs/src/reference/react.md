@@ -79,7 +79,8 @@ import '@seams/wallet/react/styles';
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```
 
-Use `defaultOpen={false}` to start collapsed. `onAction` receives a
+Use `defaultOpen={false}` to start collapsed. Use `backdrop="none"` when embedding
+the preview in a canvas; the default `"dimmed"` keeps the normal modal backdrop. `onAction` receives a
 `ProfileSettingsMenuItemId` for wallet-operation rows; the consumer owns that
 navigation. The mock does not perform the corresponding wallet operation.
 

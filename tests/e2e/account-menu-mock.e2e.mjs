@@ -36,6 +36,10 @@ try {
   await page.screenshot({ path: `${artifacts}/settings.png` });
   await page.locator('[data-account-menu-item="authentication-methods"]').click();
   await expect(page.getByRole('dialog', { name: 'Authentication methods' })).toBeVisible();
+  await expect(page.locator('.seams-linked-devices-modal-backdrop')).not.toHaveCSS(
+    'background-color',
+    'rgba(0, 0, 0, 0)',
+  );
   await expect(page.getByText('MacBook Pro', { exact: true })).toBeVisible();
   await expect(page.getByText('iPhone', { exact: true })).toBeVisible();
   await expect(page.getByText('Pixel 9', { exact: true })).toBeVisible();
@@ -50,6 +54,17 @@ try {
   await expect(page.locator('[data-account-menu-item="accounts"]')).not.toBeVisible();
   await page.locator('[aria-haspopup="menu"]').click();
   await expect(page.locator('[data-account-menu-item="accounts"]')).toBeVisible();
+  await page.goto(`${url}?backdrop=none`);
+  await page.locator('[data-account-menu-item="authentication-methods"]').click();
+  await expect(page.locator('.seams-linked-devices-modal-backdrop')).toHaveCSS(
+    'background-color',
+    'rgba(0, 0, 0, 0)',
+  );
+  await page.getByRole('button', { name: 'Close authentication methods' }).click();
+  await page.locator('[data-account-menu-item="scan-link-device"]').click();
+  await expect(page.locator('.qr-scanner-modal')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('.qr-scanner-modal')).toHaveCSS('backdrop-filter', 'none');
+  await page.getByRole('button', { name: 'Close scanner' }).click();
   assert.deepEqual(walletRequests, []);
   await writeFile(
     `${artifacts}/result.json`,
