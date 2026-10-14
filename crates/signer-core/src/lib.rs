@@ -17,6 +17,8 @@ pub mod ed25519_yao_client_root_transfer;
 pub mod ed25519_yao_derivation;
 #[cfg(feature = "tx-finalization")]
 pub mod eip1559;
+#[cfg(feature = "ml-dsa-custody")]
+pub mod ml_dsa_custody;
 #[cfg(any(feature = "near-ed25519-recovery", feature = "near-threshold-ed25519"))]
 pub mod near_ed25519_recovery;
 #[cfg(feature = "near-threshold-ed25519")]

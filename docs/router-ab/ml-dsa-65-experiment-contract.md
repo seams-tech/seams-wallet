@@ -85,8 +85,43 @@ Every run performs threshold signing before authorized fixture recovery checks t
 The derivation circuit adds 37,056 AND gates, 1,185,792 table bytes, and 1,214,920 total protocol bytes.
 It returns zero public output bytes and immediately passes each private seed share into canonical key generation.
 The shared-host fixture supplies no deployment-isolation claim.
-Custody ceremony wiring, manifests, authenticated role delivery, and durable activation remain unimplemented.
+The [custody E2E](../evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json) now covers native custody states, encrypted role inputs, authenticated holder results, and manifest continuity.
+Browser exports, Router admission, authenticated recipient-key discovery, durable activation, and storage remain unimplemented.
 This evidence supplies no completed production recovery claim.
+
+## Native custody delivery and manifest contract
+
+The client custody state derives and splits the ML-DSA owner root inside Rust.
+It returns two HPKE input ciphertexts and retains its completion secret inside the consuming state.
+Use the existing `hpke-ng 0.1.0` suite: X25519, HKDF-SHA256, and AES-256-GCM.
+Each holder input contains one 32-byte root share and the 32-byte client reply public key.
+The input uses HPKE base mode. Each holder must check Router authorization before opening it.
+Authenticated recipient-key discovery remains a deployment requirement.
+
+The associated data binds the stable wallet/key digest, 32-byte operation identifier, material epoch, and intended role.
+A holder result uses HPKE authenticated mode under that holder's pinned key and contains the 1,952-byte public key.
+The client checks both authenticated results and rejects disagreement before it creates a manifest proof.
+The result and input use separate HPKE information domains.
+Only ciphertext, public context, public keys, and encrypted custody records leave the native client states.
+These classical HPKE operations add no post-quantum transport-confidentiality claim.
+
+The new manifest kind is `near_ml_dsa_65_v1`.
+Its digest binds a separate manifest domain, the stable application digest, and the exact public key.
+It excludes operation identifiers and material epochs, so fresh sharing and holder replacement preserve the recovery identity.
+A recovering ceremony requires the previously recorded digest. It cannot select the create branch.
+A newly established custody seed cannot select the recovery branch.
+Existing-custody joining writes no new seed envelope or recovery set.
+Code recovery reseals the same wallet seed under the replacement factor.
+Initial custody establishment emits a seed envelope and exactly ten recovery-code wraps.
+These outputs are proposed commit data. They do not prove durable holder activation or authorize signing by themselves.
+
+The six-case E2E opens factor envelopes, opens a recovery code, and generates one fresh custody seed inside the actual native ceremony.
+Separate role processes decrypt their own inputs, generate shares, authenticate their results, and produce standard threshold signatures.
+Only after signing and ordinary-key export does the fixture verifier open the completed custody records.
+It checks the replacement factor and all ten fresh recovery codes against the exported canonical key.
+Fifteen negative cases cover binding changes, damaged inputs, swapped or stale results, manifest mismatch, holder disagreement, and invalid custody/continuity combinations.
+The fixture holder keys and shared-host process boundaries supply no deployment-isolation or production-admission claim.
+Durable replay control, storage, and activation barriers remain required.
 
 ## Reference execution
 

@@ -215,6 +215,7 @@ pub fn derive_ed25519_local_material_cache_key_from_seed_v1(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WalletKeySetKindV1 {
     NearEd25519,
+    NearMlDsa65,
     EvmFamilyEcdsa,
 }
 
@@ -222,6 +223,7 @@ impl WalletKeySetKindV1 {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::NearEd25519 => "near_ed25519_v1",
+            Self::NearMlDsa65 => "near_ml_dsa_65_v1",
             Self::EvmFamilyEcdsa => "evm_family_ecdsa_v1",
         }
     }
@@ -231,6 +233,7 @@ impl WalletKeySetKindV1 {
     pub fn parse(value: &str) -> CoreResult<Self> {
         match value {
             "near_ed25519_v1" => Ok(Self::NearEd25519),
+            "near_ml_dsa_65_v1" => Ok(Self::NearMlDsa65),
             "evm_family_ecdsa_v1" => Ok(Self::EvmFamilyEcdsa),
             _ => Err(SignerCoreError::invalid_input(
                 "unknown wallet key set kind",
@@ -246,6 +249,11 @@ impl WalletKeySetKindV1 {
 /// without holding any secret.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WalletKeySetManifestV1 {
+    NearMlDsa65 {
+        wallet_id: String,
+        ml_dsa65_signing_key_id: String,
+        registered_public_key: Box<[u8; 1952]>,
+    },
     NearEd25519 {
         wallet_id: String,
         near_ed25519_signing_key_id: String,
@@ -264,15 +272,16 @@ impl WalletKeySetManifestV1 {
     pub fn key_set(&self) -> WalletKeySetKindV1 {
         match self {
             Self::NearEd25519 { .. } => WalletKeySetKindV1::NearEd25519,
+            Self::NearMlDsa65 { .. } => WalletKeySetKindV1::NearMlDsa65,
             Self::EvmFamilyEcdsa { .. } => WalletKeySetKindV1::EvmFamilyEcdsa,
         }
     }
 
     pub fn wallet_id(&self) -> &str {
         match self {
-            Self::NearEd25519 { wallet_id, .. } | Self::EvmFamilyEcdsa { wallet_id, .. } => {
-                wallet_id
-            }
+            Self::NearEd25519 { wallet_id, .. }
+            | Self::NearMlDsa65 { wallet_id, .. }
+            | Self::EvmFamilyEcdsa { wallet_id, .. } => wallet_id,
         }
     }
 }
@@ -288,6 +297,25 @@ pub fn compute_wallet_key_set_manifest_digest_v1(
 
     let mut out = Vec::new();
     match manifest {
+        WalletKeySetManifestV1::NearMlDsa65 {
+            wallet_id,
+            ml_dsa65_signing_key_id,
+            registered_public_key,
+        } => {
+            let binding =
+                compute_ml_dsa65_application_binding_digest_v1(wallet_id, ml_dsa65_signing_key_id)?;
+            labeled_field(
+                &mut out,
+                b"context",
+                b"seams/wallet-custody/key-set-manifest/near-ml-dsa-65/v1",
+            );
+            labeled_field(&mut out, b"applicationBindingDigest", &binding);
+            labeled_field(
+                &mut out,
+                b"registeredPublicKey",
+                registered_public_key.as_ref(),
+            );
+        }
         WalletKeySetManifestV1::NearEd25519 {
             near_ed25519_signing_key_id,
             registered_public_key,

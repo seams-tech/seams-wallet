@@ -77,7 +77,8 @@ The 37,056-AND derivation adds one private invocation, with fresh session bindin
 Its session binding includes the new schedule digest and circuit identity, so the OT shape supplies no cross-circuit reuse permission.
 
 This adds HKDF key separation and the domain-separated SHAKE derivation to the composition assumptions.
-It does not complete the production admission, manifest verification, encrypted role delivery, or replacement-epoch argument.
+The native custody integration now adds HPKE role delivery and manifest verification.
+The production admission, durable replacement-epoch argument, and deployed storage boundaries remain open.
 The earlier arithmetic-only audit also supplies no timing qualification for this new derivation path.
 
 ## Signing composition and permitted disclosures
@@ -256,6 +257,33 @@ A simulator can draw the count from the same geometric distribution without know
 The argument applies separately to fresh key-generation and signing output masks drawn by this helper.
 It does not cover the seed-derived bounded sampler, whose success bit remains an explicit protocol disclosure.
 It also does not establish the behavior of the random-source implementation or its shared system state.
+
+## Native custody integration review
+
+The [custody E2E](../evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json) now uses the actual native wallet custody states.
+Factor opening and recovery-code opening retain the wallet seed inside that state.
+Preparation derives the ML-DSA owner root, splits it with fresh randomness, and encrypts each share to its holder.
+Neither the owner root nor the client's HPKE completion secret has a public accessor.
+Holder opening returns one root share and a separate reply capability. The adapter drops the root share after private seed derivation.
+
+Input and result HPKE domains differ.
+Associated data covers stable application identity, operation identifier, material epoch, and role.
+HPKE base-mode inputs still require independent holder admission and authenticated recipient-key discovery.
+HPKE authenticated-mode replies prove possession of each expected holder key to the client.
+They do not prove honest lattice computation or durable storage. The accepted passive profile supplies the honest-execution assumption.
+The client checks agreement and the stored recovery manifest before producing verified public key state.
+
+A fresh reply recipient key prevents one completion state from accepting another state's replies.
+It does not prevent a holder from reopening an old input. Durable replay rejection remains outside this module.
+The manifest excludes replaceable holder keys and material epochs while binding the stable wallet/key digest and exact ML-DSA public key.
+Recovery can therefore use replacement holder keys without changing the canonical key identity.
+An epoch inside authenticated data supplies binding, not an atomic epoch transition or rollback protection.
+
+These additions reuse classical X25519/HKDF-SHA256/AES-256-GCM through the existing `hpke-ng 0.1.0` library.
+The earlier arithmetic audit does not qualify HPKE, its random generator, or the new custody path for target constant-time behavior.
+The test runs six full key-generation/signing/export cases and fifteen negative delivery/completion cases.
+It verifies all ten fresh recovery codes and the replacement factor after threshold signing.
+The native state output is proposed commit data. Production must commit both roles durably before it publishes capability.
 
 ## Integration requirements
 

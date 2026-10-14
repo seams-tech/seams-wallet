@@ -33,6 +33,7 @@ signer-core = { path = "../../crates/signer-core", features = [
   "ed25519-yao-derivation",
   "near-threshold-ed25519",
   "passkey-custody",
+  "ml-dsa-custody",
   "typescript-bindings",
 ] }
 wasm-bindgen = "=0.2.100"

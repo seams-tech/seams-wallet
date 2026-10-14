@@ -191,18 +191,22 @@ Run the public-fixture recovery campaign:
 
 ```sh
 cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
-  wallet-recovery docs/evidence/ml-dsa-65-wallet-seed-recovery-host-20261014.json
+  wallet-recovery docs/evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json
 ```
 
-The campaign repeats one wallet/key binding with fresh sharing and checks that the public key remains identical.
+The campaign opens real custody envelopes and a recovery code through the native ceremony.
+It encrypts each holder input and authenticates both holder results before verifying the manifest.
+It repeats one wallet/key binding with fresh sharing and checks that the public key remains identical.
 Three further cases change the wallet seed, wallet ID, or key ID.
+A sixth case creates a fresh custody seed inside the ceremony and checks all ten recovery codes after signing.
 Each case generates shares, signs through separate processes, and only then permits the fixture recipient to reconstruct the canonical seed.
 The recipient checks the full expanded key with OpenSSL and verifies ordinary signatures.
 A separate SHAKE implementation checks the exported seed against the documented derivation.
 The artifact records source digests, exact schedules, wire counters, and role timings.
 
 The extra circuit uses 37,056 AND gates and transfers 1,214,920 protocol bytes across both directions.
-It reveals no public seed bytes. These host checks do not implement authenticated delivery, durable activation, or the production custody ceremony.
+It reveals no public seed bytes. Fifteen negative cases check protected delivery, manifest continuity, and custody-state boundaries.
+These host checks cover the native custody path. Browser exports, Router admission, durable replay control, activation, and storage remain open.
 
 ## Compiled arithmetic inspection
 

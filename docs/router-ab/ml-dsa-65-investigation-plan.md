@@ -2,7 +2,7 @@
 
 Status: half-gates selected for implementation and integration, 2026-10-14.
 Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
-Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery now passes separate-role host E2E checks. Production integration remains open.
+Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery and native custody completion now pass separate-role host E2E checks. Production integration remains open.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -721,7 +721,9 @@ State remaining opportunities that could change that ranking.
    The user selected wallet-seed derivation on October 14.
    Completed: stable wallet/key binding, separate ML-DSA owner-root derivation, and private canonical-seed derivation under the [contract](ml-dsa-65-experiment-contract.md#wallet-seed-recovery-decision--october-14-2026).
    Five host E2E cases cover repeated recovery and changed wallet seed, wallet ID, and key ID.
-   Wire this path into the custody ceremony, authenticated role delivery, key manifest, and durable replacement activation.
+   Completed: native custody preparation/completion, HPKE role delivery, authenticated holder results, and manifest verification.
+   The [six-case custody E2E](../evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json) covers fresh establishment, joining, code recovery, ten recovery codes, and fifteen negative cases.
+   Add browser exports, independent Router admission, authenticated recipient-key discovery, and durable replacement activation next.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
    Completed: the [threshold-signed testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) reached successful finalized execution and checked the SDK handle types.
