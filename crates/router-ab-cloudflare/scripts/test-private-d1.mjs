@@ -21,6 +21,7 @@ import {
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import http from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
@@ -125,6 +126,7 @@ const gatewayOnlyRouterPaths = new Set([
   '/router-ab/ed25519/sign',
   ecdsaSigningPreparePath,
   ecdsaSigningPath,
+  ecdsaActivationPath,
 ]);
 const gatewayOnlyPresignPaths = new Set([
   ecdsaPresignSessionInitPath,
@@ -914,8 +916,6 @@ function authenticatedJsonRequest(body, additionalHeaders = {}) {
     body: JSON.stringify(body),
   };
 }
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function responseBytes(response) {
   return Buffer.from(await response.arrayBuffer());
