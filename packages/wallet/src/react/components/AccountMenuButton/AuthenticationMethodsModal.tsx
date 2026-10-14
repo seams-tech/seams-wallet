@@ -7,9 +7,9 @@ import type {
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
 import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
-import { KeyIcon } from './icons/KeyIcon';
 import { MailIcon } from './icons/MailIcon';
 import { PlusIcon } from './icons/PlusIcon';
+import TouchIcon from './icons/TouchIcon';
 import './LinkedDevicesModal.css';
 
 interface AuthenticationMethodsModalProps {
@@ -427,7 +427,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   >
                     <span className="seams-linked-devices-modal-item-icon" aria-hidden="true">
                       {method.kind === 'passkey' ? (
-                        <KeyIcon size={20} strokeWidth={1.75} />
+                        <TouchIcon width={20} height={20} strokeWidth={1.5} />
                       ) : (
                         <MailIcon size={20} strokeWidth={1.75} />
                       )}
