@@ -59,11 +59,12 @@ struct AuthorizedTestMaterial {
 enum SeedInput {
     FixedPublicShare { share: [u8; 32] },
     JointRandom,
+    WalletOwnerRootShare { share: [u8; 32] },
 }
 
 impl Drop for SeedInput {
     fn drop(&mut self) {
-        if let Self::FixedPublicShare { share } = self {
+        if let Self::FixedPublicShare { share } | Self::WalletOwnerRootShare { share } = self {
             share.zeroize();
         }
     }
@@ -80,12 +81,15 @@ pub(super) enum Campaign<'a> {
     CoreEvidence,
     EngineComparison(Engine),
     NearTestnet(&'a Path),
+    WalletRecovery([u8; 32]),
 }
 
 impl Campaign<'_> {
     const fn engine(self) -> Engine {
         match self {
-            Self::CoreEvidence | Self::NearTestnet(_) => Engine::HalfGates,
+            Self::CoreEvidence | Self::NearTestnet(_) | Self::WalletRecovery(_) => {
+                Engine::HalfGates
+            }
             Self::EngineComparison(engine) => engine,
         }
     }
@@ -216,7 +220,7 @@ pub(super) fn compile_schedules(directory: &Path) -> InvestigationResult<Vec<Val
     Ok(identities)
 }
 
-fn save_schedule(
+pub(super) fn save_schedule(
     directory: &Path,
     filename: &str,
     component: &str,
@@ -253,7 +257,7 @@ pub(super) fn run_case(
     }
     let input_a = role_a.join("own-seed-input.json");
     let input_b = role_b.join("own-seed-input.json");
-    write_seed_inputs(fixture, &input_a, &input_b)?;
+    write_seed_inputs(fixture, campaign, &input_a, &input_b)?;
     let result_a = role_a.join("public-result.json");
     let result_b = role_b.join("public-result.json");
     let started = Instant::now();
@@ -281,6 +285,16 @@ pub(super) fn run_case(
         "Persistent roles returned different public keys.",
     )?;
     verify_public_metrics(&a, &b)?;
+    require(
+        a["wallet_seed_stage"]["metrics"] == b["wallet_seed_stage"]["metrics"],
+        "Wallet-seed role counters or bindings disagree.",
+    )?;
+    if matches!(campaign, Campaign::WalletRecovery(_)) {
+        require(
+            a["wallet_seed_stage"].is_object() && b["wallet_seed_stage"].is_object(),
+            "Wallet recovery requires the private derivation stage.",
+        )?;
+    }
     let public_key = hex::decode(a["public_key_hex"].as_str().ok_or("Missing public key.")?)?;
     let public_path = case.path().join("public-key.bin");
     fs::write(&public_path, &public_key)?;
@@ -348,13 +362,20 @@ pub(super) fn run_case(
     let recovered: Value = serde_json::from_slice(&fs::read(&recipient_result)?)?;
     if let Some(name) = fixture {
         require(
-            recovered["public_test_seed_hex"] == hex::encode(reference::fixture_bytes(name, 32)?),
+            recovered["public_test_seed_hex"]
+                == hex::encode(match campaign {
+                    Campaign::WalletRecovery(binding) => {
+                        crate::wallet_recovery_evidence::canonical_seed(name, &binding)?
+                    }
+                    _ => reference::fixture_bytes(name, 32)?,
+                }),
             "Authorized recovery returned the wrong public fixture seed.",
         )?;
     }
     Ok(json!({
         "case": fixture.unwrap_or("joint-random-disposable-key"),
-        "seed_generation": if fixture.is_some() { "Known public fixture, split with a fresh random XOR mask before role launch." } else { "Each role independently generates one OS-random 32-byte coin. No parent receives a full seed before authorized test export." },
+        "wallet_seed_derivation": matches!(campaign, Campaign::WalletRecovery(_)),
+        "seed_generation": if matches!(campaign, Campaign::WalletRecovery(_)) { "Known public wallet seed derives a purpose-separated owner root in the client fixture. A/B derive the canonical seed privately from fresh root shares." } else if fixture.is_some() { "Known public fixture, split with a fresh random XOR mask before role launch." } else { "Each role independently generates one OS-random 32-byte coin. No parent receives a full seed before authorized test export." },
         "public_key_bytes": public_key.len(),
         "public_key_sha256": digest(&public_key),
         "keygen_process_wall_ns_including_schedule_reads_and_startup": keygen_process_wall_ns,
@@ -369,20 +390,36 @@ pub(super) fn run_case(
     }))
 }
 
-fn write_seed_inputs(fixture: Option<&str>, a: &Path, b: &Path) -> InvestigationResult<()> {
+fn write_seed_inputs(
+    fixture: Option<&str>,
+    campaign: Campaign<'_>,
+    a: &Path,
+    b: &Path,
+) -> InvestigationResult<()> {
     let (input_a, input_b) = match fixture {
         Some(name) => {
-            let seed = reference::fixture_bytes(name, 32)?;
+            let seed = match campaign {
+                Campaign::WalletRecovery(binding) => {
+                    crate::wallet_recovery_evidence::owner_root(name, &binding)?.to_vec()
+                }
+                _ => reference::fixture_bytes(name, 32)?,
+            };
             let mut share_a = [0; 32];
             getrandom::getrandom(&mut share_a)?;
             let mut share_b = [0; 32];
             for index in 0..32 {
                 share_b[index] = seed[index] ^ share_a[index];
             }
-            (
-                SeedInput::FixedPublicShare { share: share_a },
-                SeedInput::FixedPublicShare { share: share_b },
-            )
+            match campaign {
+                Campaign::WalletRecovery(_) => (
+                    SeedInput::WalletOwnerRootShare { share: share_a },
+                    SeedInput::WalletOwnerRootShare { share: share_b },
+                ),
+                _ => (
+                    SeedInput::FixedPublicShare { share: share_a },
+                    SeedInput::FixedPublicShare { share: share_b },
+                ),
+            }
         }
         None => (SeedInput::JointRandom, SeedInput::JointRandom),
     };
@@ -401,17 +438,6 @@ fn write_private_file(path: &Path, bytes: &[u8]) -> InvestigationResult<()> {
     Ok(())
 }
 
-fn own_seed(input: &Path) -> InvestigationResult<Zeroizing<[u8; 32]>> {
-    let bytes = Zeroizing::new(fs::read(input)?);
-    let parsed: SeedInput = serde_json::from_slice(&bytes)?;
-    let mut share = Zeroizing::new([0; 32]);
-    match &parsed {
-        SeedInput::FixedPublicShare { share: input_share } => share.copy_from_slice(input_share),
-        SeedInput::JointRandom => getrandom::getrandom(share.as_mut())?,
-    }
-    Ok(share)
-}
-
 fn run_role(
     role: Role,
     schedules: &Path,
@@ -420,7 +446,8 @@ fn run_role(
     engine: Engine,
 ) -> InvestigationResult<()> {
     let started = Instant::now();
-    let seed = own_seed(input)?;
+    let input_bytes = Zeroizing::new(fs::read(input)?);
+    let input: SeedInput = serde_json::from_slice(&input_bytes)?;
     let role = match role {
         Role::A => SigningRole::A,
         Role::B => SigningRole::B,
@@ -439,7 +466,29 @@ fn run_role(
     let schedule_preparation_wall_ns = started.elapsed().as_nanos();
     let mut reader = io::stdin().lock();
     let mut writer = io::stdout().lock();
-    let mut current = begin_keygen(role, &seed)?;
+    let (mut current, wallet_seed_stage) = match &input {
+        SeedInput::FixedPublicShare { share } => (begin_keygen(role, share)?, Value::Null),
+        SeedInput::JointRandom => {
+            let mut seed = Zeroizing::new([0; 32]);
+            getrandom::getrandom(seed.as_mut())?;
+            (begin_keygen(role, &seed)?, Value::Null)
+        }
+        SeedInput::WalletOwnerRootShare { share } => {
+            require(
+                engine.boolean().is_none(),
+                "Wallet derivation uses the selected half-gates engine.",
+            )?;
+            crate::wallet_recovery_evidence::begin_role(
+                role,
+                share,
+                schedules,
+                &mut reader,
+                &mut writer,
+            )?
+        }
+    };
+    drop(input);
+    drop(input_bytes);
     let mut circuit_wall_ns = Vec::with_capacity(18);
     let mut observations = Vec::with_capacity(18);
     let output = loop {
@@ -504,6 +553,7 @@ fn run_role(
             "schedule_preparation_wall_ns": schedule_preparation_wall_ns,
             "role_pipeline_wall_ns_including_schedule_reads": started.elapsed().as_nanos(),
             "stages": stages,
+            "wallet_seed_stage": wallet_seed_stage,
         }))?,
     )?;
     Ok(())

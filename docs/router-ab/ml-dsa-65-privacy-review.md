@@ -56,6 +56,30 @@ Neither normal role holds the complete seed or expanded key.
 Correctness evidence compares every reconstructed private field with an independent ordinary implementation after threshold signing.
 This reconstruction occurs only in the disposable test recipient.
 
+## Wallet-derived seed composition
+
+The user selected wallet-seed recovery on October 14, 2026.
+A purpose-separated HKDF-SHA256 derivation produces the ML-DSA owner root inside the client custody boundary.
+Its stable binding contains the wallet ID and ML-DSA key ID. Worker replacement and share refresh do not change that binding.
+The existing Ed25519 and ECDSA root derivations retain their own salts and outputs.
+
+Only fresh XOR shares of the ML-DSA owner root enter A/B.
+A new private circuit computes the domain-separated SHAKE256 seed derivation specified in the [contract](ml-dsa-65-experiment-contract.md#wallet-seed-recovery-decision--october-14-2026).
+A supplies a fresh 32-byte output mask and retains it as its seed share.
+B receives the derived seed XOR that mask. The circuit returns no public output.
+Each role consumes its private output directly into the existing key-generation state machine.
+The normal path never creates a complete FIPS seed outside secure computation.
+The root and its shares remain equivalent signing capability and require protected handling.
+
+The [host E2E](../evidence/ml-dsa-65-wallet-seed-recovery-host-20261014.json) checks repeated recovery and changed seed, wallet, and key inputs.
+Each run signs before the authorized fixture recipient reconstructs and verifies the ordinary key.
+The 37,056-AND derivation adds one private invocation, with fresh session binding and the existing 256-choice OT family.
+Its session binding includes the new schedule digest and circuit identity, so the OT shape supplies no cross-circuit reuse permission.
+
+This adds HKDF key separation and the domain-separated SHAKE derivation to the composition assumptions.
+It does not complete the production admission, manifest verification, encrypted role delivery, or replacement-epoch argument.
+The earlier arithmetic-only audit also supplies no timing qualification for this new derivation path.
+
 ## Signing composition and permitted disclosures
 
 The signing-seed circuit privately computes `rho_double_prime = H(K || rnd || mu, 64)`.

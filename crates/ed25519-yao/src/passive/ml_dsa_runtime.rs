@@ -75,6 +75,7 @@ type Result<T> = core::result::Result<T, RuntimeError>;
 
 #[derive(Clone, Copy)]
 enum Workload {
+    WalletSeed,
     Seed,
     Sampling,
     Rounding,
@@ -89,6 +90,7 @@ enum Workload {
 impl Workload {
     const fn a_inputs(self) -> usize {
         match self {
+            Self::WalletSeed => 512,
             Self::Seed => 1024,
             Self::Sampling | Self::ExpandMask => 6416,
             Self::SigningSeed => 1536,
@@ -102,7 +104,7 @@ impl Workload {
     }
     const fn b_inputs(self) -> usize {
         match self {
-            Self::Seed => 256,
+            Self::WalletSeed | Self::Seed => 256,
             Self::Sampling | Self::ExpandMask => 512,
             Self::Rounding | Self::CommitmentHighBits | Self::ResponseCheck => 5888,
             Self::SigningSeed => 512,
@@ -117,7 +119,8 @@ impl Workload {
             Self::Sampling | Self::AggregateCheck => 1,
             Self::Rounding => 320,
             Self::CommitmentHash => 48,
-            Self::ExpandMask
+            Self::WalletSeed
+            | Self::ExpandMask
             | Self::SigningSeed
             | Self::CommitmentHighBits
             | Self::ResponseCheck
@@ -130,7 +133,8 @@ impl Workload {
             Self::Seed | Self::Rounding | Self::CommitmentHash => {
                 output[..self.public_bytes()].to_vec()
             }
-            Self::ExpandMask
+            Self::WalletSeed
+            | Self::ExpandMask
             | Self::SigningSeed
             | Self::CommitmentHighBits
             | Self::ResponseCheck
@@ -168,6 +172,7 @@ impl<'a> TrustedMlDsaSchedule<'a> {
         let outputs = read_u32(&bytes[50..54]);
         let slots = read_u32(&bytes[54..58]);
         let workload = match (bytes[8], inputs, outputs) {
+            (0x91, 768, 256) => Workload::WalletSeed,
             (0x87, 1280, 1024) => Workload::Seed,
             (0x88, 6928, 5889) => Workload::Sampling,
             (0x89, 17664, 8448) => Workload::Rounding,
@@ -1003,7 +1008,7 @@ fn sender_begin(
         }};
     }
     match workload {
-        Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
+        Workload::WalletSeed | Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
         Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
         }
@@ -1053,7 +1058,7 @@ fn receiver_begin(
         }};
     }
     match workload {
-        Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
+        Workload::WalletSeed | Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
         Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
         }

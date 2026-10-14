@@ -188,7 +188,7 @@ pub use circuit::{
 };
 pub use circuit::{
     compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,
-    compile_ml_dsa_private_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
+    compile_ml_dsa_private_seed_circuit_v1, compile_ml_dsa_wallet_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
 };
 pub use circuit::{
     compile_ml_dsa_private_signing_circuit_v1, MlDsaPrivateSigningCircuitV1, MlDsaSigningWorkloadV1,

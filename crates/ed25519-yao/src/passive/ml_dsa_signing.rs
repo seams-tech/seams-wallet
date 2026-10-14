@@ -8,6 +8,8 @@
 
 pub mod arithmetic;
 pub mod keygen;
+/// Private canonical-seed derivation from shares of a wallet-derived owner root.
+pub mod wallet_seed;
 
 use core::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};

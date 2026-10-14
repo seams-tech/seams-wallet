@@ -858,6 +858,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sha3",
+ "signer-core",
  "tempfile",
  "wasm_signer_worker",
  "wasmparser",

@@ -3,9 +3,10 @@
 //! ```text
 //! seed --HKDF(ed25519 label)--> Ed25519 Yao Client root
 //! seed --HKDF(ecdsa   label)--> Router A/B ECDSA client root share
+//! seed --HKDF(ml-dsa  label)--> ML-DSA owner root for private seed derivation
 //! ```
 //!
-//! Both roots take the seed directly as IKM under distinct salts. Neither is a
+//! Each root takes the seed directly as IKM under a distinct salt. No root is a
 //! function of the other: chaining one signing root off another is exactly the
 //! key-separation defect removed from the Email OTP runtime, where holding the
 //! Ed25519 root also yielded the ECDSA share.
@@ -30,6 +31,7 @@ pub const WALLET_CUSTODY_SEED_LEN: usize = 32;
 pub const WALLET_SIGNING_ROOT_LEN: usize = 32;
 
 const ED25519_CLIENT_ROOT_SALT_V1: &[u8] = b"seams/wallet-custody/seed/ed25519-yao-client-root/v1";
+const ML_DSA65_OWNER_ROOT_SALT_V1: &[u8] = b"seams/wallet-custody/seed/ml-dsa-65-owner-root/v1";
 const ECDSA_CLIENT_ROOT_SHARE_SALT_V1: &[u8] =
     b"seams/wallet-custody/seed/ecdsa-client-root-share/v1";
 const ED25519_LOCAL_MATERIAL_CACHE_SALT_V1: &[u8] =
@@ -104,6 +106,44 @@ pub fn derive_ed25519_yao_client_root_from_seed_v1(
     let root = expand(seed, ED25519_CLIENT_ROOT_SALT_V1, &info);
     info.clear();
     root
+}
+
+/// Binds ML-DSA derivation to stable wallet and signing-key identifiers.
+/// Worker identities, operation identifiers, and share epochs do not enter it.
+pub fn compute_ml_dsa65_application_binding_digest_v1(
+    wallet_id: &str,
+    ml_dsa65_signing_key_id: &str,
+) -> CoreResult<[u8; 32]> {
+    require_field("wallet_id", wallet_id)?;
+    require_field("ml_dsa65_signing_key_id", ml_dsa65_signing_key_id)?;
+    let mut encoded = b"seams/wallet-custody/ml-dsa-65/application-binding/v1".to_vec();
+    labeled_str(&mut encoded, b"walletId", wallet_id);
+    labeled_str(
+        &mut encoded,
+        b"mlDsa65SigningKeyId",
+        ml_dsa65_signing_key_id,
+    );
+    Ok(Sha256::digest(&encoded).into())
+}
+
+/// Derives the ML-DSA owner root directly from the wallet custody seed.
+///
+/// The stable application digest binds the wallet and ML-DSA key identity.
+/// It must exclude operation identifiers, replaceable workers, and share epochs.
+/// The client shares this root with A/B. Their private computation derives the
+/// canonical FIPS seed; this function never constructs that seed or private key.
+pub fn derive_ml_dsa65_owner_root_from_seed_v1(
+    seed: &[u8],
+    application_binding_digest: &[u8; 32],
+) -> CoreResult<Zeroizing<[u8; WALLET_SIGNING_ROOT_LEN]>> {
+    require_seed(seed)?;
+    let mut info = Vec::new();
+    labeled_field(
+        &mut info,
+        b"applicationBindingDigest",
+        application_binding_digest,
+    );
+    expand(seed, ML_DSA65_OWNER_ROOT_SALT_V1, &info)
 }
 
 /// Derives the Router A/B ECDSA client root share directly from the seed.

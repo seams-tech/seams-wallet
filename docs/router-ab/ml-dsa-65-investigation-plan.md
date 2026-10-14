@@ -2,7 +2,7 @@
 
 Status: half-gates selected for implementation and integration, 2026-10-14.
 Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
-Follow-up: exact arithmetic optimization passes host and local Worker E2E checks. Hosted remeasurement awaits approval for its new disposable token.
+Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery now passes separate-role host E2E checks. Production integration remains open.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -27,7 +27,9 @@ Production qualification remains open. Further alternative-engine experiments ar
 The [selected half-gates Worker campaign](../evidence/ml-dsa-65-selected-halfgates-keygen-local-20261014.json) records a 3.38-second median across five fresh joint keys.
 The [fixed key-generation-and-signing check](../evidence/ml-dsa-65-selected-halfgates-threshold-local-20261014.json) takes 17.41 seconds for one measured five-candidate execution.
 Both campaigns use the exact Wasm bundles inspected by the [final arithmetic audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json).
-Its hosted rerun remains pending token approval.
+The [hosted rerun](ml-dsa-65-optimization-report.md#hosted-rerun--october-14-2026) records a 14.974-second fresh-key median and a 38.345-second median for fresh-key generation plus signing.
+The latter uses five samples with 1–16 candidates. It provides no production tail-latency bound.
+The [wallet recovery E2E](../evidence/ml-dsa-65-wallet-seed-recovery-host-20261014.json) also reproduces the same key from the wallet seed and stable binding through fresh private sharing.
 The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) also verifies a serialized threshold-signed NEAR transaction before authorized recovery.
 The [testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) now records successful finalized execution with receipts and checks the SDK access-key handle types.
 This uses separate local signing processes and a public disposable fixture key. The Cloudflare-to-NEAR Wallet route remains open.
@@ -701,9 +703,9 @@ State remaining opportunities that could change that ranking.
 2. Completed: compare complete native half-gates, GMW, and ABY2.0 executions with fresh private preprocessing and exact traffic counters.
    Advance half-gates under the [recorded engine decision](ml-dsa-65-engine-comparison.md#decision--october-14-2026).
    Prepared pools, efficient OT preprocessing, deployed Boolean batching, and smaller garbling remain optional follow-up research.
-3. Repeat the selected half-gates Worker measurements after the arithmetic optimization and hardening.
-   Record warm-up, fresh-key samples, signing candidates, traffic, CPU, placement evidence, and memory limits separately.
-   Hosted execution awaits approval for the exact disposable benchmark token and both temporary Worker destinations.
+3. Completed: repeat selected half-gates hosted key generation and signing after arithmetic optimization and hardening.
+   The [rerun report](ml-dsa-65-optimization-report.md#hosted-rerun--october-14-2026) separates warm-up, candidate counts, traffic, CPU, placement evidence, and memory limits.
+   Both temporary Workers and the disposable token are removed. Measure the wallet-seed prelude and durable production path next.
 4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production release.
    The [source review](ml-dsa-65-privacy-review.md) records these boundaries.
    Division-free local arithmetic passes complete host interoperability and compiled core checks.
@@ -716,7 +718,10 @@ State remaining opportunities that could change that ranking.
    The [request-binding E2E campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) rejects five mismatched requests before any private circuit completes.
    The [local Worker campaign](../evidence/ml-dsa-65-request-binding-worker-local-20261014.json) also passes complete canonical key generation and signing with the new exchange.
    This exchange adds 146 public bytes per signature. Authentication, stored-key binding, and durable replay control remain outside the core.
-   Production integration awaits the custody-model choice: an independent joint seed with protected recovery records, or private derivation from the wallet custody seed.
+   The user selected wallet-seed derivation on October 14.
+   Completed: stable wallet/key binding, separate ML-DSA owner-root derivation, and private canonical-seed derivation under the [contract](ml-dsa-65-experiment-contract.md#wallet-seed-recovery-decision--october-14-2026).
+   Five host E2E cases cover repeated recovery and changed wallet seed, wallet ID, and key ID.
+   Wire this path into the custody ceremony, authenticated role delivery, key manifest, and durable replacement activation.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
    Completed: the [threshold-signed testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) reached successful finalized execution and checked the SDK handle types.
@@ -731,5 +736,6 @@ State remaining opportunities that could change that ranking.
 
 The deployed baseline passed before the arithmetic optimization and hardening.
 The revised implementation passes host and local Worker checks with the same canonical seed, share format, sequence, and permitted disclosures.
-The native engine comparison supports the current selection. Hosted speed and cost for the revised implementation remain unmeasured.
+The native engine comparison supports the current selection. Hosted measurements now include complete operation latency and paired CPU evidence.
+The wallet-seed recovery prelude currently has host evidence only. Production workload latency and throughput remain open.
 Keep implementation and benchmark reports linked from this document as the investigation proceeds.
