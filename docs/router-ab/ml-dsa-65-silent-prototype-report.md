@@ -2,11 +2,14 @@
 
 Date: October 15, 2026. Branch: `ml-dsa`. Production integration remains paused.
 
+The [generic-preparation follow-up](ml-dsa-65-generic-preparation-report.md) supersedes this report's key-specific preparation status.
+The measurements below remain the initial campaign record.
+
 ## Product verdict
 
 The prototype produces standard signatures quickly after preparation and removes the earlier gigabyte-scale recurring transfer.
 It does not yet meet the complete product requirement.
-Small reservations can exhaust, and the current key-specific preparation delays the first signature.
+Small reservations can exhaust. This campaign used key-specific preparation, which delayed the first signature.
 
 Prepared canonical key creation passes the five-second target in all four hosted requests.
 Successful hosted signatures also finish below five seconds in both signing profiles.
@@ -155,12 +158,12 @@ It produces one signature at 49.8 ms and two exhausted reservations after 17.6â€
 
 ## Required next prototype
 
-The next prototype should validate **usable signer registration**, including first-signature readiness, with a ready pool.
-The current signing preparation is key-specific and starts after the key exists.
+The next product test must validate **usable signer registration**, including first-signature readiness, with a ready pool.
+This campaign started signing preparation after the key existed. The follow-up separates that work from activation.
 Moving that work out of the signing timer does not make new-wallet registration complete within five seconds.
 
-1. Separate key-independent nonce/correlation preparation from key-specific activation.
-2. After canonical key creation, bind an untouched reservation to the key and measure commitment construction and decomposition.
+1. Completed in the follow-up: separate key-independent nonce/correlation preparation from key-specific activation.
+2. Completed in the follow-up: bind an untouched reservation to the canonical key. Measure activation plus signing with the client clock.
 3. Maintain independent four- or eight-candidate reservations. Consume another ready reservation when the first exhausts.
 4. Share immutable circuit topology and compact private correlations before holding multiple reservations in one Worker.
 5. Measure empty-pool behavior, replenishment throughput, interruptions, replay, and concurrent requests.

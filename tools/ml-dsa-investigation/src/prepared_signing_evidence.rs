@@ -58,7 +58,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         args.len() == 7,
         "Prepared signer needs schedules, own material, public key, operation, table directory, and result.",
     )?;
-    let public_key: [u8; 1952] = fs::read(&args[3])?
+    let mut public_key: [u8; 1952] = fs::read(&args[3])?
         .try_into()
         .map_err(|_| "Invalid public key size")?;
     let material = material_storage_evidence::open(Path::new(&args[2]), role, &public_key)?;
@@ -87,6 +87,11 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     let message = hex::decode(operation["message"].as_str().ok_or("Missing message")?)?;
     let context = hex::decode(operation["context"].as_str().ok_or("Missing context")?)?;
     let capacity = u16::try_from(operation["capacity"].as_u64().ok_or("Missing capacity")?)?;
+    let scenario = operation["scenario"].as_str().ok_or("Missing scenario")?;
+    require(
+        ["sign", "key-mismatch", "epoch-mismatch"].contains(&scenario),
+        "Unknown scenario",
+    )?;
     let mut transport = HostTransport::new(Path::new(&args[5]).to_owned(), 0);
     let started = Instant::now();
     let reservation = Reservation {
@@ -94,6 +99,8 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         epoch: [1; 32],
         candidates: capacity,
     };
+    let mut activation_ns = 0;
+    let mut preparation_traffic = json!(null);
     let prepared = match operation["engine"].as_str() {
         Some("half-gates") => Prepared::HalfGates(run_ready(prepared_signing::prepare_signer(
             role,
@@ -103,14 +110,59 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
             &schedules,
             &mut transport,
         ))??),
-        Some("gmw") => Prepared::Gmw(run_ready(prepared_signing::gmw::prepare_gmw_signer(
-            role,
-            own,
-            &public_key,
-            reservation,
-            &schedules,
-            &mut transport,
-        ))??),
+        Some("gmw") => {
+            let generic = run_ready(prepared_signing::gmw::prepare_gmw_reservation(
+                role,
+                reservation.id,
+                capacity,
+                &schedules,
+                &mut transport,
+            ))??;
+            run_ready(ready(role, &mut transport))??;
+            preparation_traffic = transport.counts[0].json();
+            let activation_started = Instant::now();
+            let mut epoch = reservation.epoch;
+            if role == SigningRole::B {
+                match scenario {
+                    "key-mismatch" => public_key[0] ^= 1,
+                    "epoch-mismatch" => epoch[0] ^= 1,
+                    _ => {}
+                }
+            }
+            let activated = run_ready(generic.activate(own, &public_key, epoch, &mut transport))?;
+            activation_ns = activation_started.elapsed().as_nanos();
+            if scenario != "sign" {
+                require(
+                    matches!(
+                        activated,
+                        Err(ed25519_yao::ml_dsa_signing::SigningError::RequestBinding)
+                    ),
+                    "Activation accepted mismatched key or epoch",
+                )?;
+                let after = transport.counts[0].json();
+                for field in ["sent_bytes", "received_bytes"] {
+                    require(
+                        after[field].as_u64().ok_or("Missing traffic")?
+                            - preparation_traffic[field]
+                                .as_u64()
+                                .ok_or("Missing traffic")?
+                            == 64,
+                        "Rejected activation continued beyond public binding",
+                    )?;
+                }
+                fs::write(
+                    &args[6],
+                    serde_json::to_vec_pretty(&json!({
+                        "result": {"status": "binding-rejected", "attempts": 0},
+                        "offline_ns": started.elapsed().as_nanos(), "online_ns": 0,
+                        "activation_ns": activation_ns, "preparation_traffic": preparation_traffic,
+                        "offline": after, "online": transport.counts[1].json(),
+                    }))?,
+                )?;
+                return Ok(true);
+            }
+            Prepared::Gmw(activated?)
+        }
         _ => return Err("Unknown prepared signer engine".into()),
     };
     // Both roles finish preparation before either starts online accounting.
@@ -174,7 +226,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     fs::write(
         &args[6],
         serde_json::to_vec_pretty(
-            &json!({"result": result, "offline_ns": offline_ns, "online_ns": online_ns,
+            &json!({"result": result, "offline_ns": offline_ns, "activation_ns": activation_ns, "preparation_traffic": preparation_traffic, "online_ns": online_ns,
         "offline": transport.counts[0].json(), "online": transport.counts[1].json()}),
         )?,
     )?;
@@ -207,11 +259,13 @@ pub(super) fn run_operation(
     let directory = tempfile::tempdir()?;
     let public = fs::read(public_key)?;
     let mut cases = Vec::new();
-    for (ordinal, (engine, capacity)) in [
-        ("half-gates", 1u16),
-        ("half-gates", 24),
-        ("gmw", 4),
-        ("gmw", 8),
+    for (ordinal, (engine, capacity, scenario)) in [
+        ("half-gates", 1u16, "sign"),
+        ("half-gates", 24, "sign"),
+        ("gmw", 4, "sign"),
+        ("gmw", 8, "sign"),
+        ("gmw", 1, "key-mismatch"),
+        ("gmw", 1, "epoch-mismatch"),
     ]
     .into_iter()
     .enumerate()
@@ -229,7 +283,7 @@ pub(super) fn run_operation(
             &operation,
             serde_json::to_vec(
                 &json!({"reservation": hex::encode(private_signing::fresh_operation_id()?), "operation": hex::encode(private_signing::fresh_operation_id()?),
-            "message": hex::encode(message), "context": hex::encode(&context), "capacity": capacity, "engine": engine}),
+            "message": hex::encode(message), "context": hex::encode(&context), "capacity": capacity, "engine": engine, "scenario": scenario}),
             )?,
         )?;
         private_execution::run_duplex_children(
@@ -306,7 +360,17 @@ pub(super) fn run_operation(
                     .ok_or("Missing signature")?,
             )?;
             reference::verify_threshold_signature(&public, &message, &context, &signature)?
+        } else if scenario != "sign" {
+            require(
+                a["result"]["status"] == "binding-rejected",
+                "Activation mismatch was not rejected",
+            )?;
+            json!({"activation_binding_rejected_before_commitment": true})
         } else {
+            require(
+                a["result"]["status"] == "exhausted",
+                "Unexpected signing outcome",
+            )?;
             json!({"pool_exhausted_without_signature": true})
         };
         eprintln!(
@@ -315,7 +379,7 @@ pub(super) fn run_operation(
             a["result"]["attempts"],
             b["online_ns"].as_u64().ok_or("Missing online time")? / 1_000_000
         );
-        cases.push(json!({"engine": engine, "capacity": capacity, "a": a, "b": b, "verification": verification}));
+        cases.push(json!({"engine": engine, "capacity": capacity, "scenario": scenario, "a": a, "b": b, "verification": verification}));
         fs::remove_dir_all(a_dir)?;
         fs::remove_dir_all(b_dir)?;
     }

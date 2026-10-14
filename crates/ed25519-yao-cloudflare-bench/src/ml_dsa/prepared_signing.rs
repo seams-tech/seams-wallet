@@ -15,7 +15,7 @@ use ed25519_yao::{
     },
     ml_dsa_signing::{
         prepared_signing::{
-            gmw::{prepare_gmw_signer, GmwSignature, PreparedGmwSigner},
+            gmw::{prepare_gmw_reservation, GmwSignature, PreparedGmwReservation},
             prepare_signer, PreparedSignature, PreparedSigner, Reservation,
         },
         OwnSigningShare, SigningError,
@@ -51,15 +51,33 @@ impl Backend {
         }
     }
 }
-enum Signer<'a> {
+enum PreparedOperation<'a> {
     HalfGates(PreparedSigner<'a>),
-    Gmw(PreparedGmwSigner<'a>),
+    Gmw {
+        reservation: PreparedGmwReservation<'a>,
+        own: OwnSigningShare,
+        public_key: [u8; 1952],
+        epoch: [u8; 32],
+        preparation_ms: f64,
+    },
 }
 enum Output {
     HalfGates(PreparedSignature),
     Gmw(GmwSignature),
 }
-impl Signer<'_> {
+impl PreparedOperation<'_> {
+    fn preparation_report(&self) -> Value {
+        match self {
+            Self::HalfGates(_) => json!({"kind": "key-specific"}),
+            Self::Gmw { preparation_ms, .. } => json!({
+                "kind": "generic-then-client-activation",
+                "generic_preparation_ms": preparation_ms,
+                "activation_in_client_online": true,
+                "prepared_before_key_generation": true,
+            }),
+        }
+    }
+
     async fn sign(
         self,
         message: &[u8],
@@ -72,10 +90,21 @@ impl Signer<'_> {
                 .sign(message, context, operation, adapter)
                 .await
                 .map(Output::HalfGates),
-            Self::Gmw(signer) => signer
-                .sign(message, context, operation, adapter)
-                .await
-                .map(Output::Gmw),
+            Self::Gmw {
+                reservation,
+                own,
+                public_key,
+                epoch,
+                ..
+            } => {
+                let signer = reservation
+                    .activate(own, &public_key, epoch, adapter)
+                    .await?;
+                signer
+                    .sign(message, context, operation, adapter)
+                    .await
+                    .map(Output::Gmw)
+            }
         }
     }
 }
@@ -155,7 +184,58 @@ async fn prepare<'a>(
     run_id: &str,
     adapter: &mut Adapter<'_>,
     backend: Backend,
-) -> worker::Result<Signer<'a>> {
+) -> worker::Result<PreparedOperation<'a>> {
+    let reservation = Reservation {
+        id: Sha256::digest(run_id.as_bytes()).into(),
+        epoch: [1; 32],
+        candidates: backend.capacity(),
+    };
+    match backend {
+        Backend::HalfGates => {
+            let key = generate_key(book, adapter).await?;
+            let own = OwnSigningShare::parse(&key.own_material).map_err(runtime_failure)?;
+            prepare_signer(
+                prepared::role(),
+                own,
+                &key.public_key,
+                reservation,
+                schedules,
+                adapter,
+            )
+            .await
+            .map(PreparedOperation::HalfGates)
+            .map_err(|error| adapter.error(error))
+        }
+        Backend::Gmw => {
+            let started = super::clock_ms();
+            let generic = prepare_gmw_reservation(
+                prepared::role(),
+                reservation.id,
+                reservation.candidates,
+                schedules,
+                adapter,
+            )
+            .await
+            .map_err(|error| adapter.error(error))?;
+            let preparation_ms = super::clock_ms() - started;
+            adapter.record_progress("ml-dsa-generic-preparation-ready", 0);
+            let key = generate_key(book, adapter).await?;
+            let own = OwnSigningShare::parse(&key.own_material).map_err(runtime_failure)?;
+            Ok(PreparedOperation::Gmw {
+                reservation: generic,
+                own,
+                public_key: key.public_key,
+                epoch: reservation.epoch,
+                preparation_ms,
+            })
+        }
+    }
+}
+
+async fn generate_key(
+    book: &Value,
+    adapter: &mut Adapter<'_>,
+) -> worker::Result<Box<ed25519_yao::ml_dsa_signing::keygen::KeygenOutput>> {
     let key_schedules = prepared::schedules(book)?;
     let fixture = prepared::fixture(book, 0)?;
     let root = prepared::own_root(fixture)?;
@@ -167,35 +247,7 @@ async fn prepare<'a>(
         ));
     }
     adapter.record_progress("ml-dsa-signing-key-ready", 0);
-    let own = OwnSigningShare::parse(&key.own_material).map_err(runtime_failure)?;
-    let reservation = Reservation {
-        id: Sha256::digest(run_id.as_bytes()).into(),
-        epoch: [1; 32],
-        candidates: backend.capacity(),
-    };
-    match backend {
-        Backend::HalfGates => prepare_signer(
-            prepared::role(),
-            own,
-            &key.public_key,
-            reservation,
-            schedules,
-            adapter,
-        )
-        .await
-        .map(Signer::HalfGates),
-        Backend::Gmw => prepare_gmw_signer(
-            prepared::role(),
-            own,
-            &key.public_key,
-            reservation,
-            schedules,
-            adapter,
-        )
-        .await
-        .map(Signer::Gmw),
-    }
-    .map_err(|error| adapter.error(error))
+    Ok(key)
 }
 
 fn message(index: usize) -> [u8; 32] {
@@ -246,11 +298,22 @@ fn report(
                         .collect::<Vec<_>>());
                     report["gmw_batches"] =
                         json!(output.batches.iter().map(batch_metrics).collect::<Vec<_>>());
-                    report["online_and_gates"] = json!(output
-                        .batches
-                        .iter()
-                        .map(|metrics| metrics.and_gates)
-                        .sum::<usize>());
+                    report["online_and_gates"] = json!(
+                        output.preparation_batches[1].and_gates
+                            + output
+                                .batches
+                                .iter()
+                                .map(|metrics| metrics.and_gates)
+                                .sum::<usize>()
+                    );
+                    report["online_and_exchanges"] = json!(
+                        output.preparation_batches[1].and_exchanges
+                            + output
+                                .batches
+                                .iter()
+                                .map(|metrics| metrics.and_exchanges)
+                                .sum::<usize>()
+                    );
                 }
             }
         }
@@ -295,10 +358,12 @@ pub(super) async fn run_a(
         .await
         .map_err(|error| adapter.error(error))?;
     let operation: [u8; 32] = Sha256::digest(format!("{run_id}/{index}").as_bytes()).into();
+    let preparation = prepared.preparation_report();
     let result = prepared
         .sign(&message(index), b"", &operation, &mut adapter)
         .await;
-    let a = report(&book, index, result, &adapter, backend)?;
+    let mut a = report(&book, index, result, &adapter, backend)?;
+    a["preparation"] = preparation;
     let b = adapter.duplex.peer_completion().await?;
     for field in [
         "status",
@@ -388,6 +453,7 @@ async fn run_b_session(
     }
     adapter.phase(Phase::Online);
     let operation: [u8; 32] = Sha256::digest(format!("{run_id}/{index}").as_bytes()).into();
+    let preparation = prepared.preparation_report();
     let result = prepared
         .sign(&message(index), b"", &operation, adapter)
         .await;
@@ -396,6 +462,7 @@ async fn run_b_session(
     }
     adapter.duplex.flush().await?;
     let mut report = report(book, index, result, adapter, backend)?;
+    report["preparation"] = preparation;
     report["incoming_colo"] = json!(colo);
     report["whole_observed_ms"] = json!(super::clock_ms() - started);
     adapter.duplex.send_completion(&report)?;

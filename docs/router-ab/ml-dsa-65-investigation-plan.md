@@ -2,7 +2,7 @@
 
 Status: production integration paused for the five-second product target, 2026-10-15.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [silent-correlation prototype report](ml-dsa-65-silent-prototype-report.md) records the latest implementation and hosted profiles.
+The [silent-correlation prototype report](ml-dsa-65-silent-prototype-report.md) records the initial silent-correlation campaign.
 Prepared canonical key creation takes 0.914–1.604 seconds in four hosted requests, including a real sampler continuation.
 Four-candidate signing produces three signatures in 0.197–1.116 seconds and three exhausted requests.
 Eight-candidate signing produces five signatures in 0.202–0.569 seconds and one exhausted request.
@@ -12,7 +12,10 @@ The earlier 7–8 MB model uses a different correlation bootstrap and does not p
 
 Silent correlations now support nonce conversion, private commitment decomposition, hashing, and bounds in GMW.
 Canonical key generation remains prepared half-gates. The user-rejected 1.4 GB design is excluded from selection.
-The next prototype must separate key-independent preparation from key activation and consume multiple independent ready reservations.
+Key-independent preparation and consuming key/epoch activation are implemented and reviewed.
+The [generic-preparation report](ml-dsa-65-generic-preparation-report.md) records three hosted activation-plus-signing successes in 0.174–0.196 seconds and three exhausted reservations.
+Native key/epoch mismatch checks reject before commitment evaluation, and canonical recovery still passes.
+The next prototype must compact retained state, share public topology, and consume multiple independent ready reservations.
 A first usable signer, empty-pool behavior, durable admission, replenishment, interruptions, concurrency, and production tail latency remain unqualified.
 These small campaigns do not establish a successful-signing percentile or a product-ready service.
 The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) records the disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
