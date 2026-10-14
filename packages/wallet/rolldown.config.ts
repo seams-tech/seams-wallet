@@ -549,6 +549,7 @@ const configs = [
       // React entries share this module tree, so an app that imports both `@seams/wallet`
       // and `@seams/wallet/react` loads each SDK module once.
       'src/react/index.ts',
+      'src/react/components/AccountMenuButton/index.tsx',
       'src/react/context/SeamsWebProvider.tsx',
       // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
       'src/react/components/HostedSeamsAuthMenu/public.ts',

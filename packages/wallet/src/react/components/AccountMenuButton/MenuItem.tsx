@@ -25,6 +25,7 @@ export const MenuItem = memo(
           ref={ref}
           type="button"
           disabled={item.disabled}
+          data-account-menu-item={item.id}
           className={`seams-dropdown-menu-item${disabledClass}${classNameProps}${highlightedClass}`}
           style={style}
           onClick={handleClick}

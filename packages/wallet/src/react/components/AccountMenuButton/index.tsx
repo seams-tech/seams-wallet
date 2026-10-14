@@ -7,8 +7,7 @@ import { GlobeIcon } from './icons/GlobeIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { RecoveryCodesIcon } from './icons/RecoveryCodesIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
-import { UserAccountButton } from './UserAccountButton';
-import { ProfileDropdown } from './ProfileDropdown';
+import { AccountMenuButtonView } from './AccountMenuButtonView';
 import { useProfileState } from './hooks/useProfileState';
 import { useSeams } from '../../context';
 import type { AccountMenuButtonProps, AccountsSectionRow, ExportChain, MenuItem } from './types';
@@ -650,50 +649,45 @@ const AccountMenuButtonInner: React.FC<
   }
 
   return (
-    <div
-      ref={refs.buttonRef}
-      className={`seams-profile-button-morphable ${isOpen ? 'open' : 'closed'}${className ? ` ${className}` : ''}`}
+    <AccountMenuButtonView
+      buttonRef={refs.buttonRef}
+      dropdownRef={refs.dropdownRef}
+      className={className}
       style={style}
-      data-state={isOpen ? 'open' : 'closed'}
+      trigger={{
+        username: accountName,
+        hideUsername,
+        fullAccountId: walletId || undefined,
+        emailAddress: emailAddress || undefined,
+        isOpen,
+        onClick: handleToggle,
+        theme,
+      }}
+      dropdown={{
+        isOpen,
+        menuItems: MENU_ITEMS,
+        onLock: handleLock,
+        onClose: handleClose,
+        menuItemsRef: refs.menuItemsRef,
+        toggleColors,
+        currentConfirmConfig,
+        onSetUiMode: handleSetUiMode,
+        onToggleSkipClick: handleToggleSkipClick,
+        onSetDelay: handleSetDelay,
+        transactionSettingsOpen,
+        accountsRows,
+        accountsOpen,
+        exportKeysOpen,
+        exportLoadingChain,
+        canExportNearKey,
+        canExportEvmKeys,
+        onExportChain: startExportKeyFlow,
+        walletId,
+        nearAccountId,
+        theme,
+        highlightedMenuItemId,
+      }}
     >
-      <UserAccountButton
-        username={accountName}
-        hideUsername={hideUsername}
-        // identity line under "Settings": the wallet id, not the chain account
-        fullAccountId={walletId || undefined}
-        emailAddress={emailAddress || undefined}
-        isOpen={isOpen}
-        onClick={handleToggle}
-        theme={theme}
-      />
-
-      {/* Visible menu structure for actual interaction */}
-      <ProfileDropdown
-        ref={refs.dropdownRef}
-        isOpen={isOpen}
-        menuItems={MENU_ITEMS}
-        onLock={handleLock}
-        onClose={handleClose}
-        menuItemsRef={refs.menuItemsRef}
-        toggleColors={toggleColors}
-        currentConfirmConfig={currentConfirmConfig}
-        onSetUiMode={handleSetUiMode}
-        onToggleSkipClick={handleToggleSkipClick}
-        onSetDelay={handleSetDelay}
-        transactionSettingsOpen={transactionSettingsOpen}
-        accountsRows={accountsRows}
-        accountsOpen={accountsOpen}
-        exportKeysOpen={exportKeysOpen}
-        exportLoadingChain={exportLoadingChain}
-        canExportNearKey={canExportNearKey}
-        canExportEvmKeys={canExportEvmKeys}
-        onExportChain={startExportKeyFlow}
-        walletId={walletId}
-        nearAccountId={nearAccountId}
-        theme={theme}
-        highlightedMenuItemId={highlightedMenuItemId}
-      />
-
       {/* QR Scanner Modal (portaled to nearest root for robustness) */}
       {canPortal &&
         createPortal(
@@ -736,7 +730,7 @@ const AccountMenuButtonInner: React.FC<
           />,
           portalHost,
         )}
-    </div>
+    </AccountMenuButtonView>
   );
 };
 
@@ -756,9 +750,7 @@ export const AccountMenuButton: React.FC<AccountMenuButtonProps> = (props) => {
 export const ProfileSettingsButton = AccountMenuButton;
 
 /** Full-page wallet settings, mounted inside SeamsWebProvider. */
-export function WalletSettingsPage(
-  props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>,
-) {
+export function WalletSettingsPage(props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>) {
   const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
   if (loginState.isLoggedIn) {
@@ -779,3 +771,6 @@ export function WalletSettingsPage(
     </div>
   );
 }
+
+export { AccountMenuButtonMock } from './AccountMenuButtonMock';
+export type { AccountMenuButtonMockProps } from './AccountMenuButtonMock';

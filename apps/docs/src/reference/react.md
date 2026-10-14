@@ -64,6 +64,23 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
+`AccountMenuButtonMock` is an interactive, provider-free account-menu preview.
+It shares the connected `AccountMenuButton` renderer. Account expansion,
+confirmation preferences, menu expansion, and the lock action use local state.
+It never creates a wallet session, signs, exports keys, or accesses wallet storage.
+Wallet-operation rows are disabled unless `onAction` supplies preview navigation.
+
+```tsx
+import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
+import '@seams/wallet/react/styles';
+
+<AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
+```
+
+Use `defaultOpen={false}` to start collapsed. `onAction` receives a
+`ProfileSettingsMenuItemId` for wallet-operation rows; the consumer owns that
+navigation. The mock does not perform the corresponding wallet operation.
+
 `WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
 export, and transaction-preference settings. It uses the same provider and
 wallet-origin operations. Signed-out users see hosted authentication. The page
@@ -86,14 +103,14 @@ Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
 `near.signAndSendTransaction` or the EVM and Tempo
 `signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 
-| Export | Purpose |
-| --- | --- |
-| `TransactionReviewHost` | Hosts app review content in the SDK dialog. |
-| `TransactionReview` | Requires `title`, `validity`, and `render`. Accepts optional `className`. |
-| `TransactionReviewControls` | `continueToWallet()`, `cancel()`, and `fail(error)`. |
-| `TransactionReviewValidity` | `{ kind: 'unbounded' }` or `{ kind: 'expires_at', atMs: number }`. |
-| `TransactionReviewError` | Review failure class with a typed `code`. |
-| `TransactionReviewErrorCode` | Union of review failure codes. |
+| Export                       | Purpose                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `TransactionReviewHost`      | Hosts app review content in the SDK dialog.                               |
+| `TransactionReview`          | Requires `title`, `validity`, and `render`. Accepts optional `className`. |
+| `TransactionReviewControls`  | `continueToWallet()`, `cancel()`, and `fail(error)`.                      |
+| `TransactionReviewValidity`  | `{ kind: 'unbounded' }` or `{ kind: 'expires_at', atMs: number }`.        |
+| `TransactionReviewError`     | Review failure class with a typed `code`.                                 |
+| `TransactionReviewErrorCode` | Union of review failure codes.                                            |
 
 The renderer returns React content synchronously. Continue leads to a separate
 wallet approval. Hosted iframe mode, modal confirmation, and explicit approval
