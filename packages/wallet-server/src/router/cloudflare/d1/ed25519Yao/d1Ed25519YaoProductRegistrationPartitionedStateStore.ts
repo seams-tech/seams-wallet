@@ -29,7 +29,7 @@ export type RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1 = O
 export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1(
   options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
 ): RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
-  const records = createLifecycleRecords(options);
+  const records = createD1Ed25519YaoLifecycleRecords(options);
   const store = new D1LifecycleRecords(options, records);
   return createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1(store);
 }
@@ -136,7 +136,7 @@ export async function evictWalletEd25519CapabilityCache(
   options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
   walletId: string,
 ): Promise<void> {
-  const records = createLifecycleRecords(options);
+  const records = createD1Ed25519YaoLifecycleRecords(options);
   const key = ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1;
   const current = await records.read(key);
   if (current.kind !== 'present') return;
@@ -172,7 +172,7 @@ export async function evictWalletEd25519CapabilityCache(
   if (result.kind !== 'stored') throw new Error('Capability cache changed during cleanup');
 }
 
-function createLifecycleRecords(
+export function createD1Ed25519YaoLifecycleRecords(
   options: RouterAbEd25519YaoProductRegistrationPartitionedStateD1OptionsV1,
 ) {
   return createCloudflareD1VersionedJsonRecordStore<VersionedJsonObject>({

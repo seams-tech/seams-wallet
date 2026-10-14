@@ -4,7 +4,7 @@ import type {
   RouterAbEd25519YaoCapabilitySnapshotV1,
   RouterAbEd25519YaoCapabilityMutationV1,
 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
-import type { RouterAbEd25519YaoProductRegistrationStateV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
+import type { RouterAbEd25519YaoConsumptionAdmissionV1, RouterAbEd25519YaoProductRegistrationStateV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 
 declare const snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1;
 declare const shared: RouterAbEd25519YaoProductRegistrationStateV1;
@@ -52,3 +52,12 @@ store.commitCapabilities(
 
 // @ts-expect-error A capability commit must retain the version it read.
 store.commitCapabilities({ value: capabilitySnapshot.value }, capabilityMutation, null);
+
+// @ts-expect-error A batch snapshot must state whether admission was present.
+const missingAdmission: RouterAbEd25519YaoConsumptionAdmissionV1 = { kind: 'snapshot' };
+// @ts-expect-error A store read cannot silently carry an unrelated snapshot.
+const conflictingAdmission: RouterAbEd25519YaoConsumptionAdmissionV1 = { kind: 'stored', authority: null };
+declare const batchedAdmission: Extract<RouterAbEd25519YaoConsumptionAdmissionV1, { kind: 'snapshot' }>;
+// @ts-expect-error A broad spread cannot change a snapshot into a store read.
+const spreadAdmission: RouterAbEd25519YaoConsumptionAdmissionV1 = { ...batchedAdmission, kind: 'stored' };
+void [missingAdmission, conflictingAdmission, spreadAdmission];

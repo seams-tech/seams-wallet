@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationExecutionRecord';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SponsoredNamedNearAccountInput } from '../near/d1SponsoredNearAccount';
 import {
@@ -215,6 +216,7 @@ import {
   buildRouterAbEd25519YaoProductAdmissionRequestV1,
   projectRouterAbEd25519YaoExactWalletSession,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
+  type RouterAbEd25519YaoConsumptionAdmissionV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoWalletSessionCredentialV1,
   type RouterAbEd25519YaoWalletSessionMintInputV1,
@@ -3753,6 +3755,7 @@ export class CloudflareD1WalletRegistrationService {
       readonly lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null;
       /** The passkey claim that respond recorded for this ceremony, when it did. */
       readonly heldPasskeyClaim: HeldRegistrationPasskeyClaim | null;
+      readonly readYaoAdmission: () => RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
@@ -3893,6 +3896,7 @@ export class CloudflareD1WalletRegistrationService {
       initialSessionPlan,
       args.lifecycleDecision,
       args.heldPasskeyClaim,
+      { kind: 'snapshot', authority: args.readYaoAdmission() },
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -4229,6 +4233,7 @@ export class CloudflareD1WalletRegistrationService {
           preparedCeremony: () => preparedCeremony,
           lifecycleDecision: initial.decision,
           heldPasskeyClaim: initial.heldPasskeyClaim,
+          readYaoAdmission: initial.readYaoAdmission,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4898,6 +4903,8 @@ export class CloudflareD1WalletRegistrationService {
       [],
       { kind: 'separate' },
       null,
+      null,
+      { kind: 'stored' },
     );
     if (!execution.ok) {
       return unissuedRegistrationCommit(
@@ -5341,7 +5348,8 @@ export class CloudflareD1WalletRegistrationService {
     serverTiming: Array<readonly [string, number]>,
     initialSessionPlan: RegistrationInitialSessionPlan,
     lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null,
-    heldPasskeyClaim: HeldRegistrationPasskeyClaim | null = null,
+    heldPasskeyClaim: HeldRegistrationPasskeyClaim | null,
+    yaoAdmission: RouterAbEd25519YaoConsumptionAdmissionV1,
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
     const totalTiming = startD1RegistrationRouteTiming('registerFinalizeTotalMs');
@@ -5662,13 +5670,16 @@ export class CloudflareD1WalletRegistrationService {
             sink: serverTiming,
             name: 'near_finalize_router_consume',
             startedAtMs: Date.now(),
-            promise: yaoRuntime.consumeActivated({
-              reference: {
-                lifecycleId: activationReference.lifecycle_id,
-                sessionId: activationReference.session_id,
+            promise: yaoRuntime.consumeActivated(
+              {
+                reference: {
+                  lifecycleId: activationReference.lifecycle_id,
+                  sessionId: activationReference.session_id,
+                },
+                consumerBinding: requestFingerprint,
               },
-              consumerBinding: requestFingerprint,
-            }),
+              yaoAdmission,
+            ),
           }),
           recordRegistrationPromiseTiming({
             sink: serverTiming,

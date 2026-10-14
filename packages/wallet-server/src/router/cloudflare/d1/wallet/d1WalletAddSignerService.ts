@@ -2004,10 +2004,13 @@ export class CloudflareD1WalletAddSignerService {
             message: 'Ed25519 signer slot is already occupied',
           };
         }
-        const consumed = await yaoRuntime.consumeActivated({
-          reference: requestedActivationReference,
-          consumerBinding: input.consumerBinding,
-        });
+        const consumed = await yaoRuntime.consumeActivated(
+          {
+            reference: requestedActivationReference,
+            consumerBinding: input.consumerBinding,
+          },
+          { kind: 'stored' },
+        );
         if (!consumed.ok) return consumed;
         if (
           !sameRouterAbEd25519YaoRegistrationAdmissionRequestV1(

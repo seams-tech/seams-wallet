@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../registration/routerAbEd25519YaoRegistrationExecutionRecord';
 import { type AddSignerIntentV1, type WalletId } from '@shared/utils/registrationIntent';
 import {
   computeAddSignerNearEd25519SigningKeyId,
@@ -129,6 +130,14 @@ export type RouterAbEd25519YaoWalletSessionMintInputV1 =
       readonly remainingUses: number;
     });
 
+/** Admission is immutable. A finalization batch may supply it before consumption. */
+export type RouterAbEd25519YaoConsumptionAdmissionV1 =
+  | { readonly kind: 'stored'; readonly authority?: never }
+  | {
+      readonly kind: 'snapshot';
+      readonly authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
+    };
+
 export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
   RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1 &
     RouterAbEd25519YaoActiveCapabilityResolverV1 &
@@ -179,6 +188,7 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
       ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
       consumeActivated(
         request: RouterAbEd25519YaoActivationConsumptionRequestV1,
+        admission: RouterAbEd25519YaoConsumptionAdmissionV1,
       ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1>;
     };
 

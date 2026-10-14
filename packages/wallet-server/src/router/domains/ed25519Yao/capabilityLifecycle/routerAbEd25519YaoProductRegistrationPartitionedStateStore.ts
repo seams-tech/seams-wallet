@@ -202,7 +202,10 @@ export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStore
  * loaded ceremony state, or `null` when the lifecycle is not admitted.
  */
 export function routerAbEd25519YaoAdmittedRegistrationAuthorityV1(
-  state: RouterAbEd25519YaoRegistrationCeremonySnapshotV1['state'],
+  state: Pick<
+    RouterAbEd25519YaoProductRegistrationCeremonyStateV1,
+    'registration' | 'authorization'
+  >,
   lifecycleId: string,
 ): RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null {
   const sessionKey = state.registration.lifecycleSessions.get(lifecycleId);
@@ -220,6 +223,18 @@ export function routerAbEd25519YaoAdmittedRegistrationAuthorityV1(
     authority,
     dispatchRoot: state.registration.dispatchRoots.get(lifecycleId),
   });
+}
+
+/** Parse an exact ceremony read for consumption; the Router owns its mutable claim. */
+export function parseRouterAbEd25519YaoRegistrationAdmissionReadV1(
+  lifecycleId: string,
+  result: VersionedJsonRecordReadResult<VersionedJsonObject>,
+): RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null {
+  const ceremony = readCeremonyRecord(
+    decodePartitionReadResult(result),
+    requireLifecycleId(lifecycleId),
+  );
+  return routerAbEd25519YaoAdmittedRegistrationAuthorityV1(ceremony.value, lifecycleId);
 }
 
 export function encodeRouterAbEd25519YaoProductRegistrationPartitionRecordV1(
