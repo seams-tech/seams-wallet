@@ -82,6 +82,13 @@ The earlier arithmetic-only audit also supplies no timing qualification for this
 
 ## Signing composition and permitted disclosures
 
+The paragraphs below describe the original message-bound signing baseline.
+The implemented [prepared-signing variant](ml-dsa-65-prepared-signing-review.md) has a separate scoped passive review.
+It uses direct joint random masks and opens responses after both secret bounds pass.
+Later public correctness checks may reject that candidate. Failed secret bounds still keep commitments private.
+The variant preserves canonical key recovery and standard verification, while changing FIPS 204's prescribed hedged nonce procedure.
+Production integration remains paused. Neither review supplies a complete production security proof.
+
 The signing-seed circuit privately computes `rho_double_prime = H(K || rnd || mu, 64)`.
 For hedged signing, the two roles contribute independent 32-byte values to `rnd` by XOR.
 For deterministic reference checks, both contributions are zero.
@@ -197,21 +204,21 @@ Neither role contains division, remainder, or indirect calls in these bodies.
 The following table identifies every explicit conditional branch by its absolute Wasm byte offset.
 Local numbers refer to the function's Wasm parameters and locals, starting at zero.
 
-| Function | A offsets | B offsets | Condition and origin |
-| --- | --- | --- | --- |
-| `inverse_ntt` | 574555 | 534669 | Local 10: block count derived from public transform length. |
-| `inverse_ntt` | 574596 | 534710 | Local 6: twiddle index starts at 256 and decreases once per block. |
-| `inverse_ntt` | 574660, 574673 | 534774, 534787 | Public block and coefficient counters select indices checked against 256. |
-| `inverse_ntt` | 574838 | 534952 | Coefficient counter reaches the public transform length. |
-| `inverse_ntt` | 574902, 574912 | 535016, 535026 | Remaining block count and transform length control the next iteration. |
-| `inverse_ntt` | 575021 | 535135 | Normalization byte offset increases by four until 1,024. |
-| `matrix_product_plus_error` | 429485, 429629, 429773, 429917, 430063 | 406580, 406724, 406868, 407012, 407158 | Local 5: each of five column loops traverses 1,024 bytes in steps of four. |
-| `matrix_product_plus_error` | 430204 | 407299 | Local 5: output loop traverses 1,024 bytes in steps of eight. |
-| `matrix_product_plus_error` | 430241 | 407336 | Local 8: row counter increases from zero to six. |
-| `ntt` | 609321 | 562183 | Local 9: block count derived from public transform length. |
-| `ntt` | 609358, 609403 | 562220, 562265 | Public twiddle and coefficient indices are checked against 256. |
-| `ntt` | 609564 | 562426 | Coefficient byte offset reaches four times the public transform length. |
-| `ntt` | 609583, 609594 | 562445, 562456 | Remaining block count and halved transform length control the next iteration. |
+| Function                    | A offsets                              | B offsets                              | Condition and origin                                                          |
+| --------------------------- | -------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------- |
+| `inverse_ntt`               | 574555                                 | 534669                                 | Local 10: block count derived from public transform length.                   |
+| `inverse_ntt`               | 574596                                 | 534710                                 | Local 6: twiddle index starts at 256 and decreases once per block.            |
+| `inverse_ntt`               | 574660, 574673                         | 534774, 534787                         | Public block and coefficient counters select indices checked against 256.     |
+| `inverse_ntt`               | 574838                                 | 534952                                 | Coefficient counter reaches the public transform length.                      |
+| `inverse_ntt`               | 574902, 574912                         | 535016, 535026                         | Remaining block count and transform length control the next iteration.        |
+| `inverse_ntt`               | 575021                                 | 535135                                 | Normalization byte offset increases by four until 1,024.                      |
+| `matrix_product_plus_error` | 429485, 429629, 429773, 429917, 430063 | 406580, 406724, 406868, 407012, 407158 | Local 5: each of five column loops traverses 1,024 bytes in steps of four.    |
+| `matrix_product_plus_error` | 430204                                 | 407299                                 | Local 5: output loop traverses 1,024 bytes in steps of eight.                 |
+| `matrix_product_plus_error` | 430241                                 | 407336                                 | Local 8: row counter increases from zero to six.                              |
+| `ntt`                       | 609321                                 | 562183                                 | Local 9: block count derived from public transform length.                    |
+| `ntt`                       | 609358, 609403                         | 562220, 562265                         | Public twiddle and coefficient indices are checked against 256.               |
+| `ntt`                       | 609564                                 | 562426                                 | Coefficient byte offset reaches four times the public transform length.       |
+| `ntt`                       | 609583, 609594                         | 562445, 562456                         | Remaining block count and halved transform length control the next iteration. |
 
 Memory addresses use incoming array pointers, the stack pointer, fixed offsets, and these public counters.
 Coefficient loads feed arithmetic, value selection, and stores. They do not feed branch conditions or memory addresses in the reviewed bodies.
@@ -227,14 +234,14 @@ The review also excludes memory-erasure guarantees, machine-instruction timing, 
 
 ## Source-level control-flow review
 
-| Path | Private values | Reviewed control or addressing behavior | Remaining check |
-| --- | --- | --- | --- |
-| `ml_dsa_runtime.rs` | Input bits, labels, output shares | Gate dispatch, arena indices, frame limits, and output lengths follow the pinned public schedule. | Inspect compiled runtime and its callees. |
-| `passive.rs` half-gates | Labels, global delta, choice bits | Label selection uses fixed-length `subtle` conditional operations. Both evaluator half-gates execute. | Inspect compiled selections and AES paths. |
-| `gate_aes.rs` | Four label blocks | S-box uses Boolean operations. Round branches and array indices use fixed round counters. | Inspect final Wasm and JIT code. |
-| `ot.rs` | OT choices, seeds, scalars | Choice selection uses `subtle`. Matrix indices use public row and message counters. Base-response repair always executes twice. | Review compiled OT and dependency primitives. |
-| `ml_dsa_signing.rs` | Candidate shares | Stage dispatch uses public role, stage, and index. Candidate retry follows the disclosed aggregate acceptance bit. | Complete the composition proof for these disclosures. |
-| Accepted signature encoding | Reconstructed response and hints | Branches use accepted output values, which the standard signature reveals. Encoding starts only after aggregate acceptance. | Preserve this ordering in production adapters. |
+| Path                        | Private values                    | Reviewed control or addressing behavior                                                                                         | Remaining check                                       |
+| --------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `ml_dsa_runtime.rs`         | Input bits, labels, output shares | Gate dispatch, arena indices, frame limits, and output lengths follow the pinned public schedule.                               | Inspect compiled runtime and its callees.             |
+| `passive.rs` half-gates     | Labels, global delta, choice bits | Label selection uses fixed-length `subtle` conditional operations. Both evaluator half-gates execute.                           | Inspect compiled selections and AES paths.            |
+| `gate_aes.rs`               | Four label blocks                 | S-box uses Boolean operations. Round branches and array indices use fixed round counters.                                       | Inspect final Wasm and JIT code.                      |
+| `ot.rs`                     | OT choices, seeds, scalars        | Choice selection uses `subtle`. Matrix indices use public row and message counters. Base-response repair always executes twice. | Review compiled OT and dependency primitives.         |
+| `ml_dsa_signing.rs`         | Candidate shares                  | Stage dispatch uses public role, stage, and index. Candidate retry follows the disclosed aggregate acceptance bit.              | Complete the composition proof for these disclosures. |
+| Accepted signature encoding | Reconstructed response and hints  | Branches use accepted output values, which the standard signature reveals. Encoding starts only after aggregate acceptance.     | Preserve this ordering in production adapters.        |
 
 These source observations do not qualify the compiled runtime, AES, or OT implementations.
 They identify the inputs and review boundaries for that work.
@@ -352,7 +359,6 @@ They establish no composition proof, target timing guarantee, or production auth
 The [rebuilt arithmetic audit](../evidence/ml-dsa-65-engine-adapter-arithmetic-audit-20261014.json) still finds no division or remainder in the three private polynomial functions.
 Its AArch64 and Wasm checks retain the same pre-link scope and target-qualification limits.
 
-
 ## Role material encryption boundary
 
 The native storage envelope holds one role's 17,472-byte signing share.
@@ -392,7 +398,6 @@ It repeats interruption, OT replay rejection, restart, four concurrent signature
 A changed public key now fails during storage opening, before any signing protocol bytes are received.
 The other four request mismatches still fail at the initial peer exchange.
 The custody and lifecycle reruns overlapped on one host. Their timings are correctness evidence only and cannot rank performance.
-
 
 ## Prepared half-gates prototype
 

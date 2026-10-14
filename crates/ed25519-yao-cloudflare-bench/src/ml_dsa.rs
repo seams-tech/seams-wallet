@@ -9,6 +9,7 @@
 
 mod pipeline;
 mod prepared;
+mod prepared_signing;
 mod prepared_storage;
 
 use std::collections::VecDeque;
@@ -32,6 +33,8 @@ const DATA: u8 = 0;
 const ACK: u8 = 1;
 const COMPLETE: u8 = 2;
 const SCHEMA: &str = "seams.ml-dsa-worker-kernel.v1";
+static COMMITMENT_HASH_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/commitment-hash.bin");
+static RESPONSE_CHECK_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/response-check.bin");
 static SEED_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/seed.bin");
 static SAMPLING_TWO_BLOCKS_SCHEDULE: &[u8] =
     include_bytes!("ml_dsa_schedules/sampling-two-blocks.bin");
@@ -92,7 +95,7 @@ impl Kernel {
 
 #[derive(Clone, Copy)]
 enum ProbeOperation {
-    PreparedKeygen,
+    Prepared(prepared::Operation),
     Kernel(Kernel),
     Pipeline(pipeline::Operation),
 }
@@ -100,7 +103,13 @@ enum ProbeOperation {
 impl ProbeOperation {
     fn parse(value: &str) -> worker::Result<Self> {
         match value {
-            "prepared-keygen" => Ok(Self::PreparedKeygen),
+            "prepared-keygen" => Ok(Self::Prepared(prepared::Operation::Keygen)),
+            "prepared-signing" => Ok(Self::Prepared(prepared::Operation::Signing(
+                prepared_signing::Backend::HalfGates,
+            ))),
+            "prepared-gmw-signing" => Ok(Self::Prepared(prepared::Operation::Signing(
+                prepared_signing::Backend::Gmw,
+            ))),
             "keygen-fixture" => Ok(Self::Pipeline(pipeline::Operation::Keygen(
                 pipeline::ThresholdMode::Fixture,
             ))),
@@ -756,17 +765,17 @@ pub async fn main(
     #[cfg(feature = "ml-dsa-a")]
     {
         let (operation, run_id, colo) = request_parameters(&request, "/benchmark")?;
-        if matches!(operation, ProbeOperation::PreparedKeygen) {
+        if let ProbeOperation::Prepared(prepared_operation) = operation {
             if request.headers().get("upgrade")?.as_deref() != Some("websocket") {
                 return json_response(
                     &json!({"ok": false, "error": "WebSocket upgrade required."}),
                     426,
                 );
             }
-            return prepared::accept_a(env, context, run_id, colo);
+            return prepared::accept_a(env, context, run_id, colo, prepared_operation);
         }
         let result = match operation {
-            ProbeOperation::PreparedKeygen => unreachable!("handled above"),
+            ProbeOperation::Prepared(_) => unreachable!("handled above"),
             ProbeOperation::Kernel(kernel) => run_a(&env, kernel, &run_id, colo).await,
             ProbeOperation::Pipeline(operation) => {
                 pipeline::run_a(&env, operation, &run_id, colo).await
@@ -794,7 +803,12 @@ pub async fn main(
         let for_error = server.clone();
         context.wait_until(async move {
             let result = match operation {
-                ProbeOperation::PreparedKeygen => prepared::run_b(env, server, run_id, colo).await,
+                ProbeOperation::Prepared(prepared::Operation::Keygen) => {
+                    prepared::run_b(env, server, run_id, colo).await
+                }
+                ProbeOperation::Prepared(prepared::Operation::Signing(backend)) => {
+                    Box::pin(prepared_signing::run_b(env, server, run_id, colo, backend)).await
+                }
                 ProbeOperation::Kernel(kernel) => run_b(server, kernel, run_id, colo).await,
                 ProbeOperation::Pipeline(operation) => {
                     pipeline::run_b(server, operation, run_id, colo).await

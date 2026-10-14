@@ -8,6 +8,8 @@
 
 pub mod arithmetic;
 pub mod keygen;
+/// Single-use preparation with private rejected commitments.
+pub mod prepared_signing;
 /// Private canonical-seed derivation from shares of a wallet-derived owner root.
 pub mod wallet_seed;
 
@@ -88,6 +90,8 @@ pub enum SigningError {
     RequestBinding,
     /// No candidate passed within the configured FIPS loop bound.
     AttemptLimit,
+    /// The single-use prepared reservation ran out of fresh candidates.
+    PreparedPoolExhausted,
     /// The accepted candidate cannot use the standard signature encoding.
     SignatureEncoding,
 }

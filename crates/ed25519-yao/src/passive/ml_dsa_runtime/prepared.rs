@@ -57,8 +57,9 @@ pub struct PreparedCircuit<'a> {
 
 enum Secret {
     A {
-        input_pairs: Zeroizing<Vec<([u8; 16], [u8; 16])>>,
-        ot_pairs: Zeroizing<Vec<([u8; 16], [u8; 16])>>,
+        input_zeros: Zeroizing<Vec<[u8; 16]>>,
+        masked_pairs: Zeroizing<Vec<([u8; 16], [u8; 16])>>,
+        delta: Zeroizing<super::super::SecretBlock>,
     },
     B {
         choices: Zeroizing<Vec<u8>>,
@@ -97,7 +98,7 @@ async fn prepare_a<'a>(
         inputs
             .iter()
             .map(|wire| garbler.encoded_pair(wire))
-            .collect(),
+            .collect::<Vec<_>>(),
     );
     let mut ot_pairs = Zeroizing::new(vec![([0; 16], [0; 16]); schedule.evaluator_input_bits()]);
     for (zero, one) in ot_pairs.iter_mut() {
@@ -150,10 +151,7 @@ async fn prepare_a<'a>(
     };
     Ok(PreparedCircuit {
         common,
-        secret: Secret::A {
-            input_pairs,
-            ot_pairs,
-        },
+        secret: compact_garbler_inputs(&input_pairs, &ot_pairs, schedule.garbler_input_bits()),
         offline_sent: sent,
         offline_received: received,
     })
@@ -231,8 +229,9 @@ impl PreparedCircuit<'_> {
         let binding = common.metrics.execution_binding_sha256;
         match secret {
             Secret::A {
-                input_pairs,
-                ot_pairs,
+                input_zeros,
+                masked_pairs,
+                delta,
             } => {
                 check(
                     bits.len() == schedule.garbler_input_bits(),
@@ -243,26 +242,25 @@ impl PreparedCircuit<'_> {
                     .await?;
                 check(correction[..32] == binding, RuntimeError::SessionBinding)?;
                 let mut labels = Zeroizing::new(Vec::with_capacity(
-                    32 + bits.len() * 16 + ot_pairs.len() * 32,
+                    32 + bits.len() * 16 + masked_pairs.len() * 32,
                 ));
                 labels.extend_from_slice(&binding);
-                for (pair, bit) in input_pairs.iter().zip(bits) {
-                    let mut selected = select_label(pair, u8::from(*bit));
+                for (zero, bit) in input_zeros.iter().zip(bits) {
+                    let mut selected = *zero;
+                    xor_selected_delta(&mut selected, &delta.0, u8::from(*bit));
                     labels.extend_from_slice(&selected);
                     selected.zeroize();
                 }
-                for (index, (zero, one)) in input_pairs[bits.len()..].iter().enumerate() {
+                for (index, pair) in masked_pairs.iter().enumerate() {
                     let swap = (correction[32 + index / 8] >> (index % 8)) & 1;
-                    let mut pad_zero = select_label(&ot_pairs[index], swap);
-                    let mut pad_one = select_label(&ot_pairs[index], swap ^ 1);
-                    for byte in 0..16 {
-                        pad_zero[byte] ^= zero[byte];
-                        pad_one[byte] ^= one[byte];
-                    }
-                    labels.extend_from_slice(&pad_zero);
-                    labels.extend_from_slice(&pad_one);
-                    pad_zero.zeroize();
-                    pad_one.zeroize();
+                    let mut zero = select_label(pair, swap);
+                    let mut one = select_label(pair, swap ^ 1);
+                    xor_selected_delta(&mut zero, &delta.0, swap);
+                    xor_selected_delta(&mut one, &delta.0, swap);
+                    labels.extend_from_slice(&zero);
+                    labels.extend_from_slice(&one);
+                    zero.zeroize();
+                    one.zeroize();
                 }
                 transport.send(&labels).await?;
                 let returned = transport
@@ -271,7 +269,7 @@ impl PreparedCircuit<'_> {
                 check(returned[..32] == binding, RuntimeError::SessionBinding)?;
                 if matches!(
                     schedule.workload,
-                    Workload::Sampling | Workload::AggregateCheck
+                    Workload::Sampling | Workload::AggregateCheck | Workload::BoundsDecision
                 ) {
                     check(returned[32] <= 1, RuntimeError::PublicOutput)?;
                 }
@@ -402,5 +400,41 @@ fn finish_prepared(
     RuntimeOutput {
         output,
         metrics: common.metrics,
+    }
+}
+
+// L1 = L0 XOR delta. Precombine the two random-OT pads with their labels.
+// A correction of one swaps these pairs and XORs delta into both blocks.
+// This preserves every online byte while halving A's retained input material.
+fn compact_garbler_inputs(
+    inputs: &[([u8; 16], [u8; 16])],
+    pads: &[([u8; 16], [u8; 16])],
+    a_bits: usize,
+) -> Secret {
+    let mut delta = Zeroizing::new(super::super::SecretBlock::default());
+    for byte in 0..16 {
+        delta.0[byte] = inputs[0].0[byte] ^ inputs[0].1[byte];
+    }
+    let input_zeros = Zeroizing::new(inputs[..a_bits].iter().map(|pair| pair.0).collect());
+    let mut masked_pairs = Zeroizing::new(Vec::with_capacity(pads.len()));
+    for (pair, pad) in inputs[a_bits..].iter().zip(pads) {
+        let mut masked = *pair;
+        for byte in 0..16 {
+            masked.0[byte] ^= pad.0[byte];
+            masked.1[byte] ^= pad.1[byte];
+        }
+        masked_pairs.push(masked);
+        masked.zeroize();
+    }
+    Secret::A {
+        input_zeros,
+        masked_pairs,
+        delta,
+    }
+}
+
+fn xor_selected_delta(block: &mut [u8; 16], delta: &[u8; 16], bit: u8) {
+    for byte in 0..16 {
+        block[byte] ^= u8::conditional_select(&0, &delta[byte], Choice::from(bit));
     }
 }

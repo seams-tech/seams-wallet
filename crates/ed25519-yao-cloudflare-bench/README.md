@@ -261,3 +261,25 @@ pnpm exec wrangler delete --config wrangler.ml-dsa.b.jsonc --force
 
 Remove the restricted token file after deletion. These configurations create
 no Durable Objects or D1 databases.
+
+## Prepared ML-DSA experiments
+
+The prepared profiles use `wrangler.ml-dsa-prepared.a.jsonc` and `wrangler.ml-dsa-prepared.b.jsonc`.
+The [current performance report](../../docs/router-ab/ml-dsa-65-resident-prepared-performance.md) describes the stored tables, ready pools, and measured limits.
+These profiles preserve canonical wallet-seed recovery and use disposable public fixture keys.
+Prepare the fixture book with `export-prepared-fixtures` in the investigation tool before building both role bundles.
+
+```sh
+node crates/ed25519-yao-cloudflare-bench/scripts/run_prepared_keygen.mjs \
+  --operation keygen --local --indices 0,8 --output /private/tmp/keygen.json
+node crates/ed25519-yao-cloudflare-bench/scripts/run_prepared_keygen.mjs \
+  --operation gmw-signing --local --indices 0 --output /private/tmp/signing.json
+```
+
+Run these commands from the repository root.
+Hosted runs replace `--local` with `--endpoint` and `--secrets-file`.
+The latter names a restricted JSON file containing the shared benchmark `PROBE_TOKEN`.
+Signing uses direct joint random masks, private commitments, and ordinary standard verification.
+It changes FIPS 204's prescribed hedged nonce procedure. Canonical key identity and recovery remain unchanged.
+The runner records readiness separately and counts pool exhaustion as unsuccessful.
+Delete both temporary Workers and their private R2 bucket after collecting evidence.

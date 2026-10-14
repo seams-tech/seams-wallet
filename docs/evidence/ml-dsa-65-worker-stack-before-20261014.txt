@@ -1,0 +1,14 @@
+global I32Const { value: 1048576 }
+global End
+global I32Const { value: 66980668 }
+global End
+global I32Const { value: 66980584 }
+global End
+global I32Const { value: 66980724 }
+global End
+793	1080224	js_sys[1466f7a36a549852]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[7319e9b7f31fc3b1]::context::Context>::wait_until<ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::prepared::accept_a::{closure#0}>::{closure#0}>>::{closure#0}
+795	1080224	<js_sys[1466f7a36a549852]::futures::future_to_promise<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[7319e9b7f31fc3b1]::context::Context>::wait_until<ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::prepared::accept_a::{closure#0}>::{closure#0}>>::{closure#0} as core[9b3796e30d99ddb7]::ops::function::FnOnce<(js_sys[1466f7a36a549852]::Function<fn(wasm_bindgen[7ce729aaac7d40d8]::JsValue) -> wasm_bindgen[7ce729aaac7d40d8]::sys::Undefined>, js_sys[1466f7a36a549852]::Function<fn(wasm_bindgen[7ce729aaac7d40d8]::JsValue) -> wasm_bindgen[7ce729aaac7d40d8]::sys::Undefined>)>>::call_once::{shim:vtable#0}
+535	622768	js_sys[1466f7a36a549852]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[7319e9b7f31fc3b1]::context::Context>::wait_until<ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::prepared::accept_a::{closure#0}>::{closure#0}>>::{closure#0}::{closure#0}
+536	540160	js_sys[1466f7a36a549852]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}
+477	80496	ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::pipeline::verify_standard_signature
+191	62480	<ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::keygen::KeygenCircuit>::accept

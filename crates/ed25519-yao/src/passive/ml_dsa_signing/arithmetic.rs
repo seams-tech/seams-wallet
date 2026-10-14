@@ -133,7 +133,7 @@ pub(super) fn ntt(mut polynomial: Polynomial, twiddles: &Polynomial) -> Polynomi
     polynomial
 }
 
-fn inverse_ntt(mut polynomial: Polynomial, twiddles: &Polynomial) -> Polynomial {
+pub(super) fn inverse_ntt(mut polynomial: Polynomial, twiddles: &Polynomial) -> Polynomial {
     let mut twiddle_index = N;
     let mut length = 1;
     while length < N {

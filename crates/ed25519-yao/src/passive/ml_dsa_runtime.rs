@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 /// Experimental Boolean-engine comparison with genuine two-party preprocessing.
-#[cfg(all(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
 pub mod boolean_comparison;
 
 /// Input-independent half-gate preparation for isolated performance experiments.
@@ -35,8 +35,8 @@ const STREAM_HEADER_BYTES: usize = 80;
 const STREAM_MAGIC: &[u8; 8] = b"MLDSAP01";
 /// Maximum AND-table payload, excluding its eight-byte length/ordinal envelope.
 pub const TABLE_PAYLOAD_BYTES: usize = 65_536;
-/// Largest exact control message among the admitted investigation workloads.
-pub const MAX_MESSAGE_BYTES: usize = 378_880;
+/// Control-message bound for the admitted kernels and packed GMW batches.
+pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
 
 /// Recoverable failures at the fixed runtime boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +79,9 @@ type Result<T> = core::result::Result<T, RuntimeError>;
 
 #[derive(Clone, Copy)]
 enum Workload {
+    PreparedCommitment,
+    LowResponseCheck,
+    BoundsDecision,
     FreshMaskConversion,
     WalletSeed,
     Seed,
@@ -98,6 +101,9 @@ enum Workload {
 impl Workload {
     const fn a_inputs(self) -> usize {
         match self {
+            Self::PreparedCommitment => 12800,
+            Self::LowResponseCheck => 5889,
+            Self::BoundsDecision => 1664,
             Self::FreshMaskConversion => 11008,
             Self::WalletSeed => 512,
             Self::Seed => 1024,
@@ -116,6 +122,8 @@ impl Workload {
     }
     const fn b_inputs(self) -> usize {
         match self {
+            Self::PreparedCommitment | Self::LowResponseCheck => 5888,
+            Self::BoundsDecision => 1664,
             Self::FreshMaskConversion => 5120,
             Self::WalletSeed | Self::Seed => 256,
             Self::Sampling
@@ -133,13 +141,15 @@ impl Workload {
     const fn public_bytes(self) -> usize {
         match self {
             Self::Seed => 32,
-            Self::Sampling | Self::AggregateCheck => 1,
+            Self::Sampling | Self::AggregateCheck | Self::BoundsDecision => 1,
             Self::Rounding => 320,
             Self::SamplingTwoBlocks => 68,
             Self::SamplingThreeBlocks => 102,
             Self::SamplingFinalBound => 121,
             Self::CommitmentHash => 48,
-            Self::FreshMaskConversion
+            Self::PreparedCommitment
+            | Self::LowResponseCheck
+            | Self::FreshMaskConversion
             | Self::WalletSeed
             | Self::ExpandMask
             | Self::SigningSeed
@@ -150,14 +160,16 @@ impl Workload {
     }
     fn public_output(self, output: &[u8]) -> Zeroizing<Vec<u8>> {
         Zeroizing::new(match self {
-            Self::Sampling | Self::AggregateCheck => vec![output[0] & 1],
+            Self::Sampling | Self::AggregateCheck | Self::BoundsDecision => vec![output[0] & 1],
             Self::Seed
             | Self::Rounding
             | Self::CommitmentHash
             | Self::SamplingTwoBlocks
             | Self::SamplingThreeBlocks
             | Self::SamplingFinalBound => output[..self.public_bytes()].to_vec(),
-            Self::FreshMaskConversion
+            Self::PreparedCommitment
+            | Self::LowResponseCheck
+            | Self::FreshMaskConversion
             | Self::WalletSeed
             | Self::ExpandMask
             | Self::SigningSeed
@@ -197,6 +209,9 @@ impl<'a> TrustedMlDsaSchedule<'a> {
         let outputs = read_u32(&bytes[50..54]);
         let slots = read_u32(&bytes[54..58]);
         let workload = match (bytes[8], inputs, outputs) {
+            (0x96, 18688, 6912) => Workload::PreparedCommitment,
+            (0x97, 11777, 1) => Workload::LowResponseCheck,
+            (0x98, 3328, 1) => Workload::BoundsDecision,
             (0x92, 16128, 5888) => Workload::FreshMaskConversion,
             (0x91, 768, 256) => Workload::WalletSeed,
             (0x93, 13552, 13056) => Workload::SamplingTwoBlocks,
@@ -543,7 +558,7 @@ impl<'a> ReceiveStep<'a> {
                 common.received(self.kind, bytes.len());
                 if matches!(
                     common.schedule.workload,
-                    Workload::Sampling | Workload::AggregateCheck
+                    Workload::Sampling | Workload::AggregateCheck | Workload::BoundsDecision
                 ) {
                     check(bytes[0] <= 1, RuntimeError::PublicOutput)?;
                 }
@@ -1062,12 +1077,18 @@ fn sender_begin_payloads(
         | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
         }
-        Workload::Rounding | Workload::CommitmentHighBits | Workload::ResponseCheck => {
+        Workload::Rounding
+        | Workload::CommitmentHighBits
+        | Workload::ResponseCheck
+        | Workload::PreparedCommitment
+        | Workload::LowResponseCheck => {
             begin!(MlDsaRoundingOtFamily, Rounding)
         }
         Workload::CommitmentHash => begin!(MlDsaCommitmentOtFamily, Commitment),
         Workload::RowCheckAndHints => begin!(MlDsaSigningRowOtFamily, SigningRow),
-        Workload::AggregateCheck => begin!(MlDsaDecisionOtFamily, Decision),
+        Workload::AggregateCheck | Workload::BoundsDecision => {
+            begin!(MlDsaDecisionOtFamily, Decision)
+        }
     }
 }
 fn sender_accept(sender: Sender, bytes: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
@@ -1119,12 +1140,18 @@ fn receiver_begin(
         | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
         }
-        Workload::Rounding | Workload::CommitmentHighBits | Workload::ResponseCheck => {
+        Workload::Rounding
+        | Workload::CommitmentHighBits
+        | Workload::ResponseCheck
+        | Workload::PreparedCommitment
+        | Workload::LowResponseCheck => {
             begin!(MlDsaRoundingOtFamily, Rounding)
         }
         Workload::CommitmentHash => begin!(MlDsaCommitmentOtFamily, Commitment),
         Workload::RowCheckAndHints => begin!(MlDsaSigningRowOtFamily, SigningRow),
-        Workload::AggregateCheck => begin!(MlDsaDecisionOtFamily, Decision),
+        Workload::AggregateCheck | Workload::BoundsDecision => {
+            begin!(MlDsaDecisionOtFamily, Decision)
+        }
     }
 }
 fn receiver_accept_choices(

@@ -1,39 +1,16 @@
-//! R2 stores one bounded table object per prepared circuit. Online reads stream.
+//! Bounded multipart writes and one streamed R2 read per online table group.
 
-use futures_channel::oneshot;
+use super::failure;
 use serde_json::{json, Value};
 use wasm_bindgen::{JsCast, JsValue};
 use worker::js_sys::{Function, Object, Promise, Reflect, Uint8Array};
 use worker::wasm_bindgen_futures::JsFuture;
-use worker::{Bucket, ResponseBody};
+use worker::{Bucket, MultipartUpload, ResponseBody, UploadedPart};
 
-use super::{encode_hex, failure};
-
-const MAX_OBJECT_BYTES: usize = 10 * 1024 * 1024;
 const FRAME_BYTES: usize = 65544;
-// Wallet derivation, seed expansion, and eleven two-block samplers precede fallbacks.
-const NORMAL_PATH_TABLES: usize = 13;
+const PART_BYTES: usize = 5 * 1024 * 1024;
+const MAX_GROUP_BYTES: usize = 64 * 1024 * 1024;
 
-enum WriteState {
-    Empty,
-    Collecting {
-        binding: [u8; 32],
-        next_ordinal: usize,
-        bytes: Vec<u8>,
-    },
-}
-enum ReadState {
-    Empty,
-    Streaming {
-        binding: [u8; 32],
-        next_ordinal: usize,
-        remaining: usize,
-        stream: TableReader,
-    },
-}
-
-// A normal reader returns 4 KiB chunks on hosted R2. readAtLeast fills one
-// bounded frame before returning to Wasm, without buffering a complete object.
 struct TableReader {
     reader: JsValue,
     read_at_least: Function,
@@ -90,87 +67,125 @@ impl Drop for TableReader {
     }
 }
 
-struct OpenedTable {
-    size: usize,
-    stream: TableReader,
-    get_observed_ms: f64,
+#[derive(Clone, Copy)]
+pub(super) enum Layout {
+    /// The first thirteen circuits share a stream. Each fallback stands alone.
+    Keygen,
+    /// Each candidate's thirteen online circuits share one stream.
+    Signing,
 }
-struct PrefetchedTable {
-    key: String,
-    response: oneshot::Receiver<worker::Result<OpenedTable>>,
-}
-async fn open_table(bucket: &Bucket, key: &str) -> worker::Result<OpenedTable> {
-    let started = super::clock_ms();
-    let object = bucket
-        .get(key)
-        .execute()
-        .await?
-        .ok_or_else(|| failure("Prepared table is absent."))?;
-    let get_observed_ms = super::clock_ms() - started;
-    let size = usize::try_from(object.size()).map_err(super::runtime_failure)?;
-    if size == 0 || size > MAX_OBJECT_BYTES {
-        return Err(failure("Prepared table size is invalid."));
+impl Layout {
+    fn group(self, index: usize) -> usize {
+        match self {
+            Self::Keygen if index < 13 => 0,
+            Self::Keygen => index - 12,
+            Self::Signing => index / 13,
+        }
     }
-    let stream = TableReader::new(
-        object
-            .body()
-            .ok_or_else(|| failure("Prepared table has no body."))?
-            .response_body()?,
-    )?;
-    Ok(OpenedTable {
-        size,
-        stream,
-        get_observed_ms,
-    })
 }
-async fn prefetch_table(
-    bucket: Bucket,
+struct Location {
+    binding: [u8; 32],
+    group: usize,
+    offset: usize,
+    length: usize,
+    frames: usize,
+    read_frames: usize,
+}
+struct Group {
     key: String,
-    sender: oneshot::Sender<worker::Result<OpenedTable>>,
-) {
-    let result = open_table(&bucket, &key).await;
-    let _ = sender.send(result);
+    length: usize,
+}
+struct Writing {
+    index: usize,
+    key: String,
+    upload: MultipartUpload,
+    parts: Vec<UploadedPart>,
+    pending: Vec<u8>,
+    length: usize,
+}
+struct Reading {
+    group: usize,
+    offset: usize,
+    stream: GroupReader,
 }
 
 pub(super) struct Tables {
     bucket: Bucket,
     prefix: String,
-    write: WriteState,
-    read: ReadState,
-    prefetched: Option<PrefetchedTable>,
-    prefetch_started: usize,
-    prefetch_hits: usize,
-    keys: Vec<String>,
-    puts: usize,
+    layout: Layout,
+    writing: Option<Writing>,
+    groups: Vec<Group>,
+    locations: Vec<Location>,
+    reading: Vec<Reading>,
     gets: usize,
-    written: usize,
+    resident_bytes: usize,
+    parts: usize,
     read_bytes: usize,
     chunks: usize,
     largest_chunk: usize,
-    get_observed_ms: f64,
-    read_wait_observed_ms: f64,
 }
 impl Tables {
     #[cfg(feature = "ml-dsa-b")]
-    pub(super) fn new(bucket: Bucket, run_id: &str) -> Self {
+    pub(super) fn new(bucket: Bucket, run_id: &str, layout: Layout) -> Self {
         Self {
             bucket,
             prefix: format!("{run_id}/"),
-            write: WriteState::Empty,
-            read: ReadState::Empty,
-            prefetched: None,
-            prefetch_started: 0,
-            prefetch_hits: 0,
-            keys: Vec::new(),
-            puts: 0,
+            layout,
+            writing: None,
+            groups: Vec::new(),
+            locations: Vec::new(),
+            reading: Vec::new(),
             gets: 0,
-            written: 0,
+            resident_bytes: 0,
+            parts: 0,
             read_bytes: 0,
             chunks: 0,
             largest_chunk: 0,
-            get_observed_ms: 0.0,
-            read_wait_observed_ms: 0.0,
         }
+    }
+    /// Reads only input-independent tables before declaring a live reservation ready.
+    /// The JS buffer avoids a second full-size copy into Wasm linear memory.
+    #[cfg(feature = "ml-dsa-b")]
+    pub(super) async fn preload_first(&mut self) -> worker::Result<()> {
+        if self.writing.is_some() || !self.reading.is_empty() || self.gets != 0 {
+            return Err(failure(
+                "Resident preparation requires completed, unread groups.",
+            ));
+        }
+        let group = self
+            .groups
+            .first()
+            .ok_or_else(|| failure("No prepared table group."))?;
+        let object = self
+            .bucket
+            .get(&group.key)
+            .execute()
+            .await?
+            .ok_or_else(|| failure("Prepared group is absent."))?;
+        if object.size() as usize != group.length {
+            return Err(failure("Prepared group length changed."));
+        }
+        let ResponseBody::Stream(stream) = object
+            .body()
+            .ok_or_else(|| failure("Prepared group has no body."))?
+            .response_body()?
+        else {
+            return Err(failure("Prepared group body is not a stream."));
+        };
+        let response = worker::web_sys::Response::new_with_opt_readable_stream(Some(&stream))?;
+        let buffer = JsFuture::from(response.array_buffer()?).await?;
+        let bytes = Uint8Array::new(&buffer);
+        if bytes.length() as usize != group.length {
+            return Err(failure("Resident group length changed."));
+        }
+        self.resident_bytes = group.length;
+        self.gets += 1;
+        self.reading.push(Reading {
+            group: 0,
+            offset: 0,
+            stream: GroupReader::Resident { bytes, position: 0 },
+        });
+        Ok(())
     }
     pub(super) async fn store(
         &mut self,
@@ -178,46 +193,111 @@ impl Tables {
         ordinal: usize,
         bytes: &[u8],
     ) -> worker::Result<()> {
-        let same = matches!(&self.write, WriteState::Collecting { binding: current, .. } if *current == binding);
+        if bytes.is_empty() || bytes.len() > FRAME_BYTES {
+            return Err(failure("Invalid table frame size."));
+        }
+        let same = self
+            .locations
+            .last()
+            .is_some_and(|location| location.binding == binding);
         if !same {
-            self.flush().await?;
-            if ordinal != 0 {
-                return Err(failure("A prepared table must begin at frame zero."));
+            if ordinal != 0
+                || self
+                    .locations
+                    .iter()
+                    .any(|location| location.binding == binding)
+            {
+                return Err(failure("A table must start once at frame zero."));
             }
-            self.write = WriteState::Collecting {
+            let group = self.layout.group(self.locations.len());
+            if self
+                .writing
+                .as_ref()
+                .is_some_and(|writing| writing.index != group)
+            {
+                self.flush().await?;
+            }
+            if self.writing.is_none() {
+                if group != self.groups.len() {
+                    return Err(failure("Table group order changed."));
+                }
+                let key = format!("{}group-{group}", self.prefix);
+                let upload = self.bucket.create_multipart_upload(&key).execute().await?;
+                self.writing = Some(Writing {
+                    index: group,
+                    key,
+                    upload,
+                    parts: Vec::new(),
+                    pending: Vec::with_capacity(PART_BYTES),
+                    length: 0,
+                });
+            }
+            let writing = self
+                .writing
+                .as_ref()
+                .ok_or_else(|| failure("Missing group writer."))?;
+            self.locations.push(Location {
                 binding,
-                next_ordinal: 0,
-                bytes: Vec::new(),
-            };
+                group,
+                offset: writing.length,
+                length: 0,
+                frames: 0,
+                read_frames: 0,
+            });
         }
-        let WriteState::Collecting {
-            next_ordinal,
-            bytes: output,
-            ..
-        } = &mut self.write
-        else {
-            unreachable!("initialized table")
-        };
-        if ordinal != *next_ordinal || output.len() + bytes.len() > MAX_OBJECT_BYTES {
-            return Err(failure(
-                "The prepared table write exceeds its order or size bound.",
-            ));
+        let location = self
+            .locations
+            .last_mut()
+            .ok_or_else(|| failure("Missing table location."))?;
+        if ordinal != location.frames {
+            return Err(failure("Table frame order changed."));
         }
-        output.extend_from_slice(bytes);
-        *next_ordinal += 1;
+        let writing = self
+            .writing
+            .as_mut()
+            .ok_or_else(|| failure("Missing group writer."))?;
+        if writing.length + bytes.len() > MAX_GROUP_BYTES {
+            return Err(failure("Table group exceeds its size bound."));
+        }
+        location.frames += 1;
+        location.length += bytes.len();
+        writing.length += bytes.len();
+        let mut remaining = bytes;
+        while !remaining.is_empty() {
+            let take = remaining.len().min(PART_BYTES - writing.pending.len());
+            writing.pending.extend_from_slice(&remaining[..take]);
+            remaining = &remaining[take..];
+            if writing.pending.len() == PART_BYTES {
+                upload_part(writing).await?;
+                self.parts += 1;
+            }
+        }
         Ok(())
     }
     pub(super) async fn flush(&mut self) -> worker::Result<()> {
-        if let WriteState::Collecting { binding, bytes, .. } =
-            std::mem::replace(&mut self.write, WriteState::Empty)
-        {
-            let key = format!("{}{}", self.prefix, encode_hex(&binding));
-            let length = bytes.len();
-            self.bucket.put(&key, bytes).execute().await?;
-            self.keys.push(key);
-            self.puts += 1;
-            self.written += length;
+        let Some(writing) = self.writing.as_mut() else {
+            return Ok(());
+        };
+        if !writing.pending.is_empty() {
+            upload_part(writing).await?;
+            self.parts += 1;
         }
+        let writing = self
+            .writing
+            .take()
+            .ok_or_else(|| failure("Missing group writer."))?;
+        let upload_id = writing.upload.upload_id().await;
+        if let Err(error) = writing.upload.complete(writing.parts).await {
+            self.bucket
+                .resume_multipart_upload(&writing.key, upload_id)?
+                .abort()
+                .await?;
+            return Err(error);
+        }
+        self.groups.push(Group {
+            key: writing.key,
+            length: writing.length,
+        });
         Ok(())
     }
     pub(super) async fn load(
@@ -226,116 +306,143 @@ impl Tables {
         ordinal: usize,
         length: usize,
     ) -> worker::Result<Vec<u8>> {
-        let same = matches!(&self.read, ReadState::Streaming { binding: current, .. } if *current == binding);
-        if !same {
-            if !matches!(self.read, ReadState::Empty) || ordinal != 0 {
-                return Err(failure("A prepared table read changed before exact EOF."));
+        let location_index = self
+            .locations
+            .iter()
+            .position(|location| location.binding == binding)
+            .ok_or_else(|| failure("Unreserved table binding."))?;
+        let location = &self.locations[location_index];
+        if ordinal != location.read_frames || ordinal >= location.frames || length > FRAME_BYTES {
+            return Err(failure("Table read order or size changed."));
+        }
+        let group_index = location.group;
+        let expected_offset = location.offset + ordinal * FRAME_BYTES;
+        let group = self
+            .groups
+            .get(group_index)
+            .ok_or_else(|| failure("Group is not ready."))?;
+        let stream_index = match self
+            .reading
+            .iter()
+            .position(|read| read.group == group_index)
+        {
+            Some(index) => index,
+            None => {
+                if expected_offset != 0 || self.reading.len() >= 2 {
+                    return Err(failure("Group read skipped data or exceeded two streams."));
+                }
+                let object = self
+                    .bucket
+                    .get(&group.key)
+                    .execute()
+                    .await?
+                    .ok_or_else(|| failure("Prepared group is absent."))?;
+                if object.size() as usize != group.length {
+                    return Err(failure("Prepared group length changed."));
+                }
+                let stream = TableReader::new(
+                    object
+                        .body()
+                        .ok_or_else(|| failure("Prepared group has no body."))?
+                        .response_body()?,
+                )?;
+                self.reading.push(Reading {
+                    group: group_index,
+                    offset: 0,
+                    stream: GroupReader::Stream(stream),
+                });
+                self.gets += 1;
+                self.reading.len() - 1
             }
-            let key = format!("{}{}", self.prefix, encode_hex(&binding));
-            let opened = match self.prefetched.take() {
-                Some(prefetched) if prefetched.key == key => {
-                    self.prefetch_hits += 1;
-                    prefetched
-                        .response
-                        .await
-                        .map_err(super::runtime_failure)??
-                }
-                Some(prefetched) => {
-                    // A rare continuation can interrupt the normal order. Retain
-                    // the prefetched normal table until that polynomial is needed.
-                    self.prefetched = Some(prefetched);
-                    open_table(&self.bucket, &key).await?
-                }
-                None => open_table(&self.bucket, &key).await?,
-            };
-            self.get_observed_ms += opened.get_observed_ms;
-            self.prefetch_next(&key);
-            self.gets += 1;
-            self.read = ReadState::Streaming {
-                binding,
-                next_ordinal: 0,
-                remaining: opened.size,
-                stream: opened.stream,
-            };
-        }
-        let ReadState::Streaming {
-            next_ordinal,
-            remaining,
-            stream,
-            ..
-        } = &mut self.read
-        else {
-            unreachable!("initialized stream")
         };
-        if ordinal != *next_ordinal || length > *remaining || length > FRAME_BYTES {
-            return Err(failure("Prepared table frame range is invalid."));
+        let read = &mut self.reading[stream_index];
+        if read.offset != expected_offset
+            || read.offset + length > location.offset + location.length
+        {
+            return Err(failure("Table read crossed its reserved range."));
         }
-        let started = super::clock_ms();
-        let output = stream
+        let bytes = read
+            .stream
             .read(length)
             .await?
-            .ok_or_else(|| failure("Prepared table ended early."))?;
-        self.read_wait_observed_ms += super::clock_ms() - started;
-        if output.len() != length {
-            return Err(failure("Prepared table returned a partial frame."));
+            .ok_or_else(|| failure("Prepared group ended early."))?;
+        if bytes.len() != length {
+            return Err(failure("Prepared group returned a partial frame."));
         }
-        self.chunks += 1;
-        self.largest_chunk = self.largest_chunk.max(output.len());
-        *remaining -= length;
-        *next_ordinal += 1;
+        read.offset += length;
+        self.locations[location_index].read_frames += 1;
         self.read_bytes += length;
-        if *remaining == 0 {
-            if stream.read(1).await?.is_some() {
-                return Err(failure("Prepared table has trailing bytes."));
+        self.chunks += 1;
+        self.largest_chunk = self.largest_chunk.max(length);
+        if read.offset == group.length {
+            if read.stream.read(1).await?.is_some() {
+                return Err(failure("Prepared group has trailing data."));
             }
-            self.read = ReadState::Empty;
+            self.reading.remove(stream_index);
         }
-        Ok(output)
-    }
-    fn prefetch_next(&mut self, current_key: &str) {
-        if self.prefetched.is_some() {
-            return;
-        }
-        let Some(index) = self.keys.iter().position(|key| key == current_key) else {
-            return;
-        };
-        // At most one future GET accompanies the current stream. Do not fetch
-        // a fallback speculatively: its nonce is selected by public decisions.
-        if index + 1 >= NORMAL_PATH_TABLES {
-            return;
-        }
-        let Some(key) = self.keys.get(index + 1).cloned() else {
-            return;
-        };
-        let (sender, response) = oneshot::channel();
-        worker::wasm_bindgen_futures::spawn_local(prefetch_table(
-            self.bucket.clone(),
-            key.clone(),
-            sender,
-        ));
-        self.prefetched = Some(PrefetchedTable { key, response });
-        self.prefetch_started += 1;
+        Ok(bytes)
     }
     #[cfg(feature = "ml-dsa-b")]
     pub(super) fn finish_reads(&self) -> worker::Result<()> {
-        if !matches!(self.read, ReadState::Empty) || self.prefetched.is_some() {
-            return Err(failure("Prepared table reads did not finish exactly."));
+        if !self.reading.is_empty() {
+            return Err(failure("Prepared group did not reach exact EOF."));
         }
         Ok(())
     }
     pub(super) fn report(&self) -> Value {
-        json!({"objects_written": self.puts, "objects_read": self.gets,
-            "table_bytes_written": self.written, "table_bytes_read": self.read_bytes,
-            "stream_chunks": self.chunks, "largest_stream_chunk_bytes": self.largest_chunk,
-            "get_observed_ms": self.get_observed_ms, "stream_wait_observed_ms": self.read_wait_observed_ms,
-            "maximum_object_bytes": MAX_OBJECT_BYTES, "reader": "byob-read-at-least",
-            "maximum_read_bytes": FRAME_BYTES,
-            "prefetch_started": self.prefetch_started, "prefetch_hits": self.prefetch_hits,
-            "source_bound_open_table_streams": 2, "storage_start_policy": "online",
-            "scope": "One R2 PUT per prepared circuit and one streamed GET per used circuit. One next normal-path GET can overlap current evaluation. All reads begin online. Observed GET intervals can overlap and include CPU; they are not a phase partition."})
+        json!({"objects_written": self.groups.len(), "objects_read": self.gets,
+            "objects_read_before_admission": usize::from(self.resident_bytes != 0),
+            "objects_read_online": self.gets - usize::from(self.resident_bytes != 0),
+            "resident_table_bytes_before_admission": self.resident_bytes,
+            "table_bytes_written": self.groups.iter().map(|group| group.length).sum::<usize>(),
+            "table_bytes_read": self.read_bytes, "stream_chunks": self.chunks,
+            "largest_stream_chunk_bytes": self.largest_chunk, "multipart_parts": self.parts,
+            "maximum_write_buffer_bytes": PART_BYTES, "maximum_read_bytes": FRAME_BYTES,
+            "reader": "byob-read-at-least", "source_bound_open_table_streams": 2,
+            "storage_start_policy": "first-group-resident-before-admission", "scope": "A fresh first table group is loaded into a JS buffer before readiness. Later groups stream from R2 online. The writer buffers at most one five-MiB Rust part. Online frame copies are bounded. The resident byte count is explicit; total runtime memory is not measured."})
     }
     #[cfg(feature = "ml-dsa-b")]
     pub(super) async fn cleanup(&self) -> worker::Result<()> {
-        self.bucket.delete_multiple(self.keys.clone()).await
+        if let Some(writing) = &self.writing {
+            writing.upload.abort().await?;
+        }
+        let keys: Vec<_> = self.groups.iter().map(|group| group.key.clone()).collect();
+        if !keys.is_empty() {
+            self.bucket.delete_multiple(keys).await?;
+        }
+        Ok(())
+    }
+}
+async fn upload_part(writing: &mut Writing) -> worker::Result<()> {
+    let bytes = std::mem::take(&mut writing.pending);
+    let number = u16::try_from(writing.parts.len() + 1).map_err(super::runtime_failure)?;
+    writing
+        .parts
+        .push(writing.upload.upload_part(number, bytes).await?);
+    writing.pending = Vec::with_capacity(PART_BYTES);
+    Ok(())
+}
+
+enum GroupReader {
+    Stream(TableReader),
+    Resident { bytes: Uint8Array, position: usize },
+}
+impl GroupReader {
+    async fn read(&mut self, length: usize) -> worker::Result<Option<Vec<u8>>> {
+        match self {
+            Self::Stream(stream) => stream.read(length).await,
+            Self::Resident { bytes, position } => {
+                if length == 0 || length > FRAME_BYTES {
+                    return Err(failure("Invalid resident frame size."));
+                }
+                if *position == bytes.length() as usize {
+                    return Ok(None);
+                }
+                let end = (*position + length).min(bytes.length() as usize);
+                let output = bytes.subarray(*position as u32, end as u32).to_vec();
+                *position = end;
+                Ok(Some(output))
+            }
+        }
     }
 }

@@ -397,16 +397,23 @@ API sources:
 - [OpenSSL ML-DSA keys](https://docs.openssl.org/3.6/man7/EVP_PKEY-ML-DSA/)
 - [OpenSSL ML-DSA signatures](https://docs.openssl.org/3.6/man7/EVP_SIGNATURE-ML-DSA/)
 
+## Prepared key generation and signing
 
-## Prepared key-generation experiment
+The [current report](../../docs/router-ab/ml-dsa-65-resident-prepared-performance.md) records the native, local Worker, and hosted evidence.
+The complete prepared E2E uses separate processes, genuine OT, canonical wallet-derived keys, threshold signatures, and authorized recovery.
+It checks public samplers at all three prefixes, private commitment decomposition, strict response boundaries, and all combined-check patterns.
+Prepared Yao and packed GMW signing use fresh joint masks and private commitments.
+This nonce procedure preserves standard signatures while changing the prescribed FIPS hedged nonce derivation.
 
-The [preprocessing report](../../docs/router-ab/ml-dsa-65-preprocessing-report.md) records the native and Node/V8 Wasm procedures and limits.
-The `prepared-keygen` command executes genuine input-independent garbling and random OT before supplying actual wallet-root inputs.
-It reserves all nineteen circuits together and consumes each preparation once.
-The existing keygen transitions produce the canonical FIPS public key with wallet-seed recovery unchanged.
-The online path transfers 3,620,363 bytes in 57 logical messages and reads B's tables from local disk.
-These measurements do not establish Cloudflare latency, durable pool behavior, or prepared signing performance.
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  prepared-keygen /private/tmp/ml-dsa-prepared-complete.json
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  prepared-gmw /private/tmp/ml-dsa-prepared-gmw.json
+```
 
-The separate `fresh-mask` command evaluates a smaller mask-conversion primitive with seven two-party cases.
-It is not connected to the signer and does not replace message-bound nonce derivation.
-The `scripts/analyze_latency_budget.py` script generates resource models from retained evidence and labels all unmeasured forecasts.
+The first command includes complete key generation, both prepared signers, independent verification, and canonical recovery.
+The second checks a mixed GMW batch across 32-bit lane boundaries and rejects an ordered-layout mismatch before private preprocessing.
+Artifacts retain source hashes, exact traffic, separate readiness and online timings, and unsuccessful outcomes.
+Use the Worker runner linked in the current report for streamed and resident storage measurements.
+A cold or exhausted pool has no five-second successful-signing claim.

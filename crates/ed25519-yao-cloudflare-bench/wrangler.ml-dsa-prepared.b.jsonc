@@ -1,25 +1,25 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "ml-dsa-public-20261014-b",
+  "name": "ml-dsa-fast-20261014-b",
   "main": "build/ml-dsa-b/index.js",
   "compatibility_date": "2026-07-02",
   "workers_dev": false,
   "preview_urls": false,
   "limits": {
-    "cpu_ms": 300000
+    "cpu_ms": 300000,
   },
   "build": {
     "command": "worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b",
-    "watch_dir": "src"
+    "watch_dir": "src",
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
   },
   "r2_buckets": [
     {
       "binding": "PREPARED_TABLES",
-      "bucket_name": "ml-dsa-public-20261014-tables"
-    }
-  ]
+      "bucket_name": "ml-dsa-fast-20261014-tables",
+    },
+  ],
 }

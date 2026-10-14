@@ -9,7 +9,9 @@ mod hybrid_keygen;
 mod material_storage_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
+mod prepared_gmw_evidence;
 mod prepared_keygen_evidence;
+mod prepared_signing_evidence;
 mod prepared_worker_fixtures;
 mod private_execution;
 mod private_keygen;
@@ -33,6 +35,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    PreparedGmw {
+        output: PathBuf,
+    },
     ExportPreparedFixtures {
         directory: PathBuf,
     },
@@ -82,6 +87,9 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if prepared_gmw_evidence::try_run_child()? {
+        return Ok(());
+    }
     if public_sampling_evidence::try_run_child()? {
         return Ok(());
     }
@@ -97,6 +105,9 @@ fn run() -> InvestigationResult<()> {
     if fresh_mask_evidence::try_run_child()? {
         return Ok(());
     }
+    if prepared_signing_evidence::try_run_child()? {
+        return Ok(());
+    }
     if prepared_keygen_evidence::try_run_child()? {
         return Ok(());
     }
@@ -107,6 +118,7 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::PreparedGmw { output } => prepared_gmw_evidence::run(&output)?,
         Invocation::ExportPreparedFixtures { directory } => {
             prepared_worker_fixtures::export(&directory)?
         }
@@ -185,6 +197,14 @@ fn parse_invocation() -> InvestigationResult<Invocation> {
                 "Unexpected prepared fixture argument.",
             )?;
             return Ok(Invocation::ExportPreparedFixtures { directory });
+        }
+        if first == "prepared-gmw" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A prepared GMW report path is required")?,
+            );
+            require(args.next().is_none(), "Unexpected prepared GMW argument")?;
+            return Ok(Invocation::PreparedGmw { output });
         }
         if first == "prepared-keygen" {
             let output = PathBuf::from(

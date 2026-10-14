@@ -34,7 +34,7 @@ const SCHEDULES: [&str; 5] = [
 ];
 
 #[derive(Default)]
-struct Counts {
+pub(super) struct Counts {
     sent: usize,
     received: usize,
     sends: usize,
@@ -44,16 +44,26 @@ struct Counts {
     table_reads: usize,
 }
 impl Counts {
-    fn json(&self) -> Value {
+    pub(super) fn json(&self) -> Value {
         json!({"sent_bytes": self.sent, "received_bytes": self.received, "sent_messages": self.sends, "received_messages": self.receives, "table_bytes_written": self.table_bytes_written, "table_bytes_read": self.table_bytes_read, "table_frame_reads": self.table_reads})
     }
 }
 
-struct HostTransport {
+pub(super) struct HostTransport {
     directory: PathBuf,
-    counts: [Counts; 2],
+    pub(super) counts: [Counts; 2],
     phase: usize,
     one_way_delay_us: u64,
+}
+impl HostTransport {
+    pub(super) fn new(directory: PathBuf, one_way_delay_us: u64) -> Self {
+        Self {
+            directory,
+            counts: Default::default(),
+            phase: 0,
+            one_way_delay_us,
+        }
+    }
 }
 impl Transport for HostTransport {
     async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
@@ -203,7 +213,10 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         &schedule_dir,
     )?);
     let signing_schedules = private_signing::compile_schedules(&schedule_dir)?;
+    let prepared_signing_schedules =
+        crate::prepared_signing_evidence::compile_schedules(&schedule_dir)?;
     let sampler_evidence = crate::public_sampling_evidence::run(&schedule_dir)?;
+    let prepared_components = crate::signing_circuit_evidence::prepared_components()?;
     let root = [0x42u8; 32];
     let mut seed_input = b"seams/ml-dsa-65/canonical-seed/v1".to_vec();
     seed_input.extend_from_slice(&root);
@@ -290,6 +303,12 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
                 "prepared-wallet-key",
                 crate::complete_engine_evidence::Engine::HalfGates,
             )?;
+            let prepared_signing = crate::prepared_signing_evidence::run_operation(
+                &schedule_dir,
+                &material_a,
+                &material_b,
+                &public_path,
+            )?;
             let signing_report = case.join("signing.json");
             fs::write(&signing_report, serde_json::to_vec(&signed)?)?;
             let recovered_path = case.join("authorized-recovery.json");
@@ -310,7 +329,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
                 recovered["public_test_seed_hex"] == hex::encode(seed),
                 "Prepared key export changed the canonical seed.",
             )?;
-            json!({"threshold_signing": signed, "authorized_recovery": recovered})
+            json!({"threshold_signing": signed, "prepared_signing": prepared_signing, "authorized_recovery": recovered})
         } else {
             Value::Null
         };
@@ -328,6 +347,13 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
         "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
+        "crates/ed25519-yao/src/passive/ot.rs",
+        "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
+        "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
         "tools/ml-dsa-investigation/src/public_sampling_evidence.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs",
     ] {
@@ -337,7 +363,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     fs::write(
         output,
         serde_json::to_vec_pretty(&json!({
-            "schema": "seams.ml-dsa-prepared-keygen-native.v1", "production_eligible": false,
+            "schema": "seams.ml-dsa-prepared-keygen-native.v1", "production_eligible": false, "prepared_signing_schedules": prepared_signing_schedules, "prepared_component_checks": prepared_components,
             "scope": "Input-independent fresh garbling and random OT, followed by wallet-derived canonical keygen. Separate native roles, role-local disk tables, and private input correction. No production storage or hosted latency claim.",
             "cases": cases, "sampler_evidence": sampler_evidence, "schedules": identities, "signing_schedules": signing_schedules, "sources": sources,
             "executable_sha256": digest(&fs::read(env::current_exe()?)?), "temporary_files_removed": true,
@@ -345,4 +371,16 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         }))?,
     )?;
     Ok(())
+}
+
+impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for HostTransport {
+    async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
+        Transport::send(self, bytes).await
+    }
+    async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
+        Transport::receive(self, length).await
+    }
+    fn phase(&mut self, _: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {
+        // The complete operation owns the offline/online measurement boundary.
+    }
 }

@@ -2,18 +2,22 @@
 
 Date: October 14, 2026. Branch: `ml-dsa`. Production integration remains paused.
 
-## Final measured result
+The [resident prepared report](ml-dsa-65-resident-prepared-performance.md) supersedes this timing result.
+It records all nine hosted key-generation requests below five seconds, with table preloading before readiness.
+This document retains the earlier public-decision and read-ahead baseline.
+
+## Historical read-ahead result
 
 Prepared key generation reaches a 4.806-second median with read-ahead, while the strict five-second requirement remains unmet.
 Five of eight measured requests finish below five seconds. Two normal requests and the genuine continuation exceed it.
 The excluded warm-up also exceeds five seconds. Including warm-up, four of nine requests miss the deadline.
 
-| Cases | Count | Median | Range | Misses |
-| --- | ---: | ---: | ---: | ---: |
-| All measured | 8 | 4.806 s | 4.012–6.609 s | 3 |
-| Normal measured | 7 | 4.695 s | 4.012–5.468 s | 2 |
-| Genuine continuation | 1 | 6.609 s | — | 1 |
-| Excluded warm-up | 1 | 7.652 s | — | 1 |
+| Cases                | Count |  Median |         Range | Misses |
+| -------------------- | ----: | ------: | ------------: | -----: |
+| All measured         |     8 | 4.806 s | 4.012–6.609 s |      3 |
+| Normal measured      |     7 | 4.695 s | 4.012–5.468 s |      2 |
+| Genuine continuation |     1 | 6.609 s |             — |      1 |
+| Excluded warm-up     |     1 | 7.652 s |             — |      1 |
 
 The [final hosted artifact](../evidence/ml-dsa-65-public-keygen-prefetch-worker-hosted-20261014.json) records every case.
 All nine match the canonical recovery keys, acknowledge table cleanup, and close with checked WebSocket code 1000.
@@ -40,14 +44,14 @@ Eight measured requests take 6.628–9.042 seconds, with a 7.820-second median.
 All eight miss the target. The excluded warm-up takes 7.883 seconds.
 The genuine continuation case takes 8.285 seconds and returns the expected canonical key.
 
-| Resource | Normal path | One three-block continuation |
-| --- | ---: | ---: |
-| Online circuits, including wallet derivation | 13 | 14 |
-| Online AND gates | 1,303,008 | 1,470,736 |
-| R2 objects read online | 13 | 14 |
-| Table bytes read online | 41,701,400 | 47,069,352 |
-| Prepared R2 objects | 35 | 35 |
-| Table bytes prepared and stored | 176,480,440 | 176,480,440 |
+| Resource                                     | Normal path | One three-block continuation |
+| -------------------------------------------- | ----------: | ---------------------------: |
+| Online circuits, including wallet derivation |          13 |                           14 |
+| Online AND gates                             |   1,303,008 |                    1,470,736 |
+| R2 objects read online                       |          13 |                           14 |
+| Table bytes read online                      |  41,701,400 |                   47,069,352 |
+| Prepared R2 objects                          |          35 |                           35 |
+| Table bytes prepared and stored              | 176,480,440 |                  176,480,440 |
 
 Every fallback is reserved before readiness, so this prototype increases preparation storage while reducing online work.
 Unused reservations are discarded. This measures a live prepared session, not a durable production pool.

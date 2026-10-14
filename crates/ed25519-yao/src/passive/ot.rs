@@ -19,7 +19,7 @@ use curve25519_dalek::{
 };
 use sha2::{Digest, Sha256};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{DefaultIsZeroes, Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const SECURITY_PARAMETER: usize = 128;
 const BASE_CHOICE_BYTES: usize = SECURITY_PARAMETER / 8;
@@ -43,6 +43,8 @@ pub(super) enum OtError {
     Randomness,
     /// A fixed-size input, output, or frame had the wrong length.
     InvalidLength,
+    /// A payload used nonzero bytes beyond its fixed family message width.
+    InvalidPayload,
     /// The fixed frame magic or reserved bytes were invalid.
     InvalidHeader,
     /// A frame used the wrong fixed message type.
@@ -126,8 +128,10 @@ pub(super) trait OtFamily: sealed::Sealed + 'static {
     const ROW_BYTES: usize = Self::OT_COUNT / 8;
     /// Exact bytes in the complete 128-row IKNP correction matrix.
     const MATRIX_BYTES: usize = SECURITY_PARAMETER * Self::ROW_BYTES;
-    /// Exact bytes in two masked 16-byte payloads per input.
-    const MASKED_PAYLOAD_BYTES: usize = Self::OT_COUNT * 2 * LABEL_BYTES;
+    /// Message width. Yao families retain full 16-byte labels.
+    const PAYLOAD_BYTES: usize = LABEL_BYTES;
+    /// Exact bytes in two masked family-width messages per input.
+    const MASKED_PAYLOAD_BYTES: usize = Self::OT_COUNT * 2 * Self::PAYLOAD_BYTES;
 }
 
 /// The fixed 1,536-choice activation-family benchmark OT shape.
@@ -227,15 +231,16 @@ impl OtFamily for MlDsaFreshMaskOtFamily {
 }
 
 /// Fixed bounded batch for the investigation's Boolean-engine preprocessing.
-#[cfg(feature = "passive-benchmark")]
+#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
 #[derive(Debug)]
 pub(super) struct MlDsaBooleanBatchOtFamily;
-#[cfg(feature = "passive-benchmark")]
+#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
 impl sealed::Sealed for MlDsaBooleanBatchOtFamily {}
-#[cfg(feature = "passive-benchmark")]
+#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
 impl OtFamily for MlDsaBooleanBatchOtFamily {
-    const CODE: u8 = 10;
-    const OT_COUNT: usize = 4096;
+    const CODE: u8 = 13;
+    const OT_COUNT: usize = 16_384;
+    const PAYLOAD_BYTES: usize = 1;
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -259,6 +264,18 @@ impl<F: OtFamily> SenderPayloads<F> {
         if pairs.len() != F::OT_COUNT {
             pairs.zeroize();
             return Err(OtError::InvalidLength);
+        }
+        // The short Boolean messages are zero-padded in the shared local API.
+        // Check the complete suffix before branching, then wipe rejected inputs.
+        let mut nonzero_suffix = 0_u8;
+        for (zero, one) in &pairs {
+            for index in F::PAYLOAD_BYTES..LABEL_BYTES {
+                nonzero_suffix |= zero[index] | one[index];
+            }
+        }
+        if nonzero_suffix != 0 {
+            pairs.zeroize();
+            return Err(OtError::InvalidPayload);
         }
         Ok(Self {
             pairs: pairs
@@ -574,32 +591,41 @@ fn derive_base_seed<F: OtFamily>(
 fn expand_row<F: OtFamily>(seed: &[u8; LABEL_BYTES], row_index: usize, row: &mut [u8]) {
     let cipher = Aes128::new(&(*seed).into());
     let block_count = F::ROW_BYTES / LABEL_BYTES;
-    let mut block_index = 0_usize;
-    while block_index < block_count {
+    let mut blocks: Vec<Block<Aes128>> = Vec::with_capacity(block_count);
+    for block_index in 0..block_count {
         let mut input = [0_u8; LABEL_BYTES];
         input[..8].copy_from_slice(&ROW_EXPANSION_DOMAIN);
         input[8] = F::CODE;
         input[9..11].copy_from_slice(&(row_index as u16).to_be_bytes());
         input[12..16].copy_from_slice(&(block_index as u32).to_be_bytes());
-        let mut block: Block<Aes128> = input.into();
-        cipher.encrypt_block(&mut block);
-        let offset = block_index * LABEL_BYTES;
-        row[offset..offset + LABEL_BYTES].copy_from_slice(&block);
+        blocks.push(input.into());
         input.zeroize();
+    }
+    // Each counter block is independent. Let the constant-time AES backend
+    // fill its parallel lanes while preserving every original row byte.
+    cipher.encrypt_blocks(&mut blocks);
+    for (block, destination) in blocks.iter_mut().zip(row.chunks_exact_mut(LABEL_BYTES)) {
+        destination.copy_from_slice(block);
         block.as_mut_slice().zeroize();
-        block_index += 1;
     }
 }
 
-fn derive_label_pad<F: OtFamily>(
-    session: OtSessionId,
-    message_index: usize,
-    column: &[u8; BASE_CHOICE_BYTES],
-) -> [u8; LABEL_BYTES] {
+// This prefix contains only public domain, session, and family bytes.
+// Clone its partial SHA256 state before absorbing each private column.
+fn label_pad_prefix<F: OtFamily>(session: OtSessionId) -> Sha256 {
     let mut hash = Sha256::new();
     hash.update(LABEL_PAD_DOMAIN);
     hash.update(session.0);
     hash.update([F::CODE]);
+    hash
+}
+
+fn derive_label_pad(
+    prefix: &Sha256,
+    message_index: usize,
+    column: &[u8; BASE_CHOICE_BYTES],
+) -> [u8; LABEL_BYTES] {
+    let mut hash = prefix.clone();
     hash.update((message_index as u32).to_be_bytes());
     hash.update(column);
     let mut digest = hash.finalize();
@@ -609,17 +635,33 @@ fn derive_label_pad<F: OtFamily>(
     pad
 }
 
-fn matrix_column<F: OtFamily>(matrix: &[u8], message_index: usize) -> [u8; BASE_CHOICE_BYTES] {
-    let source_byte = message_index / 8;
-    let source_bit = message_index % 8;
-    let mut column = [0_u8; BASE_CHOICE_BYTES];
-    let mut row_index = 0_usize;
-    while row_index < SECURITY_PARAMETER {
-        let bit = (matrix[row_index * F::ROW_BYTES + source_byte] >> source_bit) & 1;
-        column[row_index / 8] |= bit << (row_index % 8);
-        row_index += 1;
+/// Eight adjacent OT columns, wiped together when the batch leaves scope.
+#[derive(Clone, Copy, Default)]
+struct MatrixColumns([[u8; BASE_CHOICE_BYTES]; 8]);
+impl DefaultIsZeroes for MatrixColumns {}
+
+fn matrix_columns<F: OtFamily>(matrix: &[u8], source_byte: usize) -> Zeroizing<MatrixColumns> {
+    let mut columns = Zeroizing::new(MatrixColumns::default());
+    for row_byte in 0..BASE_CHOICE_BYTES {
+        let mut word = 0_u64;
+        for row in 0..8 {
+            word |=
+                u64::from(matrix[(row_byte * 8 + row) * F::ROW_BYTES + source_byte]) << (row * 8);
+        }
+        // Fixed8-by8 bit transpose: input bit8*r+c becomes output bit8*c+r.
+        let mut swap = (word ^ (word >> 7)) & 0x00aa_00aa_00aa_00aa;
+        word ^= swap ^ (swap << 7);
+        swap = (word ^ (word >> 14)) & 0x0000_cccc_0000_cccc;
+        word ^= swap ^ (swap << 14);
+        swap = (word ^ (word >> 28)) & 0x0000_0000_f0f0_f0f0;
+        word ^= swap ^ (swap << 28);
+        for column in 0..8 {
+            columns.0[column][row_byte] = (word >> (column * 8)) as u8;
+        }
+        word.zeroize();
+        swap.zeroize();
     }
-    column
+    columns
 }
 
 fn conditional_xor(target: &mut [u8], source: &[u8], choice: u8) {
@@ -883,29 +925,36 @@ impl<F: OtFamily> SenderAwaitExtension<F> {
         }
 
         let mut encoded = vec![0_u8; F::MASKED_PAYLOAD_BYTES];
-        let mut message_index = 0_usize;
-        while message_index < F::OT_COUNT {
-            let mut column_zero = matrix_column::<F>(&sender_matrix, message_index);
-            let mut column_one = column_zero;
-            let mut byte_index = 0_usize;
-            while byte_index < BASE_CHOICE_BYTES {
-                column_one[byte_index] ^= self.base_choices[byte_index];
-                byte_index += 1;
+        let pad_prefix = label_pad_prefix::<F>(self.session);
+        assert_eq!(F::OT_COUNT % 8, 0, "fixed OT families use complete bytes");
+        for source_byte in 0..F::ROW_BYTES {
+            let columns = matrix_columns::<F>(&sender_matrix, source_byte);
+            for column in 0..8 {
+                let message_index = source_byte * 8 + column;
+                let mut column_zero = columns.0[column];
+                let mut column_one = column_zero;
+                let mut byte_index = 0_usize;
+                while byte_index < BASE_CHOICE_BYTES {
+                    column_one[byte_index] ^= self.base_choices[byte_index];
+                    byte_index += 1;
+                }
+                let mut pad_zero = derive_label_pad(&pad_prefix, message_index, &column_zero);
+                let mut pad_one = derive_label_pad(&pad_prefix, message_index, &column_one);
+                let mut masked_zero =
+                    xor_label(&self.payloads.pairs[message_index].zero, &pad_zero);
+                let mut masked_one = xor_label(&self.payloads.pairs[message_index].one, &pad_one);
+                let offset = message_index * 2 * F::PAYLOAD_BYTES;
+                encoded[offset..offset + F::PAYLOAD_BYTES]
+                    .copy_from_slice(&masked_zero[..F::PAYLOAD_BYTES]);
+                encoded[offset + F::PAYLOAD_BYTES..offset + 2 * F::PAYLOAD_BYTES]
+                    .copy_from_slice(&masked_one[..F::PAYLOAD_BYTES]);
+                column_zero.zeroize();
+                column_one.zeroize();
+                pad_zero.zeroize();
+                pad_one.zeroize();
+                masked_zero.zeroize();
+                masked_one.zeroize();
             }
-            let mut pad_zero = derive_label_pad::<F>(self.session, message_index, &column_zero);
-            let mut pad_one = derive_label_pad::<F>(self.session, message_index, &column_one);
-            let mut masked_zero = xor_label(&self.payloads.pairs[message_index].zero, &pad_zero);
-            let mut masked_one = xor_label(&self.payloads.pairs[message_index].one, &pad_one);
-            let offset = message_index * 2 * LABEL_BYTES;
-            encoded[offset..offset + LABEL_BYTES].copy_from_slice(&masked_zero);
-            encoded[offset + LABEL_BYTES..offset + 2 * LABEL_BYTES].copy_from_slice(&masked_one);
-            column_zero.zeroize();
-            column_one.zeroize();
-            pad_zero.zeroize();
-            pad_one.zeroize();
-            masked_zero.zeroize();
-            masked_one.zeroize();
-            message_index += 1;
         }
         sender_matrix.zeroize();
         Ok(MaskedPayloads {
@@ -931,24 +980,32 @@ impl<F: OtFamily> ReceiverAwaitMaskedPayloads<F> {
             return Err(OtError::SessionMismatch);
         }
         let mut selected = Vec::with_capacity(F::OT_COUNT);
-        let mut message_index = 0_usize;
-        while message_index < F::OT_COUNT {
-            let mut column = matrix_column::<F>(&self.retained_matrix, message_index);
-            let mut pad = derive_label_pad::<F>(self.session, message_index, &column);
-            let offset = message_index * 2 * LABEL_BYTES;
-            let mut zero = [0_u8; LABEL_BYTES];
-            let mut one = [0_u8; LABEL_BYTES];
-            zero.copy_from_slice(&message.payloads[offset..offset + LABEL_BYTES]);
-            one.copy_from_slice(&message.payloads[offset + LABEL_BYTES..offset + 2 * LABEL_BYTES]);
-            let mut masked = select_label(&zero, &one, self.choices.bit(message_index));
-            let output = xor_label(&masked, &pad);
-            selected.push(output);
-            column.zeroize();
-            pad.zeroize();
-            zero.zeroize();
-            one.zeroize();
-            masked.zeroize();
-            message_index += 1;
+        let pad_prefix = label_pad_prefix::<F>(self.session);
+        assert_eq!(F::OT_COUNT % 8, 0, "fixed OT families use complete bytes");
+        for source_byte in 0..F::ROW_BYTES {
+            let columns = matrix_columns::<F>(&self.retained_matrix, source_byte);
+            for column_index in 0..8 {
+                let message_index = source_byte * 8 + column_index;
+                let mut column = columns.0[column_index];
+                let mut pad = derive_label_pad(&pad_prefix, message_index, &column);
+                let offset = message_index * 2 * F::PAYLOAD_BYTES;
+                let mut zero = [0_u8; LABEL_BYTES];
+                let mut one = [0_u8; LABEL_BYTES];
+                zero[..F::PAYLOAD_BYTES]
+                    .copy_from_slice(&message.payloads[offset..offset + F::PAYLOAD_BYTES]);
+                one[..F::PAYLOAD_BYTES].copy_from_slice(
+                    &message.payloads[offset + F::PAYLOAD_BYTES..offset + 2 * F::PAYLOAD_BYTES],
+                );
+                let mut masked = select_label(&zero, &one, self.choices.bit(message_index));
+                let mut output = xor_label(&masked, &pad);
+                output[F::PAYLOAD_BYTES..].zeroize();
+                selected.push(output);
+                column.zeroize();
+                pad.zeroize();
+                zero.zeroize();
+                one.zeroize();
+                masked.zeroize();
+            }
         }
         Ok(SelectedPayloads {
             payloads: selected,
@@ -1215,12 +1272,20 @@ mod tests {
         let other_session = OtSessionId::new([0xa5; 32]).expect("other session");
         let column = [0x3c_u8; BASE_CHOICE_BYTES];
         assert_ne!(
-            derive_label_pad::<ExportOtFamily>(session, 17, &column),
-            derive_label_pad::<ExportOtFamily>(other_session, 17, &column)
+            derive_label_pad(&label_pad_prefix::<ExportOtFamily>(session), 17, &column),
+            derive_label_pad(
+                &label_pad_prefix::<ExportOtFamily>(other_session),
+                17,
+                &column
+            )
         );
         assert_ne!(
-            derive_label_pad::<ExportOtFamily>(session, 17, &column),
-            derive_label_pad::<ActivationOtFamily>(session, 17, &column)
+            derive_label_pad(&label_pad_prefix::<ExportOtFamily>(session), 17, &column),
+            derive_label_pad(
+                &label_pad_prefix::<ActivationOtFamily>(session),
+                17,
+                &column
+            )
         );
         let activation_offer = BaseOffer::<ActivationOtFamily> {
             session,

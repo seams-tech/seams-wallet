@@ -1,0 +1,59 @@
+{
+  "schema": "seams.ml-dsa-grouped-table-deployment.v1",
+  "created_at": "2026-10-14T09:42:11.161713+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-fast-20261014-a",
+      "version": "7859c5c8-a0ae-4120-aed1-e3603d265b7f"
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-fast-20261014-b",
+      "version": "259421b1-3509-412f-adb1-e1f1706b0578"
+    }
+  ],
+  "builds": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+      "bytes": 29148,
+      "sha256": "63bfecb927a45b1ed7babf1cbabfcd225640708c9383b5b35c05bf28efd0d0e6"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+      "bytes": 53644318,
+      "sha256": "498cd3f45bcbf3fd5f7335096b29a36d981bcb19eda4c4f2caaa2d38c85fac31"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+      "bytes": 26993,
+      "sha256": "088a2806e975d451e43206243a3d47a9896a76c0f158459b14fe075ceea46dd7"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+      "bytes": 53551479,
+      "sha256": "f4e8f3e0a8c079a2e4b117e7436c623c9d6b9416d4755b5c7208601c0b5a5a17"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_storage.rs",
+      "sha256": "54bc698515a6f6d882cdc9be3966371ee3eae297e57202d3cb6993966548daf7"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared.rs",
+      "sha256": "b70f1256efca01dc55a158590edaa5fd59e69eb61a5e77ff812f740d297dae32"
+    }
+  ],
+  "observed_campaign_versions": [
+    {
+      "role": "a",
+      "version": "1c71e310-d3f9-49b6-ad26-6130660733ba"
+    },
+    {
+      "role": "b",
+      "version": "53ac3f4c-06da-41ea-a05c-e7f33f90471b"
+    }
+  ],
+  "version_reconciliation": "Initial upload versions are retained above. Secret replacement created the observed campaign versions before measurement. Tail capture covers the last three requests; earlier requests have no version-pinned trace in this capture."
+}

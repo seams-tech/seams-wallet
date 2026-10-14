@@ -19,6 +19,7 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<()> {
     schedules.push(wallet_recovery_evidence::compile_wallet_seed_schedule(
         directory,
     )?);
+    let signing_schedules = crate::prepared_signing_evidence::compile_schedules(directory)?;
     let mut a = Vec::new();
     let mut b = Vec::new();
     let mut public = Vec::new();
@@ -76,7 +77,7 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<()> {
             directory.join(format!("prepared-{role}.json")),
             serde_json::to_vec_pretty(&json!({
                 "schema": "seams.ml-dsa-prepared-worker-fixtures.v1", "role": role,
-                "disposable_public_fixtures_only": true, "schedules": schedules, "cases": cases,
+                "disposable_public_fixtures_only": true, "schedules": schedules, "signing_schedules": signing_schedules, "cases": cases,
             }))?,
         )?;
     }

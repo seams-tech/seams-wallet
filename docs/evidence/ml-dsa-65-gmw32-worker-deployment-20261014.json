@@ -1,0 +1,56 @@
+{
+  "schema": "seams.ml-dsa-gmw32-deployment.v1",
+  "created_at": "2026-10-14T11:16:24.685252+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-fast-20261014-a",
+      "version": "c1b230e0-c780-4bf2-bc47-2fe632f5b491"
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-fast-20261014-b",
+      "version": "9003db7b-bb7c-40bc-b85e-3f7bd1929bcf"
+    }
+  ],
+  "builds": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+      "bytes": 29148,
+      "sha256": "63bfecb927a45b1ed7babf1cbabfcd225640708c9383b5b35c05bf28efd0d0e6"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+      "bytes": 57133903,
+      "sha256": "f75e94b20848ad881790de8b4cbbe4afe2ed453db46a225323583e1d960cc241"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+      "bytes": 27216,
+      "sha256": "0f5ae4002bce43b01c144b35bb227c7d65eb9305a7e6be3e627cc6ed93e152c4"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+      "bytes": 57046198,
+      "sha256": "cf6e48946fa527ee2bcbf4d2b3deef7b8d2ff977aa23d1407585546eb65aac98"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_signing.rs",
+      "sha256": "c9f2a7acb1a15f3f48c9c1bd7ccb5ffde758956a3f0612081ac861999a610cbb"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "sha256": "8b8ca8158af8f38012ef1fcab312ca9343fe1dd29847906c0fd24f600c4dafa2"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
+      "sha256": "dbd5898cf341a729b2a76124eaeb97e2f3e5b8be61b4f4163e6b0fa4b3081916"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
+      "sha256": "93470c2168422d9dd18e057aad61fc7db963562ae0f01b9f162fa8604b4f7f5e"
+    }
+  ]
+}

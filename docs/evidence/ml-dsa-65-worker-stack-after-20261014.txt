@@ -1,0 +1,12 @@
+global I32Const { value: 1048576 }
+global End
+global I32Const { value: 67027644 }
+global End
+global I32Const { value: 67027560 }
+global End
+global I32Const { value: 67027700 }
+global End
+558	491872	js_sys[1466f7a36a549852]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[7319e9b7f31fc3b1]::context::Context>::wait_until<ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::prepared::accept_a::{closure#0}>::{closure#0}>>::{closure#0}::{closure#0}
+559	99984	js_sys[1466f7a36a549852]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}
+498	82176	ed25519_yao_cloudflare_bench[e874b0827c20b258]::ml_dsa::pipeline::verify_standard_signature
+191	62480	<ed25519_yao[34e31a57751c6d16]::passive::ml_dsa_signing::keygen::KeygenCircuit>::accept
