@@ -8,6 +8,7 @@
 //! remains a disposable investigation with no production eligibility claim.
 
 mod pipeline;
+mod pool;
 mod prepared;
 mod prepared_signing;
 mod prepared_storage;
@@ -41,6 +42,7 @@ const ROLE: &str = "a";
 const ROLE: &str = "b";
 fn operation(name: &str) -> worker::Result<prepared::Operation> {
     match name {
+        "prepared-gmw-pool" => Ok(prepared::Operation::Pool),
         "prepared-keygen" => Ok(prepared::Operation::Keygen),
         "prepared-signing" => Ok(prepared::Operation::Signing(
             prepared_signing::Backend::HalfGates,
@@ -480,6 +482,7 @@ pub async fn main(
         let for_error = server.clone();
         context.wait_until(async move {
             let result = match operation {
+                prepared::Operation::Pool => Box::pin(pool::run_b(env, server, run_id, colo)).await,
                 prepared::Operation::Keygen => prepared::run_b(env, server, run_id, colo).await,
                 prepared::Operation::Signing(backend) => {
                     Box::pin(prepared_signing::run_b(env, server, run_id, colo, backend)).await

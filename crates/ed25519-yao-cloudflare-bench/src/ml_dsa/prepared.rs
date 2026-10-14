@@ -239,6 +239,7 @@ impl Transport for Adapter<'_> {
 
 #[derive(Clone, Copy)]
 pub(super) enum Operation {
+    Pool,
     Keygen,
     Signing(super::prepared_signing::Backend),
 }
@@ -257,6 +258,7 @@ pub(super) fn accept_a(
     let on_error = client.clone();
     context.wait_until(async move {
         let result = match operation {
+            Operation::Pool => Box::pin(super::pool::run_a(&env, &client, &run_id, colo)).await,
             Operation::Keygen => run_a(&env, &client, &run_id, colo).await,
             Operation::Signing(backend) => {
                 Box::pin(super::prepared_signing::run_a(

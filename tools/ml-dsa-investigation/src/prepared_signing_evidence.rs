@@ -89,10 +89,22 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     let capacity = u16::try_from(operation["capacity"].as_u64().ok_or("Missing capacity")?)?;
     let scenario = operation["scenario"].as_str().ok_or("Missing scenario")?;
     require(
-        ["sign", "key-mismatch", "epoch-mismatch"].contains(&scenario),
+        ["sign", "key-mismatch", "epoch-mismatch", "lifecycle"].contains(&scenario),
         "Unknown scenario",
     )?;
     let mut transport = HostTransport::new(Path::new(&args[5]).to_owned(), 0);
+    if operation["engine"] == "pool" {
+        let report = crate::pool_evidence::run(
+            role,
+            own,
+            &public_key,
+            &schedules,
+            reservation,
+            &mut transport,
+        )?;
+        fs::write(&args[6], serde_json::to_vec_pretty(&report)?)?;
+        return Ok(true);
+    }
     let started = Instant::now();
     let reservation = Reservation {
         id: reservation,
@@ -116,6 +128,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                 reservation.id,
                 capacity,
                 &schedules,
+                &mut Default::default(),
                 &mut transport,
             ))??;
             run_ready(ready(role, &mut transport))??;
@@ -194,7 +207,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
             let output =
                 run_ready(prepared.sign(&message, &context, &operation_id, &mut transport))?;
             match output {
-                Ok(output) => {
+                Ok(prepared_signing::gmw::GmwBatchResult::Signed(output)) => {
                     reference::verify_signature_rustcrypto(
                         &public_key,
                         &message,
@@ -210,6 +223,9 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                         json!({"status": "signed", "signature_hex": hex::encode(output.signature), "attempts": output.accepted_candidate,
                         "evaluated_candidates": output.evaluated_candidates, "public_rejections": output.public_rejections, "batches": batches, "preparation_batches": output.preparation_batches.iter().map(crate::prepared_gmw_evidence::metrics).collect::<Vec<_>>()}),
                     )
+                }
+                Ok(prepared_signing::gmw::GmwBatchResult::Exhausted(_)) => {
+                    Err(ed25519_yao::ml_dsa_signing::SigningError::PreparedPoolExhausted)
                 }
                 Err(error) => Err(error),
             }
@@ -266,6 +282,7 @@ pub(super) fn run_operation(
         ("gmw", 8, "sign"),
         ("gmw", 1, "key-mismatch"),
         ("gmw", 1, "epoch-mismatch"),
+        ("pool", 4, "lifecycle"),
     ]
     .into_iter()
     .enumerate()
@@ -353,7 +370,9 @@ pub(super) fn run_operation(
                 "Prepared signer traffic differs",
             )?;
         }
-        let verification = if a["result"]["status"] == "signed" {
+        let verification = if engine == "pool" {
+            crate::pool_evidence::verify(&public, &a, &b)?
+        } else if a["result"]["status"] == "signed" {
             let signature = hex::decode(
                 a["result"]["signature_hex"]
                     .as_str()
@@ -373,12 +392,17 @@ pub(super) fn run_operation(
             )?;
             json!({"pool_exhausted_without_signature": true})
         };
-        eprintln!(
-            "Prepared signing case {ordinal}: {}, {} attempts, {} ms online",
-            a["result"]["status"],
-            a["result"]["attempts"],
-            b["online_ns"].as_u64().ok_or("Missing online time")? / 1_000_000
-        );
+        if engine == "pool" {
+            eprintln!("Pool lifecycle completed: {}", verification);
+        } else {
+            eprintln!(
+                "Prepared signing case {ordinal}: {}, {} attempts, {} ms online",
+                a["result"]["status"],
+                a["result"]["attempts"],
+                b["online_ns"].as_u64().ok_or("Missing online time")? / 1_000_000
+            );
+        }
+
         cases.push(json!({"engine": engine, "capacity": capacity, "scenario": scenario, "a": a, "b": b, "verification": verification}));
         fs::remove_dir_all(a_dir)?;
         fs::remove_dir_all(b_dir)?;

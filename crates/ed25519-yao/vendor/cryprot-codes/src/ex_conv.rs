@@ -6,6 +6,7 @@ use bytemuck::{cast, cast_slice_mut};
 use cryprot_core::block::Block;
 use expander::ExpanderCode;
 use fast_aes_rng::FastAesRng;
+#[cfg(target_feature = "sse4.1")]
 use seq_macro::seq;
 
 use crate::Coeff;
@@ -192,6 +193,7 @@ impl ExConvCode {
         x[j] ^= xi;
     }
 
+    #[cfg(target_feature = "sse4.1")]
     #[inline(always)]
     fn acc_one_8_offsets<const RANGE_CHECK: bool, T: Coeff>(x: &mut [T], j: usize) -> [usize; 8] {
         let size = x.len();
@@ -222,17 +224,16 @@ impl ExConvCode {
     }
 
     fn acc_one_8_scalar<const RANGE_CHECK: bool, T: Coeff>(x: &mut [T], xi: T, j: usize, b: u8) {
-        let js = Self::acc_one_8_offsets::<RANGE_CHECK, _>(x, j);
-
-        let b_bits = [b & 1, b & 2, b & 4, b & 8, b & 16, b & 32, b & 64, b & 128];
-
-        // I've tried replacing these index operations with unchecked ones, but there is
-        // no measurable performance boost
-        seq!(N in 0..8 {
-            if b_bits[N] != 0 {
-                x[js[N]] ^= xi;
+        // The matrix coefficient is public and fixed by the code configuration.
+        let mut remaining = b;
+        while remaining != 0 {
+            let mut offset = j + remaining.trailing_zeros() as usize;
+            if RANGE_CHECK && offset >= x.len() {
+                offset -= x.len();
             }
-        });
+            x[offset] ^= xi;
+            remaining &= remaining - 1;
+        }
     }
 
     #[cfg(target_feature = "sse4.1")]

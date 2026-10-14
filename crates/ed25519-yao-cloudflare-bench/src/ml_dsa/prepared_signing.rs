@@ -100,10 +100,10 @@ impl PreparedOperation<'_> {
                 let signer = reservation
                     .activate(own, &public_key, epoch, adapter)
                     .await?;
-                signer
-                    .sign(message, context, operation, adapter)
-                    .await
-                    .map(Output::Gmw)
+                match signer.sign(message, context, operation, adapter).await? {
+                    ed25519_yao::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Signed(signature) => Ok(Output::Gmw(signature)),
+                    ed25519_yao::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Exhausted(_) => Err(SigningError::PreparedPoolExhausted),
+                }
             }
         }
     }
@@ -128,7 +128,7 @@ impl Output {
         }
     }
 }
-fn batch_metrics(
+pub(super) fn batch_metrics(
     metrics: &ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::BatchMetrics,
 ) -> Value {
     let phases: Vec<_> = metrics
@@ -140,7 +140,7 @@ fn batch_metrics(
         "topology_allocation_bytes": metrics.topology_allocation_bytes, "private_state_allocation_bytes": metrics.private_state_allocation_bytes})
 }
 
-fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule<'static>>> {
+pub(super) fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule<'static>>> {
     let records = book["signing_schedules"]
         .as_array()
         .ok_or_else(missing_fixture_field)?;
@@ -213,6 +213,7 @@ async fn prepare<'a>(
                 reservation.id,
                 reservation.candidates,
                 schedules,
+                &mut Default::default(),
                 adapter,
             )
             .await

@@ -1,5 +1,7 @@
 # ML-DSA-65 generic preparation and activation
 
+The [ready-pool follow-up](ml-dsa-65-ready-pool-report.md) supersedes the pool implementation and remaining-work status below.
+
 Date: October 15, 2026. Branch: `ml-dsa`. Production integration remains paused.
 
 ## Result

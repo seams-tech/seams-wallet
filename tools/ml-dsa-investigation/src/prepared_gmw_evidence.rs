@@ -66,6 +66,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         role,
         &requested,
         &mut correlations,
+        &mut Default::default(),
         &mut transport,
     ))? {
         Ok(prepared) => prepared,

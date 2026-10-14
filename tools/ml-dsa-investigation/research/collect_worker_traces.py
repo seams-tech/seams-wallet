@@ -27,7 +27,7 @@ def records(path, role):
         if run_id is not None and re.fullmatch("[0-9a-f]{32}", run_id) is None:
             run_id = None
         operation = query.get("kernel", [None])[0]
-        if operation not in ["prepared-keygen", "prepared-signing", "prepared-gmw-signing"]:
+        if operation not in ["prepared-keygen", "prepared-signing", "prepared-gmw-signing", "prepared-gmw-pool"]:
             operation = None
         progress = []
         for log in item.get("logs", []):
@@ -38,7 +38,7 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
-                if value.get("event") not in ["ml-dsa-boolean-preparation-progress", "ml-dsa-signing-key-ready", "ml-dsa-generic-preparation-ready"]:
+                if value.get("event") not in ["ml-dsa-boolean-preparation-progress", "ml-dsa-signing-key-ready", "ml-dsa-generic-preparation-ready", "ml-dsa-keygen-preparation-ready"]:
                     continue
                 progress.append({key: value[key] for key in [
                     "event", "role", "instances_started", "binding_phases_started", "wasm_linear_memory_bytes", "sent_bytes", "received_bytes",

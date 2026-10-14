@@ -9,9 +9,10 @@ mod pprf;
 use super::*;
 use crate::passive::ot::MlDsaSilentBaseOtFamily as BaseBatch;
 use aes::{
-    cipher::{BlockEncrypt, KeyInit},
+    cipher::{BlockCipherEncrypt, KeyInit},
     Aes128,
 };
+use aes09 as aes;
 use cryprot_codes::ExConvCode;
 use cryprot_core::Block;
 
@@ -273,9 +274,7 @@ fn hash_cipher() -> Aes128 {
 
 fn hash(aes: &Aes128, input: &[u8; 16]) -> Zeroizing<[u8; 16]> {
     let mut output = Zeroizing::new(*input);
-    aes.encrypt_block(aes::cipher::Block::<Aes128>::from_mut_slice(
-        output.as_mut(),
-    ));
+    aes.encrypt_block(output.as_mut_slice().try_into().expect("AES block"));
     for (out, input) in output.iter_mut().zip(input) {
         *out ^= input;
     }

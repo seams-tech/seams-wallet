@@ -1,0 +1,97 @@
+{
+  "scope": "Exploratory full-size public encoder comparison in Node Wasm. Four deterministic public inputs, repeated twice. The digest is the first eight bytes of SHA-256 over the complete encoded vector. This is bounded differential evidence, not a security proof or hosted measurement.",
+  "original": {
+    "scope": "Public ExConv full-sized encoding in Node Wasm. Synthetic public inputs, SHA-256 prefix over the full output. Includes input fill and hashing. No network or Workers attribution.",
+    "cases": [
+      {
+        "seed": 0,
+        "digest_prefix_hex": "6a593444c21ecbfd",
+        "elapsed_ms": 130.62775
+      },
+      {
+        "seed": 1,
+        "digest_prefix_hex": "238a4066e429e6fd",
+        "elapsed_ms": 110.81899999999999
+      },
+      {
+        "seed": 19,
+        "digest_prefix_hex": "721024f48494dc6a",
+        "elapsed_ms": 109.93099999999998
+      },
+      {
+        "seed": 1234,
+        "digest_prefix_hex": "ae6606ba5cdc5c9",
+        "elapsed_ms": 109.78283299999998
+      },
+      {
+        "seed": 0,
+        "digest_prefix_hex": "6a593444c21ecbfd",
+        "elapsed_ms": 109.67012499999998
+      },
+      {
+        "seed": 1,
+        "digest_prefix_hex": "238a4066e429e6fd",
+        "elapsed_ms": 115.45779200000004
+      },
+      {
+        "seed": 19,
+        "digest_prefix_hex": "721024f48494dc6a",
+        "elapsed_ms": 118.76929199999995
+      },
+      {
+        "seed": 1234,
+        "digest_prefix_hex": "ae6606ba5cdc5c9",
+        "elapsed_ms": 109.87675000000002
+      }
+    ]
+  },
+  "set_bits": {
+    "scope": "Public ExConv full-sized encoding in Node Wasm. Synthetic public inputs, SHA-256 prefix over the full output. Includes input fill and hashing. No network or Workers attribution.",
+    "cases": [
+      {
+        "seed": 0,
+        "digest_prefix_hex": "6a593444c21ecbfd",
+        "elapsed_ms": 97.063792
+      },
+      {
+        "seed": 1,
+        "digest_prefix_hex": "238a4066e429e6fd",
+        "elapsed_ms": 87.044291
+      },
+      {
+        "seed": 19,
+        "digest_prefix_hex": "721024f48494dc6a",
+        "elapsed_ms": 86.71420799999999
+      },
+      {
+        "seed": 1234,
+        "digest_prefix_hex": "ae6606ba5cdc5c9",
+        "elapsed_ms": 85.337625
+      },
+      {
+        "seed": 0,
+        "digest_prefix_hex": "6a593444c21ecbfd",
+        "elapsed_ms": 85.81720899999999
+      },
+      {
+        "seed": 1,
+        "digest_prefix_hex": "238a4066e429e6fd",
+        "elapsed_ms": 87.42612500000001
+      },
+      {
+        "seed": 19,
+        "digest_prefix_hex": "721024f48494dc6a",
+        "elapsed_ms": 86.93100000000004
+      },
+      {
+        "seed": 1234,
+        "digest_prefix_hex": "ae6606ba5cdc5c9",
+        "elapsed_ms": 85.33662500000003
+      }
+    ]
+  },
+  "shim": "use cryprot_codes::ExConvCode;\nuse cryprot_core::Block;\nuse sha2::{Digest, Sha256};\n#[unsafe(no_mangle)]\npub extern \"C\" fn encode(seed: u32) -> u64 {\n    let mut blocks: Vec<Block> = (0..1_048_576_u128)\n        .map(|index| Block::new(index.wrapping_mul(0x1684934101347340963727634173201_u128)\n            .wrapping_add(u128::from(seed)).to_le_bytes())).collect();\n    ExConvCode::new(524_288).dual_encode(&mut blocks);\n    let mut digest = Sha256::new();\n    for block in &blocks { digest.update(block.as_bytes()); }\n    u64::from_le_bytes(digest.finalize()[..8].try_into().unwrap())\n}\n",
+  "runner": "import { readFile, writeFile } from 'node:fs/promises';\nimport { performance } from 'node:perf_hooks';\nconst file = process.argv[2];\nconst bytes = await readFile(file);\nconst { instance } = await WebAssembly.instantiate(bytes, {});\nconst cases = [];\nfor (const seed of [0, 1, 19, 1234, 0, 1, 19, 1234]) {\n  const start = performance.now();\n  const digest = instance.exports.encode(seed);\n  cases.push({seed, digest_prefix_hex: BigInt.asUintN(64, digest).toString(16), elapsed_ms: performance.now()-start});\n}\nawait writeFile(process.argv[3], JSON.stringify({scope: 'Public ExConv full-sized encoding in Node Wasm. Synthetic public inputs, SHA-256 prefix over the full output. Includes input fill and hashing. No network or Workers attribution.', cases}, null, 2));\nconsole.log(cases);\n",
+  "original_encoder_sha256": "0bdec4e4573b209d5f6c3935109dfd9b7881ed38cfb4115dfc91968a5c202efe",
+  "selected_encoder_sha256": "d7da8d9175610bf72778f8cd329c98d3342a94dcfa77f2f24a396b6cf2f701f7"
+}

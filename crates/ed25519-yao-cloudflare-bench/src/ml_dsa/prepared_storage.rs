@@ -390,6 +390,11 @@ impl Tables {
         Ok(())
     }
     pub(super) fn report(&self) -> Value {
+        let start_policy = if self.resident_bytes == 0 {
+            "all-groups-stream-online"
+        } else {
+            "first-group-resident-before-admission"
+        };
         json!({"objects_written": self.groups.len(), "objects_read": self.gets,
             "objects_read_before_admission": usize::from(self.resident_bytes != 0),
             "objects_read_online": self.gets - usize::from(self.resident_bytes != 0),
@@ -399,7 +404,7 @@ impl Tables {
             "largest_stream_chunk_bytes": self.largest_chunk, "multipart_parts": self.parts,
             "maximum_write_buffer_bytes": PART_BYTES, "maximum_read_bytes": FRAME_BYTES,
             "reader": "byob-read-at-least", "source_bound_open_table_streams": 2,
-            "storage_start_policy": "first-group-resident-before-admission", "scope": "A fresh first table group is loaded into a JS buffer before readiness. Later groups stream from R2 online. The writer buffers at most one five-MiB Rust part. Online frame copies are bounded. The resident byte count is explicit; total runtime memory is not measured."})
+            "storage_start_policy": start_policy, "scope": "Read counts separate pre-admission resident loading from online streaming. The writer buffers at most one five-MiB Rust part. Online frame copies are bounded. Resident bytes are explicit; total runtime memory is not measured."})
     }
     #[cfg(feature = "ml-dsa-b")]
     pub(super) async fn cleanup(&self) -> worker::Result<()> {

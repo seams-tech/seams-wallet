@@ -3,16 +3,46 @@
 
 use super::silent::CorrelationStream;
 use super::*;
+use std::rc::Rc;
 
 struct Group<'a> {
     schedule: &'a TrustedMlDsaSchedule<'a>,
-    topology: Topology,
+    topology: Rc<Topology>,
     lanes: usize,
     words: usize,
-    left: Zeroizing<Vec<u32>>,
-    right: Zeroizing<Vec<u32>>,
-    products: Zeroizing<Vec<u32>>,
+    left: Zeroizing<Vec<u8>>,
+    right: Zeroizing<Vec<u8>>,
+    products: Zeroizing<Vec<u8>>,
 }
+/// Immutable circuit data shared across independent private reservations.
+#[derive(Default)]
+pub struct PublicTopologies {
+    entries: Vec<([u8; 32], Rc<Topology>)>,
+}
+
+impl PublicTopologies {
+    fn get(&mut self, schedule: &TrustedMlDsaSchedule<'_>) -> Rc<Topology> {
+        if let Some((_, topology)) = self
+            .entries
+            .iter()
+            .find(|(digest, _)| *digest == schedule.digest)
+        {
+            return Rc::clone(topology);
+        }
+        let topology = Rc::new(Topology::compile(schedule));
+        self.entries.push((schedule.digest, Rc::clone(&topology)));
+        topology
+    }
+
+    /// Distinct public allocations; private correlations are excluded.
+    pub fn allocation_bytes(&self) -> usize {
+        self.entries
+            .iter()
+            .map(|(_, topology)| topology.allocation_bytes())
+            .sum()
+    }
+}
+
 struct Instance {
     group: usize,
     lane: usize,
@@ -58,6 +88,7 @@ pub async fn prepare_batch<'a>(
     role: SigningRole,
     schedules: &[&'a TrustedMlDsaSchedule<'a>],
     correlations: &mut CorrelationStream,
+    topologies: &mut PublicTopologies,
     transport: &mut impl Transport,
 ) -> Result<PreparedGmwBatch<'a>> {
     check(
@@ -91,7 +122,7 @@ pub async fn prepare_batch<'a>(
             None => {
                 groups.push(Group {
                     schedule,
-                    topology: Topology::compile(schedule),
+                    topology: topologies.get(schedule),
                     lanes: 0,
                     words: 0,
                     left: Zeroizing::new(Vec::new()),
@@ -111,7 +142,7 @@ pub async fn prepare_batch<'a>(
     }
     for group in &mut groups {
         group.words = group.lanes.div_ceil(32);
-        let length = group.words * group.topology.and_gates.len();
+        let length = group.lanes.div_ceil(8) * group.topology.and_gates.len();
         group.left.resize(length, 0);
         group.right.resize(length, 0);
         group.products.resize(length, 0);
@@ -122,14 +153,14 @@ pub async fn prepare_batch<'a>(
         context.set_phase(Phase::Binding);
         instance.binding = bind(Engine::Gmw, group.schedule, &mut context).await?;
         context.set_phase(Phase::Preprocessing);
-        let word = instance.lane / 32;
-        let shift = instance.lane % 32;
+        let byte = instance.lane / 8;
+        let shift = instance.lane % 8;
         for gate in 0..group.topology.and_gates.len() {
             let mut triple = correlations.take(&mut context).await?;
-            let index = gate * group.words + word;
-            group.left[index] |= u32::from(triple[0]) << shift;
-            group.right[index] |= u32::from(triple[1]) << shift;
-            group.products[index] |= u32::from(triple[2]) << shift;
+            let index = gate * group.lanes.div_ceil(8) + byte;
+            group.left[index] |= triple[0] << shift;
+            group.right[index] |= triple[1] << shift;
+            group.products[index] |= triple[2] << shift;
             triple.zeroize();
         }
     }
@@ -142,6 +173,14 @@ pub async fn prepare_batch<'a>(
 }
 
 impl PreparedGmwBatch<'_> {
+    /// Retained private correlation bytes, excluding online scratch space.
+    pub fn private_bytes(&self) -> usize {
+        self.groups
+            .iter()
+            .map(|group| group.left.capacity() + group.right.capacity() + group.products.capacity())
+            .sum()
+    }
+
     /// Binds the ordered batch to the request before actual-input evaluation.
     /// The adapter must durably consume its reservation before calling this method.
     pub async fn run(
@@ -202,15 +241,8 @@ impl PreparedGmwBatch<'_> {
         }
         context.set_phase(Phase::Output);
         let outputs = outputs(&self.groups, &self.instances, &values, &mut context).await?;
-        let private_bytes = 4
-            * (values.iter().map(|own| own.capacity()).sum::<usize>()
-                + self
-                    .groups
-                    .iter()
-                    .map(|group| {
-                        group.left.capacity() + group.right.capacity() + group.products.capacity()
-                    })
-                    .sum::<usize>());
+        let private_bytes =
+            4 * values.iter().map(|own| own.capacity()).sum::<usize>() + self.private_bytes();
         Ok(BatchOutput {
             outputs,
             metrics: BatchMetrics {
@@ -245,6 +277,11 @@ fn read_word(bytes: &[u8]) -> u32 {
     u32::from_le_bytes(word)
 }
 
+fn correlation_word(bytes: &[u8], group: &Group<'_>, gate: usize, word: usize) -> u32 {
+    let start = gate * group.lanes.div_ceil(8) + word * 4;
+    read_word(&bytes[start..start + word_bytes(group, word)])
+}
+
 async fn evaluate_layer(
     depth: usize,
     groups: &[Group<'_>],
@@ -260,10 +297,10 @@ async fn evaluate_layer(
             let gate = group.topology.and_gates[index];
             for word in 0..group.words {
                 let width = word_bytes(group, word);
-                let d =
-                    own[gate.left * group.words + word] ^ group.left[index * group.words + word];
-                let e =
-                    own[gate.right * group.words + word] ^ group.right[index * group.words + word];
+                let d = own[gate.left * group.words + word]
+                    ^ correlation_word(&group.left, group, index, word);
+                let e = own[gate.right * group.words + word]
+                    ^ correlation_word(&group.right, group, index, word);
                 outgoing.extend_from_slice(&d.to_le_bytes()[..width]);
                 outgoing.extend_from_slice(&e.to_le_bytes()[..width]);
             }
@@ -291,11 +328,11 @@ async fn evaluate_layer(
                 let e = read_word(&outgoing[position..position + width])
                     ^ read_word(&received[position..position + width]);
                 position += width;
-                let correlation = index * group.words + word;
-                own[gate.output * group.words + word] = group.products[correlation]
-                    ^ (d & group.right[correlation])
-                    ^ (e & group.left[correlation])
-                    ^ (a_mask & d & e);
+                own[gate.output * group.words + word] =
+                    correlation_word(&group.products, group, index, word)
+                        ^ (d & correlation_word(&group.right, group, index, word))
+                        ^ (e & correlation_word(&group.left, group, index, word))
+                        ^ (a_mask & d & e);
             }
         }
         for gate in &layer.linear {
