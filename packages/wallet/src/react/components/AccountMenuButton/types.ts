@@ -86,9 +86,6 @@ export interface AccountMenuButtonProps {
   toggleColors?: ToggleColorProps;
   style?: React.CSSProperties;
   className?: string;
-  // Optional: where to portal overlays (modals)
-  // Defaults to the component's ShadowRoot when present, otherwise document.body
-  portalTarget?: HTMLElement | ShadowRoot | null;
   // Programmatic menu control
   isMenuOpen?: boolean;
   onMenuOpenChange?: (open: boolean) => void;
@@ -125,13 +122,6 @@ export interface ProfileDropdownProps {
   onToggleSkipClick?: () => void;
   onSetDelay?: (delay: number) => void;
   transactionSettingsOpen?: boolean;
-  accountsRows?: AccountsSectionRow[];
-  accountsOpen?: boolean;
-  exportKeysOpen?: boolean;
-  exportLoadingChain?: ExportChain | null;
-  onExportChain?: (chain: ExportChain) => void;
-  walletId?: string | null;
-  nearAccountId?: string | null;
   menuItemsRef: React.MutableRefObject<(HTMLElement | null)[]>;
   // Optional ARIA linkage
   menuId?: string;

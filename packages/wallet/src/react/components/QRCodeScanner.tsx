@@ -10,6 +10,7 @@ import { useQRCamera, QRScanMode } from '../hooks/useQRCamera';
 import { useDeviceLinking } from '../hooks/useDeviceLinking';
 import { useSeams } from '../context';
 import { Theme, useTheme } from './theme';
+import { AccountMenuScreen } from './AccountMenuButton/AccountMenuScreen';
 import { QRCodeScannerCamera } from './QRCodeScannerCamera';
 
 /**
@@ -25,6 +26,7 @@ export interface QRCodeScannerProps {
   className?: string;
   style?: React.CSSProperties;
   showCamera?: boolean;
+  presentation?: 'modal' | 'embedded';
 }
 
 type EmailOtpBaseFactorSelectionState =
@@ -80,6 +82,36 @@ function restorableFocusElement(): HTMLElement | null {
   return activeElement;
 }
 
+function ScannerFrame({
+  presentation,
+  onClose,
+  theme,
+  tokens,
+  children,
+}: {
+  presentation: 'modal' | 'embedded';
+  onClose: () => void;
+  theme: React.ComponentProps<typeof Theme>['theme'];
+  tokens: React.ComponentProps<typeof Theme>['tokens'];
+  children: React.ReactNode;
+}): React.JSX.Element {
+  if (presentation === 'embedded') {
+    return (
+      <AccountMenuScreen title="Link a device" onBack={onClose}>
+        <p className="seams-account-description">
+          Open your wallet on the other device, then scan its pairing code.
+        </p>
+        {children}
+      </AccountMenuScreen>
+    );
+  }
+  return (
+    <Theme theme={theme} tokens={tokens}>
+      {children}
+    </Theme>
+  );
+}
+
 export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   onQRCodeScanned,
   onError,
@@ -90,6 +122,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   className,
   style,
   showCamera = true,
+  presentation = 'modal',
 }) => {
   const { theme, tokens } = useTheme();
   const { cancelLinking } = useSeams();
@@ -276,7 +309,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
     switch (intent) {
       case 'scanner':
-        focusElement(closeButtonRef.current);
+        if (presentation === 'modal') focusElement(closeButtonRef.current);
         break;
       case 'email':
         focusFirstElement(scannerPanelRef.current);
@@ -292,7 +325,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         return exhaustiveIntent;
       }
     }
-  }, [emailOtpSelection?.kind, isOpen, qrCamera.error, scannerState.kind]);
+  }, [emailOtpSelection?.kind, isOpen, qrCamera.error, scannerState.kind, presentation]);
 
   useEffect(() => {
     return () => {
@@ -309,6 +342,9 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     cancellationRequestedRef.current = true;
     void cancelLinking().catch(() => undefined);
   }, [cancelLinking, scannerState.kind]);
+
+  const cancelActiveLinkRef = useRef(cancelActiveLink);
+  cancelActiveLinkRef.current = cancelActiveLink;
 
   const handleClose = useCallback(() => {
     stopScanning();
@@ -348,11 +384,11 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
       stopPropagationNative(event);
-      if (event.target === event.currentTarget) {
+      if (presentation === 'modal' && event.target === event.currentTarget) {
         handleClose();
       }
     },
-    [handleClose, stopPropagationNative],
+    [handleClose, stopPropagationNative, presentation],
   );
 
   const stopEventPropagation = useCallback(
@@ -368,7 +404,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
   const handleModalKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Tab' || !isFocusTrapActive) return;
+      if (presentation === 'embedded' || event.key !== 'Tab' || !isFocusTrapActive) return;
       const elements = focusableElements(event.currentTarget);
       if (elements.length === 0) {
         event.preventDefault();
@@ -387,7 +423,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         focusElement(elements[0]);
       }
     },
-    [isFocusTrapActive],
+    [isFocusTrapActive, presentation],
   );
 
   // Camera Cleanup Point 2: Component unmount
@@ -395,6 +431,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     return () => {
       rejectPendingEmailOtpSelection(new Error('Device linking was cancelled'));
       stopScanning();
+      cancelActiveLinkRef.current();
     };
   }, [rejectPendingEmailOtpSelection, stopScanning]);
 
@@ -408,7 +445,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   // Camera Cleanup Point 4: ESC key handling
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === 'Escape' && isOpen && !event.defaultPrevented) {
         handleClose();
       }
     };
@@ -429,12 +466,18 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
   if (qrCamera.error) {
     return (
-      <Theme theme={theme} tokens={scopedTokens}>
+      <ScannerFrame
+        presentation={presentation}
+        onClose={handleClose}
+        theme={theme}
+        tokens={scopedTokens}
+      >
         <div
           className={`qr-scanner-modal qr-scanner-modal--error ${className || ''}`}
+          data-presentation={presentation}
           style={style}
-          role="dialog"
-          aria-modal="true"
+          role={presentation === 'modal' ? 'dialog' : 'region'}
+          aria-modal={presentation === 'modal' ? true : undefined}
           aria-labelledby="qr-scanner-error-title"
           onKeyDown={handleModalKeyDown}
           onClick={handleBackdropClick}
@@ -461,18 +504,24 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             </button>
           </div>
         </div>
-      </Theme>
+      </ScannerFrame>
     );
   }
 
   if (emailOtpSelection) {
     return (
-      <Theme theme={theme} tokens={scopedTokens}>
+      <ScannerFrame
+        presentation={presentation}
+        onClose={handleClose}
+        theme={theme}
+        tokens={scopedTokens}
+      >
         <div
           className={`qr-scanner-modal ${className || ''}`}
+          data-presentation={presentation}
           style={style}
-          role="dialog"
-          aria-modal="true"
+          role={presentation === 'modal' ? 'dialog' : 'region'}
+          aria-modal={presentation === 'modal' ? true : undefined}
           aria-labelledby="qr-scanner-email-selection-title"
           onKeyDown={handleModalKeyDown}
           onClick={handleBackdropClick}
@@ -537,17 +586,23 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             <span aria-hidden="true">✕</span>
           </button>
         </div>
-      </Theme>
+      </ScannerFrame>
     );
   }
 
   return (
-    <Theme theme={theme} tokens={scopedTokens}>
+    <ScannerFrame
+      presentation={presentation}
+      onClose={handleClose}
+      theme={theme}
+      tokens={scopedTokens}
+    >
       <div
         className={`qr-scanner-modal${scannerState.kind === 'linking' ? ' qr-scanner-modal--linking' : ''} ${className || ''}`}
+        data-presentation={presentation}
         style={style}
-        role={isFocusTrapActive ? 'dialog' : 'region'}
-        aria-modal={isFocusTrapActive ? true : undefined}
+        role={presentation === 'modal' && isFocusTrapActive ? 'dialog' : 'region'}
+        aria-modal={presentation === 'modal' && isFocusTrapActive ? true : undefined}
         aria-labelledby="qr-scanner-title"
         onKeyDown={handleModalKeyDown}
         onClick={handleBackdropClick}
@@ -682,7 +737,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           </button>
         )}
       </div>
-    </Theme>
+    </ScannerFrame>
   );
 };
 

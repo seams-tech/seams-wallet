@@ -65,12 +65,11 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
 `AccountMenuButtonMock` is an interactive, provider-free account-menu preview.
-It shares the connected `AccountMenuButton` renderer. Account expansion,
-confirmation preferences, menu expansion, and the lock action use local state.
-Authentication Methods shows several example devices. Scan and Link Device opens
-the SDK scanner frame without requesting camera access. Both overlays close normally.
-It never creates a wallet session, signs, exports keys, or accesses wallet storage.
-Other wallet-operation rows are disabled unless `onAction` supplies preview navigation.
+It shares the connected `AccountMenuButton` renderer. Navigation, confirmation
+preferences, device details, recovery previews, and locking use local state.
+It never creates a wallet session, signs, exports keys, requests camera access,
+or accesses wallet storage. Key export is disabled unless `onAction` supplies
+preview navigation.
 
 ```tsx
 import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
@@ -79,10 +78,11 @@ import '@seams/wallet/react/styles';
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```
 
-Use `defaultOpen={false}` to start collapsed. Use `backdrop="none"` when embedding
-the preview in a canvas; the default `"dimmed"` keeps the normal modal backdrop. `onAction` receives a
-`ProfileSettingsMenuItemId` for wallet-operation rows; the consumer owns that
-navigation. The mock does not perform the corresponding wallet operation.
+Use `defaultOpen={false}` to start collapsed. All screens stay inside one panel;
+there is no overlay backdrop. The panel animates its measured height between screens,
+and respects reduced-motion preferences. Authentication methods open device details.
+The scanner is a static camera preview. Recovery codes are sample display data.
+`onAction` receives key-export selections; the preview never starts wallet operations.
 
 `WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
 export, and transaction-preference settings. It uses the same provider and

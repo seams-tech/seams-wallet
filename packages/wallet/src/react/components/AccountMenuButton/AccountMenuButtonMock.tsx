@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import { Theme } from '../theme/ThemeProvider';
 import type { ThemeMode } from '../theme/ThemeProvider';
 import type { ConfirmationConfig, ConfirmationUIMode } from '../../../core/types/signer-worker';
-import { AccountMenuMockOverlay } from './AccountMenuMockOverlay';
+import { AccountMenuMockScreens, type AccountPreviewScreen } from './AccountMenuMockScreens';
 import { AccountMenuButtonView } from './AccountMenuButtonView';
 import { useProfileState } from './hooks/useProfileState';
 import type { AccountsSectionRow, MenuItem, ProfileSettingsMenuItemId } from './types';
@@ -21,15 +20,12 @@ export interface AccountMenuButtonMockProps {
   walletId?: string;
   theme?: ThemeMode;
   defaultOpen?: boolean;
-  /** Backdrop treatment for preview overlays. Defaults to dimmed. */
-  backdrop?: 'dimmed' | 'none';
   className?: string;
   style?: React.CSSProperties;
-  /** Optional preview navigation. Wallet-operation rows are disabled without this callback. */
+  /** Optional preview navigation. Key export is disabled without this callback. */
   onAction?: (action: ProfileSettingsMenuItemId) => void;
 }
 
-type Section = 'menu' | 'accounts' | 'transactions';
 const accounts: AccountsSectionRow[] = [
   {
     id: 'near',
@@ -44,14 +40,6 @@ const accounts: AccountsSectionRow[] = [
     href: 'https://basescan.org/address/0x42010000000000000000000000000000000000891c',
   },
 ];
-
-function toggleSection(
-  setSection: React.Dispatch<React.SetStateAction<Section>>,
-  current: Section,
-  next: Section,
-): void {
-  setSection(current === next ? 'menu' : next);
-}
 
 function selectMode(
   setConfig: React.Dispatch<React.SetStateAction<ConfirmationConfig>>,
@@ -85,19 +73,25 @@ function previewAction(
   onAction?.(action);
 }
 
+function resetPreviewNavigation(
+  isOpen: boolean,
+  setScreen: React.Dispatch<React.SetStateAction<AccountPreviewScreen>>,
+): void {
+  if (!isOpen) setScreen({ kind: 'overview' });
+}
+
 function AccountMenuPreview({
   username = 'Alex Chen',
   walletId = 'alex.near',
   theme = 'light',
   defaultOpen = true,
-  backdrop = 'dimmed',
   className,
   style,
   onAction,
 }: AccountMenuButtonMockProps): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
-  const [overlay, setOverlay] = useState<'none' | 'methods' | 'scanner'>('none');
-  const [section, setSection] = useState<Section>('menu');
+  const [screen, setScreen] = useState<AccountPreviewScreen>({ kind: 'overview' });
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationConfig>({
     uiMode: 'modal',
     behavior: 'requireClick',
@@ -106,6 +100,7 @@ function AccountMenuPreview({
     open,
     onOpenChange: setOpen,
   });
+  useEffect(resetPreviewNavigation.bind(null, isOpen, setScreen), [isOpen]);
   const externalDisabled = onAction === undefined;
   const menuItems: MenuItem[] = [
     {
@@ -115,12 +110,12 @@ function AccountMenuPreview({
       description: 'View accounts on block explorers',
       disabled: false,
       keepOpenOnClick: true,
-      onClick: toggleSection.bind(null, setSection, section, 'accounts'),
+      onClick: setScreen.bind(null, { kind: 'accounts' }),
     },
     {
       id: 'export-keys',
       icon: <KeyIcon />,
-      label: 'Export Keys',
+      label: 'Export keys',
       description: 'Export wallet signing keys',
       disabled: externalDisabled,
       keepOpenOnClick: true,
@@ -129,47 +124,47 @@ function AccountMenuPreview({
     {
       id: 'recovery-codes',
       icon: <RecoveryCodesIcon />,
-      label: 'Recovery Codes',
+      label: 'Recovery codes',
       description: 'Back up wallet recovery codes',
-      disabled: externalDisabled,
+      disabled: false,
       keepOpenOnClick: true,
-      onClick: previewAction.bind(null, onAction, 'recovery-codes'),
+      onClick: setScreen.bind(null, { kind: 'recovery', revealed: false }),
     },
     {
       id: 'authentication-methods',
       icon: <TouchIcon />,
-      label: 'Authentication Methods',
+      label: 'Authentication methods',
       description: 'Add or remove ways to unlock this device',
       disabled: false,
       keepOpenOnClick: true,
-      onClick: setOverlay.bind(null, 'methods'),
+      onClick: setScreen.bind(null, { kind: 'methods' }),
     },
     {
       id: 'scan-link-device',
       icon: <ScanIcon />,
-      label: 'Scan and Link Device',
+      label: 'Scan and link device',
       description: 'Scan QR to link a device',
       disabled: false,
       keepOpenOnClick: true,
-      onClick: setOverlay.bind(null, 'scanner'),
+      onClick: setScreen.bind(null, { kind: 'scanner' }),
     },
     {
       id: 'linked-devices',
       icon: <LinkIcon />,
-      label: 'Linked Devices',
+      label: 'Linked devices',
       description: 'See devices using this wallet',
-      disabled: externalDisabled,
+      disabled: false,
       keepOpenOnClick: true,
-      onClick: previewAction.bind(null, onAction, 'linked-devices'),
+      onClick: setScreen.bind(null, { kind: 'linked' }),
     },
     {
       id: 'transaction-settings',
       icon: <SlidersIcon />,
-      label: 'Transaction Settings',
+      label: 'Transaction settings',
       description: 'Customize confirmation behavior',
       disabled: false,
       keepOpenOnClick: true,
-      onClick: toggleSection.bind(null, setSection, section, 'transactions'),
+      onClick: setTransactionsOpen.bind(null, !transactionsOpen),
     },
   ];
   return (
@@ -192,11 +187,7 @@ function AccountMenuPreview({
         menuItemsRef: refs.menuItemsRef,
         onClose: handleClose,
         onLock: handleClose,
-        canExportNearKey: false,
-        canExportEvmKeys: false,
-        accountsRows: accounts,
-        accountsOpen: section === 'accounts',
-        transactionSettingsOpen: section === 'transactions',
+        transactionSettingsOpen: transactionsOpen,
         currentConfirmConfig: confirmation,
         onSetUiMode: selectMode.bind(null, setConfirmation),
         onToggleSkipClick: toggleClick.bind(null, setConfirmation, confirmation),
@@ -204,22 +195,16 @@ function AccountMenuPreview({
         theme,
       }}
     >
-      {overlay !== 'none' &&
-        createPortal(
-          <AccountMenuMockOverlay
-            backdrop={backdrop}
-            kind={overlay}
-            onClose={setOverlay.bind(null, 'none')}
-          />,
-          document.body,
-        )}
+      {screen.kind === 'overview' ? null : (
+        <AccountMenuMockScreens screen={screen} setScreen={setScreen} accounts={accounts} />
+      )}
     </AccountMenuButtonView>
   );
 }
 
 /** Provider-free interactive preview using the connected AccountMenuButton's renderer.
- * Accounts, confirmation preferences, authentication methods, scanner preview, expansion and locking stay local. Other
- * rows emit onAction; this component never opens a camera, signs, exports keys or accesses storage.
+ * Navigation, confirmation preferences, devices, recovery preview and locking stay local. Key export
+ * emits onAction; this component never opens a camera, signs, exports keys or accesses storage.
  */
 export function AccountMenuButtonMock(props: AccountMenuButtonMockProps): React.JSX.Element {
   return (

@@ -670,9 +670,3 @@
 .seams-linked-devices-modal-body::-webkit-scrollbar {
   display: none;
 }
-
-.seams-linked-devices-modal-backdrop[data-backdrop='none'],
-.qr-scanner-modal[data-backdrop='none'] {
-  background: transparent;
-  backdrop-filter: none;
-}

@@ -1,152 +1,91 @@
-import { Fragment, forwardRef, useMemo } from 'react';
+import React, { Fragment } from 'react';
 import { MenuItem } from './MenuItem';
 import { LockMenuItem } from './LockMenuItem';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
-import { AccountsSection } from './AccountsSection';
-import { ExportKeysSection } from './ExportKeysSection';
-import { PROFILE_MENU_ITEM_IDS } from './types';
-import type { ProfileDropdownProps } from './types';
-import type { ConfirmationConfig } from '@/core/types/signer-worker';
+import type { ProfileDropdownProps, MenuItem as MenuItemModel } from './types';
 import './ProfileDropdown.css';
 
-interface ProfileDropdownWithRefs extends Omit<ProfileDropdownProps, 'menuItemsRef'> {
-  menuItemsRef: React.MutableRefObject<(HTMLElement | null)[]>;
-  canExportNearKey: boolean;
-  canExportEvmKeys: boolean;
-  // Transaction settings props
-  currentConfirmConfig?: ConfirmationConfig | null;
-  onSetUiMode?: (mode: 'none' | 'modal' | 'drawer') => void;
-  onToggleShowDetails?: () => void;
-  onToggleSkipClick?: () => void;
-  onSetDelay?: (delay: number) => void;
-  transactionSettingsOpen?: boolean;
+const SECURITY_ITEMS = [
+  'authentication-methods',
+  'scan-link-device',
+  'linked-devices',
+  'recovery-codes',
+];
+function isSecurityItem(item: MenuItemModel): boolean {
+  return SECURITY_ITEMS.includes(item.id ?? '');
+}
+function compareSecurityItems(a: MenuItemModel, b: MenuItemModel): number {
+  return SECURITY_ITEMS.indexOf(a.id ?? '') - SECURITY_ITEMS.indexOf(b.id ?? '');
+}
+function isAccountItem(item: MenuItemModel): boolean {
+  return !isSecurityItem(item);
+}
+function storeMenuRef(
+  refs: React.MutableRefObject<(HTMLElement | null)[]>,
+  index: number,
+  element: HTMLButtonElement | null,
+): void {
+  refs.current[index] = element;
 }
 
-export const ProfileDropdown = forwardRef<HTMLDivElement, ProfileDropdownWithRefs>(
-  (
-    {
-      isOpen,
-      menuItems,
-      onLock,
-      onClose,
-      menuItemsRef,
-      currentConfirmConfig,
-      onSetUiMode,
-      onToggleShowDetails,
-      onToggleSkipClick,
-      onSetDelay,
-      transactionSettingsOpen = false,
-      accountsRows,
-      accountsOpen = false,
-      exportKeysOpen = false,
-      exportLoadingChain = null,
-      canExportNearKey,
-      canExportEvmKeys,
-      onExportChain,
-      theme = 'dark',
-      highlightedMenuItemId,
-    },
-    ref,
-  ) => {
-    // Only count transaction settings if it's actually rendered (when expanded)
-    const hasTransactionSettings =
-      transactionSettingsOpen &&
-      currentConfirmConfig &&
-      onToggleShowDetails &&
-      onToggleSkipClick &&
-      onSetDelay;
-
-    menuItemsRef.current.length = menuItems.length;
-
-    const highlightedIndex = useMemo(() => {
-      if (!highlightedMenuItemId) return -1;
-      return menuItems.findIndex(
-        (item) => item.id === highlightedMenuItemId || item.label === highlightedMenuItemId,
-      );
-    }, [highlightedMenuItemId, menuItems]);
-
-    return (
-      <div
-        ref={ref}
-        className={`seams-profile-dropdown-morphed ${theme}`}
-        data-state={isOpen ? 'open' : 'closed'}
-      >
-        <div className="seams-profile-dropdown-menu">
-          {/* Menu Items */}
-          {menuItems.map((item, index) => {
-            const refCallback = (el: HTMLElement | null) => {
-              if (menuItemsRef.current) {
-                menuItemsRef.current[index] = el;
-              }
-            };
-            const isHighlighted = index === highlightedIndex;
-
-            const isAccountsItem = item.id === PROFILE_MENU_ITEM_IDS.ACCOUNTS;
-            const isExportKeysItem = item.id === PROFILE_MENU_ITEM_IDS.EXPORT_KEYS;
-            return (
-              <Fragment key={item.id ?? index}>
-                <MenuItem
-                  ref={refCallback}
-                  item={item}
-                  onClose={onClose}
-                  className=""
-                  isHighlighted={isHighlighted}
-                  // Set CSS variable to calculate stagger delay in CSS stylesheet
-                  style={{ ['--stagger-item-n' as any]: index }}
-                />
-                {/* Expanders ride directly under their toggle items */}
-                {isAccountsItem && accountsRows && accountsRows.length > 0 && (
-                  <AccountsSection
-                    rows={accountsRows}
-                    isOpen={accountsOpen}
-                    style={{ ['--stagger-item-n' as any]: index }}
-                  />
-                )}
-                {isExportKeysItem && onExportChain && (
-                  <ExportKeysSection
-                    isOpen={exportKeysOpen}
-                    loadingChain={exportLoadingChain}
-                    canExportNearKey={canExportNearKey}
-                    canExportEvmKeys={canExportEvmKeys}
-                    onSelectChain={onExportChain}
-                    style={{ ['--stagger-item-n' as any]: index }}
-                  />
-                )}
-              </Fragment>
-            );
-          })}
-
-          {/* Transaction Settings Section - Always render with animation */}
-          {currentConfirmConfig &&
-            (onSetUiMode || onToggleShowDetails) &&
-            onToggleSkipClick &&
-            onSetDelay && (
-              <TransactionSettingsSection
-                currentConfirmConfig={currentConfirmConfig}
-                onSetUiMode={onSetUiMode}
-                onToggleShowDetails={onToggleShowDetails}
-                onToggleSkipClick={onToggleSkipClick}
-                onSetDelay={onSetDelay}
-                isOpen={transactionSettingsOpen}
-                theme={theme}
-                // Set CSS variable to calculate stagger delay in CSS stylesheet
-                style={{ ['--stagger-item-n' as any]: menuItems.length }}
-              />
-            )}
-
-          {/* Lock Section */}
-          <LockMenuItem
-            onLock={onLock}
-            className="seams-lock-menu-item"
-            // Set CSS variable to calculate stagger delay in CSS stylesheet
-            style={{
-              ['--stagger-item-n' as any]: hasTransactionSettings
-                ? menuItems.length + 1
-                : menuItems.length,
-            }}
-          />
-        </div>
-      </div>
-    );
-  },
-);
+function MenuGroup({
+  label,
+  items,
+  props,
+}: {
+  label: string;
+  items: MenuItemModel[];
+  props: ProfileDropdownProps;
+}): React.JSX.Element {
+  return (
+    <section className="seams-account-menu-group" aria-label={label}>
+      <h3>{label}</h3>
+      {items.map(renderItem.bind(null, props))}
+    </section>
+  );
+}
+function renderItem(props: ProfileDropdownProps, item: MenuItemModel): React.JSX.Element {
+  const index = props.menuItems.indexOf(item);
+  return (
+    <Fragment key={item.id}>
+      <MenuItem
+        ref={storeMenuRef.bind(null, props.menuItemsRef, index)}
+        item={item}
+        onClose={props.onClose}
+        isHighlighted={item.id === props.highlightedMenuItemId}
+      />
+      {item.id === 'transaction-settings' &&
+      props.transactionSettingsOpen &&
+      props.currentConfirmConfig &&
+      props.onToggleSkipClick &&
+      props.onSetDelay ? (
+        <TransactionSettingsSection
+          currentConfirmConfig={props.currentConfirmConfig}
+          onSetUiMode={props.onSetUiMode}
+          onToggleSkipClick={props.onToggleSkipClick}
+          onSetDelay={props.onSetDelay}
+          isOpen
+          theme={props.theme}
+        />
+      ) : null}
+    </Fragment>
+  );
+}
+export function ProfileDropdown(props: ProfileDropdownProps): React.JSX.Element {
+  props.menuItemsRef.current.length = props.menuItems.length;
+  return (
+    <div className="seams-profile-dropdown-menu">
+      <MenuGroup
+        label="Security & devices"
+        items={props.menuItems.filter(isSecurityItem).sort(compareSecurityItems)}
+        props={props}
+      />
+      <MenuGroup
+        label="Accounts & transactions"
+        items={props.menuItems.filter(isAccountItem)}
+        props={props}
+      />
+      <LockMenuItem onLock={props.onLock} className="seams-lock-menu-item" />
+    </div>
+  );
+}

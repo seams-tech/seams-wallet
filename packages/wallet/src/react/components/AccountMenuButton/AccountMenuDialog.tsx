@@ -1,9 +1,10 @@
+import { AccountMenuScreen } from './AccountMenuScreen';
 import React, { useEffect } from 'react';
 import { Theme, useTheme } from '../theme';
 import { LayersIcon } from './icons/LayersIcon';
 import { LockKeyholeIcon } from './icons/LockKeyholeIcon';
 
-type AccountMenuDialogPresentation = 'modal' | 'page';
+type AccountMenuDialogPresentation = 'modal' | 'page' | 'embedded';
 
 // Keyboard handling for an account-menu dialog: Escape closes it, Tab and Shift+Tab wrap
 // within it, and closing returns focus to where it was. A page presentation is not modal, so
@@ -48,7 +49,7 @@ export function useAccountMenuDialogKeyboard(input: {
   );
 
   useEffect(() => {
-    if (!isOpen || presentation === 'page') return;
+    if (!isOpen || presentation !== 'modal') return;
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
@@ -73,10 +74,8 @@ export const AccountMenuDialogFrame: React.FC<{
   readonly title: string;
   readonly closeLabel: string;
   readonly children: React.ReactNode;
-  readonly backdrop?: 'dimmed' | 'none';
 }> = ({
   presentation,
-  backdrop = 'dimmed',
   onClose,
   dialogRef,
   contentClassName,
@@ -90,12 +89,18 @@ export const AccountMenuDialogFrame: React.FC<{
     () => (theme === 'dark' ? { dark: tokens } : { light: tokens }),
     [theme, tokens],
   );
+  if (presentation === 'embedded') {
+    return (
+      <AccountMenuScreen title={title} onBack={onClose} className={contentClassName}>
+        {children}
+      </AccountMenuScreen>
+    );
+  }
   return (
     <Theme theme={theme} tokens={scopedTokens}>
       <div
         className={`seams-linked-devices-modal-backdrop theme-${theme}`}
         data-presentation={presentation}
-        data-backdrop={backdrop}
         role="presentation"
         onMouseDown={(event) => {
           if (presentation === 'modal' && event.target === event.currentTarget) onClose();

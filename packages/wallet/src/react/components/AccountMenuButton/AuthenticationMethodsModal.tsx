@@ -15,7 +15,7 @@ interface AuthenticationMethodsModalProps {
   readonly walletId: string | null;
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  readonly presentation?: 'modal' | 'page';
+  readonly presentation?: 'modal' | 'page' | 'embedded';
 }
 
 type AuthenticationMethodView = {
@@ -204,6 +204,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
   const [actionState, setActionState] = React.useState<ActionState>({ kind: 'idle' });
   const [emailAddress, setEmailAddress] = React.useState('');
+  const [selectedMethodId, setSelectedMethodId] = React.useState<string | null>(null);
   const [announcement, setAnnouncement] = React.useState('');
   const loadSequence = React.useRef(0);
   const seamsRef = React.useRef(seams);
@@ -276,6 +277,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       setLoadState({ kind: 'idle' });
       setActionState({ kind: 'idle' });
       setEmailAddress('');
+      setSelectedMethodId(null);
       setAnnouncement('');
       return;
     }
@@ -346,7 +348,8 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
         walletAuthMethodId: method.walletAuthMethodId,
       });
       await refreshSessionRef.current(walletId);
-      if (presentation === 'page') {
+      if (presentation !== 'modal') {
+        setSelectedMethodId(null);
         setActionState({ kind: 'idle' });
         await loadInventory();
       } else {
@@ -362,6 +365,8 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const inventory =
     loadState.kind === 'loaded' || loadState.kind === 'loading' ? loadState.inventory : null;
   const methods = inventory?.methods ?? [];
+  const selectedMethod = methods.find((method) => method.walletAuthMethodId === selectedMethodId);
+  const visibleMethods = selectedMethod ? [selectedMethod] : methods;
   const hasPasskey = methods.some((method) => method.kind === 'passkey');
   const hasEmailOtp = methods.some((method) => method.kind === 'email_otp');
   const canManageMethods =
@@ -374,14 +379,16 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   return (
     <AccountMenuDialogFrame
       presentation={presentation}
-      onClose={onClose}
+      onClose={selectedMethod ? setSelectedMethodId.bind(null, null) : onClose}
       dialogRef={dialogRef}
       contentClassName="seams-auth-methods-modal-content"
       titleId="seams-auth-methods-modal-title"
-      title="Authentication methods"
+      title={selectedMethod ? 'Authentication method' : 'Authentication methods'}
       closeLabel="Close authentication methods"
     >
-      <p className="seams-auth-methods-modal-intro">Manage how this device unlocks the wallet.</p>
+      {!selectedMethod ? (
+        <p className="seams-auth-methods-modal-intro">Manage how this device unlocks the wallet.</p>
+      ) : null}
 
       <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
         {loadState.kind === 'idle' ? (
@@ -406,13 +413,15 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
         {inventory ? (
           <section
             className="seams-account-menu-section"
-            aria-labelledby="seams-auth-methods-active"
+            aria-labelledby={selectedMethod ? undefined : 'seams-auth-methods-active'}
           >
-            <h3 id="seams-auth-methods-active" className="seams-account-menu-section-label">
-              Active methods
-            </h3>
+            {!selectedMethod ? (
+              <h3 id="seams-auth-methods-active" className="seams-account-menu-section-label">
+                Active methods
+              </h3>
+            ) : null}
             <ul className="seams-linked-devices-modal-list seams-linked-devices-modal-list--grouped">
-              {methods.map((method) => {
+              {visibleMethods.map((method) => {
                 const confirming =
                   actionState.kind === 'confirming_revoke' &&
                   actionState.method.walletAuthMethodId === method.walletAuthMethodId;
@@ -422,6 +431,12 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                 return (
                   <AuthenticationMethodRow
                     key={method.walletAuthMethodId}
+                    onSelect={
+                      selectedMethod || presentation !== 'embedded'
+                        ? undefined
+                        : setSelectedMethodId.bind(null, method.walletAuthMethodId)
+                    }
+                    detail={Boolean(selectedMethod)}
                     kind={method.kind}
                     title={methodTitle(method)}
                     description={methodDescription(method)}
@@ -474,7 +489,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
           </section>
         ) : null}
 
-        {inventory && (!hasPasskey || !hasEmailOtp) ? (
+        {!selectedMethod && inventory && (!hasPasskey || !hasEmailOtp) ? (
           <section className="seams-account-menu-section" aria-labelledby="seams-auth-methods-add">
             <h3 id="seams-auth-methods-add" className="seams-account-menu-section-label">
               Add a method

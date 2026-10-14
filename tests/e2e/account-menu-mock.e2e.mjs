@@ -8,20 +8,86 @@ const walletRequests = [];
 function recordRequest(request) {
   if (request.method() !== 'GET' && request.method() !== 'HEAD') walletRequests.push(request.url());
 }
+function sampleResize(now) {
+  const panel = document.querySelector('.seams-account-resize');
+  const bounds = panel.getBoundingClientRect();
+  window.accountResizeEvidence.push({
+    time: now - window.accountResizeStarted,
+    height: bounds.height,
+    width: bounds.width,
+  });
+  if (now - window.accountResizeStarted < 400) requestAnimationFrame(sampleResize);
+}
+function recordResize() {
+  window.accountResizeEvidence = [];
+  window.accountResizeStarted = performance.now();
+  requestAnimationFrame(sampleResize);
+}
+function recordError(errors, error) {
+  errors.push(error.message);
+}
+async function back(page) {
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+}
 await mkdir(artifacts, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome' });
-const context = await browser.newContext({ viewport: { width: 440, height: 900 } });
+const context = await browser.newContext({
+  viewport: { width: 460, height: 1050 },
+  recordVideo: { dir: artifacts },
+});
 await context.tracing.start({ screenshots: true, snapshots: true });
 try {
   const page = await context.newPage();
+  const errors = [];
   page.on('request', recordRequest);
+  page.on('pageerror', recordError.bind(null, errors));
   await page.goto(url);
   await expect(page.locator('[data-account-menu-item]')).toHaveCount(7);
   await expect(page.locator('[data-account-menu-item="export-keys"]')).toBeDisabled();
-  await expect(page.locator('[data-account-menu-item="linked-devices"]')).toBeDisabled();
+  await page.screenshot({ path: `${artifacts}/overview.png` });
+  await page.addScriptTag({ content: sampleResize.toString() });
+  await page.evaluate(recordResize);
+  await page.locator('[data-account-menu-item="authentication-methods"]').click();
+  await expect(
+    page.getByRole('heading', { name: 'Authentication methods', exact: true }),
+  ).toBeFocused();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('MacBook Pro', { exact: true })).toBeVisible();
+  await page.waitForTimeout(450);
+  const resize = await page.evaluate(() => window.accountResizeEvidence);
+  const first = resize[0].height;
+  const last = resize.at(-1).height;
+  assert.ok(Math.abs(first - last) > 80, 'Screens must have different intrinsic heights');
+  assert.ok(
+    resize.some(
+      (sample) =>
+        sample.height > Math.min(first, last) + 2 && sample.height < Math.max(first, last) - 2,
+    ),
+    'Height must interpolate between screens',
+  );
+  assert.ok(
+    resize.every((sample) => Math.abs(sample.width - resize[0].width) < 1),
+    'Width must stay fixed',
+  );
+  await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
+  await page.getByRole('button', { name: /iPhone Face ID/ }).click();
+  await expect(page.getByRole('heading', { name: 'Device details' })).toBeFocused();
+  await expect(page.getByText('Today, 09:41', { exact: true })).toBeVisible();
+  await page.screenshot({ path: `${artifacts}/device-details.png` });
+  await back(page);
+  await page.getByRole('button', { name: 'Link a device', exact: true }).click();
+  await expect(page.locator('.qr-scanner-camera-container')).toBeVisible();
+  await expect(page.locator('video')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.screenshot({ path: `${artifacts}/scanner.png` });
+  await back(page);
+  await page.locator('[data-account-menu-item="recovery-codes"]').click();
+  await page.getByRole('button', { name: 'Reveal with passkey' }).click();
+  await expect(page.locator('.seams-account-recovery-slots span')).toHaveCount(32);
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.locator('[data-account-menu-item="accounts"]').click();
   await expect(page.getByRole('link', { name: /Base/ })).toBeVisible();
-  await page.locator('[data-account-menu-item="accounts"]').click();
+  await back(page);
   await page.locator('[data-account-menu-item="transaction-settings"]').click();
   await page.getByRole('button', { name: 'drawer', exact: true }).click();
   await expect(page.getByRole('button', { name: 'drawer', exact: true })).toHaveAttribute(
@@ -33,58 +99,45 @@ try {
     'aria-pressed',
     'true',
   );
-  await page.screenshot({ path: `${artifacts}/settings.png` });
-  await page.locator('[data-account-menu-item="authentication-methods"]').click();
-  await expect(page.getByRole('dialog', { name: 'Authentication methods' })).toBeVisible();
-  await expect(page.locator('.seams-linked-devices-modal-backdrop')).not.toHaveCSS(
-    'background-color',
-    'rgba(0, 0, 0, 0)',
+  await page.locator('[data-account-menu-item="linked-devices"]').click();
+  await expect(page.getByRole('heading', { name: 'Linked devices' })).toBeVisible();
+  await back(page);
+  // Reverse navigation during the resize. The final content must fit without stale clipping.
+  await page
+    .locator('[data-account-menu-item="authentication-methods"]')
+    .evaluate((button) => button.click());
+  await page
+    .getByRole('button', { name: 'Back', exact: true })
+    .evaluate((button) => button.click());
+  await page.waitForTimeout(300);
+  const fit = await page.evaluate(() => ({
+    frame: document.querySelector('.seams-account-resize').getBoundingClientRect().height,
+    content: document.querySelector('.seams-account-panel-content').getBoundingClientRect().height,
+  }));
+  assert.ok(
+    Math.abs(fit.frame - fit.content) < 1,
+    'Interrupted resize must settle to the current screen',
   );
-  await expect(page.getByText('MacBook Pro', { exact: true })).toBeVisible();
-  await expect(page.getByText('iPhone', { exact: true })).toBeVisible();
-  await expect(page.getByText('Pixel 9', { exact: true })).toBeVisible();
-  await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
-  await page.getByRole('button', { name: 'Close authentication methods' }).click();
-  await page.locator('[data-account-menu-item="scan-link-device"]').click();
-  await expect(page.getByRole('dialog', { name: 'Scan and link a device' })).toBeVisible();
-  await page.screenshot({ path: `${artifacts}/scanner.png` });
-  await page.getByRole('button', { name: 'Close scanner' }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Lock Wallet', exact: true }).click();
-  await expect(page.locator('[data-account-menu-item="accounts"]')).not.toBeVisible();
   await page.locator('[aria-haspopup="menu"]').click();
-  await expect(page.locator('[data-account-menu-item="accounts"]')).toBeVisible();
-  await page.goto(`${url}?backdrop=none`);
+  await expect(page.getByRole('heading', { name: 'Wallet settings' })).toBeVisible();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 320, height: 900 });
   await page.locator('[data-account-menu-item="authentication-methods"]').click();
-  await expect(page.locator('.seams-linked-devices-modal-backdrop')).toHaveCSS(
-    'background-color',
-    'rgba(0, 0, 0, 0)',
-  );
-  await page.getByRole('button', { name: 'Close authentication methods' }).click();
-  await page.locator('[data-account-menu-item="scan-link-device"]').click();
-  await expect(page.locator('.qr-scanner-modal')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(page.locator('.qr-scanner-modal')).toHaveCSS('backdrop-filter', 'none');
-  await page.getByRole('button', { name: 'Close scanner' }).click();
+  await expect(page.locator('.seams-account-resize')).toHaveCSS('transition-duration', '0s');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.screenshot({ path: `${artifacts}/mobile-reduced-motion.png` });
   assert.deepEqual(walletRequests, []);
+  assert.deepEqual(errors, []);
   await writeFile(
     `${artifacts}/result.json`,
-    JSON.stringify(
-      {
-        passed: true,
-        publicExport: true,
-        providerFree: true,
-        localPreferences: true,
-        disabledWalletOperations: true,
-        walletRequests,
-      },
-      null,
-      2,
-    ),
+    JSON.stringify({ passed: true, resize, fit, walletRequests, errors }, null, 2),
   );
   console.log(
-    'Passed public AccountMenuButtonMock: expansion, preferences, lock/reopen, and no wallet requests.',
+    'Passed: shared account navigation, resize/interruption, local preferences, recovery preview, keyboard focus, mobile/reduced motion, no wallet requests.',
   );
 } finally {
   await context.tracing.stop({ path: `${artifacts}/trace.zip` });
+  await context.close();
   await browser.close();
 }
