@@ -4903,7 +4903,7 @@ async function callDeriverAWalletDo(object, body) {
   }
 }
 
-async function testTenantRootManagedRestoreOperatingPath(
+export async function testTenantRootManagedRestoreOperatingPath(
   topology,
   fixture,
   tenantRoot,
@@ -5093,7 +5093,7 @@ async function testTenantRootManagedRestoreOperatingPath(
 
 /// A root refreshes again after an availability restore, and an exact retry
 /// of the restore still returns its durable outcome.
-async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, databases, restore) {
+export async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, databases, restore) {
   const router = await topology.getWorker('router');
   const identityDigestHex = Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
     'hex',
