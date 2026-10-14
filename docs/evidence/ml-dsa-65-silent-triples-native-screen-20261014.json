@@ -1,0 +1,365 @@
+{
+  "schema": "seams.ml-dsa-silent-triples-native-screen.v1",
+  "created_at": "2026-10-14T13:48:45.107998+00:00",
+  "production_eligible": false,
+  "source_repository": "https://github.com/osu-crypto/libOTe",
+  "source_commit": "c1796737a91e5142b22ad7564f22bed1d9f2d957",
+  "dependencies": [
+    {
+      "directory": "cryptoTools",
+      "commit": "cc54d946a7643795b5f523fe235392de8271a5b3"
+    },
+    {
+      "directory": "coproto",
+      "commit": "ded64cbc51c041ee534e5c34a5a81135af455ce7"
+    },
+    {
+      "directory": "macoro",
+      "commit": "91fc6b42ff719c681713c6d9f7476b94fd822983"
+    },
+    {
+      "directory": "function2",
+      "commit": "02ca99831de59c7c3a4b834789260253cace0ced"
+    },
+    {
+      "directory": "libdivide",
+      "commit": "66190e9daa603cabe95d99f09fb79b5c186d0417"
+    }
+  ],
+  "host": "macOS-15.7.1-arm64-arm-64bit",
+  "binary": {
+    "path": "/private/tmp/ml-dsa-libote-build/ml_dsa_triples_screen",
+    "sha256": "78197215a61e835117eba54c7de3a2161300a6cce39217f44e887cbb25fa980a"
+  },
+  "harness": {
+    "path": "/private/tmp/ml-dsa-libote-screen-20261014/silent_triples_screen.cpp",
+    "sha256": "8090387231f5f4cdf250303abe106d898244440149709e65b8ee0807357bd77c"
+  },
+  "cmake_cache": {
+    "path": "/private/tmp/ml-dsa-libote-build/CMakeCache.txt",
+    "sha256": "a7769e1f94b06d8ad363d5105a26c87cb2cdd4fac8ea7631466d6940b0be91e0"
+  },
+  "cases": [
+    {
+      "requested_triples": 65536,
+      "generated_triples": 65536,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 2048,
+      "sparse_vector_size": 262144,
+      "base_ms": 34.2891,
+      "expansion_ms": 34.5049,
+      "total_ms": 68.8459,
+      "base_sent_bytes": [
+        21017,
+        4176
+      ],
+      "total_sent_bytes": [
+        21017,
+        53456
+      ],
+      "two_role_process_peak_rss_bytes": 11190272,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 0,
+      "warmup": true,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 65539,
+      "generated_triples": 65664,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 2052,
+      "sparse_vector_size": 262656,
+      "base_ms": 22.7087,
+      "expansion_ms": 27.4676,
+      "total_ms": 50.1877,
+      "base_sent_bytes": [
+        22041,
+        4176
+      ],
+      "total_sent_bytes": [
+        22041,
+        57552
+      ],
+      "two_role_process_peak_rss_bytes": 11124736,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 1,
+      "warmup": false,
+      "padding_case": true
+    },
+    {
+      "requested_triples": 65536,
+      "generated_triples": 65536,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 2048,
+      "sparse_vector_size": 262144,
+      "base_ms": 20.2913,
+      "expansion_ms": 25.947,
+      "total_ms": 46.248,
+      "base_sent_bytes": [
+        21017,
+        4176
+      ],
+      "total_sent_bytes": [
+        21017,
+        53456
+      ],
+      "two_role_process_peak_rss_bytes": 11010048,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 2,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 65536,
+      "generated_triples": 65536,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 2048,
+      "sparse_vector_size": 262144,
+      "base_ms": 20.2369,
+      "expansion_ms": 26.3547,
+      "total_ms": 46.6006,
+      "base_sent_bytes": [
+        21017,
+        4176
+      ],
+      "total_sent_bytes": [
+        21017,
+        53456
+      ],
+      "two_role_process_peak_rss_bytes": 11059200,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 3,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 65536,
+      "generated_triples": 65536,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 2048,
+      "sparse_vector_size": 262144,
+      "base_ms": 20.409,
+      "expansion_ms": 26.0605,
+      "total_ms": 46.4786,
+      "base_sent_bytes": [
+        21017,
+        4176
+      ],
+      "total_sent_bytes": [
+        21017,
+        53456
+      ],
+      "two_role_process_peak_rss_bytes": 11010048,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 4,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 262144,
+      "generated_triples": 262144,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 8192,
+      "sparse_vector_size": 1048576,
+      "base_ms": 20.4193,
+      "expansion_ms": 105.843,
+      "total_ms": 126.281,
+      "base_sent_bytes": [
+        23065,
+        4176
+      ],
+      "total_sent_bytes": [
+        23065,
+        61648
+      ],
+      "two_role_process_peak_rss_bytes": 37634048,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 5,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 262144,
+      "generated_triples": 262144,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 8192,
+      "sparse_vector_size": 1048576,
+      "base_ms": 20.8407,
+      "expansion_ms": 105.51,
+      "total_ms": 126.371,
+      "base_sent_bytes": [
+        23065,
+        4176
+      ],
+      "total_sent_bytes": [
+        23065,
+        61648
+      ],
+      "two_role_process_peak_rss_bytes": 37634048,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 6,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 262144,
+      "generated_triples": 262144,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 8192,
+      "sparse_vector_size": 1048576,
+      "base_ms": 20.4303,
+      "expansion_ms": 105.981,
+      "total_ms": 126.431,
+      "base_sent_bytes": [
+        23065,
+        4176
+      ],
+      "total_sent_bytes": [
+        23065,
+        61648
+      ],
+      "two_role_process_peak_rss_bytes": 37634048,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 7,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 1048576,
+      "generated_triples": 1048576,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 32768,
+      "sparse_vector_size": 4194304,
+      "base_ms": 20.708,
+      "expansion_ms": 466.84,
+      "total_ms": 487.599,
+      "base_sent_bytes": [
+        25113,
+        4176
+      ],
+      "total_sent_bytes": [
+        25113,
+        69840
+      ],
+      "two_role_process_peak_rss_bytes": 143654912,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 8,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 1048576,
+      "generated_triples": 1048576,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 32768,
+      "sparse_vector_size": 4194304,
+      "base_ms": 20.5252,
+      "expansion_ms": 468.932,
+      "total_ms": 489.503,
+      "base_sent_bytes": [
+        25113,
+        4176
+      ],
+      "total_sent_bytes": [
+        25113,
+        69840
+      ],
+      "two_role_process_peak_rss_bytes": 143704064,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 9,
+      "warmup": false,
+      "padding_case": false
+    },
+    {
+      "requested_triples": 1048576,
+      "generated_triples": 1048576,
+      "fresh_base_ot": true,
+      "mult_type": "ExConv7x24",
+      "profile_selected_before_base_ot": true,
+      "security_parameter_bits": 128,
+      "noise_distribution": "regular",
+      "partitions": 128,
+      "partition_size": 32768,
+      "sparse_vector_size": 4194304,
+      "base_ms": 20.4803,
+      "expansion_ms": 462.918,
+      "total_ms": 483.48,
+      "base_sent_bytes": [
+        25113,
+        4176
+      ],
+      "total_sent_bytes": [
+        25113,
+        69840
+      ],
+      "two_role_process_peak_rss_bytes": 143687680,
+      "triple_invariant_verified": true,
+      "shared_and_verified": true,
+      "index": 10,
+      "warmup": false,
+      "padding_case": false
+    }
+  ],
+  "scope": "Two logical parties in one native process with independent OS-seeded randomness, genuine base OT, explicit ExConv7x24 before base setup, regular noise, and local coroutine sockets. Counts include base setup and expansion. Every triple and an independent shared AND are checked after timing. Process peak RSS covers both roles and excludes Worker overhead. No ML-DSA signing or Wasm performance claim.",
+  "assumptions": "Selected silent OT adds the published LPN assumption; Silver is excluded."
+}

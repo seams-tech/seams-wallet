@@ -10,6 +10,10 @@ Never use this tool with wallet secrets.
 The report CLI accepts sample counts and an output path.
 The separate public recovery command accepts a fixture name.
 
+The [native research screens](research/README.md) compare silent binary triples and specialized threshold ML-DSA.
+They also reproduce the current [communication model](../../docs/router-ab/ml-dsa-65-low-communication-plan.md).
+These primitive screens do not establish hosted signing performance.
+
 ## Run
 
 Use Rust, Unix process pipes, and an OpenSSL version with ML-DSA support.

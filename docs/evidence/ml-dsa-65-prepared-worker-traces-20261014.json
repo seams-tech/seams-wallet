@@ -1,6 +1,6 @@
 {
   "schema": "seams.ml-dsa-prepared-worker-traces.v1",
-  "created_at": "2026-10-14T11:57:16.743642+00:00",
+  "created_at": "2026-10-14T13:53:21.079389+00:00",
   "scope": "Whole invocation CPU and wall time include preparation, online work, and cleanup. Request headers, URLs, credentials, and unselected logs excluded. Public stage counters do not measure total hosted memory.",
   "records": [
     {
@@ -382,6 +382,190 @@
       "public_preparation_progress": []
     },
     {
+      "role": "a",
+      "worker": "ml-dsa-fast-20261014-a",
+      "version": "f67b5d0d-7f7c-4cbe-b194-d0b9973c2362",
+      "event_timestamp_ms": 1791980101811,
+      "cpu_ms": 9,
+      "wall_ms": 10,
+      "outcome": "ok",
+      "exceptions": [],
+      "public_preparation_progress": []
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-fast-20261014-a",
+      "version": "f67b5d0d-7f7c-4cbe-b194-d0b9973c2362",
+      "event_timestamp_ms": 1791980102287,
+      "cpu_ms": 214041,
+      "wall_ms": 429293,
+      "outcome": "canceled",
+      "exceptions": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "instances_started": 0,
+          "wasm_linear_memory_bytes": 35913728,
+          "sent_bytes": 0,
+          "received_bytes": 0
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 1,
+          "wasm_linear_memory_bytes": 61210624,
+          "sent_bytes": 554576810,
+          "received_bytes": 32676960
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 64,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 738378880,
+          "received_bytes": 216474368
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 128,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 777205504,
+          "received_bytes": 255296256
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 192,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 816032128,
+          "received_bytes": 294118144
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 256,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 854858752,
+          "received_bytes": 332940032
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 320,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 893685376,
+          "received_bytes": 371761920
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 384,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 932512000,
+          "received_bytes": 410583808
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-fast-20261014-a",
+      "version": "f67b5d0d-7f7c-4cbe-b194-d0b9973c2362",
+      "event_timestamp_ms": 1791980532276,
+      "cpu_ms": 155865,
+      "wall_ms": 310833,
+      "outcome": "loadShed",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "internal error; reference = 7pse8cvu5oqskf0o17tafife"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = 9eumknphhn54e05fgcu477eo"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = gdvi5r9mmflbdorg97gpjtr9"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = etfqs11gal5lq5s750t30e7l"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = 8qk11nlgg36351j75mma4fbs"
+        }
+      ],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "instances_started": 0,
+          "wasm_linear_memory_bytes": 35913728,
+          "sent_bytes": 0,
+          "received_bytes": 0
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 1,
+          "wasm_linear_memory_bytes": 61210624,
+          "sent_bytes": 554576810,
+          "received_bytes": 32676960
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 64,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 738378880,
+          "received_bytes": 216474368
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 128,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 777205504,
+          "received_bytes": 255296256
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 192,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 816032128,
+          "received_bytes": 294118144
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 256,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 854858752,
+          "received_bytes": 332940032
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 320,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 893685376,
+          "received_bytes": 371761920
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "instances_started": 384,
+          "wasm_linear_memory_bytes": 69992448,
+          "sent_bytes": 932512000,
+          "received_bytes": 410583808
+        }
+      ]
+    },
+    {
       "role": "b",
       "worker": "ml-dsa-fast-20261014-b",
       "version": "53ac3f4c-06da-41ea-a05c-e7f33f90471b",
@@ -650,6 +834,158 @@
         }
       ],
       "public_preparation_progress": []
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-fast-20261014-b",
+      "version": "ed175fe2-bf00-492f-925e-6a84c92ce549",
+      "event_timestamp_ms": 1791980102648,
+      "cpu_ms": 208770,
+      "wall_ms": 428817,
+      "outcome": "ok",
+      "exceptions": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "instances_started": 0,
+          "wasm_linear_memory_bytes": 35586048,
+          "sent_bytes": 0,
+          "received_bytes": 0
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 1,
+          "wasm_linear_memory_bytes": 61210624,
+          "sent_bytes": 32676960,
+          "received_bytes": 554576810
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 64,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 216474368,
+          "received_bytes": 738378880
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 128,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 255296256,
+          "received_bytes": 777205504
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 192,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 294118144,
+          "received_bytes": 816032128
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 256,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 332940032,
+          "received_bytes": 854858752
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 320,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 371761920,
+          "received_bytes": 893685376
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 384,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 410583808,
+          "received_bytes": 932512000
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-fast-20261014-b",
+      "version": "ed175fe2-bf00-492f-925e-6a84c92ce549",
+      "event_timestamp_ms": 1791980532576,
+      "cpu_ms": 152048,
+      "wall_ms": 310482,
+      "outcome": "canceled",
+      "exceptions": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "instances_started": 0,
+          "wasm_linear_memory_bytes": 35586048,
+          "sent_bytes": 0,
+          "received_bytes": 0
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 1,
+          "wasm_linear_memory_bytes": 61210624,
+          "sent_bytes": 32676960,
+          "received_bytes": 554576810
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 64,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 216474368,
+          "received_bytes": 738378880
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 128,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 255296256,
+          "received_bytes": 777205504
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 192,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 294118144,
+          "received_bytes": 816032128
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 256,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 332940032,
+          "received_bytes": 854858752
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 320,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 371761920,
+          "received_bytes": 893685376
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "instances_started": 384,
+          "wasm_linear_memory_bytes": 70057984,
+          "sent_bytes": 410583808,
+          "received_bytes": 932512000
+        }
+      ]
     }
   ]
 }

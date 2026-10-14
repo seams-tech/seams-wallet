@@ -4,7 +4,10 @@ Status: experimental canonical key generation, threshold signing, and authorized
 This contract defines the current implementation boundaries in the
 [investigation plan](ml-dsa-65-investigation-plan.md).
 It defines experiment boundaries. Production integration is paused.
-Resident half-gates key generation and prepared packed-GMW signing are the current performance candidates.
+Resident half-gates key generation remains the measured key-generation candidate.
+The current prepared GMW signer remains a latency reference because its recurring preparation exceeds the accepted bandwidth cost.
+The [lower-communication plan](ml-dsa-65-low-communication-plan.md) defines the next prototype.
+Canonical FIPS seed/key export remains required. Silent-OT integration and its additional LPN assumption remain under review.
 
 ## Canonical key identity
 
@@ -360,9 +363,10 @@ The SDK provides conversion from a full key to its handle.
 | Prepared half-gates signing                  | Hosted comparison misses target      | Retained as a comparison baseline                                                           |
 | Full Yao                                     | Resource comparison                  | Exact complete circuit cost                                                                 |
 | Three-halves garbling                        | Alternative                          | Implementation, security parameters, CPU, and total traffic                                 |
-| Prepared packed GMW signing                  | Current online performance candidate | Reliable hosted setup, pool replenishment, and repeated complete signatures                 |
+| Current prepared packed GMW signing          | Preparation cost rejected            | Retain as a latency reference                                                              |
+| GMW with silent triples and small reservations | Next bounded prototype               | Complete nonce conversion, constant-time Wasm, all recurring traffic, and hosted reliability |
 | ABY2.0                                       | Earlier complete comparison retained | Separate prepared implementation and hosted comparison                                      |
-| Mithril with canonical-key sharing           | Alternative                          | Selected revision, short-share privacy loss, repeated sharing, licensing, and complete cost |
+| Mithril with canonical-key sharing           | Stock seed path excluded             | Private canonical conversion, short-share leakage, repeated recovery, and complete cost      |
 | Trilithium                                   | Alternative                          | Selected revision and a two-party replacement for its randomness provider                   |
 | THED                                         | Screen before implementation         | A concrete Worker/WASM resource case                                                        |
 | Native DKG without seed recovery             | Excluded                             | Fails canonical recovery                                                                    |
@@ -375,7 +379,8 @@ The local reference timings cannot rank threshold protocols or predict Cloudflar
 
 ## Next executable step
 
-Extend the complete deployed signing measurements to a controlled repeated workload.
-Review each public disclosure against the generated share format.
-Measure the largest sampling and signing costs before selecting the next optimization.
-Retain complete circuit counts, byte totals, and raw latency samples for comparison.
+Follow the [bounded correlation prototype](ml-dsa-65-low-communication-plan.md#next-bounded-prototype).
+Keep canonical key generation and the private commitment boundary unchanged.
+Measure complete nonce preparation and signing with fresh silent triples before another hosted campaign.
+Compare four- and eight-candidate reservations, including padding, retries, consumption, memory, and replenishment.
+Retain all failed requests and all recurring bytes.

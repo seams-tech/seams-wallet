@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-10-14T13:09:47.514971+00:00",
+  "workers": [
+    {
+      "name": "ml-dsa-fast-20261014-a",
+      "deletion_confirmed": true
+    },
+    {
+      "name": "ml-dsa-fast-20261014-b",
+      "deletion_confirmed": true
+    }
+  ],
+  "bucket": {
+    "name": "ml-dsa-fast-20261014-tables",
+    "deletion_confirmed": true
+  },
+  "known_interrupted_reservation_objects_deleted": 12,
+  "trace_processes_stopped": 4,
+  "scope": "Only resources created for this disposable benchmark campaign."
+}
