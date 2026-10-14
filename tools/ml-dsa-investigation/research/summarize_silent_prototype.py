@@ -60,7 +60,10 @@ def profile(data, traces, versions, capacity):
             "observed_cpu_overage_usd_per_verified_signature": cost / len(successful) if successful else None,
             "scope": "Includes warmup, exhausted reservations, repeated disposable fixture key creation, preparation, online work, and cleanup. Excludes account minimums, included allowances, storage, and other product services. Aggregate version-filtered counts avoid joining Cloudflare-redacted request IDs.",
         }
+    campaign_payload = sum(payload(sample, "offline") + payload(sample, "online") for sample in samples)
     return {
+        "campaign_protocol_bytes_including_exhaustion": campaign_payload,
+        "observed_protocol_bytes_per_verified_signature": campaign_payload / len(successful) if successful else None,
         "candidates_per_reservation": capacity,
         "completed_requests_including_warmup": len(samples),
         "verified_signatures_including_warmup": len(successful),
