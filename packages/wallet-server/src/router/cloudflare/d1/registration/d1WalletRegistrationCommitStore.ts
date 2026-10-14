@@ -109,8 +109,8 @@ export interface D1WalletRegistrationCommitStore {
    */
   reserveAuthority(
     authority: RegistrationAuthority,
-    held?: HeldRegistrationPasskeyClaim | null,
-    founding?: FoundingRecordIds | null,
+    held: HeldRegistrationPasskeyClaim | null,
+    founding: FoundingRecordIds | null,
   ): Promise<ReservedWalletRegistrationCommit>;
   /**
    * Claims a verified passkey before finalization and records a granted
@@ -607,8 +607,8 @@ export class CloudflareD1WalletRegistrationCommitStore
 
   async reserveAuthority(
     authority: RegistrationAuthority,
-    held: HeldRegistrationPasskeyClaim | null = null,
-    founding: FoundingRecordIds | null = null,
+    held: HeldRegistrationPasskeyClaim | null,
+    founding: FoundingRecordIds | null,
   ): Promise<ReservedWalletRegistrationCommit> {
     const [, stored] = await Promise.all([
       // Shared authority never reassigns a claim, so a recorded grant for this
