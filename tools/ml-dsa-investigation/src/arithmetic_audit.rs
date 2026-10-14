@@ -50,7 +50,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     }
     let workers = crate::worker_arithmetic_audit::build_and_inspect(repository)?;
     let report = json!({
-        "schema": "seams.ml-dsa-arithmetic-audit.v2",
+        "schema": "seams.ml-dsa-arithmetic-audit.v3",
         "source_revision": command_text(Command::new("git").args(["rev-parse", "HEAD"]).current_dir(repository))?,
         "arithmetic_source_sha256": digest(&fs::read(repository.join("crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs"))?),
         "audit_source_sha256": digest(&fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/arithmetic_audit.rs"))?),

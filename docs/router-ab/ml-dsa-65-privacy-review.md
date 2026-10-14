@@ -141,12 +141,14 @@ The report pins exact Wasm bytes, function offsets, body digests, branch sites, 
 Each role has 21 conditional control-flow sites across these functions.
 Direct calls reach the inspected NTT functions or Rust's bounds-check panic handler.
 The source uses fixed public dimensions for these bounds checks.
-This inspection does not prove the compiled branch conditions or memory addresses independent of secrets.
+The earlier reports record branch sites without tracing their inputs.
+The manual data-flow review below addresses these three final Wasm bodies.
 Cloudflare JIT behavior, other primitives, and hardware timing still require qualification.
 
 Public matrix expansion and challenge sampling branch on public hash streams.
 Uniform output-mask generation rejects fresh random candidates independently of retained masks.
-Its rejection count requires an explicit simulator argument, although it does not inspect a wallet key.
+The rejection-count argument below assumes independent uniform random draws.
+It does not cover failures or internal timing behavior of the operating-system random source.
 Boundary validation can branch on malformed inputs and private-share encodings before protocol execution.
 None of these observations supplies a blanket constant-time certificate.
 
@@ -156,6 +158,80 @@ The two deterministic fixed signatures remain identical.
 The fresh joint key and hedged signatures pass independent verification.
 Native key generation records a 1.75-second median across five cases.
 This small separate campaign establishes no controlled latency improvement or cloud prediction.
+
+## Compiled arithmetic data-flow review — October 14, 2026
+
+The [instruction evidence](../evidence/ml-dsa-65-arithmetic-dataflow-audit-20261014.json) records complete instruction streams for both rebuilt Worker bundles.
+Schema v3 includes parameter types, local declarations, byte offsets, direct calls, and value-selection sites.
+This is a manual review of the recorded bytes. The inspection tool does not perform automatic secret-data tracking.
+
+The three functions contain 1,017 instructions per role: 265 in `inverse_ntt`, 566 in `matrix_product_plus_error`, and 186 in `ntt`.
+The role bodies differ only in direct-call indices and constant addresses passed to bounds-panic handlers.
+The calls resolve to the same functions in both roles.
+Neither role contains division, remainder, or indirect calls in these bodies.
+
+The following table identifies every explicit conditional branch by its absolute Wasm byte offset.
+Local numbers refer to the function's Wasm parameters and locals, starting at zero.
+
+| Function | A offsets | B offsets | Condition and origin |
+| --- | --- | --- | --- |
+| `inverse_ntt` | 574555 | 534669 | Local 10: block count derived from public transform length. |
+| `inverse_ntt` | 574596 | 534710 | Local 6: twiddle index starts at 256 and decreases once per block. |
+| `inverse_ntt` | 574660, 574673 | 534774, 534787 | Public block and coefficient counters select indices checked against 256. |
+| `inverse_ntt` | 574838 | 534952 | Coefficient counter reaches the public transform length. |
+| `inverse_ntt` | 574902, 574912 | 535016, 535026 | Remaining block count and transform length control the next iteration. |
+| `inverse_ntt` | 575021 | 535135 | Normalization byte offset increases by four until 1,024. |
+| `matrix_product_plus_error` | 429485, 429629, 429773, 429917, 430063 | 406580, 406724, 406868, 407012, 407158 | Local 5: each of five column loops traverses 1,024 bytes in steps of four. |
+| `matrix_product_plus_error` | 430204 | 407299 | Local 5: output loop traverses 1,024 bytes in steps of eight. |
+| `matrix_product_plus_error` | 430241 | 407336 | Local 8: row counter increases from zero to six. |
+| `ntt` | 609321 | 562183 | Local 9: block count derived from public transform length. |
+| `ntt` | 609358, 609403 | 562220, 562265 | Public twiddle and coefficient indices are checked against 256. |
+| `ntt` | 609564 | 562426 | Coefficient byte offset reaches four times the public transform length. |
+| `ntt` | 609583, 609594 | 562445, 562456 | Remaining block count and halved transform length control the next iteration. |
+
+Memory addresses use incoming array pointers, the stack pointer, fixed offsets, and these public counters.
+Coefficient loads feed arithmetic, value selection, and stores. They do not feed branch conditions or memory addresses in the reviewed bodies.
+`matrix_product_plus_error` calls `ntt` five times and `inverse_ntt` once per row.
+The only other direct calls are bounds-panic handlers controlled by public indices.
+Bulk memory copies and fills use fixed lengths of 1,024 or 6,144 bytes.
+
+The compiler converts masked reductions into Wasm `select` instructions.
+There are four selection sites in `inverse_ntt`, twelve in `matrix_product_plus_error`, and three in `ntt`.
+Their conditions depend on private coefficients. Their results stay in coefficient arithmetic and output stores.
+These sites require inspection after Cloudflare's JIT compilation before a target constant-time claim is justified.
+The review also excludes memory-erasure guarantees, machine-instruction timing, and unrelated callers or cryptographic primitives.
+
+## Source-level control-flow review
+
+| Path | Private values | Reviewed control or addressing behavior | Remaining check |
+| --- | --- | --- | --- |
+| `ml_dsa_runtime.rs` | Input bits, labels, output shares | Gate dispatch, arena indices, frame limits, and output lengths follow the pinned public schedule. | Inspect compiled runtime and its callees. |
+| `passive.rs` half-gates | Labels, global delta, choice bits | Label selection uses fixed-length `subtle` conditional operations. Both evaluator half-gates execute. | Inspect compiled selections and AES paths. |
+| `gate_aes.rs` | Four label blocks | S-box uses Boolean operations. Round branches and array indices use fixed round counters. | Inspect final Wasm and JIT code. |
+| `ot.rs` | OT choices, seeds, scalars | Choice selection uses `subtle`. Matrix indices use public row and message counters. Base-response repair always executes twice. | Review compiled OT and dependency primitives. |
+| `ml_dsa_signing.rs` | Candidate shares | Stage dispatch uses public role, stage, and index. Candidate retry follows the disclosed aggregate acceptance bit. | Complete the composition proof for these disclosures. |
+| Accepted signature encoding | Reconstructed response and hints | Branches use accepted output values, which the standard signature reveals. Encoding starts only after aggregate acceptance. | Preserve this ordering in production adapters. |
+
+These source observations do not qualify the compiled runtime, AES, or OT implementations.
+They identify the inputs and review boundaries for that work.
+
+### Uniform-mask rejection count
+
+`fill_uniform` draws a fresh 23-bit candidate for each trial and accepts values below `q`.
+Let `M = 2^23`, let `N` be the number of trials, and let `X` be the accepted value.
+Under independent uniform draws, for every `n >= 1` and `0 <= x < q`:
+
+```text
+Pr[N = n, X = x] = ((M - q) / M)^(n - 1) / M
+Pr[N = n]       = ((M - q) / M)^(n - 1) * q / M
+Pr[X = x | N = n] = 1 / q
+```
+
+Thus the trial count is independent of the retained mask under this assumption.
+A simulator can draw the count from the same geometric distribution without knowing that mask or the wallet key.
+The argument applies separately to fresh key-generation and signing output masks drawn by this helper.
+It does not cover the seed-derived bounded sampler, whose success bit remains an explicit protocol disclosure.
+It also does not establish the behavior of the random-source implementation or its shared system state.
 
 ## Integration requirements
 

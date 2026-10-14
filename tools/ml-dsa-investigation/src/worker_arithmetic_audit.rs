@@ -3,7 +3,7 @@
 use crate::{InvestigationResult, command_text, digest, require};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
-use wasmparser::{FunctionBody, KnownCustom, Name, Operator, Parser, Payload, TypeRef};
+use wasmparser::{FuncType, FunctionBody, KnownCustom, Name, Operator, Parser, Payload, TypeRef};
 
 const PRIVATE_FUNCTIONS: [&str; 3] = ["inverse_ntt", "matrix_product_plus_error", "ntt"];
 
@@ -46,19 +46,32 @@ pub(super) fn build_and_inspect(repository: &Path) -> InvestigationResult<Value>
         "worker_manifest_sha256": digest(&fs::read(directory.join("Cargo.toml"))?),
         "worker_lockfile_sha256": digest(&fs::read(directory.join("Cargo.lock"))?),
         "roles": roles,
-        "scope": "Final packaged Wasm function bodies, including inlined instructions. Calls and conditional control flow are recorded for separate data-flow review.",
+        "scope": "Final packaged Wasm function bodies, including inlined instructions. Complete instruction streams, local declarations, calls, and conditional control flow are recorded for manual data-flow review.",
     }))
 }
 
 fn inspect(bytes: &[u8]) -> InvestigationResult<Vec<Value>> {
+    let mut types = Vec::new();
+    let mut function_types = Vec::new();
     let mut names = BTreeMap::new();
     let mut bodies = BTreeMap::new();
     let mut function_index = 0;
     for payload in Parser::new(0).parse_all(bytes) {
         match payload? {
+            Payload::TypeSection(section) => {
+                for kind in section.into_iter_err_on_gc_types() {
+                    types.push(kind?);
+                }
+            }
+            Payload::FunctionSection(section) => {
+                for kind in section {
+                    function_types.push(kind?);
+                }
+            }
             Payload::ImportSection(imports) => {
                 for import in imports {
-                    if matches!(import?.ty, TypeRef::Func(_)) {
+                    if let TypeRef::Func(kind) = import?.ty {
+                        function_types.push(kind);
                         function_index += 1;
                     }
                 }
@@ -100,7 +113,10 @@ fn inspect(bytes: &[u8]) -> InvestigationResult<Vec<Value>> {
         let body = bodies
             .get(index)
             .ok_or("Private arithmetic symbol has no Wasm body.")?;
-        functions.push(inspect_body(bytes, body, *index, name, symbol, &names)?);
+        let signature = &types[function_types[*index as usize] as usize];
+        functions.push(inspect_body(
+            bytes, body, *index, name, symbol, &names, signature,
+        )?);
     }
     Ok(functions)
 }
@@ -112,18 +128,27 @@ fn inspect_body(
     name: &str,
     symbol: &str,
     names: &BTreeMap<u32, &str>,
+    signature: &FuncType,
 ) -> InvestigationResult<Value> {
     let range = body.range();
     let mut operators = body.get_operators_reader()?;
     let mut divisions = Vec::new();
     let mut branches = Vec::new();
+    let mut selections = Vec::new();
     let mut calls = Vec::new();
-    let mut operator_count = 0;
+    let mut instructions = Vec::new();
+    let locals = body
+        .get_locals_reader()?
+        .into_iter()
+        .map(|entry| {
+            entry.map(|(count, kind)| json!({"count": count, "type": format!("{kind:?}")}))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     while !operators.eof() {
         let offset = operators.original_position();
         let operator = operators.read()?;
-        operator_count += 1;
         let site = json!({"wasm_offset": offset, "operator": format!("{operator:?}")});
+        instructions.push(site.clone());
         match operator {
             Operator::I32DivS
             | Operator::I32DivU
@@ -137,6 +162,9 @@ fn inspect_body(
             }
             Operator::If { .. } | Operator::BrIf { .. } | Operator::BrTable { .. } => {
                 branches.push(site);
+            }
+            Operator::Select | Operator::TypedSelect { .. } => {
+                selections.push(site);
             }
             Operator::Call { function_index } | Operator::ReturnCall { function_index } => {
                 calls.push(json!({
@@ -166,9 +194,14 @@ fn inspect_body(
         "function_index": index,
         "body_range": {"start": range.start, "end": range.end},
         "body_sha256": digest(&bytes[range]),
-        "operator_count": operator_count,
+        "operator_count": instructions.len(),
+        "parameter_types": signature.params().iter().map(|kind| format!("{kind:?}")).collect::<Vec<_>>(),
+        "result_types": signature.results().iter().map(|kind| format!("{kind:?}")).collect::<Vec<_>>(),
+        "locals": locals,
+        "instructions": instructions,
         "division_or_remainder_sites": divisions,
         "conditional_branch_sites_requiring_review": branches,
         "direct_calls_requiring_review": calls,
+        "value_selection_sites_requiring_target_review": selections,
     }))
 }
