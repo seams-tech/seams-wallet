@@ -65,7 +65,7 @@ function restoreOverviewFocus(
 ): void {
   if (previousScreen.current && !hasScreen) {
     buttonRef.current
-      ?.querySelector<HTMLElement>('.seams-account-title')
+      ?.querySelector<HTMLElement>('.seams-account-identity')
       ?.focus({ preventScroll: true });
   }
   previousScreen.current = hasScreen;
@@ -128,10 +128,12 @@ export function AccountMenuButtonView({
             <div className="seams-account-main" ref={dropdownRef}>
               {children ?? (
                 <>
-                  <h2 className="seams-account-title" tabIndex={-1}>
-                    Wallet settings
-                  </h2>
-                  <div className="seams-account-identity">
+                  <div
+                    className="seams-account-identity"
+                    tabIndex={-1}
+                    role="group"
+                    aria-label="Wallet account"
+                  >
                     <span className="seams-account-avatar">
                       <TouchIcon width={23} height={23} strokeWidth={1.5} />
                     </span>

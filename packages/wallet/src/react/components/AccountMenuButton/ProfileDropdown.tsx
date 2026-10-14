@@ -59,14 +59,10 @@ export function ProfileDropdown(props: ProfileDropdownProps): React.JSX.Element 
   props.menuItemsRef.current.length = props.menuItems.length;
   return (
     <div className="seams-profile-dropdown-menu">
+      <MenuGroup label="Addresses" items={props.menuItems.filter(isAccountItem)} props={props} />
       <MenuGroup
         label="Security & devices"
         items={props.menuItems.filter(isSecurityItem).sort(compareSecurityItems)}
-        props={props}
-      />
-      <MenuGroup
-        label="Accounts & transactions"
-        items={props.menuItems.filter(isAccountItem)}
         props={props}
       />
       <LockMenuItem onLock={props.onLock} className="seams-lock-menu-item" />

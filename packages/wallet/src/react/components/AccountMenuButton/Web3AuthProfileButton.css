@@ -52,7 +52,6 @@
 .seams-account-main {
   padding: 25px 24px 22px;
 }
-.seams-account-title,
 .seams-account-heading h2 {
   font: inherit;
   font-size: 26px;
@@ -89,7 +88,7 @@
   align-items: center;
   gap: 12px;
   padding: 13px;
-  margin-top: 21px;
+  margin-top: 0;
   border-radius: 12px;
   background: var(--seams-colors-surface2);
 }
@@ -370,7 +369,7 @@
 .seams-profile-dropdown-menu .seams-dropdown-menu-item {
   transform: none;
 }
-.seams-account-title:focus {
+.seams-account-identity:focus {
   outline: none;
 }
 .seams-device-auth-options {

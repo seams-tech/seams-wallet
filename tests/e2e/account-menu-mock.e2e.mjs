@@ -145,7 +145,7 @@ try {
   );
   await page.getByRole('button', { name: 'Lock Wallet', exact: true }).click();
   await page.locator('[aria-haspopup="menu"]').click();
-  await expect(page.getByRole('heading', { name: 'Wallet settings' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Wallet account' })).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 320, height: 900 });
   await page.locator('[data-account-menu-item="authentication-methods"]').click();
