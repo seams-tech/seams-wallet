@@ -1,34 +1,34 @@
 # R155H — Custody execution at setup, Console exchanges off the path, and the registration floor
 
-Status, October 14, 2026: **core changes are implemented; focused follow-ups remain.**
-The last verified staging release is **0.10.1**. Later SDK/finalization changes are
-committed on `dev`; their temporary staging comparison was restored to the original
-versions. They are not published. Median targets have been demonstrated in named
-runs. Tail acceptance remains open under [R155J](refactor-R155J-p99.md).
+Status, October 14, 2026: **closed.** Each item has its evidence or a recorded
+reason. Release 0.10.2 carries the last finalization and respond changes. The
+median target was met in named runs. Tail acceptance stays open under
+[R155J](refactor-R155J-p99.md). Production rollout, the Console outbox
+(Phase 3) and a profile of the remaining finalization CPU (Phase 9) are
+outside this closure.
 
 ## Current work and evidence
 
 This table is the current execution list. Older measurements and estimates below
 retain their dates; they are not current rollout instructions or promised savings.
 
-| Phase | Current state | Remaining work |
+| Phase | State | Closure |
 | --- | --- | --- |
-| 0 — Measurement | CPU classification and named span/probe records exist | Complete any missing per-call decomposition needed for an actual slow sample |
-| 1 — Preparation at setup | Session mint, pair admission/connection, expiry, and 30 setups/minute per key + IP are implemented; released in 0.10.0 | Measure abandoned-setup cost; retain B's deliberate execution-time read |
-| 2 — Early passkey claim | Implemented, released in 0.9.3, measured | Preserve claim/retry guarantees in later changes |
-| 3 — Console completion after reply | **Deferred** | No outbox implementation now; existing session issue and custody commit already overlap |
-| 4 — Yao execution | Yield, SIMD, compute prewarm, label wipes, and four-block hashing are released and measured | Profile product work around the protocol; move only demonstrated result-independent work earlier |
-| 5 — Setup and SDK completion | Preflight, background usage telemetry, and session publication improvements implemented | Publish accumulated SDK changes; no separate benchmark for each small change |
-| 6 — Singapore placement | Staging switched and verified; Console data-preserving move completed October 14 | Production rollout is separate release work; verify its current prerequisites before a cutover |
+| 0 — Measurement | CPU classification and named span/probe records exist | Per-call decomposition of a slow sample moved to R155J |
+| 1 — Preparation at setup | Session mint, pair admission/connection, expiry, and 30 setups/minute per key + IP; released in 0.10.0 | Abandoned-setup cost measured from tails; garbling before execute deferred |
+| 2 — Early passkey claim | Implemented, released in 0.9.3, measured | Done |
+| 3 — Console completion after reply | **Deferred** | Design retained; no outbox now; session issue and custody commit already overlap |
+| 4 — Yao execution | Yield, SIMD, compute prewarm, label wipes, and four-block hashing are released and measured | No result-independent product work to move under the custody rule |
+| 5 — Setup and SDK completion | Preflight, background usage telemetry, and session publication improvements implemented | Accumulated SDK changes publish in 0.10.2 |
+| 6 — Singapore placement | Staging switched and verified; Console data-preserving move completed October 14 | Production rollout is separate release work |
 | 7 — Outliers | Release metadata stripping and host observations implemented; bounded captures recorded | R155J owns unresolved startup, delivery, signing-503, and B-await causes |
-| 8 — Combined measurement | Published-release comparisons and the October 14 42-wallet comparison recorded | Measure the next accumulated candidate; R155J's 500-attempt p99 acceptance remains open |
-| 9 — Finalization | Shared-record removal released; Yao admission batch, founding-read overlap, and per-isolate seal warm-up committed | Verify warm-up behavior and profile remaining CPU; hosted benefit of the two latest changes is unmeasured |
-| 10 — Combined proof and execution | Combined request released in 0.10.0; transient D1 retries committed in `ec08890c` | Verify failure recovery and publish the retry change; SDK transport recovery is outside that commit |
+| 8 — Combined measurement | Release comparisons, the 42-wallet comparison, and the 396-wallet A/B/A/B comparison recorded | Done; R155J owns the 500-attempt p99 acceptance |
+| 9 — Finalization | Shared-record removal in 0.10.0; Yao admission batch, founding-read overlap, and per-isolate seal warm-up in 0.10.2, measured together | A profile of the remaining CPU is a follow-up |
+| 10 — Combined proof and execution | Combined request in 0.10.0; respond retry and lost-reply reconciliation in 0.10.2 | Done; SDK transport recovery is not in this plan |
 
-Next priorities are Phase 9's warm-up checks and CPU investigation, Phase 4's
-result-independent product work, and Phase 10's recovery checks. Implement only
-supported changes, run correctness checks, and measure the accepted bundle.
-Do not reopen cross-request plaintext caching or the Console outbox as incidental
+No implementation work remains in this plan. The Phase 9 CPU profile, the
+Phase 3 outbox and production rollout each need a new decision. Do not
+reopen cross-request plaintext caching or the Console outbox as incidental
 cleanup.
 
 ### Release and comparison record
@@ -50,6 +50,12 @@ cleanup.
   2.676/2.456 s, so no consistent overall gain is established. Candidate maximums
   were 4.765 s for registration and 5.877 s through its first signature. The
   candidate contains `7caae2fa` and `8b4dcf5f`, not the later founding-read change.
+- [October 14 A/B/A/B comparison](evidence/refactor-155h-remaining-optimizations-staging.md):
+  99 wallets per arm on candidate `ec08890c`. Finalization fell from 446.5 to
+  386 ms at the median and from 669.5 to 530 ms at p90; all 396 signatures
+  verified.
+- [Close-out checks](evidence/refactor-155h-closeout-checks.md): respond fault
+  scenarios and the lost-reply correction `ddaefdce`.
 - [Deriver B follow-up](evidence/deriver-b-latency-20261014.md): binding-await
   medians 96.5–120 ms in those arms, followed by 12–21 ms in three unchanged
   production-path samples. The historical cause remains unresolved. No migration
@@ -288,7 +294,7 @@ must preserve concurrent work and record the exact frozen source revisions.
   [write-pause record](evidence/refactor-155h-write-stalls.md) and
   [B investigation](evidence/deriver-b-latency-20261014.md) retain timings,
   SQL metadata, locations, sample counts, and instrument limits.
-- [ ] Complete missing production per-call decomposition only where a slow
+- **Moved to R155J.** Complete missing production per-call decomposition only where a slow
   sample needs it. Existing await spans do not isolate D1 confirmation from
   transport, preceding work, or continuation scheduling. R155J owns that capture.
 
@@ -423,7 +429,7 @@ execute-time input, so the connection is accepted at setup.
   their wallet objects until the deadline. The wallet-start request stays
   grant-free and storage-free; the prepare is a separate command because it
   writes admissions.
-- [ ] **Garble before execute: deferred.** Take it only if the Phase 8 chain,
+- **Garble before execute: deferred.** Take it only if the Phase 8 chain,
   with the yield and the setup-time admission in place, shows Deriver A's
   garbling ahead of Deriver B's evaluation by more than 150 ms at the median.
   Step one would keep the wire order and stream a buffer built during the
@@ -451,8 +457,16 @@ execute-time input, so the connection is accepted at setup.
   30-second maximum lifetime. Tests cover concurrent exhaustion, separation,
   expiry, and storage failure. Early admission/connection adds no protocol
   computation itself; the existing compute prewarm still consumes CPU.
-- [ ] Measure the hosted cost of an abandoned setup under the released design.
-  This is a remaining cost measurement, not a missing rate-limit implementation.
+- [x] Measure the hosted cost of an abandoned setup under the released design.
+  In the October 14 comparison, the setup-time invocations used 709 to 824 ms
+  of CPU per wallet, as the mean of each 99-wallet arm. The Gateway's setup
+  used about 20 ms at the median, and the prepare in each Deriver's wallet
+  object 290 to 330 ms. An abandoned setup does the same work, so it costs at
+  most about 0.8 s of CPU. The sum is an upper bound, because a setup-time
+  invocation can also carry later work. The Router has no tail in the sample,
+  and the expiry work for an unclaimed session is not in it. The setup limit, 30 per minute for
+  one key and source address, bounds the exposure. Source:
+  [the comparison record](evidence/refactor-155h-remaining-optimizations-staging.md#setup-time-cost).
 - [x] **Keep the other families online.** Recovery, export and lane
   materialization keep the online path; only fresh registration activation
   prepares at setup. Mixed NEAR and ECDSA registration keeps the same NEAR
@@ -624,20 +638,20 @@ but removing this dependency needs durable pending-publication and recovery stat
 Session issue (including completion) already overlaps custody persistence.
 There is no additional simple overlap to implement.
 
-The checklist below is the retained design for an explicit future reopening.
-It is not required to finish the other accepted changes.
+The list below is the retained design for an explicit future reopening.
+It is not part of this plan's closure.
 
-- [ ] Record the completion as pending in the local session transaction, with
+- Record the completion as pending in the local session transaction, with
   the session digest and expiry that the lost-reply reconciliation uses today.
   Reply to the client after that commit and the local receipt.
-- [ ] Write an outbox row in the Gateway's D1 before the reply, so the
+- Write an outbox row in the Gateway's D1 before the reply, so the
   publication is tracked, and send the Console completion from the request's
   background continuation immediately after the reply. Mark the row done when
   Console acknowledges. The Gateway's existing per-minute cron drains rows
   older than its interval with the same idempotent request. The Console's cron
   already runs outbox dispatches for runtime snapshots and webhooks; copy that
   shape.
-- [ ] Decide what waits for the acknowledgement. Cross-region discovery through
+- Decide what waits for the acknowledgement. Cross-region discovery through
   Console and the display row do. Established-session signing does not; R155F
   already keeps it independent of Console. Mixed registration and recovery
   continuations that read the home through Console must tolerate a pending
@@ -647,7 +661,7 @@ It is not required to finish the other accepted changes.
   with matching outputs. The seal stays synchronous in the reply, and no
   exponent or arithmetic change follows. A constant-time ladder remains a
   side-channel item outside this plan.
-- [ ] Update the intended behaviours: completion follows the reply from a
+- Update the intended behaviours: completion follows the reply from a
   tracked outbox, and the Gateway no longer acknowledges completion before it
   enables ordinary signing. Update R155B's rule 6 wording for the tracked
   outbox. Update the completion scenarios and the lost-reply reconciliation
@@ -811,10 +825,13 @@ work. One item each.
   evaluator's from 207 ms to 182 ms. The Router's execute request fell from
   783 ms to 720 ms. The [staging record](evidence/refactor-155h-release-094-staging.md)
   holds the runs.
-- [ ] **Profile product work around the protocol.** Attribute target-proof,
-  commitment, public-parameter, and envelope-preparation work with matched
-  CPU and elapsed measurements. These costs are not isolated by the bare pair.
-- [ ] Move only demonstrated result-independent work into the existing prompt
+- [x] **Product work around the protocol: no movable candidate.** A code
+  review on October 14 found no result-independent work for the prompt
+  preparation. Target-proof work uses the decrypted root share, and the
+  custody rule allows that share in one request only, after a fresh row
+  check. The other parts consume the execution result. A profile cannot
+  change that, so none was taken.
+- **Not taken: the review above found no candidate.** Move only demonstrated result-independent work into the existing prompt
   preparation. Reuse verified results within one request where valid. Preserve
   role separation, one-use state, fresh root checks, and request-scoped plaintext.
   Do not implement cross-request share caching or change transcript order as a
@@ -1046,15 +1063,15 @@ other regions' custody calls cross to Singapore in either case.
   differ by up to 213 ms, so a claim under 150 ms needs about 100 wallets
   per side. The [record](evidence/refactor-155h-release-093-staging.md)
   holds both sides.
-- [ ] Separate release work: production testnet, then mainnet. The last recorded
+- **Outside this plan.** Separate release work: production testnet, then mainnet. The last recorded
   inventory listed old builds, missing regional resources, and activation gaps.
   Recheck those prerequisites and available databases before a new cutover; this
   document does not certify current production readiness. The private record
   retains the original blockers and required release decisions.
 
-- [ ] Count the reads and writes per request from the Phase 0 D1 record.
-  Finalization is write-heavy, so D1 read replication near a regional Gateway
-  cannot carry it. Record the number.
+- **Not needed.** The count was input to a decision on D1 read replication
+  near a regional Gateway. Finalization is write-heavy, and the decision
+  below puts all components in Singapore, so no decision depends on it.
 - **Deferred alternative:** a separate Tokyo home. The selected anchor is
   Singapore; no Tokyo provisioning or cost study is active in this plan.
 - [x] Decide: Singapore, one place for all components. The move repeats the
@@ -1083,11 +1100,11 @@ there rather than creating a second set of diagnostic tasks here.
   in three unchanged production samples. The
   [record](evidence/deriver-b-latency-20261014.md) establishes neither a permanent
   slow database nor the provider-internal cause. Probe resources were removed.
-- [ ] Under R155J, explain the original A pre-handler stall, streamed-delivery
+- **Moved to R155J.** Explain the original A pre-handler stall, streamed-delivery
   producer stall, isolated signing 503, and any recurring B delay. The older
   14.6-second B preparation after a version switch is a separate unresolved event;
   do not close it from the later fast binding samples.
-- [ ] Correlate genuine product stalls with storage/transport/runtime evidence
+- **Moved to R155J.** Correlate genuine product stalls with storage/transport/runtime evidence
   before changing object layout, deadlines, or write-confirmation behavior.
 
 Do not add a longer timeout or race replacement objects as an assumed speedup.
@@ -1113,13 +1130,17 @@ been made by this reconciliation.
   founding-read overlap (`f6422f37`) on `dev`. Each has focused correctness evidence;
   only the first two were in the 42-wallet hosted candidate.
 - [x] Record the later seal warm-up (`1527b97f`) and transient `respond` retries
-  (`ec08890c`). Neither was in that comparison. Their outstanding checks are
-  listed in Phases 9 and 10; no hosted saving is established.
-- [ ] Attach the final broader contract-suite result for the founding-read change
-  before release. The plan does not infer it from the commit or an interim count.
-- [ ] Measure the next accumulated release candidate after accepted changes and
-  correctness checks. No separate small staging run is required for a predicted
-  10 ms read saving. R155J owns the remaining budgeted p99 acceptance population.
+  (`ec08890c`). Neither was in that comparison. The A/B/A/B comparison below
+  measured them together with the other changes.
+- [x] Attach the final broader contract-suite result for the founding-read change
+  before release. On `ddaefdce`, the 0.10.2 candidate, on October 14: 132 of
+  134 cases pass on release Workers, and the two debug-only terminal-execution
+  cases pass on the debug Router.
+- [x] Measure the next accumulated release candidate after accepted changes and
+  correctness checks. The [A/B/A/B comparison](evidence/refactor-155h-remaining-optimizations-staging.md)
+  ran candidate `ec08890c` with 99 wallets per arm. Finalization fell from
+  446.5 to 386 ms at the median and from 669.5 to 530 ms at p90. R155J owns
+  the remaining budgeted p99 acceptance population.
 
 For each new comparison, capture serving versions, bindings, migrations, and source
 revisions afresh. October 12/Hong Kong snapshots and the pre-migration Console
@@ -1135,8 +1156,8 @@ requires isolation. The $25 Cloudflare budget remains the cap.
 ## Phase 9 — Finalization on the Singapore lane
 
 The October 13 profile below motivated this phase. Shared-record removal is
-released; two further read-path changes and seal warm-up are committed.
-Remaining checks and CPU work follow the completed items.
+released in 0.10.0. Two further read-path changes and seal warm-up are in
+0.10.2. A profile of the remaining CPU is a follow-up.
 
 What a finalization costs at the Gateway, about 380 ms at the median:
 
@@ -1191,31 +1212,41 @@ Items:
 - [x] Read Yao admission in the initial finalization batch (`8b4dcf5f`). The
   Router retains consumption, replay, and lifecycle enforcement. The combined
   [October 14 comparison](evidence/registration-completion-20261014.md) is recorded;
-  the stage gain is not an isolated estimate of this one change.
+  the stage gain is not an isolated estimate of this one change. In the
+  A/B/A/B comparison the Router consumption span fell from 52 to 35 ms at the
+  median, together with the other changes.
 - [x] Read founding authority/auth-method rows beside Router consumption
   (`f6422f37`, integrated by `24e93a78`). The commit uses those rows and keeps its
   duplicate-insert, extension-CAS, and lifecycle-decision guards. Every retry
   reserves again. The focused credential-reservation scenario and server types
-  pass. Hosted savings remain unmeasured.
+  pass. In the A/B/A/B comparison the wallet commit span fell from 55 to
+  36.5 ms at the median, together with the other changes.
 - [x] Require explicit founding IDs or `null` in the reservation contract
   (`f36b32a1`).
   Keep the omission/`undefined` type fixtures in
   `tests/typecheck/registration-commit.typecheck.ts`; the preceding held-claim
   argument is explicit too. This cleanup was restored after the merge reintroduced
   the defaults. The focused E2E and type checks pass after restoration.
-- [ ] Profile remaining finalization CPU using the current release build and
-  matched cold/warm samples. The latest candidate used 72 ms median Gateway CPU.
+- **Follow-up, outside this closure.** Profile remaining finalization CPU using the current release build and
+  matched cold/warm samples. The 42-wallet candidate used 72 ms median Gateway
+  CPU; the A/B/A/B candidate used 44 ms against 53.5 ms on its control.
   Attribute parsing, serialization, key imports, and initialization before editing.
-- [ ] Remove demonstrated repeated work within one request or reuse immutable
+- **Follows the profile.** Remove demonstrated repeated work within one request or reuse immutable
   per-isolate configuration where valid. Preserve authority freshness and secret
   lifetimes. No saving is claimed yet.
 - [x] Implement seal warm-up once per Gateway isolate (`1527b97f`). After a
   handler completes, `waitUntil` retains initialization and one disposable lock
   round. It runs only when the seal is configured and uses no wallet secret.
-- [ ] Verify that warm-up preserves first-request behavior and failure handling.
-  Measure its contribution in the next combined candidate, including cold isolates.
-  The earlier 19 ms cold-versus-warm difference is a historical opportunity;
-  no hosted saving is established for this implementation.
+- [x] Verify that warm-up preserves first-request behavior and failure handling.
+  The warm-up starts after the handler has built its reply, so that reply
+  does not wait for it. A request that arrives in the same isolate during the
+  warm-up can wait for it, once per isolate. A seal awaits the same module
+  initialization as before, so a failed initialization fails a later seal as
+  it would without the warm-up. A failed lock round only logs a warning; it
+  uses its own handle and destroys it. In the A/B/A/B comparison Gateway
+  finalization CPU fell from 53.5 to 44 ms at the median, together with the
+  other changes. Each arm discarded its first group, so the run isolates
+  neither cold isolates nor the warm-up's share.
 - Phase 3 stays deferred. On Singapore its part is the Console completion and
   the write after it, about 40 ms.
 
@@ -1278,13 +1309,17 @@ admits, and executes.
   (`ec08890c`). Two additional server attempts follow waits of 25 and 100 ms.
   They reuse the request, ceremony, execution identity, and encrypted inputs.
   This change relies on existing exact replay and terminal execution guards.
-- [ ] Exercise a lost request, committed-but-lost reply, exhausted transient
-  faults, and terminal execution failure through existing behavioral contracts.
-  Setup recovery is already covered by R155J; this item is specifically respond.
-- [ ] Attach the retry-specific correctness evidence before release. The SDK still
+- [x] Exercise a lost request, committed-but-lost reply, exhausted transient
+  faults, and terminal execution failure. The respond recovery scenario covers
+  the first three and cancellation. It found a lost-reply defect, which
+  `ddaefdce` corrects ([record](evidence/refactor-155h-closeout-checks.md)).
+  The two terminal-execution contract cases pass on the debug Router.
+- [x] Attach the retry-specific correctness evidence before release: the
+  [close-out record](evidence/refactor-155h-closeout-checks.md). The SDK still
   sends `respond` once; server D1 retries do not recover a lost HTTP reply.
-  Assess any transport-recovery change from these cases and preserve one execution
-  winner. No hosted result or release is established for `ec08890c` yet.
+  A transport-recovery change is not part of this plan, and it must keep one
+  execution winner. In the A/B/A/B comparison no registration of 408 failed.
+  The retry writes no log line, so the run cannot show whether one ran.
 
 Expected gain: one round trip and one Gateway entry, 60–130 ms from Tokyo and
 about half of that for a user in Singapore. The client's input preparation,

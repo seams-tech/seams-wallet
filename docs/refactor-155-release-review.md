@@ -17,6 +17,50 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.10.2
+
+Status: **prepared, not published.** Patch release with no wire, schema or
+protocol change. It carries the R155H finalization work on public `dev`
+since 0.10.1. Codex's R155H close-out handoff, which the user forwarded on
+October 14, names this release.
+
+- **Finalization reads.** `8b4dcf5f` reads the Yao admission in the
+  finalization read batch. `f6422f37` reads the founding authority and auth
+  method records beside the Router consumption, and the commit uses them
+  without a second read; `f36b32a1` makes both reservation arguments
+  explicit.
+- **Session seal warm-up.** `1527b97f` runs one seal operation once per
+  Gateway isolate, after its first reply. The first finalization of an
+  isolate then finds the seal module ready.
+- **Respond after a transient D1 fault.** On 0.10.1, respond returned a
+  transient D1 fault as `internal` with the driver's text and HTTP 400; one
+  staging registration in 198 failed that way. `ec08890c` runs respond
+  again, as it replays exactly. A fault that outlasts two retries answers
+  HTTP 503 with `storage_unavailable` and a fixed message. `ddaefdce`
+  reconciles a lost write reply after the admission committed: respond
+  accepts the stored ceremony only if it equals the intended one exactly
+  ([record](evidence/refactor-155h-closeout-checks.md)).
+- **SDK.** `7caae2fa`: session observation no longer waits for the
+  informational startup parity check. Operations that need that parity
+  still check it. `fcbff95f`: the auth menu focus rings follow the corners
+  of grouped rows.
+- **Compatibility.** A 0.10.0 or 0.10.1 application works with a 0.10.2
+  backend. No Rust or WASM file of a Worker changed, so each role Worker
+  works with its 0.10.1 peers. The CLI source equals that of the
+  published launcher 0.10.1 (`264e70b1`), so the CLI stays at 0.10.1.
+- **Local validation.** On `ddaefdce`: the contract suite (132 of 134
+  cases on release Workers, the two debug-only cases on the debug Router),
+  the seven type checks of `pnpm type-check`, the lock check and the bloat
+  check. The private Console server type-checks against the candidate's
+  server types, and every private deep import of the SDK resolves in the
+  candidate build. Codex's respond recovery, setup, credential reservation
+  and authorization transfer scenarios pass on the same commit.
+- **Staging comparison before the release.** An A/B/A/B run on `ec08890c`
+  took 60 ms from the median finalization and 140 ms from its 90th
+  percentile; all 396 signatures verify
+  ([record](evidence/refactor-155h-remaining-optimizations-staging.md)).
+  `ddaefdce` adds no request, query or wait to a successful registration.
+
 ## 0.10.1
 
 Status: **published October 14, 2026, 02:13 UTC, and deployed to staging.**

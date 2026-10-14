@@ -34,16 +34,16 @@ same compatible release.
 
 ## Upgrading to 0.10.0
 
-Pin the application package and backend package to **0.10.1**, the current patch
+Pin the application package and backend package to **0.10.2**, the current patch
 release of 0.10, and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 
 ```sh
 # Application
-pnpm add @seams/wallet@0.10.1
+pnpm add @seams/wallet@0.10.2
 
 # Backend deployment
-pnpm add @seams/wallet-server@0.10.1
+pnpm add @seams/wallet-server@0.10.2
 ```
 
 This release changes the registration contract. The wallet-management protocol is `4`.
@@ -76,6 +76,11 @@ Release 0.10.1 has no wire, schema or protocol change: a 0.10.0 application work
 a 0.10.1 backend. On 0.10.0, registration setup answered HTTP 500 for a provided wallet
 id that is not in the server-allocated format. Release 0.10.1 accepts that setup again
 and leaves the refusal to the proof step, as 0.9.4 did.
+
+Release 0.10.2 has no wire, schema or protocol change: a 0.10.0 or 0.10.1 application
+works with a 0.10.2 backend. The registration response step now retries a transient D1
+fault. If the fault continues, the step answers HTTP 503 with the code
+`storage_unavailable`. Show the message and let the user try again.
 
 ## Upgrading from 0.8.0 to 0.9
 

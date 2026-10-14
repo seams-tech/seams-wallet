@@ -356,5 +356,43 @@
     "allOriginalVersionsServing": true,
     "workers": 14
   },
-  "respondRetryExercised": false
+  "respondRetryExercised": false,
+  "setupTimeCpuMs": {
+    "source": "tail cpuTime of the setup-time invocations in each arm",
+    "upperBoundForAbandonedSetup": true,
+    "excluded": [
+      "Router (no tail)",
+      "expiry work for an unclaimed session"
+    ],
+    "arms": {
+      "control-1": {
+        "gatewaySetupMedian": 22,
+        "deriverAObjectPrepareMedian": 303,
+        "deriverBObjectPrepareMedian": 293,
+        "deriverBConnectionMedian": 74,
+        "allSetupInvocationsPerWallet": 823.9
+      },
+      "candidate-1": {
+        "gatewaySetupMedian": 19,
+        "deriverAObjectPrepareMedian": 326,
+        "deriverBObjectPrepareMedian": 302,
+        "deriverBConnectionMedian": 55,
+        "allSetupInvocationsPerWallet": 770.2
+      },
+      "control-2": {
+        "gatewaySetupMedian": 23,
+        "deriverAObjectPrepareMedian": 304,
+        "deriverBObjectPrepareMedian": 290,
+        "deriverBConnectionMedian": 54.5,
+        "allSetupInvocationsPerWallet": 709.4
+      },
+      "candidate-2": {
+        "gatewaySetupMedian": 21,
+        "deriverAObjectPrepareMedian": 330,
+        "deriverBObjectPrepareMedian": 287.5,
+        "deriverBConnectionMedian": 55,
+        "allSetupInvocationsPerWallet": 724.7
+      }
+    }
+  }
 }
