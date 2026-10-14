@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Theme } from '../theme/ThemeProvider';
 import type { ThemeMode } from '../theme/ThemeProvider';
 import type { ConfirmationConfig, ConfirmationUIMode } from '../../../core/types/signer-worker';
+import { AccountMenuMockOverlay } from './AccountMenuMockOverlay';
 import { AccountMenuButtonView } from './AccountMenuButtonView';
 import { useProfileState } from './hooks/useProfileState';
 import type { AccountsSectionRow, MenuItem, ProfileSettingsMenuItemId } from './types';
@@ -91,6 +93,7 @@ function AccountMenuPreview({
   onAction,
 }: AccountMenuButtonMockProps): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
+  const [overlay, setOverlay] = useState<'none' | 'methods' | 'scanner'>('none');
   const [section, setSection] = useState<Section>('menu');
   const [confirmation, setConfirmation] = useState<ConfirmationConfig>({
     uiMode: 'modal',
@@ -134,18 +137,18 @@ function AccountMenuPreview({
       icon: <TouchIcon />,
       label: 'Authentication Methods',
       description: 'Add or remove ways to unlock this device',
-      disabled: externalDisabled,
+      disabled: false,
       keepOpenOnClick: true,
-      onClick: previewAction.bind(null, onAction, 'authentication-methods'),
+      onClick: setOverlay.bind(null, 'methods'),
     },
     {
       id: 'scan-link-device',
       icon: <ScanIcon />,
       label: 'Scan and Link Device',
       description: 'Scan QR to link a device',
-      disabled: externalDisabled,
+      disabled: false,
       keepOpenOnClick: true,
-      onClick: previewAction.bind(null, onAction, 'scan-link-device'),
+      onClick: setOverlay.bind(null, 'scanner'),
     },
     {
       id: 'linked-devices',
@@ -197,13 +200,19 @@ function AccountMenuPreview({
         onSetDelay: setDelay.bind(null, setConfirmation, confirmation),
         theme,
       }}
-    />
+    >
+      {overlay !== 'none' &&
+        createPortal(
+          <AccountMenuMockOverlay kind={overlay} onClose={setOverlay.bind(null, 'none')} />,
+          document.body,
+        )}
+    </AccountMenuButtonView>
   );
 }
 
 /** Provider-free interactive preview using the connected AccountMenuButton's renderer.
- * Accounts, confirmation preferences, expansion and locking stay local. Other
- * rows emit onAction; this component never signs, exports keys or accesses storage.
+ * Accounts, confirmation preferences, authentication methods, scanner preview, expansion and locking stay local. Other
+ * rows emit onAction; this component never opens a camera, signs, exports keys or accesses storage.
  */
 export function AccountMenuButtonMock(props: AccountMenuButtonMockProps): React.JSX.Element {
   return (

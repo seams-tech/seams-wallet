@@ -34,6 +34,18 @@ try {
     'true',
   );
   await page.screenshot({ path: `${artifacts}/settings.png` });
+  await page.locator('[data-account-menu-item="authentication-methods"]').click();
+  await expect(page.getByRole('dialog', { name: 'Authentication methods' })).toBeVisible();
+  await expect(page.getByText('MacBook Pro', { exact: true })).toBeVisible();
+  await expect(page.getByText('iPhone', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pixel 9', { exact: true })).toBeVisible();
+  await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
+  await page.getByRole('button', { name: 'Close authentication methods' }).click();
+  await page.locator('[data-account-menu-item="scan-link-device"]').click();
+  await expect(page.getByRole('dialog', { name: 'Scan and link a device' })).toBeVisible();
+  await page.screenshot({ path: `${artifacts}/scanner.png` });
+  await page.getByRole('button', { name: 'Close scanner' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Lock Wallet', exact: true }).click();
   await expect(page.locator('[data-account-menu-item="accounts"]')).not.toBeVisible();
   await page.locator('[aria-haspopup="menu"]').click();

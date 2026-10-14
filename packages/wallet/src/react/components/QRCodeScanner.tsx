@@ -10,6 +10,7 @@ import { useQRCamera, QRScanMode } from '../hooks/useQRCamera';
 import { useDeviceLinking } from '../hooks/useDeviceLinking';
 import { useSeams } from '../context';
 import { Theme, useTheme } from './theme';
+import { QRCodeScannerCamera } from './QRCodeScannerCamera';
 
 /**
  * QR scanner shell for the linked-device flow.
@@ -617,7 +618,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             (qrCamera.scanMode === QRScanMode.CAMERA || qrCamera.scanMode === QRScanMode.AUTO) && (
               <div className="qr-scanner-camera-section">
                 {/* Camera Feed */}
-                <div className="qr-scanner-camera-container">
+                <QRCodeScannerCamera>
                   <video
                     ref={qrCamera.videoRef}
                     className={`qr-scanner-video${isVideoReady ? ' is-ready' : ''}`}
@@ -631,12 +632,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                     onLoadedData={() => setIsVideoReady(true)}
                   />
                   <canvas ref={qrCamera.canvasRef} className="qr-scanner-canvas" />
-
-                  {/* Scanner Overlay */}
-                  <div className="qr-scanner-overlay">
-                    <div className="qr-scanner-box" />
-                  </div>
-                </div>
+                </QRCodeScannerCamera>
 
                 {/* Instructions */}
                 <div className="qr-scanner-instructions">

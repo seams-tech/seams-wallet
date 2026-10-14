@@ -67,8 +67,10 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `AccountMenuButtonMock` is an interactive, provider-free account-menu preview.
 It shares the connected `AccountMenuButton` renderer. Account expansion,
 confirmation preferences, menu expansion, and the lock action use local state.
+Authentication Methods shows several example devices. Scan and Link Device opens
+the SDK scanner frame without requesting camera access. Both overlays close normally.
 It never creates a wallet session, signs, exports keys, or accesses wallet storage.
-Wallet-operation rows are disabled unless `onAction` supplies preview navigation.
+Other wallet-operation rows are disabled unless `onAction` supplies preview navigation.
 
 ```tsx
 import { AccountMenuButtonMock } from '@seams/wallet/react/profile';

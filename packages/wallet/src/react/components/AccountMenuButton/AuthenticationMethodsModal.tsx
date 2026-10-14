@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import type {
   LinkedDeviceSummaryV1,
   LinkedOwnerCredentialMetadataV1,
@@ -7,9 +8,7 @@ import type {
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
 import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
-import { MailIcon } from './icons/MailIcon';
 import { PlusIcon } from './icons/PlusIcon';
-import TouchIcon from './icons/TouchIcon';
 import './LinkedDevicesModal.css';
 
 interface AuthenticationMethodsModalProps {
@@ -421,70 +420,54 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   actionState.kind === 'revoking' &&
                   actionState.method.walletAuthMethodId === method.walletAuthMethodId;
                 return (
-                  <li
+                  <AuthenticationMethodRow
                     key={method.walletAuthMethodId}
-                    className="seams-linked-devices-modal-item seams-linked-devices-modal-item--row"
+                    kind={method.kind}
+                    title={methodTitle(method)}
+                    description={methodDescription(method)}
+                    action={
+                      !confirming && canManageMethods && methods.length > 1 ? (
+                        <button
+                          type="button"
+                          className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
+                          disabled={actionInProgress}
+                          aria-label={`Remove ${methodTitle(method)}`}
+                          onClick={() => setActionState({ kind: 'confirming_revoke', method })}
+                        >
+                          {revoking ? 'Removing…' : 'Remove'}
+                        </button>
+                      ) : null
+                    }
                   >
-                    <span className="seams-linked-devices-modal-item-icon" aria-hidden="true">
-                      {method.kind === 'passkey' ? (
-                        <TouchIcon width={20} height={20} strokeWidth={1.5} />
-                      ) : (
-                        <MailIcon size={20} strokeWidth={1.75} />
-                      )}
-                    </span>
-                    <div className="seams-linked-devices-modal-item-content">
-                      <div className="seams-linked-devices-modal-item-main">
-                        <span className="seams-linked-devices-modal-item-name">
-                          {methodTitle(method)}
+                    {confirming ? (
+                      <div className="seams-linked-devices-modal-confirm">
+                        <span>
+                          Remove {methodTitle(method)} from this device? You will need the other
+                          active method to unlock it.
                         </span>
-                        <span className="seams-linked-devices-modal-standing tone-active">
-                          Active
-                        </span>
-                      </div>
-                      <div className="seams-linked-devices-modal-item-detail">
-                        {methodDescription(method)}
-                      </div>
-                      {confirming ? (
-                        <div className="seams-linked-devices-modal-confirm">
-                          <span>
-                            Remove {methodTitle(method)} from this device? You will need the other
-                            active method to unlock it.
-                          </span>
-                          <div className="seams-linked-devices-modal-confirm-actions">
-                            <button
-                              type="button"
-                              className="seams-linked-devices-modal-secondary"
-                              onClick={() => setActionState({ kind: 'idle' })}
-                            >
-                              Keep it
-                            </button>
-                            <button
-                              type="button"
-                              className="seams-linked-devices-modal-danger"
-                              onClick={() => void revokeMethod()}
-                            >
-                              Remove method
-                            </button>
-                          </div>
+                        <div className="seams-linked-devices-modal-confirm-actions">
+                          <button
+                            type="button"
+                            className="seams-linked-devices-modal-secondary"
+                            onClick={() => setActionState({ kind: 'idle' })}
+                          >
+                            Keep it
+                          </button>
+                          <button
+                            type="button"
+                            className="seams-linked-devices-modal-danger"
+                            onClick={() => void revokeMethod()}
+                          >
+                            Remove method
+                          </button>
                         </div>
-                      ) : methods.length > 1 ? null : (
-                        <span className="seams-linked-devices-modal-item-detail">
-                          Add another method before removing this one.
-                        </span>
-                      )}
-                    </div>
-                    {!confirming && canManageMethods && methods.length > 1 ? (
-                      <button
-                        type="button"
-                        className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
-                        disabled={actionInProgress}
-                        aria-label={`Remove ${methodTitle(method)}`}
-                        onClick={() => setActionState({ kind: 'confirming_revoke', method })}
-                      >
-                        {revoking ? 'Removing…' : 'Remove'}
-                      </button>
-                    ) : null}
-                  </li>
+                      </div>
+                    ) : methods.length > 1 ? null : (
+                      <span className="seams-linked-devices-modal-item-detail">
+                        Add another method before removing this one.
+                      </span>
+                    )}
+                  </AuthenticationMethodRow>
                 );
               })}
             </ul>

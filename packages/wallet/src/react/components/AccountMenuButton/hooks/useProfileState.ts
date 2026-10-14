@@ -43,7 +43,10 @@ export const useProfileState = (options?: UseProfileStateOptions) => {
       const pathEls = path.filter((n): n is HTMLElement => n instanceof HTMLElement);
       const inAccountMenuOverlay = pathEls.some((el) =>
         Array.from(el.classList ?? []).some(
-          (c) => c.startsWith('seams-access-keys-modal') || c.startsWith('seams-export-key-type-modal'),
+          (c) =>
+            c.startsWith('seams-access-keys-modal') ||
+            c.startsWith('seams-export-key-type-modal') ||
+            c.startsWith('seams-linked-devices-modal'),
         ),
       );
       if (inAccountMenuOverlay) return;
