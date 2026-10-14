@@ -93,7 +93,7 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
                   activeBg={TRANSACTION_SETTINGS_ACTIVE_BACKGROUND}
                   height={40}
                   buttonFontSize={12}
-                  containerStyle={{ background: 'var(--seams-colors-surface2)', width: '100%' }}
+                  containerStyle={{ width: '100%' }}
                   buttonStyle={{
                     display: 'grid',
                     placeItems: 'center',
@@ -139,7 +139,7 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
                   activeBg={TRANSACTION_SETTINGS_ACTIVE_BACKGROUND}
                   height={40}
                   buttonFontSize={12}
-                  containerStyle={{ background: 'var(--seams-colors-surface2)', width: '100%' }}
+                  containerStyle={{ width: '100%' }}
                   buttonStyle={{
                     display: 'grid',
                     placeItems: 'center',
