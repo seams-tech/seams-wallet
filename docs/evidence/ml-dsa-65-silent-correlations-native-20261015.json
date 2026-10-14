@@ -1,0 +1,371 @@
+{
+  "cases": [
+    {
+      "a": {
+        "elapsed_ns": 244414042,
+        "own_share_sha256": "dce90dd029028eba28bace9febdc0dffd79a52d5a06bb3424bcf8311635e8456",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            155458,
+            244258500,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 227988625,
+        "own_share_sha256": "5a47606e064a334210dd6ccbf66c90eca25ead7b18f954f6d8514d8d2320967f",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            33876,
+            227954791,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        131217,
+        131133,
+        130835,
+        131012,
+        131274,
+        130740
+      ],
+      "warmup": true
+    },
+    {
+      "a": {
+        "elapsed_ns": 248529042,
+        "own_share_sha256": "288aabb2439a21ff006840ffc8233f1707ab0f543af5c339773310611c3fc6a9",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            51333,
+            248477625,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 228505250,
+        "own_share_sha256": "7d99cb8b319f33cb075f76a4c9d96877180beca5e0e0d7a7dab05886fdce7ea2",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            45958,
+            228459333,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        130976,
+        130931,
+        131874,
+        130893,
+        130900,
+        131651
+      ],
+      "warmup": false
+    },
+    {
+      "a": {
+        "elapsed_ns": 270516250,
+        "own_share_sha256": "9fb29d3688a6adca92027fa094c52b9e5856195ec02d351cf5af3dae994ca790",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            1019834,
+            269496167,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 262510625,
+        "own_share_sha256": "381ede509a9b443817ab146e96115e02f4eddcb7b09f8d6fcf58e6a8e78113ef",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            50166,
+            262460375,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        131131,
+        131187,
+        131261,
+        130971,
+        130892,
+        130959
+      ],
+      "warmup": false
+    },
+    {
+      "a": {
+        "elapsed_ns": 228612292,
+        "own_share_sha256": "8472e75390a1d38458646fbe0386f3692a66fbbb02f72bec47a03fd9cabfeb87",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            32708,
+            228579500,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 214116625,
+        "own_share_sha256": "5ef565cd869608751587facc21ea621c48742cc03fcb1bbe11b6af5570281210",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            132708,
+            213983708,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        130806,
+        130931,
+        130924,
+        131224,
+        131301,
+        130914
+      ],
+      "warmup": false
+    }
+  ],
+  "executable_sha256": "6a922772c53bb67d41adc9e089a79697ea0d823f1c9d209205dffbed1a8d132d",
+  "host_arch": "aarch64",
+  "host_os": "macos",
+  "mismatched_binding": {
+    "a": {
+      "elapsed_ns": 35500,
+      "status": "binding-rejected",
+      "transport": {
+        "actual_pipe_received_bytes": 64,
+        "actual_pipe_sent_bytes": 64,
+        "phase_wall_ns_including_peer_wait": [
+          35541,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "b": {
+      "elapsed_ns": 30000,
+      "status": "binding-rejected",
+      "transport": {
+        "actual_pipe_received_bytes": 64,
+        "actual_pipe_sent_bytes": 64,
+        "phase_wall_ns_including_peer_wait": [
+          30084,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "binding_rejected": true
+  },
+  "production_eligible": false,
+  "profile": {
+    "base_ot_choices": 3072,
+    "base_payload_bytes": 16,
+    "domain": 4096,
+    "encoder": "CryProt ExConv7x24",
+    "minimum_distance_ratio_for_noise_choice": 0.15,
+    "parallel_trees": 4,
+    "partitions": 256,
+    "triples": 262144
+  },
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+  "schema": "seams.ml-dsa-silent-correlations.v1",
+  "scope": "Separate native roles with fresh real IKNP and fixed-width PPRF. Disposable private correlations are reconstructed only after timing. No dealer supplies them. No complete signing or Worker performance claim.",
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
+      "sha256": "5b3b1cd9965d9b655f80dfc43e5bb37e717c73be46b2570197c99baf29e827ca"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+      "sha256": "bdda00fe1428ab4724965665664adaaf7e788422118d5c3eb7df439d82bc7bc1"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "sha256": "2ab6f5f00b53fd415b644479017bbc4b206f9127284d8208ff98ac724bb0bfa9"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/silent_correlation_evidence.rs",
+      "sha256": "663a87b68b0776680802ec38a4c0df2dfbeee13650701de9ea75d57aba41f31e"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/Cargo.lock",
+      "sha256": "4e6d4069433fa845d78752f9da845d08048aae716c7e99e881db5e0e46bca29b"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/boolean_engine_evidence.rs",
+      "sha256": "928d47a6b3ec2fc7d7c1d150b16597d73776d837c5bd415c0def8e4174236a78"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/private_execution.rs",
+      "sha256": "9d4d41bcdebb834e45128bad728d1167f2c0856660608d4d44cd9f18678b82d6"
+    },
+    {
+      "path": "crates/ed25519-yao/Cargo.toml",
+      "sha256": "6e2de90c8834eae90ccf4ce07972115d95f32cd2f55153cea249cca74a9bbdfa"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/Cargo.toml",
+      "sha256": "d84aefc8d34b6ef48832052b65e3b16df62cc08e6b5073d15413202868e2c9ad"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/Cargo.toml",
+      "sha256": "38eab7d94b7cc6bdb1f7d5bc85b2162d8200b79e36538de692e2db36e38aba98"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/aes_hash.rs",
+      "sha256": "83a8b6d770609f58196c83ee98339db6fca60acf991ba929899d14cd8b4af585"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/aes_rng.rs",
+      "sha256": "479ece03e40c01b56ad7e1ccdf8a163b07bb2ce40b0449e84feb6be45febc2e8"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/alloc.rs",
+      "sha256": "f7c5b24240e553e35f9d9653fcc1efcb230899a1ad7d1e3b6643aef72255e5f9"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/block/gf128.rs",
+      "sha256": "c0962f7d3917ea6bb2ae815feaa063d2247c10445bb525b018a7f3f691b9e173"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/block.rs",
+      "sha256": "3ea68ebe37771ba561bb0388236dff10a5d243179e9d1703468b5c60b0996569"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/buf.rs",
+      "sha256": "007aa70e03ccc0f9222df19e2225b8834db2c32edc444ec3eae16b575e669c58"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/lib.rs",
+      "sha256": "4f19310f590dd25a33a28c71b4a954074a2cc3c4092e5cbcbfb2e4f7ee55a41b"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/rand_compat.rs",
+      "sha256": "baea498a26877b7674e290751283a2008b054e598e70bd51239267ecd9f546a7"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/random_oracle.rs",
+      "sha256": "5f7baf72377a3569323056d5865a9f85d0900603df78272d6f5b43aee2c365a7"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/tokio_rayon.rs",
+      "sha256": "e86de366ec6cbbeeccec4475fab8eeab07d3f07b53c1dcdd8649904ce755f496"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/transpose/avx2.rs",
+      "sha256": "80e48e3759945da5cf7f876ac102748dbc585c1ab2668eca7006938ecc3337e6"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/transpose/portable.rs",
+      "sha256": "76798582c64f36f5ab065163458680daf059673f39fdcb3ef4de8e9f69b2370a"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/transpose.rs",
+      "sha256": "2394e52997146ca83383155b8549d23ea7dc3e28f0cb061c8e812608283f94e7"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/utils.rs",
+      "sha256": "8c0cc3aca4061894f573e685fd27cbefd0176e38fd72e632b2711d2bd8f0d6fa"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/expander.rs",
+      "sha256": "7534c3d3d5011f551ff15c75217078d59ddba55e32ac55f00f7b140b76b0ba89"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/expander_modd.rs",
+      "sha256": "b3abfa1119ab50619f2c8015f406b854e036c711cac4da42a2616e4ef1f550c5"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng.rs",
+      "sha256": "11b3012b8fd6863997ecbe2eed9b8f03fc1e16f1bbcbb5fd3125cf51f6b82e46"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
+      "sha256": "0bdec4e4573b209d5f6c3935109dfd9b7881ed38cfb4115dfc91968a5c202efe"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/lib.rs",
+      "sha256": "2cbeac4cd661f53117ee495fa9871147748f441c8bc905082f69f6c96e86e635"
+    }
+  ],
+  "temporary_private_outputs_removed": true
+}

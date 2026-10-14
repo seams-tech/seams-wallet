@@ -109,6 +109,8 @@ The three batches require 227 dependent AND-layer exchanges: 168 for challenges,
 Additional exchanges bind the layout and request, reconstruct permitted outputs, and confirm completion.
 The layout agreement occurs before private preprocessing and rejects different ordered circuit lists.
 
+The earlier direct-OT comparison retains the following resource bounds.
+The active prepared signer now uses the silent backend described below.
 The 32-candidate norm batch has a maximum 495,616-byte opening.
 The larger private-transfer batch uses 16,384 choices, with fresh base transfers for every batch.
 The current byte-message format uses a 32,816-byte masked-payload frame and a 262,192-byte extension-matrix frame.
@@ -158,3 +160,24 @@ Both shared points, derived seeds, and retained offer scalars retain their exist
 This changes local arithmetic only. Base OTs remain fresh and their wire format remains unchanged.
 Independent source review and the existing OT checks pass. The complete native and local Worker signers also pass.
 This source review does not establish a generated-Wasm timing certification.
+
+## Silent correlations and GMW nonce preparation — October 15, 2026
+
+The [implemented prototype](ml-dsa-65-silent-prototype-report.md) keeps the same key and disclosure boundary.
+All five stages now consume distinct correlations from one reservation-bound stream.
+Nonce conversion and decomposition produce the same role-private masked outputs as the earlier Yao circuits.
+The stream clears each consumed entry, poisons interrupted generation, and wipes final padding on drop.
+
+The adapter uses fixed ExConv7x24 dimensions: 256 partitions, domain 4,096, four parallel trees, and 262,144 triples per chunk.
+A separate OT family, code 14, transfers 3,072 complete 128-bit messages through genuine fresh IKNP.
+It does not use the one-byte Boolean family for PPRF seeds.
+Both sender alternatives and receiver-selected blocks receive the required hashes before bit extraction.
+All sparse-vector coordinates participate in encoding.
+
+Receiver recovery uses public scans and arithmetic masks. The adapter retains owned wiping buffers across suspension points.
+Independent source review found no blocker to disposable hosted measurements in the passive model.
+The targeted Wasm review confirms public operands at the three division/remainder sites and representative arithmetic receiver masking.
+It does not qualify all generated control flow, addresses, or V8 timing.
+
+Complete native signing precedes authorized canonical recovery. Hosted profiles include every exhaustion.
+No reusable production pool, automatic reservation rollover, or first-key activation measurement exists yet.

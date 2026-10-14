@@ -1,26 +1,22 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: production integration paused for the five-second performance target, 2026-10-14.
+Status: production integration paused for the five-second product target, 2026-10-15.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The user explicitly retained canonical export after the lower-bandwidth protocol review.
-The [lower-communication plan](ml-dsa-65-low-communication-plan.md) defines the next prototype.
-It prioritizes bounded silent-OT binary triples, GMW nonce preparation, and independent four- or eight-candidate reservations.
-Native primitive measurements and complete-signer projections remain separate. No silent-OT Worker signer is implemented yet.
-The [current performance report](ml-dsa-65-resident-prepared-performance.md) supersedes the earlier latency checkpoints below.
-Prepared key generation now completes all nine hosted requests below five seconds, including warm-up and a genuine SHAKE continuation.
-The eight measured requests take 1.129–2.003 seconds, with a 1.308-second median.
-This requires the first table group resident before readiness. Readiness takes 37.015–51.875 seconds.
-All canonical wallet-seed recovery identities remain correct.
-Prepared signing moves mask generation and commitment decomposition before message arrival.
-Public response reconstruction, correction checks, and hints follow successful secret bounds outside secure computation.
-Packed GMW replaces online garbling for the remaining private challenge and bound circuits.
-Two of three hosted four-candidate requests produce signatures in about 0.29 seconds; the third exhausts its pool.
-The 32-candidate signer completes one hosted signature in 0.469 seconds after 429.266 seconds of preparation.
-The next request fails during online signing. The user rejected its roughly 1.4 GB recurring preparation cost.
-This design remains a latency reference and is excluded from selection.
-The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) defines the disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
-Cold-pool behavior, durable one-use admission, first-signature readiness, interruptions, concurrency, and deployed tail latency remain required work.
-Production integration stays paused until these conditions are qualified.
+The [silent-correlation prototype report](ml-dsa-65-silent-prototype-report.md) records the latest implementation and hosted profiles.
+Prepared canonical key creation takes 0.914–1.604 seconds in four hosted requests, including a real sampler continuation.
+Four-candidate signing produces three signatures in 0.197–1.116 seconds and three exhausted requests.
+Eight-candidate signing produces five signatures in 0.202–0.569 seconds and one exhausted request.
+Preparation/readiness takes 40.9–68.3 seconds for four candidates and 86.6–158.3 seconds for eight.
+Successful reservation payloads total 6.89 MB and 12.22 MB respectively, excluding initial key creation and transport envelopes.
+The earlier 7–8 MB model uses a different correlation bootstrap and does not price this implementation.
+
+Silent correlations now support nonce conversion, private commitment decomposition, hashing, and bounds in GMW.
+Canonical key generation remains prepared half-gates. The user-rejected 1.4 GB design is excluded from selection.
+The next prototype must separate key-independent preparation from key activation and consume multiple independent ready reservations.
+A first usable signer, empty-pool behavior, durable admission, replenishment, interruptions, concurrency, and production tail latency remain unqualified.
+These small campaigns do not establish a successful-signing percentile or a product-ready service.
+The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) records the disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
+Earlier dated checkpoints below retain their original measurements.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.

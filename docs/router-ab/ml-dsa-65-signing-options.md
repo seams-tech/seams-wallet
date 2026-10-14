@@ -1,11 +1,12 @@
 # ML-DSA-65 signing options after private key generation
 
-Updated October 14, 2026. This assessment selects no production protocol.
+Updated October 15, 2026. This assessment selects no production protocol.
 Keep the uniformly masked canonical key format in the [experiment contract](ml-dsa-65-experiment-contract.md).
 The user explicitly requires standard FIPS seed/key export.
 The [lower-communication plan](ml-dsa-65-low-communication-plan.md) supersedes the earlier performance priorities below.
 Current 32-candidate preparation is excluded because it transfers roughly 1.4 GB per request.
-The native silent-triple screen and small-reservation model define the next bounded prototype.
+The [silent prototype](ml-dsa-65-silent-prototype-report.md) now has complete hosted signing profiles.
+The next stage must validate generic preparation, first-key activation, and ready-pool behavior.
 The stock Mithril seed path fails canonical identity. Its native speed does not establish an eligible canonical signer.
 
 Every candidate must preserve the canonical public key from the hidden 32-byte FIPS seed `xi`.

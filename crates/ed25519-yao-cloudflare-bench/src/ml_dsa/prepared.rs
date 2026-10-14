@@ -107,7 +107,7 @@ pub(super) struct Adapter<'a> {
     phase: usize,
     counts: [Counts; 2],
     last_error: Option<String>,
-    boolean_preparations: usize,
+    boolean_binding_phases: usize,
     client_progress: Option<ClientProgress>,
 }
 impl Adapter<'_> {
@@ -118,7 +118,7 @@ impl Adapter<'_> {
             phase: 0,
             counts: Default::default(),
             last_error: None,
-            boolean_preparations: 0,
+            boolean_binding_phases: 0,
             client_progress: None,
         }
     }
@@ -129,9 +129,9 @@ impl Adapter<'_> {
             run_id: run_id.to_owned(),
         });
     }
-    pub(super) fn record_progress(&self, event: &str, instances_started: usize) {
+    pub(super) fn record_progress(&self, event: &str, binding_phases_started: usize) {
         let mut report = json!({
-            "event": event, "role": ROLE, "instances_started": instances_started,
+            "event": event, "role": ROLE, "binding_phases_started": binding_phases_started,
             "wasm_linear_memory_bytes": wasm_linear_memory_highwater_bytes(),
             "sent_bytes": self.counts[0].sent, "received_bytes": self.counts[0].received,
         });
@@ -292,7 +292,7 @@ async fn run_a(
         phase: 0,
         counts: Default::default(),
         last_error: None,
-        boolean_preparations: 0,
+        boolean_binding_phases: 0,
         client_progress: None,
     };
     let prepared = prepare_keygen(role(), &schedules, &mut adapter)
@@ -389,7 +389,7 @@ pub(super) async fn run_b(
         phase: 0,
         counts: Default::default(),
         last_error: None,
-        boolean_preparations: 0,
+        boolean_binding_phases: 0,
         client_progress: None,
     };
     let result = run_b_session(&book, &schedules, &mut adapter, colo).await;
@@ -484,11 +484,11 @@ impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> 
             phase,
             ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase::Preprocessing
         ) {
-            self.boolean_preparations += 1;
-            if self.boolean_preparations == 1 || self.boolean_preparations.is_multiple_of(64) {
+            self.boolean_binding_phases += 1;
+            if self.boolean_binding_phases == 1 || self.boolean_binding_phases.is_multiple_of(64) {
                 self.record_progress(
                     "ml-dsa-boolean-preparation-progress",
-                    self.boolean_preparations,
+                    self.boolean_binding_phases,
                 );
             }
         }

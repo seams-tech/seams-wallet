@@ -8,6 +8,9 @@
 /// Fresh GMW correlations with layer-batched online evaluation.
 pub mod prepared;
 
+/// Bounded silent-OT correlations for the prepared signer.
+pub mod silent;
+
 use core::{future::Future, mem::size_of};
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};

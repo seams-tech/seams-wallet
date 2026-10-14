@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes, createHash, createPublicKey, verify } from 'node:crypto';
 import { once, on } from 'node:events';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
@@ -196,7 +196,7 @@ async function sample(endpoint, token, fixture, schedules, operation) {
             ),
           );
           for (const field of [
-            'instances_started',
+            'binding_phases_started',
             'wasm_linear_memory_bytes',
             'sent_bytes',
             'received_bytes',
@@ -204,7 +204,7 @@ async function sample(endpoint, token, fixture, schedules, operation) {
             assert(Number.isSafeInteger(message[field]) && message[field] >= 0);
           const observed = {
             event: message.event,
-            instances_started: message.instances_started,
+            binding_phases_started: message.binding_phases_started,
             wasm_linear_memory_bytes: message.wasm_linear_memory_bytes,
             sent_bytes: message.sent_bytes,
             received_bytes: message.received_bytes,
@@ -212,7 +212,7 @@ async function sample(endpoint, token, fixture, schedules, operation) {
           };
           progress.push(observed);
           console.log(
-            `Fixture ${fixture.index}: ${message.event}, instances ${message.instances_started}, elapsed ${(observed.client_elapsed_ms / 1000).toFixed(1)} s`,
+            `Fixture ${fixture.index}: ${message.event}, binding phases ${message.binding_phases_started}, elapsed ${(observed.client_elapsed_ms / 1000).toFixed(1)} s`,
           );
           break;
         }
@@ -320,6 +320,16 @@ function missesDeadline(ms) {
 function underDeadline(ms) {
   return ms < 5000;
 }
+async function appendRustSources(directory, sources) {
+  const entries = await readdir(resolve(REPOSITORY, directory), { withFileTypes: true });
+  for (const entry of entries) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) await appendRustSources(path, sources);
+    else if (entry.name.endsWith('.rs')) {
+      sources.push({ path, sha256: digest(await readFile(resolve(REPOSITORY, path))) });
+    }
+  }
+}
 async function provenance() {
   const sources = [];
   for (const path of [
@@ -329,6 +339,14 @@ async function provenance() {
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/nonce.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs',
+    'crates/ed25519-yao/Cargo.toml',
+    'crates/ed25519-yao-cloudflare-bench/Cargo.lock',
+    'crates/ed25519-yao/vendor/cryprot-core/Cargo.toml',
+    'crates/ed25519-yao/vendor/cryprot-core/build.rs',
+    'crates/ed25519-yao/vendor/cryprot-codes/Cargo.toml',
     'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs',
     'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs',
     'crates/ed25519-yao/src/passive/ot.rs',
@@ -346,6 +364,9 @@ async function provenance() {
     'tools/ml-dsa-investigation/src/prepared_worker_fixtures.rs',
   ])
     sources.push({ path, sha256: digest(await readFile(resolve(REPOSITORY, path))) });
+  for (const name of ['cryprot-core', 'cryprot-codes']) {
+    await appendRustSources(`crates/ed25519-yao/vendor/${name}/src`, sources);
+  }
   const builds = [];
   for (const role of ['a', 'b']) {
     for (const name of ['index.js', 'index_bg.wasm']) {
@@ -368,7 +389,7 @@ function measurementScope(operation) {
     case 'signing':
       return 'Two separate Worker roles. A wallet-derived canonical key and twelve fresh Yao signing candidates precede readiness. The first table group is resident. Online time includes later reads, retries, protocol exchanges, and both Worker verifiers.';
     case 'gmw-signing':
-      return 'Two separate Worker roles. A wallet-derived canonical key, fresh nonce commitments, and private GMW correlations precede readiness. All candidates run in three online batches. No R2 table read occurs. Direct uniform nonce sampling replaces the FIPS hedged nonce procedure.';
+      return 'Two separate Worker roles. A wallet-derived canonical key, fresh nonce commitments, and silent-OT GMW correlations precede readiness. Nonce conversion and decomposition also use GMW. Each fixed chunk uses real full-block IKNP. The reported candidate count forms one consuming reservation. All candidates run in three online batches. No R2 table read occurs. Direct uniform nonce sampling replaces the FIPS hedged nonce procedure.';
     default:
       throw new Error('Unknown prepared operation');
   }

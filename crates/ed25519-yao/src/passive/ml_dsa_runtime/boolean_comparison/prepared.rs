@@ -1,6 +1,7 @@
 //! One-use GMW batches. Independent instances occupy lanes of u32 words.
 //! Each layer exchanges masked openings in a fixed public order.
 
+use super::silent::CorrelationStream;
 use super::*;
 
 struct Group<'a> {
@@ -51,11 +52,12 @@ pub struct BatchOutput {
     pub metrics: BatchMetrics,
 }
 
-/// Generates independent correlations through the existing bidirectional OT.
+/// Generates independent correlations through the consuming silent-OT stream.
 /// Equal schedules share public topology. Private bits remain independent lanes.
 pub async fn prepare_batch<'a>(
     role: SigningRole,
     schedules: &[&'a TrustedMlDsaSchedule<'a>],
+    correlations: &mut CorrelationStream,
     transport: &mut impl Transport,
 ) -> Result<PreparedGmwBatch<'a>> {
     check(
@@ -120,18 +122,15 @@ pub async fn prepare_batch<'a>(
         context.set_phase(Phase::Binding);
         instance.binding = bind(Engine::Gmw, group.schedule, &mut context).await?;
         context.set_phase(Phase::Preprocessing);
-        let correlations =
-            preprocess(Engine::Gmw, &group.topology, instance.binding, &mut context).await?;
-        let Correlations::Gmw(triples) = correlations else {
-            unreachable!("GMW-only preparation");
-        };
         let word = instance.lane / 32;
         let shift = instance.lane % 32;
-        for (gate, triple) in triples.iter().enumerate() {
+        for gate in 0..group.topology.and_gates.len() {
+            let mut triple = correlations.take(&mut context).await?;
             let index = gate * group.words + word;
-            group.left[index] |= u32::from(triple.left_mask) << shift;
-            group.right[index] |= u32::from(triple.right_mask) << shift;
-            group.products[index] |= u32::from(triple.product_share) << shift;
+            group.left[index] |= u32::from(triple[0]) << shift;
+            group.right[index] |= u32::from(triple[1]) << shift;
+            group.products[index] |= u32::from(triple[2]) << shift;
+            triple.zeroize();
         }
     }
     Ok(PreparedGmwBatch {

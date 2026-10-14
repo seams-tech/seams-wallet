@@ -243,6 +243,18 @@ impl OtFamily for MlDsaBooleanBatchOtFamily {
     const PAYLOAD_BYTES: usize = 1;
 }
 
+/// Full-block PPRF base correlations for the fixed silent-OT profile.
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
+#[derive(Debug)]
+pub(super) struct MlDsaSilentBaseOtFamily;
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
+impl sealed::Sealed for MlDsaSilentBaseOtFamily {}
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
+impl OtFamily for MlDsaSilentBaseOtFamily {
+    const CODE: u8 = 14;
+    const OT_COUNT: usize = 3_072;
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct PayloadPair {
     zero: [u8; LABEL_BYTES],

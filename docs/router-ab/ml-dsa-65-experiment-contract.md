@@ -1,13 +1,14 @@
 # ML-DSA-65 experiment contract
 
-Status: experimental canonical key generation, threshold signing, and authorized recovery. Reviewed October 14, 2026.
+Status: experimental canonical key generation, threshold signing, and authorized recovery. Reviewed October 15, 2026.
 This contract defines the current implementation boundaries in the
 [investigation plan](ml-dsa-65-investigation-plan.md).
 It defines experiment boundaries. Production integration is paused.
 Resident half-gates key generation remains the measured key-generation candidate.
-The current prepared GMW signer remains a latency reference because its recurring preparation exceeds the accepted bandwidth cost.
-The [lower-communication plan](ml-dsa-65-low-communication-plan.md) defines the next prototype.
-Canonical FIPS seed/key export remains required. Silent-OT integration and its additional LPN assumption remain under review.
+The [silent-correlation prototype](ml-dsa-65-silent-prototype-report.md) now produces complete native and hosted GMW signatures.
+Its current single reservations can exhaust, and first-signature preparation remains too slow for registration.
+The next prototype needs generic preparation, key activation, and multiple ready reservations.
+Canonical FIPS seed/key export remains required. The experimental silent backend adds LPN. Production qualification remains open.
 
 ## Canonical key identity
 
@@ -363,8 +364,8 @@ The SDK provides conversion from a full key to its handle.
 | Prepared half-gates signing                  | Hosted comparison misses target      | Retained as a comparison baseline                                                           |
 | Full Yao                                     | Resource comparison                  | Exact complete circuit cost                                                                 |
 | Three-halves garbling                        | Alternative                          | Implementation, security parameters, CPU, and total traffic                                 |
-| Current prepared packed GMW signing          | Preparation cost rejected            | Retain as a latency reference                                                              |
-| GMW with silent triples and small reservations | Next bounded prototype               | Complete nonce conversion, constant-time Wasm, all recurring traffic, and hosted reliability |
+| Earlier prepared GMW with per-circuit OT     | Preparation cost rejected            | Retain historical evidence only                                                            |
+| GMW with silent triples and small reservations | Implemented and profiled              | Generic preparation, first-key activation, ready pools, target timing, and production reliability |
 | ABY2.0                                       | Earlier complete comparison retained | Separate prepared implementation and hosted comparison                                      |
 | Mithril with canonical-key sharing           | Stock seed path excluded             | Private canonical conversion, short-share leakage, repeated recovery, and complete cost      |
 | Trilithium                                   | Alternative                          | Selected revision and a two-party replacement for its randomness provider                   |
@@ -379,8 +380,8 @@ The local reference timings cannot rank threshold protocols or predict Cloudflar
 
 ## Next executable step
 
-Follow the [bounded correlation prototype](ml-dsa-65-low-communication-plan.md#next-bounded-prototype).
+Follow the [next product prototype](ml-dsa-65-silent-prototype-report.md#required-next-prototype).
 Keep canonical key generation and the private commitment boundary unchanged.
-Measure complete nonce preparation and signing with fresh silent triples before another hosted campaign.
+Separate key-independent preparation from key-specific activation and measure first-signature readiness.
 Compare four- and eight-candidate reservations, including padding, retries, consumption, memory, and replenishment.
 Retain all failed requests and all recurring bytes.

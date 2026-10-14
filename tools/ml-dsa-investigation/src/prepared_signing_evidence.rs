@@ -156,7 +156,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                         .collect();
                     Ok(
                         json!({"status": "signed", "signature_hex": hex::encode(output.signature), "attempts": output.accepted_candidate,
-                        "evaluated_candidates": output.evaluated_candidates, "public_rejections": output.public_rejections, "batches": batches}),
+                        "evaluated_candidates": output.evaluated_candidates, "public_rejections": output.public_rejections, "batches": batches, "preparation_batches": output.preparation_batches.iter().map(crate::prepared_gmw_evidence::metrics).collect::<Vec<_>>()}),
                     )
                 }
                 Err(error) => Err(error),
@@ -211,7 +211,7 @@ pub(super) fn run_operation(
         ("half-gates", 1u16),
         ("half-gates", 24),
         ("gmw", 4),
-        ("gmw", 32),
+        ("gmw", 8),
     ]
     .into_iter()
     .enumerate()

@@ -108,3 +108,72 @@ Its expected attempt count and p99 reservation count are mathematical models.
 They do not establish measured service latency, reliability, or complete signing traffic.
 
 Do not hand-edit measured values. Rerun the relevant harness and retain new provenance.
+
+## Complete Rust and Worker prototype
+
+The [October 15 report](../../../docs/router-ab/ml-dsa-65-silent-prototype-report.md) contains the complete implementation and hosted results.
+The Rust adapter uses the pinned core/code dependencies under `crates/ed25519-yao/vendor`.
+It uses real full-block IKNP, fixed PPRF dimensions, and a consuming correlation stream.
+Its 262,464-byte chunk cost supersedes the earlier libOTe chunk forecast for this implementation.
+
+From the repository:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  silent-correlations /private/tmp/ml-dsa-silent-correlations.json
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  prepared-keygen /private/tmp/ml-dsa-silent-complete.json
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  prepared-gmw /private/tmp/ml-dsa-silent-mixed.json
+```
+
+The first command uses separate role processes and reconstructs disposable correlations only after timing.
+It checks every triple, a shared AND, directional counts, and a mismatched reservation.
+The complete command verifies threshold signatures before authorized canonical recovery.
+Its GMW controls use four and eight candidates. An exhausted reservation is a recorded unsuccessful request.
+
+Build both Worker roles with the [pinned Wasm helper](../../../docs/router-ab/ml-dsa-65-prepared-hosted-report.md#reproduce-the-worker-campaign).
+Then inspect the exact bundles and run the local control:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  inspect-silent-wasm /private/tmp/ml-dsa-silent-wasm.json
+node crates/ed25519-yao-cloudflare-bench/scripts/run_prepared_keygen.mjs \
+  --operation gmw-signing --local --indices 0,1,2 --output /private/tmp/ml-dsa-silent-local.json
+```
+
+The Wasm command records selected function bodies and the containing async caller.
+It retains divisions, branches, selections, and indirect calls for data-flow review.
+The separate secret-arithmetic inspection retains its strict division and indirect-call checks.
+An instruction inventory alone proves no timing property.
+
+The current Worker benchmark uses four candidates per reservation.
+The eight-candidate hosted control changed only that public capacity before rebuilding and deploying both roles.
+Record source/build hashes and deployment versions for every control.
+Use temporary Workers, a private temporary bucket, and a benchmark-only route token.
+After the campaign, confirm every cleanup acknowledgment and remove its cloud resources.
+
+Capture runtime traces privately. This collector retains only selected public fields:
+
+```sh
+python3 tools/ml-dsa-investigation/research/collect_worker_traces.py \
+  /private/tmp/tail-a.jsonl /private/tmp/tail-b.jsonl /private/tmp/public-traces.json
+```
+
+Remove raw traces and the token after preserving the sanitized artifact and confirming resource cleanup.
+Cloudflare can redact query request IDs. The product summary therefore matches aggregate operation/version counts.
+Reproduce the retained summary with:
+
+```sh
+python3 tools/ml-dsa-investigation/research/summarize_silent_prototype.py \
+  --four docs/evidence/ml-dsa-65-silent-four-worker-hosted-20261015.json \
+  --eight docs/evidence/ml-dsa-65-silent-eight-worker-hosted-20261015.json \
+  --keygen docs/evidence/ml-dsa-65-silent-keygen-worker-hosted-20261015.json \
+  --traces docs/evidence/ml-dsa-65-silent-worker-traces-20261015.json \
+  --four-versions 2b453983-71b2-4f46-845f-f97dc9702b4d b92763b2-bc83-479c-b94f-a398530cc1cf \
+  --eight-versions 21436376-aec4-4329-a716-8561aa67b2b6 0b3cd47b-d198-4e2b-9db2-8126f10d8460 \
+  --output /private/tmp/ml-dsa-silent-summary.json
+```
+
+The summary excludes exhausted requests from successful-signature latency statistics.
+It includes their CPU cost when computing the observed cost per verified signature.
