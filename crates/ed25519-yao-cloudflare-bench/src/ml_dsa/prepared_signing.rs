@@ -166,6 +166,13 @@ async fn prepare<'a>(
             "Signing fixture differs from canonical wallet recovery.",
         ));
     }
+    worker::console_log!(
+        "{}",
+        json!({
+            "event": "ml-dsa-signing-key-ready", "role": ROLE,
+            "wasm_linear_memory_bytes": wasm_linear_memory_highwater_bytes(),
+        })
+    );
     let own = OwnSigningShare::parse(&key.own_material).map_err(runtime_failure)?;
     let reservation = Reservation {
         id: Sha256::digest(run_id.as_bytes()).into(),

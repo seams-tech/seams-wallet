@@ -1,7 +1,7 @@
 {
   "schema": "seams.ml-dsa-prepared-worker-traces.v1",
-  "created_at": "2026-10-14T11:36:25.248758+00:00",
-  "scope": "Whole invocation CPU and wall time include preparation, online work, and cleanup. Request headers, URLs, logs, and credentials excluded.",
+  "created_at": "2026-10-14T11:57:16.743642+00:00",
+  "scope": "Whole invocation CPU and wall time include preparation, online work, and cleanup. Request headers, URLs, credentials, and unselected logs excluded. Public stage counters do not measure total hosted memory.",
   "records": [
     {
       "role": "a",
@@ -11,7 +11,8 @@
       "cpu_ms": 14619,
       "wall_ms": 52872,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -21,7 +22,8 @@
       "cpu_ms": 9277,
       "wall_ms": 40157,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -31,7 +33,8 @@
       "cpu_ms": 9972,
       "wall_ms": 43115,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -41,7 +44,8 @@
       "cpu_ms": 10,
       "wall_ms": 10,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -51,7 +55,8 @@
       "cpu_ms": 36982,
       "wall_ms": 106744,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -61,7 +66,8 @@
       "cpu_ms": 37098,
       "wall_ms": 114086,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -71,7 +77,8 @@
       "cpu_ms": 44412,
       "wall_ms": 155094,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -81,7 +88,8 @@
       "cpu_ms": 35857,
       "wall_ms": 97806,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -91,7 +99,8 @@
       "cpu_ms": 35953,
       "wall_ms": 99008,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -122,7 +131,8 @@
           "name": "Error",
           "message": "internal error; reference = 90qjbm0qd3228cabfkopogbq"
         }
-      ]
+      ],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -132,7 +142,8 @@
       "cpu_ms": 8,
       "wall_ms": 8,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -142,7 +153,8 @@
       "cpu_ms": 9957,
       "wall_ms": 44189,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -152,7 +164,8 @@
       "cpu_ms": 9581,
       "wall_ms": 45641,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -162,7 +175,8 @@
       "cpu_ms": 9896,
       "wall_ms": 44973,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -172,7 +186,8 @@
       "cpu_ms": 9196,
       "wall_ms": 40924,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -182,7 +197,8 @@
       "cpu_ms": 9208,
       "wall_ms": 37820,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -192,7 +208,8 @@
       "cpu_ms": 9472,
       "wall_ms": 39764,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -202,7 +219,8 @@
       "cpu_ms": 9493,
       "wall_ms": 40015,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -212,7 +230,8 @@
       "cpu_ms": 14689,
       "wall_ms": 52957,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -222,7 +241,8 @@
       "cpu_ms": 9126,
       "wall_ms": 41892,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -232,7 +252,8 @@
       "cpu_ms": 14,
       "wall_ms": 14,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -242,7 +263,8 @@
       "cpu_ms": 70539,
       "wall_ms": 143359,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -252,7 +274,8 @@
       "cpu_ms": 73969,
       "wall_ms": 150286,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -262,7 +285,8 @@
       "cpu_ms": 70959,
       "wall_ms": 143481,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -272,7 +296,8 @@
       "cpu_ms": 14,
       "wall_ms": 15,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -303,7 +328,8 @@
           "name": "Error",
           "message": "internal error; reference = 7bgdsdqltomreso3rsc5i76d"
         }
-      ]
+      ],
+      "public_preparation_progress": []
     },
     {
       "role": "a",
@@ -313,7 +339,47 @@
       "cpu_ms": 17,
       "wall_ms": 18,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-fast-20261014-a",
+      "version": "8c6689c3-4aa7-4992-a091-a4265f59f1f9",
+      "event_timestamp_ms": 1791977751802,
+      "cpu_ms": 236884,
+      "wall_ms": 880973,
+      "outcome": "loadShed",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "internal error; reference = 5vbnges75o5tq58n3o65v6sh"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = cf3ilbamed611r8u6c376rme"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = euf3i591uf8m6n9kh72tc2fb"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = qoerchd7aaejhu02qt3uoi7n"
+        }
+      ],
+      "public_preparation_progress": []
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-fast-20261014-a",
+      "version": "b4ae7402-cc9d-4c02-a884-9e8a83144247",
+      "event_timestamp_ms": 1791978806094,
+      "cpu_ms": 14,
+      "wall_ms": 15,
+      "outcome": "ok",
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -323,7 +389,8 @@
       "cpu_ms": 7275,
       "wall_ms": 51724,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -333,7 +400,8 @@
       "cpu_ms": 4545,
       "wall_ms": 39415,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -343,7 +411,8 @@
       "cpu_ms": 4842,
       "wall_ms": 42379,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -353,7 +422,8 @@
       "cpu_ms": 34626,
       "wall_ms": 106000,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -363,7 +433,8 @@
       "cpu_ms": 38657,
       "wall_ms": 113389,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -373,7 +444,8 @@
       "cpu_ms": 48364,
       "wall_ms": 154236,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -383,7 +455,8 @@
       "cpu_ms": 32193,
       "wall_ms": 97192,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -393,7 +466,8 @@
       "cpu_ms": 34372,
       "wall_ms": 98254,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -403,7 +477,8 @@
       "cpu_ms": 30720,
       "wall_ms": 93651,
       "outcome": "canceled",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -413,7 +488,8 @@
       "cpu_ms": 4330,
       "wall_ms": 43393,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -423,7 +499,8 @@
       "cpu_ms": 4597,
       "wall_ms": 45007,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -433,7 +510,8 @@
       "cpu_ms": 4512,
       "wall_ms": 44278,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -443,7 +521,8 @@
       "cpu_ms": 4374,
       "wall_ms": 40203,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -453,7 +532,8 @@
       "cpu_ms": 4209,
       "wall_ms": 37174,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -463,7 +543,8 @@
       "cpu_ms": 4460,
       "wall_ms": 38839,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -473,7 +554,8 @@
       "cpu_ms": 4207,
       "wall_ms": 39328,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -483,7 +565,8 @@
       "cpu_ms": 7037,
       "wall_ms": 51404,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -493,7 +576,8 @@
       "cpu_ms": 4402,
       "wall_ms": 41054,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -503,7 +587,8 @@
       "cpu_ms": 71018,
       "wall_ms": 142616,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -513,7 +598,8 @@
       "cpu_ms": 74402,
       "wall_ms": 149697,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -523,7 +609,8 @@
       "cpu_ms": 71050,
       "wall_ms": 142833,
       "outcome": "ok",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
     },
     {
       "role": "b",
@@ -533,7 +620,36 @@
       "cpu_ms": 234935,
       "wall_ms": 471593,
       "outcome": "canceled",
-      "exceptions": []
+      "exceptions": [],
+      "public_preparation_progress": []
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-fast-20261014-b",
+      "version": "ea05d0a0-0425-4342-9c38-e210eef92fe5",
+      "event_timestamp_ms": 1791977752479,
+      "cpu_ms": 238839,
+      "wall_ms": 880187,
+      "outcome": "loadShed",
+      "exceptions": [
+        {
+          "name": "Error",
+          "message": "internal error; reference = 7ucit8ran6om3358s01405nh"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = 43kpkuff2j4lcamt6megvd29"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = 2deevqpfsp7fc3ht5f7j0gfq"
+        },
+        {
+          "name": "Error",
+          "message": "internal error; reference = b9h7guoglgmbhuc8hk8bre1e"
+        }
+      ],
+      "public_preparation_progress": []
     }
   ]
 }
