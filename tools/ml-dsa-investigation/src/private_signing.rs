@@ -328,12 +328,26 @@ fn run_role(
 ) -> InvestigationResult<()> {
     let role = execution.role();
     let started = Instant::now();
-    let material = Zeroizing::new(fs::read(own_material)?);
-    let own = OwnSigningShare::parse(&material)?;
-    drop(material);
     let public_key: [u8; PUBLIC_KEY_BYTES] = fs::read(public_key_path)?
         .try_into()
         .map_err(|_| "Signing public key has the wrong size.")?;
+    let material = match crate::material_storage_evidence::open(own_material, role, &public_key) {
+        Ok(material) => material,
+        Err(error) => {
+            fs::write(
+                result_path.with_extension("failure.json"),
+                serde_json::to_vec(&json!({
+                    "error": "MaterialOpen",
+                    "completed_private_circuits": 0,
+                    "non_circuit_sent_bytes": 0,
+                    "non_circuit_received_bytes": 0,
+                }))?,
+            )?;
+            return Err(error);
+        }
+    };
+    let own = OwnSigningShare::parse(&material)?;
+    drop(material);
     let operation: Operation = serde_json::from_slice(&fs::read(operation_path)?)?;
     require(
         matches!(execution, RoleExecution::Complete(_))

@@ -207,7 +207,34 @@ The artifact records source digests, exact schedules, wire counters, and role ti
 The extra circuit uses 37,056 AND gates and transfers 1,214,920 protocol bytes across both directions.
 It reveals no public seed bytes. Fifteen negative cases check protected delivery, manifest continuity, and custody-state boundaries.
 These host checks cover the native custody path. Browser exports and the typed custody-worker bridge now have the Chromium evidence below.
-Router admission, durable replay control, activation, storage, and the public signing route remain open.
+Router admission, durable replay control, activation, production storage adapters, and the public signing route remain open.
+
+### Encrypted role material
+
+The role-process harness now stores authenticated ciphertext for each signing share.
+A separate signing process opens that record with its own disposable wrapping seed.
+The harness keeps the expected ceremony context in a separate fixture file.
+These files have mode 0600 and remain temporary test inputs.
+Production must obtain the expected context from admitted, active state and keep wrapping seeds outside the material database.
+
+Run the complete custody campaign to repeat key generation, encrypted storage, process restart, threshold signing, and authorized recovery:
+
+```sh
+cargo run --release --locked --offline --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  wallet-recovery docs/evidence/ml-dsa-65-sealed-material-custody-e2e-20261014.json
+```
+
+Repeat the existing lifecycle and interoperability campaign with encrypted material:
+
+```sh
+cargo run --release --locked --offline --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  --samples 1 --garbled-samples 1 \
+  --output docs/evidence/ml-dsa-65-sealed-material-lifecycle-host-20261014.json
+```
+
+Each role records twelve rejection cases, fresh encryption, and rejection of an opposite-role file open.
+The artifact records source hashes, the executable hash, interoperable signatures, and removal of the temporary role files.
+The shared-host fixture does not establish production admission, storage isolation, durable activation, or rollback protection.
 
 ## Browser custody E2E
 
@@ -260,7 +287,8 @@ The core checks agreement on that identifier, public key, message, FIPS context,
 The exchange adds 73 bytes in each direction. Runtime reports count those bytes separately from accepted shares and signature return bytes.
 Five mismatch scenarios run separate role processes and require rejection before any private circuit completes.
 They check that neither role writes a signature result.
-This check establishes peer request agreement. Admission, transport authentication, and durable replay rejection remain deployment requirements.
+The public-key substitution fails during authenticated storage opening. The other four fields fail at the initial peer exchange.
+These checks establish stored-key binding and peer agreement. Admission, transport authentication, and durable replay rejection remain deployment requirements.
 Separate role processes use the same persistent role-local material files for these scenarios:
 
 1. A exits after the first private signing-mask circuit. Neither role returns a signature.

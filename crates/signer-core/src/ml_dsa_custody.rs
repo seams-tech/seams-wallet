@@ -4,6 +4,8 @@
 //! base-mode inputs provide confidentiality, not client authorization or replay
 //! control. Each holder must check its own admission before opening an input.
 
+pub mod material;
+
 use hpke_ng::{Aes256Gcm, DhKemX25519HkdfSha256, HkdfSha256, Hpke, Kem};
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use serde::{Deserialize, Serialize};
