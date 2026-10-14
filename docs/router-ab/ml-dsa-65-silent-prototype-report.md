@@ -91,7 +91,9 @@ These counters exclude initial fixture key creation and transport envelopes.
 The artifacts' raw transport counters retain those additional costs.
 The benchmark recreates its disposable key for each request. A product with an existing key should not repeat that work for every signature.
 Exhausted reservations still incur preparation and online costs.
-Thus 6.89 MB is the cost of a successful four-candidate reservation, not an average cost per eventual signature across retries.
+Thus 6.89 MB is the cost of a successful four-candidate reservation.
+Dividing all campaign payload, including exhaustion, by verified signatures gives **13.77 MB** for four candidates and **14.66 MB** for eight.
+These small-campaign averages exclude initial fixture key creation and envelopes. They are not production estimates.
 
 Both online profiles retain **227 dependent AND-layer exchanges**, plus bindings and outputs.
 The [four-candidate campaign](../evidence/ml-dsa-65-silent-four-worker-hosted-20261015.json) and [eight-candidate campaign](../evidence/ml-dsa-65-silent-eight-worker-hosted-20261015.json) include every request.
