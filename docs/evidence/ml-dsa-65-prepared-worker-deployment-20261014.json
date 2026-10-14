@@ -1,0 +1,60 @@
+{
+  "schema": "seams.ml-dsa-prepared-deployment.v1",
+  "captured_at": "2026-10-14T07:26:36.651203+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-prepared-20261014-a",
+      "deployment_id": "0ddba0b3-d9f4-4872-ad3d-da10273490bb",
+      "created_on": "2026-10-14T07:19:45.828524Z",
+      "versions": [
+        {
+          "version_id": "03533c4e-aa66-4753-8af1-65ed3bc7964f",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+          "bytes": 27791,
+          "sha256": "3bd32aa2272087cba6576da0316ba2e001e5a520162802cffe5b8d5d65e09297"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+          "bytes": 36403702,
+          "sha256": "badb54e7b85c8a2c5938f56473a38c98e52cfd96012820ff5ac201c9dc3701e1"
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-prepared-20261014-b",
+      "deployment_id": "763e79b8-7da2-4ba9-8b8b-e3379390bbdb",
+      "created_on": "2026-10-14T07:18:51.805278Z",
+      "versions": [
+        {
+          "version_id": "e23107eb-a78d-435a-b1a8-08f61cdb53cb",
+          "percentage": 100
+        }
+      ],
+      "modules": [
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+          "bytes": 26336,
+          "sha256": "717164c609c498f2ef32873d223b0e4cb1035b4c5537606ded7ee494df6ceb2c"
+        },
+        {
+          "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+          "bytes": 36330131,
+          "sha256": "b54d12c696f844cb9c886f0e5a53f4b6a1d4d750016cfb04fe0dbe3891401b0e"
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "bucket": "ml-dsa-prepared-20261014-tables",
+    "location_hint": "apac",
+    "public_access": false
+  },
+  "scope": "Temporary authenticated benchmark. Location hint and request colo do not establish actual physical storage or compute placement."
+}
