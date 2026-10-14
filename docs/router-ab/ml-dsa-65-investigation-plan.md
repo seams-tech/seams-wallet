@@ -2,15 +2,19 @@
 
 Status: production integration paused for the five-second performance target, 2026-10-14.
 Preprocessing is permitted. Wallet-seed recovery remains required.
-The [preprocessing prototype](ml-dsa-65-preprocessing-report.md) records the current experiment and its limits.
-The first [hosted prepared run](ml-dsa-65-prepared-hosted-report.md) misses the deadline: 12.65 seconds median across seven measured requests.
-The controlled larger-read follow-up records an 11.57-second median and seven further misses. Its mean does not improve.
-The [public-keygen review and implementation](ml-dsa-65-public-keygen-performance.md) reduce normal online work to 1.30 million AND gates.
-The hosted reduced protocol records 7.82 seconds median, including a real continuation case. All eight measured requests still miss five seconds.
-Bounded read-ahead reduces the hosted median to 4.81 seconds. Three of eight measured requests still exceed five seconds.
-The canonical wallet-seed recovery identities remain correct. Warm-up, continuation latency, and deadline margin remain open.
-Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
-Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery and native custody completion now pass separate-role host E2E checks. Production integration remains open.
+The [current performance report](ml-dsa-65-resident-prepared-performance.md) supersedes the earlier latency checkpoints below.
+Prepared key generation now completes all nine hosted requests below five seconds, including warm-up and a genuine SHAKE continuation.
+The eight measured requests take 1.129–2.003 seconds, with a 1.308-second median.
+This requires the first table group resident before readiness. Readiness takes 37.015–51.875 seconds.
+All canonical wallet-seed recovery identities remain correct.
+Prepared signing moves mask generation and commitment decomposition before message arrival.
+Public response reconstruction, correction checks, and hints follow successful secret bounds outside secure computation.
+Packed GMW replaces online garbling for the remaining private challenge and bound circuits.
+Two of three hosted four-candidate requests produce signatures in about 0.29 seconds; the third exhausts its pool.
+The complete 32-candidate signer passes native and local Worker E2E checks. Hosted setup qualification remains open.
+The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) defines the disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
+Cold-pool behavior, durable one-use admission, first-signature readiness, interruptions, concurrency, and deployed tail latency remain required work.
+Production integration stays paused until these conditions are qualified.
 Starting source and research review: 2026-10-05.
 
 Build the fastest practical 2-of-2 ML-DSA-65 signing library for the Wallet SDK on Cloudflare Router A/B.
@@ -58,13 +62,13 @@ Each participant retains 17,472 bytes of disposable seed, `K`, and polynomial sh
 The recipient's ordinary signatures verify. This early checkpoint establishes recovery.
 The later complete baseline below verifies threshold signatures before authorized recovery.
 
-| Complete private host key generation | Measured bytes |
-| --- | ---: |
-| Garbled AND tables | 118,728,192 |
-| A to B, including OT, input labels, frames, and output translations | 122,426,379 |
-| B to A, including OT and public results | 736,875 |
-| Both directions | 123,163,254 |
-| OT, already included in those directions | 2,129,280 |
+| Complete private host key generation                                | Measured bytes |
+| ------------------------------------------------------------------- | -------------: |
+| Garbled AND tables                                                  |    118,728,192 |
+| A to B, including OT, input labels, frames, and output translations |    122,426,379 |
+| B to A, including OT and public results                             |        736,875 |
+| Both directions                                                     |    123,163,254 |
+| OT, already included in those directions                            |      2,129,280 |
 
 The five observed key-generation runs took approximately 2.5–2.8 seconds each on the recorded native host.
 They include fresh OT for every circuit, process startup, and schedule loading.
@@ -77,9 +81,9 @@ The [hosted transport report](../evidence/ml-dsa-transport-hosted-20261013.json)
 It compares HTTP and WebSocket transfer through direct Service Bindings and a pair of probe wallet Durable Objects.
 The 128 KiB frame results at 64 MB show these medians:
 
-| Probe path | HTTP | WebSocket |
-| --- | ---: | ---: |
-| Direct Worker to Worker | 0.726 seconds | 0.341 seconds |
+| Probe path                                |          HTTP |     WebSocket |
+| ----------------------------------------- | ------------: | ------------: |
+| Direct Worker to Worker                   | 0.726 seconds | 0.341 seconds |
 | Through both probe wallet Durable Objects | 0.973 seconds | 1.134 seconds |
 
 Each transfer group contains five measured samples after one excluded warm-up.
@@ -122,12 +126,12 @@ Each kernel has five measured samples after one excluded warm-up.
 Both Workers check only their own public fixture inputs and expected outputs.
 The report checks equal execution bindings, exact runtime byte counts, and separate completion reports.
 
-| Private kernel | Hosted client median | Garbled table bytes |
-| --- | ---: | ---: |
-| Seed expansion | 264.2 ms | 1,210,368 |
-| One sampling polynomial | 1,122.5 ms | 9,619,968 |
-| One rounding polynomial | 350.7 ms | 1,949,696 |
-| One signing-mask polynomial | 906.3 ms | 7,116,800 |
+| Private kernel              | Hosted client median | Garbled table bytes |
+| --------------------------- | -------------------: | ------------------: |
+| Seed expansion              |             264.2 ms |           1,210,368 |
+| One sampling polynomial     |           1,122.5 ms |           9,619,968 |
+| One rounding polynomial     |             350.7 ms |           1,949,696 |
+| One signing-mask polynomial |             906.3 ms |           7,116,800 |
 
 These are individual kernel measurements. Summing their medians does not establish complete pipeline latency.
 The entry request reported NRT. This does not establish both Workers' physical location.
@@ -178,13 +182,13 @@ It exchanges accepted response and hint shares only after that bit permits relea
 The circuit loop supports up to 821 candidates and destroys rejected candidate shares before continuing.
 This implements the proposed public-challenge boundary. Its complete composition proof still needs independent review.
 
-| Baseline signing resource | Exact measured bytes |
-| --- | ---: |
-| Garbled tables for signing-seed setup | 1,193,984 |
-| Garbled tables per candidate | 81,345,984 |
-| Both directions per candidate, including fresh OT and frames | 91,498,125 |
-| Accepted-share exchange | 5,312 |
-| Standard signature return | 3,309 |
+| Baseline signing resource                                    | Exact measured bytes |
+| ------------------------------------------------------------ | -------------------: |
+| Garbled tables for signing-seed setup                        |            1,193,984 |
+| Garbled tables per candidate                                 |           81,345,984 |
+| Both directions per candidate, including fresh OT and frames |           91,498,125 |
+| Accepted-share exchange                                      |                5,312 |
+| Standard signature return                                    |                3,309 |
 
 The deterministic zero and incrementing fixtures each require five candidates.
 Their complete host operations each take approximately eight seconds on the recorded machine.
@@ -243,12 +247,12 @@ Both implementations reject changed messages, contexts, signatures, and public k
 A separate public-fixture recipient reproduces the same keys and signatures from reconstructed seeds.
 This verifies reference reproducibility. It does not implement confidential export or threshold execution.
 
-| Compiled hashing kernel | AND gates | Reusable slots | Estimated half-gate table bytes |
-| --- | ---: | ---: | ---: |
-| Full Keccak-f[1600] control | 38,400 | 1,984 | 1,228,800 |
-| Canonical seed expansion from XOR shares | 37,824 | 1,984 | 1,210,368 |
-| One 481-byte polynomial prefix | 152,584 | 5,248 | 4,882,688 |
-| Seed expansion plus eleven polynomial prefixes | 1,716,248 | Separate kernel schedules | 54,919,936 |
+| Compiled hashing kernel                        | AND gates |            Reusable slots | Estimated half-gate table bytes |
+| ---------------------------------------------- | --------: | ------------------------: | ------------------------------: |
+| Full Keccak-f[1600] control                    |    38,400 |                     1,984 |                       1,228,800 |
+| Canonical seed expansion from XOR shares       |    37,824 |                     1,984 |                       1,210,368 |
+| One 481-byte polynomial prefix                 |   152,584 |                     5,248 |                       4,882,688 |
+| Seed expansion plus eleven polynomial prefixes | 1,716,248 | Separate kernel schedules |                      54,919,936 |
 
 The hashing sum excludes the control circuit.
 Each kernel matches its independent hash implementation on public fixtures.
@@ -297,12 +301,12 @@ The p95 value is the time within which 95 percent of measured operations finish.
 Report median latency, sustained throughput, and resource use alongside it.
 Throughput means successful signatures per second.
 
-| Workload | Required comparison |
-| --- | --- |
-| Prepared material available | Rank complete signing latency, including admission, storage, transport, retries, and queue time. |
-| Prepared material exhausted | Measure signing latency with all required preprocessing on the request path. |
-| Sustained traffic | Measure the signing rate that both participants can maintain while replenishing prepared material. |
-| Key generation and recovery | Rank their complete latency separately. Preserve exact canonical key identity. |
+| Workload                    | Required comparison                                                                                |
+| --------------------------- | -------------------------------------------------------------------------------------------------- |
+| Prepared material available | Rank complete signing latency, including admission, storage, transport, retries, and queue time.   |
+| Prepared material exhausted | Measure signing latency with all required preprocessing on the request path.                       |
+| Sustained traffic           | Measure the signing rate that both participants can maintain while replenishing prepared material. |
+| Key generation and recovery | Rank their complete latency separately. Preserve exact canonical key identity.                     |
 
 Preprocessing creates secret material before the signing request.
 Specify a bounded pool and its replenishment policy for every result that uses prepared material.
@@ -358,16 +362,16 @@ Resolve the actual deployment from deployed artifacts before benchmarking. Do no
 Assess Container execution separately only if deployment evidence or an explicit scope decision requires it.
 Historical Worker/WebSocket measurements remain historical evidence, regardless of the selected runtime.
 
-| Area | Responsibility |
-| --- | --- |
-| Wallet SDK | Expose ML-DSA operations through existing wallet APIs. Authorize requests and verify public results. |
-| Gateway | Enforce identity, permissions, and allowance through existing admission paths. |
-| Router | Coordinate admitted operations and public lifecycle state. Hold no ML-DSA secret share. |
+| Area                 | Responsibility                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Wallet SDK           | Expose ML-DSA operations through existing wallet APIs. Authorize requests and verify public results.                   |
+| Gateway              | Enforce identity, permissions, and allowance through existing admission paths.                                         |
+| Router               | Coordinate admitted operations and public lifecycle state. Hold no ML-DSA secret share.                                |
 | Participants A and B | Execute separate protocol roles. Keep seed shares, signing shares, and preprocessing material in role-private storage. |
-| Rust protocol code | Own exact encodings, secret types, cryptographic operations, and session transitions. |
-| Cloudflare adapters | Own transport, persistence, Worker entrypoints, and platform integration. |
-| `seams-wallet` | Own the cryptographic library, SDK integration, Worker artifacts, and Wallet lifecycle contracts. |
-| `seams-monorepo` | Consume exact package releases. Own deployment targets and composed Console acceptance tests. |
+| Rust protocol code   | Own exact encodings, secret types, cryptographic operations, and session transitions.                                  |
+| Cloudflare adapters  | Own transport, persistence, Worker entrypoints, and platform integration.                                              |
+| `seams-wallet`       | Own the cryptographic library, SDK integration, Worker artifacts, and Wallet lifecycle contracts.                      |
+| `seams-monorepo`     | Consume exact package releases. Own deployment targets and composed Console acceptance tests.                          |
 
 Before integration, specify whether normal ML-DSA signing executes in the Deriver entrypoints or separate signing-role entrypoints.
 Preserve separate storage and credentials for A and B in either arrangement.
@@ -409,13 +413,13 @@ Secure two-party computation, abbreviated 2PC, lets both participants compute ov
 The key-generation engine and the signing protocol are separate choices.
 Their share formats must compose correctly.
 
-| Key-generation option | Investigation | Main question |
-| --- | --- | --- |
-| Full Yao | Compile an exact circuit and measure its size. Execute it only if the resource estimate is useful. | How much does local arithmetic save? |
-| Hybrid with current half-gates | Keep seed expansion and secret sampling in Yao. Compute public and linear operations locally on shares. | Can the existing runtime meet the target with limited changes? |
-| Hybrid with three-halves garbling | Substitute the published smaller garbling construction. Keep the same cryptographic functionality. | Does lower traffic compensate for extra computation and implementation work? |
-| Hybrid with GMW | Evaluate SHAKE through Boolean secret sharing. Use two-party preprocessing and local arithmetic shares. | Does lower traffic compensate for dependent communication steps? |
-| Hybrid with ABY2.0 | Evaluate its Boolean protocol and conversion costs against GMW. | Does its preprocessing model improve the complete operation? |
+| Key-generation option             | Investigation                                                                                           | Main question                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Full Yao                          | Compile an exact circuit and measure its size. Execute it only if the resource estimate is useful.      | How much does local arithmetic save?                                         |
+| Hybrid with current half-gates    | Keep seed expansion and secret sampling in Yao. Compute public and linear operations locally on shares. | Can the existing runtime meet the target with limited changes?               |
+| Hybrid with three-halves garbling | Substitute the published smaller garbling construction. Keep the same cryptographic functionality.      | Does lower traffic compensate for extra computation and implementation work? |
+| Hybrid with GMW                   | Evaluate SHAKE through Boolean secret sharing. Use two-party preprocessing and local arithmetic shares. | Does lower traffic compensate for dependent communication steps?             |
+| Hybrid with ABY2.0                | Evaluate its Boolean protocol and conversion costs against GMW.                                         | Does its preprocessing model improve the complete operation?                 |
 
 [Three-halves garbling](https://eprint.iacr.org/2021/749) reduces communication per AND gate with additional computation.
 [ABY2.0](https://encrypto.de/papers/PSSY21.pdf) provides a reference for Boolean sharing and mixed protocols.
@@ -424,13 +428,13 @@ Verify its dependencies against the selected runtime. Assess WASM portability se
 Its [README](https://github.com/encryptogroup/SEEC/blob/main/README.md) identifies native SIMD dependencies and marks the Silver silent-OT option insecure.
 Exclude that option. Pin the actual preprocessing backend before comparing its cost or security.
 
-| Signing option | Investigation | Decision condition |
-| --- | --- | --- |
-| General 2PC signing | Execute the standard signing operations over uniformly masked shares. Keep linear operations local. | Establish the reference for canonical keys and private execution. |
-| Mithril with canonical-key sharing | Execute its existing-key sharing procedure inside 2PC. Evaluate the resulting short shares. | Quantify privacy differences, security loss, refresh effects, and complete cost. |
-| Trilithium-based signing | Evaluate its arithmetic protocol and secure rounding operations. Replace provider-generated randomness with two-party preprocessing. | Account for the replacement's security argument and full resource cost. |
-| Native distributed key generation | Measure only as a comparison with canonical key generation. | Exclude from selection if ordinary key generation from `xi` cannot reproduce the key. |
-| New research candidates | Screen current publications before implementing another prototype. | Require standard verification, two-party execution, canonical-key support, and plausible resource use in the selected deployment. |
+| Signing option                     | Investigation                                                                                                                        | Decision condition                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| General 2PC signing                | Execute the standard signing operations over uniformly masked shares. Keep linear operations local.                                  | Establish the reference for canonical keys and private execution.                                                                 |
+| Mithril with canonical-key sharing | Execute its existing-key sharing procedure inside 2PC. Evaluate the resulting short shares.                                          | Quantify privacy differences, security loss, refresh effects, and complete cost.                                                  |
+| Trilithium-based signing           | Evaluate its arithmetic protocol and secure rounding operations. Replace provider-generated randomness with two-party preprocessing. | Account for the replacement's security argument and full resource cost.                                                           |
+| Native distributed key generation  | Measure only as a comparison with canonical key generation.                                                                          | Exclude from selection if ordinary key generation from `xi` cannot reproduce the key.                                             |
+| New research candidates            | Screen current publications before implementing another prototype.                                                                   | Require standard verification, two-party execution, canonical-key support, and plausible resource use in the selected deployment. |
 
 Review [Mithril](https://eprint.iacr.org/2026/013) using its canonical-key sharing analysis and the corresponding complete execution costs.
 The checked ePrint entry dates from January 2026 and supersedes 2025/1166.
@@ -448,11 +452,11 @@ Require a concrete implementation case for the selected Cloudflare runtime befor
 
 The review also identified these candidates and limits:
 
-| Candidate and checked revision | Status for this investigation |
-| --- | --- |
-| [Quorus](https://eprint.iacr.org/2025/1163), January 28, 2026 | Its reported instantiation requires an honest majority. Exclude that instantiation from the required two-party privacy profile. |
-| [TALUS v5](https://arxiv.org/abs/2603.22109v5), August 9, 2026 | Its distributed profile requires an honest majority. Its alternative adds trusted execution. The revision adds signing limits and addresses external cryptanalysis. Exclude its current profiles from direct selection. |
-| [Shamir Nonce DKG v6](https://arxiv.org/abs/2601.20917v6), March 3, 2026 | Its distributed profile requires two honest signers for mask hiding. Other profiles and aggregate-signature key privacy require further review. Keep outside the first prototype. |
+| Candidate and checked revision                                           | Status for this investigation                                                                                                                                                                                           |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Quorus](https://eprint.iacr.org/2025/1163), January 28, 2026            | Its reported instantiation requires an honest majority. Exclude that instantiation from the required two-party privacy profile.                                                                                         |
+| [TALUS v5](https://arxiv.org/abs/2603.22109v5), August 9, 2026           | Its distributed profile requires an honest majority. Its alternative adds trusted execution. The revision adds signing limits and addresses external cryptanalysis. Exclude its current profiles from direct selection. |
+| [Shamir Nonce DKG v6](https://arxiv.org/abs/2601.20917v6), March 3, 2026 | Its distributed profile requires two honest signers for mask hiding. Other profiles and aggregate-signature key privacy require further review. Keep outside the first prototype.                                       |
 
 An honest-majority assumption requires more than half the participants to remain uncorrupted.
 Two participants cannot satisfy that assumption while protecting secrets from either individual participant.
@@ -465,11 +469,11 @@ These calculations describe the hashing portion of a conservative key-generation
 They exclude sampling, conversions, inputs, outputs, and protocol framing.
 They are estimates, not measured results.
 
-| Method | Calculated hashing traffic | Accounting boundary |
-| --- | ---: | --- |
-| Current half-gates | 55.296 MB | Garbled AND tables |
-| Three-halves garbling | 42.552 MB | Bit-packed gate data under the published formula |
-| GMW with prepared Boolean triples | 0.864 MB | Online AND messages only |
+| Method                            | Calculated hashing traffic | Accounting boundary                              |
+| --------------------------------- | -------------------------: | ------------------------------------------------ |
+| Current half-gates                |                  55.296 MB | Garbled AND tables                               |
+| Three-halves garbling             |                  42.552 MB | Bit-packed gate data under the published formula |
+| GMW with prepared Boolean triples |                   0.864 MB | Online AND messages only                         |
 
 The calculation uses 45 Keccak permutations and 38,400 AND gates per permutation.
 It assumes 128-bit garbling labels and four SHAKE output blocks per secret polynomial.
@@ -515,10 +519,10 @@ Do not budget compression savings for pseudorandom garbled tables.
 - [ ] Confirm support for canonical existing keys without plaintext key import at either server.
 - [x] Pin an independent ML-DSA-65 implementation as the reference for public test seeds and signature verification.
 - [x] Specify the exact share format that the first signing prototype consumes from key generation.
-  The uniformly masked format passes complete host and deployed Worker signing before authorized test recovery.
+      The uniformly masked format passes complete host and deployed Worker signing before authorized test recovery.
 - [ ] Specify the admitted key-generation, signing, refresh, recovery, and export operations.
 - [x] Define the experimental roles' inputs, outputs, private material, permitted disclosures, and abort behavior.
-  The complete privacy argument and production persistence contract remain open.
+      The complete privacy argument and production persistence contract remain open.
 - [ ] Specify seed creation and retention, key identity checks, and recovery after permanent participant loss.
 - [ ] Choose the intended signing entrypoints and role-private persistence owners.
 - [x] Record provisional performance targets before selecting a protocol.
@@ -559,7 +563,7 @@ See [Service Bindings](https://developers.cloudflare.com/workers/runtime-apis/bi
 - [x] Verify exact coefficient values and order against the independent reference using public synthetic fixtures.
 - [x] Test fixed sampler exhaustion through controlled synthetic inputs without changing production bounds.
 - [x] Compare GMW on the same workload, including two-party preprocessing generation and all share conversions.
-  The complete native comparison also includes Boolean ABY2.0. Hosted alternative-engine measurements remain optional follow-up work.
+      The complete native comparison also includes Boolean ABY2.0. Hosted alternative-engine measurements remain optional follow-up work.
 
 Output: executable kernel measurements and a stage-by-stage resource breakdown.
 Exit condition: establish whether hashing, sampling, conversion, transport, or memory creates the largest cost.
@@ -576,7 +580,7 @@ Gate counts alone do not establish CPU cost or elapsed time.
 - [x] Compare regenerated public keys across independent standard implementations.
 - [x] Reconstruct the test seed only at the authorized export recipient and compare the complete ordinary expanded keypair.
 - [x] Verify role-local seed and signing material through the shared-core host and Worker harnesses.
-  This check supplies no shared-host operating-system isolation claim.
+      This check supplies no shared-host operating-system isolation claim.
 - [ ] Record separate timings for first use and repeated use of public matrix data.
 
 Output: complete key-generation measurements, public synthetic vectors, and exact share-format descriptions.
@@ -590,7 +594,7 @@ Advance the selected half-gates implementation. Retain it as the baseline for an
 - [x] Measure general 2PC signing with local linear operations on the host and deployed Workers.
 - [ ] Evaluate Mithril and Trilithium only after their share and preprocessing requirements are explicit.
 - [x] Keep rejected masks, commitments, responses, hints, and individual checks private in the baseline.
-  The baseline opens challenge hashes and one aggregate acceptance bit. Its composition argument still requires review.
+      The baseline opens challenge hashes and one aggregate acceptance bit. Its composition argument still requires review.
 - [x] Account for fresh randomness, retry counts, candidate selection, conversions, and final encoding in complete baseline runs.
 - [ ] Measure empty and prepared preprocessing pools separately.
 - [ ] Measure successful signatures across all attempts, including abandoned work.
@@ -598,7 +602,7 @@ Advance the selected half-gates implementation. Retain it as the baseline for an
 - [ ] Measure sustained signing with pool replenishment active and compare results after pool exhaustion.
 - [x] Verify threshold signatures with RustCrypto and OpenSSL, including altered-input rejection checks.
 - [x] Verify threshold signatures against the pinned NEAR verifier and a deployed NEAR transaction.
-  The October 14 testnet artifact uses separate local signing roles. The deployed Wallet route remains open.
+      The October 14 testnet artifact uses separate local signing roles. The deployed Wallet route remains open.
 - [ ] Evaluate repeated key sharing and refresh for any candidate with short shares.
 - [ ] Document the complete passive privacy argument, including permitted intermediate disclosures.
 
@@ -620,7 +624,7 @@ Add no unit tests or source-text guards for this investigation.
 
 - [ ] Generate a key, register it as a NEAR access key, and submit a threshold-signed transaction.
 - [x] Verify full-key and hashed-handle RPC behavior without assuming an Ed25519 implicit-account identifier.
-  Testnet access-key lists return handles. Single-key queries require full public keys.
+      Testnet access-key lists return handles. Single-key queries require full public keys.
 - [ ] Interrupt signing after nonce or preprocessing consumption. Restart through a fresh operation and verify the next signature.
 - [ ] Attempt signing with B unavailable. Verify terminal failure and safe subsequent operation.
 - [ ] Refresh signing shares. Verify the same public key and reject stale operation state.
@@ -640,7 +644,7 @@ Preserve the current domain contract when retiring stale fixtures.
 ### 7 Select and integrate the library
 
 - [x] Select one key-generation engine and one compatible signing protocol.
-  Half-gates is selected for both operations. Production qualification remains open.
+      Half-gates is selected for both operations. Production qualification remains open.
 - [ ] Select the fastest measured complete combination for the agreed signing workload.
 - [ ] Record the measured costs, privacy assumptions, unresolved limitations, and reasons for rejecting other options.
 - [ ] Implement the smallest Rust core and runtime interfaces that fit the selected protocol and deployment.

@@ -116,12 +116,8 @@ impl Circuit {
             Self::Signing(SigningKernel::CommitmentHighBits) => {
                 include_bytes!("../ml_dsa_schedules/commitment-high.bin")
             }
-            Self::Signing(SigningKernel::CommitmentHash) => {
-                include_bytes!("../ml_dsa_schedules/commitment-hash.bin")
-            }
-            Self::Signing(SigningKernel::ResponseCheck) => {
-                include_bytes!("../ml_dsa_schedules/response-check.bin")
-            }
+            Self::Signing(SigningKernel::CommitmentHash) => super::COMMITMENT_HASH_SCHEDULE,
+            Self::Signing(SigningKernel::ResponseCheck) => super::RESPONSE_CHECK_SCHEDULE,
             Self::Signing(SigningKernel::RowCheckAndHints) => {
                 include_bytes!("../ml_dsa_schedules/row-check.bin")
             }
@@ -444,7 +440,34 @@ async fn generate_key(
     transport: &mut Duplex<'_>,
     accounting: &mut Accounting,
 ) -> worker::Result<Box<KeygenOutput>> {
-    let mut keygen = begin_keygen(own_role(), own_seed_share).map_err(runtime_failure)?;
+    let keygen = begin_keygen(own_role(), own_seed_share).map_err(runtime_failure)?;
+    finish_keygen(keygen, schedules, transport, accounting).await
+}
+
+pub(super) async fn generate_wallet_key(
+    root: &[u8; 32],
+    schedules: &[TrustedMlDsaSchedule<'static>],
+    transport: &mut Duplex<'_>,
+) -> worker::Result<Box<KeygenOutput>> {
+    let wallet = ed25519_yao::ml_dsa_signing::wallet_seed::prepare_wallet_keygen(own_role(), root)
+        .map_err(runtime_failure)?;
+    let output = drive_runtime(
+        wallet
+            .begin(find_schedule(schedules, 0x91)?)
+            .map_err(runtime_failure)?,
+        transport,
+    )
+    .await?;
+    let (keygen, _) = wallet.accept(output).map_err(runtime_failure)?;
+    finish_keygen(keygen, schedules, transport, &mut Accounting::default()).await
+}
+
+async fn finish_keygen(
+    mut keygen: KeygenStep,
+    schedules: &[TrustedMlDsaSchedule<'static>],
+    transport: &mut Duplex<'_>,
+    accounting: &mut Accounting,
+) -> worker::Result<Box<KeygenOutput>> {
     loop {
         keygen = match keygen {
             KeygenStep::Circuit(request) => {
@@ -496,7 +519,7 @@ fn find_schedule<'a>(
     ))
 }
 
-fn verify_standard_signature(
+pub(super) fn verify_standard_signature(
     public_key: &[u8; PUBLIC_KEY_BYTES],
     message: &[u8; 32],
     signature: &[u8; SIGNATURE_BYTES],

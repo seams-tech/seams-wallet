@@ -127,7 +127,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "cases": cases,
         "limits": [
             "This experiment executes kernels, not a complete alternative ML-DSA key-generation or signing pipeline.",
-            "Existing 16-byte OT payloads intentionally remain in preprocessing costs. Packed-bit OT, silent OT, and reusable base OTs remain separate unmeasured alternatives.",
+            "Boolean preprocessing uses one-byte messages with full 128-bit OT security parameters. Packed-bit messages, silent OT, and reusable base OTs remain separate unmeasured alternatives.",
             "Every measured execution starts with an empty correlation pool. Recorded online phases consume freshly prepared correlations within that execution.",
             "No persistent preprocessing pool, sustained refill, preprocessing storage, target peak memory, or Cloudflare performance claim follows from these measurements.",
             "The public fixtures contain no wallet secrets. The new comparison engines require independent cryptographic review.",
@@ -343,7 +343,11 @@ fn run_role(
         preprocessing_bytes
             == output.metrics.preprocessing_batches
                 * 2
-                * (2 * 4144 + 48 + 128 * 512 + 48 + 4096 * 32),
+                * (2 * 4144
+                    + 48
+                    + 16 * boolean_comparison::CORRELATION_BATCH_BITS
+                    + 48
+                    + boolean_comparison::CORRELATION_BATCH_BITS * 2),
         "Complete fresh-base OT traffic differs from the fixed batch formula.",
     )?;
     let mut phases = serde_json::Map::new();

@@ -15,6 +15,12 @@ const BETA: u32 = 49 * 4;
 /// A fixed private component in the experimental signing composition.
 #[derive(Clone, Copy, Debug)]
 pub enum MlDsaSigningWorkloadV1 {
+    /// Prepare independently masked high and low commitment parts.
+    PreparedCommitment,
+    /// Check the shared low response after offline decomposition.
+    LowResponseCheck,
+    /// Reveal only the conjunction of the eleven private bounds.
+    BoundsDecision,
     /// Investigation only: convert fresh XOR-shared 20-bit mask coefficients.
     /// This is not the FIPS message-bound ExpandMask derivation.
     FreshMaskConversion,
@@ -36,6 +42,9 @@ impl MlDsaSigningWorkloadV1 {
     /// Returns the exact A input count.
     pub const fn garbler_input_bits(self) -> usize {
         match self {
+            Self::PreparedCommitment => 12800,
+            Self::LowResponseCheck => 5889,
+            Self::BoundsDecision => 1664,
             Self::FreshMaskConversion => 5120 + POLYNOMIAL_BITS,
             Self::SigningSeed => 1536,
             Self::CommitmentHighBits => 6912,
@@ -48,6 +57,8 @@ impl MlDsaSigningWorkloadV1 {
     /// Returns the exact B input count, including fixed zero padding.
     pub const fn evaluator_input_bits(self) -> usize {
         match self {
+            Self::PreparedCommitment | Self::LowResponseCheck => 5888,
+            Self::BoundsDecision => 1664,
             Self::FreshMaskConversion => 5120,
             Self::SigningSeed => 512,
             Self::CommitmentHighBits | Self::ResponseCheck => 5888,
@@ -59,6 +70,8 @@ impl MlDsaSigningWorkloadV1 {
     /// Returns B's complete output count.
     pub const fn output_bits(self) -> usize {
         match self {
+            Self::PreparedCommitment => 6912,
+            Self::LowResponseCheck | Self::BoundsDecision => 1,
             Self::FreshMaskConversion => POLYNOMIAL_BITS,
             Self::SigningSeed => 512,
             Self::CommitmentHighBits => 1024,
@@ -69,6 +82,9 @@ impl MlDsaSigningWorkloadV1 {
     }
     fn component(self) -> u8 {
         match self {
+            Self::PreparedCommitment => 0x96,
+            Self::LowResponseCheck => 0x97,
+            Self::BoundsDecision => 0x98,
             Self::FreshMaskConversion => 0x92,
             Self::SigningSeed => 0x8b,
             Self::CommitmentHighBits => 0x8c,
@@ -80,6 +96,9 @@ impl MlDsaSigningWorkloadV1 {
     }
     fn input_schema(self) -> &'static [u8] {
         match self {
+            Self::PreparedCommitment => b"ml-dsa65/prepared-commitment/input/v1:A:w[256]:residue23,high-mask[1024],low-mask[256]:residue23;B:w[256]:residue23:lsb0",
+            Self::LowResponseCheck => b"ml-dsa65/low-response/input/v1:A:r-tilde[256]:residue23,valid-mask[1];B:r-tilde[256]:residue23:lsb0",
+            Self::BoundsDecision => b"ml-dsa65/bounds/input/v1:A:valid-xor[11],zero-padding[1653];B:same:lsb0",
             Self::FreshMaskConversion => b"ml-dsa65/fresh-mask/input/v1:A:entropy-xor[5120],mask[256]:residue23;B:entropy-xor[5120]:lsb0",
             Self::SigningSeed => b"ml-dsa65/sign-seed/input/v1:A:K-xor[256],rnd-xor[256],public-mu[512],seed-mask[512];B:K-xor[256],rnd-xor[256]:lsb0",
             Self::CommitmentHighBits => b"ml-dsa65/high/input/v1:A:w[256]:residue23,high-mask[256]:uint4;B:w[256]:residue23:lsb0",
@@ -91,6 +110,9 @@ impl MlDsaSigningWorkloadV1 {
     }
     fn output_schema(self) -> &'static [u8] {
         match self {
+            Self::PreparedCommitment => b"ml-dsa65/prepared-commitment/output/v1:B:high-xor[1024],low-share[256]:residue23:lsb0",
+            Self::LowResponseCheck => b"ml-dsa65/low-response/output/v1:B:valid-xor[1]:lsb0",
+            Self::BoundsDecision => b"ml-dsa65/bounds/output/v1:public:accept[1]:lsb0",
             Self::FreshMaskConversion => {
                 b"ml-dsa65/fresh-mask/output/v1:B:y-share[256]:residue23-lsb0"
             }
@@ -141,6 +163,9 @@ pub fn compile_ml_dsa_private_signing_circuit_v1(
     let inputs = builder.input_bits();
     let (a, b) = inputs.split_at(workload.garbler_input_bits());
     let outputs = match workload {
+        MlDsaSigningWorkloadV1::PreparedCommitment => prepared_commitment(&mut builder, a, b),
+        MlDsaSigningWorkloadV1::LowResponseCheck => norm_check(&mut builder, a, b, GAMMA2 - BETA),
+        MlDsaSigningWorkloadV1::BoundsDecision => bounds_decision(&mut builder, a, b),
         MlDsaSigningWorkloadV1::FreshMaskConversion => {
             let mut stream = Vec::with_capacity(5120);
             for bit in 0..5120 {
@@ -219,10 +244,19 @@ fn response_check(
     a: &[BuilderBit],
     b: &[BuilderBit],
 ) -> Vec<BuilderBit> {
+    norm_check(builder, a, b, (1 << 19) - BETA)
+}
+
+fn norm_check(
+    builder: &mut CircuitBuilder,
+    a: &[BuilderBit],
+    b: &[BuilderBit],
+    bound: u32,
+) -> Vec<BuilderBit> {
     let mut valid = Vec::with_capacity(256);
     for coefficient in 0..256 {
         let value = sum_residue(builder, residue(a, coefficient), residue(b, coefficient));
-        valid.push(norm_below(builder, &value, (1 << 19) - BETA));
+        valid.push(norm_below(builder, &value, bound));
     }
     let all_valid = and_all(builder, valid);
     vec![builder.xor(all_valid, a[POLYNOMIAL_BITS])]
@@ -355,4 +389,41 @@ fn and_all(builder: &mut CircuitBuilder, mut values: Vec<BuilderBit>) -> Builder
         values = next;
     }
     values[0]
+}
+
+fn prepared_commitment(
+    builder: &mut CircuitBuilder,
+    a: &[BuilderBit],
+    b: &[BuilderBit],
+) -> Vec<BuilderBit> {
+    let mut highs = Vec::with_capacity(1024);
+    let mut lows = Vec::with_capacity(POLYNOMIAL_BITS);
+    for coefficient in 0..256 {
+        let value = sum_residue(builder, residue(a, coefficient), residue(b, coefficient));
+        let high = high_bits(builder, &value);
+        let low = low_bits(builder, &value, &high);
+        let (difference, negative) = subtract_bits(
+            builder,
+            &low,
+            residue(&a[POLYNOMIAL_BITS + 1024..], coefficient),
+        );
+        lows.extend(add_conditional_modulus(builder, &difference, negative));
+        for bit in 0..4 {
+            highs.push(builder.xor(high[bit], a[POLYNOMIAL_BITS + coefficient * 4 + bit]));
+        }
+    }
+    highs.extend(lows);
+    highs
+}
+
+fn bounds_decision(
+    builder: &mut CircuitBuilder,
+    a: &[BuilderBit],
+    b: &[BuilderBit],
+) -> Vec<BuilderBit> {
+    let mut validity = Vec::with_capacity(11);
+    for bit in 0..11 {
+        validity.push(builder.xor(a[bit], b[bit]));
+    }
+    vec![and_all(builder, validity)]
 }

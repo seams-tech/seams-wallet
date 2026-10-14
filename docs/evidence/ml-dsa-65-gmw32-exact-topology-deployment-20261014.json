@@ -1,0 +1,44 @@
+{
+  "schema": "seams.ml-dsa-exact-topology-deployment.v1",
+  "created_at": "2026-10-14T11:35:50.857130+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-fast-20261014-a",
+      "version": "8c6689c3-4aa7-4992-a091-a4265f59f1f9"
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-fast-20261014-b",
+      "version": "ea05d0a0-0425-4342-9c38-e210eef92fe5"
+    }
+  ],
+  "builds": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+      "bytes": 29148,
+      "sha256": "63bfecb927a45b1ed7babf1cbabfcd225640708c9383b5b35c05bf28efd0d0e6"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+      "bytes": 57136605,
+      "sha256": "a003c9162ea90308e5a2d06142f000052e06b46b27fe883811f0354ec700fcee"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+      "bytes": 27216,
+      "sha256": "0f5ae4002bce43b01c144b35bb227c7d65eb9305a7e6be3e627cc6ed93e152c4"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+      "bytes": 57048900,
+      "sha256": "f146ad75b3eceb18b823272d42f687608229b803378cafa720f1c8c67d5d76e7"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+      "sha256": "95c9caa113174efbef62c3cfaafd2bb9b35b4e1fd4623648291f68b770f770c1"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "schema": "seams.ml-dsa-resident-preparation-deployment.v1",
+  "created_at": "2026-10-14T09:59:17.634984+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-fast-20261014-a",
+      "version": "c9839ce3-d03e-439e-997d-1ae5e9f2ebcc"
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-fast-20261014-b",
+      "version": "51da9bed-8eb6-48fa-b49b-8f15c5c2420e"
+    }
+  ],
+  "builds": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+      "bytes": 29148,
+      "sha256": "63bfecb927a45b1ed7babf1cbabfcd225640708c9383b5b35c05bf28efd0d0e6"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+      "bytes": 56995506,
+      "sha256": "b5eff34c1e619b2fb050d97575f63d2d7c0b405f178380ae88e1fe7104d7f72b"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+      "bytes": 27216,
+      "sha256": "0f5ae4002bce43b01c144b35bb227c7d65eb9305a7e6be3e627cc6ed93e152c4"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+      "bytes": 56921925,
+      "sha256": "ad42e0e842931e587760399819855a2119416519b7e1c2b7b1f599a4ff7ba8ed"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared.rs",
+      "sha256": "c35f5a03be8d54f686ab80f2c82eae9423444d5511c661e1888add8caff23703"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_signing.rs",
+      "sha256": "25ae731b2bcfd9dbec2f01278b8122d81bdc04e0041d4d24c0df61cac691a683"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs",
+      "sha256": "17937f2bc3a6d37830b0ea3c46739e8fafd181073431f8f87b08c014d55ab5a6"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_storage.rs",
+      "sha256": "ee3259c9addded1e2cc3eb4ba31918bb50d34eb100b34ac41aeaeda48bdfdc7a"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs",
+      "sha256": "fe9b865c556d2d3ebbea1f9c2ba3f3a65fb9eaa2c3a6fb5c2126faae262164c8"
+    }
+  ]
+}

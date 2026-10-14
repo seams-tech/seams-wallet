@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, createPublicKey, verify } from 'node:crypto';
 import { once, on } from 'node:events';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -14,6 +14,7 @@ function parseOptions() {
   const args = process.argv.slice(2);
   const options = {
     local: false,
+    operation: 'keygen',
     endpoint: '',
     secretsFile: '',
     output: '',
@@ -22,6 +23,9 @@ function parseOptions() {
   while (args.length) {
     const argument = args.shift();
     switch (argument) {
+      case '--operation':
+        options.operation = args.shift();
+        break;
       case '--local':
         options.local = true;
         break;
@@ -41,6 +45,7 @@ function parseOptions() {
         throw new Error(`Unknown argument: ${argument}`);
     }
   }
+  assert(['keygen', 'signing', 'gmw-signing'].includes(options.operation));
   assert(options.output, 'An output path is required');
   assert(
     options.local || (options.endpoint && options.secretsFile),
@@ -54,10 +59,12 @@ function validIndex(index) {
 }
 async function localRuntime(token) {
   const { Miniflare, Log, LogLevel } = await import('miniflare');
+  const { unstable_readConfig } = await import('wrangler');
   const workers = [];
   for (const role of ['a', 'b']) {
-    const config = JSON.parse(
-      await readFile(resolve(ROOT, `wrangler.ml-dsa-prepared.${role}.jsonc`), 'utf8'),
+    const config = unstable_readConfig(
+      { config: resolve(ROOT, `wrangler.ml-dsa-prepared.${role}.jsonc`) },
+      { hideWarnings: true, preserveOriginalMain: true },
     );
     const services = {};
     for (const service of config.services ?? []) services[service.binding] = service.service;
@@ -134,12 +141,12 @@ function checkReport(report, fixture, schedules) {
   assert.equal(b.online.sent_messages, online.length * 2 + 1);
   assert.equal(a.online.sent_bytes, aBytes);
   assert.equal(b.online.sent_bytes, bBytes);
-  assert.equal(b.table_storage.objects_written, 35);
-  assert.equal(b.table_storage.objects_read, online.length);
+  assert.equal(b.table_storage.objects_written, 23);
+  assert.equal(b.table_storage.objects_read, online.length - 12);
+  assert.equal(b.table_storage.objects_read_before_admission, 1);
+  assert.equal(b.table_storage.objects_read_online, online.length - 13);
   assert.equal(b.table_storage.table_bytes_read, readBytes);
   assert.equal(b.table_storage.table_bytes_written, storedBytes);
-  assert.equal(b.table_storage.prefetch_started, 12);
-  assert.equal(b.table_storage.prefetch_hits, 12);
 }
 function matchesSchedule(name, schedule) {
   return schedule.schedule_filename === `${name}.bin`;
@@ -157,11 +164,11 @@ async function closeCleanly(socket, diagnostic) {
   }
   assert.equal(diagnostic.code, 1000, 'Worker close code was not observed');
 }
-async function sample(endpoint, token, fixture, schedules) {
+async function sample(endpoint, token, fixture, schedules, operation) {
   const runId = randomBytes(16).toString('hex');
   const url = new URL('/benchmark', endpoint);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  url.searchParams.set('kernel', 'prepared-keygen');
+  url.searchParams.set('kernel', `prepared-${operation}`);
   url.searchParams.set('run_id', runId);
   const started = performance.now();
   const socket = new WebSocket(url, {
@@ -170,7 +177,7 @@ async function sample(endpoint, token, fixture, schedules) {
   });
   const closed = { code: null, reason: '' };
   socket.once('close', recordClose.bind(null, closed));
-  const events = on(socket, 'message', { signal: AbortSignal.timeout(360000), close: ['close'] });
+  const events = on(socket, 'message', { signal: AbortSignal.timeout(900000), close: ['close'] });
   let state = { kind: 'preparing' };
   try {
     await once(socket, 'open');
@@ -194,7 +201,8 @@ async function sample(endpoint, token, fixture, schedules) {
         case 'complete': {
           assert.equal(state.kind, 'online');
           const onlineMs = performance.now() - state.started;
-          checkReport(message, fixture, schedules);
+          if (operation === 'keygen') checkReport(message, fixture, schedules);
+          else checkSigningReport(message, fixture, schedules);
           state = {
             kind: 'cleaning',
             result: {
@@ -204,6 +212,7 @@ async function sample(endpoint, token, fixture, schedules) {
               client_ready_ms: state.clientReadyMs,
               client_online_ms: onlineMs,
               under_five_seconds: onlineMs < 5000,
+              successful: operation === 'keygen' || message.roles.a.status === 'signed',
               ready: state.ready,
               report: message,
             },
@@ -237,17 +246,32 @@ function numericOrder(a, b) {
 }
 function summary(samples) {
   const values = samples.filter(measured).map(onlineTime).sort(numericOrder);
-  if (!values.length) return { measured_samples: 0 };
+  const allRequests = {
+    total_completed_requests_including_warmup: samples.length,
+    total_unsuccessful_requests_including_warmup: samples.filter(unsuccessful).length,
+    all_completed_requests_succeeded_within_five_seconds:
+      samples.length > 0 && samples.every(successWithinDeadline),
+  };
+  if (!values.length) return { ...allRequests, measured_samples: 0 };
   const middle = Math.floor(values.length / 2);
   const median = values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
   return {
+    ...allRequests,
     measured_samples: values.length,
+    unsuccessful_requests: samples.filter(measured).filter(unsuccessful).length,
+    all_successful_under_five_seconds: samples.filter(measured).every(successWithinDeadline),
     median_ms: median,
     minimum_ms: values[0],
     maximum_ms: values.at(-1),
     deadline_misses: values.filter(missesDeadline).length,
     all_observed_under_five_seconds: values.every(underDeadline),
   };
+}
+function unsuccessful(sample) {
+  return !sample.successful;
+}
+function successWithinDeadline(sample) {
+  return sample.successful && sample.under_five_seconds;
 }
 function measured(sample) {
   return !sample.warmup;
@@ -266,6 +290,15 @@ async function provenance() {
   for (const path of [
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa.rs',
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared.rs',
+    'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_signing.rs',
+    'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs',
+    'crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs',
+    'crates/ed25519-yao/src/passive/ot.rs',
+    'tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs',
+    'tools/ml-dsa-investigation/src/prepared_signing_evidence.rs',
     'crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_storage.rs',
     'crates/ed25519-yao-cloudflare-bench/scripts/run_prepared_keygen.mjs',
     'crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa-prepared.a.jsonc',
@@ -293,6 +326,18 @@ async function provenance() {
   }
   return { sources, builds, fixtures, node: process.version };
 }
+function measurementScope(operation) {
+  switch (operation) {
+    case 'keygen':
+      return 'Two separate Worker roles. Thirty-five prepared circuits in twenty-three grouped R2 objects. The first table group is resident before readiness; fallback reads remain online.';
+    case 'signing':
+      return 'Two separate Worker roles. A wallet-derived canonical key and twelve fresh Yao signing candidates precede readiness. The first table group is resident. Online time includes later reads, retries, protocol exchanges, and both Worker verifiers.';
+    case 'gmw-signing':
+      return 'Two separate Worker roles. A wallet-derived canonical key, fresh nonce commitments, and private GMW correlations precede readiness. All candidates run in three online batches. No R2 table read occurs. Direct uniform nonce sampling replaces the FIPS hedged nonce procedure.';
+    default:
+      throw new Error('Unknown prepared operation');
+  }
+}
 async function main() {
   const options = parseOptions();
   const token = options.local
@@ -305,7 +350,8 @@ async function main() {
     await readFile(resolve(ROOT, 'src/ml_dsa_schedules/prepared-client.json'), 'utf8'),
   );
   const artifact = {
-    schema: 'seams.ml-dsa-prepared-keygen-worker.v1',
+    schema: `seams.ml-dsa-prepared-${options.operation}-worker.v1`,
+    operation: options.operation,
     created_at: new Date().toISOString(),
     environment: options.local ? 'local-workerd' : 'hosted-cloudflare',
     endpoint,
@@ -317,10 +363,9 @@ async function main() {
     public_schedules: oracle.schedules,
     samples: [],
     failures: [],
-    scope:
-      'Two separate Worker roles. Fresh input-independent preprocessing, thirty-five R2 object writes including all fallback branches, then a client-controlled online request with streamed R2 reads for the used branches and public Power2Round. Each deployed bundle receives only its own root shares.',
+    scope: measurementScope(options.operation),
     limits: [
-      'Client online time includes the start message, R2 reads, protocol exchanges, and the returned public key. Offline preparation and cleanup are separate.',
+      'Yao loads its first fresh table group before admission. GMW prepares fresh private correlations and retains packed shares. Readiness includes this work. Online time includes input delivery, dependent exchanges, later Yao table reads, retries, verification, and completion. Cold or empty pools have no five-second success claim.',
       'Native fixture generation derives owner roots from known disposable wallet seeds. Workers receive only their root shares and execute root-to-canonical-key derivation. Production custody envelopes, admission, durable activation, and pool restart are not implemented.',
       'Cf colo fields describe request metadata. They do not independently establish each physical compute or storage placement.',
       'These samples establish observed latency only. They are not a production percentile or successful-signature deadline guarantee.',
@@ -329,7 +374,7 @@ async function main() {
   try {
     const unauthorized = await fetch(
       new URL(
-        '/benchmark?kernel=prepared-keygen&run_id=00000000000000000000000000000000',
+        `/benchmark?kernel=prepared-${options.operation}&run_id=00000000000000000000000000000000`,
         endpoint,
       ),
     );
@@ -337,7 +382,11 @@ async function main() {
     artifact.unauthorized_request_rejected = true;
     for (const index of options.indices) {
       try {
-        const result = await sample(endpoint, token, oracle.cases[index], oracle.schedules);
+        const fixture =
+          options.operation === 'keygen' ? oracle.cases[index] : { ...oracle.cases[0], index };
+        const schedules =
+          options.operation === 'keygen' ? oracle.schedules : oracle.signing_schedules;
+        const result = await sample(endpoint, token, fixture, schedules, options.operation);
         artifact.samples.push(result);
         console.log(
           `Fixture ${index}: online ${result.client_online_ms.toFixed(1)} ms, ready ${result.client_ready_ms.toFixed(1)} ms`,
@@ -369,5 +418,78 @@ function matchesFirst(first, current) {
     first.report.roles.a.public_key_hex === current.report.roles.a.public_key_hex &&
     first.report.roles.a.key_manifest_digest_hex === current.report.roles.a.key_manifest_digest_hex
   );
+}
+function sumBatchLayers(total, batch) {
+  return total + batch.and_exchanges;
+}
+function matchesSigningSchedule(name, record) {
+  return record.name === name;
+}
+function checkSigningReport(report, fixture, schedules) {
+  const { a, b } = report.roles;
+  for (const field of ['status', 'signature_hex', 'attempts', 'message_hex', 'public_key_hex'])
+    assert.equal(a[field], b[field]);
+  assert.equal(a.public_key_hex, fixture.public_key_hex);
+  assert.equal(a.canonical_key_verified, true);
+  assert.equal(b.canonical_key_verified, true);
+  for (const phase of ['online', 'offline']) {
+    assert.equal(a[phase].sent_bytes, b[phase].received_bytes);
+    assert.equal(b[phase].sent_bytes, a[phase].received_bytes);
+  }
+  if (a.engine === 'gmw') {
+    assert.equal(b.engine, 'gmw');
+    assert.equal(a.table_storage, null);
+    assert.equal(b.table_storage, null);
+    if (a.status === 'signed') {
+      assert.equal(a.evaluated_candidates, a.pool_capacity);
+      assert.equal(b.evaluated_candidates, b.pool_capacity);
+      assert.equal(a.gmw_batches.reduce(sumBatchLayers, 0), 227);
+      assert.equal(b.gmw_batches.reduce(sumBatchLayers, 0), 227);
+      for (let batch = 0; batch < 3; batch += 1) {
+        for (let phase = 0; phase < 6; phase += 1) {
+          const left = a.gmw_batches[batch].phases[phase];
+          const right = b.gmw_batches[batch].phases[phase];
+          assert.equal(left.sent_bytes, right.received_bytes);
+          assert.equal(right.sent_bytes, left.received_bytes);
+        }
+      }
+    }
+  } else {
+    assert.equal(b.table_storage.objects_written, b.pool_capacity);
+    assert.equal(b.table_storage.objects_read, b.attempts);
+    assert.equal(b.table_storage.objects_read_before_admission, 1);
+    assert.equal(b.table_storage.objects_read_online, b.attempts - 1);
+    let candidateBytes = 0;
+    for (const [name, count] of [
+      ['commitment-hash', 1],
+      ['response-check', 5],
+      ['low-response-check', 6],
+      ['bounds-decision', 1],
+    ]) {
+      const record = schedules.find(matchesSigningSchedule.bind(null, name));
+      assert(record);
+      const tables = record.and_gates * 32;
+      candidateBytes += count * (tables + 8 * Math.ceil(tables / 65536));
+    }
+    assert.equal(b.table_storage.table_bytes_read, candidateBytes * b.attempts);
+  }
+  if (a.status === 'exhausted') {
+    assert.equal(a.signature_hex, undefined);
+    assert.equal(a.attempts, a.pool_capacity);
+    return;
+  }
+  assert.equal(a.status, 'signed');
+  assert.equal(a.standard_signature_verified, true);
+  assert.equal(b.standard_signature_verified, true);
+  const bytes = Buffer.from(a.public_key_hex, 'hex');
+  const prefix = Buffer.from('308207b2300b0609608648016503040312038207a100', 'hex');
+  const key = createPublicKey({ key: Buffer.concat([prefix, bytes]), type: 'spki', format: 'der' });
+  const message = Buffer.from(a.message_hex, 'hex');
+  const signature = Buffer.from(a.signature_hex, 'hex');
+  assert.equal(signature.length, 3309);
+  assert.equal(verify(null, message, key, signature), true);
+  const changed = Buffer.from(message);
+  changed[0] ^= 1;
+  assert.equal(verify(null, changed, key, signature), false);
 }
 await main();

@@ -30,7 +30,10 @@ pub(super) fn run() -> InvestigationResult<Value> {
     ] {
         let circuit = compile_ml_dsa_private_signing_circuit_v1(workload);
         let cases = match workload {
-            MlDsaSigningWorkloadV1::FreshMaskConversion => {
+            MlDsaSigningWorkloadV1::FreshMaskConversion
+            | MlDsaSigningWorkloadV1::PreparedCommitment
+            | MlDsaSigningWorkloadV1::LowResponseCheck
+            | MlDsaSigningWorkloadV1::BoundsDecision => {
                 unreachable!("fixed exact-algorithm workload list")
             }
             MlDsaSigningWorkloadV1::SigningSeed => check_seed(&circuit)?,
@@ -266,4 +269,77 @@ fn decompose(value: u32) -> (u32, i32) {
 }
 fn norm_below(value: u32, bound: u32) -> bool {
     value < bound || value > Q - bound
+}
+
+pub(super) fn prepared_components() -> InvestigationResult<Value> {
+    let commitment =
+        compile_ml_dsa_private_signing_circuit_v1(MlDsaSigningWorkloadV1::PreparedCommitment);
+    let mut values = [0; 256];
+    let mut boundaries = vec![0, Q - 1];
+    for high in 1..=16 {
+        let tie = high * (2 * GAMMA2) - GAMMA2;
+        boundaries.extend([tie - 1, tie, tie + 1]);
+    }
+    for (index, value) in values.iter_mut().enumerate() {
+        *value = boundaries[index % boundaries.len()];
+    }
+    let (mut a, b) = split_polynomial(&values);
+    for index in 0..256 {
+        append_word(&mut a, (index % 16) as u32, 4);
+    }
+    let mut masks = [0; 256];
+    for (index, mask) in masks.iter_mut().enumerate() {
+        *mask = (index as u32 * 15427 + 731) % Q;
+        append_word(&mut a, *mask, 23);
+    }
+    let output = evaluate(&commitment, a, b)?;
+    for index in 0..256 {
+        let high = unpack(&output[index * 4..index * 4 + 4]) ^ (index % 16) as u32;
+        let offset = 1024 + index * 23;
+        let low = (unpack(&output[offset..offset + 23]) + masks[index]) % Q;
+        let expected = decompose(values[index]);
+        require(
+            high == expected.0 && low == (i64::from(expected.1).rem_euclid(i64::from(Q))) as u32,
+            "Prepared high/low decomposition differs at a FIPS boundary",
+        )?;
+    }
+    let low = compile_ml_dsa_private_signing_circuit_v1(MlDsaSigningWorkloadV1::LowResponseCheck);
+    let bound = GAMMA2 - BETA;
+    for target in [
+        0,
+        bound - 1,
+        bound,
+        bound + 1,
+        Q - bound - 1,
+        Q - bound,
+        Q - bound + 1,
+        Q - 1,
+    ] {
+        let mut polynomial = [0; 256];
+        polynomial[193] = target;
+        let (mut a, b) = split_polynomial(&polynomial);
+        a.push(true);
+        require(
+            evaluate(&low, a, b)?[0] != norm_below(target, bound),
+            "One bad low coefficient escaped the strict bound",
+        )?;
+    }
+    let decision =
+        compile_ml_dsa_private_signing_circuit_v1(MlDsaSigningWorkloadV1::BoundsDecision);
+    for pattern in 0u16..2048 {
+        let mut a = vec![false; 1664];
+        let mut b = vec![false; 1664];
+        for bit in 0..11 {
+            a[bit] = bit % 3 == 0;
+            b[bit] = (pattern >> bit & 1 == 1) ^ a[bit];
+        }
+        require(
+            evaluate(&decision, a, b)?[0] == (pattern == 2047),
+            "Combined bounds decision disclosed an invalid candidate",
+        )?;
+    }
+    Ok(
+        json!({"decomposition_boundary_values": boundaries.len(), "low_response_single_bad_coefficient_cases": 8,
+        "all_combined_bound_patterns": 2048, "all_matched_independent_oracle": true}),
+    )
 }

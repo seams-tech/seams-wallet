@@ -15,6 +15,8 @@ use worker::{Env, WebSocket};
 use worker::{EventStream, WebsocketEvent};
 use zeroize::Zeroizing;
 
+#[cfg(feature = "ml-dsa-b")]
+use super::prepared_storage::Layout;
 use super::prepared_storage::Tables;
 use super::{
     clock_ms, decode_hex, encode_hex, failure, missing_fixture_field, required_string,
@@ -22,11 +24,11 @@ use super::{
 };
 
 #[cfg(feature = "ml-dsa-a")]
-const BOOK: &str = include_str!("../ml_dsa_schedules/prepared-a.json");
+pub(super) const BOOK: &str = include_str!("../ml_dsa_schedules/prepared-a.json");
 #[cfg(feature = "ml-dsa-b")]
-const BOOK: &str = include_str!("../ml_dsa_schedules/prepared-b.json");
+pub(super) const BOOK: &str = include_str!("../ml_dsa_schedules/prepared-b.json");
 
-fn role() -> SigningRole {
+pub(super) fn role() -> SigningRole {
     #[cfg(feature = "ml-dsa-a")]
     {
         SigningRole::A
@@ -36,7 +38,7 @@ fn role() -> SigningRole {
         SigningRole::B
     }
 }
-fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule<'static>>> {
+pub(super) fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule<'static>>> {
     let records = book["schedules"]
         .as_array()
         .ok_or_else(missing_fixture_field)?;
@@ -71,13 +73,13 @@ fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule<'static>>>
     }
     Ok(output)
 }
-fn fixture(book: &Value, index: usize) -> worker::Result<&Value> {
+pub(super) fn fixture(book: &Value, index: usize) -> worker::Result<&Value> {
     book["cases"]
         .as_array()
         .and_then(|cases| cases.get(index))
         .ok_or_else(missing_fixture_field)
 }
-fn own_root(record: &Value) -> worker::Result<Zeroizing<[u8; 32]>> {
+pub(super) fn own_root(record: &Value) -> worker::Result<Zeroizing<[u8; 32]>> {
     let bytes = Zeroizing::new(decode_hex(required_string(record, "own_root_share_hex")?)?);
     Ok(Zeroizing::new(
         bytes.as_slice().try_into().map_err(runtime_failure)?,
@@ -95,19 +97,32 @@ impl Counts {
         json!({"sent_bytes": self.sent, "received_bytes": self.received, "sent_messages": self.sends, "received_messages": self.receives})
     }
 }
-struct Adapter<'a> {
-    duplex: Duplex<'a>,
-    tables: Option<Tables>,
+pub(super) struct Adapter<'a> {
+    pub(super) duplex: Duplex<'a>,
+    pub(super) tables: Option<Tables>,
     phase: usize,
     counts: [Counts; 2],
     last_error: Option<String>,
 }
 impl Adapter<'_> {
+    pub(super) fn new(duplex: Duplex<'_>, tables: Option<Tables>) -> Adapter<'_> {
+        Adapter {
+            duplex,
+            tables,
+            phase: 0,
+            counts: Default::default(),
+            last_error: None,
+        }
+    }
+    pub(super) fn counts_report(&self, phase: usize) -> Value {
+        self.counts[phase].report()
+    }
+
     fn failure(&mut self, error: worker::Error) -> RuntimeError {
         self.last_error = Some(error.to_string());
         RuntimeError::MessageLength
     }
-    fn error(&self, error: impl std::fmt::Display) -> worker::Error {
+    pub(super) fn error(&self, error: impl std::fmt::Display) -> worker::Error {
         match &self.last_error {
             Some(message) => failure(message),
             None => runtime_failure(error),
@@ -193,19 +208,35 @@ impl Transport for Adapter<'_> {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum Operation {
+    Keygen,
+    Signing(super::prepared_signing::Backend),
+}
+
 #[cfg(feature = "ml-dsa-a")]
 pub(super) fn accept_a(
     env: Env,
     context: worker::Context,
     run_id: String,
     colo: Option<String>,
+    operation: Operation,
 ) -> worker::Result<worker::Response> {
     let pair = worker::WebSocketPair::new()?;
     let client = pair.server;
     client.accept()?;
     let on_error = client.clone();
     context.wait_until(async move {
-        if let Err(error) = run_a(&env, &client, &run_id, colo).await {
+        let result = match operation {
+            Operation::Keygen => run_a(&env, &client, &run_id, colo).await,
+            Operation::Signing(backend) => {
+                Box::pin(super::prepared_signing::run_a(
+                    &env, &client, &run_id, colo, backend,
+                ))
+                .await
+            }
+        };
+        if let Err(error) = result {
             let _ = on_error
                 .send_with_str(json!({"type": "error", "error": error.to_string()}).to_string());
             let _ = on_error.close(Some(1011), Some("prepared keygen failed"));
@@ -286,7 +317,7 @@ async fn run_a(
     Ok(())
 }
 #[cfg(feature = "ml-dsa-a")]
-async fn receive_start(events: &mut EventStream<'_>) -> worker::Result<usize> {
+pub(super) async fn receive_start(events: &mut EventStream<'_>) -> worker::Result<usize> {
     let event = events.next().await.ok_or_else(super::peer_closed)??;
     let WebsocketEvent::Message(message) = event else {
         return Err(super::peer_closed());
@@ -319,7 +350,11 @@ pub(super) async fn run_b(
     let schedules = schedules(&book)?;
     let mut adapter = Adapter {
         duplex: Duplex::new(&socket)?,
-        tables: Some(Tables::new(env.bucket("PREPARED_TABLES")?, &run_id)),
+        tables: Some(Tables::new(
+            env.bucket("PREPARED_TABLES")?,
+            &run_id,
+            Layout::Keygen,
+        )),
         phase: 0,
         counts: Default::default(),
         last_error: None,
@@ -348,6 +383,12 @@ async fn run_b_session(
         .as_mut()
         .ok_or_else(missing_fixture_field)?
         .flush()
+        .await?;
+    adapter
+        .tables
+        .as_mut()
+        .ok_or_else(missing_fixture_field)?
+        .preload_first()
         .await?;
     let offline_ms = clock_ms() - started;
     adapter
@@ -395,4 +436,16 @@ async fn run_b_session(
         .await
         .map_err(|error| adapter.error(error))?;
     Ok(())
+}
+
+impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> {
+    async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
+        Transport::send(self, bytes).await
+    }
+    async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
+        Transport::receive(self, length).await
+    }
+    fn phase(&mut self, _: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {
+        // The client admission boundary owns complete offline/online accounting.
+    }
 }

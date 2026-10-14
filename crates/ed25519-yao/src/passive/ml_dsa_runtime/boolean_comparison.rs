@@ -5,6 +5,9 @@
 //! comparison deliberately reuses the existing 16-byte-payload IKNP primitive.
 //! It supplies no independent review or complete ML-DSA composition claim.
 
+/// Fresh GMW correlations with layer-batched online evaluation.
+pub mod prepared;
+
 use core::{future::Future, mem::size_of};
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
@@ -20,6 +23,9 @@ use crate::passive::{
 };
 
 type Result<T> = core::result::Result<T, RuntimeError>;
+/// Correlation choices per direction in each fresh-base OT extension batch.
+pub const CORRELATION_BATCH_BITS: usize = Batch::OT_COUNT;
+
 const HEADER_BYTES: usize = 74;
 const HEADER_MAGIC: &[u8; 8] = b"MLDSAB01";
 
@@ -136,6 +142,19 @@ struct Layer {
     and_indices: Vec<usize>,
     linear: Vec<LinearGate>,
 }
+#[derive(Default)]
+struct LayerCounts {
+    and_gates: usize,
+    linear_gates: usize,
+}
+impl Layer {
+    fn with_capacity(counts: LayerCounts) -> Self {
+        Self {
+            and_indices: Vec::with_capacity(counts.and_gates),
+            linear: Vec::with_capacity(counts.linear_gates),
+        }
+    }
+}
 struct Topology {
     layers: Vec<Layer>,
     and_gates: Vec<AndGate>,
@@ -145,10 +164,28 @@ struct Topology {
 
 impl Topology {
     fn compile(schedule: &TrustedMlDsaSchedule<'_>) -> Self {
-        let mut current_wire: Vec<usize> = (0..schedule.slots).collect();
+        // Count public layer sizes first. Geometric Vec growth otherwise retains
+        // substantial spare topology capacity for large SHAKE circuits.
         let mut depth = vec![0; schedule.slots];
+        let mut counts = vec![LayerCounts::default()];
+        for ordinal in 0..schedule.gates {
+            let gate = schedule.gate(ordinal);
+            let layer = depth[gate.left].max(depth[gate.right]) + usize::from(gate.opcode == 2);
+            while counts.len() <= layer {
+                counts.push(LayerCounts::default());
+            }
+            if gate.opcode == 2 {
+                counts[layer].and_gates += 1;
+            } else {
+                counts[layer].linear_gates += 1;
+            }
+            depth[gate.output] = layer;
+        }
+        let layers = counts.into_iter().map(Layer::with_capacity).collect();
+        depth.fill(0);
+        let mut current_wire: Vec<usize> = (0..schedule.slots).collect();
         let mut topology = Self {
-            layers: vec![Layer::default()],
+            layers,
             and_gates: Vec::with_capacity(schedule.and_gates),
             outputs: Vec::new(),
             wires: schedule.inputs + schedule.gates,
@@ -156,9 +193,6 @@ impl Topology {
         for ordinal in 0..schedule.gates {
             let gate = schedule.gate(ordinal);
             let layer = depth[gate.left].max(depth[gate.right]) + usize::from(gate.opcode == 2);
-            while topology.layers.len() <= layer {
-                topology.layers.push(Layer::default());
-            }
             let left = current_wire[gate.left];
             let right = current_wire[gate.right];
             let output = schedule.inputs + ordinal;

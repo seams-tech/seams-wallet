@@ -3,7 +3,8 @@
 Status: experimental canonical key generation, threshold signing, and authorized recovery. Reviewed October 14, 2026.
 This contract defines the current implementation boundaries in the
 [investigation plan](ml-dsa-65-investigation-plan.md).
-It defines experiment boundaries. Half-gates is the selected engine for integration, subject to the remaining production qualification.
+It defines experiment boundaries. Production integration is paused.
+Resident half-gates key generation and prepared packed-GMW signing are the current performance candidates.
 
 ## Canonical key identity
 
@@ -176,11 +177,11 @@ Record source revision, source-file hashes, lockfile identity, raw samples, and 
 
 The [kernel artifact](../evidence/ml-dsa-65-kernels-20261013.json) separates three kinds of execution:
 
-| Execution | Implemented evidence | Privacy limit |
-| --- | --- | --- |
-| Cleartext reference and hybrid composition | Canonical encodings agree with RustCrypto and OpenSSL. | The host process holds complete fixture secrets. |
-| Public half-gates benchmarks | Separate processes execute actual garbling and evaluation with bounded table frames. | Both evaluator labels transfer openly. No OT protects inputs. |
-| Private key-generation pipeline | Persistent A and B processes execute adaptive samplers with genuine passive OT, then public Power2Round. | Shared-host separation provides no operating-system isolation. Composition review remains open. |
+| Execution                                  | Implemented evidence                                                                                     | Privacy limit                                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Cleartext reference and hybrid composition | Canonical encodings agree with RustCrypto and OpenSSL.                                                   | The host process holds complete fixture secrets.                                                |
+| Public half-gates benchmarks               | Separate processes execute actual garbling and evaluation with bounded table frames.                     | Both evaluator labels transfer openly. No OT protects inputs.                                   |
+| Private key-generation pipeline            | Persistent A and B processes execute adaptive samplers with genuine passive OT, then public Power2Round. | Shared-host separation provides no operating-system isolation. Composition review remains open. |
 
 The private pipeline uses four distinct schedules and executes these stages for each key:
 
@@ -225,14 +226,14 @@ Use uniformly masked shares for secret coefficients, without short-share leakage
 The private pipeline emits the following format into temporary role-local files.
 The format has no production persistence or protocol-compatibility approval.
 
-| Material | Representation at each role | Reconstruction inside secure computation |
-| --- | --- | --- |
-| `xi` | One 32-byte XOR share | `xi_A XOR xi_B` |
-| `K` | One independently masked 32-byte XOR share | `K_A XOR K_B` |
-| `s1` | Five polynomials, each with 256 uniformly masked residues | Add the two shares modulo `q = 8,380,417` |
-| `s2` | Six polynomials with the same residue representation | Add the two shares modulo `q` |
-| `t0` | Six public polynomials, initially full residues at A and zeros at B | Add the two values modulo `q` |
-| `rho`, `tr`, public key | Public bytes | No secret reconstruction |
+| Material                | Representation at each role                                         | Reconstruction inside secure computation  |
+| ----------------------- | ------------------------------------------------------------------- | ----------------------------------------- |
+| `xi`                    | One 32-byte XOR share                                               | `xi_A XOR xi_B`                           |
+| `K`                     | One independently masked 32-byte XOR share                          | `K_A XOR K_B`                             |
+| `s1`                    | Five polynomials, each with 256 uniformly masked residues           | Add the two shares modulo `q = 8,380,417` |
+| `s2`                    | Six polynomials with the same residue representation                | Add the two shares modulo `q`             |
+| `t0`                    | Six public polynomials, initially full residues at A and zeros at B | Add the two values modulo `q`             |
+| `rho`, `tr`, public key | Public bytes                                                        | No secret reconstruction                  |
 
 A polynomial is a fixed array of coefficients in the ML-DSA ring.
 Use coefficient order from FIPS 204 and ordinary coefficients at the boundary.
@@ -246,7 +247,8 @@ This deletion provides no secure-erasure guarantee.
 
 Keep `rho_prime` inside secure computation and discard it after sampling.
 Open `t` under the scoped composition argument in the public-keygen review. Its rounding is public computation.
-Never expose signing masks, rejected candidates, or secret rejection checks to save communication.
+Keep signing masks and individual secret checks private.
+The prepared variant opens responses only after both secret bounds pass, under its separate reviewed disclosure boundary.
 Generate each output mask independently. Consume garbled execution material once.
 
 The shared signing state machine consumes these shares directly.
@@ -262,6 +264,25 @@ The [signing options](ml-dsa-65-signing-options.md) distinguish commitment `w1` 
 The implemented baseline opens `c_tilde` and one aggregate acceptance bit per candidate.
 It keeps rejected `w1`, responses, masks, hints, and individual checks private.
 The challenge, stopping-count, and share-composition arguments still need independent review.
+
+## Prepared signing variant
+
+The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) defines the implemented prepared variant.
+Fresh joint random coefficients replace the prescribed FIPS hedged nonce derivation.
+Ordinary ML-DSA-65 encoding and verification remain unchanged. Exact FIPS hedged or deterministic signature-byte equivalence is not claimed.
+Canonical wallet-seed recovery and key identity remain unchanged.
+
+Prepare masks, shared commitments, private decomposition, and fresh private correlations before message arrival.
+Keep challenge hashing and both secret bounds private. Open only their combined decision per candidate.
+After both bounds pass, open the response and calculate public correction checks and hints.
+A failed secret bound never opens the commitment. No additional rejected-commitment LWR assumption is adopted.
+All evaluated candidates are consumed, including unused candidates after an earlier success.
+The adapter must durably burn the reservation before online execution.
+
+The current pool capacity is an experimental resource limit. Exhaustion returns no signature and consumes the reservation.
+It does not establish the FIPS signing-loop success criterion or a five-second cold-pool guarantee.
+A production pool must supply additional fresh reservations or return an explicit unavailable result before admission.
+The [current measurements](ml-dsa-65-resident-prepared-performance.md) separate readiness, successful online signing, exhaustion, and infrastructure failure.
 
 ## Roles, authorization, and recovery
 
@@ -333,21 +354,23 @@ The SDK provides conversion from a full key to its handle.
 
 ## Engine selection and deferred alternatives
 
-| Candidate | Current decision | Required next evidence |
-| --- | --- | --- |
-| Hybrid half-gates plus general 2PC signing | Selected for integration | Independent composition review, target qualification, and revised hosted measurements |
-| Full Yao | Resource comparison | Exact complete circuit cost |
-| Three-halves garbling | Alternative | Implementation, security parameters, CPU, and total traffic |
-| GMW / ABY2.0 | Complete native comparison favors half-gates | Improved private preprocessing and deployed comparison, deferred |
-| Mithril with canonical-key sharing | Alternative | Selected revision, short-share privacy loss, repeated sharing, licensing, and complete cost |
-| Trilithium | Alternative | Selected revision and a two-party replacement for its randomness provider |
-| THED | Screen before implementation | A concrete Worker/WASM resource case |
-| Native DKG without seed recovery | Excluded | Fails canonical recovery |
-| Honest-majority or trusted-hardware profiles | Excluded from this baseline | Do not fit the accepted two-server privacy contract |
+| Candidate                                    | Current decision                     | Required next evidence                                                                      |
+| -------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Resident half-gates key generation           | Hosted online target observed        | Durable prepared pools, admission, and concurrency                                          |
+| Prepared half-gates signing                  | Hosted comparison misses target      | Retained as a comparison baseline                                                           |
+| Full Yao                                     | Resource comparison                  | Exact complete circuit cost                                                                 |
+| Three-halves garbling                        | Alternative                          | Implementation, security parameters, CPU, and total traffic                                 |
+| Prepared packed GMW signing                  | Current online performance candidate | Reliable hosted setup, pool replenishment, and repeated complete signatures                 |
+| ABY2.0                                       | Earlier complete comparison retained | Separate prepared implementation and hosted comparison                                      |
+| Mithril with canonical-key sharing           | Alternative                          | Selected revision, short-share privacy loss, repeated sharing, licensing, and complete cost |
+| Trilithium                                   | Alternative                          | Selected revision and a two-party replacement for its randomness provider                   |
+| THED                                         | Screen before implementation         | A concrete Worker/WASM resource case                                                        |
+| Native DKG without seed recovery             | Excluded                             | Fails canonical recovery                                                                    |
+| Honest-majority or trusted-hardware profiles | Excluded from this baseline          | Do not fit the accepted two-server privacy contract                                         |
 
 The paper survey in the investigation plan remains the starting inventory.
 Recheck revisions before implementing another candidate or selecting a winner.
-Provisional p95 targets remain one second for warm signing and five seconds for generation or recovery.
+The current target is successful key generation and online signing consistently below five seconds with ready preprocessing.
 The local reference timings cannot rank threshold protocols or predict Cloudflare costs.
 
 ## Next executable step
