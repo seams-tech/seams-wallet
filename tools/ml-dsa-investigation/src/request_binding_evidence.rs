@@ -1,4 +1,4 @@
-//! Reject mismatched public signing requests before private circuit execution.
+//! Reject mismatched stored-key bindings and public requests before private circuits.
 
 use crate::{InvestigationResult, private_execution, private_signing, require};
 use private_signing::{Operation, Randomness};
@@ -67,15 +67,19 @@ pub(super) fn run(
         .ok_or("Mismatched signing requests produced a complete operation.")?;
         let failure: Value =
             serde_json::from_slice(&fs::read(result_b.with_extension("failure.json"))?)?;
+        let (expected_error, expected_received_bytes) = match field {
+            "public-key" => ("MaterialOpen", 0),
+            "operation-id" | "message" | "context" | "randomness-mode" => ("RequestBinding", 73),
+            _ => unreachable!("fixed mismatch scenarios"),
+        };
         require(
-            error.to_string().contains("RequestBinding")
-                && failure["error"] == "RequestBinding"
+            failure["error"] == expected_error
                 && failure["completed_private_circuits"] == 0
                 && failure["non_circuit_sent_bytes"] == 0
-                && failure["non_circuit_received_bytes"] == 73
+                && failure["non_circuit_received_bytes"] == expected_received_bytes
                 && !result_a.exists()
                 && !result_b.exists(),
-            "A request mismatch did not fail at the initial public binding exchange.",
+            "A request mismatch did not fail at its storage or public binding boundary.",
         )?;
         results.push(json!({
             "different_field": field,
@@ -85,7 +89,7 @@ pub(super) fn run(
         }));
     }
     Ok(json!({
-        "scope": "Separate role processes reject mismatched public requests before the first private circuit. This is request agreement, with no authentication or durable replay claim.",
+        "scope": "Separate role processes reject a mismatched public key at encrypted material opening and reject the remaining mismatched request fields at the peer exchange. All fail before private circuits. This establishes stored-key binding and peer agreement, with no production admission or durable replay claim.",
         "cases": results,
     }))
 }

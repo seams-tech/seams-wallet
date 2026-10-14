@@ -173,6 +173,8 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     for path in [
         "crates/signer-core/src/wallet_seed_derivation.rs",
         "crates/signer-core/src/ml_dsa_custody.rs",
+        "crates/signer-core/src/ml_dsa_custody/material.rs",
+        "tools/ml-dsa-investigation/src/material_storage_evidence.rs",
         "crates/signer-core/Cargo.toml",
         "wasm/wallet_custody_ceremony/src/ml_dsa.rs",
         "wasm/wallet_custody_ceremony/src/ceremony.rs",
@@ -193,12 +195,13 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(repository.join(path))?)}));
     }
     let report = json!({
-        "schema": "seams.ml-dsa-wallet-seed-recovery.v2", "public_fixture_only": false, "disposable_test_keys_only": true, "production_eligible": false,
+        "schema": "seams.ml-dsa-wallet-seed-recovery.v3", "public_fixture_only": false, "disposable_test_keys_only": true, "production_eligible": false,
         "source_revision": command_text(Command::new("git").args(["rev-parse", "HEAD"]).current_dir(repository))?,
+        "executable_sha256": digest(&fs::read(std::env::current_exe()?)?),
         "sources": sources, "keygen_schedules": keygen, "signing_schedules": signing, "wallet_seed_schedule": wallet_seed,
         "same_wallet_seed_and_binding_reproduce_key": true, "changed_seed_or_binding_changes_key": true,
         "fixture_owner_root_separated_from_ed25519_and_ecdsa": true,
-        "scope": "Separate roles derive the canonical seed privately, generate key shares, and sign before authorized fixture export. Repeated recovery uses fresh root sharing, seed masks, and OT. Encrypted role delivery and authenticated results use fixture holder keys. Native custody states cover establishment, joining, and code recovery. This shared-host check supplies no production admission, durable activation, or storage claim.",
+        "scope": "Separate roles derive the canonical seed privately, generate key shares, and sign before authorized fixture export. Repeated recovery uses fresh root sharing, seed masks, and OT. Encrypted role delivery and authenticated results use fixture holder keys. Native custody states cover establishment, joining, and code recovery. Separate signing processes reopen authenticated role material from encrypted files. This shared-host check supplies no production admission, durable activation, isolated storage, or rollback protection claim.",
         "cases": cases,
         "delivery_and_manifest_rejections": delivery_rejections,
     });

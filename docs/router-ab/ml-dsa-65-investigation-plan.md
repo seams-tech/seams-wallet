@@ -725,7 +725,10 @@ State remaining opportunities that could change that ranking.
    The [six-case custody E2E](../evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json) covers fresh establishment, joining, code recovery, ten recovery codes, and fifteen negative cases.
    Completed: consuming browser Wasm exports and the existing SDK custody-worker bridge.
    The [Chromium E2E](../evidence/ml-dsa-65-browser-custody-e2e-20261014.json) passes 22 checks with real separate-role key generation, threshold signing, and ordinary-key export.
-   Add independent Router admission, authenticated recipient-key discovery, role-private storage, and durable replacement activation next.
+   Added authenticated encryption for role material, with context substitution checks and reopening in separate signing processes.
+   The [storage custody campaign](../evidence/ml-dsa-65-sealed-material-custody-e2e-20261014.json) passes six complete cases and 144 storage substitution rejections.
+   Separate signing processes reopen only their own encrypted records. This component supplies no durable activation or rollback guarantee.
+   Add independent Router admission, authenticated recipient-key discovery, production role-private storage adapters, and durable replacement activation next.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
    The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) now uses exact Rust encoder variants and verifies a threshold-signed serialized transaction with NEAR's pinned AWS-LC algorithm.
    Completed: the [threshold-signed testnet E2E](../evidence/ml-dsa-65-near-testnet-e2e-20261014.json) reached successful finalized execution and checked the SDK handle types.
@@ -734,6 +737,7 @@ State remaining opportunities that could change that ranking.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
    The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now covers mid-mask interruption, cross-session OT replay, restart, and four concurrent signatures.
    The [request-binding campaign](../evidence/ml-dsa-65-request-binding-host-20261014.json) repeats these scenarios and authorized recovery after the new public request exchange.
+   The [encrypted-record lifecycle campaign](../evidence/ml-dsa-65-sealed-material-lifecycle-host-20261014.json) repeats interruption, replay, restart, concurrency, and offline NEAR verification after storage integration.
    Router admission, durable replay control, refresh, protected restore, and deployed lifecycle scenarios remain open.
 8. Qualify and package the selected half-gates library, then consume exact releases in the private application.
    Report complete latency and throughput under one workload, with unresolved limits and any evidence that changes the engine decision.

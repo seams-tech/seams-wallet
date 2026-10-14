@@ -352,3 +352,44 @@ These checks extend interoperability evidence to the full Boolean compositions, 
 They establish no composition proof, target timing guarantee, or production authorization boundary.
 The [rebuilt arithmetic audit](../evidence/ml-dsa-65-engine-adapter-arithmetic-audit-20261014.json) still finds no division or remainder in the three private polynomial functions.
 Its AArch64 and Wasm checks retain the same pre-link scope and target-qualification limits.
+
+
+## Role material encryption boundary
+
+The native storage envelope holds one role's 17,472-byte signing share.
+It uses the existing HPKE X25519/HKDF-SHA256/AES-256-GCM suite in authenticated mode.
+Each role supplies an independent random 32-byte wrapping seed from its own secret store.
+That seed derives the sender and recipient key pair for this storage envelope.
+Fresh HPKE encapsulation supplies fresh encryption for each write.
+The storage domain differs from the owner-root delivery and key-generation result domains.
+
+Authenticated data binds the environment, wrapping-key version, wallet/key digest, creation operation, material epoch, role, and public-key digest.
+The adapter must obtain these expected coordinates from trusted admission and activation state.
+Successful decryption proves that the envelope matches those coordinates and the wrapping key.
+It does not establish activation, freshness, cancellation, or rollback protection.
+An old record under the same accepted coordinates remains decryptable.
+Durable state must reject retired epochs and consumed operations before opening material.
+
+The [storage custody campaign](../evidence/ml-dsa-65-sealed-material-custody-e2e-20261014.json) replaces plaintext material files with encrypted role files.
+Separate signing processes reopen their own records before threshold signing.
+Each role checks eight changed coordinates, a different wrapping seed, and three damaged-envelope cases.
+The file adapter also rejects the opposite role and checks fresh encryption.
+Authorized test export opens both records only after threshold signing.
+
+The fixture retains wrapping seeds in separate mode-0600 files on the same host.
+These files provide no production isolation or secret-management claim.
+The normal parent does not read them. The authorized test recipient can read both.
+The campaign deletes the role directories before recording successful cleanup.
+Production D1 or Durable Object adapters, wrapping-key provisioning, activation, and replay control remain open.
+
+This path adds no hand-written secret arithmetic or secret-dependent indexing.
+Its length checks and coordinate checks inspect public data.
+Plaintext outputs use zeroizing buffers. HPKE private-key types also zeroize on drop.
+The HPKE primitives, allocator behavior, and target JIT still require the existing runtime review.
+X25519 storage encryption supplies no post-quantum confidentiality claim.
+
+The [encrypted-record lifecycle campaign](../evidence/ml-dsa-65-sealed-material-lifecycle-host-20261014.json) also exercises fixed and joint-random canonical seeds.
+It repeats interruption, OT replay rejection, restart, four concurrent signatures, and offline NEAR transaction verification.
+A changed public key now fails during storage opening, before any signing protocol bytes are received.
+The other four request mismatches still fail at the initial peer exchange.
+The custody and lifecycle reruns overlapped on one host. Their timings are correctness evidence only and cannot rank performance.

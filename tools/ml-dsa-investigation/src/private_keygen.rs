@@ -8,6 +8,7 @@
 use crate::boolean_engine_evidence::{PipeTransport, run_ready};
 use crate::complete_engine_evidence::{self, Engine};
 use crate::custody_delivery_evidence::WalletRecoveryCase;
+use crate::material_storage_evidence::{self, MATERIAL_FILENAME};
 use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, hybrid_keygen,
     private_execution, private_signing, reference, require,
@@ -50,7 +51,6 @@ const COEFFICIENTS: usize = 256;
 const SECRET_POLYNOMIALS: usize = 11;
 const ROWS: usize = 6;
 const MATERIAL_BYTES: usize = 17_472;
-const MATERIAL_FILENAME: &str = "ephemeral-test-material.bin";
 const FIXTURE_NAMES: [&str; 4] = ["zero", "incrementing", "all-ff", "alternating"];
 
 struct AuthorizedTestMaterial {
@@ -197,7 +197,7 @@ pub(super) fn run() -> InvestigationResult<Value> {
         "executed_kernels_per_case": 18,
         "schedule_identities": identities,
         "signing_schedule_identities": signing_identities,
-        "material_shape_per_role": {"bytes": MATERIAL_BYTES, "seed_xor_share_bytes": 32, "k_xor_share_bytes": 32, "s1_s2_additive_residues": SECRET_POLYNOMIALS * COEFFICIENTS, "t0_additive_residues": ROWS * COEFFICIENTS, "residue_encoding": "u32 little-endian, reduced modulo 8380417", "persistence": "Ephemeral role-local file with mode 0600, deleted with the case temporary directory."},
+        "material_shape_per_role": {"bytes": MATERIAL_BYTES, "seed_xor_share_bytes": 32, "k_xor_share_bytes": 32, "s1_s2_additive_residues": SECRET_POLYNOMIALS * COEFFICIENTS, "t0_additive_residues": ROWS * COEFFICIENTS, "residue_encoding": "u32 little-endian, reduced modulo 8380417", "persistence": "HPKE-authenticated role-local ciphertext. Separate disposable wrapping key and public context files. All files are deleted with the case temporary directory."},
         "cases": cases,
         "total_wall_ns_including_compile_processes_and_authorized_recovery": started.elapsed().as_nanos(),
     }))
@@ -442,7 +442,14 @@ pub(super) fn run_case(
             "Authorized recovery returned the wrong public fixture seed.",
         )?;
     }
+    let case_path = case.path().to_owned();
+    case.close()?;
+    require(
+        !case_path.exists(),
+        "Disposable role files survived cleanup.",
+    )?;
     Ok(json!({
+        "temporary_role_files_removed": true,
         "case": case_name,
         "client_completion": client_completion,
         "custody_export_verification": custody_export,
@@ -518,7 +525,7 @@ enum RoleCompletion {
     },
 }
 
-fn write_private_file(path: &Path, bytes: &[u8]) -> InvestigationResult<()> {
+pub(super) fn write_private_file(path: &Path, bytes: &[u8]) -> InvestigationResult<()> {
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -604,6 +611,12 @@ fn run_role(
             )
         }
     };
+    let storage_binding = match &input {
+        SeedInput::SealedWalletOwnerRoot { binding, .. } => binding.clone(),
+        SeedInput::FixedPublicShare { .. } | SeedInput::JointRandom => {
+            material_storage_evidence::canonical_fixture_binding()?
+        }
+    };
     drop(input);
     drop(input_bytes);
     let mut circuit_wall_ns = Vec::with_capacity(18);
@@ -666,7 +679,13 @@ fn run_role(
     let directory = result
         .parent()
         .ok_or("Role result has no parent directory.")?;
-    write_private_file(&directory.join(MATERIAL_FILENAME), &output.own_material)?;
+    let material_storage = material_storage_evidence::persist(
+        directory,
+        storage_binding,
+        role,
+        &output.public_key,
+        &output.own_material,
+    )?;
     fs::write(
         result,
         serde_json::to_vec(&json!({
@@ -674,6 +693,7 @@ fn run_role(
             "public_key_hex": hex::encode(output.public_key),
             "public_key_sha256": digest(&output.public_key),
             "material_bytes": output.own_material.len(),
+            "material_storage": material_storage,
             "schedule_preparation_wall_ns": schedule_preparation_wall_ns,
             "role_pipeline_wall_ns_including_schedule_reads": started.elapsed().as_nanos(),
             "stages": stages,
@@ -704,17 +724,17 @@ fn verify_public_metrics(a: &Value, b: &Value) -> InvestigationResult<()> {
     Ok(())
 }
 
-fn read_authorized_material(path: &Path) -> InvestigationResult<AuthorizedTestMaterial> {
+fn read_authorized_material(
+    path: &Path,
+    role: SigningRole,
+    public_key: &[u8; 1952],
+) -> InvestigationResult<AuthorizedTestMaterial> {
     let metadata = fs::metadata(path)?;
-    require(
-        metadata.len() == MATERIAL_BYTES as u64,
-        "Authorized test material has an invalid length.",
-    )?;
     require(
         metadata.permissions().mode() & 0o777 == 0o600,
         "Authorized test material must use mode 0600.",
     )?;
-    let bytes = Zeroizing::new(fs::read(path)?);
+    let bytes = material_storage_evidence::open(path, role, public_key)?;
     let seed = Zeroizing::new(bytes[..32].try_into()?);
     let k = Zeroizing::new(bytes[32..64].try_into()?);
     let mut samples = Zeroizing::new([[0; COEFFICIENTS]; SECRET_POLYNOMIALS]);
@@ -752,8 +772,11 @@ fn run_authorized_recipient(
     result: &Path,
 ) -> InvestigationResult<()> {
     let started = Instant::now();
-    let share_a = read_authorized_material(a)?;
-    let share_b = read_authorized_material(b)?;
+    let expected_public: [u8; 1952] = fs::read(public)?
+        .try_into()
+        .map_err(|_| "Invalid export public key.")?;
+    let share_a = read_authorized_material(a, SigningRole::A, &expected_public)?;
+    let share_b = read_authorized_material(b, SigningRole::B, &expected_public)?;
     let mut seed = Zeroizing::new([0; 32]);
     for index in 0..32 {
         seed[index] = share_a.seed[index] ^ share_b.seed[index];

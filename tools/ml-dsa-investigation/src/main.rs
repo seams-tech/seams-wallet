@@ -5,6 +5,7 @@ mod complete_engine_evidence;
 mod custody_delivery_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
+mod material_storage_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
 mod private_execution;
@@ -321,6 +322,7 @@ fn generate_report(
         "src/near_testnet_evidence.rs",
         "src/private_execution.rs",
         "src/private_keygen.rs",
+        "src/material_storage_evidence.rs",
         "src/private_signing.rs",
         "src/rounding_evidence.rs",
         "src/signing_mask_evidence.rs",
@@ -340,6 +342,8 @@ fn generate_report(
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
+        "crates/signer-core/src/ml_dsa_custody.rs",
+        "crates/signer-core/src/ml_dsa_custody/material.rs",
         "crates/ed25519-yao/src/passive.rs",
         "crates/ed25519-yao/src/passive/gate_aes.rs",
         "crates/ed25519-yao/src/passive/runtime.rs",

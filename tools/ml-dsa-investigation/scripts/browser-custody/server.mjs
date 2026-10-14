@@ -158,7 +158,7 @@ async function executeRoles(body) {
       sealed_input: role === 'a' ? dispatch.roleA : dispatch.roleB,
       holder_secret: [...current.holders[index].secret],
     });
-    own.push({ input, result, material: resolve(directory, 'ephemeral-test-material.bin') });
+    own.push({ input, result, material: resolve(directory, 'sealed-test-material.json') });
   }
   await duplex(
     ['private-keygen-role-a', schedules, own[0].input, own[0].result, 'half-gates'],
