@@ -53,6 +53,7 @@ const scenarios = {
   'preparation-reply-lost': { outcome: 'completed', preparation: 'lose-reply' },
   'duplicate-socket': { outcome: 'completed', connection: 'duplicate' },
   'duplicate-router': { outcome: 'completed', duplicateRouter: true, connection: 'after-preparation' },
+  'held-protocol-reply': { outcome: 'completed', connection: 'hold-second-reply' },
   'duplicate-execution': { outcome: 'completed', execution: 'duplicate' },
   'preparation-never-arrives': { outcome: 'released', preparation: 'never', b: 'missing' },
   'preparation-fails': { outcome: 'released', preparation: 'd1-error', b: 'missing', leaseMs: 6_000 },
@@ -423,8 +424,37 @@ try {
     await databases.deriverB.exec(`ALTER TABLE ${admissionTable} RENAME TO ${heldTable}`);
   }
   const addresses = await allocateWalletAddresses(topology);
-  const attempts = await Promise.all(Array.from({ length: plan.duplicateRouter ? 2 : 1 },
-    () => post(routerBinding, executePath, envelope, gatewayCredential, addresses)));
+  const pending = [];
+  for (let index = 0; index < (plan.duplicateRouter ? 2 : 1); index += 1) {
+    pending.push(post(routerBinding, executePath, envelope, gatewayCredential, addresses));
+  }
+  let heldRoleStates = null;
+  if (plan.connection === 'hold-second-reply') {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if ((await proxyEvidence(proxy)).heldSecondReply) break;
+      await setTimeout(100);
+    }
+    const held = await proxyEvidence(proxy);
+    assert.equal(held.heldSecondReply, true);
+    assert.equal(held.bMessages, 2);
+    assert.ok(held.aMessages >= 1);
+    assert.equal(held.aClosed, false);
+    assert.equal(held.bClosed, false);
+    const request = execution.request;
+    const scope = {
+      wallet_route: request.tenant_root.wallet_route,
+      ownership_generation: request.tenant_root.ownership_generation,
+      root_identity: request.tenant_root.identity,
+      pair_binding: request.pair_binding,
+    };
+    heldRoleStates = {
+      deriverA: await requirePairState(aBinding, 'deriver-a', scope, roleCredential, 'running'),
+      deriverB: await requirePairState(bBinding, 'deriver-b', scope, roleCredential, 'running'),
+    };
+    const released = await proxy.fetch('https://proxy.test/release', { method: 'POST' });
+    assert.equal(released.status, 200);
+  }
+  const attempts = await Promise.all(pending);
   const first = attempts.find(attempt => attempt.body?.status === 'succeeded') ?? attempts[0];
   if (plan.duplicateRouter) {
     assert.equal(attempts.filter(attempt => attempt.body?.status === 'succeeded').length, 1);
@@ -508,6 +538,10 @@ try {
     artifact.pairRecordWrites = log.pairWrites.filter(event => event.session === sessionHex && event.rowsWritten > 0);
     assert.deepEqual(artifact.pairRecordWrites.map(event => event.lifecycle), ['running', 'completed'],
       'B must combine the encrypted input with its durable running claim');
+    if (plan.connection === 'hold-second-reply') {
+      assert.equal(evidence.releasedSecondReply, true);
+      artifact.heldRoleStates = heldRoleStates;
+    }
   } else {
     assert.notEqual(first.body?.status, 'succeeded', first.text);
     const evidence = await closedConnectionEvidence(proxy);

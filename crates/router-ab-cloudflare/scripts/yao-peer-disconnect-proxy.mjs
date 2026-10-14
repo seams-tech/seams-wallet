@@ -5,12 +5,14 @@ const evidence = {
   connectionAttempts: 0, connections: 0, refusals: [], aMessages: 0, bMessages: 0,
   disconnected: false, aClosed: false, bClosed: false
 };
+let heldExchange = null;
 class Exchange {
   constructor(a, b, behaviour) {
     this.a = a;
     this.b = b;
     this.closed = false;
     this.behaviour = behaviour;
+    this.heldFrame = null;
   }
   fromA(event) {
     if (this.closed) return;
@@ -20,6 +22,12 @@ class Exchange {
   fromB(event) {
     if (this.closed) return;
     evidence.bMessages += 1;
+    if (this.behaviour === 'hold-second-reply' && evidence.bMessages === 2) {
+      this.heldFrame = event.data;
+      heldExchange = this;
+      evidence.heldSecondReply = true;
+      return;
+    }
     if (this.behaviour === 'disconnect' && evidence.bMessages === 2) {
       evidence.disconnected = true;
       this.close();
@@ -27,17 +35,28 @@ class Exchange {
     }
     this.a.send(event.data);
   }
-  closedByA() {
+  release() {
+    if (this.closed || this.heldFrame === null) throw new Error('No held reply');
+    this.a.send(this.heldFrame);
+    this.heldFrame = null;
+    heldExchange = null;
+    evidence.releasedSecondReply = true;
+  }
+  closedByA(event) {
+    evidence.aClose = { code: event.code, reason: event.reason };
     evidence.aClosed = true;
     this.close();
   }
-  closedByB() {
+  closedByB(event) {
+    evidence.bClose = { code: event.code, reason: event.reason };
     evidence.bClosed = true;
     this.close();
   }
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.heldFrame = null;
+    if (heldExchange === this) heldExchange = null;
     this.a.close(1011, 'E2E peer disconnect');
     this.b.close(1011, 'E2E peer disconnect');
   }
@@ -92,6 +111,11 @@ const handler = {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path === '/evidence') return Response.json(evidence);
+    if (path === '/release' && request.method === 'POST') {
+      if (heldExchange === null) return new Response('No held reply', { status: 409 });
+      heldExchange.release();
+      return new Response('released');
+    }
     if (!path.endsWith('/ed25519-yao/duplex')) return env.REAL_B.fetch(request);
     evidence.connectionAttempts += 1;
     if (evidence.connectionAttempts > 1) return env.REAL_B.fetch(request);
