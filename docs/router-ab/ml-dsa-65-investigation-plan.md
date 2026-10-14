@@ -1,6 +1,7 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: complete host and deployed Worker key generation and threshold signing verified, 2026-10-13.
+Status: half-gates selected for implementation and integration, 2026-10-14.
+Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
 Follow-up: exact arithmetic optimization passes host and local Worker E2E checks. Hosted remeasurement awaits approval for its new disposable token.
 Starting source and research review: 2026-10-05.
 
@@ -20,7 +21,12 @@ The earlier checkpoints below retain their original artifact measurements.
 The [arithmetic optimization report](ml-dsa-65-optimization-report.md) records the next implementation and its remaining measurement limits.
 The [engine comparison](ml-dsa-65-engine-comparison.md) now includes complete native key generation and signing with half-gates, GMW, and ABY2.0.
 The October 14 campaign includes fresh private preprocessing, exact directional traffic, independent signature checks, and authorized canonical recovery.
-The hardened half-gates implementation records a 3.28-second local Worker key-generation median across five fresh joint keys.
+Half-gates took 2.59 seconds for key generation and 8.68 seconds for five-candidate signing in one measured native execution.
+The [engine decision](ml-dsa-65-engine-comparison.md#decision--october-14-2026) selects half-gates for the next integration work.
+Production qualification remains open. Further alternative-engine experiments are optional follow-up work.
+The [selected half-gates Worker campaign](../evidence/ml-dsa-65-selected-halfgates-keygen-local-20261014.json) records a 3.38-second median across five fresh joint keys.
+The [fixed key-generation-and-signing check](../evidence/ml-dsa-65-selected-halfgates-threshold-local-20261014.json) takes 17.41 seconds for one measured five-candidate execution.
+Both campaigns use the exact Wasm bundles inspected by the [final arithmetic audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json).
 Its hosted rerun remains pending token approval.
 The [offline SDK contract](../evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) also verifies a serialized threshold-signed NEAR transaction before authorized recovery.
 
@@ -562,7 +568,7 @@ Gate counts alone do not establish CPU cost or elapsed time.
 
 Output: complete key-generation measurements, public synthetic vectors, and exact share-format descriptions.
 Exit condition: reproduce the canonical public key and recovery result within the selected runtime's resource limits.
-Retain the current half-gates implementation as the comparison baseline until selection.
+Advance the selected half-gates implementation. Retain it as the baseline for any later alternative-engine comparison.
 
 ### 5 Produce and compare complete signatures
 
@@ -685,16 +691,18 @@ State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
 
-1. Completed: reduce exact arithmetic-circuit costs with one-AND carry and borrow identities. Canonical key generation, signing, and recovery checks pass.
-2. Measure the revised complete host and Worker flows. Preserve the earlier reports and compare gate counts, bytes, retries, and elapsed time.
-3. Compare GMW, ABY2.0, and smaller garbling with complete preprocessing and conversion costs. Prioritize the largest measured sampling and signing costs.
-   The [engine comparison](ml-dsa-65-engine-comparison.md) now measures four GMW and ABY2.0 kernels with genuine two-party preprocessing and exact conversion traffic.
-   The [complete native comparison](../evidence/ml-dsa-65-complete-engines-host-20261014.json) extends all three engines through identical key-generation and signing state machines.
-   Prepared pools, efficient OT preprocessing, deployed batching, and smaller-garbling execution remain open.
-4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production integration.
+1. Completed: reduce arithmetic circuits with one-AND carry and borrow identities. Canonical key generation, signing, and recovery checks pass.
+2. Completed: compare complete native half-gates, GMW, and ABY2.0 executions with fresh private preprocessing and exact traffic counters.
+   Advance half-gates under the [recorded engine decision](ml-dsa-65-engine-comparison.md#decision--october-14-2026).
+   Prepared pools, efficient OT preprocessing, deployed Boolean batching, and smaller garbling remain optional follow-up research.
+3. Repeat the selected half-gates Worker measurements after the arithmetic optimization and hardening.
+   Record warm-up, fresh-key samples, signing candidates, traffic, CPU, placement evidence, and memory limits separately.
+   Hosted execution awaits approval for the exact disposable benchmark token and both temporary Worker destinations.
+4. Review the exact challenge/count disclosure, share composition, and target constant-time behavior before production release.
    The [source review](ml-dsa-65-privacy-review.md) records these boundaries.
    Division-free local arithmetic passes complete host interoperability and compiled core checks.
-   The complete proof, final Worker qualification, and independent review remain open.
+   The [final Worker audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json) also finds no division in the three private arithmetic functions of either rebuilt bundle.
+   The complete proof, branch and memory-access review, JIT qualification, and independent review remain open.
 5. Add role-private persistence and admitted Router A/B operations. Define one-use material, cancellation, restart, refresh, export, and restore states.
    Production integration awaits the custody-model choice: an independent joint seed with protected recovery records, or private derivation from the wallet custody seed.
 6. Add explicit SDK ML-DSA encodings. Verify a threshold-signed NEAR transaction with public disposable test keys.
@@ -703,9 +711,10 @@ State remaining opportunities that could change that ranking.
 7. Exercise recovery, refresh, peer loss, interruptions, replay rejection, concurrency, and preprocessing exhaustion through E2E scenarios.
    The [host lifecycle campaign](../evidence/ml-dsa-65-threshold-host-lifecycle-20261013.json) now covers mid-mask interruption, cross-session OT replay, restart, and four concurrent signatures.
    Router admission, durable replay control, refresh, protected restore, and deployed lifecycle scenarios remain open.
-8. Rank complete candidates under one workload. Select and package the fastest measured design, then consume exact releases in the private application.
+8. Qualify and package the selected half-gates library, then consume exact releases in the private application.
+   Report complete latency and throughput under one workload, with unresolved limits and any evidence that changes the engine decision.
 
-The complete deployed baseline now passes. The first speed experiment changes only Boolean arithmetic identities.
-It preserves the canonical seed, share format, protocol sequence, and permitted disclosures.
-It provides no new privacy assumption and makes no speed claim before measurement.
+The deployed baseline passed before the arithmetic optimization and hardening.
+The revised implementation passes host and local Worker checks with the same canonical seed, share format, sequence, and permitted disclosures.
+The native engine comparison supports the current selection. Hosted speed and cost for the revised implementation remain unmeasured.
 Keep implementation and benchmark reports linked from this document as the investigation proceeds.

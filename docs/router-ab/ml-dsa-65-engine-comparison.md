@@ -5,7 +5,20 @@ Updated: October 14, 2026. Branch: `ml-dsa`.
 Half-gates, GMW, and Boolean ABY2.0 now execute complete canonical key generation and threshold signing through the same core states.
 All three produce identical public keys and deterministic signature bytes in the native comparison.
 Half-gates has the lowest complete time and traffic in this small sample.
-Private preprocessing dominates the current Boolean alternatives. These results select no production signing design.
+Private preprocessing dominates the current Boolean alternatives.
+
+## Decision — October 14, 2026
+
+Advance half-gates as the selected engine for Wallet SDK and Router A/B integration.
+The user accepted this direction after the complete native comparison.
+Keep the canonical seed, uniform share format, and passive security profile unchanged.
+Production release still requires hosted measurements, privacy review, constant-time qualification, and the remaining custody and lifecycle work.
+
+Prioritize the selected engine's complete Worker flow and production boundaries.
+Defer GMW, ABY2.0 preprocessing improvements, and three-halves implementation to optional follow-up research.
+These alternatives do not block half-gates integration.
+Reconsider the engine if complete target measurements establish a better design under the same security and recovery contract.
+The current evidence does not establish the fastest possible protocol or a production latency guarantee.
 
 ## Complete native comparison
 
@@ -102,14 +115,14 @@ The alternatives evaluate the identical Boolean descriptions.
 Sampling selection, additive-share conversion, and rounding conversion remain inside those descriptions and their gate costs.
 No mixed-ring conversion shortcut supplies hidden savings in this comparison.
 
-## Implications for the next experiment
+## Deferred alternative experiments
 
 The current fresh-base, 16-byte OT primitive makes alternative preprocessing the largest cost.
 Online bytes alone would conceal that cost.
 Investigate packed-bit or correlated OT, reusable base OT, and reviewed portable silent OT before selecting a prepared-pool design.
 Measure replenishment and exhausted-pool behavior alongside online latency.
 The current comparison discards its correlations after each execution and cannot reuse them.
-Keep half-gates as the executable baseline while these preprocessing experiments proceed.
+Use half-gates as the selected implementation and comparison baseline for any later preprocessing experiments.
 Repeat complete measurements after changing preprocessing.
 A short gate-execution phase alone cannot select a design.
 
@@ -146,10 +159,17 @@ A complete target comparison remains open.
 
 ## Latest local Worker checks
 
-The rebuilt half-gates Workers pass [five fresh joint key generations](../evidence/ml-dsa-65-worker-keygen-division-free-local-20261013.json).
-Their client median is 3.28 seconds, with an observed 3.21–3.30-second range after one excluded warm-up.
-One [complete fixed key-generation-and-signing sample](../evidence/ml-dsa-65-worker-threshold-division-free-local-20261013.json) takes 16.66 seconds after its excluded warm-up.
+The October 14 rebuilt Workers pass [five fresh joint key generations](../evidence/ml-dsa-65-selected-halfgates-keygen-local-20261014.json).
+Their client median is 3.38 seconds, with an observed 3.28–3.42-second range after one excluded warm-up.
+One [complete fixed key-generation-and-signing sample](../evidence/ml-dsa-65-selected-halfgates-threshold-local-20261014.json) takes 17.41 seconds after its excluded warm-up.
 It requires five signing candidates and matches the ordinary deterministic signature exactly.
+Both campaigns use the exact Wasm files inspected by the [final Worker arithmetic audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json).
+The three inspected private arithmetic functions contain no division or remainder instructions in either bundle.
+Branch conditions, memory accesses, other primitives, and JIT-generated machine code still require qualification.
+
+The [previous key-generation campaign](../evidence/ml-dsa-65-worker-keygen-division-free-local-20261013.json) recorded a 3.28-second local median.
+Its [complete fixed operation](../evidence/ml-dsa-65-worker-threshold-division-free-local-20261013.json) took 16.66 seconds.
+These small campaigns do not control host variation and establish no performance regression or improvement.
 These local results establish interoperability and limited timing observations.
 They establish no cloud speed improvement.
 Hosted reruns still await the pending approval for the new disposable benchmark token.

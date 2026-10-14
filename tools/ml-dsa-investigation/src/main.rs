@@ -14,6 +14,7 @@ mod sampler_evidence;
 mod signing_circuit_evidence;
 mod signing_lifecycle_evidence;
 mod signing_mask_evidence;
+mod worker_arithmetic_audit;
 mod worker_fixtures;
 
 use serde_json::{Value, json};
@@ -246,6 +247,7 @@ fn generate_report(
         "Cargo.lock",
         "src/main.rs",
         "src/arithmetic_audit.rs",
+        "src/worker_arithmetic_audit.rs",
         "src/boolean_engine_evidence.rs",
         "src/complete_engine_evidence.rs",
         "src/reference.rs",

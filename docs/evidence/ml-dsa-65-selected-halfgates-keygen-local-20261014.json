@@ -1,0 +1,1532 @@
+{
+  "schema": "seams.ml-dsa-cloudflare-threshold-investigation.v1",
+  "created_at": "2026-10-14T01:23:07.426Z",
+  "environment": "local-workerd",
+  "endpoint": "http://127.0.0.1:51290/",
+  "public_fixture_only": false,
+  "disposable_test_keys_only": true,
+  "security_scope": "Disposable fixed fixtures and fresh joint keys run with genuine Chou-Orlandi and IKNP OT. Complete key generation and threshold signing use the shared resumable core. No wallet admission, durable shares, production peer authentication, or authorized cloud export flow is implemented.",
+  "measurement_scope": "Client wall time includes request and response transport. Worker Date.now observations are elapsed markers. CPU billing and actual physical placement require separate platform evidence.",
+  "sampling_scope": "One warm-up precedes each kernel. The measured samples establish observed latency only; they do not establish a production tail-latency bound.",
+  "provenance": {
+    "captured_at": "2026-10-14T01:22:46.758Z",
+    "sources": [
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa.rs",
+        "bytes": 28932,
+        "sha256": "1bb38255fe72d5814448a0d688fc2beedc3f8070aff433e91bb38d2b8abc2eb1"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs",
+        "bytes": 23701,
+        "sha256": "c8ad3f9645946049a4482a088ac190f243c5c4c3fda1dd445e739c6f8c353253"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/lib.rs",
+        "bytes": 230963,
+        "sha256": "733347a6d36f8cd631687c4f1d70da001e5e027b082091090cc4b789248aa42d"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/Cargo.toml",
+        "bytes": 2202,
+        "sha256": "0c61f638429447e4d0cc752918b2324a3a9b7b6fa0a76a009b06ce8efcb4e4ba"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/Cargo.lock",
+        "bytes": 44221,
+        "sha256": "76ec976d4e1adda57709f4792a143c81d0a67c9997368fef9ee4212f263c4f43"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs",
+        "bytes": 24910,
+        "sha256": "9b4a9c96d703fedc4b8d854e813e7e8963b37cfcd5d9151c2bd3d6d7447a16a4"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa.a.jsonc",
+        "bytes": 535,
+        "sha256": "78067f5416f13ae8c555587c9f475b847f9376afd217f9ed13e18650c5b2a58f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/wrangler.ml-dsa.b.jsonc",
+        "bytes": 454,
+        "sha256": "235a892d5f180584c42af0e1885beb2bedc9303fc8678b726cd0abcb967379ce"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/Cargo.toml",
+        "bytes": 1097,
+        "sha256": "081edc504406f8ee63382e825125f0fbbaa00d8846c1b49928a91ba0ce8f143f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/lib.rs",
+        "bytes": 4434,
+        "sha256": "f5c6d453ebe42c74cf7e1870c714a524573cf4fa114f6a7734df33d9f95726f1"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive.rs",
+        "bytes": 29431,
+        "sha256": "0d973555d7551d9fe03d63c8235bb7792e8a59ffdb7b307a906ed070d5546e3f"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/runtime.rs",
+        "bytes": 15882,
+        "sha256": "9d2c7b1e16d2a57a10a59f36b460312b3d7171c42862faa72095fac2f189066a"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "bytes": 45592,
+        "sha256": "9498bbbfec5b864f65d9e071ed76f4a0f4d8c68132d4994e58d3970998779f5a"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
+        "bytes": 28742,
+        "sha256": "766c9a2b59153c978538c15cc0eed58952cd6fe6d4f02d31ec20df965357cbf8"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
+        "bytes": 8214,
+        "sha256": "d8bd0416e0ed2948b0813ec5ab1b3643543e6f0e2e3c115253134c2a7c4df40c"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
+        "bytes": 12553,
+        "sha256": "e13efac6bf6371be39b7695790c1c78efab3f1857d518ab342a2d6cc7becb7b6"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/gate_aes.rs",
+        "bytes": 25775,
+        "sha256": "7dfdaab51ff5af717a943b216959acda6ffb05575730c1f227bd518098e9a12b"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/ot.rs",
+        "bytes": 46042,
+        "sha256": "647118dd9291557b4e5f76b5cd571a9f67a5548de17b7a388ffe21a984ae7089"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/Cargo.toml",
+        "bytes": 815,
+        "sha256": "7520911637602e90317b247ae6965a976044de49a7c80a0b357259d6aa15d991"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/Cargo.lock",
+        "bytes": 38947,
+        "sha256": "dccf84cb9c98c500450eae5eb68ea9e575ac9090e27958a0fa85ea534b67647c"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/src/worker_fixtures.rs",
+        "bytes": 9313,
+        "sha256": "daae9024616e97e0b95c91488800fce2fe9cebcaa5e2f316e128061847cc7638"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/src/private_signing.rs",
+        "bytes": 20511,
+        "sha256": "46d2be8b2c864d6dd3aab5745fababb7a01330a9fb805e7c1fefae904bba1bbe"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/keccak.rs",
+        "bytes": 12407,
+        "sha256": "dedc27c96dcf7b0436f3d04831b8797ee9a7009ad2d6caf7b9db9400c4bbe1ec"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ir.rs",
+        "bytes": 28037,
+        "sha256": "a975ceaa50a094b555d39136a668e14a468b3bbeb62406330b21ac24a8cb28bc"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/schedule.rs",
+        "bytes": 12983,
+        "sha256": "46ffe8c2fa2d4c78395cceb7c2d98e56444739df64f03c4ffff1330cb67c7dcf"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_arithmetic.rs",
+        "bytes": 2802,
+        "sha256": "b99a136d86ff6c60d2de6a23efea5e69fbf219ea754ec5b3703a4986d7cedc5a"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_sampling.rs",
+        "bytes": 11669,
+        "sha256": "4f94f74de2e965f05730b5227d5cf36e67914492268327991a96b347f6a6b612"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_rounding.rs",
+        "bytes": 10114,
+        "sha256": "05ac82d424609f9fdcd63a05115abf59a003cdaa9a448e6150e5f5ec316a2b9e"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
+        "bytes": 8056,
+        "sha256": "2097119c481dd19b30b8a37a272c658f03ce551774322c07f97351136b489307"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
+        "bytes": 13316,
+        "sha256": "36c072cb237ecdd2b020f1b2dc644e7db07087bdb2e9d26dba0578db76c82c15"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
+        "bytes": 9192,
+        "sha256": "e93881895f7c3903d8e5251bb1c78b96947522c5a68177eafb71a105205e15df"
+      }
+    ],
+    "schedules": [
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/seed.bin",
+        "bytes": 1319583,
+        "sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/sampling.bin",
+        "bytes": 8131283,
+        "sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/rounding.bin",
+        "bytes": 1378874,
+        "sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/signing-seed.bin",
+        "bytes": 1315304,
+        "sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/signing-mask.bin",
+        "bytes": 7451952,
+        "sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-high.bin",
+        "bytes": 769082,
+        "sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-hash.bin",
+        "bytes": 9454746,
+        "sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/response-check.bin",
+        "bytes": 808252,
+        "sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/row-check.bin",
+        "bytes": 2973500,
+        "sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/aggregate-check.bin",
+        "bytes": 96695,
+        "sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b"
+      }
+    ],
+    "threshold_fixture": {
+      "context_hex": "",
+      "deterministic_signature_hex": "a65d764d93361e2d45d7bad5b35076f9eed5c68e069a7b08bf8ec40a9c3102603b049257187cd3361fe73d2c2fe774788933a1bc104ec2d99e43d84f49ca11f3456047acca3fe3be0dbd7eca52af224b65123b3fc0a24f58393ccc9d2a38103557ca5ee60926cb1118403b9d5aa3a79853f8f7b4c79c76e60042a9cfe12c62c6733b5839f7cdf44187d72884b58909eae6cd966d6863baf5eafb9a839aa656b938b8cae8b492de99331e2ece290e6088b278590d7933f50849c2cbd4fb550ef26153a1bb22c2de5a52a88620fcce8c8a222d62b9d1c23f22bd497b1252f5a7ec4a5040fea8f1498a3209826efbec542edd02241ef34bc01274f5d9f9d6cd58cc78f29b78c46a6ae9c65db88039ac2a861704e365b4410c907d80e6982134f3ad729898c7b112f92aaed7c24be0b0059d02142dd7a17eb446e1050445f5ca76978caac93c23184df945ade1958db010ec540d42c748fd12abcfc66a76806ad633d6e4a9c96fcaa21e48a4415d4c572102b4d12a8538dd2565439ff86684ef7f50a67ec48a0cd8e4604fc92be67e5372706c67a934366f154f324eab9e183e1c1e71fae1dbdbae33518a787af649c8058023a56cef15e845573968565b2bac8c8ee44e8204c83c36c44039567cc285ba313e4ead4db207591365e56f1bb32f71c565b8ad8048990189a112a062d6ba822665e11ea97158d2d0fb6976d5730c73b6d03a330744ceb1edb30a02931ecd6d4ecc3843cc7a2846619c57ed9af0ec1b6b45130f21fd446a7dd44c3a4d15056dd2ea02a2eff6d773e1037b2ea4873d479cd0958382142b628774671e09919dd4c008649f509f2a89b88b87c6ffec15453258a9af37d2f34b28737892809b5bbf786694caa7781f0ebd3ad166e423d2a6a3c3d81724df0b7f4d18c91e6ee2e56c3dca406d99dfc6ca1706cb4a65c6621757cb6da218cc536aaf7b0494dbab7edf1390202a0ab4fe24ee483a02f8a22cf3a8f0d23f4bd12a00ce07d09674f88f801e7d3f2c39c3d09b3bfb1487e68f7e6c2be53edc6b98946d40478df89619558453837ac99fe980499e9b7bb917cc4be38358f34c5af225811359b67c51dfe5dbf109576315dff71d510182ad9cd3a90fc3cfede793c234aec311aa50bd23a455e1abf55fce4f4821a3f1be9906554a135a0b4619b855f5c741edcc2845c40f82bee54ff7017da79fa46c5f576f4e4aea46e6483966b165682a5a63de4a50a87b22a49b76feae5cdaf9c89fc3906de8e2fb80ed91cf054ff9f553b5088c1eb1e2f90f4af3eced4c9ae9f84165509dc16edc2329dbaec4ca1d07055e706bb331c0a2bc61ab5efff1be362b1bec8f9dcbf0aefdb643c98a9dabf759f6f6541973c42373b8bb5cb502be308cdf29c41d52bad0438a01b9fbe46bbab403a73efb67e8e09510cf425bee557693a49a779ad09b3708759a74e35126069e96b7b5c5a2d3de37f7d1089509a3150eaf876a4f2471ec5f226a4c206b48a1b9b1230a463da2d28e5f53ee662d069cbe59cae57b2b1d270fd67af033d870e584714b5f81b385d4384188417106f6671fbf92014c391647cdedc8d81594d3e92d1388492f1591ce4cea30bb907ef3ec9a249133d0fff8bfca1218192e0c748ff7128a14156e0bc1884c569b04c671fe7e3cdbb518616081eee057bf3e672e831c88e105d19e458ffb1c52e140dfe6e47d55d9b87a0579925148f3d3458522f44a732c1d92b8a65e0c71b7f393bb649a3e9e11031dd5e2030e34a319da7a9b30b9f154d869930d603242cbeb94aae20189a9690f1de861e60ea3558f0276ec7028397da2d1c28cbda398bd79065db71e4aafa6a11576fd5fb7d87f07e5906f2fcbe31ab1bc1e14a8c4daa813187dc74edc3101c424954f1fb7c4acfb911500c240f0527dcf724710d0d95d4de5499180e1b56a65f36c0194e52532ea4523eeed7fea4443d2b3bef3ffb025696fc42585efb7882bb47fdf53afdb7a95371dd48878af9a1ff1a3b0685de1922645ad535d304b0a6846b34b3b68f1af46231f8244e9eca05bf03c99cb21d9293fa136bf0e065a07124374a5bae41e49b5fcb92d289fa33a6e4a969e17d9a4cf14bb2a6c9e24c08c9820890482ec729d583c12c4495bf0ca8b2cafee6a5cbf077c34518d4debd7a3ca8fd772dcfcf8d41aa978e453ab1aa75d63a9d33bdb4c409c13c7e72351342a9320ab06d5ceb0b20a8a84ada34b213c3a18d687ca82cbe1881906723d96c8e92d2faa7b676a5dec601d5b07fa147c7298da18db8068d25d3a17cf075b3191268dfbfba3d60425d9cd367bb6009118974417c3948f62a75ac0bad7ccf49ad20f7e54c0fb53bbe87f93afe9770da012a5d5cc0643ec6aa5c745c876a1dfb46bf07750ee9af7ec4f2b6fd9f4f1d5fe206ba052a743350476f76671e141b9468f6eab34c133b92e392fc5180811940946bb63bfc792f451bd4a6526cf607cbdc14c34ecf8fbbbc20272002714336511fcb049235ea2f6a3a1df9d102eb5b6555f1582763a4e04ed5679ece3ce219c1d6c8543fbc18856161041d6397c9a74c9ebf9393bfa82a3772788cd292e186e8239eb6b628be005957694dfd5af61ce4a8d353164f44df1636cc06a2b5e6d64e21b56a39766707698bf123b7e4cc7002a57f2ced3408a8e6f29fe3a83405668359b25f9b54f87ee44b47f590e679236566c1b4352e6dd4b27ca721f4048f8f495669c3ae5b89087faed8f7a73096464caf6725e11ad737e98f139150d5a55fd3f1da2be1922b89abdb31f51fe36e1bdb007a6b91784035da70748eec9e5218fc5acf348efd3771fbc4f5cf8c03254646707183724b7ec63e6adc1e5018ffdc06e66f981b0b3dabf6bc6280efa2f8baaf72aacd62445a31716a6ea50ff8b071e79c23f332479d28364154acae2a786e58d6c53343c57ccc64dc1715fc4077a121f012b8209c18830b193b0687e5339709dd0de7b18c33d513947760314e2a20ce5c8886a86b8f678618de9a0d56d4117eb501b639c6a4fb488c1bbf873b5f730f730fc00d0d519ef60e988dafa861e073ffb2998023b0410f56e08ebbcb0e3b39707e66faf5788d204a78ec274e0caa8733c340e46d872d5109c912a0bbcb3a07cc5e4179de65865bdecc9d762c6c97c6ffa024d78faf4704e69794eafb46820423fcba685f78b2354a31c95fb42114ebfe162d4944a15d29c50023d76e18b428418d7558cd0c4cfbd36857e353458b423f3b0318a2bdc0a553c0838ee488145f063fa34ce58565bbf46d48cfd969db14c038f3364c6131b1c1850352aa6d196de5216bccc2141719a4acc7bf4fb1979e0b4267f4b5df7e4b68e98f61e2bdc39343cfbf61d871515300a8ec83879025ee833bb0bc21e39c6015061e5ff5afe3965344ffc6d4ae5cbb5359e5df5bb010d3b72da1f0c9b662b42f55480f6dee541d6f1dfe448aea7e6f430f153e752712d37aceb88820dd31f35d31436d448a320cbe6b2d88b543244f06d84134798d5ed5f7025d6d163d9396bbb4ee3efff7c523157f727b8d7c3713c94714ecf77932a1713658e71a14e466969dc61d8f93338007bcfb8084f95568944a4935be9d9a7e2f32b538c258b8078f17ae882bf80a581ffbb0545b6a93b645436129d7565b280cb6e2347e844d25785a5fe0545d6abbbc211fb85846471ef491f381fa123f9e04c7fc53d3d11734331eafc9f1c9efb10e8c11a6315e9b3d968ba32287c2d373a94480ac2d4d037eba77ab696b8d243e4c7ca30e5aec8821c6a5088767171a2f6e968b7b652254d3babbe2723fc56512cbcb0727f9ccdc1dd282a8654b03dc16f15549e0335a78e13092ecb23bd74aa6a54224a21a33ad9d1d22d7d273a162cb85998011cf5084a320e1ba28644b76fb6643640c39a408a80ca991bb580f6776c051783f062c1c99aa3791c816bb3685d616777071bc58cad8f8b0a7dfea1091c4eeb760df68998b40dd42ed22808b64b0e08d879eb0b3ee6bd885b961118de3ae54236e07bef6f7581b228742a6658725f18654882a151ec759e2bb6c80c1747eb0a0b05e63b6bd8c42f7edb442bb4b35930c1b40e764ef6576ed1196558a822e84b559fb88c91b0eb7892ba0deac43f27ca6dd79352b376c4f8cf9d5c82f4bbb785bb531b7a1c847a3f76be196330aea04db505612441d0a8540845d3d598c9b480adb10cc06f8e2a99d6b066f199ae38457f49f53bfd75210d6e416f37a37d699486dab8ee9cda8f7e227ca4f88571de6c685e675019af7fb05651a8fd52758e6d420fca172e1a4d737a6ccd222394ba8f49906a9db73936fc3c0c73d9fd60376d26aed71ca0fed6afac8ee267bc5ae98686b9c34e0a2d5b9e5635fb36ff0cc866d7557bd0acd5ee7ad859e9ce7cbe5fb88b6b879497ad732caafad007ba714055cf38a06dc5b8d90f161383d420e18067aa8c9ab40d42627ee544472064dbd8cddda85c0a67c315926999faf28d09ed22659ef5e9be2426346ce0a1eeff9ce189fa6e397177b6802fafe9a75a3d70c62336b2f21be5648a63de063b04e5e659d76118f4287b03863dcc399809b98e295a2eadf6526d0e3e636474c3cad4e1212b848ebac7c8efff2d4d880b131d33596cbbd317b9e30860b3fc000000000000000000000000000000000000000912151d2024",
+      "message_hex": "f34f48d83dc1c6a0b8c8ef0a77e55d2680d851ded3e75e044f71dec7b17fcb36",
+      "own_seed_share_hex": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "public_key_hex": "424b2f267e58d5b3b44d71acfc6a656bb26950d57c61db1c880bcfa1feab443f0942ab8bdbad7d708abbc356078f6d99a252271fe62c74091eb94afb9b9264c50a888e0dfed80cd5fb2cbd3667e60d539ebe44930219cd4faed15dbb3455a264802b9f49bce42ee7550feffdd4642a55ade693868a460cbec03f4fc99a4e30bccffa8a475e5395396674ebb81a94937587880f6dbd27bf1c4f5a9ee43cdd8b0e53b3b7fb49c73adfbc2d4f8c54303520c29bf97e26ee57db342d957c893936522d0942b41d82ee3772a00570adfb545c1143922b0496f826a0a970064b36ddf534b5f8e1c1cd0b5565ea846b45431f0618143ece89777bb3f61179ad20295fe0a6e062ae6eecbc2ef38f2ac1a22dc93b7b126336223c55b61eb8c0795542bbb2dc65e722eadc6866ffa9683beb8a999ad7a83e5e6e016c2e4c35f6f7649ad3bd52ec67ec1c5c6e7b9972771218be9554bba7727f0b84c44b9b0a8bd831fcff2c9779ccd4ca30c6ad75b04983e41de893ee5f39ea7355180b709c7045c22d33a083f6ae07a114746d1bfdccbee5b9043879bb5a2e120e2a4636283f4a1cd4924a2de6a4aa3d99ddd88f48aaa4e88bfd1ea769d82c10779f2ded796db542971ca289b76863ede5997b7e9ce183b43ccec278b10d92b87442ce0435bb1625171db5554b470239c50d2a0c3a41b2a38807db070b47bfb3e7d10f3cd979d69963c8d79f8029cc4a48eb04fcb3d708844febaa8b6ddff01ab64d59358e6505c4ec1d7cbb14ed2212df458ecefc03fe03037b1505a4c9444322f5f98dfa91a4cb8c45860a2dadc7515350bb6d431e49a6bc8f5ba956e682b0e513321a97d1962602891c9078f62a8a9646a31387a6f09684264837899e0d8ec7d11c565901298b20b345081690eb4c562c1aa3a25bef06566cb34c79bc0b25e4095d6ba793e81311e41a3329152686f00d4897f84fc4edf4b26d545365785ead8d63aef64a87c0b91a2e5500383956cdf5f6e37cf9d5482d1c8e3a5be38f17259ac45c9fa1c4bd3bf177d312ee52a6da023c05722a8738274dda8d1b04e99831cf57c87282a256c565c296d0524a063a3a41a48a83009978d98d8abf61af68e8013b594fe151d9bec199902c4c70b49584201743c6b53103d2fd24bdf078dc90b5a188b4f8d772179988d0416c94d4c57c0860b9d7b53d4cd261f332a1851565d52ac37f008747cafe320f363d9beb6e4117db43fd8aeebe5e0ce2f54e3f0367eb3cc971bbe0c301a8e52f96094936035c6ee3ca2d13db483a0dd04dc16247de0e0894ad7cb7e1ae7ebd4f8f900582b20021e77f70254501c6ac3dd15d43bbb7931c5283244312158c2eb1b3e1117e194f0a1e4c783efbc62c9f81c21562d0d34a5f042b5eaaf32f31f95c5b055f4e7a2070fb096f56c415549cde74f3864e8b9fc27e3299724b4639986044b55928fd6972785b280c25a3e21aab814ecbfb0c3cbec0914907ec907f25a1d88bce3d319ae8222a35945db62af7cc75cd29c1f5d98fcb93f750dc3031076979bb51dfc37d23e8eea78073a24d3e26c68e7bb10e459f2577b90080359ae0aec10318dcd9e0f9e34029c31b3e54b1855645db420618783346dad5b55eddb4f977b326a655525ebe2195eca9cec38a3c0d2273b77d3e68f1901c2ca5149734a51177bcb089476b18cba09fa8b9b46d94a2946f358e1decb1998652c58a90852423e2c85e79d19724461627e6390d1a81fb1a72f9c7edc4bd747dd5c85217b5856141028414ddbe71458f0a0b2b589df2e1b051783b8f718676b1defbae98ba496c2a935e92eeadea0a8393ef59f9e914f0743fe65640ddf9981cea6dbdd957a534ad4e790efc974ee89938ad99d53c5b680775399326834729bb37b082e795f8d87f52e6c8a8db68e515c277bbea82a7570d4280896c987a0608903e306c632a223c55f0ea3682039c4a3f5440f4b5ac3e6ed2b2dc900cecc72b72f50e49b2629ad30f0487b2707b86286f8c4f55659b25f9bdd7a6af460cc3c57a3982663bb717461581e196894929d84153d87a7f482d284b5b894ce1a78216b2a011f2b88742cee52d5133e8fe77edae242f5af91637c37ffca32430509b2fe4756303a9a3659fe32528af1e10d8d43bea991b2d109786cc66d35b1d78df254b92cdaa40f91a987e4a922ca81050e5bc3530ca85493bdf2a825374d0a8310a6860284ec3ec732326eeeffc42bbd42bc91b73e5e7c6b599d016490637629f3876c3e42f8db590e66a85a7838c818f78fffb4853cbef09434989803545dca87657cf7c7e7e6afa71382bc10fa0bb6480f243eea1b861101006fa0cff3275621943cc58eb4dc3a0428a5e425670fe82268de71c511d8ffbdc11b0d0f961120e971015ad5f448886b802e3fac11672319d487c84f1001339cb969784cb57344f2807f8b425f1d73caf8496d742ed237f4c9fcd5a4e84fba7e27fb1a8ae12c4f0427ae24e910d951bd8c35d61f8a678db01caea8ef789a95b62ee1b8c5d32c6baa536ba88a1070ea61aabbf59294e3f6f974c4c91cafc5bbf6b7ecfd57a18fb7557d71e06e900d281b0b49aa00feabb35714af33870edd7ac2393d93177f79ee5606c9df176f025ce49a6e5ff51a2a412ebf86ac0f40471c96ad4c119df230be6173df530ed656cbd8069214741ecdd0271c603fb6c4a8614ff878d33e726cac6693e938ca3fba82c4995c14a2d4af9014fe4c4c50b794cac596b52189f66a7106fb325b526ea"
+    },
+    "schedule_resources": {
+      "aggregate-check": {
+        "and_gates": 3077,
+        "bytes": 96695,
+        "sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b",
+        "table_bytes": 98464
+      },
+      "commitment-hash": {
+        "and_gates": 267584,
+        "bytes": 9454746,
+        "sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361",
+        "table_bytes": 8562688
+      },
+      "commitment-high": {
+        "and_gates": 28160,
+        "bytes": 769082,
+        "sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6",
+        "table_bytes": 901120
+      },
+      "response-check": {
+        "and_gates": 28415,
+        "bytes": 808252,
+        "sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506",
+        "table_bytes": 909280
+      },
+      "rounding": {
+        "and_gates": 43008,
+        "bytes": 1378874,
+        "sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99",
+        "table_bytes": 1376256
+      },
+      "row-check": {
+        "and_gates": 106239,
+        "bytes": 2973500,
+        "sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7",
+        "table_bytes": 3399648
+      },
+      "sampling": {
+        "and_gates": 292180,
+        "bytes": 8131283,
+        "sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71",
+        "table_bytes": 9349760
+      },
+      "seed": {
+        "and_gates": 37824,
+        "bytes": 1319583,
+        "sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+        "table_bytes": 1210368
+      },
+      "signing-mask": {
+        "and_gates": 212928,
+        "bytes": 7451952,
+        "sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+        "table_bytes": 6813696
+      },
+      "signing-seed": {
+        "and_gates": 37312,
+        "bytes": 1315304,
+        "sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41",
+        "table_bytes": 1193984
+      }
+    },
+    "fixtures": [
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/fixtures-a.json",
+        "bytes": 20759,
+        "sha256": "c8ca8b101ae15b55426f86667a6307f968bd83c8bb583c5b70d4ac0fa5bbabbb"
+      },
+      {
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/fixtures-b.json",
+        "bytes": 20747,
+        "sha256": "53a39e66af1e8944737c5ee2b78a61d6092243327f7837983d567868487af404"
+      }
+    ],
+    "builds": [
+      {
+        "role": "a",
+        "modules": [
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+            "bytes": 26139,
+            "sha256": "0cff0132bd89390438e1f4a0bd4df5ab7911b13006113d9b995782c6d76d9dc2",
+            "gzip_bytes": 6756
+          },
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+            "bytes": 34887591,
+            "sha256": "9a801ff162ea14d034bb261d70dd31d82da69a4aecdcc84c91c0f497917ea50b",
+            "gzip_bytes": 19043808
+          }
+        ]
+      },
+      {
+        "role": "b",
+        "modules": [
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+            "bytes": 23802,
+            "sha256": "edca40bbf12671b51d5da1cd5e9c724bfd20be6eaab0e2118636668b0409e3bc",
+            "gzip_bytes": 6037
+          },
+          {
+            "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+            "bytes": 34813505,
+            "sha256": "cf06df751624f18afc9017753d40663450771bd6377a42c0b4481f8c2142083b",
+            "gzip_bytes": 19020251
+          }
+        ]
+      }
+    ],
+    "node": {
+      "version": "v26.4.0",
+      "openssl": "3.6.3",
+      "v8": "14.6.202.34-node.21",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "packages": [
+      {
+        "name": "wrangler",
+        "version": "4.111.0",
+        "manifest": {
+          "path": "/Users/pta/Dev/rust/seams-wallet/node_modules/wrangler/package.json",
+          "bytes": 6507,
+          "sha256": "779083c6f662f71d6ae71c56fa370b397c43facc6a46ecbdb02a1b84a08ac6f6"
+        }
+      },
+      {
+        "name": "miniflare",
+        "version": "4.20260710.0",
+        "manifest": {
+          "path": "/Users/pta/Dev/rust/seams-wallet/node_modules/miniflare/package.json",
+          "bytes": 3978,
+          "sha256": "90e56ae6c17d181b537b3cc2f661641e33ef2574f39f4a4c3067553a626a3363"
+        }
+      },
+      {
+        "name": "workerd",
+        "version": "1.20260710.1",
+        "manifest": {
+          "path": "/Users/pta/Dev/rust/seams-wallet/node_modules/workerd/package.json",
+          "bytes": 676,
+          "sha256": "6f12d12b36a25872bfc1063ccbf8fe0fe5b814d332278d5f948ac83a413dfc91"
+        }
+      }
+    ],
+    "reproduction": {
+      "working_directory": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.4.0/bin/node",
+        "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs",
+        "--local",
+        "--kernel",
+        "keygen-joint",
+        "--samples",
+        "5",
+        "--out",
+        "docs/evidence/ml-dsa-65-selected-halfgates-keygen-local-20261014.json"
+      ],
+      "fixtures": "cargo run --release --manifest-path tools/ml-dsa-investigation/Cargo.toml -- export-worker-fixtures crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules",
+      "build_a": "worker-build --release --out-dir build/ml-dsa-a --features ml-dsa-a",
+      "build_b": "worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b",
+      "wallet_root": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa",
+      "authentication": "PROBE_TOKEN is read from the environment for hosted runs. Its value is never included in this artifact."
+    }
+  },
+  "unauthorized_request_rejected": true,
+  "unique_execution_bindings": 6,
+  "unique_joint_public_keys": 6,
+  "cases": [
+    {
+      "kernel": "keygen-joint",
+      "warmup": {
+        "warmup": true,
+        "started_at": "2026-10-14T01:22:47.256Z",
+        "finished_at": "2026-10-14T01:22:50.654Z",
+        "client_response_headers_ms": 3395.947917,
+        "client_complete_ms": 3396.752083,
+        "client_verification_ms": 1.2888750000001892,
+        "client_verification": {
+          "kind": "canonical-ml-dsa-65-key-generation",
+          "verifier": "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+          "standard_public_key_parsed": true,
+          "canonical_fixture_bytes_checked": false,
+          "role_private_material_bytes": 17472,
+          "signature_generated": false
+        },
+        "report": {
+          "disposable_test_key": true,
+          "kernel": "keygen-joint",
+          "ok": true,
+          "production_eligible": false,
+          "public_fixture_only": false,
+          "roles": {
+            "a": {
+              "disposable_test_key": true,
+              "incoming_colo": "NRT",
+              "kernel": "keygen-joint",
+              "keygen_observed_ms": 3270,
+              "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+              "own_material_bytes": 17472,
+              "public_fixture_only": false,
+              "public_key_hex": "872e45af0737710bb6810301bfb628490e81852bdc9ce8533ba4056e8f9f25ac5d52f7b04e8af708de84cecaa2927a534ff5e7482a976bd7c544668e4db19b33a74aea74d92de73fa9726d9ef1ec35c7e2818e4df34cf90242979b643816f1bd30259faf95c37a9e9d6fe5f8b355905eb914a76dac697bb6e7cf5c41dff5a512e5346b765ce9da4593b645be9644767a342fdad1f36364a3a10fffe627fafa2b9667b7d21a093c00469df05485fc2c34a249ad66c134d8505049587330c796c51b1d78e8349483717b62b26ead5b25a2b092d7c660269d16ac3a6d32e5ec68f1c0d985dba036d495beb8e9452b28399e9e11261adfbcc260bfe9743576376890245f0ce5430532642f7d597434b0d3d08e048ce699853bf7ace497d8e5ffdb48112cc32287b4f5c49d041da56e4e34648a6dcdc4573e997f6fae999826958c4500a5e1e2d0c648bea38c09ae8cef460f6226a5115623c42d88ee561b9f8f9eb93e87fdc1b74a456c39d895f2133f6ba138c97f9b16dc9d7abe0e0afd01fffa6b01a3cf5507a95f87922256d66a1b6e451839f76fb891103d6fcc41c74b87452830fa03cd656d2e83b591dd37d949e885f950f3b24082dd6f250f78b66cde94cebd253cf9da63b6d9c7538b1f283c09ae4b39fea71678743ac637bcd07a8e493bc66c56938fbb0696822b8725e90b895882d510ea44404cccde44d55f329f1bbb1ed5c4da15b0fd7cd847553fd763579addba56675ddaab8a4fc6bf3751e5bc75aad4cbfed144468bb3716d0c215606f4806d31bd5ed5fc6f6752ddef8f840543068978bc0bf63f0511874626f2598033b38b279565d33136ce6c3815fa39282a66c9ae20c04dc70dff870f7dbe67cd683e2a5fb638c5a6aa0b4033011c5d69f4a6a73368c3b24ee5ed8f60fe7af8311e85544bfd428d398e1d6ad146350d69c0be74b78cf6770a7966922c306e6112a3dd77d55d42b0f28955f42cee1f9c25a20c7311d6471f75844deb60bc23035fb7b2251be341674b40d1c1e0a3a43687c5b434854a0e3966a782c706f09e8918f53e847848a8226c41caddab5a7307ed83ad75c4e9fb2af7d44fe453cb453b7fc661d7f59d7ac14948e188b5024d505accdfbd6fb066e8d8ba78aaa01827bb4ea4d7d1c4cabff848c037b9fbbd8728c3344fe72e13396a6e9afa8aa0fa1f77e9210e1b28b7735b36e60c32f3e755912e7235bce24d60226ec017881dfadf9e50b5ecd9741074449728c41ed2a3535d07923367eb6a39da279c70837164bec50a42c4fe6b3434d18ad2923274e1e0635a598f9f71f431b7c104c3b1c40db0c87a46752311a3a48e010e92d7725bcc1a4ede24cc9e15b586722f70c5a2c86a1aa3500ba8bf9ccd39220d2a0bda184ee306fa6e7e94327ee98ece50c819dc23122830119ae12d574af1584047ec737180b82d8c9ca3b1510121217c23fd6cbf3ccf4892d82be81a83b1e20ffdcfb0d21db89d1c75216328ea5169edb5a792dad4f41632805e632905a2f60a3bb5f25a8427a27f1a4325e1f4cd452e22e264dcfb4c315153069732e6c0b776fc53c84869ee5d9a4183e372ea9b2cbd05440e3a24ed37bc17c5869eb2283a1a341a62b7b83a6275dcd8cc65af88da2a142d1383c05d7c5a133cd40f70b6f9158a7ba4e7bb821b70cdb69a4e18bc9d452040d687192faba9e6a357d31404b3e8af290f9afc65b69523712720ea357886960a30141a0ca078c60c12ba355ef0257bf13516bb9ca206dab3f3aeae8f31f8643b4909205c196dc07a9cad2bffabc06e4010eddac1ab7def60ee770210227ca339bd37ab6d699805dbdd27156671b6966f82a082a9df00b3d2537dea065c885b3d8f1f8cb3259120c255d3ac9bd45e20ca98e42f28565f8d5d2779e2de2298e78bf8ed229cc65af4b9e6f2e48fbe84d2573b06a722515d1ff19a1fa69f209d6f610688e692d2c50af4e97bcaf26a91ca984c9fdc359d867c400d01d331f04e28904ff854b1da67c864c67f470fa58c2db96e5113e6243ba3499c653fe901d779ccb46aeebfee92a861b9abd6b235375492b5623918c46bd305d9ced7bf8f464ed3f25c80f9ebaebdee9ccd2cb26c2d3e256503fe5d77b31e2bf4af60f8f1deee944081e28b8da4162a1b028b9762d1f6ef07578248c4998339b707afac827f838eb2b32d52fc11505beafbb15b9d845df299c5bd662c778b79bf5f2e595a44604471f3eb32af25473321c142bb27bca738eba65fca9a31fc3aba88815d5b747a1d245be5c9a3a8f8106cc30b69ccaeada1b01da1fb2f5ab179e2317126b6eaa04c034edadf21596118a129211d89b9e7e0e43be8c1fe11e3b0b5906185201248b04b1dbd56c8dbd723c8edf9357226090efb402a18937c4e2b01f08124d860b9be040f95eff1a05c2ab9a21884f40d94de036aee5281762f13a5ee0a9aaf30f5885cf36cd3c12d6b9660be2fdad8522fd421d4b30e0371e8168eba613fe38098a21e26983a7a4d29f30c6801acc4b47436da6383db2f3de05a8925ae0e2789da78eac307f1d7e2745bff1de3bb0bcadbaf818448f29f2f9145b0e7a06fb19e3379c173663342bde836c0102a7dd395980cc1efa4f18ca287416201838959b1025ff4afd8d414bd1c9352543f616759126b0db7f82d38be1e581bd59753ab99f02071a3bf18ccf75480421e492aead6b205916adf1854cc84b6612430c67260825d050145179579a69f160a6bcde8bd6be59aa80841e9",
+              "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+              "role": "a",
+              "run_id": "fe833d27f8f90b1e21f4313b325b219e",
+              "runtime": {
+                "a_to_b_wire_bytes": 116015483,
+                "accepted_share_bytes": 0,
+                "b_to_a_wire_bytes": 736875,
+                "circuit_count": 18,
+                "execution_bindings_sha256": "0653d20af37ec9c8e8dcbbfd7015cce127383c6fc94502713386b5b98a80aa50",
+                "fresh_execution_bindings": 18,
+                "largest_control_message_bytes": 188464,
+                "largest_label_arena_allocation_bytes": 300339,
+                "ot_wire_bytes": 2129280,
+                "per_kernel": [
+                  {
+                    "a_to_b_wire_bytes": 10551504,
+                    "b_to_a_wire_bytes": 592320,
+                    "calls": 6,
+                    "kernel": "rounding",
+                    "ot_wire_bytes": 1746048,
+                    "table_bytes": 8257536
+                  },
+                  {
+                    "a_to_b_wire_bytes": 104224483,
+                    "b_to_a_wire_bytes": 136235,
+                    "calls": 11,
+                    "kernel": "sampling",
+                    "ot_wire_bytes": 362560,
+                    "table_bytes": 102847360
+                  },
+                  {
+                    "a_to_b_wire_bytes": 1239496,
+                    "b_to_a_wire_bytes": 8320,
+                    "calls": 1,
+                    "kernel": "seed",
+                    "ot_wire_bytes": 20672,
+                    "table_bytes": 1210368
+                  }
+                ],
+                "signature_return_bytes": 0,
+                "table_bytes": 112315264,
+                "table_frame_count": 1718
+              },
+              "schema": "seams.ml-dsa-worker-keygen.v1",
+              "transport": {
+                "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                "credit_window_messages": 8,
+                "first_receive_ms": 62,
+                "first_send_ms": 57,
+                "largest_pending_messages": 1,
+                "largest_runtime_message_bytes": 188464,
+                "last_receive_ms": 3320,
+                "last_send_ms": 3313,
+                "maximum_runtime_message_bytes": 376880,
+                "received_ack_bytes": 9040,
+                "received_completion_bytes": 5953,
+                "received_data_envelope_bytes": 270,
+                "received_messages": 54,
+                "received_runtime_bytes": 736875,
+                "sent_ack_bytes": 270,
+                "sent_data_envelope_bytes": 9040,
+                "sent_messages": 1808,
+                "sent_runtime_bytes": 116015483,
+                "worker_observed_elapsed_ms": 3323
+              },
+              "wasm_linear_memory_highwater_bytes": 36372480
+            },
+            "b": {
+              "disposable_test_key": true,
+              "incoming_colo": null,
+              "kernel": "keygen-joint",
+              "keygen_observed_ms": 3327,
+              "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+              "own_material_bytes": 17472,
+              "public_fixture_only": false,
+              "public_key_hex": "872e45af0737710bb6810301bfb628490e81852bdc9ce8533ba4056e8f9f25ac5d52f7b04e8af708de84cecaa2927a534ff5e7482a976bd7c544668e4db19b33a74aea74d92de73fa9726d9ef1ec35c7e2818e4df34cf90242979b643816f1bd30259faf95c37a9e9d6fe5f8b355905eb914a76dac697bb6e7cf5c41dff5a512e5346b765ce9da4593b645be9644767a342fdad1f36364a3a10fffe627fafa2b9667b7d21a093c00469df05485fc2c34a249ad66c134d8505049587330c796c51b1d78e8349483717b62b26ead5b25a2b092d7c660269d16ac3a6d32e5ec68f1c0d985dba036d495beb8e9452b28399e9e11261adfbcc260bfe9743576376890245f0ce5430532642f7d597434b0d3d08e048ce699853bf7ace497d8e5ffdb48112cc32287b4f5c49d041da56e4e34648a6dcdc4573e997f6fae999826958c4500a5e1e2d0c648bea38c09ae8cef460f6226a5115623c42d88ee561b9f8f9eb93e87fdc1b74a456c39d895f2133f6ba138c97f9b16dc9d7abe0e0afd01fffa6b01a3cf5507a95f87922256d66a1b6e451839f76fb891103d6fcc41c74b87452830fa03cd656d2e83b591dd37d949e885f950f3b24082dd6f250f78b66cde94cebd253cf9da63b6d9c7538b1f283c09ae4b39fea71678743ac637bcd07a8e493bc66c56938fbb0696822b8725e90b895882d510ea44404cccde44d55f329f1bbb1ed5c4da15b0fd7cd847553fd763579addba56675ddaab8a4fc6bf3751e5bc75aad4cbfed144468bb3716d0c215606f4806d31bd5ed5fc6f6752ddef8f840543068978bc0bf63f0511874626f2598033b38b279565d33136ce6c3815fa39282a66c9ae20c04dc70dff870f7dbe67cd683e2a5fb638c5a6aa0b4033011c5d69f4a6a73368c3b24ee5ed8f60fe7af8311e85544bfd428d398e1d6ad146350d69c0be74b78cf6770a7966922c306e6112a3dd77d55d42b0f28955f42cee1f9c25a20c7311d6471f75844deb60bc23035fb7b2251be341674b40d1c1e0a3a43687c5b434854a0e3966a782c706f09e8918f53e847848a8226c41caddab5a7307ed83ad75c4e9fb2af7d44fe453cb453b7fc661d7f59d7ac14948e188b5024d505accdfbd6fb066e8d8ba78aaa01827bb4ea4d7d1c4cabff848c037b9fbbd8728c3344fe72e13396a6e9afa8aa0fa1f77e9210e1b28b7735b36e60c32f3e755912e7235bce24d60226ec017881dfadf9e50b5ecd9741074449728c41ed2a3535d07923367eb6a39da279c70837164bec50a42c4fe6b3434d18ad2923274e1e0635a598f9f71f431b7c104c3b1c40db0c87a46752311a3a48e010e92d7725bcc1a4ede24cc9e15b586722f70c5a2c86a1aa3500ba8bf9ccd39220d2a0bda184ee306fa6e7e94327ee98ece50c819dc23122830119ae12d574af1584047ec737180b82d8c9ca3b1510121217c23fd6cbf3ccf4892d82be81a83b1e20ffdcfb0d21db89d1c75216328ea5169edb5a792dad4f41632805e632905a2f60a3bb5f25a8427a27f1a4325e1f4cd452e22e264dcfb4c315153069732e6c0b776fc53c84869ee5d9a4183e372ea9b2cbd05440e3a24ed37bc17c5869eb2283a1a341a62b7b83a6275dcd8cc65af88da2a142d1383c05d7c5a133cd40f70b6f9158a7ba4e7bb821b70cdb69a4e18bc9d452040d687192faba9e6a357d31404b3e8af290f9afc65b69523712720ea357886960a30141a0ca078c60c12ba355ef0257bf13516bb9ca206dab3f3aeae8f31f8643b4909205c196dc07a9cad2bffabc06e4010eddac1ab7def60ee770210227ca339bd37ab6d699805dbdd27156671b6966f82a082a9df00b3d2537dea065c885b3d8f1f8cb3259120c255d3ac9bd45e20ca98e42f28565f8d5d2779e2de2298e78bf8ed229cc65af4b9e6f2e48fbe84d2573b06a722515d1ff19a1fa69f209d6f610688e692d2c50af4e97bcaf26a91ca984c9fdc359d867c400d01d331f04e28904ff854b1da67c864c67f470fa58c2db96e5113e6243ba3499c653fe901d779ccb46aeebfee92a861b9abd6b235375492b5623918c46bd305d9ced7bf8f464ed3f25c80f9ebaebdee9ccd2cb26c2d3e256503fe5d77b31e2bf4af60f8f1deee944081e28b8da4162a1b028b9762d1f6ef07578248c4998339b707afac827f838eb2b32d52fc11505beafbb15b9d845df299c5bd662c778b79bf5f2e595a44604471f3eb32af25473321c142bb27bca738eba65fca9a31fc3aba88815d5b747a1d245be5c9a3a8f8106cc30b69ccaeada1b01da1fb2f5ab179e2317126b6eaa04c034edadf21596118a129211d89b9e7e0e43be8c1fe11e3b0b5906185201248b04b1dbd56c8dbd723c8edf9357226090efb402a18937c4e2b01f08124d860b9be040f95eff1a05c2ab9a21884f40d94de036aee5281762f13a5ee0a9aaf30f5885cf36cd3c12d6b9660be2fdad8522fd421d4b30e0371e8168eba613fe38098a21e26983a7a4d29f30c6801acc4b47436da6383db2f3de05a8925ae0e2789da78eac307f1d7e2745bff1de3bb0bcadbaf818448f29f2f9145b0e7a06fb19e3379c173663342bde836c0102a7dd395980cc1efa4f18ca287416201838959b1025ff4afd8d414bd1c9352543f616759126b0db7f82d38be1e581bd59753ab99f02071a3bf18ccf75480421e492aead6b205916adf1854cc84b6612430c67260825d050145179579a69f160a6bcde8bd6be59aa80841e9",
+              "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+              "role": "b",
+              "run_id": "fe833d27f8f90b1e21f4313b325b219e",
+              "runtime": {
+                "a_to_b_wire_bytes": 116015483,
+                "accepted_share_bytes": 0,
+                "b_to_a_wire_bytes": 736875,
+                "circuit_count": 18,
+                "execution_bindings_sha256": "0653d20af37ec9c8e8dcbbfd7015cce127383c6fc94502713386b5b98a80aa50",
+                "fresh_execution_bindings": 18,
+                "largest_control_message_bytes": 188464,
+                "largest_label_arena_allocation_bytes": 300339,
+                "ot_wire_bytes": 2129280,
+                "per_kernel": [
+                  {
+                    "a_to_b_wire_bytes": 10551504,
+                    "b_to_a_wire_bytes": 592320,
+                    "calls": 6,
+                    "kernel": "rounding",
+                    "ot_wire_bytes": 1746048,
+                    "table_bytes": 8257536
+                  },
+                  {
+                    "a_to_b_wire_bytes": 104224483,
+                    "b_to_a_wire_bytes": 136235,
+                    "calls": 11,
+                    "kernel": "sampling",
+                    "ot_wire_bytes": 362560,
+                    "table_bytes": 102847360
+                  },
+                  {
+                    "a_to_b_wire_bytes": 1239496,
+                    "b_to_a_wire_bytes": 8320,
+                    "calls": 1,
+                    "kernel": "seed",
+                    "ot_wire_bytes": 20672,
+                    "table_bytes": 1210368
+                  }
+                ],
+                "signature_return_bytes": 0,
+                "table_bytes": 112315264,
+                "table_frame_count": 1718
+              },
+              "schema": "seams.ml-dsa-worker-keygen.v1",
+              "transport": {
+                "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                "credit_window_messages": 8,
+                "first_receive_ms": 115,
+                "first_send_ms": 119,
+                "largest_pending_messages": 1,
+                "largest_runtime_message_bytes": 188464,
+                "last_receive_ms": 3377,
+                "last_send_ms": 3377,
+                "maximum_runtime_message_bytes": 376880,
+                "received_ack_bytes": 270,
+                "received_completion_bytes": 0,
+                "received_data_envelope_bytes": 9040,
+                "received_messages": 1808,
+                "received_runtime_bytes": 116015483,
+                "sent_ack_bytes": 9040,
+                "sent_data_envelope_bytes": 270,
+                "sent_messages": 54,
+                "sent_runtime_bytes": 736875,
+                "worker_observed_elapsed_ms": 3378
+              },
+              "wasm_linear_memory_highwater_bytes": 36175872
+            }
+          },
+          "run_id": "fe833d27f8f90b1e21f4313b325b219e",
+          "schema": "seams.ml-dsa-worker-keygen.v1",
+          "scope": "Complete eighteen-circuit canonical key generation on separate Workers. Each role completes its own private signing material and discards it after this disposable benchmark. No signature is generated.",
+          "security_limits": [
+            "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+            "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+            "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+            "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+          ],
+          "worker_observed_total_ms": 3390
+        }
+      },
+      "samples": [
+        {
+          "warmup": false,
+          "started_at": "2026-10-14T01:22:50.654Z",
+          "finished_at": "2026-10-14T01:22:54.030Z",
+          "client_response_headers_ms": 3375.193083,
+          "client_complete_ms": 3375.5187910000004,
+          "client_verification_ms": 0.13562499999898137,
+          "client_verification": {
+            "kind": "canonical-ml-dsa-65-key-generation",
+            "verifier": "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+            "standard_public_key_parsed": true,
+            "canonical_fixture_bytes_checked": false,
+            "role_private_material_bytes": 17472,
+            "signature_generated": false
+          },
+          "report": {
+            "disposable_test_key": true,
+            "kernel": "keygen-joint",
+            "ok": true,
+            "production_eligible": false,
+            "public_fixture_only": false,
+            "roles": {
+              "a": {
+                "disposable_test_key": true,
+                "incoming_colo": "NRT",
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3299,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "1d8f047785eedbd2cf1e12007ee2f0cc18b10003b856de22e949d013d4b3739fa61e2687c26cb13d0a74b45a0b525ed873dd7af62832e241444bf30453ee44060f315890fcf7136aa0fb216e6c8e463e22b2254fc136234771cb8ab310e3e8c51d229e131df004ba3264702ac00927fe62f6d7871e17f455859732c8102122ba6ca95f50c3377367b6b21a8dcde3cea66d1fb7645e11ae6efa402109f3330bfaa1606cfadf527230bfe8666397fd0384fd538a29fcb9bcd178bc7bdbe35875e17b100a798d681dca3d2ef6da5eb7aad54bc001780455e365e329a8fe804adf4394581cd6b8955cc85d0a64213a4cc4e0395c4e006f809cb2e6aca3203dd74445100cc8cf3c31078929e7f3353e2bfb583bcc7d87d8bb011606d3dfbd77c64eee408c404b6155040a239913553eac3a037290a386300a0d174a0bdbe37a62f06e0e876b197bbd7c6b00e1770acad97e2f09e6b17b7fbd2c217ec140dbea6130c903799f4e957d13ef984e302b0e275e8b8455a3eefa1852eaf39a02caaf8b7a20fbf0739b05651a77b2b9714cf4c4fd7fa75a76fe379cf5ca831f327f414e34068316a28b2190a3af2f292a52133d229148f2f36bfe2e70a97b287c2e4b298cf062ab68a2a9ceccd3e8b013f48172d40edb863a16f3540462596e68f80ba3c5bcf0cb879440595709c04928d548b1294587ba319e6baf4952ce25257c2b487df9834917ef14f69e74728799818d4524182f4c0ae94f9e8d6ae6d4554d820acf2ab821edef01e208c3440a920cc85db6d83871af0eb9902bc55a0517d93eeac6d7ee30e264baf31785ce44ec6887b4abc9724ce47ee9a17273371b315cc79316f4e8707d47cb7105e0964acb27c9116eedb36411881ad5bda87cc8f2b5b6a47c4c2b20ef94fd5cd73ba4d5f8d16dcc1a0f44ca4a3cd2012066ae86c0421e4790c8c0db041065954cad2148b9039fd65f3039a0f7689f7c0cbd674ef71ab022b3f26d64db70628ce7225c2afc79d12fe40c64a191f14d257fb9888b421f68116702578011099b6ca073a271c5808a7e9484f884a01bdde332cff42edfb3808eebe7c7f04f74a7700659349af5bbbbd249b46881f33964254e9191d3b6a1fe341e32f73de4b9d20bd3ff2099898c44216c4f25fcef3988c8968e0458be8d5075fa65108bcfedc07efdaf5f3a08ece8f9542243ccee044ee03b19eeb97ba176ca59d416dc10a6f66bc9722f1ddfae2d223df486dce907ec5a0837a9022914cebcf35d5b65cf87aca7cde383d9468fa2613c2ffce89888135553a3e0347b92f546123856ca139ddf8f12fa844298ea7b45119ba23114d8fcb7b48bc6814459c1209bb25324b7aac9ad2a5931083cd8c17e55bb9ccad080e6dea5172c755f19d27d933586532c315deb836231bdd8c95fb06b6096d8f6030f3808b752f1a428e9f15a9e077265dcdd0f8f0e9153a836c9007c801c5367c1f62323b76030bbb9ecf64ebbba73679888c882bec95e805482a9fd51911fd8bc4e644148e87d2aa8e605feee50b0fdd146aafdba67d5b6038c034445b852e62657caa5bcb7a3bcc78ba244a169ef8b268615d2a06be6cd2c25c4ff3c85e84bfedb8526b94085243ff311e4b74c94eae150be6985ee2b5f3780a803ab35bfa211e68f0cb960795daa511d46d25d9dba193f436494107979310e1086dcbdcfa43126e97a68c28aba45e0a0e4a137d5623b3bec39053fdf12f50a07ea55071eaa28259ed1eb412b3b2a16c1d83511bc7f5e2f7327e2fe9141ec4ae2b09d97eda747af0d3abbd1fb13257a8ce6c642713c077eb2e8a8e7e02b4caf492107d402627a75df3d9f2a16666da909a2fd0ea356463968d44f099c3d893c3b251d62665ad3aa9217dc513da439d87078eafe11c3d0201c09e38c9dd1ac199874c363a012379eaf12e1031ca9a763aee95ff24f06395d15a880caab8b332f70d4fb71eb6b022ea729cb6ce3dc929606c961395b3a27a8e2e2b8acb803f52c342c26752c8f3ed3d04e681299b5a66ce4903da4237ac88cdc7f1b128aa6d6d57cd1cfd3c0ad1b11b06868298c5d702e0cb636c6d307cca0f299876bce66efea72da4f35b4472d7ca9c19d8f8ef118b4b1767af129fffbea47664985c0facab519b3ff20e4e83841817bf3d867bf864275c2b2d4519853b70cbf5e483f54acdd4d5f52191afe8874d51ce64a77a3571b250a75fc42d4e0566de4009bc4ecf02ca04e261c17d8c947ad3a9407d8281ee81151605033163d458360e4679c9433f51dec4169d8b5c54326b6ff70c4c14fd99ca1c54defdef159da574a405710b4192a11a942d1e30c3b3eebe1a674c7fa01476c49fc1fcc3adbef5e0c6f91234b3c8baf87f84fbf454abed7d8cf0d3a6c90b3306b2f6a8f2b6c79618e00e726d3b44e847cae00ca89c327e6059b854f1d168633a773628b3f1c37c3182b37409cd82c5e95108d232b91495dd0637292e808715e03b6eca4df1183f42b3bb0b0db2214fd718cdf337dba715c63f1a6567e6935989e7f7d38b48f6637cf921a30bcecfe5411227da922a0e9a498f596e0409434ae0132eab53a4f781a0717ec3ba1c064917753554612ea8e1062f7255db3248a9b8eca7087800381484f018a2898a6972ac6cda65e7f61d8b92afebe79417ad403ab5569927dddbff76e0f9790ba4b58956a0c5d1aeaa5c6d88f5ac3934ef2c5f553be9c0ef10e58c37ac8236c9b8fbe050d2c2d486e9d64e959ade6eff8fa0d6e07",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "a",
+                "run_id": "01ede638423b71de93a828574d689230",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "5108cfc20eca5a41dfc011f93f606b6d44200e9dac7b574201045d517dd93afe",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 38,
+                  "first_send_ms": 35,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3334,
+                  "last_send_ms": 3328,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 9040,
+                  "received_completion_bytes": 5951,
+                  "received_data_envelope_bytes": 270,
+                  "received_messages": 54,
+                  "received_runtime_bytes": 736875,
+                  "sent_ack_bytes": 270,
+                  "sent_data_envelope_bytes": 9040,
+                  "sent_messages": 1808,
+                  "sent_runtime_bytes": 116015483,
+                  "worker_observed_elapsed_ms": 3334
+                },
+                "wasm_linear_memory_highwater_bytes": 36372480
+              },
+              "b": {
+                "disposable_test_key": true,
+                "incoming_colo": null,
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3336,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "1d8f047785eedbd2cf1e12007ee2f0cc18b10003b856de22e949d013d4b3739fa61e2687c26cb13d0a74b45a0b525ed873dd7af62832e241444bf30453ee44060f315890fcf7136aa0fb216e6c8e463e22b2254fc136234771cb8ab310e3e8c51d229e131df004ba3264702ac00927fe62f6d7871e17f455859732c8102122ba6ca95f50c3377367b6b21a8dcde3cea66d1fb7645e11ae6efa402109f3330bfaa1606cfadf527230bfe8666397fd0384fd538a29fcb9bcd178bc7bdbe35875e17b100a798d681dca3d2ef6da5eb7aad54bc001780455e365e329a8fe804adf4394581cd6b8955cc85d0a64213a4cc4e0395c4e006f809cb2e6aca3203dd74445100cc8cf3c31078929e7f3353e2bfb583bcc7d87d8bb011606d3dfbd77c64eee408c404b6155040a239913553eac3a037290a386300a0d174a0bdbe37a62f06e0e876b197bbd7c6b00e1770acad97e2f09e6b17b7fbd2c217ec140dbea6130c903799f4e957d13ef984e302b0e275e8b8455a3eefa1852eaf39a02caaf8b7a20fbf0739b05651a77b2b9714cf4c4fd7fa75a76fe379cf5ca831f327f414e34068316a28b2190a3af2f292a52133d229148f2f36bfe2e70a97b287c2e4b298cf062ab68a2a9ceccd3e8b013f48172d40edb863a16f3540462596e68f80ba3c5bcf0cb879440595709c04928d548b1294587ba319e6baf4952ce25257c2b487df9834917ef14f69e74728799818d4524182f4c0ae94f9e8d6ae6d4554d820acf2ab821edef01e208c3440a920cc85db6d83871af0eb9902bc55a0517d93eeac6d7ee30e264baf31785ce44ec6887b4abc9724ce47ee9a17273371b315cc79316f4e8707d47cb7105e0964acb27c9116eedb36411881ad5bda87cc8f2b5b6a47c4c2b20ef94fd5cd73ba4d5f8d16dcc1a0f44ca4a3cd2012066ae86c0421e4790c8c0db041065954cad2148b9039fd65f3039a0f7689f7c0cbd674ef71ab022b3f26d64db70628ce7225c2afc79d12fe40c64a191f14d257fb9888b421f68116702578011099b6ca073a271c5808a7e9484f884a01bdde332cff42edfb3808eebe7c7f04f74a7700659349af5bbbbd249b46881f33964254e9191d3b6a1fe341e32f73de4b9d20bd3ff2099898c44216c4f25fcef3988c8968e0458be8d5075fa65108bcfedc07efdaf5f3a08ece8f9542243ccee044ee03b19eeb97ba176ca59d416dc10a6f66bc9722f1ddfae2d223df486dce907ec5a0837a9022914cebcf35d5b65cf87aca7cde383d9468fa2613c2ffce89888135553a3e0347b92f546123856ca139ddf8f12fa844298ea7b45119ba23114d8fcb7b48bc6814459c1209bb25324b7aac9ad2a5931083cd8c17e55bb9ccad080e6dea5172c755f19d27d933586532c315deb836231bdd8c95fb06b6096d8f6030f3808b752f1a428e9f15a9e077265dcdd0f8f0e9153a836c9007c801c5367c1f62323b76030bbb9ecf64ebbba73679888c882bec95e805482a9fd51911fd8bc4e644148e87d2aa8e605feee50b0fdd146aafdba67d5b6038c034445b852e62657caa5bcb7a3bcc78ba244a169ef8b268615d2a06be6cd2c25c4ff3c85e84bfedb8526b94085243ff311e4b74c94eae150be6985ee2b5f3780a803ab35bfa211e68f0cb960795daa511d46d25d9dba193f436494107979310e1086dcbdcfa43126e97a68c28aba45e0a0e4a137d5623b3bec39053fdf12f50a07ea55071eaa28259ed1eb412b3b2a16c1d83511bc7f5e2f7327e2fe9141ec4ae2b09d97eda747af0d3abbd1fb13257a8ce6c642713c077eb2e8a8e7e02b4caf492107d402627a75df3d9f2a16666da909a2fd0ea356463968d44f099c3d893c3b251d62665ad3aa9217dc513da439d87078eafe11c3d0201c09e38c9dd1ac199874c363a012379eaf12e1031ca9a763aee95ff24f06395d15a880caab8b332f70d4fb71eb6b022ea729cb6ce3dc929606c961395b3a27a8e2e2b8acb803f52c342c26752c8f3ed3d04e681299b5a66ce4903da4237ac88cdc7f1b128aa6d6d57cd1cfd3c0ad1b11b06868298c5d702e0cb636c6d307cca0f299876bce66efea72da4f35b4472d7ca9c19d8f8ef118b4b1767af129fffbea47664985c0facab519b3ff20e4e83841817bf3d867bf864275c2b2d4519853b70cbf5e483f54acdd4d5f52191afe8874d51ce64a77a3571b250a75fc42d4e0566de4009bc4ecf02ca04e261c17d8c947ad3a9407d8281ee81151605033163d458360e4679c9433f51dec4169d8b5c54326b6ff70c4c14fd99ca1c54defdef159da574a405710b4192a11a942d1e30c3b3eebe1a674c7fa01476c49fc1fcc3adbef5e0c6f91234b3c8baf87f84fbf454abed7d8cf0d3a6c90b3306b2f6a8f2b6c79618e00e726d3b44e847cae00ca89c327e6059b854f1d168633a773628b3f1c37c3182b37409cd82c5e95108d232b91495dd0637292e808715e03b6eca4df1183f42b3bb0b0db2214fd718cdf337dba715c63f1a6567e6935989e7f7d38b48f6637cf921a30bcecfe5411227da922a0e9a498f596e0409434ae0132eab53a4f781a0717ec3ba1c064917753554612ea8e1062f7255db3248a9b8eca7087800381484f018a2898a6972ac6cda65e7f61d8b92afebe79417ad403ab5569927dddbff76e0f9790ba4b58956a0c5d1aeaa5c6d88f5ac3934ef2c5f553be9c0ef10e58c37ac8236c9b8fbe050d2c2d486e9d64e959ade6eff8fa0d6e07",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "b",
+                "run_id": "01ede638423b71de93a828574d689230",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "5108cfc20eca5a41dfc011f93f606b6d44200e9dac7b574201045d517dd93afe",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 72,
+                  "first_send_ms": 74,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3371,
+                  "last_send_ms": 3371,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 270,
+                  "received_completion_bytes": 0,
+                  "received_data_envelope_bytes": 9040,
+                  "received_messages": 1808,
+                  "received_runtime_bytes": 116015483,
+                  "sent_ack_bytes": 9040,
+                  "sent_data_envelope_bytes": 270,
+                  "sent_messages": 54,
+                  "sent_runtime_bytes": 736875,
+                  "worker_observed_elapsed_ms": 3371
+                },
+                "wasm_linear_memory_highwater_bytes": 36175872
+              }
+            },
+            "run_id": "01ede638423b71de93a828574d689230",
+            "schema": "seams.ml-dsa-worker-keygen.v1",
+            "scope": "Complete eighteen-circuit canonical key generation on separate Workers. Each role completes its own private signing material and discards it after this disposable benchmark. No signature is generated.",
+            "security_limits": [
+              "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+              "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+              "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+              "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+            ],
+            "worker_observed_total_ms": 3372
+          }
+        },
+        {
+          "warmup": false,
+          "started_at": "2026-10-14T01:22:54.030Z",
+          "finished_at": "2026-10-14T01:22:57.348Z",
+          "client_response_headers_ms": 3317.7213330000013,
+          "client_complete_ms": 3318.072583000001,
+          "client_verification_ms": 0.17124999999941792,
+          "client_verification": {
+            "kind": "canonical-ml-dsa-65-key-generation",
+            "verifier": "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+            "standard_public_key_parsed": true,
+            "canonical_fixture_bytes_checked": false,
+            "role_private_material_bytes": 17472,
+            "signature_generated": false
+          },
+          "report": {
+            "disposable_test_key": true,
+            "kernel": "keygen-joint",
+            "ok": true,
+            "production_eligible": false,
+            "public_fixture_only": false,
+            "roles": {
+              "a": {
+                "disposable_test_key": true,
+                "incoming_colo": "NRT",
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3252,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "90f3367a5de95a3c22f99d4e085587e69299245951432dd64c63f023f1a2c0f842937ecbc79e4751c1885b555583be1426b1a589f7c5ab96bf8a69ef01a019a0651eeb87b7afdc872495f908c800b6d26decfaeda3721dd58f37391ef8e72653f0c5b4c7d78273292f4d07cd3781f416fd1f8385764e39194ed59d57ae9d613d76df930da138533b8d4797c6aac39e86a7a9c272af806faa5cfc08d3e5283b318ec78924f125e8683e0abf5876c70cf7c5c3157e1c1ed5e9261160bbe327c0505af22d98ed6ab59b2613a28393b9b8d9774b18c407d815dcc2b1fb12cc86479368c7beaa73581d840790f848ec52684e959e9d59308a8c8654d6ec9f5f3c7b9b4584a964b71ad82d43e8a8e2478f1a0262b3302fc7717ea5e7c207b84b7299853b0beab54fe4989afb4de7006b07bdc89e947a815f8bbf7a2b99c4de55cc0fe72747e901fc3c1eb3a208bec5987793e453fc49355f113ecbdde41bea0de253a880148bfc844be6b91b72ad74428e1487bdab87f3a15e22ccb66ba20a0f0ad844564bc2512560ea1197cb5d90acaa5972e713069f19e29539492413122d80bd2344b07ec4c02075cc561e7ccf7f08a52c442e800786f9558a1348e2d29136c9eeba51b0312abb7efb0e75e16cbc9c20105c2f26e0b1504020a3480d144988642b5da48f761b0bb16d0d5da6f33a9297a906eac9159723aa20c668b344224e1a68485b62b532ab8e8b8ed297ec63c25aa3e1110ddbfbb46b7307231414d3dc132ca0a09a57a540cc0a94c73d895309169b8d7f6379b78741bb6630a1f1380264b5ed6728289e654c5b28573fe927b46b83762adf3f28cbbeb3c844fd64651d598b37479fd154fd05f105b5c1e9230bfca4edae680984a4207d604aa73f9f9072033b85277446d03678603d68ad93de9edbaa02f36f987fe485905f875c679e46689f528c193b3378e47806560df52f9c122615e3f3669b96cb32fa1cc10b3123444add6df32c3c1d4f54cc3e2dc9d6127b8827b676d9f4ca8f9722366f43abbd604834658be0424a4fc5e381375c2ac91186da2cf4490f629cf2fda313716241b1e1fd6d149a23302f3945b6dfcbefd3e2d998f9dc53e288f0acef9bc00432eed12aa5795edb5e97ce7546a6039cf2848358170bd2e36b1498ab06f0b454673c9ff06dcc075eb8101166cc80ef17eab965416ee5a6049a9b2f87e9785f37db37292a61bb64355463ef499bcefa1f57bc5a0f384aa481d82406b9535d3ded7544d39c36a4a9e35af2ca081a18c850afa46cce6c6074b04b84ee488ea017a825d745492f7af57abcf35d42b6be0062a76176453c9056204061248363c3307fd24e5dc4ab8668ceed681797641950053dfbbcb4021be30ad4bcc3be62a3dfed130c0144a3d6295a43faf56deedbb3a91cad91100918761884eaaca063c47a688a68c75856b3971d8d18147fc3aa87ee8381d95cb3e7e31b2fa69eb36179d1320ca53d6525cede9a4fad48d4a0aa63adf9e584ce869bf55133374a260d6c5bf3b731b8fd387088e608d4c28d1d733927fd0fbd5bc328a7b5109569728d2f65218a5e1716fb3521488a4bc8eee58021e146806398c0d443da066c47bf4d80af146fbfe348af702fccaa4c8d3f02405973846beee082ea558de2aaaeab6cb8fc6e98e6b743324cd83b5f74bb3ca37a8c178de6e2cce73b1351f5eeb8f92b3919b20409e1e22cf29a04d288d04eec620ef01e7e580e7d47c9bfe33e43442a8604802c0f88dad089d74cd18d010487affe0180f7c061532177ce287447d7a690d87921b31f48eb9a62e95d5463af3fe28e13014ec8f2ac94970897a7d95dddf2ae0191d7d5332cf6ed054d0e679f29db51a843f6e12870784713985c6c77a9a79503577b53568c88b33073729eceb5b2e658673bbed6486145f8c4d9d0975ba8d7b7bf35d07285fe4c0d855918067fbae5c1156172b24b591a2d1142bc26e6857af87b2038e3037b25d43a844a11584e0588e83ff0959625859ffb6407e96b5ccabd6be6abafdaf780478365510f6b1b1f22dd2488e1eadf3155b663f7cd1302d20f6de3d6825c43314433361871ca2d1ed9b2b596b2ce54183dcd651f506e2bf316b9704deebb35fb2885aa6b0a9dca9c47f20b53809b38664fbe64fd1f18226e1179ee6cab735512771d2176d2c009cb699d05e15a50170ded31eaeda5f63211fcb6cadd7f550b83cb7305bb5e6ae9514f9f53680b1c1f57db5457c8ed12205c45944b9d040179388eac36af8d5049e236d19e0bf52faa588ebbc2e416ae59d1f76680204c26f7e8406452112eed84e5237aeb4be987a2545a1b7b0430d39e27b7688c494a5e84fa3b54a68eceb6cb91ba2ebbf6c5857a2779fe8b2442dfd105b678a9f03007d6ffe6d9a099eb30e08ad1842128be52a6c432792712df9a07cb974369eb02248ee331ae830c83e98e32cb78f961fad83abe95ae3097affb4221522c10eac154503d237874fc374052bc1568194f275b4c8774119d10ff19747aa54d4d9908a1fc3fe977c08791ae3305bb0554242a4dcba162f876dfb6763d666987dccc55b59f28e1a29dd26c5bf65b973e95365cd53449bc269160fe4c54fe7763b3cf23496da65ebe7fa7d3a496b6a85a347e16b5d7bc76ad52949906e340b8137945c188a9297f42febd5ec4138b37a38219b181ded3c61bc441cda736ad89da4636f86da6b0abc6c4bb82e62953b166313f069cba3f193085d67149b79bbe59aebc",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "a",
+                "run_id": "beb4b22fa308b01b4a4b40f33d7792d3",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "5a8def4a7c1b36bf34341c3516276177b9680b7c517be205aa1b9a58af1e7770",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 34,
+                  "first_send_ms": 31,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3283,
+                  "last_send_ms": 3278,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 9040,
+                  "received_completion_bytes": 5951,
+                  "received_data_envelope_bytes": 270,
+                  "received_messages": 54,
+                  "received_runtime_bytes": 736875,
+                  "sent_ack_bytes": 270,
+                  "sent_data_envelope_bytes": 9040,
+                  "sent_messages": 1808,
+                  "sent_runtime_bytes": 116015483,
+                  "worker_observed_elapsed_ms": 3284
+                },
+                "wasm_linear_memory_highwater_bytes": 36372480
+              },
+              "b": {
+                "disposable_test_key": true,
+                "incoming_colo": null,
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3283,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "90f3367a5de95a3c22f99d4e085587e69299245951432dd64c63f023f1a2c0f842937ecbc79e4751c1885b555583be1426b1a589f7c5ab96bf8a69ef01a019a0651eeb87b7afdc872495f908c800b6d26decfaeda3721dd58f37391ef8e72653f0c5b4c7d78273292f4d07cd3781f416fd1f8385764e39194ed59d57ae9d613d76df930da138533b8d4797c6aac39e86a7a9c272af806faa5cfc08d3e5283b318ec78924f125e8683e0abf5876c70cf7c5c3157e1c1ed5e9261160bbe327c0505af22d98ed6ab59b2613a28393b9b8d9774b18c407d815dcc2b1fb12cc86479368c7beaa73581d840790f848ec52684e959e9d59308a8c8654d6ec9f5f3c7b9b4584a964b71ad82d43e8a8e2478f1a0262b3302fc7717ea5e7c207b84b7299853b0beab54fe4989afb4de7006b07bdc89e947a815f8bbf7a2b99c4de55cc0fe72747e901fc3c1eb3a208bec5987793e453fc49355f113ecbdde41bea0de253a880148bfc844be6b91b72ad74428e1487bdab87f3a15e22ccb66ba20a0f0ad844564bc2512560ea1197cb5d90acaa5972e713069f19e29539492413122d80bd2344b07ec4c02075cc561e7ccf7f08a52c442e800786f9558a1348e2d29136c9eeba51b0312abb7efb0e75e16cbc9c20105c2f26e0b1504020a3480d144988642b5da48f761b0bb16d0d5da6f33a9297a906eac9159723aa20c668b344224e1a68485b62b532ab8e8b8ed297ec63c25aa3e1110ddbfbb46b7307231414d3dc132ca0a09a57a540cc0a94c73d895309169b8d7f6379b78741bb6630a1f1380264b5ed6728289e654c5b28573fe927b46b83762adf3f28cbbeb3c844fd64651d598b37479fd154fd05f105b5c1e9230bfca4edae680984a4207d604aa73f9f9072033b85277446d03678603d68ad93de9edbaa02f36f987fe485905f875c679e46689f528c193b3378e47806560df52f9c122615e3f3669b96cb32fa1cc10b3123444add6df32c3c1d4f54cc3e2dc9d6127b8827b676d9f4ca8f9722366f43abbd604834658be0424a4fc5e381375c2ac91186da2cf4490f629cf2fda313716241b1e1fd6d149a23302f3945b6dfcbefd3e2d998f9dc53e288f0acef9bc00432eed12aa5795edb5e97ce7546a6039cf2848358170bd2e36b1498ab06f0b454673c9ff06dcc075eb8101166cc80ef17eab965416ee5a6049a9b2f87e9785f37db37292a61bb64355463ef499bcefa1f57bc5a0f384aa481d82406b9535d3ded7544d39c36a4a9e35af2ca081a18c850afa46cce6c6074b04b84ee488ea017a825d745492f7af57abcf35d42b6be0062a76176453c9056204061248363c3307fd24e5dc4ab8668ceed681797641950053dfbbcb4021be30ad4bcc3be62a3dfed130c0144a3d6295a43faf56deedbb3a91cad91100918761884eaaca063c47a688a68c75856b3971d8d18147fc3aa87ee8381d95cb3e7e31b2fa69eb36179d1320ca53d6525cede9a4fad48d4a0aa63adf9e584ce869bf55133374a260d6c5bf3b731b8fd387088e608d4c28d1d733927fd0fbd5bc328a7b5109569728d2f65218a5e1716fb3521488a4bc8eee58021e146806398c0d443da066c47bf4d80af146fbfe348af702fccaa4c8d3f02405973846beee082ea558de2aaaeab6cb8fc6e98e6b743324cd83b5f74bb3ca37a8c178de6e2cce73b1351f5eeb8f92b3919b20409e1e22cf29a04d288d04eec620ef01e7e580e7d47c9bfe33e43442a8604802c0f88dad089d74cd18d010487affe0180f7c061532177ce287447d7a690d87921b31f48eb9a62e95d5463af3fe28e13014ec8f2ac94970897a7d95dddf2ae0191d7d5332cf6ed054d0e679f29db51a843f6e12870784713985c6c77a9a79503577b53568c88b33073729eceb5b2e658673bbed6486145f8c4d9d0975ba8d7b7bf35d07285fe4c0d855918067fbae5c1156172b24b591a2d1142bc26e6857af87b2038e3037b25d43a844a11584e0588e83ff0959625859ffb6407e96b5ccabd6be6abafdaf780478365510f6b1b1f22dd2488e1eadf3155b663f7cd1302d20f6de3d6825c43314433361871ca2d1ed9b2b596b2ce54183dcd651f506e2bf316b9704deebb35fb2885aa6b0a9dca9c47f20b53809b38664fbe64fd1f18226e1179ee6cab735512771d2176d2c009cb699d05e15a50170ded31eaeda5f63211fcb6cadd7f550b83cb7305bb5e6ae9514f9f53680b1c1f57db5457c8ed12205c45944b9d040179388eac36af8d5049e236d19e0bf52faa588ebbc2e416ae59d1f76680204c26f7e8406452112eed84e5237aeb4be987a2545a1b7b0430d39e27b7688c494a5e84fa3b54a68eceb6cb91ba2ebbf6c5857a2779fe8b2442dfd105b678a9f03007d6ffe6d9a099eb30e08ad1842128be52a6c432792712df9a07cb974369eb02248ee331ae830c83e98e32cb78f961fad83abe95ae3097affb4221522c10eac154503d237874fc374052bc1568194f275b4c8774119d10ff19747aa54d4d9908a1fc3fe977c08791ae3305bb0554242a4dcba162f876dfb6763d666987dccc55b59f28e1a29dd26c5bf65b973e95365cd53449bc269160fe4c54fe7763b3cf23496da65ebe7fa7d3a496b6a85a347e16b5d7bc76ad52949906e340b8137945c188a9297f42febd5ec4138b37a38219b181ded3c61bc441cda736ad89da4636f86da6b0abc6c4bb82e62953b166313f069cba3f193085d67149b79bbe59aebc",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "b",
+                "run_id": "beb4b22fa308b01b4a4b40f33d7792d3",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "5a8def4a7c1b36bf34341c3516276177b9680b7c517be205aa1b9a58af1e7770",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 62,
+                  "first_send_ms": 65,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3314,
+                  "last_send_ms": 3314,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 270,
+                  "received_completion_bytes": 0,
+                  "received_data_envelope_bytes": 9040,
+                  "received_messages": 1808,
+                  "received_runtime_bytes": 116015483,
+                  "sent_ack_bytes": 9040,
+                  "sent_data_envelope_bytes": 270,
+                  "sent_messages": 54,
+                  "sent_runtime_bytes": 736875,
+                  "worker_observed_elapsed_ms": 3314
+                },
+                "wasm_linear_memory_highwater_bytes": 36175872
+              }
+            },
+            "run_id": "beb4b22fa308b01b4a4b40f33d7792d3",
+            "schema": "seams.ml-dsa-worker-keygen.v1",
+            "scope": "Complete eighteen-circuit canonical key generation on separate Workers. Each role completes its own private signing material and discards it after this disposable benchmark. No signature is generated.",
+            "security_limits": [
+              "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+              "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+              "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+              "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+            ],
+            "worker_observed_total_ms": 3315
+          }
+        },
+        {
+          "warmup": false,
+          "started_at": "2026-10-14T01:22:57.348Z",
+          "finished_at": "2026-10-14T01:23:00.766Z",
+          "client_response_headers_ms": 3416.859875,
+          "client_complete_ms": 3417.4326660000006,
+          "client_verification_ms": 0.17449999999917054,
+          "client_verification": {
+            "kind": "canonical-ml-dsa-65-key-generation",
+            "verifier": "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+            "standard_public_key_parsed": true,
+            "canonical_fixture_bytes_checked": false,
+            "role_private_material_bytes": 17472,
+            "signature_generated": false
+          },
+          "report": {
+            "disposable_test_key": true,
+            "kernel": "keygen-joint",
+            "ok": true,
+            "production_eligible": false,
+            "public_fixture_only": false,
+            "roles": {
+              "a": {
+                "disposable_test_key": true,
+                "incoming_colo": "NRT",
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3352,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "e018270ceae415d20320cbf6bb9b44ee5bf621936cb499e5995e0380ca43b7fcd0d9731ee8e3287e3f4f0ceca88c062222869d3343302afbdad716017479b1e2b04b08b173e8168561db81de09b7aeede64102773b2f94084924d479f0e33be565167c49c2c9447c9bfe5661ce59e41e69cf6071241efcd256af01db4bcd10f2d1bace9a148aac693b7c331ab9f98958a96ff94f4b33f1ad39a8f1d274892ba134e69c154592b73e5145d43eda251815a58743bbdf295aface4dc3da068fa05d82722b581a98fd742c69f4ab5b7b4ca64482107bc0f38222e269e8da912258675993f825a136bc12e7e7d713593edce0505dbc45207f71b8c5af3c75e44251564535ced3d07480429d6cb1c1a665d64ab48e70b32ab4daec909fb7402e2c7753717e1b960d7ff83f99608061c6d490c7abc4bae6683e0e7d1a64d82462686500a0f2dfb30790d4307b498c4addfb266e1ab330975d13d05e35ebd1368c8b048c53e97a42bf83007309b33bdfd5e5734b566fc213096f226039fc7154f5ed51392ccef13fa55c91c26f627e040d3d11971d96148ff23b6233cddc301e1dfb5365c768e3a667b5ffc384e58ca2f3a646e4ce9dd83454024867087b92485d9a9a376a7fd3ef687b9b9e49e859ea0b07e59b2f23dbf20a215d82b4ae34ce81c1c38e368a0db30717f39ec577b6024811d426a294ba818fe95b13e797d2d4d13cc472c72e6bf0f1b2cba7ca75475c17e45d656594b1d086696ebbed9387bda28eb2595c17d8db043d9a4e5a079296fdde8269112662e7307ba8127be1e7aeb4d896e75a83769f6ca0ff4c2a9ed7bfb40a4c3df1fe4917353455cc851ef6c6857f1b315e3c2c2df8507d285515e07414cdd97314e352b035ea09692bea32fb8bd558a36649fe853e1e75cef47903ceb58c39b4b15ce3034dec9fc571a27f6560859df55709ec3992c3599c6074d24db941442684fb03669d0c60d94356615402119d0942dd12057901f4739abd675fed5ccd4a0d228d3de6a98cc861db6b8dd23c7b55e9f4188ddc4be6887b1ed8367d585c3652d39d84c43ab064d56c189d9022cbff4f2cba56750bc64cafa4dabe4b1895ba34be1d6f471d6d8550d2362aa27ffc7de3b7b6425dd0f15de088f8e3c44d862fa3aa925fdaa56e217f3efc824eddd6f7eb07f9f1a40033c1b6859194b4a666def552b76280f4d088817593514342794e7553ef0dda5185b3476e5c00d13880e6561f472fdb6e9c11e11d1753ebd10814e5ae9cc7b78877658b5b5fd448736aef7e2697c990848d73f10daad8833465db70aa7a29494dccc16947214b614a11f2a615c4437cf0fd1bd88796645a91f9e7f66081b317b01a283333cfba663876cc51a44bbf03bae778e0614ba547ae20506d9b883532e76ac821383b7df781fb9f8d8df5b7a63266254b43e4917a8fcff7206870e78c2a32316fa27ec5efc5e2151364d739bcd05a85042e01c1b421b5dae0a79c01a400279bd26359dd5eddeb18fe5df31c0baa4f441501308c23a5966ca3dc6a2b95aa6d22b38d887b6fc6229db27db849a8cd9c7bb99971a37350724b10f3311384f35f5757426a17b6be855d0f9aa7345acedd7de4824b0bb548df8a6176e1ce6ebcc77921d7518cd501f56ce0921b2f991cf54171f3c275ca100970b21e74c68baeea612221bd180d91a2496fdc8269224ba6ea78b41b632d2335726f1d9ffef3edc163956688b835c4712ed7b4dc0c76fbe517b0c4b5ae52c3b3b3b487642f2f758150056d1c3c7afc26bff51bc14b50f5cbd30c7e12fedb4ea8bd65609a49ba75109314d2a4339105d135a0b700a692caf83df7ed079837bc0850c19555a4608928f1685b4b4c6acf7ac790de5ebd9fddd48d358164b0792b940c27156614dd3df9ce41e56f4a09d2362833b2309248d3f1c1ac4dbf91570cb77fd0f4b2d025051e061b7040d348a1a7b1c48604a152f9bc17a5525c3ecd6a05c2e31ebea4d75b4d2495d7703fa980692170fa7ecaa4dd3cf9612d6f25c758033252f84b2d062f7b6061fb3ad045ad8889942d5f205fc40b76417a0713085d1350a4cef04e9da3b1a527a248d6335400dda031d71b5bdaee7ff07e826b30bc66d2e7d1d26ea4e2aadfcbe5f5c563e1f36d40c5c76bbda350324f0c731dc2a09efc986f3108d7192880a7bf071d3426d88af84c7951da097445350c2ae7a89ec396ff1a1d1ef6fb3f10e3fb7d64d342ba1221d19269c448b496a3b48bd6706edac6718c7f586dd9f8d02aeab7f375a57aee2e4e98a92ff2a5212ddc797f2da7da3c4abe2f6639ebb974b6fa20445a8747456f8231543652d5b37a77829bda96233d4bc1049a1cdb7ed16a0df20cbf9369674e8d0d45fb75dbeb66487d9a6b8430d93fbb84237968fbe88202c247d661fca3dd089c28891fa80458b730ef7520ec743f3c8e5f9c76743f0e11fbbc5aeaa03bc75879eb30a1f7b739a033a452d9554f967aca676ae0e3d62b8586eb2de33dfcd374c1eab787608ee9849f1851243f506b7e8b5d706607182130330fc1de917e7792bbf0373fa89164976097561f337977c029aa301d3b4977d54bb01bcaa15b1fb3913eca5ade257de83d580d2df9e5eae2a3899ae80c10a1c76c08cd0069c135700d58a7bbe7813791e1fcbb9c47ba5f8065c8554d0f64f326deb29fc8a88c1fe6ac92db9d213d4e793aaf0a56cb8e83714bcc7729092f9720cdad6ae85964a0cd832e229d47becb2308cdda64d05c",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "a",
+                "run_id": "facb35083ee04c5e9a2a7aed21038428",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "bfdec17856ec17d7a47e1f7c3123c0795291438df386d78c4e768b9251621d38",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 33,
+                  "first_send_ms": 30,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3382,
+                  "last_send_ms": 3377,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 9040,
+                  "received_completion_bytes": 5951,
+                  "received_data_envelope_bytes": 270,
+                  "received_messages": 54,
+                  "received_runtime_bytes": 736875,
+                  "sent_ack_bytes": 270,
+                  "sent_data_envelope_bytes": 9040,
+                  "sent_messages": 1808,
+                  "sent_runtime_bytes": 116015483,
+                  "worker_observed_elapsed_ms": 3383
+                },
+                "wasm_linear_memory_highwater_bytes": 36372480
+              },
+              "b": {
+                "disposable_test_key": true,
+                "incoming_colo": null,
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3382,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "e018270ceae415d20320cbf6bb9b44ee5bf621936cb499e5995e0380ca43b7fcd0d9731ee8e3287e3f4f0ceca88c062222869d3343302afbdad716017479b1e2b04b08b173e8168561db81de09b7aeede64102773b2f94084924d479f0e33be565167c49c2c9447c9bfe5661ce59e41e69cf6071241efcd256af01db4bcd10f2d1bace9a148aac693b7c331ab9f98958a96ff94f4b33f1ad39a8f1d274892ba134e69c154592b73e5145d43eda251815a58743bbdf295aface4dc3da068fa05d82722b581a98fd742c69f4ab5b7b4ca64482107bc0f38222e269e8da912258675993f825a136bc12e7e7d713593edce0505dbc45207f71b8c5af3c75e44251564535ced3d07480429d6cb1c1a665d64ab48e70b32ab4daec909fb7402e2c7753717e1b960d7ff83f99608061c6d490c7abc4bae6683e0e7d1a64d82462686500a0f2dfb30790d4307b498c4addfb266e1ab330975d13d05e35ebd1368c8b048c53e97a42bf83007309b33bdfd5e5734b566fc213096f226039fc7154f5ed51392ccef13fa55c91c26f627e040d3d11971d96148ff23b6233cddc301e1dfb5365c768e3a667b5ffc384e58ca2f3a646e4ce9dd83454024867087b92485d9a9a376a7fd3ef687b9b9e49e859ea0b07e59b2f23dbf20a215d82b4ae34ce81c1c38e368a0db30717f39ec577b6024811d426a294ba818fe95b13e797d2d4d13cc472c72e6bf0f1b2cba7ca75475c17e45d656594b1d086696ebbed9387bda28eb2595c17d8db043d9a4e5a079296fdde8269112662e7307ba8127be1e7aeb4d896e75a83769f6ca0ff4c2a9ed7bfb40a4c3df1fe4917353455cc851ef6c6857f1b315e3c2c2df8507d285515e07414cdd97314e352b035ea09692bea32fb8bd558a36649fe853e1e75cef47903ceb58c39b4b15ce3034dec9fc571a27f6560859df55709ec3992c3599c6074d24db941442684fb03669d0c60d94356615402119d0942dd12057901f4739abd675fed5ccd4a0d228d3de6a98cc861db6b8dd23c7b55e9f4188ddc4be6887b1ed8367d585c3652d39d84c43ab064d56c189d9022cbff4f2cba56750bc64cafa4dabe4b1895ba34be1d6f471d6d8550d2362aa27ffc7de3b7b6425dd0f15de088f8e3c44d862fa3aa925fdaa56e217f3efc824eddd6f7eb07f9f1a40033c1b6859194b4a666def552b76280f4d088817593514342794e7553ef0dda5185b3476e5c00d13880e6561f472fdb6e9c11e11d1753ebd10814e5ae9cc7b78877658b5b5fd448736aef7e2697c990848d73f10daad8833465db70aa7a29494dccc16947214b614a11f2a615c4437cf0fd1bd88796645a91f9e7f66081b317b01a283333cfba663876cc51a44bbf03bae778e0614ba547ae20506d9b883532e76ac821383b7df781fb9f8d8df5b7a63266254b43e4917a8fcff7206870e78c2a32316fa27ec5efc5e2151364d739bcd05a85042e01c1b421b5dae0a79c01a400279bd26359dd5eddeb18fe5df31c0baa4f441501308c23a5966ca3dc6a2b95aa6d22b38d887b6fc6229db27db849a8cd9c7bb99971a37350724b10f3311384f35f5757426a17b6be855d0f9aa7345acedd7de4824b0bb548df8a6176e1ce6ebcc77921d7518cd501f56ce0921b2f991cf54171f3c275ca100970b21e74c68baeea612221bd180d91a2496fdc8269224ba6ea78b41b632d2335726f1d9ffef3edc163956688b835c4712ed7b4dc0c76fbe517b0c4b5ae52c3b3b3b487642f2f758150056d1c3c7afc26bff51bc14b50f5cbd30c7e12fedb4ea8bd65609a49ba75109314d2a4339105d135a0b700a692caf83df7ed079837bc0850c19555a4608928f1685b4b4c6acf7ac790de5ebd9fddd48d358164b0792b940c27156614dd3df9ce41e56f4a09d2362833b2309248d3f1c1ac4dbf91570cb77fd0f4b2d025051e061b7040d348a1a7b1c48604a152f9bc17a5525c3ecd6a05c2e31ebea4d75b4d2495d7703fa980692170fa7ecaa4dd3cf9612d6f25c758033252f84b2d062f7b6061fb3ad045ad8889942d5f205fc40b76417a0713085d1350a4cef04e9da3b1a527a248d6335400dda031d71b5bdaee7ff07e826b30bc66d2e7d1d26ea4e2aadfcbe5f5c563e1f36d40c5c76bbda350324f0c731dc2a09efc986f3108d7192880a7bf071d3426d88af84c7951da097445350c2ae7a89ec396ff1a1d1ef6fb3f10e3fb7d64d342ba1221d19269c448b496a3b48bd6706edac6718c7f586dd9f8d02aeab7f375a57aee2e4e98a92ff2a5212ddc797f2da7da3c4abe2f6639ebb974b6fa20445a8747456f8231543652d5b37a77829bda96233d4bc1049a1cdb7ed16a0df20cbf9369674e8d0d45fb75dbeb66487d9a6b8430d93fbb84237968fbe88202c247d661fca3dd089c28891fa80458b730ef7520ec743f3c8e5f9c76743f0e11fbbc5aeaa03bc75879eb30a1f7b739a033a452d9554f967aca676ae0e3d62b8586eb2de33dfcd374c1eab787608ee9849f1851243f506b7e8b5d706607182130330fc1de917e7792bbf0373fa89164976097561f337977c029aa301d3b4977d54bb01bcaa15b1fb3913eca5ade257de83d580d2df9e5eae2a3899ae80c10a1c76c08cd0069c135700d58a7bbe7813791e1fcbb9c47ba5f8065c8554d0f64f326deb29fc8a88c1fe6ac92db9d213d4e793aaf0a56cb8e83714bcc7729092f9720cdad6ae85964a0cd832e229d47becb2308cdda64d05c",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "b",
+                "run_id": "facb35083ee04c5e9a2a7aed21038428",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "bfdec17856ec17d7a47e1f7c3123c0795291438df386d78c4e768b9251621d38",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 61,
+                  "first_send_ms": 64,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3413,
+                  "last_send_ms": 3413,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 270,
+                  "received_completion_bytes": 0,
+                  "received_data_envelope_bytes": 9040,
+                  "received_messages": 1808,
+                  "received_runtime_bytes": 116015483,
+                  "sent_ack_bytes": 9040,
+                  "sent_data_envelope_bytes": 270,
+                  "sent_messages": 54,
+                  "sent_runtime_bytes": 736875,
+                  "worker_observed_elapsed_ms": 3413
+                },
+                "wasm_linear_memory_highwater_bytes": 36175872
+              }
+            },
+            "run_id": "facb35083ee04c5e9a2a7aed21038428",
+            "schema": "seams.ml-dsa-worker-keygen.v1",
+            "scope": "Complete eighteen-circuit canonical key generation on separate Workers. Each role completes its own private signing material and discards it after this disposable benchmark. No signature is generated.",
+            "security_limits": [
+              "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+              "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+              "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+              "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+            ],
+            "worker_observed_total_ms": 3414
+          }
+        },
+        {
+          "warmup": false,
+          "started_at": "2026-10-14T01:23:00.766Z",
+          "finished_at": "2026-10-14T01:23:04.142Z",
+          "client_response_headers_ms": 3375.8669579999987,
+          "client_complete_ms": 3376.223332999998,
+          "client_verification_ms": 0.1868750000030559,
+          "client_verification": {
+            "kind": "canonical-ml-dsa-65-key-generation",
+            "verifier": "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+            "standard_public_key_parsed": true,
+            "canonical_fixture_bytes_checked": false,
+            "role_private_material_bytes": 17472,
+            "signature_generated": false
+          },
+          "report": {
+            "disposable_test_key": true,
+            "kernel": "keygen-joint",
+            "ok": true,
+            "production_eligible": false,
+            "public_fixture_only": false,
+            "roles": {
+              "a": {
+                "disposable_test_key": true,
+                "incoming_colo": "NRT",
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3301,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "3c6296d93fec6a8cfd22c196006e70bf15cd4e0b4df7d5cf5848665ab42789051b18711b7339755ad9bca8281dd61b75268b4be47513a2766bfa170673e4d38aa0b0937d9bd11bdf809897cf65ed18ce50a66199546a3d827e0c09a431fd184525b53417b8f451c32368d7c5298d488bccfc18cb5390d4808f0597b48e1370dd8d276671d49b76ab8b401c1b5b5208a6edce8b04e948585b6591af9b06c7a3ebf02ce5d54740bf52f58fcc5bd7926b648ab00c112f5546dc02a884acf1a8faec47178c17832cbb0960639dab4e8cb48688d42392a8b73412f6f137ad5b975ef20b4cbbf901379dbaccdc56dcb9fc3b5296a350e185fae1fb5163d95d0be2a232bfdb12d80fcc31546cba00d0978b5a40dac6dbb8fbe362b57253a5e6e0cd4a2ee1a2b14510e94357a74b8d5c0912d38667a095f25f42eac6203fdad2dd190ba0da57f5c2f8fdd9a626be09221036692e4ff5855eca2d6ed659009aaffbf2b5c41b00f2faddc70e301850e168fdd25533bfdeade7c6f6c767240cf9c695fdf576f2744e3dc5aab32049711725de4e043d23f6075bc1571edaa4793ee6e206a1836909cc8ac9019c2ab610530e662d7fe665ffbbb808c8f9b710e798d54ccbed28bed0bc940af5e16e94db12d55d3e2f9256d45522513a24eb552c0aadf21a04b843282a781369b5c5416dc00be73fc1bc8190360d37b9da1c2cc77b67ff14e0009ce99bbe7e0aeb4c72745d4c6f8ee2aafb40685b9af8cf10271958646b753437cecd1bccc6f2d9f51920ec0a2313a64d1aca275de3df63f459f7205c7fb7679af0b67e8145ca88590ef713a03721a4fa5be33fdf2e47cc22b152aa786baa4c246d3617b55b80aa2cf0da8847482f8f5523d5d309ad41420f6163cc989ed692a17f558625baae7616a709f1b4aef945cec79b8b849126c803ac578fc950fa991950fa6efb4ad8864a27ebf0e63d00a8138d44b6fa0c1aed2f3a8cbf9ffe656fcfd9a1eee9d917e0283d7cb1f13fa00f91491825df2cb7faa76de084c760fdfc8a33a56c7c10ea588774f989ea0ad35d013c31db87b28756c16cbb13ba93cb67d9f95763564d4450115809128ac8cd7445f8640e80b96cbaa2388a0979d2d7606229ae878a2c26e6553e6880f88a6b1a87d449051f2948239fc5114d12eb6cf62a4131399a8ae1661f8eaece8fef702f9b0270669f393dda86a648f04f1f4bdc9a083ad94f2914b798aa1162b500aeb65404f07cdebc76f27bd1511130d3e795b85a29d0580d894131cd988d0287638beb2b9bc40559a1f0765af2831debd99b5c36f501ea4e2a037b56c48c349cdb51873fdf2a372669bb50cd9ee75bc4712097aa0c41d326da61bf008a931fc1c562c638ebf401cbc86de23c9bf95256213a0efddd41aecad888cea4101c9413e330728ddaee502a6e35207b7a1bb42d6ed703dc1a9b9398f27355bc5dd708c1b4e519c3daa8126674b548f0a1fdc43737ba7ea03f0ebc3e6fcf483d7f8baab8b20bac4e6f73324637500bcbdebcc89f1a0e16b43d80b4487c97e3b644e7ade7a50fd1ba2848e54aa656ab517e9bf32b370d6208626be97217a61d18e7697f82c439939fc2e7ee31ee5c4419757ab664dcd7b16880e2b1314e816e9aa4c88ddf59e48f28ac6e9b5e9800b671bff1807a1c7d8af35fbd0525f5010adf3ccfa1d276f7d0c5d4aeddde2d3bff68affaed86e1ba3fc59f31a45f5a765437a44f3baacb0ca554eb2a12e8fe413518b9d6572ab19ac33d9ddf7e4a9e3df30b10e3d08e8892b2839baacfbfc829f02be03ee2e834b64344515b268aea72393297278c85d0f640a7b64552b02e278f0f82172a4974b8050177381dff86c598b3bd29adf7ba8bc42475a9401d36624603c73aacb2cfb52f198e4e0159f586bcf1fa4a825128b2550f35fd038845ec90e1094c04eef03780fcfc6a052397009852c68a639c2e60eda5d9eceb6a8b7fe5fda9e9ef4296cd08aa493b743a542349289e344b0f3f890c3a3b23b669826429f80987696656b8016a3dd55c2378fe7610e5095611de4e6f825f0c96e8355c797dea103602cfdaf5bbed95bd70d081b2eb0e4b00ee81a23d70a8d9cab3f1e3905b57303ffabd3a51f6b3e2b60cdd020865622b2d7b3c5410d421d03eb0f4699847919c3d2afc938b06c7d2a3f56f8a857fd5fa9bb3bbdab4be4832d2737614beae7be8e5b1cc5dd0aa18fee5da76ad0f02d3aa41d5cf82c01a8b5fd20af555206d7ae50d8705cdae1c51575c9b4ce200ee6eb719077495484556bdaa08b71199ada73ea71eaa07c4b065bea4dcefc5f2d175e3f4c657860f340188c1b745d40f905fc9770e3c743c9f03c9c7775a117cdc46b8e657da9a9db579d282ddd43b0e60415e40f8ec36f897ff85e4dd395f0c34f2352cb58a78895d491b1b9ee84f89269c0725a619ce5c9b7ccb150aa0f6a8013c9406364d9bf246f1d41e7744a71ca2238bdfa1ae779403bcd67751cef0a05fd26e497cd1c1227b3a9d0e3725dc94656ada6a9917fe11f54d00d82b49639fb5338958cc4667f50fd5e56be0e79c9fec7262b4f61079cc91b3b502e0aae98fd95cfac84afb1a3a330195fb2941d674dc7ae0d27384a13c90049fa1691e745b68591a00699554b81f83ed4519fe41e170e8c982591abfc470386144f78ab4d90179a1734ba77349e00285e5f838bc95dfd14a60c20ad81908ee955e8b3ff89e1e5ee0412baf515cb3b278f553283a7a81241bbf86d02fd7",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "a",
+                "run_id": "3c7865d7c1fdd2521cf4905cde14f0a9",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "2075e0089e9a0df322a774a2a9e37e02cc3883901527f2a68c4f6307e2cd8245",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 38,
+                  "first_send_ms": 35,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3336,
+                  "last_send_ms": 3331,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 9040,
+                  "received_completion_bytes": 5951,
+                  "received_data_envelope_bytes": 270,
+                  "received_messages": 54,
+                  "received_runtime_bytes": 736875,
+                  "sent_ack_bytes": 270,
+                  "sent_data_envelope_bytes": 9040,
+                  "sent_messages": 1808,
+                  "sent_runtime_bytes": 116015483,
+                  "worker_observed_elapsed_ms": 3337
+                },
+                "wasm_linear_memory_highwater_bytes": 36372480
+              },
+              "b": {
+                "disposable_test_key": true,
+                "incoming_colo": null,
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3337,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "3c6296d93fec6a8cfd22c196006e70bf15cd4e0b4df7d5cf5848665ab42789051b18711b7339755ad9bca8281dd61b75268b4be47513a2766bfa170673e4d38aa0b0937d9bd11bdf809897cf65ed18ce50a66199546a3d827e0c09a431fd184525b53417b8f451c32368d7c5298d488bccfc18cb5390d4808f0597b48e1370dd8d276671d49b76ab8b401c1b5b5208a6edce8b04e948585b6591af9b06c7a3ebf02ce5d54740bf52f58fcc5bd7926b648ab00c112f5546dc02a884acf1a8faec47178c17832cbb0960639dab4e8cb48688d42392a8b73412f6f137ad5b975ef20b4cbbf901379dbaccdc56dcb9fc3b5296a350e185fae1fb5163d95d0be2a232bfdb12d80fcc31546cba00d0978b5a40dac6dbb8fbe362b57253a5e6e0cd4a2ee1a2b14510e94357a74b8d5c0912d38667a095f25f42eac6203fdad2dd190ba0da57f5c2f8fdd9a626be09221036692e4ff5855eca2d6ed659009aaffbf2b5c41b00f2faddc70e301850e168fdd25533bfdeade7c6f6c767240cf9c695fdf576f2744e3dc5aab32049711725de4e043d23f6075bc1571edaa4793ee6e206a1836909cc8ac9019c2ab610530e662d7fe665ffbbb808c8f9b710e798d54ccbed28bed0bc940af5e16e94db12d55d3e2f9256d45522513a24eb552c0aadf21a04b843282a781369b5c5416dc00be73fc1bc8190360d37b9da1c2cc77b67ff14e0009ce99bbe7e0aeb4c72745d4c6f8ee2aafb40685b9af8cf10271958646b753437cecd1bccc6f2d9f51920ec0a2313a64d1aca275de3df63f459f7205c7fb7679af0b67e8145ca88590ef713a03721a4fa5be33fdf2e47cc22b152aa786baa4c246d3617b55b80aa2cf0da8847482f8f5523d5d309ad41420f6163cc989ed692a17f558625baae7616a709f1b4aef945cec79b8b849126c803ac578fc950fa991950fa6efb4ad8864a27ebf0e63d00a8138d44b6fa0c1aed2f3a8cbf9ffe656fcfd9a1eee9d917e0283d7cb1f13fa00f91491825df2cb7faa76de084c760fdfc8a33a56c7c10ea588774f989ea0ad35d013c31db87b28756c16cbb13ba93cb67d9f95763564d4450115809128ac8cd7445f8640e80b96cbaa2388a0979d2d7606229ae878a2c26e6553e6880f88a6b1a87d449051f2948239fc5114d12eb6cf62a4131399a8ae1661f8eaece8fef702f9b0270669f393dda86a648f04f1f4bdc9a083ad94f2914b798aa1162b500aeb65404f07cdebc76f27bd1511130d3e795b85a29d0580d894131cd988d0287638beb2b9bc40559a1f0765af2831debd99b5c36f501ea4e2a037b56c48c349cdb51873fdf2a372669bb50cd9ee75bc4712097aa0c41d326da61bf008a931fc1c562c638ebf401cbc86de23c9bf95256213a0efddd41aecad888cea4101c9413e330728ddaee502a6e35207b7a1bb42d6ed703dc1a9b9398f27355bc5dd708c1b4e519c3daa8126674b548f0a1fdc43737ba7ea03f0ebc3e6fcf483d7f8baab8b20bac4e6f73324637500bcbdebcc89f1a0e16b43d80b4487c97e3b644e7ade7a50fd1ba2848e54aa656ab517e9bf32b370d6208626be97217a61d18e7697f82c439939fc2e7ee31ee5c4419757ab664dcd7b16880e2b1314e816e9aa4c88ddf59e48f28ac6e9b5e9800b671bff1807a1c7d8af35fbd0525f5010adf3ccfa1d276f7d0c5d4aeddde2d3bff68affaed86e1ba3fc59f31a45f5a765437a44f3baacb0ca554eb2a12e8fe413518b9d6572ab19ac33d9ddf7e4a9e3df30b10e3d08e8892b2839baacfbfc829f02be03ee2e834b64344515b268aea72393297278c85d0f640a7b64552b02e278f0f82172a4974b8050177381dff86c598b3bd29adf7ba8bc42475a9401d36624603c73aacb2cfb52f198e4e0159f586bcf1fa4a825128b2550f35fd038845ec90e1094c04eef03780fcfc6a052397009852c68a639c2e60eda5d9eceb6a8b7fe5fda9e9ef4296cd08aa493b743a542349289e344b0f3f890c3a3b23b669826429f80987696656b8016a3dd55c2378fe7610e5095611de4e6f825f0c96e8355c797dea103602cfdaf5bbed95bd70d081b2eb0e4b00ee81a23d70a8d9cab3f1e3905b57303ffabd3a51f6b3e2b60cdd020865622b2d7b3c5410d421d03eb0f4699847919c3d2afc938b06c7d2a3f56f8a857fd5fa9bb3bbdab4be4832d2737614beae7be8e5b1cc5dd0aa18fee5da76ad0f02d3aa41d5cf82c01a8b5fd20af555206d7ae50d8705cdae1c51575c9b4ce200ee6eb719077495484556bdaa08b71199ada73ea71eaa07c4b065bea4dcefc5f2d175e3f4c657860f340188c1b745d40f905fc9770e3c743c9f03c9c7775a117cdc46b8e657da9a9db579d282ddd43b0e60415e40f8ec36f897ff85e4dd395f0c34f2352cb58a78895d491b1b9ee84f89269c0725a619ce5c9b7ccb150aa0f6a8013c9406364d9bf246f1d41e7744a71ca2238bdfa1ae779403bcd67751cef0a05fd26e497cd1c1227b3a9d0e3725dc94656ada6a9917fe11f54d00d82b49639fb5338958cc4667f50fd5e56be0e79c9fec7262b4f61079cc91b3b502e0aae98fd95cfac84afb1a3a330195fb2941d674dc7ae0d27384a13c90049fa1691e745b68591a00699554b81f83ed4519fe41e170e8c982591abfc470386144f78ab4d90179a1734ba77349e00285e5f838bc95dfd14a60c20ad81908ee955e8b3ff89e1e5ee0412baf515cb3b278f553283a7a81241bbf86d02fd7",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "b",
+                "run_id": "3c7865d7c1fdd2521cf4905cde14f0a9",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "2075e0089e9a0df322a774a2a9e37e02cc3883901527f2a68c4f6307e2cd8245",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 72,
+                  "first_send_ms": 75,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3373,
+                  "last_send_ms": 3373,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 270,
+                  "received_completion_bytes": 0,
+                  "received_data_envelope_bytes": 9040,
+                  "received_messages": 1808,
+                  "received_runtime_bytes": 116015483,
+                  "sent_ack_bytes": 9040,
+                  "sent_data_envelope_bytes": 270,
+                  "sent_messages": 54,
+                  "sent_runtime_bytes": 736875,
+                  "worker_observed_elapsed_ms": 3373
+                },
+                "wasm_linear_memory_highwater_bytes": 36175872
+              }
+            },
+            "run_id": "3c7865d7c1fdd2521cf4905cde14f0a9",
+            "schema": "seams.ml-dsa-worker-keygen.v1",
+            "scope": "Complete eighteen-circuit canonical key generation on separate Workers. Each role completes its own private signing material and discards it after this disposable benchmark. No signature is generated.",
+            "security_limits": [
+              "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+              "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+              "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+              "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+            ],
+            "worker_observed_total_ms": 3375
+          }
+        },
+        {
+          "warmup": false,
+          "started_at": "2026-10-14T01:23:04.142Z",
+          "finished_at": "2026-10-14T01:23:07.426Z",
+          "client_response_headers_ms": 3283.760000000002,
+          "client_complete_ms": 3284.063750000001,
+          "client_verification_ms": 0.13470800000141026,
+          "client_verification": {
+            "kind": "canonical-ml-dsa-65-key-generation",
+            "verifier": "Node crypto parses the standard key; the fixed case checks independent canonical bytes",
+            "standard_public_key_parsed": true,
+            "canonical_fixture_bytes_checked": false,
+            "role_private_material_bytes": 17472,
+            "signature_generated": false
+          },
+          "report": {
+            "disposable_test_key": true,
+            "kernel": "keygen-joint",
+            "ok": true,
+            "production_eligible": false,
+            "public_fixture_only": false,
+            "roles": {
+              "a": {
+                "disposable_test_key": true,
+                "incoming_colo": "NRT",
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3210,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "6bb1641b2ffc4c730288dd8ffd5526f49bdf6fc00342ec0404f0bbd1473df0318620a68daca0fe78bb0aedb98fe5148d049b401241cc7ff07578f616789ec13e5d592cb43aa925549c92f6e03d112a1218416e62c5626ea183b2453308e1cd9cd59c3ba8d4f1f80ace8013e6d46fc3375722205ea64f6cae44602229b0c56c573023136aa9fbc73049f3a858b0ff6acec07320ceb3c91a026f7ea7dc0757cc9534fd7072516877de86772e55d97466e5ac08ac5de5e33021b535873d5c58856e85df100eaa6d26cce052a0d1f9c27e120cd16741fe8a0f65a2c900a6613ea06a18fa4ddfcbbabc8ae906071532901f55d6216fa8280914ff85e6f94f8b43abdbbe8a1ce22580aa5dde90341d937437676609f690e063c5e58246351baac7a6dcba297db04048d562177c938c6e64aae6432e02ef3a35197d0c04bfb0e4cad37b959fad8e9c19a8d1d7b7f5ba229843ec0ec80b9305a9eb44ab9f7fef7843f8ed53766ae1157033790645fbc66da9e2a289c3ca2e881641c6469b63c4c0793c1d51dc2ebbd9722725b3eecac64fa912a22807376fb75bbca20b048a56b887622a0ddac54e6af92e48ee085957b255b1e9bbb50c271946a38df26fdbe61cffa411e71dbb328e1bcbbe17eda412b0134e0f61fad202b8b4a79a47a3177d7bb8b728f410b03435287b769ec4b97f7098049bd45433d37cbb7cc814e9139bab7e13993eb7466365f334957ac010dfc203c4adca6d26cc9847cd96accf8e03399a728b2b49c9cc40a2e2e0d4abf9df98e74c24cd22139018aa030cf19070641efda0c4e3ee323c02170811f3b60442788348d3f8407076cebdfed59eb309f3b1f0ac6d26f1bc2aea850b95ff3e3bb010344c3d7a9abab08dccef064f41dba67b167e465437c5752fddaebd18821af73b84ee953e4bb61d90fa952af60197b6085589453db5634300382bb3b49efd3565471c66c3a70560b490b38bdce8f8da10c24ed4963cb04b8567d5ac1f503bf9dabd48b39a84c9f07d385bad507e434a7b551c1d1cc4c35ad32f413cd3e2e7616bd4dde82983a4bf095a8a94648bcd730f01d658114b99092353f4a3f9b2ef002a06f13b005d057af58ce249491c4c448c0250cc481e2ef8a3cbe8c8d3857b60052b07b2b8096e3f75dcf32acaf524e214c81f63a742eaabb6b361c795441ee32c3f16f982c67384809b1b173551e6764d151985716a8dd89803bbe1a801578276710a281df3efdb8fce558b08fbfc59e8e4fa4078c3f885af7ff00cadfdbcbf3119b9c3a6d70a09b43c49c0a57ca707f3b781d06cdd9772677269fa126486084c1e163d0e3be0a3f16c57a44f550573c80e44812aeb1dab1ecd4000edf7da194c0f9dbca9f0dd9661642cd9dd436ffbceed9a0d7091310cb663fc3217eeb4ab18838356e41e7efd9e232e333c2240c8c173de06e1531378525b0ba38f4e6040929959ce6d38ee9bee1a9b5fc87fb4398d21b5b33cdfd4805806c0795170166a045c164718d56f93af975b39a45a2504e8e2321a9d9fa1f5581385e89dbef591495381a02189a3cb277e561919ee26ab54a0f4533352b75c1e2101f02e06e9e62e59fe072e64f1329d411b9cd718ab7ded75230453bb786f96b705dc45b76443ad94b502f6902c56979c8f0529a73d73d8a77507dc015b4e50bd77506af8b05c7d3830199ba654c8e2eaac9c24962609fe263b16baa4c68082b933f1460eaaab27d3403972284f6690556202ce937bc8bd82b2f29e75f75ca91092bb1bc53f0e5c13bc3acb6e3e795d49e29b1c2269e49b11b3e41678d89355d1339bc30f18a443fb65df8749985b742d5ab2d0de891620913f0f75c16ca2dc9c6a307f1fdaba08186840e7fe04a751d7a15d436bef3ffc15b7cea5c8df95dae0f19dd4209e19d0fc5573b9dc1d47e731cfe6e54e3658261bbfa52cd625270470e8c8cb399935833cc6b3cb1556ed74a18018d28f8069d4f266a713e0422e17478b5ea91b164615d02e29650628b669c68178ddd57cf988d56fc00facf22bacf2d882d867d3efe53b77a19ffebad43be6ce57d6ad7e360f1bcc2235b6ca48fec0b0060771784f549fa1410514e9fa9879b523a38a4caf2ce5551fc00db11792cb94c46ed7f0bce5e9255a417b872199b1df807e6000915e4568119f639919ccd602d0fda9541dee3c049ea3b0bb82bc9e0b02fff205907476d17fd8262a90938e9468878eb3ebb141a174d885b23c79055f58d3654309e21d898d57fbca373dabbfc2206c7ad4e3ec186e1e63161c72495432aa82407e1645727f469c9d4711d735b84a76024a86eb49310ccd4996d34fc5dfa21972bc1442a95ab1a3cbd6f01769a8f26f3efbcbf5472d77f8664bba8e65639526cdbc9da161aeb665af4da67399c1b81bba25d46909d064486f37a8f75897a8054f8a7ec8648ad560bb91ad567fe3d70a5677075a267a914e6a3ca56d712f85b6846bda9e45a4603006d37c76e6425714494a8fbe885d7a814ced04aebcaf9ced7babcec3b354ae8051930226656dd05b14af8c257e93df903ac7cf7cc3dd1b3084a165ec4a476ce2e7ec9f6a8e33be06817259a30ad6dfebc9aff4afd9caf0d575df1f5d1658ae7e0ba4f58097407fc83208b9903905142e8bbcf060fa53738bbaa53f05a004ece36b3ddc9eb0187e765efebc77c52e1392e20f3a0b3138a1aa53806deabd2d6fef9e01cb63bf83c210206bd5217346e141cd36769795d9a973cc57127ef709",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "a",
+                "run_id": "74f5bc3d7dc01d32bf9f32d652814764",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "058caac4f0bd1f2a28b79564d8ec4e1f9097ad5118b48a6cf995778eb9aab4f8",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 38,
+                  "first_send_ms": 35,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3245,
+                  "last_send_ms": 3239,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 9040,
+                  "received_completion_bytes": 5951,
+                  "received_data_envelope_bytes": 270,
+                  "received_messages": 54,
+                  "received_runtime_bytes": 736875,
+                  "sent_ack_bytes": 270,
+                  "sent_data_envelope_bytes": 9040,
+                  "sent_messages": 1808,
+                  "sent_runtime_bytes": 116015483,
+                  "worker_observed_elapsed_ms": 3245
+                },
+                "wasm_linear_memory_highwater_bytes": 36372480
+              },
+              "b": {
+                "disposable_test_key": true,
+                "incoming_colo": null,
+                "kernel": "keygen-joint",
+                "keygen_observed_ms": 3246,
+                "linear_memory_scope": "Current isolate-wide Wasm linear memory. JavaScript buffers and total Worker memory are excluded.",
+                "own_material_bytes": 17472,
+                "public_fixture_only": false,
+                "public_key_hex": "6bb1641b2ffc4c730288dd8ffd5526f49bdf6fc00342ec0404f0bbd1473df0318620a68daca0fe78bb0aedb98fe5148d049b401241cc7ff07578f616789ec13e5d592cb43aa925549c92f6e03d112a1218416e62c5626ea183b2453308e1cd9cd59c3ba8d4f1f80ace8013e6d46fc3375722205ea64f6cae44602229b0c56c573023136aa9fbc73049f3a858b0ff6acec07320ceb3c91a026f7ea7dc0757cc9534fd7072516877de86772e55d97466e5ac08ac5de5e33021b535873d5c58856e85df100eaa6d26cce052a0d1f9c27e120cd16741fe8a0f65a2c900a6613ea06a18fa4ddfcbbabc8ae906071532901f55d6216fa8280914ff85e6f94f8b43abdbbe8a1ce22580aa5dde90341d937437676609f690e063c5e58246351baac7a6dcba297db04048d562177c938c6e64aae6432e02ef3a35197d0c04bfb0e4cad37b959fad8e9c19a8d1d7b7f5ba229843ec0ec80b9305a9eb44ab9f7fef7843f8ed53766ae1157033790645fbc66da9e2a289c3ca2e881641c6469b63c4c0793c1d51dc2ebbd9722725b3eecac64fa912a22807376fb75bbca20b048a56b887622a0ddac54e6af92e48ee085957b255b1e9bbb50c271946a38df26fdbe61cffa411e71dbb328e1bcbbe17eda412b0134e0f61fad202b8b4a79a47a3177d7bb8b728f410b03435287b769ec4b97f7098049bd45433d37cbb7cc814e9139bab7e13993eb7466365f334957ac010dfc203c4adca6d26cc9847cd96accf8e03399a728b2b49c9cc40a2e2e0d4abf9df98e74c24cd22139018aa030cf19070641efda0c4e3ee323c02170811f3b60442788348d3f8407076cebdfed59eb309f3b1f0ac6d26f1bc2aea850b95ff3e3bb010344c3d7a9abab08dccef064f41dba67b167e465437c5752fddaebd18821af73b84ee953e4bb61d90fa952af60197b6085589453db5634300382bb3b49efd3565471c66c3a70560b490b38bdce8f8da10c24ed4963cb04b8567d5ac1f503bf9dabd48b39a84c9f07d385bad507e434a7b551c1d1cc4c35ad32f413cd3e2e7616bd4dde82983a4bf095a8a94648bcd730f01d658114b99092353f4a3f9b2ef002a06f13b005d057af58ce249491c4c448c0250cc481e2ef8a3cbe8c8d3857b60052b07b2b8096e3f75dcf32acaf524e214c81f63a742eaabb6b361c795441ee32c3f16f982c67384809b1b173551e6764d151985716a8dd89803bbe1a801578276710a281df3efdb8fce558b08fbfc59e8e4fa4078c3f885af7ff00cadfdbcbf3119b9c3a6d70a09b43c49c0a57ca707f3b781d06cdd9772677269fa126486084c1e163d0e3be0a3f16c57a44f550573c80e44812aeb1dab1ecd4000edf7da194c0f9dbca9f0dd9661642cd9dd436ffbceed9a0d7091310cb663fc3217eeb4ab18838356e41e7efd9e232e333c2240c8c173de06e1531378525b0ba38f4e6040929959ce6d38ee9bee1a9b5fc87fb4398d21b5b33cdfd4805806c0795170166a045c164718d56f93af975b39a45a2504e8e2321a9d9fa1f5581385e89dbef591495381a02189a3cb277e561919ee26ab54a0f4533352b75c1e2101f02e06e9e62e59fe072e64f1329d411b9cd718ab7ded75230453bb786f96b705dc45b76443ad94b502f6902c56979c8f0529a73d73d8a77507dc015b4e50bd77506af8b05c7d3830199ba654c8e2eaac9c24962609fe263b16baa4c68082b933f1460eaaab27d3403972284f6690556202ce937bc8bd82b2f29e75f75ca91092bb1bc53f0e5c13bc3acb6e3e795d49e29b1c2269e49b11b3e41678d89355d1339bc30f18a443fb65df8749985b742d5ab2d0de891620913f0f75c16ca2dc9c6a307f1fdaba08186840e7fe04a751d7a15d436bef3ffc15b7cea5c8df95dae0f19dd4209e19d0fc5573b9dc1d47e731cfe6e54e3658261bbfa52cd625270470e8c8cb399935833cc6b3cb1556ed74a18018d28f8069d4f266a713e0422e17478b5ea91b164615d02e29650628b669c68178ddd57cf988d56fc00facf22bacf2d882d867d3efe53b77a19ffebad43be6ce57d6ad7e360f1bcc2235b6ca48fec0b0060771784f549fa1410514e9fa9879b523a38a4caf2ce5551fc00db11792cb94c46ed7f0bce5e9255a417b872199b1df807e6000915e4568119f639919ccd602d0fda9541dee3c049ea3b0bb82bc9e0b02fff205907476d17fd8262a90938e9468878eb3ebb141a174d885b23c79055f58d3654309e21d898d57fbca373dabbfc2206c7ad4e3ec186e1e63161c72495432aa82407e1645727f469c9d4711d735b84a76024a86eb49310ccd4996d34fc5dfa21972bc1442a95ab1a3cbd6f01769a8f26f3efbcbf5472d77f8664bba8e65639526cdbc9da161aeb665af4da67399c1b81bba25d46909d064486f37a8f75897a8054f8a7ec8648ad560bb91ad567fe3d70a5677075a267a914e6a3ca56d712f85b6846bda9e45a4603006d37c76e6425714494a8fbe885d7a814ced04aebcaf9ced7babcec3b354ae8051930226656dd05b14af8c257e93df903ac7cf7cc3dd1b3084a165ec4a476ce2e7ec9f6a8e33be06817259a30ad6dfebc9aff4afd9caf0d575df1f5d1658ae7e0ba4f58097407fc83208b9903905142e8bbcf060fa53738bbaa53f05a004ece36b3ddc9eb0187e765efebc77c52e1392e20f3a0b3138a1aa53806deabd2d6fef9e01cb63bf83c210206bd5217346e141cd36769795d9a973cc57127ef709",
+                "reference_result": "Both roles generated independent seed contributions. No seed reconstruction occurs in this pipeline.",
+                "role": "b",
+                "run_id": "74f5bc3d7dc01d32bf9f32d652814764",
+                "runtime": {
+                  "a_to_b_wire_bytes": 116015483,
+                  "accepted_share_bytes": 0,
+                  "b_to_a_wire_bytes": 736875,
+                  "circuit_count": 18,
+                  "execution_bindings_sha256": "058caac4f0bd1f2a28b79564d8ec4e1f9097ad5118b48a6cf995778eb9aab4f8",
+                  "fresh_execution_bindings": 18,
+                  "largest_control_message_bytes": 188464,
+                  "largest_label_arena_allocation_bytes": 300339,
+                  "ot_wire_bytes": 2129280,
+                  "per_kernel": [
+                    {
+                      "a_to_b_wire_bytes": 10551504,
+                      "b_to_a_wire_bytes": 592320,
+                      "calls": 6,
+                      "kernel": "rounding",
+                      "ot_wire_bytes": 1746048,
+                      "table_bytes": 8257536
+                    },
+                    {
+                      "a_to_b_wire_bytes": 104224483,
+                      "b_to_a_wire_bytes": 136235,
+                      "calls": 11,
+                      "kernel": "sampling",
+                      "ot_wire_bytes": 362560,
+                      "table_bytes": 102847360
+                    },
+                    {
+                      "a_to_b_wire_bytes": 1239496,
+                      "b_to_a_wire_bytes": 8320,
+                      "calls": 1,
+                      "kernel": "seed",
+                      "ot_wire_bytes": 20672,
+                      "table_bytes": 1210368
+                    }
+                  ],
+                  "signature_return_bytes": 0,
+                  "table_bytes": 112315264,
+                  "table_frame_count": 1718
+                },
+                "schema": "seams.ml-dsa-worker-keygen.v1",
+                "transport": {
+                  "clock": "Worker Date.now; IO can advance this clock. These values are elapsed observations, not CPU billing measurements.",
+                  "credit_window_messages": 8,
+                  "first_receive_ms": 72,
+                  "first_send_ms": 74,
+                  "largest_pending_messages": 1,
+                  "largest_runtime_message_bytes": 188464,
+                  "last_receive_ms": 3280,
+                  "last_send_ms": 3280,
+                  "maximum_runtime_message_bytes": 376880,
+                  "received_ack_bytes": 270,
+                  "received_completion_bytes": 0,
+                  "received_data_envelope_bytes": 9040,
+                  "received_messages": 1808,
+                  "received_runtime_bytes": 116015483,
+                  "sent_ack_bytes": 9040,
+                  "sent_data_envelope_bytes": 270,
+                  "sent_messages": 54,
+                  "sent_runtime_bytes": 736875,
+                  "worker_observed_elapsed_ms": 3281
+                },
+                "wasm_linear_memory_highwater_bytes": 36175872
+              }
+            },
+            "run_id": "74f5bc3d7dc01d32bf9f32d652814764",
+            "schema": "seams.ml-dsa-worker-keygen.v1",
+            "scope": "Complete eighteen-circuit canonical key generation on separate Workers. Each role completes its own private signing material and discards it after this disposable benchmark. No signature is generated.",
+            "security_limits": [
+              "Passive honest execution only. The public-challenge and aggregate-acceptance composition requires independent cryptographic review.",
+              "No wallet admission, durable share storage, production peer authentication, or authorized export flow is implemented by this probe.",
+              "Classical OT does not provide post-quantum transcript confidentiality. The linear arithmetic has no target-specific constant-time qualification.",
+              "Incoming colo does not establish equal physical Worker placement. Elapsed clock observations do not establish CPU charges or total isolate memory."
+            ],
+            "worker_observed_total_ms": 3281
+          }
+        }
+      ],
+      "client_complete_ms": {
+        "median": 3375.5187910000004,
+        "minimum": 3284.063750000001,
+        "maximum": 3417.4326660000006
+      }
+    }
+  ]
+}

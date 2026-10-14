@@ -48,20 +48,23 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         let assembly = fs::read_to_string(&assembly_path)?;
         targets.push(inspect(&assembly, target)?);
     }
+    let workers = crate::worker_arithmetic_audit::build_and_inspect(repository)?;
     let report = json!({
-        "schema": "seams.ml-dsa-arithmetic-audit.v1",
+        "schema": "seams.ml-dsa-arithmetic-audit.v2",
         "source_revision": command_text(Command::new("git").args(["rev-parse", "HEAD"]).current_dir(repository))?,
         "arithmetic_source_sha256": digest(&fs::read(repository.join("crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs"))?),
         "audit_source_sha256": digest(&fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/arithmetic_audit.rs"))?),
         "compiler": compiler,
         "profile": "release",
         "targets": targets,
+        "final_workers": workers,
         "result": "no-division-in-private-arithmetic; target-qualification-open",
         "limits": [
             "The check covers the compiled core's three private polynomial arithmetic functions and their inlined reductions.",
             "Conditional branches require manual data-flow review. Their count alone proves no timing property.",
             "Public matrix expansion and public-length hashing can retain division or remainder instructions.",
-            "This is pre-link core assembly. Final Worker optimization, Cloudflare JIT behavior, other cryptographic primitives, and hardware timing remain outside this check."
+            "The final Worker check rebuilds both role bundles and parses their packaged Wasm function bodies. It records direct calls without recursively checking callees.",
+            "Cloudflare JIT behavior, other cryptographic primitives, secret-dependent memory access, and hardware timing remain outside this check."
         ],
         "reproduce_argv": ["cargo", "run", "--release", "--locked", "--manifest-path", "tools/ml-dsa-investigation/Cargo.toml", "--", "inspect-arithmetic", output.display().to_string()]
     });
