@@ -1,0 +1,175 @@
+{
+  "schema": "seams.ml-dsa-five-second-resource-screen.v1",
+  "production_integration": "paused-by-user",
+  "latency_target_seconds": 5,
+  "source_evidence": [
+    {
+      "path": "docs/evidence/ml-dsa-65-selected-halfgates-keygen-joint-hosted-20261014.json",
+      "sha256": "a776e8621c629d962716a9dd4b24dffb977597d6526975ded2810766cbee3720"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-selected-halfgates-threshold-joint-hosted-20261014.json",
+      "sha256": "7faa60489a061f1a807869dcff0b805a6e152a5eb793cbcc95091abe98453c38"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-selected-halfgates-threshold-fixture-hosted-20261014.json",
+      "sha256": "f7ed1f2d464855a8a112a4ac6bff21c537cb5c72be51304a9f2347294e57708d"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-engine-structural-screen-20261013.json",
+      "sha256": "36cd01ce08f18e402f843eae1a8ef3c48d01ce701c320aad9f654b77be57346d"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-fresh-mask-conversion-20261014.json",
+      "sha256": "d78fb1780bbdda47b937149905662ffa02179523dbd4656ef560da8d8209adab"
+    }
+  ],
+  "analysis_script_sha256": "6e7dd110f16579a99162f37b1bc67bc66f75aca613279cb00a4cd267cb402959",
+  "observed_hosted_baseline": {
+    "keygen_client": {
+      "samples": 5,
+      "median_seconds": 14.973804791000003,
+      "minimum_seconds": 14.168824166999991,
+      "maximum_seconds": 15.414571167000002,
+      "median_speedup_needed_for_five_seconds": 2.9947609582000005
+    },
+    "signing_phase_role_a": {
+      "samples": 5,
+      "median_seconds": 26.424,
+      "minimum_seconds": 9.355,
+      "maximum_seconds": 142.271,
+      "median_speedup_needed_for_five_seconds": 5.2848
+    },
+    "fixed_five_candidate_signing_phase_role_a": {
+      "samples": 3,
+      "median_seconds": 69.996,
+      "minimum_seconds": 69.228,
+      "maximum_seconds": 70.006,
+      "median_speedup_needed_for_five_seconds": 13.999199999999998
+    },
+    "signing_candidates": [
+      1,
+      16,
+      2,
+      4,
+      3
+    ]
+  },
+  "already_in_hosted_runtime": [
+    {
+      "path": "crates/ed25519-yao/src/passive.rs",
+      "same_as_hosted_baseline": true
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/gate_aes.rs",
+      "same_as_hosted_baseline": true
+    }
+  ],
+  "keygen": {
+    "and_gates_without_wallet_prelude": 3509852,
+    "half_gate_table_bytes": 112315264,
+    "sampling_fraction_of_table_bytes": 0.9157024284784657,
+    "wallet_prelude_additional_and_gates": 37056,
+    "batched_layers_without_wallet_prelude": 316,
+    "zero_compute_rtt_budget_ms_without_wallet_prelude": 15.822784810126583
+  },
+  "fresh_mask_conversion": {
+    "baseline_ands_per_polynomial": 212928,
+    "conversion_ands_per_polynomial": 21760,
+    "and_reduction_fraction": 0.8978058310790502,
+    "baseline_wire_bytes_per_polynomial": 6950960,
+    "conversion_wire_bytes_per_polynomial": 1127496
+  },
+  "candidate_resource_models": {
+    "baseline": {
+      "and_gates": 2283770,
+      "wire_bytes": 83231733
+    },
+    "fresh_mask_online": {
+      "and_gates": 1327930,
+      "wire_bytes": 54114413,
+      "and_reduction_fraction": 0.4185360171996304
+    },
+    "fresh_mask_and_commitment_prepared": {
+      "online_and_gates": 1050170,
+      "online_wire_bytes": 40658693,
+      "and_reduction_fraction": 0.5401594731518498
+    },
+    "three_halves_table_only": {
+      "table_fraction_of_halfgates": 0.76953125,
+      "ideal_bandwidth_only_speedup": 1.299492385786802
+    }
+  },
+  "boolean_round_models": [
+    {
+      "candidates": 1,
+      "exact_algorithm_batched_layers": 549,
+      "prepared_fresh_mask_batched_layers": 283,
+      "exact_zero_compute_rtt_budget_ms": 9.107468123861567,
+      "prepared_zero_compute_rtt_budget_ms": 17.6678445229682,
+      "prepared_network_only_seconds_at_rtt_ms": {
+        "0.25": 0.07075,
+        "0.5": 0.1415,
+        "1": 0.283,
+        "2": 0.566,
+        "5": 1.415,
+        "10": 2.83
+      }
+    },
+    {
+      "candidates": 3,
+      "exact_algorithm_batched_layers": 1599,
+      "prepared_fresh_mask_batched_layers": 849,
+      "exact_zero_compute_rtt_budget_ms": 3.1269543464665417,
+      "prepared_zero_compute_rtt_budget_ms": 5.889281507656066,
+      "prepared_network_only_seconds_at_rtt_ms": {
+        "0.25": 0.21225,
+        "0.5": 0.4245,
+        "1": 0.849,
+        "2": 1.698,
+        "5": 4.245,
+        "10": 8.49
+      }
+    },
+    {
+      "candidates": 5,
+      "exact_algorithm_batched_layers": 2649,
+      "prepared_fresh_mask_batched_layers": 1415,
+      "exact_zero_compute_rtt_budget_ms": 1.8875047187617968,
+      "prepared_zero_compute_rtt_budget_ms": 3.5335689045936394,
+      "prepared_network_only_seconds_at_rtt_ms": {
+        "0.25": 0.35375,
+        "0.5": 0.7075,
+        "1": 1.415,
+        "2": 2.83,
+        "5": 7.075,
+        "10": 14.15
+      }
+    },
+    {
+      "candidates": 16,
+      "exact_algorithm_batched_layers": 8424,
+      "prepared_fresh_mask_batched_layers": 4528,
+      "exact_zero_compute_rtt_budget_ms": 0.5935422602089269,
+      "prepared_zero_compute_rtt_budget_ms": 1.1042402826855124,
+      "prepared_network_only_seconds_at_rtt_ms": {
+        "0.25": 1.132,
+        "0.5": 2.264,
+        "1": 4.528,
+        "2": 9.056,
+        "5": 22.64,
+        "10": 45.28
+      }
+    }
+  ],
+  "limits": [
+    "No five-second implementation is demonstrated. Fresh-mask conversion is the only newly executed private primitive in this screen.",
+    "Candidate models retain current checks and disclosures. They exclude request binding and final return bytes, one-time signing setup, and all preparation costs.",
+    "Prepared fresh masks and commitments would change the exact message-bound nonce derivation. They require a new composition review and durable one-use state.",
+    "Layer batching and prepared pools are models, not implemented Worker paths. Round budgets assume one RTT per AND layer and zero other cost.",
+    "Key-generation layers exclude the wallet-seed prelude, input setup, conversions between circuit invocations, output delivery, and all preprocessing.",
+    "Worker phase clocks advance with I/O. They are elapsed observations, not isolated CPU timings. Client key-generation timings exclude wallet custody and durable activation.",
+    "Five fresh-key samples do not establish percentiles, a retry distribution, or a successful-signature deadline guarantee.",
+    "Disabling export alone removes no work from canonical key generation or ordinary signing."
+  ]
+}

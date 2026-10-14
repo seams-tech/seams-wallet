@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+mod prepared;
+
 use ed25519_yao::phase5_wasm_benchmark::{
     WasmBenchmarkError, WasmBenchmarkFamily, WasmBenchmarkReport, WasmBenchmarkSession,
     WasmChunkProfile,

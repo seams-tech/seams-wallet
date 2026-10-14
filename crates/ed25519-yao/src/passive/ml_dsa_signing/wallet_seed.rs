@@ -55,6 +55,22 @@ impl WalletSeedCircuit {
         .map_err(|_| KeygenError::CircuitRuntime)
     }
 
+    /// Executes the private wallet-seed stage with matching one-use preparation.
+    pub async fn run_prepared(
+        self,
+        prepared: crate::passive::ml_dsa_runtime::prepared::PreparedCircuit<'_>,
+        transport: &mut impl crate::passive::ml_dsa_runtime::prepared::Transport,
+    ) -> Result<(KeygenStep, RuntimeMetrics), KeygenError> {
+        if prepared.circuit_id() != 0x91 || prepared.role() != self.role {
+            return Err(KeygenError::Schedule);
+        }
+        let output = prepared
+            .run(&self.input, transport)
+            .await
+            .map_err(|_| KeygenError::CircuitRuntime)?;
+        self.accept(output)
+    }
+
     /// Consumes only this role's permitted output and immediately starts keygen.
     pub fn accept(
         mut self,

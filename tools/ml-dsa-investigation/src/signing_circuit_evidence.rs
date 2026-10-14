@@ -30,6 +30,9 @@ pub(super) fn run() -> InvestigationResult<Value> {
     ] {
         let circuit = compile_ml_dsa_private_signing_circuit_v1(workload);
         let cases = match workload {
+            MlDsaSigningWorkloadV1::FreshMaskConversion => {
+                unreachable!("fixed exact-algorithm workload list")
+            }
             MlDsaSigningWorkloadV1::SigningSeed => check_seed(&circuit)?,
             MlDsaSigningWorkloadV1::CommitmentHighBits => check_high(&circuit)?,
             MlDsaSigningWorkloadV1::CommitmentHash => check_hash(&circuit)?,

@@ -217,6 +217,15 @@ impl OtFamily for MlDsaDecisionOtFamily {
     const OT_COUNT: usize = 1_664;
 }
 
+/// Exact evaluator input shape for the fresh-mask conversion experiment.
+#[derive(Debug)]
+pub(super) struct MlDsaFreshMaskOtFamily;
+impl sealed::Sealed for MlDsaFreshMaskOtFamily {}
+impl OtFamily for MlDsaFreshMaskOtFamily {
+    const CODE: u8 = 11;
+    const OT_COUNT: usize = 5120;
+}
+
 /// Fixed bounded batch for the investigation's Boolean-engine preprocessing.
 #[cfg(feature = "passive-benchmark")]
 #[derive(Debug)]

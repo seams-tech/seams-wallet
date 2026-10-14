@@ -13,10 +13,14 @@ use zeroize::Zeroizing;
 #[cfg(all(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
 pub mod boolean_comparison;
 
+/// Input-independent half-gate preparation for isolated performance experiments.
+#[cfg(feature = "ml-dsa-runtime-benchmark")]
+pub mod prepared;
+
 use super::ot::{
     BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaCommitmentOtFamily,
-    MlDsaDecisionOtFamily, MlDsaRoundingOtFamily, MlDsaSamplingOtFamily, MlDsaSeedOtFamily,
-    MlDsaSigningRowOtFamily, OtError, OtSessionId, ReceiverAwaitBaseChoices,
+    MlDsaDecisionOtFamily, MlDsaFreshMaskOtFamily, MlDsaRoundingOtFamily, MlDsaSamplingOtFamily,
+    MlDsaSeedOtFamily, MlDsaSigningRowOtFamily, OtError, OtSessionId, ReceiverAwaitBaseChoices,
     ReceiverAwaitMaskedPayloads, ReceiverChoices, ReceiverStart, SenderAwaitExtension,
     SenderPayloads, SenderStart,
 };
@@ -75,6 +79,7 @@ type Result<T> = core::result::Result<T, RuntimeError>;
 
 #[derive(Clone, Copy)]
 enum Workload {
+    FreshMaskConversion,
     WalletSeed,
     Seed,
     Sampling,
@@ -90,6 +95,7 @@ enum Workload {
 impl Workload {
     const fn a_inputs(self) -> usize {
         match self {
+            Self::FreshMaskConversion => 11008,
             Self::WalletSeed => 512,
             Self::Seed => 1024,
             Self::Sampling | Self::ExpandMask => 6416,
@@ -104,6 +110,7 @@ impl Workload {
     }
     const fn b_inputs(self) -> usize {
         match self {
+            Self::FreshMaskConversion => 5120,
             Self::WalletSeed | Self::Seed => 256,
             Self::Sampling | Self::ExpandMask => 512,
             Self::Rounding | Self::CommitmentHighBits | Self::ResponseCheck => 5888,
@@ -119,7 +126,8 @@ impl Workload {
             Self::Sampling | Self::AggregateCheck => 1,
             Self::Rounding => 320,
             Self::CommitmentHash => 48,
-            Self::WalletSeed
+            Self::FreshMaskConversion
+            | Self::WalletSeed
             | Self::ExpandMask
             | Self::SigningSeed
             | Self::CommitmentHighBits
@@ -133,7 +141,8 @@ impl Workload {
             Self::Seed | Self::Rounding | Self::CommitmentHash => {
                 output[..self.public_bytes()].to_vec()
             }
-            Self::WalletSeed
+            Self::FreshMaskConversion
+            | Self::WalletSeed
             | Self::ExpandMask
             | Self::SigningSeed
             | Self::CommitmentHighBits
@@ -172,6 +181,7 @@ impl<'a> TrustedMlDsaSchedule<'a> {
         let outputs = read_u32(&bytes[50..54]);
         let slots = read_u32(&bytes[54..58]);
         let workload = match (bytes[8], inputs, outputs) {
+            (0x92, 16128, 5888) => Workload::FreshMaskConversion,
             (0x91, 768, 256) => Workload::WalletSeed,
             (0x87, 1280, 1024) => Workload::Seed,
             (0x88, 6928, 5889) => Workload::Sampling,
@@ -959,6 +969,7 @@ fn evaluate_remaining_linear(running: &mut EvaluatorRunning<'_>) -> Result<()> {
 
 // OT states retain the existing family-specific type constraints internally.
 enum Sender {
+    FreshMask(SenderAwaitExtension<MlDsaFreshMaskOtFamily>),
     Seed(SenderAwaitExtension<MlDsaSeedOtFamily>),
     Medium(SenderAwaitExtension<MlDsaSamplingOtFamily>),
     Rounding(SenderAwaitExtension<MlDsaRoundingOtFamily>),
@@ -967,6 +978,7 @@ enum Sender {
     Decision(SenderAwaitExtension<MlDsaDecisionOtFamily>),
 }
 enum ReceiverBase {
+    FreshMask(ReceiverAwaitBaseChoices<MlDsaFreshMaskOtFamily>),
     Seed(ReceiverAwaitBaseChoices<MlDsaSeedOtFamily>),
     Medium(ReceiverAwaitBaseChoices<MlDsaSamplingOtFamily>),
     Rounding(ReceiverAwaitBaseChoices<MlDsaRoundingOtFamily>),
@@ -975,6 +987,7 @@ enum ReceiverBase {
     Decision(ReceiverAwaitBaseChoices<MlDsaDecisionOtFamily>),
 }
 enum ReceiverMasked {
+    FreshMask(ReceiverAwaitMaskedPayloads<MlDsaFreshMaskOtFamily>),
     Seed(ReceiverAwaitMaskedPayloads<MlDsaSeedOtFamily>),
     Medium(ReceiverAwaitMaskedPayloads<MlDsaSamplingOtFamily>),
     Rounding(ReceiverAwaitMaskedPayloads<MlDsaRoundingOtFamily>),
@@ -996,6 +1009,14 @@ fn sender_begin(
                 .encoded_pair(required_wire(arena, index).map_err(|_| RuntimeError::MissingWire)?),
         );
     }
+    sender_begin_payloads(workload, session, bytes, pairs)
+}
+fn sender_begin_payloads(
+    workload: Workload,
+    session: OtSessionId,
+    bytes: &[u8],
+    pairs: Vec<([u8; LABEL_BYTES], [u8; LABEL_BYTES])>,
+) -> Result<(Sender, Zeroizing<Vec<u8>>)> {
     macro_rules! begin {
         ($family:ty,$variant:ident) => {{
             let offer =
@@ -1008,6 +1029,7 @@ fn sender_begin(
         }};
     }
     match workload {
+        Workload::FreshMaskConversion => begin!(MlDsaFreshMaskOtFamily, FreshMask),
         Workload::WalletSeed | Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
         Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
@@ -1030,6 +1052,7 @@ fn sender_accept(sender: Sender, bytes: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
         }};
     }
     match sender {
+        Sender::FreshMask(s) => accept!(s, MlDsaFreshMaskOtFamily),
         Sender::Seed(s) => accept!(s, MlDsaSeedOtFamily),
         Sender::Medium(s) => accept!(s, MlDsaSamplingOtFamily),
         Sender::Rounding(s) => accept!(s, MlDsaRoundingOtFamily),
@@ -1058,6 +1081,7 @@ fn receiver_begin(
         }};
     }
     match workload {
+        Workload::FreshMaskConversion => begin!(MlDsaFreshMaskOtFamily, FreshMask),
         Workload::WalletSeed | Workload::Seed => begin!(MlDsaSeedOtFamily, Seed),
         Workload::Sampling | Workload::ExpandMask | Workload::SigningSeed => {
             begin!(MlDsaSamplingOtFamily, Medium)
@@ -1085,6 +1109,7 @@ fn receiver_accept_choices(
         }};
     }
     match receiver {
+        ReceiverBase::FreshMask(r) => accept!(r, MlDsaFreshMaskOtFamily, FreshMask),
         ReceiverBase::Seed(r) => accept!(r, MlDsaSeedOtFamily, Seed),
         ReceiverBase::Medium(r) => accept!(r, MlDsaSamplingOtFamily, Medium),
         ReceiverBase::Rounding(r) => accept!(r, MlDsaRoundingOtFamily, Rounding),
@@ -1098,17 +1123,25 @@ fn receiver_accept_masked(
     bytes: &[u8],
     inputs: &mut Vec<EvaluatorWire>,
 ) -> Result<()> {
+    let selected = receiver_accept_masked_bytes(receiver, bytes)?;
+    for label in selected.iter() {
+        inputs.push(EvaluatorWire::from_secret_bytes(*label));
+    }
+    Ok(())
+}
+fn receiver_accept_masked_bytes(
+    receiver: ReceiverMasked,
+    bytes: &[u8],
+) -> Result<Zeroizing<Vec<[u8; LABEL_BYTES]>>> {
     macro_rules! accept {
         ($receiver:expr,$family:ty) => {{
             let masked = MaskedPayloads::<$family>::decode(bytes).map_err(ot_error)?;
             let selected = $receiver.accept(masked).map_err(ot_error)?;
-            for label in selected.as_slice() {
-                inputs.push(EvaluatorWire::from_secret_bytes(*label));
-            }
-            Ok(())
+            Ok(Zeroizing::new(selected.as_slice().to_vec()))
         }};
     }
     match receiver {
+        ReceiverMasked::FreshMask(r) => accept!(r, MlDsaFreshMaskOtFamily),
         ReceiverMasked::Seed(r) => accept!(r, MlDsaSeedOtFamily),
         ReceiverMasked::Medium(r) => accept!(r, MlDsaSamplingOtFamily),
         ReceiverMasked::Rounding(r) => accept!(r, MlDsaRoundingOtFamily),

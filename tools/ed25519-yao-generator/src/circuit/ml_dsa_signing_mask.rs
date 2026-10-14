@@ -169,7 +169,7 @@ pub fn compile_ml_dsa_private_signing_mask_circuit_v1() -> MlDsaPrivateSigningMa
     MlDsaPrivateSigningMaskCircuitV1 { circuit, schedule }
 }
 
-fn signing_mask_bits(
+pub(super) fn signing_mask_bits(
     builder: &mut CircuitBuilder,
     stream_bits: &[BuilderBit],
     mask_bits: &[BuilderBit],

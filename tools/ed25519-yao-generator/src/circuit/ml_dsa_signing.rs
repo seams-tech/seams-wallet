@@ -15,6 +15,9 @@ const BETA: u32 = 49 * 4;
 /// A fixed private component in the experimental signing composition.
 #[derive(Clone, Copy, Debug)]
 pub enum MlDsaSigningWorkloadV1 {
+    /// Investigation only: convert fresh XOR-shared 20-bit mask coefficients.
+    /// This is not the FIPS message-bound ExpandMask derivation.
+    FreshMaskConversion,
     /// Derive the signing seed from shared K, joint randomness, and public mu.
     SigningSeed,
     /// Convert one shared commitment into masked high-bit shares.
@@ -33,6 +36,7 @@ impl MlDsaSigningWorkloadV1 {
     /// Returns the exact A input count.
     pub const fn garbler_input_bits(self) -> usize {
         match self {
+            Self::FreshMaskConversion => 5120 + POLYNOMIAL_BITS,
             Self::SigningSeed => 1536,
             Self::CommitmentHighBits => 6912,
             Self::CommitmentHash => 6656,
@@ -44,6 +48,7 @@ impl MlDsaSigningWorkloadV1 {
     /// Returns the exact B input count, including fixed zero padding.
     pub const fn evaluator_input_bits(self) -> usize {
         match self {
+            Self::FreshMaskConversion => 5120,
             Self::SigningSeed => 512,
             Self::CommitmentHighBits | Self::ResponseCheck => 5888,
             Self::CommitmentHash => 6144,
@@ -54,6 +59,7 @@ impl MlDsaSigningWorkloadV1 {
     /// Returns B's complete output count.
     pub const fn output_bits(self) -> usize {
         match self {
+            Self::FreshMaskConversion => POLYNOMIAL_BITS,
             Self::SigningSeed => 512,
             Self::CommitmentHighBits => 1024,
             Self::CommitmentHash => 384,
@@ -63,6 +69,7 @@ impl MlDsaSigningWorkloadV1 {
     }
     fn component(self) -> u8 {
         match self {
+            Self::FreshMaskConversion => 0x92,
             Self::SigningSeed => 0x8b,
             Self::CommitmentHighBits => 0x8c,
             Self::CommitmentHash => 0x8d,
@@ -73,6 +80,7 @@ impl MlDsaSigningWorkloadV1 {
     }
     fn input_schema(self) -> &'static [u8] {
         match self {
+            Self::FreshMaskConversion => b"ml-dsa65/fresh-mask/input/v1:A:entropy-xor[5120],mask[256]:residue23;B:entropy-xor[5120]:lsb0",
             Self::SigningSeed => b"ml-dsa65/sign-seed/input/v1:A:K-xor[256],rnd-xor[256],public-mu[512],seed-mask[512];B:K-xor[256],rnd-xor[256]:lsb0",
             Self::CommitmentHighBits => b"ml-dsa65/high/input/v1:A:w[256]:residue23,high-mask[256]:uint4;B:w[256]:residue23:lsb0",
             Self::CommitmentHash => b"ml-dsa65/challenge/input/v1:A:high-xor[6144],public-mu[512];B:high-xor[6144]:lsb0",
@@ -83,6 +91,9 @@ impl MlDsaSigningWorkloadV1 {
     }
     fn output_schema(self) -> &'static [u8] {
         match self {
+            Self::FreshMaskConversion => {
+                b"ml-dsa65/fresh-mask/output/v1:B:y-share[256]:residue23-lsb0"
+            }
             Self::SigningSeed => b"ml-dsa65/sign-seed/output/v1:B:seed-xor[512]:lsb0",
             Self::CommitmentHighBits => b"ml-dsa65/high/output/v1:B:high-xor[1024]:lsb0",
             Self::CommitmentHash => b"ml-dsa65/challenge/output/v1:public:challenge[384]:lsb0",
@@ -130,6 +141,13 @@ pub fn compile_ml_dsa_private_signing_circuit_v1(
     let inputs = builder.input_bits();
     let (a, b) = inputs.split_at(workload.garbler_input_bits());
     let outputs = match workload {
+        MlDsaSigningWorkloadV1::FreshMaskConversion => {
+            let mut stream = Vec::with_capacity(5120);
+            for bit in 0..5120 {
+                stream.push(builder.xor(a[bit], b[bit]));
+            }
+            super::ml_dsa_signing_mask::signing_mask_bits(&mut builder, &stream, &a[5120..])
+        }
         MlDsaSigningWorkloadV1::SigningSeed => signing_seed(&mut builder, a, b),
         MlDsaSigningWorkloadV1::CommitmentHighBits => commitment_high(&mut builder, a, b),
         MlDsaSigningWorkloadV1::CommitmentHash => commitment_hash(&mut builder, a, b),
