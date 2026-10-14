@@ -3511,6 +3511,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Bind storage to the environment, wrapping-key version, wallet, signing key, role, creation operation, epoch, and public key.
 - Obtain expected storage coordinates from trusted admission and activation state. A ciphertext cannot supply its own authority.
 - Keep durable replay rejection, cancellation, and epoch transitions at the admitted storage boundary.
+- Prepare generic garbled circuits and random OT without wallet-specific secret inputs.
+- Consume each prepared circuit and its OT material at most once. Recovery must use fresh preparation.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
 Router admission, durable lifecycle behavior, and the public SDK route remain required before production use.

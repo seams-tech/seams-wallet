@@ -396,3 +396,17 @@ API sources:
 - [RustCrypto ML-DSA 0.1.1](https://docs.rs/ml-dsa/0.1.1/ml_dsa/)
 - [OpenSSL ML-DSA keys](https://docs.openssl.org/3.6/man7/EVP_PKEY-ML-DSA/)
 - [OpenSSL ML-DSA signatures](https://docs.openssl.org/3.6/man7/EVP_SIGNATURE-ML-DSA/)
+
+
+## Prepared key-generation experiment
+
+The [preprocessing report](../../docs/router-ab/ml-dsa-65-preprocessing-report.md) records the native and Node/V8 Wasm procedures and limits.
+The `prepared-keygen` command executes genuine input-independent garbling and random OT before supplying actual wallet-root inputs.
+It reserves all nineteen circuits together and consumes each preparation once.
+The existing keygen transitions produce the canonical FIPS public key with wallet-seed recovery unchanged.
+The online path transfers 3,620,363 bytes in 57 logical messages and reads B's tables from local disk.
+These measurements do not establish Cloudflare latency, durable pool behavior, or prepared signing performance.
+
+The separate `fresh-mask` command evaluates a smaller mask-conversion primitive with seven two-party cases.
+It is not connected to the signer and does not replace message-bound nonce derivation.
+The `scripts/analyze_latency_budget.py` script generates resource models from retained evidence and labels all unmeasured forecasts.

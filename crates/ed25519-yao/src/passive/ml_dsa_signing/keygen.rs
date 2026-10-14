@@ -135,6 +135,23 @@ impl KeygenCircuit {
         .map_err(|_| KeygenError::CircuitRuntime)
     }
 
+    /// Executes this step with one matching, consumed preprocessing item.
+    pub async fn run_prepared(
+        self,
+        prepared: crate::passive::ml_dsa_runtime::prepared::PreparedCircuit<'_>,
+        transport: &mut impl crate::passive::ml_dsa_runtime::prepared::Transport,
+    ) -> Result<KeygenStep> {
+        if prepared.circuit_id() != self.kernel.circuit_id() || prepared.role() != self.machine.role
+        {
+            return Err(KeygenError::Schedule);
+        }
+        let output = prepared
+            .run(&self.input, transport)
+            .await
+            .map_err(|_| KeygenError::CircuitRuntime)?;
+        self.accept(output)
+    }
+
     /// Consumes the permitted output and advances without revealing other shares.
     pub fn accept(self, output: RuntimeOutput) -> Result<KeygenStep> {
         self.accept_output(output.output, CircuitMetrics::HalfGates(output.metrics))

@@ -9,16 +9,15 @@ Private preprocessing dominates the current Boolean alternatives.
 
 ## Decision — October 14, 2026
 
-Advance half-gates as the selected engine for Wallet SDK and Router A/B integration.
-The user accepted this direction after the complete native comparison.
-Keep the canonical seed, uniform share format, and passive security profile unchanged.
-Production release still requires hosted measurements, privacy review, constant-time qualification, and the remaining custody and lifecycle work.
+Production integration is paused at the user's request until key generation and online signing can meet the five-second target.
+Preprocessing is permitted. Wallet-seed recovery remains required.
+Half-gates remains the baseline, while prepared execution and alternative engines take priority.
+The [prepared keygen experiment](ml-dsa-65-preprocessing-report.md) now measures separate native and Node/V8 Wasm roles.
+Its online Wasm median is 1.36 seconds across three local measured cases, with 3.62 MB of online A/B traffic.
+These are local observations. Hosted storage, deployed latency, prepared signing, and durable pool behavior remain open.
+Keep canonical seed derivation, role privacy, standard signature encodings, and recovery semantics unchanged during the first preprocessing experiment.
+The current evidence establishes neither the fastest possible protocol nor a production latency guarantee.
 
-Prioritize the selected engine's complete Worker flow and production boundaries.
-Defer GMW, ABY2.0 preprocessing improvements, and three-halves implementation to optional follow-up research.
-These alternatives do not block half-gates integration.
-Reconsider the engine if complete target measurements establish a better design under the same security and recovery contract.
-The current evidence does not establish the fastest possible protocol or a production latency guarantee.
 The subsequent request-agreement exchange adds 146 public bytes per signing operation to every engine.
 It leaves circuits, key generation, signature bytes, and the arithmetic comparison unchanged.
 The complete comparison below records the implementation before that exchange.

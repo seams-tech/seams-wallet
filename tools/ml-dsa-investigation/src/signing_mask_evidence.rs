@@ -424,7 +424,7 @@ fn role_input_bits(role: Role, bytes: &[u8]) -> InvestigationResult<Zeroizing<Ve
     Ok(bits)
 }
 
-fn uniform_masks() -> InvestigationResult<Zeroizing<[u32; COEFFICIENTS]>> {
+pub(super) fn uniform_masks() -> InvestigationResult<Zeroizing<[u32; COEFFICIENTS]>> {
     let mut masks = Zeroizing::new([0; COEFFICIENTS]);
     for mask in masks.iter_mut() {
         loop {
@@ -440,7 +440,10 @@ fn uniform_masks() -> InvestigationResult<Zeroizing<[u32; COEFFICIENTS]>> {
     Ok(masks)
 }
 
-fn reference_coefficients(seed: &[u8; SEED_SHARE_BYTES], nonce: u16) -> [u32; COEFFICIENTS] {
+pub(super) fn reference_coefficients(
+    seed: &[u8; SEED_SHARE_BYTES],
+    nonce: u16,
+) -> [u32; COEFFICIENTS] {
     let mut shake = Shake256::default();
     shake.update(seed);
     shake.update(&nonce.to_le_bytes());
@@ -459,7 +462,7 @@ fn reference_coefficients(seed: &[u8; SEED_SHARE_BYTES], nonce: u16) -> [u32; CO
     coefficients
 }
 
-fn decode_output(bytes: &[u8]) -> InvestigationResult<Zeroizing<[u32; COEFFICIENTS]>> {
+pub(super) fn decode_output(bytes: &[u8]) -> InvestigationResult<Zeroizing<[u32; COEFFICIENTS]>> {
     require(
         bytes.len() == OUTPUT_BYTES,
         "Private mask B output has the wrong length.",
@@ -478,7 +481,7 @@ fn decode_output(bytes: &[u8]) -> InvestigationResult<Zeroizing<[u32; COEFFICIEN
     Ok(coefficients)
 }
 
-fn check_shares(
+pub(super) fn check_shares(
     a: &[u32; COEFFICIENTS],
     b: &[u32; COEFFICIENTS],
     expected: &[u32; COEFFICIENTS],

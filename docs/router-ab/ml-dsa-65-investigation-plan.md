@@ -1,6 +1,8 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: half-gates selected for implementation and integration, 2026-10-14.
+Status: production integration paused for the five-second performance target, 2026-10-14.
+Preprocessing is permitted. Wallet-seed recovery remains required.
+The [preprocessing prototype](ml-dsa-65-preprocessing-report.md) records the current experiment and its limits.
 Complete host and deployed Worker key generation and threshold signing passed on the earlier baseline.
 Follow-up: revised hosted key generation and signing pass. Wallet-seed recovery and native custody completion now pass separate-role host E2E checks. Production integration remains open.
 Starting source and research review: 2026-10-05.
@@ -22,8 +24,8 @@ The [arithmetic optimization report](ml-dsa-65-optimization-report.md) records t
 The [engine comparison](ml-dsa-65-engine-comparison.md) now includes complete native key generation and signing with half-gates, GMW, and ABY2.0.
 The October 14 campaign includes fresh private preprocessing, exact directional traffic, independent signature checks, and authorized canonical recovery.
 Half-gates took 2.59 seconds for key generation and 8.68 seconds for five-candidate signing in one measured native execution.
-The [engine decision](ml-dsa-65-engine-comparison.md#decision--october-14-2026) selects half-gates for the next integration work.
-Production qualification remains open. Further alternative-engine experiments are optional follow-up work.
+The [engine decision](ml-dsa-65-engine-comparison.md#decision--october-14-2026) retains half-gates as the comparison baseline.
+Prepared execution and alternative engines now take priority over production integration.
 The [selected half-gates Worker campaign](../evidence/ml-dsa-65-selected-halfgates-keygen-local-20261014.json) records a 3.38-second median across five fresh joint keys.
 The [fixed key-generation-and-signing check](../evidence/ml-dsa-65-selected-halfgates-threshold-local-20261014.json) takes 17.41 seconds for one measured five-candidate execution.
 Both campaigns use the exact Wasm bundles inspected by the [final arithmetic audit](../evidence/ml-dsa-65-final-worker-arithmetic-audit-20261014.json).
@@ -698,6 +700,12 @@ The final report must identify the fastest measured candidate, its nearest alter
 State remaining opportunities that could change that ranking.
 
 ## Immediate work queue
+
+The user paused production integration and requested sub-five-second key generation and online signing.
+Preprocessing is allowed. Keep wallet-seed recovery and canonical key identity unchanged.
+The prepared keygen prototype passes native and Node/V8 Wasm checks, with 3.62 MB online traffic.
+Its local Wasm median is 1.36 seconds. Hosted storage, real network latency, and prepared signing remain unmeasured.
+Follow the [preprocessing experiment sequence](ml-dsa-65-preprocessing-report.md#pool-behavior-and-remaining-measurements) before resuming integration items below.
 
 1. Completed: reduce arithmetic circuits with one-AND carry and borrow identities. Canonical key generation, signing, and recovery checks pass.
 2. Completed: compare complete native half-gates, GMW, and ABY2.0 executions with fresh private preprocessing and exact traffic counters.

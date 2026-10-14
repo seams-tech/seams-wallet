@@ -393,3 +393,26 @@ It repeats interruption, OT replay rejection, restart, four concurrent signature
 A changed public key now fails during storage opening, before any signing protocol bytes are received.
 The other four request mismatches still fail at the initial peer exchange.
 The custody and lifecycle reruns overlapped on one host. Their timings are correctness evidence only and cannot rank performance.
+
+
+## Prepared half-gates prototype
+
+The [preprocessing report](ml-dsa-65-preprocessing-report.md) separates offline preparation from actual wallet inputs.
+It uses the existing canonical circuits and preserves their output ownership.
+For each evaluator input, offline OT supplies B with one independent pad under a private random choice `r`.
+Online, B sends `d = b XOR r` for its actual bit `b`.
+A encrypts label zero with pad `d` and label one with pad `1 XOR d`.
+B uses its selected pad to recover only its chosen label.
+The independent pads prevent disclosure of the free-XOR offset through the correction.
+
+Prepared handles cannot be cloned or serialized by this API and consume themselves during execution.
+Each online message checks the preparation's fresh execution binding.
+Secret selection uses the existing constant-time selection primitive. Array addresses depend on public wire positions.
+The experiment adds no secret-dependent division or lookup table.
+Allocator copies, compiled code, target JIT behavior, and the random-OT composition still need independent review.
+
+The native campaign checks canonical recovery and a complete signature using the generated shares.
+The Wasm campaign checks the same canonical public key across fresh preparations and input sharing.
+These checks establish interoperability. They do not establish a full privacy proof or durable one-use enforcement.
+A future persistent pool must reject rollback, duplicate reservations, and uncertain consumed state independently at both roles.
+The current prototype has no production admission or hosted-storage path.

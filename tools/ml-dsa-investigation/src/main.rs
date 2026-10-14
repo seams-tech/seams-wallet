@@ -3,11 +3,13 @@ mod boolean_engine_evidence;
 mod circuit_evidence;
 mod complete_engine_evidence;
 mod custody_delivery_evidence;
+mod fresh_mask_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
 mod material_storage_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
+mod prepared_keygen_evidence;
 mod private_execution;
 mod private_keygen;
 mod private_signing;
@@ -29,6 +31,12 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    PreparedKeygen {
+        output: PathBuf,
+    },
+    FreshMask {
+        output: PathBuf,
+    },
     ExportCustodySchedules {
         directory: PathBuf,
     },
@@ -78,6 +86,12 @@ fn run() -> InvestigationResult<()> {
     if signing_mask_evidence::try_run_child()? {
         return Ok(());
     }
+    if fresh_mask_evidence::try_run_child()? {
+        return Ok(());
+    }
+    if prepared_keygen_evidence::try_run_child()? {
+        return Ok(());
+    }
     if private_keygen::try_run_child()? {
         return Ok(());
     }
@@ -85,6 +99,8 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::PreparedKeygen { output } => prepared_keygen_evidence::run(&output)?,
+        Invocation::FreshMask { output } => fresh_mask_evidence::run(&output)?,
         Invocation::ExportCustodySchedules { directory } => {
             fs::create_dir_all(&directory)?;
             let keygen = private_keygen::compile_schedules(&directory)?;
@@ -147,6 +163,25 @@ fn parse_invocation() -> InvestigationResult<Invocation> {
                 "Unexpected custody schedule argument.",
             )?;
             return Ok(Invocation::ExportCustodySchedules { directory });
+        }
+        if first == "prepared-keygen" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A prepared-keygen evidence path is required.")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected prepared-keygen argument.",
+            )?;
+            return Ok(Invocation::PreparedKeygen { output });
+        }
+        if first == "fresh-mask" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A fresh-mask evidence path is required.")?,
+            );
+            require(args.next().is_none(), "Unexpected fresh-mask argument.")?;
+            return Ok(Invocation::FreshMask { output });
         }
         if first == "wallet-recovery" {
             let output = PathBuf::from(

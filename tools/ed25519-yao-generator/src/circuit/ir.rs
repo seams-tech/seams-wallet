@@ -222,6 +222,7 @@ impl CircuitBuilder {
         output_schema: &[u8],
     ) -> Result<CanonicalBooleanCircuitV1, CircuitBuildError> {
         let (inputs, output_count) = match component {
+            0x92 => (16128, 5888),
             0x8b => (2048, 512),
             0x8c => (12800, 1024),
             0x8d => (12800, 384),
