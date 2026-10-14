@@ -1,0 +1,445 @@
+{
+  "schema": "seams.ml-dsa-hosted-cpu-cost.v1",
+  "deployed_source_revision": "e662ef7e",
+  "inputs": [
+    {
+      "path": "docs/evidence/ml-dsa-65-selected-halfgates-threshold-joint-hosted-20261014.json",
+      "sha256": "7faa60489a061f1a807869dcff0b805a6e152a5eb793cbcc95091abe98453c38"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-selected-halfgates-tail-20261014.json",
+      "sha256": "7f503d41724f334844f422c14907e0cc0328e9263a59fed263764f6820cf5dbf"
+    }
+  ],
+  "correlation": "Wrangler redacts run_id in tail URLs. Each sequential sample contains exactly one A event and one B event within its recorded client time interval. Kernel names and deployed script versions identify the temporary campaign.",
+  "pricing": {
+    "checked_on": "2026-10-14",
+    "source": "https://developers.cloudflare.com/workers/platform/pricing/",
+    "assumed_plan": "Workers Standard",
+    "usd_per_million_cpu_ms": 0.02,
+    "formula": "(cpu_ms_A + cpu_ms_B) * 0.02 / 1000000",
+    "scope": "Marginal CPU estimate after included usage. Excludes subscription, inbound requests, logs, durable storage, admission, wallet recovery prelude, and other services. This is not an invoice."
+  },
+  "samples": [
+    {
+      "sample": -1,
+      "warmup": true,
+      "run_id": "d379afb049a49e225278c65c410d2f76",
+      "started_at": "2026-10-14T03:18:13.810Z",
+      "finished_at": "2026-10-14T03:18:35.728Z",
+      "signing_candidates": 1,
+      "client_complete_ms": 21913.613959000002,
+      "role_events": [
+        {
+          "role": "a",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791947893827,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-a",
+          "script_version": {
+            "id": "b5029191-36df-40ad-b0cb-64c63e0b9825"
+          },
+          "cpu_time_ms": 9933,
+          "wall_time_ms": 21885,
+          "request_url": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/benchmark?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        },
+        {
+          "role": "b",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791947893836,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-b",
+          "script_version": {
+            "id": "dff2043d-f202-4486-ad68-49a166771d02"
+          },
+          "cpu_time_ms": 9426,
+          "wall_time_ms": 21546,
+          "request_url": "https://ml-dsa-b.internal/peer?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        }
+      ],
+      "combined_cpu_ms": 19359,
+      "estimated_marginal_cpu_usd": 0.00038718
+    },
+    {
+      "sample": 0,
+      "warmup": false,
+      "run_id": "21ad236d9a32dd60e781876602302cd0",
+      "started_at": "2026-10-14T03:18:36.929Z",
+      "finished_at": "2026-10-14T03:18:58.341Z",
+      "signing_candidates": 1,
+      "client_complete_ms": 21410.069542000005,
+      "role_events": [
+        {
+          "role": "a",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791947916939,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-a",
+          "script_version": {
+            "id": "b5029191-36df-40ad-b0cb-64c63e0b9825"
+          },
+          "cpu_time_ms": 9793,
+          "wall_time_ms": 21380,
+          "request_url": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/benchmark?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        },
+        {
+          "role": "b",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791947916941,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-b",
+          "script_version": {
+            "id": "dff2043d-f202-4486-ad68-49a166771d02"
+          },
+          "cpu_time_ms": 9247,
+          "wall_time_ms": 21379,
+          "request_url": "https://ml-dsa-b.internal/peer?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        }
+      ],
+      "combined_cpu_ms": 19040,
+      "estimated_marginal_cpu_usd": 0.0003808
+    },
+    {
+      "sample": 1,
+      "warmup": false,
+      "run_id": "cfcdfab705682478aeafae1cb90a657d",
+      "started_at": "2026-10-14T03:18:59.542Z",
+      "finished_at": "2026-10-14T03:21:33.264Z",
+      "signing_candidates": 16,
+      "client_complete_ms": 153717.417458,
+      "role_events": [
+        {
+          "role": "a",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791947939553,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-a",
+          "script_version": {
+            "id": "b5029191-36df-40ad-b0cb-64c63e0b9825"
+          },
+          "cpu_time_ms": 71768,
+          "wall_time_ms": 153687,
+          "request_url": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/benchmark?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        },
+        {
+          "role": "b",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791947939555,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-b",
+          "script_version": {
+            "id": "dff2043d-f202-4486-ad68-49a166771d02"
+          },
+          "cpu_time_ms": 71701,
+          "wall_time_ms": 153687,
+          "request_url": "https://ml-dsa-b.internal/peer?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        }
+      ],
+      "combined_cpu_ms": 143469,
+      "estimated_marginal_cpu_usd": 0.00286938
+    },
+    {
+      "sample": 2,
+      "warmup": false,
+      "run_id": "f7c3e4539814744cae8dc5e10d899d80",
+      "started_at": "2026-10-14T03:21:34.465Z",
+      "finished_at": "2026-10-14T03:22:03.024Z",
+      "signing_candidates": 2,
+      "client_complete_ms": 28555.32491699999,
+      "role_events": [
+        {
+          "role": "a",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791948094478,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-a",
+          "script_version": {
+            "id": "b5029191-36df-40ad-b0cb-64c63e0b9825"
+          },
+          "cpu_time_ms": 13432,
+          "wall_time_ms": 28529,
+          "request_url": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/benchmark?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        },
+        {
+          "role": "b",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791948094480,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-b",
+          "script_version": {
+            "id": "dff2043d-f202-4486-ad68-49a166771d02"
+          },
+          "cpu_time_ms": 13202,
+          "wall_time_ms": 28529,
+          "request_url": "https://ml-dsa-b.internal/peer?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        }
+      ],
+      "combined_cpu_ms": 26634,
+      "estimated_marginal_cpu_usd": 0.0005326800000000001
+    },
+    {
+      "sample": 3,
+      "warmup": false,
+      "run_id": "52e770e26e97bc0ad5a997b5c5b60fa6",
+      "started_at": "2026-10-14T03:22:04.226Z",
+      "finished_at": "2026-10-14T03:22:50.224Z",
+      "signing_candidates": 4,
+      "client_complete_ms": 45997.24566599997,
+      "role_events": [
+        {
+          "role": "b",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791948124236,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-b",
+          "script_version": {
+            "id": "dff2043d-f202-4486-ad68-49a166771d02"
+          },
+          "cpu_time_ms": 21082,
+          "wall_time_ms": 45975,
+          "request_url": "https://ml-dsa-b.internal/peer?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        },
+        {
+          "role": "a",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791948124234,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-a",
+          "script_version": {
+            "id": "b5029191-36df-40ad-b0cb-64c63e0b9825"
+          },
+          "cpu_time_ms": 21975,
+          "wall_time_ms": 45976,
+          "request_url": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/benchmark?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        }
+      ],
+      "combined_cpu_ms": 43057,
+      "estimated_marginal_cpu_usd": 0.00086114
+    },
+    {
+      "sample": 4,
+      "warmup": false,
+      "run_id": "54100a3e9c8d6d314151f5bf5ab8abfb",
+      "started_at": "2026-10-14T03:22:51.425Z",
+      "finished_at": "2026-10-14T03:23:29.773Z",
+      "signing_candidates": 3,
+      "client_complete_ms": 38344.82274999999,
+      "role_events": [
+        {
+          "role": "b",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791948171437,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-b",
+          "script_version": {
+            "id": "dff2043d-f202-4486-ad68-49a166771d02"
+          },
+          "cpu_time_ms": 17045,
+          "wall_time_ms": 38316,
+          "request_url": "https://ml-dsa-b.internal/peer?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        },
+        {
+          "role": "a",
+          "available_top_level_fields": [
+            "cpuTime",
+            "diagnosticsChannelEvents",
+            "event",
+            "eventTimestamp",
+            "exceptions",
+            "executionModel",
+            "logs",
+            "outcome",
+            "scriptName",
+            "scriptVersion",
+            "truncated",
+            "wallTime"
+          ],
+          "event_timestamp": 1791948171436,
+          "outcome": "ok",
+          "script_name": "ml-dsa-kernel-20261013-a",
+          "script_version": {
+            "id": "b5029191-36df-40ad-b0cb-64c63e0b9825"
+          },
+          "cpu_time_ms": 17541,
+          "wall_time_ms": 38316,
+          "request_url": "https://ml-dsa-kernel-20261013-a.n6378056.workers.dev/benchmark?kernel=threshold-joint&run_id=REDACTED",
+          "request_method": "GET"
+        }
+      ],
+      "combined_cpu_ms": 34586,
+      "estimated_marginal_cpu_usd": 0.00069172
+    }
+  ],
+  "measured_combined_cpu_ms": {
+    "median": 34586,
+    "mean": 53357.2,
+    "minimum": 19040,
+    "maximum": 143469
+  },
+  "measured_estimated_marginal_cpu_usd": {
+    "median": 0.00069172,
+    "mean": 0.001067144,
+    "minimum": 0.0003808,
+    "maximum": 0.00286938
+  },
+  "limits": [
+    "Five fresh-key samples provide no production tail bound or sustained-throughput result.",
+    "The sequence performs full key generation before every signature. These values are not signing-only cost.",
+    "The wallet-seed derivation prelude was implemented after this deployment.",
+    "A incoming colo is NRT; B physical placement remains unknown."
+  ]
+}

@@ -180,6 +180,30 @@ It saves request and response evidence after each network call and never retries
 If a submission outcome is unknown, query its recorded transaction hash before another run.
 This test supplies no Cloudflare signing, production admission, or protected recovery claim.
 
+## Wallet-seed recovery
+
+The selected recovery design derives an ML-DSA owner root directly from the wallet custody seed with a separate HKDF-SHA256 salt.
+The stable application binding includes wallet and key identifiers. It excludes participant identities and share epochs.
+The client shares this root. A private half-gates circuit derives the canonical FIPS seed and returns only fresh XOR shares.
+Each role immediately starts canonical key generation with its seed share.
+
+Run the public-fixture recovery campaign:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  wallet-recovery docs/evidence/ml-dsa-65-wallet-seed-recovery-host-20261014.json
+```
+
+The campaign repeats one wallet/key binding with fresh sharing and checks that the public key remains identical.
+Three further cases change the wallet seed, wallet ID, or key ID.
+Each case generates shares, signs through separate processes, and only then permits the fixture recipient to reconstruct the canonical seed.
+The recipient checks the full expanded key with OpenSSL and verifies ordinary signatures.
+A separate SHAKE implementation checks the exported seed against the documented derivation.
+The artifact records source digests, exact schedules, wire counters, and role timings.
+
+The extra circuit uses 37,056 AND gates and transfers 1,214,920 protocol bytes across both directions.
+It reveals no public seed bytes. These host checks do not implement authenticated delivery, durable activation, or the production custody ceremony.
+
 ## Compiled arithmetic inspection
 
 The private polynomial arithmetic uses bounded, division-free reduction.

@@ -16,7 +16,8 @@ The reference harness also uses four fixed public seeds.
 Use FIPS 204, August 13, 2024, Algorithm 6, with ML-DSA-65 parameters.
 The first expansion is `SHAKE256(xi || 0x06 || 0x05, 128 bytes)`.
 Its output is `rho[32] || rho_prime[64] || K[32]`.
-Keep the seed distinct from the wallet custody seed and tenant derivation roots.
+Keep the FIPS seed distinct from the wallet custody seed and tenant derivation roots.
+The production recovery choice uses wallet-seed derivation, as specified below.
 
 This investigation reviewed the
 [NIST potential-updates sheet](https://csrc.nist.gov/files/pubs/fips/204/final/docs/fips-204-potential-updates.xlsx)
@@ -41,6 +42,51 @@ It reports aggregate success or failure without exposing acceptance positions.
 Prefix exhaustion aborts the operation and destroys intermediate outputs.
 The experiment never substitutes a new seed to obtain success.
 Secure continuation for the same canonical seed remains unimplemented.
+
+## Wallet-seed recovery decision — October 14, 2026
+
+The user selected wallet-seed derivation for production recovery.
+Independent joint-random keys remain disposable protocol and performance fixtures.
+They do not define the production wallet recovery contract.
+
+The wallet custody seed stays inside the existing client custody ceremony.
+Derive a separate ML-DSA owner root directly from it with HKDF-SHA256.
+Use salt `seams/wallet-custody/seed/ml-dsa-65-owner-root/v1`.
+Use the existing length-delimited `applicationBindingDigest` field as HKDF information.
+The implemented digest hashes domain `seams/wallet-custody/ml-dsa-65/application-binding/v1` followed by length-delimited `walletId` and `mlDsa65SigningKeyId` fields.
+Each label and value has a four-byte big-endian byte length. Empty identifiers and identifiers above 512 bytes fail boundary validation.
+It must exclude replaceable worker identities, operation identifiers, and share epochs.
+Those values belong to admission and persistence, so replacement does not change the recovered key.
+
+The client splits this owner root into fresh XOR shares for separately authenticated delivery to A and B.
+The Router receives neither plaintext share.
+A private circuit computes:
+
+```text
+xi = SHAKE256("seams/ml-dsa-65/canonical-seed/v1" || ml_dsa_owner_root, 32 bytes)
+```
+
+The circuit returns fresh XOR shares of `xi` and no public seed bytes.
+Normal client execution computes the owner root, but never computes `xi` or the expanded ML-DSA private key.
+The existing canonical key-generation flow consumes the `xi` shares.
+The intermediate owner-root shares can then be discarded.
+Neither another signing root nor a tenant root supplies this derivation.
+
+Recovery repeats this derivation from the recovered wallet custody seed and the same stable application binding.
+Fresh sharing and garbling must reproduce the registered public key before replacement material becomes active.
+Retain the application binding and expected public-key manifest as recovery metadata.
+A wallet seed alone does not identify an omitted application binding.
+Authorized ordinary-key export reconstructs `xi`, which remains the canonical FIPS seed.
+The wallet custody seed itself is not a FIPS ML-DSA seed.
+
+The stable binding builder, owner-root derivation, and private canonical-seed circuit now have a [five-case host E2E artifact](../evidence/ml-dsa-65-wallet-seed-recovery-host-20261014.json).
+Two runs with fresh sharing reproduce the same key. Changed wallet seed, wallet ID, and key ID each produce a different key.
+Every run performs threshold signing before authorized fixture recovery checks the complete ordinary key against OpenSSL.
+The derivation circuit adds 37,056 AND gates, 1,185,792 table bytes, and 1,214,920 total protocol bytes.
+It returns zero public output bytes and immediately passes each private seed share into canonical key generation.
+The shared-host fixture supplies no deployment-isolation claim.
+Custody ceremony wiring, manifests, authenticated role delivery, and durable activation remain unimplemented.
+This evidence supplies no completed production recovery claim.
 
 ## Reference execution
 
@@ -193,7 +239,8 @@ The [preliminary report](ml-dsa-65-preliminary-keygen-report.md) records complet
 
 One seed share cannot recover a permanently lost peer's material.
 The first recovery fixture requires both shares.
-Protected backup ownership and restoration after permanent loss remain unresolved.
+Production recovery will rederive the same key from the wallet custody seed and stable binding after permanent participant loss.
+Authorization, replacement activation, and stale-epoch rejection remain unimplemented.
 No result from this harness establishes those recovery properties.
 
 ## NEAR boundary

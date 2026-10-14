@@ -26,7 +26,7 @@ pub use keccak::{
 };
 pub use ml_dsa_keygen::{
     compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,
-    compile_ml_dsa_private_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
+    compile_ml_dsa_private_seed_circuit_v1, compile_ml_dsa_wallet_seed_circuit_v1, MlDsaPrivateKeygenCircuitV1,
 };
 pub use ml_dsa_rounding::{
     compile_ml_dsa_power2round_circuit_v1, MlDsaPower2RoundCircuitV1,

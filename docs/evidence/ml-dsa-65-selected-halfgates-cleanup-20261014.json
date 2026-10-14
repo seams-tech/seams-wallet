@@ -1,0 +1,21 @@
+{
+  "schema": "seams.ml-dsa-temporary-worker-cleanup.v1",
+  "completed_at": "2026-10-14T03:24:18.768240+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-kernel-20261013-a",
+      "deleted": true,
+      "verified_http_status": 404,
+      "verified_cloudflare_code": 10007
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-kernel-20261013-b",
+      "deleted": true,
+      "verified_http_status": 404,
+      "verified_cloudflare_code": 10007
+    }
+  ],
+  "benchmark_token_file_removed": true
+}

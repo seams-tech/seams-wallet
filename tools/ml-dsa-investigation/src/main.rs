@@ -16,6 +16,7 @@ mod sampler_evidence;
 mod signing_circuit_evidence;
 mod signing_lifecycle_evidence;
 mod signing_mask_evidence;
+mod wallet_recovery_evidence;
 mod worker_arithmetic_audit;
 mod worker_fixtures;
 
@@ -26,6 +27,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    WalletRecovery {
+        output: PathBuf,
+    },
     SignNearTestnet {
         request: PathBuf,
         output: PathBuf,
@@ -76,6 +80,7 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::WalletRecovery { output } => wallet_recovery_evidence::run(&output)?,
         Invocation::SignNearTestnet { request, output } => {
             near_testnet_evidence::run(&request, &output)?
         }
@@ -115,6 +120,17 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "wallet-recovery" {
+            let output = PathBuf::from(
+                args.next()
+                    .ok_or("A wallet recovery evidence path is required.")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected wallet recovery argument.",
+            )?;
+            return Ok(Invocation::WalletRecovery { output });
+        }
         if first == "sign-near-testnet" {
             let request = PathBuf::from(args.next().ok_or("A testnet request path is required.")?);
             let output = PathBuf::from(args.next().ok_or("A testnet evidence path is required.")?);

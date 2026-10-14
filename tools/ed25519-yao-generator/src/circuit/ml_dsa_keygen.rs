@@ -63,6 +63,33 @@ impl MlDsaPrivateKeygenCircuitV1 {
     }
 }
 
+/// Derives a canonical seed from a shared wallet-derived ML-DSA owner root.
+/// A supplies its 256 root bits and a fresh 256-bit seed mask. B supplies its
+/// 256 root bits. Only B receives the derived seed XOR A's mask.
+pub fn compile_ml_dsa_wallet_seed_circuit_v1() -> MlDsaPrivateKeygenCircuitV1 {
+    let mut builder = CircuitBuilder::new(768).expect("fixed wallet seed input count");
+    let inputs = builder.input_bits();
+    let mut message = Vec::new();
+    for byte in b"seams/ml-dsa-65/canonical-seed/v1" {
+        append_constant_byte(&mut message, *byte);
+    }
+    for bit in 0..SEED_BITS {
+        message.push(builder.xor(inputs[bit], inputs[512 + bit]));
+    }
+    let seed = shake256(&mut builder, &message, 32);
+    let mut outputs = Vec::with_capacity(SEED_BITS);
+    for bit in 0..SEED_BITS {
+        outputs.push(builder.xor(seed[bit], inputs[256 + bit]));
+    }
+    finish_private_circuit(
+        builder,
+        outputs,
+        0x91,
+        b"seams/ml-dsa-65/wallet-seed/input/v1:A:owner-root-share[32],xi-mask[32];B:owner-root-share[32]:byte-major-lsb0",
+        b"seams/ml-dsa-65/wallet-seed/output/v1:B:xi-share[32]:byte-major-lsb0",
+    )
+}
+
 /// Compiles canonical ML-DSA-65 seed expansion with masked secret outputs.
 ///
 /// A's first 1,024 input bits contain its 32-byte seed share, 64-byte rho-prime

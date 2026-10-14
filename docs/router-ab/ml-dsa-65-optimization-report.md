@@ -4,8 +4,66 @@ Date: October 13, 2026. Branch: `ml-dsa`.
 
 The first exact circuit rewrite reduces key-generation table bytes by **5.4 percent** and signing-candidate table bytes by **10.2 percent**.
 Complete native and local Worker key generation, signing, and recovery checks pass.
-Hosted remeasurement awaits approval to upload this experiment's disposable benchmark token.
-No hosted latency improvement follows from the current local results.
+The October 14 hosted rerun now passes complete key generation and signing.
+It records CPU separately and establishes no hosted latency improvement over the earlier campaign.
+
+## Hosted rerun — October 14, 2026
+
+Both temporary Workers deployed after the user approved their replacement benchmark token.
+The [deployment record](../evidence/ml-dsa-65-selected-halfgates-deployment-20261014.json) pins their versions and module hashes at source revision `e662ef7e`.
+Every recorded benchmark source hash matches that revision.
+The wallet-seed recovery prelude was implemented after this deployment and is outside these measurements.
+
+| Hosted operation | Measured samples | Median elapsed | Observed range |
+| --- | ---: | ---: | ---: |
+| Fresh joint key generation | 5 | 14.974 s | 14.169–15.415 s |
+| Fixed key generation plus five-candidate signing | 3 | 88.470 s | 88.421–88.609 s |
+| Fresh joint key generation plus signing | 5 | 38.345 s | 21.410–153.717 s |
+
+Each row excludes one complete warm-up operation.
+Fresh-key signing used 1, 16, 2, 4, and 3 candidates, in that order.
+Every signature passed independent standard verification and altered-input rejection checks.
+The driver checked role agreement, fresh bindings, resource formulas, and transport counters.
+These operations include new key generation before each signature. They do not measure signing against stored production shares.
+
+The earlier hosted key-generation median was 12.439 seconds.
+Its fixed five-candidate complete operation took 74.375 seconds in one measured run.
+The revised circuit sends fewer bytes, but these separate campaigns do not show a latency improvement.
+They do not isolate compiler, placement, runtime scheduling, warm-up, or input effects.
+No controlled cause follows from that comparison.
+
+Key generation transfers 116,752,358 protocol bytes across both directions.
+Five-candidate signing transfers another 417,419,248 bytes, including the public request agreement.
+These totals exclude Worker transport envelopes, credits, and completion reports.
+The largest observed Wasm linear-memory high-water marks were 35.625 MiB at A and 35.25 MiB at B.
+Those figures exclude total isolate memory and runtime-managed transport buffers.
+A's request entry was NRT. B's physical placement remains unverified.
+
+### CPU and marginal compute cost
+
+The [sanitized tail evidence](../evidence/ml-dsa-65-selected-halfgates-tail-20261014.json) records both roles for all six fresh-key signing operations, including warm-up.
+The [cost calculation](../evidence/ml-dsa-65-selected-halfgates-cpu-cost-20261014.json) correlates each sequential request by its client time interval and expected Worker versions.
+Wrangler redacts run identifiers in these tail URLs. Each interval contains exactly one A event and one B event.
+The evidence retains public timing metadata and omits request headers and logs.
+
+Across the five measured operations, combined CPU usage has a 34,586 ms median and a 53,357.2 ms mean.
+The observed range is 19,040–143,469 ms.
+Under Workers Standard pricing, additional CPU costs $0.02 per million milliseconds, with CPU summed across service-bound Workers.
+See [Cloudflare pricing](https://developers.cloudflare.com/workers/platform/pricing/), checked October 14, 2026.
+
+```text
+marginal CPU cost = (CPU_ms_A + CPU_ms_B) * $0.02 / 1,000,000
+```
+
+That yields a median of $0.000692 and a mean of $0.001067 per measured key-generation-plus-signing operation.
+The observed range is $0.000381–$0.002869.
+At the sample mean, 1,000 such operations would use about $1.07 of additional CPU allowance.
+This estimate excludes included usage, subscription fees, inbound requests, logs, admission, durable storage, and the new wallet-seed prelude.
+It is not an invoice or a production cost guarantee.
+Elapsed latency remains substantial despite the small per-operation CPU price.
+
+The [cleanup record](../evidence/ml-dsa-65-selected-halfgates-cleanup-20261014.json) verifies deletion of both temporary Workers and removal of the disposable token file.
+Sustained throughput, production storage, full memory use, and target timing qualification remain open.
 
 ## Exact change and measured resources
 
@@ -106,8 +164,8 @@ The [composition review](ml-dsa-65-privacy-review.md) records the reduction boun
 - [Local Worker signing](../evidence/ml-dsa-65-worker-threshold-one-and-local-20261013.json).
 - [Local Worker joint-key campaign](../evidence/ml-dsa-65-worker-keygen-one-and-local-20261013.json).
 
-Repeat complete cloud key generation and signing after token approval.
-Then compare alternative engines with all setup and conversion costs.
+The selected half-gates cloud rerun is complete. Next measure the wallet-derived and durably stored production path.
+The complete native engine comparison already includes setup and conversion costs.
 The [first executed GMW and ABY2.0 comparison](ml-dsa-65-engine-comparison.md) now includes four kernels and their complete private preprocessing costs.
 It also records the rebuilt local Worker checks and the pinned smaller-garbling source review.
 Keep composition review, role-private persistence, Router admission, SDK/NEAR integration, and lifecycle E2E scenarios in the remaining queue.
