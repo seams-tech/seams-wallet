@@ -40,7 +40,8 @@ impl TripleChunk {
 }
 
 /// One reservation's consuming stream. Unused final correlations are wiped.
-/// The binding includes the epoch, reservation, and complete circuit set.
+/// The caller binds a fresh preparation identifier and the complete circuit set.
+/// Key-independent preparation binds the key and epoch later, at activation.
 pub struct CorrelationStream {
     role: SigningRole,
     binding: [u8; 32],

@@ -1,0 +1,681 @@
+{
+  "schema": "seams.ml-dsa-silent-worker-traces.v1",
+  "created_at": "2026-10-14T17:47:01.714002+00:00",
+  "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory.",
+  "records": [
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999729034,
+      "cpu_ms": 9,
+      "wall_ms": 10,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": []
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999729960,
+      "cpu_ms": 21036,
+      "wall_ms": 42219,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37617664,
+          "sent_bytes": 106,
+          "received_bytes": 32
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 2030316,
+          "received_bytes": 611360
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999772493,
+      "cpu_ms": 30815,
+      "wall_ms": 62483,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37617664,
+          "sent_bytes": 106,
+          "received_bytes": 32
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 2030316,
+          "received_bytes": 611360
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999835654,
+      "cpu_ms": 19688,
+      "wall_ms": 39187,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37617664,
+          "sent_bytes": 106,
+          "received_bytes": 32
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 2030316,
+          "received_bytes": 611360
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999875158,
+      "cpu_ms": 21081,
+      "wall_ms": 42247,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37617664,
+          "sent_bytes": 106,
+          "received_bytes": 32
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 2030316,
+          "received_bytes": 611360
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999917793,
+      "cpu_ms": 19291,
+      "wall_ms": 38763,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37617664,
+          "sent_bytes": 106,
+          "received_bytes": 32
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 2030316,
+          "received_bytes": 611360
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-silent-20261015-a",
+      "version": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999956890,
+      "cpu_ms": 19197,
+      "wall_ms": 38581,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37617664,
+          "sent_bytes": 106,
+          "received_bytes": 32
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 2030316,
+          "received_bytes": 611360
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "a",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "a",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 89260032,
+          "sent_bytes": 3497472,
+          "received_bytes": 985280
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-silent-20261015-b",
+      "version": "01ad4839-efe7-42bb-8de2-75afc68c05d8",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999730220,
+      "cpu_ms": 20552,
+      "wall_ms": 41830,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37421056,
+          "sent_bytes": 32,
+          "received_bytes": 106
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 611360,
+          "received_bytes": 2030316
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-silent-20261015-b",
+      "version": "01ad4839-efe7-42bb-8de2-75afc68c05d8",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999773083,
+      "cpu_ms": 30827,
+      "wall_ms": 61927,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37421056,
+          "sent_bytes": 32,
+          "received_bytes": 106
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 611360,
+          "received_bytes": 2030316
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-silent-20261015-b",
+      "version": "01ad4839-efe7-42bb-8de2-75afc68c05d8",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999835924,
+      "cpu_ms": 19058,
+      "wall_ms": 38826,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37421056,
+          "sent_bytes": 32,
+          "received_bytes": 106
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 611360,
+          "received_bytes": 2030316
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-silent-20261015-b",
+      "version": "01ad4839-efe7-42bb-8de2-75afc68c05d8",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999875498,
+      "cpu_ms": 20577,
+      "wall_ms": 41853,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37421056,
+          "sent_bytes": 32,
+          "received_bytes": 106
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 611360,
+          "received_bytes": 2030316
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-silent-20261015-b",
+      "version": "01ad4839-efe7-42bb-8de2-75afc68c05d8",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999918077,
+      "cpu_ms": 19014,
+      "wall_ms": 38373,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37421056,
+          "sent_bytes": 32,
+          "received_bytes": 106
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 611360,
+          "received_bytes": 2030316
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-silent-20261015-b",
+      "version": "01ad4839-efe7-42bb-8de2-75afc68c05d8",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": "prepared-gmw-signing",
+      "event_timestamp_ms": 1791999957140,
+      "cpu_ms": 18779,
+      "wall_ms": 38100,
+      "outcome": "ok",
+      "exception_names": [],
+      "public_preparation_progress": [
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 1,
+          "wasm_linear_memory_bytes": 37421056,
+          "sent_bytes": 32,
+          "received_bytes": 106
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 64,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 611360,
+          "received_bytes": 2030316
+        },
+        {
+          "event": "ml-dsa-boolean-preparation-progress",
+          "role": "b",
+          "binding_phases_started": 128,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-generic-preparation-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        },
+        {
+          "event": "ml-dsa-signing-key-ready",
+          "role": "b",
+          "binding_phases_started": 0,
+          "wasm_linear_memory_bytes": 88735744,
+          "sent_bytes": 985280,
+          "received_bytes": 3497472
+        }
+      ]
+    }
+  ]
+}

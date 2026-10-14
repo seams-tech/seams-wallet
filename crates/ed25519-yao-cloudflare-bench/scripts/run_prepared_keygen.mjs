@@ -54,6 +54,12 @@ function parseOptions() {
   assert(options.indices.length > 0 && options.indices.every(validIndex));
   return options;
 }
+function isGenericReady(progress) {
+  return progress.event === 'ml-dsa-generic-preparation-ready';
+}
+function isKeyReady(progress) {
+  return progress.event === 'ml-dsa-signing-key-ready';
+}
 function validIndex(index) {
   return Number.isInteger(index) && index >= 0 && index < 9;
 }
@@ -191,9 +197,11 @@ async function sample(endpoint, token, fixture, schedules, operation) {
           assert.equal(state.kind, 'preparing');
           assert.equal(message.role, 'a');
           assert(
-            ['ml-dsa-signing-key-ready', 'ml-dsa-boolean-preparation-progress'].includes(
-              message.event,
-            ),
+            [
+              'ml-dsa-signing-key-ready',
+              'ml-dsa-generic-preparation-ready',
+              'ml-dsa-boolean-preparation-progress',
+            ].includes(message.event),
           );
           for (const field of [
             'binding_phases_started',
@@ -233,6 +241,11 @@ async function sample(endpoint, token, fixture, schedules, operation) {
           const onlineMs = performance.now() - state.started;
           if (operation === 'keygen') checkReport(message, fixture, schedules);
           else checkSigningReport(message, fixture, schedules);
+          if (operation === 'gmw-signing') {
+            const generic = progress.findIndex(isGenericReady);
+            const key = progress.findIndex(isKeyReady);
+            assert(generic >= 0 && key > generic, 'Generic preparation must precede key generation');
+          }
           state = {
             kind: 'cleaning',
             result: {
@@ -389,7 +402,7 @@ function measurementScope(operation) {
     case 'signing':
       return 'Two separate Worker roles. A wallet-derived canonical key and twelve fresh Yao signing candidates precede readiness. The first table group is resident. Online time includes later reads, retries, protocol exchanges, and both Worker verifiers.';
     case 'gmw-signing':
-      return 'Two separate Worker roles. A wallet-derived canonical key, fresh nonce commitments, and silent-OT GMW correlations precede readiness. Nonce conversion and decomposition also use GMW. Each fixed chunk uses real full-block IKNP. The reported candidate count forms one consuming reservation. All candidates run in three online batches. No R2 table read occurs. Direct uniform nonce sampling replaces the FIPS hedged nonce procedure.';
+      return 'Two separate Worker roles. Key-independent nonce shares and silent-OT GMW correlations are prepared before canonical fixture key creation. Readiness precedes activation. Client online time includes key/epoch activation, private commitment decomposition, and signing. Nonce conversion and decomposition use GMW. Each fixed chunk uses real full-block IKNP. The reported candidate count forms one consuming reservation. All candidates run in one activation batch and three signing batches. No R2 table read occurs. Direct uniform nonce sampling replaces the FIPS hedged nonce procedure.';
     default:
       throw new Error('Unknown prepared operation');
   }
@@ -481,6 +494,9 @@ function sumBatchLayers(total, batch) {
 function matchesSigningSchedule(name, record) {
   return record.name === name;
 }
+function sumBatchGates(total, batch) {
+  return total + batch.and_gates;
+}
 function checkSigningReport(report, fixture, schedules) {
   const { a, b } = report.roles;
   for (const field of ['status', 'signature_hex', 'attempts', 'message_hex', 'public_key_hex'])
@@ -494,6 +510,13 @@ function checkSigningReport(report, fixture, schedules) {
   }
   if (a.engine === 'gmw') {
     assert.equal(b.engine, 'gmw');
+    for (const role of [a, b]) {
+      assert.equal(role.preparation.kind, 'generic-then-client-activation');
+      assert.equal(role.preparation.activation_in_client_online, true);
+      assert.equal(role.preparation.prepared_before_key_generation, true);
+      assert(Number.isFinite(role.preparation.generic_preparation_ms));
+      assert(role.preparation.generic_preparation_ms >= 0);
+    }
     assert.equal(a.table_storage, null);
     assert.equal(b.table_storage, null);
     if (a.status === 'signed') {
@@ -501,6 +524,11 @@ function checkSigningReport(report, fixture, schedules) {
       assert.equal(b.evaluated_candidates, b.pool_capacity);
       assert.equal(a.gmw_batches.reduce(sumBatchLayers, 0), 227);
       assert.equal(b.gmw_batches.reduce(sumBatchLayers, 0), 227);
+      assert.equal(a.online_and_exchanges, 340);
+      assert.equal(b.online_and_exchanges, 340);
+      assert.equal(a.online_and_gates, b.online_and_gates);
+      assert.equal(a.online_and_gates,
+        a.gmw_preparation_batches[1].and_gates + a.gmw_batches.reduce(sumBatchGates, 0));
       for (let batch = 0; batch < 3; batch += 1) {
         for (let phase = 0; phase < 6; phase += 1) {
           const left = a.gmw_batches[batch].phases[phase];

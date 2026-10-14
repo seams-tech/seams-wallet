@@ -177,3 +177,39 @@ python3 tools/ml-dsa-investigation/research/summarize_silent_prototype.py \
 
 The summary excludes exhausted requests from successful-signature latency statistics.
 It includes their CPU cost when computing the observed cost per verified signature.
+
+## Generic preparation and activation
+
+The [follow-up report](../../../docs/router-ab/ml-dsa-65-generic-preparation-report.md) separates generic preparation from key activation.
+The current `gmw-signing` Worker benchmark includes activation and signing in its client timer.
+The initial hosted control's zero activation-clock readings are invalid timing evidence.
+
+Reproduce the native E2E, including key/epoch mismatch rejection and canonical recovery:
+
+```sh
+cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
+  prepared-keygen /private/tmp/ml-dsa-generic-native.json
+```
+
+After building both benchmark Workers, run the existing harness locally or against temporary hosted Workers:
+
+```sh
+node crates/ed25519-yao-cloudflare-bench/scripts/run_prepared_keygen.mjs \
+  --operation gmw-signing --local --indices 0,1,2 \
+  --output /private/tmp/ml-dsa-client-activation-local.json
+```
+
+Regenerate the retained summary from its raw artifacts:
+
+```sh
+python3 tools/ml-dsa-investigation/research/summarize_generic_preparation.py \
+  --hosted docs/evidence/ml-dsa-65-client-activation-worker-hosted-20261015.json \
+  --native docs/evidence/ml-dsa-65-generic-native-20261015.json \
+  --traces docs/evidence/ml-dsa-65-client-activation-worker-traces-20261015.json \
+  --control docs/evidence/ml-dsa-65-generic-worker-clock-control-20261015.json \
+  --versions 3a9a67ff-670b-4fe4-94f5-892e200291db 01ad4839-efe7-42bb-8de2-75afc68c05d8 \
+  --output /private/tmp/ml-dsa-generic-preparation-screen.json
+```
+
+The summary includes exhausted requests in payload and CPU totals.
+Generic preparation still runs for every benchmark request; no persistent ready pool is implied.

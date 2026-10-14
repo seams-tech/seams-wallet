@@ -1,0 +1,33 @@
+{
+  "schema": "seams.ml-dsa-generic-preparation-cleanup.v1",
+  "created_at": "2026-10-14T17:48:50.245603+00:00",
+  "resources": [
+    {
+      "kind": "worker",
+      "name": "ml-dsa-silent-20261015-a",
+      "delete_exit_code": 0,
+      "confirmation": "Successfully deleted ml-dsa-silent-20261015-a"
+    },
+    {
+      "kind": "worker",
+      "name": "ml-dsa-silent-20261015-b",
+      "delete_exit_code": 0,
+      "confirmation": "Successfully deleted ml-dsa-silent-20261015-b"
+    },
+    {
+      "kind": "r2-bucket",
+      "name": "ml-dsa-silent-20261015-tables",
+      "delete_exit_code": 0,
+      "confirmation": "Deleted bucket ml-dsa-silent-20261015-tables."
+    }
+  ],
+  "private_files_removed": [
+    "/private/tmp/ml-dsa-generic-probe-token.json",
+    "/private/tmp/ml-dsa-generic-tail-a.jsonl",
+    "/private/tmp/ml-dsa-generic-tail-b.jsonl",
+    "/private/tmp/ml-dsa-client-activation-tail-a.jsonl",
+    "/private/tmp/ml-dsa-client-activation-tail-b.jsonl"
+  ],
+  "tail_sessions_stopped": true,
+  "production_resources_changed": false
+}

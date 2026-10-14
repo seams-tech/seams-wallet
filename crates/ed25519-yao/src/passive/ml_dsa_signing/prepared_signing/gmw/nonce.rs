@@ -2,14 +2,14 @@
 
 use super::*;
 
-pub(super) async fn prepare_values<'a>(
+pub(super) async fn prepare_masks<'a>(
     role: SigningRole,
     count: usize,
-    key: &SigningKeyState,
+    preparation: &[u8; 32],
     schedules: &'a [TrustedMlDsaSchedule<'a>],
     correlations: &mut CorrelationStream,
     transport: &mut impl BooleanTransport,
-) -> Result<(Vec<Zeroizing<Candidate>>, [BatchMetrics; 2])> {
+) -> Result<(Vec<Zeroizing<Candidate>>, BatchMetrics)> {
     let mut values = Vec::with_capacity(count);
     let mut inputs = Vec::with_capacity(count * COLUMNS);
     for _ in 0..count {
@@ -31,7 +31,7 @@ pub(super) async fn prepare_values<'a>(
     let masks = prepare_batch(role, &mask_schedules, correlations, transport)
         .await
         .map_err(runtime_error)?;
-    let mask_binding = shake256(&[&key.binding, b"gmw-nonce-masks"]);
+    let mask_binding = shake256(&[preparation, b"gmw-nonce-masks"]);
     let masks = masks
         .run(&inputs, &mask_binding, transport)
         .await
@@ -44,6 +44,19 @@ pub(super) async fn prepare_values<'a>(
                     decode_polynomial(&masks.outputs[candidate * COLUMNS + column], 0)?;
             }
         }
+    }
+    Ok((values, masks.metrics))
+}
+
+pub(super) async fn activate_values(
+    values: &mut [Zeroizing<Candidate>],
+    key: &SigningKeyState,
+    commitments: PreparedGmwBatch<'_>,
+    transport: &mut impl BooleanTransport,
+) -> Result<BatchMetrics> {
+    let role = key.role;
+    let mut inputs = Vec::with_capacity(values.len() * ROWS);
+    for value in values.iter_mut() {
         value.w = matrix_product_plus_error(&key.matrix, &value.y, &key.twiddles);
         for row in 0..ROWS {
             let mut bits = Zeroizing::new(Vec::new());
@@ -58,10 +71,6 @@ pub(super) async fn prepare_values<'a>(
             inputs.push(bits);
         }
     }
-    let commitment_schedules = vec![schedule(schedules, 0x96)?; count * ROWS];
-    let commitments = prepare_batch(role, &commitment_schedules, correlations, transport)
-        .await
-        .map_err(runtime_error)?;
     let commitment_binding = shake256(&[&key.binding, b"gmw-nonce-commitments"]);
     let commitments = commitments
         .run(&inputs, &commitment_binding, transport)
@@ -80,5 +89,5 @@ pub(super) async fn prepare_values<'a>(
         }
         value.w.zeroize();
     }
-    Ok((values, [masks.metrics, commitments.metrics]))
+    Ok(commitments.metrics)
 }

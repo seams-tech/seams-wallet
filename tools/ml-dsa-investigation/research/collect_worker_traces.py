@@ -38,7 +38,7 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
-                if value.get("event") not in ["ml-dsa-boolean-preparation-progress", "ml-dsa-signing-key-ready"]:
+                if value.get("event") not in ["ml-dsa-boolean-preparation-progress", "ml-dsa-signing-key-ready", "ml-dsa-generic-preparation-ready"]:
                     continue
                 progress.append({key: value[key] for key in [
                     "event", "role", "instances_started", "binding_phases_started", "wasm_linear_memory_bytes", "sent_bytes", "received_bytes",

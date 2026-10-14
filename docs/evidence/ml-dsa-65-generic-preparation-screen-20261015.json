@@ -1,0 +1,202 @@
+{
+  "schema": "seams.ml-dsa-generic-preparation-screen.v1",
+  "production_eligible": false,
+  "sources": [
+    {
+      "file": "ml-dsa-65-client-activation-worker-hosted-20261015.json",
+      "sha256": "17af0adf035677fdc8b5736cdb048e7ea39ec439cae0bcf6cc34106e690c2781"
+    },
+    {
+      "file": "ml-dsa-65-generic-native-20261015.json",
+      "sha256": "0767abc5d89714edcccd1e3b694c139bac41ffc517ed49d282806be55304af31"
+    },
+    {
+      "file": "ml-dsa-65-client-activation-worker-traces-20261015.json",
+      "sha256": "1e830fb0393e9195d46faa3cb3094ca8bcf0a95771fab4bdf2ff188e68fafcd5"
+    },
+    {
+      "file": "ml-dsa-65-generic-worker-clock-control-20261015.json",
+      "sha256": "7f88f9ec5d4b6a65f3b61235e1535ff466a06ac4e03316c16813d34709464b27"
+    }
+  ],
+  "hosted": {
+    "campaign_protocol_bytes_including_exhaustion": 41305270,
+    "observed_protocol_bytes_per_verified_signature": 13768423.333333334,
+    "candidates_per_reservation": 4,
+    "completed_requests_including_warmup": 6,
+    "verified_signatures_including_warmup": 3,
+    "exhausted_requests_including_warmup": 3,
+    "infrastructure_failures": 0,
+    "all_requested_completed": true,
+    "successful_online_ms_including_warmup": {
+      "minimum": 173.6986670000042,
+      "median": 191.02841700002318,
+      "maximum": 195.6177500000049
+    },
+    "successful_online_ms_excluding_warmup": {
+      "minimum": 191.02841700002318,
+      "median": 193.32308350001404,
+      "maximum": 195.6177500000049
+    },
+    "readiness_ms_including_warmup": {
+      "minimum": 38677.209207999986,
+      "median": 40832.8941875,
+      "maximum": 62842.31450000001
+    },
+    "all_verified_signatures_under_five_seconds": true,
+    "all_requests_returned_signature_under_five_seconds": false,
+    "preparation_protocol_bytes": {
+      "minimum": 4482753,
+      "median": 4482753.0,
+      "maximum": 4482753
+    },
+    "successful_online_protocol_bytes": {
+      "minimum": 2404936,
+      "median": 2404936,
+      "maximum": 2404936
+    },
+    "successful_total_protocol_bytes": {
+      "minimum": 6887689,
+      "median": 6887689,
+      "maximum": 6887689
+    },
+    "maximum_observed_wasm_bytes": 89260032,
+    "cpu": {
+      "status": "complete",
+      "observed_invocations_by_role": {
+        "a": 6,
+        "b": 6
+      },
+      "all_platform_outcomes_ok": true,
+      "whole_campaign_cpu_ms_both_roles": 259915,
+      "whole_invocation_cpu_ms_per_role": {
+        "minimum": 18779,
+        "median": 20120.0,
+        "maximum": 30827
+      },
+      "whole_campaign_cpu_overage_usd": 0.0051983,
+      "observed_cpu_overage_usd_per_verified_signature": 0.0017327666666666667,
+      "scope": "Includes warmup, exhausted reservations, repeated disposable fixture key creation, preparation, online work, and cleanup. Excludes account minimums, included allowances, storage, and other product services. Aggregate version-filtered counts avoid joining Cloudflare-redacted request IDs."
+    },
+    "versions": {
+      "a": "3a9a67ff-670b-4fe4-94f5-892e200291db",
+      "b": "01ad4839-efe7-42bb-8de2-75afc68c05d8"
+    }
+  },
+  "worker_clock_control": {
+    "source": "ml-dsa-65-generic-worker-clock-control-20261015.json",
+    "status": "invalid-for-preparation-and-activation-timing",
+    "reported_generic_preparation_ms": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "reported_activation_ms": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "reason": "Worker timers can remain fixed while code executes. These zero readings do not measure preparation or activation latency."
+  },
+  "client_post_generic_to_ready_ms": {
+    "minimum": 3188.0853329999954,
+    "median": 3305.573874499991,
+    "maximum": 4714.044125
+  },
+  "observations": [
+    {
+      "fixture_index": 0,
+      "status": "signed",
+      "client_request_to_generic_ready_ms": 38987.763167000005,
+      "client_post_generic_to_ready_ms": 3348.9364579999965,
+      "client_post_generic_to_signature_ms": 3522.6351250000007
+    },
+    {
+      "fixture_index": 1,
+      "status": "exhausted",
+      "client_request_to_generic_ready_ms": 58128.27037500001,
+      "client_post_generic_to_ready_ms": 4714.044125,
+      "client_post_generic_to_signature_ms": null
+    },
+    {
+      "fixture_index": 2,
+      "status": "signed",
+      "client_request_to_generic_ready_ms": 36141.003417000014,
+      "client_post_generic_to_ready_ms": 3188.0853329999954,
+      "client_post_generic_to_signature_ms": 3383.7030830000003
+    },
+    {
+      "fixture_index": 3,
+      "status": "exhausted",
+      "client_request_to_generic_ready_ms": 38889.969249999995,
+      "client_post_generic_to_ready_ms": 3561.5047090000007,
+      "client_post_generic_to_signature_ms": null
+    },
+    {
+      "fixture_index": 4,
+      "status": "exhausted",
+      "client_request_to_generic_ready_ms": 35617.590083999996,
+      "client_post_generic_to_ready_ms": 3262.211290999985,
+      "client_post_generic_to_signature_ms": null
+    },
+    {
+      "fixture_index": 5,
+      "status": "signed",
+      "client_request_to_generic_ready_ms": 35416.37512499996,
+      "client_post_generic_to_ready_ms": 3260.8340830000234,
+      "client_post_generic_to_signature_ms": 3451.8625000000466
+    }
+  ],
+  "native_activation": [
+    {
+      "scenario": "sign",
+      "capacity": 4,
+      "status": "exhausted",
+      "maximum_role_activation_ms": 8.760083
+    },
+    {
+      "scenario": "sign",
+      "capacity": 8,
+      "status": "signed",
+      "maximum_role_activation_ms": 16.93975
+    },
+    {
+      "scenario": "key-mismatch",
+      "capacity": 1,
+      "status": "binding-rejected",
+      "maximum_role_activation_ms": 3.265625
+    },
+    {
+      "scenario": "epoch-mismatch",
+      "capacity": 1,
+      "status": "binding-rejected",
+      "maximum_role_activation_ms": 3.329375
+    }
+  ],
+  "limits": [
+    "Generic preparation elapsed observations use client request-start to progress receipt. Worker-clock fields remain unusable raw diagnostics.",
+    "The corrected client online interval includes activation and signing. Standalone hosted activation time remains unknown.",
+    "The client post-generic gap starts at receipt of a progress event. It includes unprepared fixture key creation; it is not a production registration boundary.",
+    "Generic preparation is still performed for every benchmark request. No persistent ready pool or rollover exists.",
+    "All successful, exhausted, warmup, and failed requests remain in the input artifact. These samples establish no percentile or concurrency capacity.",
+    "Signing payload excludes fixture key creation and transport envelopes. CPU includes whole invocations. Wasm memory excludes JavaScript allocations."
+  ]
+}

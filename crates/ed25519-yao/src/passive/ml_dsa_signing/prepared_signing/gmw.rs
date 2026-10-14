@@ -1,4 +1,4 @@
-//! Complete prepared signing with all online candidates evaluated in three batches.
+//! Key-independent preparation and one-use signing with private commitments.
 
 mod nonce;
 
@@ -9,7 +9,7 @@ use crate::passive::ml_dsa_runtime::boolean_comparison::{
     Transport as BooleanTransport,
 };
 
-/// One-use candidate batch with private commitments and independent correlations.
+/// One-use candidate batch bound to a key and epoch.
 pub struct PreparedGmwSigner<'a> {
     key: Box<SigningKeyState>,
     values: Vec<Zeroizing<Candidate>>,
@@ -17,6 +17,19 @@ pub struct PreparedGmwSigner<'a> {
     bounds: PreparedGmwBatch<'a>,
     decisions: PreparedGmwBatch<'a>,
     nonce_batches: [BatchMetrics; 2],
+}
+
+/// Preparation that contains no key, epoch, message, or wallet seed.
+/// Activation consumes this handle and binds it to exactly one key and epoch.
+pub struct PreparedGmwReservation<'a> {
+    role: SigningRole,
+    id: [u8; 32],
+    values: Vec<Zeroizing<Candidate>>,
+    commitments: PreparedGmwBatch<'a>,
+    hashes: PreparedGmwBatch<'a>,
+    bounds: PreparedGmwBatch<'a>,
+    decisions: PreparedGmwBatch<'a>,
+    masks: BatchMetrics,
 }
 
 /// A standard signature with every evaluated candidate included in its metrics.
@@ -35,41 +48,43 @@ pub struct GmwSignature {
     pub public_rejections: u16,
 }
 
-/// Prepares fresh masks and commitments, then all three private GMW batches.
-/// The same canonical key and disclosure boundary apply as for prepared Yao.
-pub async fn prepare_gmw_signer<'a, T: Transport + BooleanTransport>(
+/// Prepares nonce shares and correlations before a wallet key exists.
+/// Both roles must use the same fresh preparation identifier.
+pub async fn prepare_gmw_reservation<'a>(
     role: SigningRole,
-    own: OwnSigningShare,
-    public_key: &[u8; PUBLIC_KEY_BYTES],
-    reservation: Reservation,
+    id: [u8; 32],
+    candidates: u16,
     schedules: &'a [TrustedMlDsaSchedule<'a>],
-    transport: &mut T,
-) -> Result<PreparedGmwSigner<'a>> {
-    if reservation.candidates == 0 || reservation.candidates > 32 {
+    transport: &mut impl BooleanTransport,
+) -> Result<PreparedGmwReservation<'a>> {
+    if candidates == 0 || candidates > 32 {
         return Err(SigningError::AttemptLimit);
     }
-    let key = prepare_key_state(
-        role,
-        own,
-        public_key,
-        &reservation,
-        SigningEngine::Gmw,
-        transport,
-    )
-    .await?;
-    let count = usize::from(reservation.candidates);
+    let count = usize::from(candidates);
     let mut circuit_set = Vec::with_capacity(schedules.len() * 32);
     for schedule in schedules {
         circuit_set.extend_from_slice(&schedule.schedule_digest());
     }
     let correlation_binding: [u8; 32] = shake256(&[
-        b"seams/ml-dsa/gmw-correlations/v1",
-        &key.binding,
+        b"seams/ml-dsa/gmw-generic-preparation/v1",
+        &id,
+        &candidates.to_le_bytes(),
         &circuit_set,
     ]);
     let mut correlations = CorrelationStream::new(role, correlation_binding);
-    let (values, nonce_batches) =
-        nonce::prepare_values(role, count, &key, schedules, &mut correlations, transport).await?;
+    let (values, masks) = nonce::prepare_masks(
+        role,
+        count,
+        &correlation_binding,
+        schedules,
+        &mut correlations,
+        transport,
+    )
+    .await?;
+    let commitment_schedules = vec![schedule(schedules, 0x96)?; count * ROWS];
+    let commitments = prepare_batch(role, &commitment_schedules, &mut correlations, transport)
+        .await
+        .map_err(runtime_error)?;
     let hash_schedules = vec![schedule(schedules, 0x8d)?; count];
     let hashes = prepare_batch(role, &hash_schedules, &mut correlations, transport)
         .await
@@ -90,14 +105,63 @@ pub async fn prepare_gmw_signer<'a, T: Transport + BooleanTransport>(
     let decisions = prepare_batch(role, &decision_schedules, &mut correlations, transport)
         .await
         .map_err(runtime_error)?;
-    Ok(PreparedGmwSigner {
-        key,
+    Ok(PreparedGmwReservation {
+        role,
+        id,
         values,
+        commitments,
         hashes,
         bounds,
         decisions,
-        nonce_batches,
+        masks,
     })
+}
+
+impl<'a> PreparedGmwReservation<'a> {
+    /// Consumes preparation before opening public t0 or evaluating commitments.
+    /// A persistent adapter must durably burn this reservation before activation.
+    /// Errors and cancellation destroy all private handles in this reservation.
+    pub async fn activate<T: Transport + BooleanTransport>(
+        self,
+        own: OwnSigningShare,
+        public_key: &[u8; PUBLIC_KEY_BYTES],
+        epoch: [u8; 32],
+        transport: &mut T,
+    ) -> Result<PreparedGmwSigner<'a>> {
+        let Self {
+            role,
+            id,
+            mut values,
+            commitments,
+            hashes,
+            bounds,
+            decisions,
+            masks,
+        } = self;
+        let reservation = Reservation {
+            id,
+            epoch,
+            candidates: values.len() as u16,
+        };
+        let key = prepare_key_state(
+            role,
+            own,
+            public_key,
+            &reservation,
+            SigningEngine::Gmw,
+            transport,
+        )
+        .await?;
+        let commitments = nonce::activate_values(&mut values, &key, commitments, transport).await?;
+        Ok(PreparedGmwSigner {
+            key,
+            values,
+            hashes,
+            bounds,
+            decisions,
+            nonce_batches: [masks, commitments],
+        })
+    }
 }
 
 impl PreparedGmwSigner<'_> {
