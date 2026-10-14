@@ -166,13 +166,7 @@ async fn prepare<'a>(
             "Signing fixture differs from canonical wallet recovery.",
         ));
     }
-    worker::console_log!(
-        "{}",
-        json!({
-            "event": "ml-dsa-signing-key-ready", "role": ROLE,
-            "wasm_linear_memory_bytes": wasm_linear_memory_highwater_bytes(),
-        })
-    );
+    adapter.record_progress("ml-dsa-signing-key-ready", 0);
     let own = OwnSigningShare::parse(&key.own_material).map_err(runtime_failure)?;
     let reservation = Reservation {
         id: Sha256::digest(run_id.as_bytes()).into(),
@@ -277,6 +271,7 @@ pub(super) async fn run_a(
     let schedules = schedules(&book)?;
     let socket = super::connect_b(env, backend.kernel(), run_id).await?;
     let mut adapter = Adapter::new(Duplex::new(&socket)?, None);
+    adapter.attach_progress(client.clone(), run_id);
     let prepared = prepare(&book, &schedules, run_id, &mut adapter, backend).await?;
     if adapter
         .receive(1)

@@ -97,6 +97,10 @@ impl Counts {
         json!({"sent_bytes": self.sent, "received_bytes": self.received, "sent_messages": self.sends, "received_messages": self.receives})
     }
 }
+struct ClientProgress {
+    socket: WebSocket,
+    run_id: String,
+}
 pub(super) struct Adapter<'a> {
     pub(super) duplex: Duplex<'a>,
     pub(super) tables: Option<Tables>,
@@ -104,6 +108,7 @@ pub(super) struct Adapter<'a> {
     counts: [Counts; 2],
     last_error: Option<String>,
     boolean_preparations: usize,
+    client_progress: Option<ClientProgress>,
 }
 impl Adapter<'_> {
     pub(super) fn new(duplex: Duplex<'_>, tables: Option<Tables>) -> Adapter<'_> {
@@ -114,6 +119,28 @@ impl Adapter<'_> {
             counts: Default::default(),
             last_error: None,
             boolean_preparations: 0,
+            client_progress: None,
+        }
+    }
+    #[cfg(feature = "ml-dsa-a")]
+    pub(super) fn attach_progress(&mut self, socket: WebSocket, run_id: &str) {
+        self.client_progress = Some(ClientProgress {
+            socket,
+            run_id: run_id.to_owned(),
+        });
+    }
+    pub(super) fn record_progress(&self, event: &str, instances_started: usize) {
+        let mut report = json!({
+            "event": event, "role": ROLE, "instances_started": instances_started,
+            "wasm_linear_memory_bytes": wasm_linear_memory_highwater_bytes(),
+            "sent_bytes": self.counts[0].sent, "received_bytes": self.counts[0].received,
+        });
+        worker::console_log!("{}", report);
+        if let Some(progress) = &self.client_progress {
+            report["type"] = json!("preparation-progress");
+            report["run_id"] = json!(progress.run_id);
+            // Diagnostics cannot authorize, restart, or reuse a reservation.
+            let _ = progress.socket.send_with_str(report.to_string());
         }
     }
     pub(super) fn counts_report(&self, phase: usize) -> Value {
@@ -266,6 +293,7 @@ async fn run_a(
         counts: Default::default(),
         last_error: None,
         boolean_preparations: 0,
+        client_progress: None,
     };
     let prepared = prepare_keygen(role(), &schedules, &mut adapter)
         .await
@@ -362,6 +390,7 @@ pub(super) async fn run_b(
         counts: Default::default(),
         last_error: None,
         boolean_preparations: 0,
+        client_progress: None,
     };
     let result = run_b_session(&book, &schedules, &mut adapter, colo).await;
     if result.is_err() {
@@ -457,16 +486,9 @@ impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> 
         ) {
             self.boolean_preparations += 1;
             if self.boolean_preparations == 1 || self.boolean_preparations.is_multiple_of(64) {
-                worker::console_log!(
-                    "{}",
-                    json!({
-                        "event": "ml-dsa-boolean-preparation-progress",
-                        "role": ROLE,
-                        "instances_started": self.boolean_preparations,
-                        "wasm_linear_memory_bytes": wasm_linear_memory_highwater_bytes(),
-                        "sent_bytes": self.counts[0].sent,
-                        "received_bytes": self.counts[0].received,
-                    })
+                self.record_progress(
+                    "ml-dsa-boolean-preparation-progress",
+                    self.boolean_preparations,
                 );
             }
         }

@@ -1,0 +1,64 @@
+{
+  "schema": "seams.ml-dsa-minimal-worker-deployment.v1",
+  "created_at": "2026-10-14T12:15:01.352444+00:00",
+  "workers": [
+    {
+      "role": "a",
+      "name": "ml-dsa-fast-20261014-a",
+      "version": "f67b5d0d-7f7c-4cbe-b194-d0b9973c2362"
+    },
+    {
+      "role": "b",
+      "name": "ml-dsa-fast-20261014-b",
+      "version": "ed175fe2-bf00-492f-925e-6a84c92ce549"
+    }
+  ],
+  "builds": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index.js",
+      "bytes": 29148,
+      "sha256": "63bfecb927a45b1ed7babf1cbabfcd225640708c9383b5b35c05bf28efd0d0e6"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-a/index_bg.wasm",
+      "bytes": 34852192,
+      "sha256": "7a09141c18c468202c204dc56ca4672bc5adefc72d9e45cce90620dd30184ce4"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index.js",
+      "bytes": 27137,
+      "sha256": "7ed77e8455a8decf5df4f4e4eac6fdca0dc1d25339e4018a85a215e54d42a397"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/build/ml-dsa-b/index_bg.wasm",
+      "bytes": 34784181,
+      "sha256": "235517e2991e67c16b220762c690b51dd4fc4525c2efa66bf575911af8535966"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "sha256": "f26f53bf7b2f63b2e35ebce7071f56a7eef1adb2d3fdf0ff418c1c2cba802c26"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa.rs",
+      "sha256": "86bca030472786efad704b54fe30ce1de7060ba7cf400db930bfb912f4ed46fc"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/pipeline.rs",
+      "sha256": "880116c434c180ad67f8d5a5f9ac200ac95868ee2cd37923d64121427f4cddc4"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared.rs",
+      "sha256": "d3f24c49b813ee6923f08f50d30d4d14b772345eb53041d13251bb4ab3977309"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa/prepared_signing.rs",
+      "sha256": "a9198868a9eb2a308ec3e1e55bcbdc8abdbe28ea57d999ef5d14249298bd129d"
+    },
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/scripts/run_prepared_keygen.mjs",
+      "sha256": "473ce4fa76307f200c0b5adb4df584e8800afe4f45111329bac9c3f9301b2f0f"
+    }
+  ]
+}

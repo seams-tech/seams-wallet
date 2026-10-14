@@ -191,77 +191,6 @@ pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.
 pnpm exec wrangler delete --config crates/ed25519-yao-cloudflare-bench/wrangler.transport.b.jsonc
 ```
 
-## Private ML-DSA Worker experiments
-
-The ML-DSA role builds execute individual private kernels and complete key generation and signing.
-Both builds use genuine OT and the shared resumable cryptographic core.
-Fixed cases use only each role's own public fixture inputs.
-Joint cases generate fresh independent seed contributions inside each Worker.
-Each Worker receives only its own private signing shares.
-
-Generate the public schedules and role fixtures from the repository root:
-
-```sh
-cargo run --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml -- \
-  export-worker-fixtures crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules
-```
-
-Run Worker builds and deployments from this crate directory. `worker-build`
-resolves its crate from the current directory.
-
-```sh
-pnpm exec wrangler deploy --config wrangler.ml-dsa.b.jsonc
-pnpm exec wrangler deploy --config wrangler.ml-dsa.a.jsonc
-```
-
-Install the same 64-character random `PROBE_TOKEN` secret on both temporary
-Workers. Keep its restricted JSON file outside Git. A has a public route. B
-accepts only its Service Binding. Neither build contains wallet key material.
-
-Run the local or hosted E2E campaign from the repository root:
-
-```sh
-node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
-  --local --kernel keygen-fixture --samples 1 --out /tmp/ml-dsa-keygen-local.json
-node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
-  --endpoint https://<a-endpoint> --kernel keygen-joint --samples 5 --out /tmp/ml-dsa-keygen-hosted.json
-node crates/ed25519-yao-cloudflare-bench/scripts/run_ml_dsa_kernels.mjs \
-  --endpoint https://<a-endpoint> --kernel threshold-joint --samples 1 --out /tmp/ml-dsa-signing-hosted.json
-```
-
-Use `keygen-fixture` or `threshold-fixture` for exact independent reference comparisons.
-Use `seed`, `sampling`, `rounding`, or `signing-mask` to measure one private kernel.
-Omit `--kernel` to run every operation.
-Each complete signing operation also creates its disposable keypair.
-Key-generation-only operations execute eighteen circuits and generate no signature.
-Every operation discards its private material after the benchmark.
-
-The hosted command reads `PROBE_TOKEN` from its environment. Each group contains
-one warm-up and the requested measured samples. The report pins source files,
-role fixtures, schedules, packaged Wasm, configurations, and installed tools.
-It checks reference outputs, fresh execution bindings, and exact runtime traffic.
-Both signing roles verify standard signatures independently.
-The client also verifies them through OpenSSL and checks altered messages, signatures, and keys.
-B sends a separate completion report and closes its socket.
-
-Worker `Date.now()` records elapsed observations. Use Cloudflare CPU
-analytics separately. Wasm linear memory is an isolate-wide high-water mark.
-It excludes JavaScript buffers and total Worker memory.
-Client wall time ends after the complete response body arrives.
-The artifact records subsequent client verification time separately.
-The probe excludes wallet admission, durable storage, authenticated recovery, and production peer authentication.
-The current configurations permit up to five minutes of CPU per invocation.
-
-Delete both temporary Workers after collection, from this crate directory:
-
-```sh
-pnpm exec wrangler delete --config wrangler.ml-dsa.a.jsonc --force
-pnpm exec wrangler delete --config wrangler.ml-dsa.b.jsonc --force
-```
-
-Remove the restricted token file after deletion. These configurations create
-no Durable Objects or D1 databases.
-
 ## Prepared ML-DSA experiments
 
 The prepared profiles use `wrangler.ml-dsa-prepared.a.jsonc` and `wrangler.ml-dsa-prepared.b.jsonc`.
@@ -283,3 +212,6 @@ Signing uses direct joint random masks, private commitments, and ordinary standa
 It changes FIPS 204's prescribed hedged nonce procedure. Canonical key identity and recovery remain unchanged.
 The runner records readiness separately and counts pool exhaustion as unsuccessful.
 Delete both temporary Workers and their private R2 bucket after collecting evidence.
+
+Earlier hosted kernel routes and their runner remain available in commit `982c16be`.
+Native kernel and complete-engine comparisons remain available in `tools/ml-dsa-investigation`.

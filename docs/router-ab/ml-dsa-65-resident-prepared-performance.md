@@ -13,7 +13,9 @@ The [hosted artifact](../evidence/ml-dsa-65-resident-keygen-worker-hosted-202610
 
 Prepared GMW signing now produces ordinary signatures in native, local Worker, and hosted four-candidate experiments.
 The complete 32-candidate implementation passes native and local Worker checks.
-The first hosted 32-candidate setup failed before readiness. The allocation-only hosted follow-up also fails during setup.
+The smaller hosted build now completes its first 32-candidate request with a verified signature in 0.469 seconds.
+Its preparation takes 429.266 seconds. Repeated hosted measurements remain in progress.
+Earlier larger-bundle hosted attempts failed before readiness.
 A four-candidate pool cannot establish consistent successful signing because it can exhaust.
 
 ## Key-generation storage changes
@@ -120,7 +122,7 @@ A further byte-equivalent base-OT optimization uses `aB - a²G` for the second s
 It removes one variable-base multiplication, keeps one fixed-base multiplication, and adds a scalar square. Both new secret temporaries are wiped.
 The [native complete E2E](../evidence/ml-dsa-65-fixed-base-complete-native-20261014.json) and local Worker both pass.
 The local Worker records 128.3 milliseconds online and 126.129 seconds readiness.
-The latest hosted comparison remains in progress at this checkpoint.
+The smaller hosted comparison now has one completed warm-up at 0.469 seconds online; repeated samples remain in progress.
 The control-message limit is one MiB. Garbled table frames retain their separate 65,544-byte bound.
 The mixed native E2E crosses 32-bit lane boundaries and checks SHAKE, strict bounds, output ownership, and all role traffic.
 A mismatched ordered layout is rejected after a 32-byte exchange per role, before private preprocessing.
@@ -167,13 +169,29 @@ The coarse cause remains unresolved; this result does not prove a memory thresho
 
 The benchmark is not the production Router path. Production parity remains unestablished.
 Phase-level hosted memory observations and repeated complete runs would narrow the remaining causes.
-An earlier proposed removal of old benchmark routes was rejected by automatic approval review because it could disturb active work.
-Those routes and files remain intact. The bounded allocation control replaces that proposed cleanup.
+The user subsequently approved retiring the earlier hosted kernel routes, their runner, and their two deployment configurations.
+The current bundles retain all three prepared flows. Native kernel and complete-engine comparisons remain available.
+The earlier hosted source remains recoverable from commit `982c16be`.
+
+The [minimal bundle deployment](../evidence/ml-dsa-65-minimal-worker-deployment-20261014.json) contains 34,852,192 Wasm bytes at A and 34,784,181 at B.
+Independent inspection identified 22,116,690 embedded schedule bytes used only by the retired routes.
+The [local signing check](../evidence/ml-dsa-65-minimal-signing-worker-local-20261014.json) still verifies its standard signature.
+Its Wasm highwater falls to 75,497,472 bytes at A and 75,563,008 at B.
+The [local keygen check](../evidence/ml-dsa-65-minimal-keygen-worker-local-20261014.json) passes the normal and genuine continuation cases at 0.429 and 0.492 seconds.
+Live client progress now records public preparation stages and memory counts before readiness.
+Successful artifacts retain every progress record; failures retain only the final record in the error.
+The standalone fixture-keygen duplicate-binding check is retained without the retired accounting structure.
+It was restored after the measured minimal deployment. The [final local signer](../evidence/ml-dsa-65-minimal-checked-signing-worker-local-20261014.json) verifies that restoration with the complete signing path.
+These diagnostic messages can affect connection liveness, so the final combined comparison cannot isolate memory as the sole cause.
+
+The [fixed-base-only hosted attempt](../evidence/ml-dsa-65-gmw32-fixed-base-worker-hosted-20261014.json) also reaches the client timeout before readiness.
+Its tail connections were interrupted, and no matching terminal trace was captured. Its platform outcome remains unknown.
 
 ## Measurement limits and deployment work
 
 The client timer measures input delivery, online exchanges, later table reads, both Worker verifiers, and completion delivery.
 Preparation/readiness and acknowledged cleanup have separate intervals.
+Worker offline phase byte counters exclude initial fixture-key generation. Raw transport counters include it and the transport envelopes and acknowledgements.
 Worker `Date.now()` remains unsuitable for splitting CPU from storage wait.
 Runtime traces report whole-invocation CPU and wall time, including preparation and cleanup.
 
