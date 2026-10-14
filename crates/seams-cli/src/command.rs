@@ -715,7 +715,7 @@ fn parse_command(
             })
         }
         _ => Err(CommandParseErrorV1::new(format!(
-            "unknown command '{}'; run 'seams help'",
+            "unknown command '{}'; run 'seams-wallet help'",
             positional.join(" ")
         ))),
     }
