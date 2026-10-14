@@ -12,20 +12,21 @@ destination credentials through command-line arguments or environment
 variables.
 
 ::: warning Native release availability
-The npm launcher is published as **0.6.0**, separately from Wallet SDK 0.10.0.
-As checked on October 4, 2026, its signed native release assets at
-`seams-tech/seams-wallet` tag `seams-cli-v0.6.0` are unavailable. The launcher
-cannot run on a fresh installation until those assets are published. An npm
-installation alone does not establish a usable recovery tool.
+The launcher source carries **0.10.1**, the Wallet SDK version. As checked on
+October 14, 2026, launcher 0.10.1 is not published. npm holds only **0.6.0**,
+and `seams-tech/seams-wallet` has no signed native release assets for either
+version. A launcher cannot run on a fresh installation until the assets of its
+version are published at tag `seams-cli-v<version>`. An npm installation alone
+does not establish a usable recovery tool.
 :::
 
 ## Install and retain an offline copy
 
-Use Node.js 22 or later to install the launcher. Once the matching signed native
-release is available, verify that it executes:
+Use Node.js 22 or later to install the launcher. Once launcher 0.10.1 and its
+matching signed native release are available, verify that it executes:
 
 ```bash
-npm install --global @seams/wallet-cli@0.6.0
+npm install --global @seams/wallet-cli@0.10.1
 seams-wallet --help
 ```
 
