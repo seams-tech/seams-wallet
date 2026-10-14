@@ -285,6 +285,24 @@ The test runs six full key-generation/signing/export cases and fifteen negative 
 It verifies all ten fresh recovery codes and the replacement factor after threshold signing.
 The native state output is proposed commit data. Production must commit both roles durably before it publishes capability.
 
+## Browser boundary evidence
+
+The [Chromium campaign](../evidence/ml-dsa-65-browser-custody-e2e-20261014.json) drives the actual SDK custody worker and browser Wasm through establishment and recovery.
+Role execution uses separate native processes. No production Router or Cloudflare storage participates in this test.
+Wasm retains the wallet seed, owner-root derivation, and HPKE completion secret.
+Only encrypted inputs and public or encrypted commit records cross the outbound browser boundary.
+Factor secrets and recovery-code bytes still cross inbound, as in the existing custody flow.
+
+Discard and wrong-step handling now call `free()` explicitly after removing the state from the worker map.
+The test observes these actual calls. It does not inspect or certify physical memory erasure.
+Consuming Wasm methods invalidate their JavaScript handle even when native validation fails.
+The SDK checks primitive argument types before calling those methods and frees the retained handle if JavaScript validation fails.
+This avoids retaining a native state when JavaScript argument conversion fails before Rust runs.
+The byte conversion boundary rejects numeric coercion into zero-filled buffers.
+
+The browser checks establish key continuity and failure behavior under the fixture's pinned holder keys.
+Authenticated discovery of production holder keys, independent admission at each holder, durable replay rejection, and activation remain deployment requirements.
+
 ## Integration requirements
 
 Production integration must bind both roles to the same wallet, key identity, public key, material epoch, message, context, and operation identifier.

@@ -80,16 +80,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     let schedules = tempfile::tempdir()?;
     let keygen = private_keygen::compile_schedules(schedules.path())?;
     let signing = private_signing::compile_schedules(schedules.path())?;
-    let started = Instant::now();
-    let circuit = compile_ml_dsa_wallet_seed_circuit_v1();
-    let wallet_seed = private_keygen::save_schedule(
-        schedules.path(),
-        "wallet-seed.bin",
-        "wallet-owner-root-to-canonical-seed",
-        &circuit,
-        started,
-    )?;
-    drop(circuit);
+    let wallet_seed = compile_wallet_seed_schedule(schedules.path())?;
     let binding =
         compute_ml_dsa65_application_binding_digest_v1("ml-dsa-wallet-fixture", "near-key-1")?;
     require(
@@ -220,4 +211,18 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         output.display()
     );
     Ok(())
+}
+
+pub(super) fn compile_wallet_seed_schedule(directory: &Path) -> InvestigationResult<Value> {
+    let started = Instant::now();
+    let circuit = compile_ml_dsa_wallet_seed_circuit_v1();
+    let identity = private_keygen::save_schedule(
+        directory,
+        "wallet-seed.bin",
+        "wallet-owner-root-to-canonical-seed",
+        &circuit,
+        started,
+    )?;
+    drop(circuit);
+    Ok(identity)
 }

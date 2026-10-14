@@ -1,0 +1,349 @@
+{
+  "schema": "seams.ml-dsa-browser-custody-e2e.v1",
+  "created_at": "2026-10-14T04:45:23.509Z",
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+  "checks": {
+    "browser_establishment_and_threshold_signature": true,
+    "completed_handle_cannot_be_reused": true,
+    "browser_code_recovery_preserves_key_and_manifest": true,
+    "secret-input": true,
+    "secret-input-is-terminal": true,
+    "missing-manifest": true,
+    "missing-manifest-is-terminal": true,
+    "unsafe-epoch": true,
+    "unsafe-epoch-is-terminal": true,
+    "discard_explicitly_frees_wasm": true,
+    "wrong-step": true,
+    "wrong_step_explicitly_frees_wasm": true,
+    "non-string-result": true,
+    "non-string-result-is-terminal": true,
+    "old-holder-replies": true,
+    "old-holder-replies-are-terminal": true,
+    "non-string-factor": true,
+    "non-string-factor-is-terminal": true,
+    "non-buffer-factor-secret": true,
+    "non-buffer-factor-secret-is-terminal": true,
+    "concurrent-ceremony-limit": true,
+    "capacity_restored_after_discard": true
+  },
+  "cases": [
+    {
+      "fixture_id": "ec2b25e3ba7d4d8a6ea4305a2f40141b",
+      "commit": {
+        "custodyAction": "established",
+        "key": {
+          "walletId": "ml-dsa-browser-wallet",
+          "signingKeyId": "near-key-1",
+          "keySet": "near_ml_dsa_65_v1",
+          "publicKeyB64u": "c7UuXxwO5TPDM4AepZmT8vd_LjJYknKP4vQ4gZn6o7fdxUlp2Z8DgFzefFCZJyJFxd51-GElepjNrWbqkgdsdmklsufKnnRjiwpQR3hYok8rceTUL4b8BdJajBKIgOQ1Jr55bhlZwJ_t4URyvfA-iLHBoNdZ4MblgZCc65vZ5WuRAUHni-eAtzbCL0n9X0WKRYUkBjo0Feq18qJF4iXyXzs2CAObsEUW1xBy3lfldkqmrtEhBaq3fBunPeZZ4fnjneKRa7srV1sftT_LIude1z2kluYoFBV2Xz8JED1gaF9umcykvtuurAiiVgs9WpyVvEtuJjqOEkYhFP33pccrvreSW0RNSY4uGmWHvVW5cU3JARfhWSMnurZBmJSITCVmsixXVyEbik-sBaDT80TCqYTZNvulU0bE0OlYNc_Z6-FqzZMhQIdZbBgJ2f8onHGmkZcNQXp5ay_IWHNPnXMDJfsQK9Qd5UX8iNkMwHBVCj9-4k2Qv92XgB3Fxsc2DzyND_RfDwN2GGLjkoPVELuzn0CzVMUaKQ3bBByRSXh-CttTp5gCtJ-7W_1T1Lk7cGKosm2no1rJhDC1xQ__gBMoloJnymNX5L6eoJZn2v8p8UZkpYW6LRcztSljw49Q4ODxotL3kwTpK7C-tsrKcIdu6HmqU0A82zGBkR1ZosvY2utcMTPhTFNjYXFNsc2CJh65DE97qZ8Jol_6BvOyI5jqdef2sWIrTMFNvsynS9Uze4GH9ZqO158A2r0VcOY5EHej0xVdxfhpOP3LtIZqQHRyCvKJwPslNnccjF4ugnATsfhp2SxGO74a3gLI310b_afQt_PL-mMODpYXDyeCQKxaKyJsCzkPLMiWlKCnSLJPhWJqCOuyuB5j6m55oC9weja1RDn2712Bc19oK0GbvrFHcX_uHif7n7iwIkrEUVWYj-D-ndp97XRkWXHTSDcgmUxgvsv6JX9Es3VQuN0JLRTZmPf22sN6_kTeXkcNu0qTOZwB3Epzp_X_h5MSuT2uGk_MxBHM1fuNzHx2YDgofX4E9txJ-yTaLb3dHjZUB3jqR_I2LxhAsuyq60DB5GPZ4k5JRHZPY9kVCdpzlWdJwcl2XwS1hgMLl7YX4iFDn6crxH_DYwYg6aVSPZiZ1OpgG5oOwBgd40Aj_OuXrLnh3D80Q_CJVIVSOhV8emW5TcHmUQDf__g1aODEcCIcbP_xqL-TOFeCRGR1knf9m-IlTgtcFqNgfE4Ao4PiVHkadyfFi4WpYCPEi7nU-eiokb9S7032QYWDnXWd4YhjUzGnkuDzGdV5esKeRl4pWiGMu-Mtzy_hSXC893I1V8njBPjUx_Y9bK-lmyUCx_Fe9Ovw1IoJDN3SvH2EIUgcaO4PshQipuq36DjYSl4PSyo4zndGSptOW3fnutZJhL3SwtATO514Per4tt0e347UhUskwdze4LkzZ5BUCWgneQ097nMki-4ILkM-RV4dWEYpWVuP8zYvnz1xCStfGus-UrUwzkpVtVr4g5UKkFNA3muLhG_0OrtgO27jS_2soUbE2Go_IsSpazUWXqK_VRpEQkynKT-BnTnKK2F9ND_RqKzjRWuZSsLVqQ4RnNxCGyLRaaT2EGHgN7OCf9yw6798I7u1HWajds4Q5hklzBPgIQGHfUWPiYEF4prQOGmhtRFEurXd-jXtKaKl4fd1IAX_VE7_TI4pbdgyLXZlRwCgPpSRC_cK4bNhEwN_8Xak3gWMXLaE2m5OVefOEGY1TIRnS9TLw35c842nKbGGhr3llgSivzfHxtU7bhVuzp_GRmnKynxlYekPOIPBFQm9DL5k6mlJyxR8b9VJ8O02Bp1fF0JgqS28b8R_0lrYBfOUhqz-1TF6_ZYzVcIQqPPEN9G3Js8bM5APjQKR3fnMt4IOMnZ_HDF-BNP-DLCHdvxk21M_2Ka6LfzNPHqsuADjQm7tWgAYIMwDEBfEz8Gy6Aj99avzl4-O9tLkgJxbWFmOSpCD5fd7HkI6KOe5YeFIurq1S1SGbGWnqRf_1zyg7qstLC2OaTPfhdhkU2wfzzBEbu06wmJ4nMvqC2Yv8fwN95KffYph8DLHSVKVUO-vrYgIJLYV_JdbwPE6FrenMY_88uJlcJdqcIHYdxxKDP3nEAdkF9nm6DrKcqTWTz-wEVn4vq1zwBvrG9zDgR62-9-ul1EKd19Dt7V1jKlNxU49gCXQMrHVffJ7YxqhcPxTGFJ5j9s7X5SZRmUly1cdV21Fnr7lvwozd5pEPayI-Wdw-CXXyec58N5qd-CboIC2eNXy8TwCfxP7Sc0zTyVd208ArqYUYycDJAa7oxtfDEnfE_22mPCJ7RynXrelU-UkBICboUUlL6StbplbwNj_9joRpnKn5M1_Ia0JH1168rN5vThls8EIWDi-p4Er-t21zkvelOeIl9IscU0JjQPI1NybiyuMW-ZW2u40fT8r9mz8C2MPKRxvrCuDDAyB-atJ5L0xCvo21S-O-hQb_1EXfNtQuq0KBAwAdoWiFOTEwV_Hmr22Flopx17_97Ptd7WfzyFfOTIl9_7fCbz3T03RgqEtyrGAWHfo08RduSMsuR1pc5hq-Dm9wGt8grM",
+          "keyManifestDigestB64u": "_0xaXbo04x_XZyvum35bjhoaR79rxisAx_7T5J9-i8A",
+          "operationIdB64u": "CZnA_Eeh59-c6VeRq3y381IPvMswWTVVeJH8sRA6vbM",
+          "materialEpoch": 0
+        },
+        "custody": {
+          "envelopeId": "browser-fixture-envelope",
+          "envelopeBindingJson": "{\"walletId\":\"ml-dsa-browser-wallet\",\"envelopeId\":\"browser-fixture-envelope\",\"factor\":{\"kind\":\"passkey\",\"rpId\":\"wallet.example\",\"credentialIdB64u\":\"YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI\",\"kekVersion\":\"passkey_prf_kek_hkdf_sha256_v1\"},\"envelopeRevision\":1,\"binding\":{\"kind\":\"wallet_custody_seed_v1\",\"derivationScheme\":\"wallet_seed_parallel_hkdf_sha256_v1\"},\"ownership\":{\"methodBound\":{\"walletAuthMethodId\":\"fixture-method-98\"}}}",
+          "envelopeNonceB64u": "g-SROyOm1ofYN_5h",
+          "sealedCustodySecretB64u": "AWZciTBoR_zc60Fv-FKiJvvwL4uMg2-k755phwOGaYZBcd7ne7FujmxnZdlGND11",
+          "envelopeAadHashB64u": "I3f78Pe_Lo7x3ilgS27AJsXHkND7ViTnUBwQQgk2M8E",
+          "envelopeCiphertextDigestB64u": "tRRdT7aFzNIkLITZ041uGNNwT6XSOQbP_GHO-QkaATo",
+          "recoveryManifestKekWraps": [
+            {
+              "recoveryKeyId": "wallet-rkid-v1-y3n6FM-_SJtzHNbXSgykf_m2CcL7Do5UcnP8TSFNrb0",
+              "nonceB64u": "4sEWu5KH00VQ_DxV",
+              "ciphertextB64u": "SpJZiVTUb7d3mE-VmBfBgU_49bUy5toB03tESNnmLrPvLafTyxMIcGkBKvzH3GYn",
+              "aadHashB64u": "C6LzvT-PcCD4xvyeaoPtY2zmMEqIDVEFN_-d0EqOWbA"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-DBh9yd4f6A3izq4Vt8a4dXIFRGHX7tzusUnJYdvNoBo",
+              "nonceB64u": "yerusvWD4CNP8-Hb",
+              "ciphertextB64u": "QNxe33IGm5Lzl2FZymR9-3bkFdMPPm3MlszIvN-jRvTK7KFX1VVVjOwN2FHs4zHK",
+              "aadHashB64u": "EJfiELrEcMjSKDEXafEqiUVlCp954MY2YUbuOr7m0BY"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-ZSJP4j9RMW6OlDlqNdy4foem7gYKKdqQ3e9IxrA-5x4",
+              "nonceB64u": "QGxu1e4A01KoLlkn",
+              "ciphertextB64u": "aDhNpxfIZGs9IQ-IeyR5JMSp_AnyITsMXuwdDWxirlzjNdtUJOUVR86dD4MpFYnd",
+              "aadHashB64u": "0vUS-ex85XDEXx3nTrNARLj-MZfYFd4YVvYwaBto6ko"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-V4gAjlYNE_xBce-u6FDAzyXyZQ0EIyAwaK4--RffJLI",
+              "nonceB64u": "B17H7aFQyBTPoXsB",
+              "ciphertextB64u": "auzaeIR-tJ3Cvbn9bI_36xbj8ClybU5JaN6N-406vzM9JuMyvtl2H-LwfQbTeLuk",
+              "aadHashB64u": "H6GeCGfafihHqV1ROr5Uh4PdAHdzOgHxscvSxQXrLCo"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-AnQlg9PeOb2BL1FfeWJ3Vn-1GBOgbAEnE6zqq0Eg6rQ",
+              "nonceB64u": "9AcCjjM819ExhURN",
+              "ciphertextB64u": "z5O3L4PHaSjYvUH70n0Eu2fpgzTwpb_V1QLv0-u96ngbq1PwzS8pJdEMu_Aj6JrT",
+              "aadHashB64u": "wjP7jgRljTa89CBa0CnMhflLGSaD7yDyYLxo2tEeIuQ"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-cj8QRA6H-z7qkiCJHUaVjZAoVM7pu0wkdcZOH-GiKPg",
+              "nonceB64u": "TNRPDu4Pnfvas8wv",
+              "ciphertextB64u": "vsqv4PzcEkbMzK0Bz4REwZPw8GRCw9dH-XTZCf-R02axxvrVLALPImTJLqiXJxIN",
+              "aadHashB64u": "ntBZjZuMf3pBvHWQKwudrEEeLqhNQaJf0HWTOBwZDws"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-413cv1E8aTCuR0owD95BYDw58gColQ3Se08qbbGC3ik",
+              "nonceB64u": "gzrDhSZGCJaLDoE2",
+              "ciphertextB64u": "OQMb9dnM93ITsNXveONqY0AYww_fuoT0Jo2kAE1QNz8RF2kwLH1YPWtgX0EZaDNe",
+              "aadHashB64u": "cqNNounIU4pI3yxCcTPO2ObSMbGpQKaWBSetPOaTGKE"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-vgKevmFyjyAfFXH7qyQU8B4CpIYrGKoOK8A059zw0rE",
+              "nonceB64u": "3yru9SMVOjOatQmc",
+              "ciphertextB64u": "kjxJz1NSZFFf0kO1hp1lhzh6yBpksJzsE9vZK0-ydQpRbVsedmVAKxhAOGQuRzTe",
+              "aadHashB64u": "E87BzQnYmB33BdWiamtEqnZDhT2tB_3cIuA-KYn500Q"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-IlsWWpMM9hUzvEmlqU0VDjXm2Jqdtt3AElh2zsWQjuU",
+              "nonceB64u": "Gh1S-n8jkqw9Fy1V",
+              "ciphertextB64u": "HgZ__E0yMRwa188xHpvl63gDzOropfPoSGGmorpZE72ZI-xxwYAYLYs9KPeV7Cgb",
+              "aadHashB64u": "tiP0LJSXvmFUZDeMNaSjIeL19Gko5M3nMFgHwpaoqD4"
+            },
+            {
+              "recoveryKeyId": "wallet-rkid-v1-Pi0mWrsjTCurtAUMkwIVO-j0SUw-lP10JsqKz2PJKPs",
+              "nonceB64u": "bovwcH7BzAX5Apmv",
+              "ciphertextB64u": "uJ2UtjTL3Ikz7jeXJ9UpYeGHTp7Ewn0kuoL3ajf9YCQyMZlSbNLPjayZEKsXI1JS",
+              "aadHashB64u": "zMT-iNA89LjWMotyJmtxEQMUXjmzXBPX_YeUPYakEHE"
+            }
+          ],
+          "recoveryEntryNonceB64u": "Uv_igUG-krvxWK5_",
+          "recoveryEntryCiphertextB64u": "4WInX9nCyCwxNi0yxsy3ccOSbx8Vvl9ioad9b_UCzqY0JxREbGt7lj-p1YjwrSyM",
+          "recoveryEntryAadHashB64u": "AVumxGvM0gr6V2Qp7_-u6u_uLPtnZPvdzGBwlg-nCvM"
+        }
+      },
+      "signing_candidates": 17,
+      "authorized_export_after_signing": {
+        "canonical_recovery_public_key_matches": true,
+        "context_hex": "7365616d732e6d6c2d6473612d617574686f72697a65642d746573742d6578706f72742e7631",
+        "expanded_private_key_bytes": 4032,
+        "message_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+        "ordinary_signature_bytes": 3309,
+        "ordinary_signature_sha256": "7adf472342764fde9d6eda10b095f249422b08d5bcd0cf6ce06a81c8eedeb590",
+        "ordinary_signature_verified": true,
+        "public_key_sha256": "ca14e9c772e7faaed2c3ae00d65a34f3fb2e043436383944090aaa717ae0a3ca",
+        "public_test_seed_hex": "a83ff5b0a6e677c47dcbb919f1c5a741b67343ad3abc871f234ea08476678170",
+        "recipient_wall_ns": 8673875,
+        "reconstructed_k_s1_s2_t0_match_openssl_expanded_private_key": true,
+        "scope": "Authorized disposable-test export after both role processes finish. This recipient reconstructs the canonical seed and complete private material, compares the expanded FIPS encoding with OpenSSL, and signs with the recovered ordinary key.",
+        "threshold_signature_before_export": {
+          "exact_reference_bytes_match": true,
+          "mode": "deterministic",
+          "reference_signature_sha256": "ad93048a997cc8eb8096a09266a1fa7c32e8973549117ab3f016475ac06690e0"
+        }
+      }
+    },
+    {
+      "fixture_id": "a3669147a4e50962a1293739adbce63a",
+      "commit": {
+        "custodyAction": "recovered",
+        "key": {
+          "walletId": "ml-dsa-browser-wallet",
+          "signingKeyId": "near-key-1",
+          "keySet": "near_ml_dsa_65_v1",
+          "publicKeyB64u": "c7UuXxwO5TPDM4AepZmT8vd_LjJYknKP4vQ4gZn6o7fdxUlp2Z8DgFzefFCZJyJFxd51-GElepjNrWbqkgdsdmklsufKnnRjiwpQR3hYok8rceTUL4b8BdJajBKIgOQ1Jr55bhlZwJ_t4URyvfA-iLHBoNdZ4MblgZCc65vZ5WuRAUHni-eAtzbCL0n9X0WKRYUkBjo0Feq18qJF4iXyXzs2CAObsEUW1xBy3lfldkqmrtEhBaq3fBunPeZZ4fnjneKRa7srV1sftT_LIude1z2kluYoFBV2Xz8JED1gaF9umcykvtuurAiiVgs9WpyVvEtuJjqOEkYhFP33pccrvreSW0RNSY4uGmWHvVW5cU3JARfhWSMnurZBmJSITCVmsixXVyEbik-sBaDT80TCqYTZNvulU0bE0OlYNc_Z6-FqzZMhQIdZbBgJ2f8onHGmkZcNQXp5ay_IWHNPnXMDJfsQK9Qd5UX8iNkMwHBVCj9-4k2Qv92XgB3Fxsc2DzyND_RfDwN2GGLjkoPVELuzn0CzVMUaKQ3bBByRSXh-CttTp5gCtJ-7W_1T1Lk7cGKosm2no1rJhDC1xQ__gBMoloJnymNX5L6eoJZn2v8p8UZkpYW6LRcztSljw49Q4ODxotL3kwTpK7C-tsrKcIdu6HmqU0A82zGBkR1ZosvY2utcMTPhTFNjYXFNsc2CJh65DE97qZ8Jol_6BvOyI5jqdef2sWIrTMFNvsynS9Uze4GH9ZqO158A2r0VcOY5EHej0xVdxfhpOP3LtIZqQHRyCvKJwPslNnccjF4ugnATsfhp2SxGO74a3gLI310b_afQt_PL-mMODpYXDyeCQKxaKyJsCzkPLMiWlKCnSLJPhWJqCOuyuB5j6m55oC9weja1RDn2712Bc19oK0GbvrFHcX_uHif7n7iwIkrEUVWYj-D-ndp97XRkWXHTSDcgmUxgvsv6JX9Es3VQuN0JLRTZmPf22sN6_kTeXkcNu0qTOZwB3Epzp_X_h5MSuT2uGk_MxBHM1fuNzHx2YDgofX4E9txJ-yTaLb3dHjZUB3jqR_I2LxhAsuyq60DB5GPZ4k5JRHZPY9kVCdpzlWdJwcl2XwS1hgMLl7YX4iFDn6crxH_DYwYg6aVSPZiZ1OpgG5oOwBgd40Aj_OuXrLnh3D80Q_CJVIVSOhV8emW5TcHmUQDf__g1aODEcCIcbP_xqL-TOFeCRGR1knf9m-IlTgtcFqNgfE4Ao4PiVHkadyfFi4WpYCPEi7nU-eiokb9S7032QYWDnXWd4YhjUzGnkuDzGdV5esKeRl4pWiGMu-Mtzy_hSXC893I1V8njBPjUx_Y9bK-lmyUCx_Fe9Ovw1IoJDN3SvH2EIUgcaO4PshQipuq36DjYSl4PSyo4zndGSptOW3fnutZJhL3SwtATO514Per4tt0e347UhUskwdze4LkzZ5BUCWgneQ097nMki-4ILkM-RV4dWEYpWVuP8zYvnz1xCStfGus-UrUwzkpVtVr4g5UKkFNA3muLhG_0OrtgO27jS_2soUbE2Go_IsSpazUWXqK_VRpEQkynKT-BnTnKK2F9ND_RqKzjRWuZSsLVqQ4RnNxCGyLRaaT2EGHgN7OCf9yw6798I7u1HWajds4Q5hklzBPgIQGHfUWPiYEF4prQOGmhtRFEurXd-jXtKaKl4fd1IAX_VE7_TI4pbdgyLXZlRwCgPpSRC_cK4bNhEwN_8Xak3gWMXLaE2m5OVefOEGY1TIRnS9TLw35c842nKbGGhr3llgSivzfHxtU7bhVuzp_GRmnKynxlYekPOIPBFQm9DL5k6mlJyxR8b9VJ8O02Bp1fF0JgqS28b8R_0lrYBfOUhqz-1TF6_ZYzVcIQqPPEN9G3Js8bM5APjQKR3fnMt4IOMnZ_HDF-BNP-DLCHdvxk21M_2Ka6LfzNPHqsuADjQm7tWgAYIMwDEBfEz8Gy6Aj99avzl4-O9tLkgJxbWFmOSpCD5fd7HkI6KOe5YeFIurq1S1SGbGWnqRf_1zyg7qstLC2OaTPfhdhkU2wfzzBEbu06wmJ4nMvqC2Yv8fwN95KffYph8DLHSVKVUO-vrYgIJLYV_JdbwPE6FrenMY_88uJlcJdqcIHYdxxKDP3nEAdkF9nm6DrKcqTWTz-wEVn4vq1zwBvrG9zDgR62-9-ul1EKd19Dt7V1jKlNxU49gCXQMrHVffJ7YxqhcPxTGFJ5j9s7X5SZRmUly1cdV21Fnr7lvwozd5pEPayI-Wdw-CXXyec58N5qd-CboIC2eNXy8TwCfxP7Sc0zTyVd208ArqYUYycDJAa7oxtfDEnfE_22mPCJ7RynXrelU-UkBICboUUlL6StbplbwNj_9joRpnKn5M1_Ia0JH1168rN5vThls8EIWDi-p4Er-t21zkvelOeIl9IscU0JjQPI1NybiyuMW-ZW2u40fT8r9mz8C2MPKRxvrCuDDAyB-atJ5L0xCvo21S-O-hQb_1EXfNtQuq0KBAwAdoWiFOTEwV_Hmr22Flopx17_97Ptd7WfzyFfOTIl9_7fCbz3T03RgqEtyrGAWHfo08RduSMsuR1pc5hq-Dm9wGt8grM",
+          "keyManifestDigestB64u": "_0xaXbo04x_XZyvum35bjhoaR79rxisAx_7T5J9-i8A",
+          "operationIdB64u": "CYsif8EbTKUnK8Y-PvS53u8pJ5S9K0wMoS0AewluWHQ",
+          "materialEpoch": 1
+        },
+        "replacement": {
+          "envelopeId": "browser-recovered-envelope",
+          "envelopeBindingJson": "{\"walletId\":\"ml-dsa-browser-wallet\",\"envelopeId\":\"browser-recovered-envelope\",\"factor\":{\"kind\":\"passkey\",\"rpId\":\"wallet.example\",\"credentialIdB64u\":\"ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY\",\"kekVersion\":\"passkey_prf_kek_hkdf_sha256_v1\"},\"envelopeRevision\":1,\"binding\":{\"kind\":\"wallet_custody_seed_v1\",\"derivationScheme\":\"wallet_seed_parallel_hkdf_sha256_v1\"},\"ownership\":{\"methodBound\":{\"walletAuthMethodId\":\"fixture-method-102\"}}}",
+          "envelopeNonceB64u": "bBChWtiQ5CeGyk9O",
+          "sealedCustodySecretB64u": "Ibp-JFsVK8IJ04ie6eAAtKznB9BwhLPCzClwRsfhr1__kDRp4BK7uysyQJdZmW4v",
+          "envelopeAadHashB64u": "VkpyEAWa6FM_9D7TcSSyLGVPH-7ggsvwH9ub_JhFLEw",
+          "envelopeCiphertextDigestB64u": "IsaAneHB8FQa7caWuiz2_fgwPszvx82h6Q7dQkLFl0Y"
+        }
+      },
+      "signing_candidates": 17,
+      "authorized_export_after_signing": {
+        "canonical_recovery_public_key_matches": true,
+        "context_hex": "7365616d732e6d6c2d6473612d617574686f72697a65642d746573742d6578706f72742e7631",
+        "expanded_private_key_bytes": 4032,
+        "message_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+        "ordinary_signature_bytes": 3309,
+        "ordinary_signature_sha256": "7adf472342764fde9d6eda10b095f249422b08d5bcd0cf6ce06a81c8eedeb590",
+        "ordinary_signature_verified": true,
+        "public_key_sha256": "ca14e9c772e7faaed2c3ae00d65a34f3fb2e043436383944090aaa717ae0a3ca",
+        "public_test_seed_hex": "a83ff5b0a6e677c47dcbb919f1c5a741b67343ad3abc871f234ea08476678170",
+        "recipient_wall_ns": 5991833,
+        "reconstructed_k_s1_s2_t0_match_openssl_expanded_private_key": true,
+        "scope": "Authorized disposable-test export after both role processes finish. This recipient reconstructs the canonical seed and complete private material, compares the expanded FIPS encoding with OpenSSL, and signs with the recovered ordinary key.",
+        "threshold_signature_before_export": {
+          "exact_reference_bytes_match": true,
+          "mode": "deterministic",
+          "reference_signature_sha256": "ad93048a997cc8eb8096a09266a1fa7c32e8973549117ab3f016475ac06690e0"
+        }
+      }
+    }
+  ],
+  "sources": [
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/wasm/wallet_custody_ceremony/src/ml_dsa_wasm.rs",
+      "bytes": 6047,
+      "sha256": "cf415339f9acd467debda9025bf18cd65d29b7abec3628fb692e99ca5dae0ae7"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/wasm/wallet_custody_ceremony/src/wasm.rs",
+      "bytes": 27991,
+      "sha256": "937b8f481170fc199595141079978307faab5fd7b727a1ae0a1c40dc9d9b47ff"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/wasm/wallet_custody_ceremony/src/ml_dsa.rs",
+      "bytes": 5805,
+      "sha256": "964033d26b24604074f314042f9fcfb05db7f2e3fa975ea87f53d5767af36c1b"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/signer-core/src/ml_dsa_custody.rs",
+      "bytes": 13698,
+      "sha256": "4034bd8769f1fa319df03d10c31087e1f0c972f3a5f1be777bcd7fd12195f87b"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts",
+      "bytes": 57016,
+      "sha256": "ad730feb97cb42712e3384003e1e85b8922f660f6b0d363b4db037e404b1b690"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/packages/wallet/src/core/signingEngine/workerManager/walletCustodyWorkerChannels.ts",
+      "bytes": 15553,
+      "sha256": "2e635fb0572e4b1324de1202d1817e3ded20a5b2452da5c299979fcb12c2465e"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/packages/shared-ts/src/passkey-custody/mlDsaCustody.ts",
+      "bytes": 4856,
+      "sha256": "c7796d18430e91ce7c09e9263e119d456a044001a38598be73b060a408c12f24"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/scripts/browser-custody/server.mjs",
+      "bytes": 14316,
+      "sha256": "7152448000127f21a932385def0a51d743505c9de13ddba581c957a438a27a80"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/scripts/browser-custody/browser.mjs",
+      "bytes": 12259,
+      "sha256": "5416a052e4740ef89ff8e443a58b5ba99a9e20e2c40c4d11fc585bc136b9e88f"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/target/release/ml-dsa-investigation",
+      "bytes": 5168352,
+      "sha256": "bb5f02a84405f559b60be441caa6221695f3fec04df27053579d54a7c78c208b"
+    },
+    {
+      "path": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/ml-dsa-browser-enjovo/custody-worker.js",
+      "bytes": 202092,
+      "sha256": "fb140b3e35d0b46106d086cf84099da85081ef1e2f988c06c0d99f08dc87888c"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js",
+      "bytes": 41523,
+      "sha256": "934b5439f2bd99e17d14f808f85b5eb7de5e4f6334c435bce21627683c900383"
+    },
+    {
+      "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony_bg.wasm",
+      "bytes": 579893,
+      "sha256": "e9c7acf7b37588ac5c254b00f8bb61ec6d2bd143d383cf5bc07182c55a1e066f"
+    }
+  ],
+  "schedule_manifest": {
+    "keygen": [
+      {
+        "and_gates": 37824,
+        "compile_parse_and_cache_wall_ns": 19225416,
+        "component": "seed-expansion",
+        "component_sha256": "96402f6ee7b52f991edc8ee33642c077df98460be4975a8781180d868c0a265e",
+        "half_gate_table_bytes": 1210368,
+        "schedule_bytes": 1319583,
+        "schedule_filename": "seed.bin",
+        "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      },
+      {
+        "and_gates": 292180,
+        "compile_parse_and_cache_wall_ns": 118214541,
+        "component": "expand-s-and-sampling",
+        "component_sha256": "dabd4b761044e9b97c8daad410939e5f5eaa9e5c4134eddd2610b59acaf488c7",
+        "half_gate_table_bytes": 9349760,
+        "schedule_bytes": 8131283,
+        "schedule_filename": "sampling.bin",
+        "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71"
+      },
+      {
+        "and_gates": 43008,
+        "compile_parse_and_cache_wall_ns": 20171333,
+        "component": "power2round",
+        "component_sha256": "a19d72f3b07760adcbd064992d62003c0e630e702d825f8b8f047ae6f906ef81",
+        "half_gate_table_bytes": 1376256,
+        "schedule_bytes": 1378874,
+        "schedule_filename": "rounding.bin",
+        "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99"
+      }
+    ],
+    "signing": [
+      {
+        "and_gates": 212928,
+        "kernel": "signing-mask",
+        "schedule_bytes": 7451952,
+        "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+        "table_bytes": 6813696
+      },
+      {
+        "and_gates": 37312,
+        "kernel": "signing-seed",
+        "schedule_bytes": 1315304,
+        "schedule_sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41",
+        "table_bytes": 1193984
+      },
+      {
+        "and_gates": 28160,
+        "kernel": "commitment-high",
+        "schedule_bytes": 769082,
+        "schedule_sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6",
+        "table_bytes": 901120
+      },
+      {
+        "and_gates": 267584,
+        "kernel": "commitment-hash",
+        "schedule_bytes": 9454746,
+        "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361",
+        "table_bytes": 8562688
+      },
+      {
+        "and_gates": 28415,
+        "kernel": "response-check",
+        "schedule_bytes": 808252,
+        "schedule_sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506",
+        "table_bytes": 909280
+      },
+      {
+        "and_gates": 106239,
+        "kernel": "row-check",
+        "schedule_bytes": 2973500,
+        "schedule_sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7",
+        "table_bytes": 3399648
+      },
+      {
+        "and_gates": 3077,
+        "kernel": "aggregate-check",
+        "schedule_bytes": 96695,
+        "schedule_sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b",
+        "table_bytes": 98464
+      }
+    ],
+    "wallet_seed": {
+      "and_gates": 37056,
+      "compile_parse_and_cache_wall_ns": 16912292,
+      "component": "wallet-owner-root-to-canonical-seed",
+      "component_sha256": "d4677b999e1a4745ea508e66c2d9c4d8eed461d290bce0638cf32619e40ea71c",
+      "half_gate_table_bytes": 1185792,
+      "schedule_bytes": 1294520,
+      "schedule_filename": "wallet-seed.bin",
+      "schedule_sha256": "0750096d3ce30b04df6037467f2f506045fd5b109da392259a6e5ba4de0c4fa9"
+    }
+  },
+  "temporary_role_files_removed": true,
+  "production_eligible": false,
+  "scope": "Chromium runs the actual SDK custody worker and browser-target Wasm. Separate native A/B processes generate and sign. Authorized disposable-key export follows successful browser custody completion. This does not exercise hosted admission, durable storage, or production signing routes."
+}

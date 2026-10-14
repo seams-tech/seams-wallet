@@ -206,7 +206,32 @@ The artifact records source digests, exact schedules, wire counters, and role ti
 
 The extra circuit uses 37,056 AND gates and transfers 1,214,920 protocol bytes across both directions.
 It reveals no public seed bytes. Fifteen negative cases check protected delivery, manifest continuity, and custody-state boundaries.
-These host checks cover the native custody path. Browser exports, Router admission, durable replay control, activation, and storage remain open.
+These host checks cover the native custody path. Browser exports and the typed custody-worker bridge now have the Chromium evidence below.
+Router admission, durable replay control, activation, storage, and the public signing route remain open.
+
+## Browser custody E2E
+
+Build the SDK Wasm packages through the existing build script, then build the native role harness:
+
+```sh
+WASM_SDK_BUILD_MODE=prod pnpm build:wasm
+cargo build --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml
+node tools/ml-dsa-investigation/scripts/browser-custody/server.mjs \
+  docs/evidence/ml-dsa-65-browser-custody-e2e-20261014.json
+```
+
+Open the printed localhost URL in Chromium and press **Run custody E2E**.
+The page reports the final check count. The server saves the JSON evidence and removes its temporary role files before it exits.
+The test uses public disposable factors and keys. Never direct it at production services or supply wallet secrets.
+It requires Node with X25519 support, the built browser packages, and the existing OpenSSL reference dependency.
+
+The fixture bundles the actual SDK custody worker and uses separate native A/B processes for cryptographic work.
+Its small bootstrap counts explicit frees of the real Wasm handles.
+It checks browser establishment, code recovery with replacement holder keys, standard threshold signatures, and ordinary-key export.
+Further checks reject secret input fields, missing manifests, unsafe epochs, stale replies, wrong steps, and invalid JavaScript argument types.
+It verifies the concurrent-ceremony bound and successful capacity recovery after discard.
+The artifact pins source files, the worker bundle, browser Wasm, native binary, and compiled schedules.
+The browser results establish no hosted admission, durable storage, or production signing-route claim.
 
 ## Compiled arithmetic inspection
 

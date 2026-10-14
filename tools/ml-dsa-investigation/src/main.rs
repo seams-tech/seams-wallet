@@ -28,6 +28,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    ExportCustodySchedules {
+        directory: PathBuf,
+    },
     WalletRecovery {
         output: PathBuf,
     },
@@ -81,6 +84,18 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::ExportCustodySchedules { directory } => {
+            fs::create_dir_all(&directory)?;
+            let keygen = private_keygen::compile_schedules(&directory)?;
+            let signing = private_signing::compile_schedules(&directory)?;
+            let wallet_seed = wallet_recovery_evidence::compile_wallet_seed_schedule(&directory)?;
+            fs::write(
+                directory.join("schedule-manifest.json"),
+                serde_json::to_vec_pretty(
+                    &json!({"keygen": keygen, "signing": signing, "wallet_seed": wallet_seed}),
+                )?,
+            )?;
+        }
         Invocation::WalletRecovery { output } => wallet_recovery_evidence::run(&output)?,
         Invocation::SignNearTestnet { request, output } => {
             near_testnet_evidence::run(&request, &output)?
@@ -121,6 +136,17 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "export-custody-schedules" {
+            let directory = PathBuf::from(
+                args.next()
+                    .ok_or("A custody schedule directory is required.")?,
+            );
+            require(
+                args.next().is_none(),
+                "Unexpected custody schedule argument.",
+            )?;
+            return Ok(Invocation::ExportCustodySchedules { directory });
+        }
         if first == "wallet-recovery" {
             let output = PathBuf::from(
                 args.next()

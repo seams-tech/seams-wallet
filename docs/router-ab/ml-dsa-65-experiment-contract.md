@@ -86,7 +86,8 @@ The derivation circuit adds 37,056 AND gates, 1,185,792 table bytes, and 1,214,9
 It returns zero public output bytes and immediately passes each private seed share into canonical key generation.
 The shared-host fixture supplies no deployment-isolation claim.
 The [custody E2E](../evidence/ml-dsa-65-wallet-custody-e2e-host-20261014.json) now covers native custody states, encrypted role inputs, authenticated holder results, and manifest continuity.
-Browser exports, Router admission, authenticated recipient-key discovery, durable activation, and storage remain unimplemented.
+Browser Wasm exports and the typed SDK custody-worker bridge now pass the Chromium campaign below.
+Router admission, authenticated recipient-key discovery, durable activation, and storage remain unimplemented.
 This evidence supplies no completed production recovery claim.
 
 ## Native custody delivery and manifest contract
@@ -122,6 +123,30 @@ It checks the replacement factor and all ten fresh recovery codes against the ex
 Fifteen negative cases cover binding changes, damaged inputs, swapped or stale results, manifest mismatch, holder disagreement, and invalid custody/continuity combinations.
 The fixture holder keys and shared-host process boundaries supply no deployment-isolation or production-admission claim.
 Durable replay control, storage, and activation barriers remain required.
+
+## Browser custody boundary
+
+The browser uses consuming Wasm handles for ML-DSA preparation and verified completion.
+Preparation accepts only public protocol metadata. It rejects unknown fields, malformed encodings, missing recovery digests, and epochs outside the JavaScript safe-integer range.
+The only preparation output is JSON with public binding metadata and two HPKE ciphertexts.
+Completion authenticates both holder replies inside Wasm before it returns a verified handle.
+Finish returns proposed commit records through the SDK's strict ML-DSA response parser.
+
+The existing custody worker now has `ml_dsa_prepared` and `ml_dsa_verified` states.
+It removes a state before a consuming transition and explicitly frees discarded or wrong-step handles.
+It validates JavaScript argument types before calling consuming Wasm methods and frees a handle when those checks fail.
+Factor and recovery inputs must contain byte buffers. Numeric values cannot become zero-filled secrets through coercion.
+The four-ceremony limit also applies to ML-DSA.
+Type fixtures reject plaintext seed/root fields, missing recovery manifests, invalid create/recover combinations, and mixed commit variants.
+
+The [browser E2E](../evidence/ml-dsa-65-browser-custody-e2e-20261014.json) runs the actual SDK worker in Chromium with the browser-target Wasm build.
+Two separate native holder processes perform real private key generation and threshold signing.
+Successful browser establishment and code recovery precede authorized ordinary-key export.
+The recovered canonical seed, public key, and manifest match the established identity with replacement holder keys.
+Twenty-two checks cover successful flows, forbidden input fields, malformed arguments, stale replies, wrong steps, explicit free calls, and concurrency limits.
+The test removes its temporary role files after saving public evidence.
+These checks do not certify heap erasure, target timing behavior, Cloudflare admission, or durable storage.
+The public Wallet signing route remains unimplemented.
 
 ## Reference execution
 

@@ -1,3 +1,6 @@
+import { assertString } from '@shared/utils/validation';
+import type { Variant } from '@shared/utils/variant';
+import { parseMlDsaCustodyCommit } from '@shared/passkey-custody/mlDsaCustody';
 import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import init, {
   wallet_custody_ceremony_establish_v1,
@@ -7,6 +10,8 @@ import init, {
   type WasmCeremonyManifestEstablishedV1,
   type WasmCeremonyProtocolPreparedV1,
   type WasmCeremonySeedHeldV1,
+  type WasmMlDsaCeremonyPreparedV1,
+  type WasmMlDsaCeremonyVerifiedV1,
 } from '../../../../../../../wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js';
 import initNearSigner, {
   ed25519_yao_client_root_transfer_recipient_v1,
@@ -88,6 +93,8 @@ const MAX_CONCURRENT_CEREMONIES = 4;
  * actually ran, not one the completing caller names.
  */
 type CeremonyState =
+  | { readonly step: 'ml_dsa_prepared'; readonly handle: WasmMlDsaCeremonyPreparedV1 }
+  | { readonly step: 'ml_dsa_verified'; readonly handle: WasmMlDsaCeremonyVerifiedV1 }
   | {
       readonly step: 'near_prepared';
       readonly handle: WasmCeremonyProtocolPreparedV1;
@@ -162,6 +169,7 @@ type WorkerRequest<TType extends keyof WalletCustodyCeremonyWorkerOperationMap> 
 type BeginRequest = WorkerRequest<'beginWalletCustodyKeySetRun'>;
 type CompleteRequest = WorkerRequest<'completeWalletCustodyKeySetRun'>;
 type FinishRequest = WorkerRequest<'finishWalletCustodyKeySetRun'>;
+type FinishMlDsaRequest = WorkerRequest<'finishMlDsaCustodyKeySetRun'>;
 type DiscardRequest = WorkerRequest<'discardWalletCustodyCeremony'>;
 type LinkPasskeyRequest = WorkerRequest<'linkWalletCustodyPasskey'>;
 type CreateTransferRecipientRequest = WorkerRequest<'createLinkedDeviceEd25519ExportRootRecipient'>;
@@ -187,6 +195,7 @@ type WalletCustodyCeremonyWorkerRequest =
   | BeginRequest
   | CompleteRequest
   | FinishRequest
+  | FinishMlDsaRequest
   | DiscardRequest
   | LinkPasskeyRequest
   | CreateTransferRecipientRequest
@@ -267,7 +276,9 @@ async function initializeEd25519YaoClientWasm(): Promise<void> {
 }
 
 function toBytes(value: ArrayBuffer | Uint8Array): Uint8Array {
-  return value instanceof Uint8Array ? value : new Uint8Array(value);
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  throw new Error('Custody input must be a byte buffer');
 }
 
 function requireCeremonyId(value: unknown): string {
@@ -535,23 +546,39 @@ function assertNever(value: never): never {
  *
  * Taking rather than reading is what makes a failed transition terminal: if the
  * step below throws, nothing puts the handle back, so the ceremony is gone and
- * the caller must start over from a fresh seed.
+ * the caller must start a fresh ceremony from its custody source.
  */
-function takeCeremony<TStep extends CeremonyState['step']>(
+function takeCeremony(
   ceremonyId: string,
-  step: TStep,
-): Extract<CeremonyState, { step: TStep }> {
+  step: 'near_prepared',
+): Variant<CeremonyState, 'step', 'near_prepared'>;
+function takeCeremony(
+  ceremonyId: string,
+  step: 'evm_activation_pending',
+): Variant<CeremonyState, 'step', 'evm_activation_pending'>;
+function takeCeremony(
+  ceremonyId: string,
+  step: 'near_established',
+): Variant<CeremonyState, 'step', 'near_established'>;
+function takeCeremony(
+  ceremonyId: string,
+  step: 'ml_dsa_prepared',
+): Variant<CeremonyState, 'step', 'ml_dsa_prepared'>;
+function takeCeremony(
+  ceremonyId: string,
+  step: 'ml_dsa_verified',
+): Variant<CeremonyState, 'step', 'ml_dsa_verified'>;
+function takeCeremony(ceremonyId: string, step: CeremonyState['step']): CeremonyState {
   const state = ceremonies.get(ceremonyId);
   if (!state) throw new Error(`No wallet custody ceremony ${ceremonyId} is in flight`);
   ceremonies.delete(ceremonyId);
   if (state.step !== step) {
-    // The handle is dropped rather than restored: a caller that stepped out of
-    // order has lost track of the ceremony, and resuming it would be guesswork.
+    state.handle.free();
     throw new Error(
-      `Wallet custody ceremony ${ceremonyId} is at step ${state.step}, not ${String(step)}`,
+      `Wallet custody ceremony ${ceremonyId} cannot advance from ${state.step} to ${step}`,
     );
   }
-  return state as Extract<CeremonyState, { step: TStep }>;
+  return state;
 }
 
 function checkpointNearRegistration(
@@ -596,21 +623,51 @@ function beginKeySetRun(request: BeginRequest): unknown {
   if (ceremonies.size >= MAX_CONCURRENT_CEREMONIES) {
     throw new Error('Too many wallet custody ceremonies are in flight');
   }
-  // `prepare_*` consumes `seedHeld`; on failure the seed is dropped with it.
-  if (request.payload.keySet === 'near_ed25519_v1') {
-    // Load the export capability module while the ceremony waits for the Router.
-    void initializeNearSignerWasm().catch(ignoreNearSignerPrewarmFailure);
-    const seedHeld = takeSeed(request.payload.custody);
-    const prepared = seedHeld.prepare_near_ed25519(request.payload.protocolInputsJson);
-    const yaoExecuteRequestJson = prepared.yao_execute_request_json();
-    if (!yaoExecuteRequestJson) throw new Error('NEAR custody preparation returned no request');
-    ceremonies.set(ceremonyId, { step: 'near_prepared', handle: prepared });
-    return { ceremonyId, keySet: 'near_ed25519_v1', yaoExecuteRequestJson };
+  switch (request.payload.keySet) {
+    case 'near_ed25519_v1': {
+      // Load the export capability module while the ceremony waits for the Router.
+      void initializeNearSignerWasm().catch(ignoreNearSignerPrewarmFailure);
+      const seedHeld = takeSeed(request.payload.custody);
+      const prepared = seedHeld.prepare_near_ed25519(request.payload.protocolInputsJson);
+      const yaoExecuteRequestJson = prepared.yao_execute_request_json();
+      if (!yaoExecuteRequestJson) {
+        prepared.free();
+        throw new Error('NEAR custody preparation returned no request');
+      }
+      ceremonies.set(ceremonyId, { step: 'near_prepared', handle: prepared });
+      return { ceremonyId, keySet: 'near_ed25519_v1', yaoExecuteRequestJson };
+    }
+    case 'near_ml_dsa_65_v1': {
+      const inputsJson = assertString(
+        JSON.stringify(request.payload.protocolInputs),
+        'ML-DSA protocol inputs',
+      );
+      const seedHeld = takeSeed(request.payload.custody);
+      const prepared = seedHeld.prepare_ml_dsa65(inputsJson);
+      let roleInputsJson: string;
+      try {
+        roleInputsJson = prepared.role_inputs_json();
+      } catch (error) {
+        prepared.free();
+        throw error;
+      }
+      ceremonies.set(ceremonyId, { step: 'ml_dsa_prepared', handle: prepared });
+      return { ceremonyId, keySet: 'near_ml_dsa_65_v1', roleInputsJson };
+    }
+    case 'evm_family_ecdsa_v1':
+      return beginEvmKeySetRun(request.payload, ceremonyId);
+    default:
+      return assertNever(request.payload);
   }
+}
 
-  const custody = request.payload.custody;
+function beginEvmKeySetRun(
+  payload: Variant<BeginRequest['payload'], 'keySet', 'evm_family_ecdsa_v1'>,
+  ceremonyId: string,
+): unknown {
+  const custody = payload.custody;
   const seedHeld = takeSeed(custody);
-  const prepared = seedHeld.prepare_evm_family(request.payload.protocolInputsJson);
+  const prepared = seedHeld.prepare_evm_family(payload.protocolInputsJson);
   const contextBinding32B64u = prepared.ecdsa_context_binding32_b64u();
   const clientSharePublicKey33B64u = prepared.ecdsa_client_share_public_key33_b64u();
   const clientShareRetryCounter = prepared.ecdsa_client_share_retry_counter();
@@ -627,7 +684,7 @@ function beginKeySetRun(request: BeginRequest): unknown {
     const factorSecret = toBytes(custody.factorSecret);
     try {
       pending = prepared.prepare_evm_activation_establishing_custody(
-        request.payload.evmFamilySigningKeySlotId,
+        payload.evmFamilySigningKeySlotId,
         custody.factorJson,
         factorSecret,
         custody.recoveryCodesJson,
@@ -639,8 +696,8 @@ function beginKeySetRun(request: BeginRequest): unknown {
     const replacementFactorSecret = toBytes(custody.replacementFactorSecret);
     try {
       pending = prepared.prepare_evm_activation_recovering_custody(
-        request.payload.evmFamilySigningKeySlotId,
-        requireRecordedManifestDigest(request.payload.recordedKeyManifestDigestB64u),
+        payload.evmFamilySigningKeySlotId,
+        requireRecordedManifestDigest(payload.recordedKeyManifestDigestB64u),
         custody.replacementFactorJson,
         replacementFactorSecret,
       );
@@ -649,8 +706,8 @@ function beginKeySetRun(request: BeginRequest): unknown {
     }
   } else {
     pending = prepared.prepare_evm_activation_joining_custody(
-      request.payload.evmFamilySigningKeySlotId,
-      request.payload.recordedKeyManifestDigestB64u,
+      payload.evmFamilySigningKeySlotId,
+      payload.recordedKeyManifestDigestB64u,
     );
   }
   const generatedCommitPayload: unknown = pending.commit_payload();
@@ -686,6 +743,19 @@ function requireRecordedManifestDigest(value: unknown): string {
  */
 function completeKeySetRun(request: CompleteRequest): unknown {
   const ceremonyId = requireCeremonyId(request.payload.ceremonyId);
+  if (request.payload.keySet === 'near_ml_dsa_65_v1') {
+    const { handle } = takeCeremony(ceremonyId, 'ml_dsa_prepared');
+    let resultJson: string;
+    try {
+      resultJson = assertString(request.payload.protocolResultJson, 'ML-DSA role results');
+    } catch (error) {
+      handle.free();
+      throw error;
+    }
+    const verified = handle.complete(resultJson);
+    ceremonies.set(ceremonyId, { step: 'ml_dsa_verified', handle: verified });
+    return { ceremonyId, keySet: 'near_ml_dsa_65_v1' };
+  }
   if (request.payload.keySet === 'evm_family_ecdsa_v1') {
     const { handle } = takeCeremony(ceremonyId, 'evm_activation_pending');
     const generatedCompletion: unknown = handle.complete(request.payload.protocolResultJson);
@@ -745,14 +815,90 @@ function finishKeySetRun(request: FinishRequest): unknown {
   }
 }
 
-/**
- * Ends a run without completing it. Dropping the handle zeroizes the seed and
- * any in-flight protocol state, so an abandoned run leaves nothing behind.
- */
+type MlDsaFinishArguments =
+  | { kind: 'existing' }
+  | { kind: 'establish'; factorJson: string; secret: Uint8Array; recoveryCodesJson: string }
+  | { kind: 'recover_reseal'; factorJson: string; secret: Uint8Array };
+
+function mlDsaFinishArguments(
+  finish: FinishMlDsaRequest['payload']['finish'],
+): MlDsaFinishArguments {
+  switch (finish.kind) {
+    case 'existing':
+      return { kind: 'existing' };
+    case 'establish': {
+      const factorJson = assertString(finish.factorJson, 'factorJson');
+      const recoveryCodesJson = assertString(finish.recoveryCodesJson, 'recoveryCodesJson');
+      return {
+        kind: 'establish',
+        factorJson,
+        recoveryCodesJson,
+        secret: toBytes(finish.factorSecret),
+      };
+    }
+    case 'recover_reseal': {
+      const factorJson = assertString(finish.replacementFactorJson, 'replacementFactorJson');
+      return {
+        kind: 'recover_reseal',
+        factorJson,
+        secret: toBytes(finish.replacementFactorSecret),
+      };
+    }
+    default:
+      return assertNever(finish);
+  }
+}
+
+function finishMlDsaKeySetRun(
+  request: FinishMlDsaRequest,
+): WalletCustodyCeremonyWorkerOperationMap['finishMlDsaCustodyKeySetRun']['result'] {
+  const ceremonyId = requireCeremonyId(request.payload.ceremonyId);
+  const { handle } = takeCeremony(ceremonyId, 'ml_dsa_verified');
+  let finish: MlDsaFinishArguments;
+  try {
+    finish = mlDsaFinishArguments(request.payload.finish);
+  } catch (error) {
+    handle.free();
+    throw error;
+  }
+  let commitJson: string;
+  switch (finish.kind) {
+    case 'existing':
+      commitJson = handle.finish_joining_custody();
+      break;
+    case 'establish':
+      try {
+        commitJson = handle.finish_establishing_custody(
+          finish.factorJson,
+          finish.secret,
+          finish.recoveryCodesJson,
+        );
+      } finally {
+        finish.secret.fill(0);
+      }
+      break;
+    case 'recover_reseal':
+      try {
+        commitJson = handle.finish_recovering_custody(finish.factorJson, finish.secret);
+      } finally {
+        finish.secret.fill(0);
+      }
+      break;
+    default:
+      return assertNever(finish);
+  }
+  const decoded: unknown = JSON.parse(commitJson);
+  return parseMlDsaCustodyCommit(decoded);
+}
+
+/** Removes the state and explicitly frees its Rust custody material. */
+
 function discardCeremony(request: DiscardRequest): unknown {
   const ceremonyId = requireCeremonyId(request.payload.ceremonyId);
-  const existed = ceremonies.delete(ceremonyId);
-  return { ceremonyId, discarded: existed };
+  const state = ceremonies.get(ceremonyId);
+  ceremonies.delete(ceremonyId);
+  state?.handle.free();
+  return { ceremonyId, discarded: state !== undefined };
 }
 
 /**
@@ -1227,6 +1373,9 @@ async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promi
       return;
     case 'finishWalletCustodyKeySetRun':
       postSucceeded(request.id, finishKeySetRun(request));
+      return;
+    case 'finishMlDsaCustodyKeySetRun':
+      postSucceeded(request.id, finishMlDsaKeySetRun(request));
       return;
     case 'discardWalletCustodyCeremony':
       postSucceeded(request.id, discardCeremony(request));

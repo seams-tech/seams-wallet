@@ -15,6 +15,11 @@
 //! Rust-side inputs still take entropy, because the circuit tests must control
 //! it to play the Deriver roles; JavaScript cannot.
 
+#[path = "ml_dsa_wasm.rs"]
+mod ml_dsa;
+
+pub use ml_dsa::{WasmMlDsaCeremonyPreparedV1, WasmMlDsaCeremonyVerifiedV1};
+
 use base64ct::{Base64UrlUnpadded, Encoding};
 use router_ab_core::{
     RouterAbEd25519YaoActivationAdmissionReceiptV1, RouterAbEd25519YaoApplicationBindingFactsV1,
