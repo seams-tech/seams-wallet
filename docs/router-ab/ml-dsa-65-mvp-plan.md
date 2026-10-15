@@ -38,7 +38,8 @@ The [activation report](ml-dsa-65-activation-report.md) records the implementati
 - [ ] Admit the custody operation through existing Wallet authentication and ownership checks.
 - [ ] Discover authenticated role recipient keys and deliver only each role's encrypted input.
 - [x] Add encrypted storage and consuming restoration for generic private key-generation state, with exact schedule and participant bindings.
-- [ ] Persist and authenticate the external table frames and connect the complete reservation to Workers.
+- [x] Add authenticated, single-use external table storage and bounded cleanup, verified by native canonical key generation.
+- [ ] Connect the complete private-state and table reservation to Worker key generation.
 - [ ] Keep generic signing preparation ready before registration. Bind it to the new key without regenerating correlations.
 - [ ] Distinguish durable key activation from signer readiness. Require the configured paired signing reserve before reporting immediate signing availability.
 - [ ] Atomically consume preparation before private input selection. Burn uncertain or interrupted reservations.

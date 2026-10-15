@@ -993,3 +993,12 @@ All six native key-generation cases preserve the canonical key after encrypted S
 The signing-pool lifecycle E2E and Cloudflare Wasm compilation also passed.
 External table persistence, the generic pool allocator, and the admitted Worker registration route remain open.
 The native online timer excludes restoration. This milestone does not establish full registration latency.
+
+
+### Authenticated registration table storage — October 15, 2026
+
+The [registration table report](ml-dsa-65-registration-tables-report.md) records authenticated frame storage, single-use reads, and bounded fallback cleanup.
+The frame adapter binds reads to the exact private-preparation consume and ceremony.
+Cancellation creates a permanent retirement marker, including before the first frame arrives.
+The generic pool allocator and admitted Worker registration route remain open.
+This milestone does not establish hosted registration latency.
