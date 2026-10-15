@@ -1,6 +1,8 @@
 //! One-use GMW batches. Independent instances occupy lanes of u32 words.
 //! Each layer exchanges masked openings in a fixed public order.
 
+pub(crate) mod storage;
+
 use super::silent::CorrelationStream;
 use super::*;
 use std::rc::Rc;
@@ -111,6 +113,36 @@ pub async fn prepare_batch<'a>(
     let layout: [u8; 32] = digest.finalize().into();
     let peer = context.exchange(&layout, layout.len()).await?;
     check(peer.as_slice() == layout, RuntimeError::SessionBinding)?;
+    let (mut groups, mut instances) = build_layout(schedules, topologies);
+
+    for instance in &mut instances {
+        let group = &mut groups[instance.group];
+        context.set_phase(Phase::Binding);
+        instance.binding = bind(Engine::Gmw, group.schedule, &mut context).await?;
+        context.set_phase(Phase::Preprocessing);
+        let byte = instance.lane / 8;
+        let shift = instance.lane % 8;
+        for gate in 0..group.topology.and_gates.len() {
+            let mut triple = correlations.take(&mut context).await?;
+            let index = gate * group.lanes.div_ceil(8) + byte;
+            group.left[index] |= triple[0] << shift;
+            group.right[index] |= triple[1] << shift;
+            group.products[index] |= triple[2] << shift;
+            triple.zeroize();
+        }
+    }
+    Ok(PreparedGmwBatch {
+        role,
+        groups,
+        instances,
+        bytes: context.bytes,
+    })
+}
+
+fn build_layout<'a>(
+    schedules: &[&'a TrustedMlDsaSchedule<'a>],
+    topologies: &mut PublicTopologies,
+) -> (Vec<Group<'a>>, Vec<Instance>) {
     let mut groups: Vec<Group<'a>> = Vec::new();
     let mut instances = Vec::with_capacity(schedules.len());
     for schedule in schedules {
@@ -148,28 +180,7 @@ pub async fn prepare_batch<'a>(
         group.products.resize(length, 0);
     }
 
-    for instance in &mut instances {
-        let group = &mut groups[instance.group];
-        context.set_phase(Phase::Binding);
-        instance.binding = bind(Engine::Gmw, group.schedule, &mut context).await?;
-        context.set_phase(Phase::Preprocessing);
-        let byte = instance.lane / 8;
-        let shift = instance.lane % 8;
-        for gate in 0..group.topology.and_gates.len() {
-            let mut triple = correlations.take(&mut context).await?;
-            let index = gate * group.lanes.div_ceil(8) + byte;
-            group.left[index] |= triple[0] << shift;
-            group.right[index] |= triple[1] << shift;
-            group.products[index] |= triple[2] << shift;
-            triple.zeroize();
-        }
-    }
-    Ok(PreparedGmwBatch {
-        role,
-        groups,
-        instances,
-        bytes: context.bytes,
-    })
+    (groups, instances)
 }
 
 impl PreparedGmwBatch<'_> {

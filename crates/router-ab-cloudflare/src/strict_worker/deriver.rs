@@ -220,6 +220,9 @@ async fn handle_strict_deriver_fetch_v1(
     _context: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == crate::ml_dsa::workers::ROLE_PATH {
+        return crate::ml_dsa::workers::handle_role(request, &env).await;
+    }
     if path == crate::registration_pair_preparation::ROLE_PATH
         || path == crate::registration_pair_preparation::SOCKET_PATH
     {

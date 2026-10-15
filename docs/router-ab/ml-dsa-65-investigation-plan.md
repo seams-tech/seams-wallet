@@ -872,3 +872,53 @@ Keep the current preparation boundary clear without introducing an unused backen
 
 Exit condition: evidence shows a useful complete-system gain while preserving recovery, privacy, standard interoperability, and single-use lifecycle guarantees.
 A fast isolated GPU kernel is insufficient to qualify the complete signer.
+
+
+## Integration phase: durable admission and pool availability — October 15, 2026
+
+Preparation optimization and GPU research remain deferred. Wallet-seed recovery and canonical FIPS export remain required.
+The admission policy is a self-contained module under `crates/router-ab-cloudflare/src/ml_dsa`.
+Its default permits one admitted signing operation per wallet every 60 seconds.
+The wallet identity includes organization, project, environment, and wallet. Changing the ML-DSA key does not reset the cooldown.
+
+### Policy and lifecycle tasks
+
+- [x] Add the durable role-private storage layer and validate atomic consumption across restart with native SQLite E2E.
+- [x] Admit only after both participants reserve the same untouched candidate batches.
+- [x] Charge the cooldown when the operation becomes admitted. Keep the charge after failure or a lost response.
+- [ ] Bind internal candidate retries to that admitted operation. They consume further batches without a new cooldown charge.
+- [x] Return existing status or the verified result for an exact operation-ID retry. Reject changed request fields under that ID.
+- [x] Persist key-scoped refill demand immediately after material consumption.
+- [ ] Connect the Worker preparation executor to that demand and test replenishment during use.
+- [x] Refuse an empty pool with an explicit retry timestamp before charging the cooldown.
+- [x] Bound service-wide concurrent operations through shared durable admission, including claims that are reserving role material.
+- [x] Test default 60-second, configured 300-second, and disabled wallet cooldowns. Disabling cooldown must preserve capacity and single-use checks.
+- [ ] Complete private Gateway-to-Router and Router-to-role admission tests. Public SDK route integration remains a separate milestone.
+- [x] Verify epoch replacement retires old preparation and rejects public-key substitution. Native canonical recovery and persistent cooldown checks pass.
+- [ ] Complete the admitted recovery and signing lifecycle through Worker HTTP and the public SDK.
+
+### Deployment configuration
+
+`ML_DSA_ADMISSION_POLICY` is deployment-owned JSON. Requests cannot select or override policy.
+An absent value uses the defaults below. A malformed value fails closed.
+
+```json
+{
+  "wallet_cooldown": { "mode": "enabled", "interval_ms": 60000 },
+  "max_active_operations": 1,
+  "operation_timeout_ms": 30000,
+  "minimum_ready_batches": 2,
+  "refill_target_batches": 10
+}
+```
+
+Set `interval_ms` to `300000` for one admitted operation every five minutes.
+Use `"wallet_cooldown": { "mode": "disabled" }` to disable only the wallet cooldown.
+Service capacity, request binding, epoch checks, and permanent consumption records remain mandatory.
+The initial service-wide limit is conservative. Raise it only after deployed memory and concurrent-load measurements.
+A batch contains candidates, so the minimum-ready threshold does not guarantee successful signing.
+
+The supported limit is per admitted operation. Internal rejection attempts remain inside that operation and its expiry.
+A storage snapshot rollback is outside an in-database tombstone guarantee. Restore procedures must advance epochs and discard prepared material.
+
+The [durable admission report](ml-dsa-65-durable-admission-report.md) distinguishes completed components from remaining live Worker dispatch and Gateway/SDK wiring.

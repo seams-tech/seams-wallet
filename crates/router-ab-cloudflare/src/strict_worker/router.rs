@@ -466,6 +466,18 @@ pub(super) async fn handle_strict_router_fetch_v1(
     env: Env,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == crate::ml_dsa::workers::ACTIVATE_PATH {
+        return crate::ml_dsa::workers::handle_activate(request, &env).await;
+    }
+    if path == crate::ml_dsa::workers::COMPLETE_PATH {
+        return crate::ml_dsa::workers::handle_complete(request, &env).await;
+    }
+    if path == crate::ml_dsa::workers::STATUS_PATH {
+        return crate::ml_dsa::workers::handle_status(request, &env).await;
+    }
+    if path == crate::ml_dsa::workers::ADMIT_PATH {
+        return crate::ml_dsa::workers::handle_admit(request, &env).await;
+    }
     if path == "/router-ab/router/wallet/allocate" {
         if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(error);

@@ -41,6 +41,7 @@ workers-rs = [
 ]
 
 [dependencies]
+ml-dsa = { version = "=0.1.1", default-features = false, features = ["alloc"] }
 base64 = "=0.22.1"
 bs58 = "=0.5.1"
 router-ab-ecdsa-derivation = { path = "../router-ab-ecdsa-derivation" }

@@ -7,6 +7,9 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
+router-ab-cloudflare = { path = "../../crates/router-ab-cloudflare" }
+router-ab-core = { path = "../../crates/router-ab-core" }
+rusqlite = { version = "0.32", features = ["bundled"] }
 wallet_custody_ceremony = { path = "../../wasm/wallet_custody_ceremony" }
 base64ct = { version = "1.6", features = ["alloc"] }
 hpke-ng = "0.1.0"
