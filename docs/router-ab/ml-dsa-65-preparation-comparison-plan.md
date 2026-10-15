@@ -105,10 +105,17 @@ Retain the harness and raw results in Phase 1 before using this screen as durabl
 
 ## Phase 1: freeze and reproduce the baseline
 
+The [local baseline report](ml-dsa-65-preparation-baseline-report.md) records the first completed comparison campaign.
+Two unprofiled runs first observe admission stock at 20.12–21.14 seconds and the full reserve at 39.15–42.18 seconds.
+Six successful requests take 314–488 ms. Canonical export and wallet-seed recovery pass native E2E checks.
+CPU sampling identifies silent-OT generation and software AES as the next optimization target.
+Stage-level cost separation, hosted measurements, sustained load, and Quantus canonical conversion remain open.
+
+
 - [ ] Pin source revisions, Rust dependencies, Wasm bundles, runtime versions, deployment settings, and enabled features for each candidate.
 - [ ] Retain the Quantus review harness, raw samples, reproduction command, and source hashes in the investigation tooling.
-- [ ] Repeat current local key generation, four-batch refill, signing, and wallet-seed recovery in one campaign.
-- [ ] Confirm actual candidates per batch, admission threshold, expiry, reservation policy, and service-wide producer limit.
+- [x] Repeat local canonical key generation and wallet-seed recovery alongside Worker four-batch refill and signing. Worker registration uses injected role material.
+- [x] Confirm actual candidates per batch, admission threshold, expiry, reservation policy, and service-wide producer limit.
 - [ ] Instrument silent-OT setup, correlation expansion, nonce work, private decomposition, circuit work, storage, and scheduling.
 - [ ] Record work that can be shared across candidates without reusing any secret correlation or signing mask.
 - [ ] Repeat a small hosted control with separate A/B storage and the same request boundaries.

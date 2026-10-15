@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { once, on } from 'node:events';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -24,6 +26,7 @@ async function command(socket, id, method, params = {}) {
 function userWorker(target) {
   return new URL(target.webSocketDebuggerUrl).pathname.startsWith('/core:user:');
 }
+function sum(total, value) { return total + value; }
 function descending(left, right) {
   return right.microseconds - left.microseconds;
 }
@@ -52,7 +55,8 @@ function summarize(profile) {
     }
   }
   return {
-    sampled_us: profile.endTime - profile.startTime,
+    window_us: profile.endTime - profile.startTime,
+    sample_weight_us: profile.timeDeltas.reduce(sum, 0),
     self: rows(own, nodes),
     inclusive: rows(inclusive, nodes),
   };
@@ -71,20 +75,7 @@ async function main() {
     );
     const fixture = { ...oracle.cases[0], index: 0 };
     await sample(local.endpoint, token, fixture, oracle.signing_schedules, 'gmw-signing');
-    const inspector = await local.runtime.getInspectorURL();
-    inspector.protocol = 'http:';
-    const targets = (await (await fetch(new URL('/json/list', inspector))).json()).filter(
-      userWorker,
-    );
-    assert.equal(targets.length, 2);
-    for (const target of targets) {
-      const socket = new WebSocket(target.webSocketDebuggerUrl, { origin: 'http://localhost' });
-      await once(socket, 'open');
-      await command(socket, 1, 'Profiler.enable');
-      await command(socket, 2, 'Profiler.setSamplingInterval', { interval: 2000 });
-      await command(socket, 3, 'Profiler.start');
-      connections.push({ socket, title: target.title });
-    }
+    connections.push(...await startProfiles(local.runtime, userWorker));
     const result = await sample(
       local.endpoint,
       token,
@@ -92,11 +83,7 @@ async function main() {
       oracle.signing_schedules,
       'gmw-signing',
     );
-    const profiles = [];
-    for (const connection of connections) {
-      const { profile } = await command(connection.socket, 4, 'Profiler.stop');
-      profiles.push({ title: connection.title, summary: summarize(profile), profile });
-    }
+    const profiles = await stopProfiles(connections);
     await writeFile(
       output,
       JSON.stringify({
@@ -112,8 +99,48 @@ async function main() {
         JSON.stringify({ title: profile.title, self: profile.summary.self.slice(0, 12) }),
       );
   } finally {
-    for (const connection of connections) connection.socket.close();
+    closeProfiles(connections);
     await local.runtime.dispose();
   }
 }
-await main();
+export async function startProfiles(runtime, selectTarget) {
+  const inspector = await runtime.getInspectorURL();
+  inspector.protocol = 'http:';
+  const response = await fetch(new URL('/json/list', inspector));
+  const targets = (await response.json()).filter(selectTarget);
+  assert.equal(targets.length, 2, 'Expected both participant inspector targets');
+  const connections = [];
+  try {
+    for (const target of targets) {
+      const socket = new WebSocket(target.webSocketDebuggerUrl, { origin: 'http://localhost' });
+      connections.push({ socket, title: target.title });
+      await once(socket, 'open');
+      await command(socket, 1, 'Profiler.enable');
+      await command(socket, 2, 'Profiler.setSamplingInterval', { interval: 2000 });
+      await command(socket, 3, 'Profiler.start');
+    }
+    return connections;
+  } catch (error) {
+    closeProfiles(connections);
+    throw error;
+  }
+}
+export async function stopProfiles(connections) {
+  try {
+    const stopped = await Promise.all(connections.map(stopProfile));
+    return stopped.map(summarizeStoppedProfile);
+  } finally {
+    closeProfiles(connections);
+  }
+}
+async function stopProfile(connection) {
+  const { profile } = await command(connection.socket, 4, 'Profiler.stop');
+  return { title: connection.title, profile };
+}
+function summarizeStoppedProfile({ title, profile }) {
+  return { title, summary: summarize(profile), profile };
+}
+export function closeProfiles(connections) {
+  for (const connection of connections) connection.socket.close();
+}
+if (resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

@@ -1,0 +1,235 @@
+{
+  "scope": "Current local Worker preparation baseline. No hosted or production-latency claim.",
+  "inputs": [
+    {
+      "file": "ml-dsa-65-preparation-baseline-native-20261015.json.gz",
+      "sha256": "49621858084b245cc0e0cc43d56470d9d8962aa77653c9409b3d52d27339bf0e"
+    },
+    {
+      "file": "ml-dsa-65-preparation-baseline-recovery-20261015.json.gz",
+      "sha256": "539ae00aa3540a0d98c12377eda12c70b331f4991c065359fb76ee456dc75557"
+    },
+    {
+      "file": "ml-dsa-65-preparation-baseline-control-20261015.json.gz",
+      "sha256": "3f472fdd252f7f9e4efc559056a0a3495e4e9d7b78714249b0ad5b30e190b82c"
+    },
+    {
+      "file": "ml-dsa-65-preparation-baseline-passive-20261015.json.gz",
+      "sha256": "f2c299f539436e1c927eb87c1e30932d3884e9c8db7463266bb090c9923fb02e"
+    },
+    {
+      "file": "ml-dsa-65-preparation-baseline-profile-20261015.json.gz",
+      "sha256": "6be5bb1ca0336964069485f7fba649e19240648ae8b8331357f49211026c7658"
+    },
+    {
+      "file": "ml-dsa-65-preparation-baseline-repeat-20261015.json.gz",
+      "sha256": "f5192e049bb77919ddd883b2fdf69cc9d5a41a8a90b460718571ae2bf37750ac"
+    }
+  ],
+  "workers": {
+    "historical_observer_control": {
+      "passed": false,
+      "profiled": false,
+      "passive_observer": false,
+      "post_install_full_reserve_ms": 37566.386333999995,
+      "activation_to_full_reserve_ms": null,
+      "first_admissible_reserve": {
+        "lower_observation_bound_ms": 9393.342667,
+        "lower_bound_source": "Previous count-change observation; individual reads were not retained",
+        "first_observed_ms": 18720.799292,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "four_batch_reserve": {
+        "lower_observation_bound_ms": 28132.18375,
+        "lower_bound_source": "Previous count-change observation; individual reads were not retained",
+        "first_observed_ms": 37566.384584,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "signing_ms": [
+        344.00212499999907
+      ],
+      "failed_signing_operations": 0,
+      "openssl_verified": null,
+      "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(inventory.some((value) => value.refill_due))\n"
+    },
+    "passive_observer": {
+      "passed": true,
+      "profiled": false,
+      "passive_observer": true,
+      "post_install_full_reserve_ms": 39072.538709,
+      "activation_to_full_reserve_ms": 39154.05425,
+      "first_admissible_reserve": {
+        "lower_observation_bound_ms": 19115.014457999998,
+        "lower_bound_source": "Previous polling read start",
+        "first_observed_ms": 20118.016917,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "four_batch_reserve": {
+        "lower_observation_bound_ms": 38149.623917,
+        "lower_bound_source": "Previous polling read start",
+        "first_observed_ms": 39154.034583,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "signing_ms": [
+        373.5821669999932,
+        314.377708,
+        315.57216699999844
+      ],
+      "failed_signing_operations": 0,
+      "openssl_verified": 3,
+      "error": null
+    },
+    "profiled_passive_observer": {
+      "passed": true,
+      "profiled": true,
+      "passive_observer": true,
+      "post_install_full_reserve_ms": 40068.006791,
+      "activation_to_full_reserve_ms": 40150.807208,
+      "first_admissible_reserve": {
+        "lower_observation_bound_ms": 19114.566542,
+        "lower_bound_source": "Previous polling read start",
+        "first_observed_ms": 20117.967167000003,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "four_batch_reserve": {
+        "lower_observation_bound_ms": 39148.112042,
+        "lower_bound_source": "Previous polling read start",
+        "first_observed_ms": 40150.791125,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "signing_ms": [
+        518.7322500000009,
+        316.3472499999989,
+        457.99316699999326
+      ],
+      "failed_signing_operations": 0,
+      "openssl_verified": 3,
+      "error": null
+    },
+    "repeated_passive_observer": {
+      "passed": true,
+      "profiled": false,
+      "passive_observer": true,
+      "post_install_full_reserve_ms": 42092.215041999996,
+      "activation_to_full_reserve_ms": 42184.92875,
+      "first_admissible_reserve": {
+        "lower_observation_bound_ms": 20138.064791999997,
+        "lower_bound_source": "Previous polling read start",
+        "first_observed_ms": 21141.107207999998,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "four_batch_reserve": {
+        "lower_observation_bound_ms": 41178.929333,
+        "lower_bound_source": "Previous polling read start",
+        "first_observed_ms": 42184.9045,
+        "note": "Separate role reads are not an atomic snapshot. These are observation bounds during monotonic initial fill."
+      },
+      "signing_ms": [
+        372.8154579999973,
+        472.17662500000006,
+        488.0399170000019
+      ],
+      "failed_signing_operations": 0,
+      "openssl_verified": 3,
+      "error": null
+    }
+  },
+  "profiles": [
+    {
+      "role": "workerd: worker core:user:a",
+      "window_us": 40189424,
+      "sample_weight_us": 40182973,
+      "sample_count": 7317,
+      "maximum_delta_us": 1013017,
+      "weight_over_100ms_percent": 30.471053000483565,
+      "categories": {
+        "silent_generation_ancestry": {
+          "weighted_percent": 70.3387925029838,
+          "sample_count_percent": 89.54489544895449,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 90.0149669410819
+        },
+        "pprf_expansion_ancestry": {
+          "weighted_percent": 36.221043176670875,
+          "sample_count_percent": 38.44471778051114,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 52.58100624956839
+        },
+        "public_encoder_ancestry": {
+          "weighted_percent": 7.927019237725392,
+          "sample_count_percent": 16.755500888342215,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 12.33713144202912
+        },
+        "aes_self": {
+          "weighted_percent": 46.61704598114231,
+          "sample_count_percent": 61.77395107284406,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 67.68956837554252
+        }
+      },
+      "limits": "Ancestry categories overlap. Do not add them. Sample weights are diagnostic wall intervals, not billed CPU or speedup bounds. Excluding long intervals is only a sensitivity check."
+    },
+    {
+      "role": "workerd: worker core:user:b",
+      "window_us": 40197699,
+      "sample_weight_us": 40183894,
+      "sample_count": 6892,
+      "maximum_delta_us": 1037484,
+      "weight_over_100ms_percent": 33.419755188484224,
+      "categories": {
+        "silent_generation_ancestry": {
+          "weighted_percent": 77.74567093970535,
+          "sample_count_percent": 89.55310504933256,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 89.86733739987535
+        },
+        "pprf_expansion_ancestry": {
+          "weighted_percent": 47.09409695337142,
+          "sample_count_percent": 40.27858386535113,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 51.08984096467395
+        },
+        "public_encoder_ancestry": {
+          "weighted_percent": 8.347506092863972,
+          "sample_count_percent": 18.06442251886245,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 12.890149263431288
+        },
+        "aes_self": {
+          "weighted_percent": 53.922962269410725,
+          "sample_count_percent": 56.892048752176436,
+          "sensitivity_weighted_percent_excluding_intervals_over_10ms": 61.883680952493414
+        }
+      },
+      "limits": "Ancestry categories overlap. Do not add them. Sample weights are diagnostic wall intervals, not billed CPU or speedup bounds. Excluding long intervals is only a sensitivity check."
+    }
+  ],
+  "correlation_work": {
+    "source": "Native metrics for one four-candidate GMW reservation; same public circuit set as Worker preparation.",
+    "and_gates_by_stage": {
+      "nonce_conversion": 435200,
+      "commitment_decomposition": 1216512,
+      "challenge_hash": 1070336,
+      "private_bounds": 1250260,
+      "decision": 40
+    },
+    "total_and_gates": 3972348,
+    "triples_per_chunk": 262144,
+    "chunks_per_batch": 16,
+    "chunks_for_four_separate_batches": 64,
+    "chunks_for_one_sixteen_candidate_reservation": 61,
+    "chunk_reduction_percent": 4.6875,
+    "claim": "Arithmetic estimate of chunk padding only. Grouped durable preparation is not implemented or measured here.",
+    "native_preparation_protocol_bytes_both_directions": 4482754
+  },
+  "recovery": {
+    "canonical_key_cases": 6,
+    "same_wallet_seed_and_binding_reproduce_key": true,
+    "changed_seed_or_binding_changes_key": true,
+    "expanded_private_key_matches_openssl": true,
+    "limit": "Native recovery E2E. Worker harness installs disposable role material; full public Worker registration/recovery remains outside this test."
+  },
+  "recommendation": "Prioritize a protocol-preserving silent-OT/PPRF/AES optimization experiment. Keep Quantus conversion research gated on share privacy and canonical recovery.",
+  "unmeasured": [
+    "Hosted latency",
+    "Direct Worker CPU and billing",
+    "Worker peak memory",
+    "Worker protocol and storage byte totals",
+    "Sustained refill capacity",
+    "Production percentiles"
+  ]
+}
