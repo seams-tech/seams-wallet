@@ -1,9 +1,79 @@
 # Registration optimization opportunities — October 15, 2026
 
-The largest candidate found in this review is to overlap actual new-wallet Yao
-execution with the passkey prompt. This is a proposal, not an implemented change.
-It changes the current proof-before-execution policy. Staging, R155J, and its
-503/409 investigation were untouched.
+The current objective is to shorten execution itself: fewer network exchanges,
+fewer durable transitions, and less protocol computation. The prompt-overlap
+proposal below remains a UX option; it does not reduce the computation.
+No production change has been made from this investigation. Staging, R155J,
+and its 503/409 investigation were untouched.
+
+## Actual execution reductions to investigate
+
+### 1. Run Router orchestration inside its wallet object
+
+`router_coordinator.rs` currently calls the wallet object to claim a registration,
+runs the roles outside that object, then calls the object again to record the
+outcome. `durable_object/router_wallet.rs` serializes each request and reply.
+
+Move that orchestration behind one object execute call. The claim and completion
+remain separate local durable transactions around the external protocol work.
+Do not hold a storage transaction or an object-wide concurrency lock across the
+network work. Exact retries still use the stored claim generation and outcome.
+
+With the Router front door retained, this removes **one net Worker-to-DO round
+trip**: one execute call replaces the current claim and finish calls. It also
+avoids returning the pinned request to the Worker and sending the completed
+result back into the object. It does not remove the durable writes.
+
+Historical claim and finish header spans are 30–31 ms and 16–17 ms at the median.
+They include durable storage waits and cannot be claimed as removable overhead.
+A local prototype should prove the reduced call count and preserve duplicate
+execution, lost replies, supersession, cancellation, and relocation behavior.
+It touches the claim path, so implementation must follow Claude's current fixes.
+
+### 2. Coalesce B's input preparation and execution claim
+
+`DeriverBYaoSessionD1V1::handle_prepare_pair` writes a `Prepared` pair record.
+`deriver_b_start.rs` then writes `Running` after A's start arrives. Completion
+writes the result afterward. The fresh path therefore has distinct preparation,
+running, and completion record writes in B's wallet object.
+
+Investigate joining the exact Router input and A start before one durable
+`Running` commit. This could remove the intermediate pair-record write without
+moving work before passkey verification. Tenant-root D1 admission and other
+stores' writes remain separate; this is not a claim that all B writes combine.
+
+The current prepared record survives restart and joins independently arriving
+requests. A replacement must define restart and retry behavior explicitly. It
+cannot acknowledge durable preparation and then keep the only copy in memory.
+Both arrival orders, conflicting inputs, lost preparation replies, cancellation,
+expiry, and a crash after the running commit need behavioral coverage. No
+protocol material may leave before the execution claim is durable.
+
+This is a candidate to remove one durable transition, not an established saving.
+Automatic storage coalescing and overlap can reduce its benefit. Do not treat
+the full 113–124 ms B preparation span as removable; A runs concurrently.
+
+### 3. Reduce actual OT arithmetic
+
+The isolated calculation below demonstrates a 10.64 → 6.09 ms local WASM reduction
+by reusing a shared group product. It changes the amount of computation rather
+than its scheduling. It has the clearest numerical evidence, but a modest
+absolute budget. Adoption requires full protocol equivalence and constant-time
+verification, not just the primitive equality checks.
+
+### Excluded shortcuts
+
+- A and B already send their encrypted target proofs concurrently. Combining
+  those frames with the start acknowledgement is not automatically a removed
+  round trip. Sending A's proof earlier could cross its durable-claim boundary.
+- Production already uses 128 KiB table frames and overlaps garbling with
+  evaluation. Do not propose the earlier frame-size/yield fix again.
+- Unconfirmed writes, skipped ownership checks, and replying before a required
+  completion commit are outside these candidates.
+
+The recommended sequence is to prototype the orchestration and write changes,
+verify their lifecycle behavior, then measure one combined candidate. The
+current evidence does not establish a several-hundred-millisecond saving.
 
 ## Measured budget
 
