@@ -29,12 +29,15 @@ CPU/round-trip work, preparation at setup, its cost controls, and transient
 | B binding-await delay | All three arms showed the asymmetry; an unchanged three-wallet control later ran in 12–21 ms | Separate database, transport, runtime, and clock effects if it recurs; no migration is justified now |
 | First-signature HTTP 503 | One diagnostic capture recorded it | Cause remains unresolved |
 | Router object reply wait | One 12.2 s `finish_registration` reply on 0.10.2; our code and transport excluded ([record](evidence/refactor-155j-router-finish-hold-20261014.md)) | A platform wait; only Cloudflare can refine it. 1 of 1,779 Router calls on October 14 |
-| Execution before its preparation | The failed acceptance attempt: a 2.4 s Deriver A start, an inline preparation that lost `ConflictingPair` to the setup preparation, then 409 from a held Router claim | Fixed on `dev`: `bc2328c3` binds such an execution to its setup preparation (no reproduction inside the object); `e311a6f6` makes the SDK wait out the held claim, with a contract case that fails with the staging error before the change |
+| Execution before its preparation | The failed acceptance attempt: a 2.4 s Deriver A start, an inline preparation that lost `ConflictingPair` to the setup preparation, then 409 from a held Router claim | Fixed on `dev`: `bc2328c3` binds such an execution to its setup preparation; `e311a6f6` makes the SDK wait out the held claim. A temporary hook reproduced the race inside both Derivers on October 15: with `bc2328c3` the registration passes; without it the Deriver fails with the staging error and the registration fails about 11 s later, even with `e311a6f6` ([record](evidence/refactor-155j-followups-20261015.md)) |
+| Gateway steps before the Yao execution | Three of the eleven slowest registrations waited 1.2 to 1.7 s in respond with no timing for that stretch | `b948567b` reports setup, respond and Ed25519 signing steps in `Server-Timing`; the hosted test keeps the raw header. Read them in the next staging population |
+| Delay notice | The SDK sends one event when respond or finalize has not answered after 5 s; verified live in the SDK and in the hosted menu | `ce5729fb` drops the passkey prompt line from the menu's delay view. A mixed (ECDSA and NEAR) registration sends no delay event |
 | Final p99 acceptance | [204 attempts on 0.10.2](evidence/refactor-155j-acceptance-0102.md): p99 5,966 ms, 5.4% above 4 s, 1 failure | Not met. First batches after idle hold 5 of the 11 slowest; a Gateway wait before the Yao execution holds 3 |
 
 The next diagnostic work is the cold first batch after idle, the Gateway
-wait before the Yao execution, and the unexplained startup/delivery/503
-behavior, using matched boundaries and current serving versions. Apply a fix only when the evidence
+wait before the Yao execution (now timed by `b948567b`), and the unexplained
+startup/delivery/503 behavior, using matched boundaries and current serving
+versions. Apply a fix only when the evidence
 supports it. Keep accepted call reductions even when a small noisy comparison does
 not establish their individual saving. No production deployment is part of this plan.
 
