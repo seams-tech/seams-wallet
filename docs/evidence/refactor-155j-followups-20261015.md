@@ -14,6 +14,16 @@ started these items: [refactor-155j-acceptance-0102.md](refactor-155j-acceptance
 - **The Gateway now reports the steps that the tail cases could not
   attribute** (`b948567b`): setup, respond before the Yao execution, and
   each stage of Ed25519 signing. No staging data exists yet.
+- **Registration is slow tonight because Deriver A's preparation waits.** A
+  continuous control of 33 wallets at 00:30 JST, served in Tokyo, gave
+  2,744 ms at p50 and 8,099 ms at p95 after the passkey step, against 1,619
+  and 3,025 ms in the acceptance run. Nine of 33 Deriver A preparations
+  waited more than 3 s (0 of 204 in the acceptance run), with no change to
+  Deriver A and a nearly idle database.
+- **Evening serving from the United States fits Cloudflare's load shedding
+  of Free-plan traffic** (inferred). Our hostnames were served from
+  Portland or Seattle in 20 of 72 samples between 21:00 and 24:00 JST,
+  after entering Cloudflare in Tokyo; Cloudflare's own hosts never were.
 - **The hosted menu shows the delay notice live.** The check found that the
   notice kept the passkey prompt line; `ce5729fb` removes it. A mixed
   registration (ECDSA and NEAR) sends no delay notice at all.
@@ -95,6 +105,146 @@ checked against the data before the record changed:
   on another path.
 - The first version named the tree as `774cc1d7` only and did not record
   the control change.
+
+A second reviewer checked the sections on slow preparations, the idle
+series and the evening serving. The first versions of those sections said
+that cold role isolates explain the first-wallet times (the allocate CPU is
+too small and occurs in most wallets), took the serving location from a
+separate curl instead of the wallets' requests, called the acceptance
+group maxima of 579 and 703 ms the first reads, counted one prewarm per
+minute, and stated the Traffic Manager cause as a fact. Each point was
+checked against the tails before the text changed, and the control batch
+was added.
+
+## Slow Deriver A preparations tonight, and the first registration after idle
+
+### Method
+
+R155J step 2 asks for an earlier start of the custody objects and role
+Workers. Before any change, a read-only series measured the first
+registration after idle. On staging 0.10.2, one warm-up group ran after
+several hours without registration traffic from these scripts, then one
+group of three fresh wallets after 5, 10, 20 and 40 minutes without traffic
+(the 80-minute group was stopped for the control below). Tails start with
+each group, so other traffic before a group is not observed. Then a
+continuous control of 33 wallets ran at 00:30 JST on October 16. Only the
+staging Console had a newer version than the acceptance run (`1b9dbae7`,
+deployed by another session). Scripts and tails:
+`seams-monorepo/.artifacts/r155j-idle-gaps/`.
+
+### Facts
+
+| After the passkey step | Wallets | p50 | p90 | p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Acceptance, October 15, 00:00 to 01:41 | 203 | 1,619 ms | 2,563 ms | 3,025 ms |
+| Control, October 16, 00:30, all served in Tokyo | 33 | 2,744 ms | 7,734 ms | 8,099 ms |
+
+| Deriver A preparation event (wall) | Events | Median | Over 1 s | Over 3 s | Largest |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Acceptance group 1 | 102 | 629 ms | 10 | 0 | 2,950 ms |
+| Acceptance group 2 | 102 | 513 ms | 2 | 0 | 1,460 ms |
+| Control | 33 | 709 ms | 11 | 9 | 8,629 ms |
+
+- **The control is slow because of Deriver A's preparation.** The slowest
+  responds spent 4.0 to 8.4 s in the Router's role execution (median
+  1.1 s). In the same minutes, Deriver A's preparation events lasted up to
+  8.6 s with at most 0.5 s of CPU, and Deriver B's connection to Deriver A
+  waited up to 16.9 s. Deriver B's own preparations stayed below 3 s.
+- **The databases do not explain it.** Both role databases are in APAC,
+  equal in size, without read replication, and nearly idle (a few hundred
+  statements per hour). D1 reports the role-share read at 0.36 ms on
+  average over 285 runs in the three hours to 00:40, 103 ms in total, so no
+  single execution of it took longer than 103 ms. The Workers that another
+  session ran in this period have no database bindings.
+- **The idle series.** Without the passkey step, the first wallet took
+  13,069 ms after several hours (served in Tokyo), then 6,472 (Osaka), 5,272
+  (Portland), 5,085 (Tokyo) and 4,855 ms (Tokyo) after 5, 10, 20 and 40
+  minutes. The only same-location pairs, at 20 and 40 minutes, compare with
+  3,104 and 2,671 ms for the third wallet. The second wallets took 4.4 to
+  5.0 s, so the third wallet is not a warm baseline.
+- **The 8.7 s case.** In the warm-up group, Deriver A's preparation event
+  lasted 8,717 ms with 439 ms of CPU, and its callers waited as long (8,834
+  and 9,070 ms). Its log gives 8,696 ms to `initial_read_and_open`, one D1
+  read and a CPU-only decryption. That figure depends on an assumption: an
+  object's clock moves only at I/O or with concurrent timers, and in 13 of
+  the 15 Deriver A preparations of the idle series it shows 0 ms for the
+  read and for a batch with a write. If the clock is shared by the requests of the same object, at
+  least 8.0 s fall inside the read section.
+- **Cold isolates are frequent but small.** A warm `wallet/allocate` uses 0
+  to 6 ms of CPU. Values of 56 to 232 ms occurred on at least one role in
+  12 of the 15 idle-series wallets, not only the first, and in 13 to 17% of
+  the Deriver allocates of the continuous acceptance run, also late in a
+  group. They are too small to explain the first-wallet differences of 1.5
+  to 3.2 s. Almost every Deriver protocol run is the first in its isolate
+  (`execution_index` 0 in 30 of 30 here, about 95% in the acceptance run).
+- **The prewarm.** The staging Gateway configurations carry a minute cron
+  with `ROUTER_AB_PREWARM_ENABLED`, and the Router received about four
+  prewarms per minute in the acceptance tails; it calls the prewarm of both Derivers and the Signing Worker, and
+  Deriver A objects also prewarm Deriver B. The prewarm reads no database.
+
+### What this means
+
+- **Inferred:** tonight's slow registrations come from a wait inside Deriver
+  A's registration preparation that our code, our database load and the
+  serving location do not explain. Deriver A's code and version are the same
+  as in the acceptance run, where such waits were rare. The wait is either
+  in reaching the database or in the object's host; the instruments cannot
+  separate these.
+- **Not shown:** that the first registration after idle has a cause of its
+  own. Tonight's idle series ran during the same condition as the control.
+- For step 2, a warm-up does not address this wait. The next measurement is
+  a Deriver A preparation span with an explicit timer around the database
+  read, so that its clock moves (as in the race hook above), on a quiet and
+  a slow evening.
+
+## Evening serving outside Japan
+
+### Method
+
+From 00:31 JST on October 15, every 5 minutes, this machine in Tokyo read
+`/cdn-cgi/trace` of two hostnames of our `seams.sh` zone
+(`staging.api.wallet.seams.sh`, `wallet.seams.sh`) and of two Cloudflare
+hosts (`www.cloudflare.com`, `1.1.1.1`). When the staging hostname was
+served outside Japan, it ran a traceroute, at most once an hour. There are
+no samples from 10:43 to 13:15 except one, empty samples from 13:15 to
+17:00 (no network), and none until 18:51. Files:
+`seams-monorepo/.artifacts/entry-routing-probe/`.
+
+### Facts
+
+| Hosts | Samples served outside Japan | When |
+| --- | --- | --- |
+| Our two hostnames | 20 of 378 (Portland 15, Seattle 5) | Only from 21:07 to 23:12 JST in the sampled hours: 20 of the 72 samples from 21:00 to 24:00 |
+| `www.cloudflare.com`, `1.1.1.1` | 0 of 378 | Never |
+
+- The two traceroutes, at 21:12 and 22:32, reached Cloudflare's network at
+  hop 6 on the Tokyo exchange JPNAP, and hops 7 and 8 answered in 10 to
+  24 ms. At those minutes the hostname was served in Portland. So the
+  connection entered Cloudflare in Tokyo and was served in the United
+  States.
+- Cloudflare's post "How Cloudflare's systems dynamically route traffic
+  across the globe" (September 25, 2023), on Traffic Manager, says "We move
+  Free customers first", from the lowest priority plan to the highest; its
+  example moves all Free and Pro traffic, half of Business and none of
+  Enterprise. Plurimog forwards a connection at layer 4 after it arrives.
+  Our zone is on the Free website plan.
+- The post orders destinations by latency from the overloaded data center;
+  it does not explain why Portland or Seattle served instead of a nearer
+  site.
+- The same evening pattern was seen on October 13 (about 21:30 to 23:30)
+  and on October 14 (about 80% of the requests after the passkey step,
+  during the 0.10.2 runs).
+
+### What this means
+
+- **Inferred:** in the Tokyo evening peak, Cloudflare moves part of our
+  zone's traffic to the United States, by the load shedding that the post
+  describes. The reference hosts are Cloudflare's own, on other address
+  ranges, so the data cannot separate "Free plan" from "this address pool".
+- **Decision for the owner:** the zone plan. A Pro or Business plan is
+  untested here; in the post's example both still move. Measurements of
+  browser totals should note the serving location, or run outside 21:00 to
+  24:00 JST.
 
 ## Gateway step timing
 
