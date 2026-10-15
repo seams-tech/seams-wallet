@@ -1,0 +1,12 @@
+{
+  "artifact": "ml-dsa-65-registration-storage-native-20261015.json.gz",
+  "uncompressed_sha256": "62d3c6dfc08877ee66a1ecd085952fd636c1fc08cff730a671b3f505dd3be29b",
+  "source_sha256": {
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/storage.rs": "82f54bf5220091463a1f05e77355ecbc69cf369b944e3edfdd56af6e6def5dd5",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/keygen.rs": "89c6a20db57b5e0feb8a1ea7717be485e8001ce07570a5aef6d082fba7163038",
+    "crates/router-ab-cloudflare/src/ml_dsa/registration_preparation.rs": "520f5f7cd7242712e9e052086f7f9abc7f540d9a36f8ce5f04db0d3c1f680108",
+    "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs": "ff96dd9df30f916455ec8f2338548e18ce3c353b89e074d192ca86f3adc86d03",
+    "crates/router-ab-cloudflare/src/ml_dsa/pool.rs": "62b4245afd4c8eb68b02aa38f898e95f3163a8bfae6d5528a776987a977bf792",
+    "tools/ml-dsa-investigation/src/keygen_storage_evidence.rs": "c974ac55af3c287b694d03f57a0fb1bfcec038e46d348f80478f43df885f7a40"
+  }
+}

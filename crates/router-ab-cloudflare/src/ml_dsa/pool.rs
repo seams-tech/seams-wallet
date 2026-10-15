@@ -4,8 +4,6 @@ use super::{
     sealing::{Binding, Sealed},
     *,
 };
-use base64::{engine::general_purpose::STANDARD, Engine};
-const CHUNK_BYTES: usize = 48 * 1024;
 const MAX_BATCHES: usize = 20;
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
@@ -132,8 +130,8 @@ pub async fn fence(
 fn batch_name(batch: &[u8; 32]) -> String {
     format!("batch/{}", hex(batch))
 }
-fn chunk_name(batch: &[u8; 32], chunk: usize) -> String {
-    format!("ciphertext/{}/{chunk}", hex(batch))
+fn chunk_prefix(batch: &[u8; 32]) -> String {
+    format!("ciphertext/{}", hex(batch))
 }
 pub(super) async fn check_key(store: &impl Store, key: &KeyScope) -> Result<()> {
     if store.get::<KeyScope>(&key_name(key)?).await?.as_ref() != Some(key) {
@@ -145,11 +143,7 @@ async fn index(store: &impl Store) -> Result<Vec<[u8; 32]>> {
     Ok(store.get("index").await?.unwrap_or_default())
 }
 async fn erase(store: &impl Store, record: &mut Record) -> Result<()> {
-    for chunk in 0..record.chunks {
-        store
-            .delete(&chunk_name(&record.binding.batch, chunk))
-            .await?;
-    }
+    sealing::erase_chunks(store, &chunk_prefix(&record.binding.batch), record.chunks).await?;
     record.chunks = 0;
     record.encapsulated_key = [0; 32];
     store.put(&batch_name(&record.binding.batch), record).await
@@ -211,12 +205,9 @@ pub async fn put(store: &impl Store, binding: Binding, sealed: Sealed, now_ms: u
     if ids.len() >= MAX_BATCHES {
         return Err(invalid("ML-DSA pool capacity reached"));
     }
-    for (chunk, bytes) in sealed.ciphertext.chunks(CHUNK_BYTES).enumerate() {
-        store
-            .put(&chunk_name(&binding.batch, chunk), &STANDARD.encode(bytes))
-            .await?;
-    }
-    let chunks = sealed.ciphertext.len().div_ceil(CHUNK_BYTES);
+    let chunks = sealed
+        .store_chunks(store, &chunk_prefix(&binding.batch))
+        .await?;
     let batch = binding.batch;
     store
         .put(
@@ -370,28 +361,13 @@ pub async fn take(
     {
         return Err(invalid("ML-DSA reservation was consumed or substituted"));
     }
-    let mut ciphertext = Vec::new();
-    if record.chunks == 0 || record.chunks > (16usize * 1024 * 1024 + 16).div_ceil(CHUNK_BYTES) {
-        return Err(invalid("Invalid ML-DSA chunk count"));
-    }
-    for chunk in 0..record.chunks {
-        let encoded = store
-            .get::<String>(&chunk_name(&batch, chunk))
-            .await?
-            .ok_or_else(|| invalid("Missing ML-DSA ciphertext chunk"))?;
-        let bytes = STANDARD
-            .decode(encoded)
-            .map_err(|_| invalid("Invalid ML-DSA ciphertext chunk"))?;
-        if bytes.len() > CHUNK_BYTES {
-            return Err(invalid("Oversized ML-DSA ciphertext chunk"));
-        }
-        ciphertext.extend_from_slice(&bytes);
-    }
-    let sealed = Sealed {
-        encapsulated_key: record.encapsulated_key,
-        ciphertext,
-    };
-    sealed.validate()?;
+    let sealed = Sealed::load_chunks(
+        store,
+        &chunk_prefix(&batch),
+        record.chunks,
+        record.encapsulated_key,
+    )
+    .await?;
     record.state = State::Consumed {
         request_digest: permit.request.digest()?,
         at_ms: now_ms,

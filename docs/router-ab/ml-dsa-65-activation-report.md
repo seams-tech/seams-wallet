@@ -86,3 +86,26 @@ node tests/e2e/ml-dsa-durable-worker.e2e.mjs /private/tmp/ml-dsa-activation-fixt
 
 Remove the disposable role records and wrapping keys after the campaign.
 The next integration work is admitted Worker key generation and generic preparation, followed by authoritative Gateway custody persistence.
+
+## Follow-up failure review
+
+An independent read-only review confirms that the failed operation's cause is unknown.
+
+| Fact | Evidence | Limit |
+| --- | --- | --- |
+| One operation reached Failed after 758.960 ms. | The saved Worker artifact's `failedOperations` entry. | The entry retains only elapsed time. |
+| Three other signatures verified successfully. | The artifact and OpenSSL assertions. | Those successes do not diagnose the failed operation. |
+| Exhaustion and execution errors share one terminal status. | The Router coordinator's dispatch-result match. | HTTP 200 and the overall E2E pass cannot identify exhaustion. |
+
+| Candidate cause | Assessment |
+| --- | --- |
+| All admitted candidates were rejected. | Possible. The coordinator discards the existing exhaustion outcome and counters. |
+| Protocol, transport, or storage failure. | Possible. Error conversions discard the specific category. |
+| A fresh 30-second deadline ran to completion. | Contradicted by the 759-ms observation. |
+| Early expiry or a stale permit. | Not excluded by the recorded data. |
+
+The next Worker campaign must retain the operation digest and Signed, Exhausted, or Error outcome before the generic mapping.
+Exhaustion should retain consumed-batch and evaluated-candidate counts.
+Role failures need sanitized public stages and typed categories for timeout, peer close, malformed frame, protocol, and storage errors.
+Copy those observations into the failed-operation artifact together with settlement status.
+Do not log coefficients, preparation bytes, credentials, or raw error bodies.

@@ -984,3 +984,12 @@ Signing and key-bound refill remain unavailable during Installing. Exact retries
 The native lifecycle campaign verifies pending-state restart and stale-commit rejection during recovery.
 The [activation report](ml-dsa-65-activation-report.md) records the passing Worker HTTP campaign and its limits.
 This barrier does not establish public Gateway custody authority or implement Worker key generation.
+
+
+### Registration preparation storage — October 15, 2026
+
+The [registration storage report](ml-dsa-65-registration-storage-report.md) records consuming persistence for private key-generation state.
+All six native key-generation cases preserve the canonical key after encrypted SQLite storage, reopen, and consumption.
+The signing-pool lifecycle E2E and Cloudflare Wasm compilation also passed.
+External table persistence, the generic pool allocator, and the admitted Worker registration route remain open.
+The native online timer excludes restoration. This milestone does not establish full registration latency.

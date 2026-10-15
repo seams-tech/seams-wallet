@@ -6,6 +6,7 @@
 
 /// Complete wallet-derived key-generation preparation.
 pub mod keygen;
+mod storage;
 
 use core::future::Future;
 use subtle::{Choice, ConditionallySelectable};

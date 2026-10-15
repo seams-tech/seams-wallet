@@ -3430,6 +3430,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Keep durable replay rejection, cancellation, and epoch transitions at the admitted storage boundary.
 - Prepare generic garbled circuits and random OT without wallet-specific secret inputs.
 - Consume each prepared circuit and its OT material at most once. Recovery must use fresh preparation.
+- Restore private key-generation preparation only after its durable consume commits. Pin its role, reservation, and circuit schedules from trusted admission.
+- Reject republishing consumed registration preparation. Keep participant ciphertext and wrapping secrets separate.
 - Require an exact ML-DSA transaction approval before preparing a private Router signing request.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
 - Require both verified factor evidence and an operation-specific owner proof within their validity windows.
