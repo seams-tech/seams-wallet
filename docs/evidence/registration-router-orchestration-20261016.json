@@ -1,0 +1,1270 @@
+{
+  "kind": "registration_router_orchestration_local_evidence_v1",
+  "date": "2026-10-16",
+  "controlSource": "cc7fd4c42ff19bc1264f2f001be7269bf7154ba4",
+  "candidateSource": "18b095207b1f2cb1b700d9d3201a7d7de4b6d9c0",
+  "scope": "Local real-Worker custody execution and signing HTTP spans. Excludes browser, passkey, Console, Gateway finalization, client cryptographic fixture generation, and Cloudflare network/durability confirmation.",
+  "order": [
+    "control",
+    "candidate",
+    "candidate",
+    "control",
+    "control",
+    "candidate"
+  ],
+  "summary": {
+    "control": {
+      "count": 12,
+      "routerExecuteMs": {
+        "median": 295.7793545000004,
+        "min": 287.30120800000077,
+        "max": 342.9755419999999
+      },
+      "signingHttpMs": {
+        "median": 69.64947950000078,
+        "min": 60.53900000000067,
+        "max": 77.60349999999971
+      }
+    },
+    "candidate": {
+      "count": 12,
+      "routerExecuteMs": {
+        "median": 295.41864549999957,
+        "min": 286.2325000000001,
+        "max": 313.0154999999995
+      },
+      "signingHttpMs": {
+        "median": 69.06554150000011,
+        "min": 59.5717910000003,
+        "max": 79.9921260000001
+      }
+    }
+  },
+  "records": [
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "US",
+      "routerExecuteMs": 324.83837500000027,
+      "signingHttpMs": 73.88220799999999,
+      "signature": {
+        "signatureSha256Hex": "dad35e0d63536de69b40bfa7ccefcea4d8bc9f7041ebd9d640e89e23eabb69f7",
+        "prepareMs": 42.39520799999991,
+        "signMs": 31.48700000000008,
+        "signingHttpMs": 73.88220799999999,
+        "signatureB64u": "uCP5HqI2-ms0w8fEHhEM9ieYtoFvDnC8JkLJ2W77oNza8pj6MQELrrNZH54iYlo6km_noE2WqKQf4BTydWzmAw",
+        "digestB64u": "r690bEF7sJLNzV4Q5IgvmaQRyeSX29AC4J3f9ILXGs4",
+        "publicKeyB64u": "0q9xtNw0P_AagX6fsxkC09rbkaXsKQbVT0T0C0Y5sqM",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "WEUR",
+      "routerExecuteMs": 294.4605420000007,
+      "signingHttpMs": 74.98795900000005,
+      "signature": {
+        "signatureSha256Hex": "cef6a87ecf6aa8f2f21bafc37fcfb2b774e1d31e60d03449fd6129f8fe5ed0e6",
+        "prepareMs": 48.312834000000294,
+        "signMs": 26.675124999999753,
+        "signingHttpMs": 74.98795900000005,
+        "signatureB64u": "reNzSMfSF61umqeEnN079utwgCRw2BHoECVZAYO03OiKTLFBBQUE7PkfHlvjLGrjwV-1h4RH60vQ8N1TINGnCA",
+        "digestB64u": "6awidFG8BYgBwv1BWr9HMLOUB8EbE9Q6S9DCOgjSCJs",
+        "publicKeyB64u": "xNIEIxjYoiW9fhAd9TSZG1EvdvxZmZJAXku9BLpGan8",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "APAC",
+      "routerExecuteMs": 287.30120800000077,
+      "signingHttpMs": 65.17487400000209,
+      "signature": {
+        "signatureSha256Hex": "c6ac609efba00665d36d35b11a3e8450ec1441fbd46e9e8570e754879779d304",
+        "prepareMs": 37.03995800000121,
+        "signMs": 28.134916000000885,
+        "signingHttpMs": 65.17487400000209,
+        "signatureB64u": "LBKONhnwW9xr2Yp9WAyimHXzLAXJAlg78jR3_OPorbhVHHW2bTAT3A6sL8vA8HvmZvPAaiQ4BH9S934BnXReCg",
+        "digestB64u": "tODXsI-F8RyyAMS1043n6S8Zy_jeg_qhQWaAPWbguZM",
+        "publicKeyB64u": "VOkWeTTAeax_H_pH1hFpH0cKYPFxXqj2nZuaShmuT1U",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "OC",
+      "routerExecuteMs": 289.2687500000011,
+      "signingHttpMs": 73.09412499999962,
+      "signature": {
+        "signatureSha256Hex": "e009ac839273294096097c74f863bc389463de38b84997de7389f1268945dc92",
+        "prepareMs": 46.336833999999726,
+        "signMs": 26.757290999999896,
+        "signingHttpMs": 73.09412499999962,
+        "signatureB64u": "QTAp4-U4FVAAmuKyJS0f495zT9CITcZhKl83kis9m7KLkdmPJj68g3_e29baUdUHemtuw-zOMFRN6LO0vaOOAw",
+        "digestB64u": "1y3WXdwpGIMXM3SRFLCPux1x_7KspuCShgCRDbPVgRI",
+        "publicKeyB64u": "nbCj84B7pTzIhh7XbB_t8OsxoqrHdHjHFDQ_LC2v82k",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "US",
+      "routerExecuteMs": 295.9403329999998,
+      "signingHttpMs": 59.5717910000003,
+      "signature": {
+        "signatureSha256Hex": "99d4421bc7481d88d9b088fa244b99f5961e7862c3155d2a9d0825061d1fc2fe",
+        "prepareMs": 35.82216600000038,
+        "signMs": 23.749624999999924,
+        "signingHttpMs": 59.5717910000003,
+        "signatureB64u": "JNescVVAh8JKSSUXK5Mq6-DJR6DHkJyGDYCttepH2DwPFJvPtovtQzJ_y0Q3m0laAC9JJsicZ1vA1Yg8l3xsBw",
+        "digestB64u": "QjtojQJ8l00yWMx20KAuPcd4rDI0jl3-PzeQ8VuO91o",
+        "publicKeyB64u": "UwJvBep8w1OXJ-Elsu8WvnkluyrGatxgFGCQYEwBeaA",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "WEUR",
+      "routerExecuteMs": 313.0154999999995,
+      "signingHttpMs": 66.60762499999964,
+      "signature": {
+        "signatureSha256Hex": "67ee288902ede2863f46085266026bfe5a755b0ac34fd4ff4fe4773381e82780",
+        "prepareMs": 39.557958999999755,
+        "signMs": 27.04966599999989,
+        "signingHttpMs": 66.60762499999964,
+        "signatureB64u": "H16YxNfkakANRZh1K_VCsMuCn0kNf-X6wR4LCeySPzTx6wbPWU6jWcwLWqmSzprsYHNqHRICp11-pZ6NPEfGDA",
+        "digestB64u": "fJXnHO_vGD13CzldD2pIRONDxjuOs3pKr4AvWBs_OBI",
+        "publicKeyB64u": "u--Dt-fuvg2nTfts6C_aeLoIAlc_ttJk4kV6xWJ1sOQ",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "APAC",
+      "routerExecuteMs": 296.44616600000154,
+      "signingHttpMs": 65.60112499999923,
+      "signature": {
+        "signatureSha256Hex": "e9ac41e9ebc29097462bdede09e1f849297935e52b8d88c92da6b37d8ff992d1",
+        "prepareMs": 37.20000000000073,
+        "signMs": 28.4011249999985,
+        "signingHttpMs": 65.60112499999923,
+        "signatureB64u": "a7QUT388Pz5_Ef4ehANvp_7Cm3_L0c7IjKFYWx6uQT_w6mR2BYKCIeT-89a8yLJbnN9x6CS1fTSbFQkD-NELDg",
+        "digestB64u": "Qxm9NddiqK6H4KDkIcfFZPuJKN9g1Ul9-wn8x1tmDwU",
+        "publicKeyB64u": "0QuGwWZAYlz-K3vpsQabgYjxuS7IjOiK4LVptHmgu1s",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "OC",
+      "routerExecuteMs": 294.89695799999936,
+      "signingHttpMs": 65.24512500000128,
+      "signature": {
+        "signatureSha256Hex": "47181084d69a5bd35ef0fcce08206b5347a01b604ec41271e78e754a704f2afe",
+        "prepareMs": 36.63145800000166,
+        "signMs": 28.613666999999623,
+        "signingHttpMs": 65.24512500000128,
+        "signatureB64u": "Fz88ZaLKzdoWl_6n9IKOv7qs_j4RlueHCnsJwidZ5NAfD2cgl0UPSYzDPP9g8wzM6yHQsuKmoxL1FrionKoTCQ",
+        "digestB64u": "l3zWgIlMO-dd44ypNfTFfoU2W5BL3b67ysbB_iZdyKI",
+        "publicKeyB64u": "jGTJBrYMneXIA45UqsM4DmHHE0M_HZmsScF9Ew_ePiI",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "US",
+      "routerExecuteMs": 291.3023750000002,
+      "signingHttpMs": 68.89770800000042,
+      "signature": {
+        "signatureSha256Hex": "2410fef5849cd0fc3996c8a16945d252162725608fe2ff145a728520ef49095d",
+        "prepareMs": 39.21937500000013,
+        "signMs": 29.678333000000293,
+        "signingHttpMs": 68.89770800000042,
+        "signatureB64u": "zH3kbA_At0JnTru-Yu8BYrGwbizO_gdY-yLGnenPfrQUWaPrOVXIRw8SlfnjvYuFgVaZZgA-VTe0OIsBOT3-Bw",
+        "digestB64u": "XYn2QZ3qRpSgpo2VCgTqicaYOVMVX_U_qFTgI37dAz8",
+        "publicKeyB64u": "JjGFRobhNEcxLaLyTuiJY_c6Mzv62QcnzW_T8i5gQLo",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "WEUR",
+      "routerExecuteMs": 297.2458750000005,
+      "signingHttpMs": 73.56308400000034,
+      "signature": {
+        "signatureSha256Hex": "48c5ab98ef9ce2b8174c363607eb9bbdefbc36330094c7fc526f7912e3482bb6",
+        "prepareMs": 44.338292000000365,
+        "signMs": 29.22479199999998,
+        "signingHttpMs": 73.56308400000034,
+        "signatureB64u": "RDgjMaUOZL-cod0nuVrNttdsbhP7BuYS2olA7Xkmxzk6an8p1ZqtuCSUFYDiOjC5BSoEepAQew6fDVhgc0RmAg",
+        "digestB64u": "_a9gsB36CusC2trfR-npJhsSs2bZVeW_B9JjTyH1xME",
+        "publicKeyB64u": "kIF2j1u1t1nYRWKwECN7xMFHqHxiSLSw4VejBZ3WWKA",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "APAC",
+      "routerExecuteMs": 297.25633299999936,
+      "signingHttpMs": 61.22004100000049,
+      "signature": {
+        "signatureSha256Hex": "2fe8e93bd7724ac92ca8002c34356e3c9594a5099e01f4211b9b3bc955bf1125",
+        "prepareMs": 36.60070799999994,
+        "signMs": 24.61933300000055,
+        "signingHttpMs": 61.22004100000049,
+        "signatureB64u": "Np18Lssr_owWU6pTsNNcWOVZDRwtj1AzibY81V92b7J4JFPiyv5NnHT8gISvDasVFiSem8NhsLwKy-1KjrjYCw",
+        "digestB64u": "kqI-5V1wL2SojXgGR4VuaG8Nq8_YHdg_psynIxLhIVs",
+        "publicKeyB64u": "SLzAlUHdD6Cc1WbaolioR-Gfxjna3-E1dVUoxIGgo5Y",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "OC",
+      "routerExecuteMs": 286.7884580000009,
+      "signingHttpMs": 70.30895799999962,
+      "signature": {
+        "signatureSha256Hex": "3abe811ed98900541149f672dab7f4bf2b27abdae7d7cfdf4fdf2e6f40caaf62",
+        "prepareMs": 41.248875000001135,
+        "signMs": 29.060082999998485,
+        "signingHttpMs": 70.30895799999962,
+        "signatureB64u": "rRSOS99IVuAhl_rpFK7fzXeGH457_QYTTczNr5dVai76y85wqUFPlCzMSKCBN0xBxPp5GaZ9nth2UaDeb5QgCA",
+        "digestB64u": "mbsdeIe2ay113ZZUNMVdiRXigB0mJ9hixZbo1Ujb6Ms",
+        "publicKeyB64u": "f_HrcConz6gQAEcLEGp9FIXPkgPXxz5Icguif1ToG3o",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "US",
+      "routerExecuteMs": 293.88287500000024,
+      "signingHttpMs": 77.60349999999971,
+      "signature": {
+        "signatureSha256Hex": "62c33f53823abbd5c3f5d91511933ea0ef1d8595fe63fb1cfb9bd6b960debf02",
+        "prepareMs": 47.63558299999977,
+        "signMs": 29.967916999999943,
+        "signingHttpMs": 77.60349999999971,
+        "signatureB64u": "vLmUdKxOAFeToRzW9IW1krtgXyBPols8a-UWAxRR0AaAL8g1egol68QeE_lwve3QsW9oKrE-wu9KX2KMBzn0BA",
+        "digestB64u": "McOK4-ohx7jgp9NmCPoqQruUfntM1dGQvEyOdVx4vgQ",
+        "publicKeyB64u": "48x9H1BUAdfBMGYuWsxRUwBFKmtu89vDBJq90HgLns4",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "WEUR",
+      "routerExecuteMs": 313.36404200000015,
+      "signingHttpMs": 67.56704199999967,
+      "signature": {
+        "signatureSha256Hex": "ca6903fc338d76233227aec6991159fa78ae666e4a0935387d97e872cfe0a697",
+        "prepareMs": 39.57566700000007,
+        "signMs": 27.991374999999607,
+        "signingHttpMs": 67.56704199999967,
+        "signatureB64u": "FI7ij9BQorYWoXlA1Mx843OuNdu-U7T6X6i2weYSJHfL2SlpQZNsCk2ljNrxj2j2Hbu6L6OPL0_BrMt2hOo0Dw",
+        "digestB64u": "mkWlmbYSB5cUgtQqLaIL-GeD2DTNp_LLEQsXgjRt0q4",
+        "publicKeyB64u": "gif93hK3yzPVhRjYbW8x4bXQUk4yibl2zXfNRPsXl8A",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "APAC",
+      "routerExecuteMs": 297.0981670000001,
+      "signingHttpMs": 60.53900000000067,
+      "signature": {
+        "signatureSha256Hex": "84a93d083a148995e21780a8c0294438473acd297993209b6032019f2a8788bf",
+        "prepareMs": 35.41337500000009,
+        "signMs": 25.125625000000582,
+        "signingHttpMs": 60.53900000000067,
+        "signatureB64u": "Ppk1IO9grf--tDGAv8yv1ti3yGMA8s_HsqXNOLiggUMxoxLqKSY2wdNY4jO8ZNs2xCyxwLtH0-UqohhcOD9xDQ",
+        "digestB64u": "1QGch8V4QGHKEnmwliCRvYuMkgDKeLYyRSCcb5Hukes",
+        "publicKeyB64u": "68-3zV4j7k2T6W__e5E9JC3HbNoomXc7DJl9LuvduBs",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "OC",
+      "routerExecuteMs": 311.89495800000077,
+      "signingHttpMs": 69.9020840000012,
+      "signature": {
+        "signatureSha256Hex": "70fb0c2aa58f5250d014eaa680004ef4e9db7f28630cb39bd32763c03fd6f8bf",
+        "prepareMs": 40.56450000000041,
+        "signMs": 29.33758400000079,
+        "signingHttpMs": 69.9020840000012,
+        "signatureB64u": "-aY68MRQGKivVa3hf_qlgCl524jz4Fno9Y2nPmDJZQjG9cEHvWhuNZ_EbgIC9N2-xeJGn1AjiUlpUx15iq2vBA",
+        "digestB64u": "6PAaPb8t62kHaI0ApEnTWgIto4k5E-SNheeLYl6rX7A",
+        "publicKeyB64u": "TjccznyYkmnhqw6c0fdVth0D7jhbnWh3jWTUx_GP2_0",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "US",
+      "routerExecuteMs": 342.9755419999999,
+      "signingHttpMs": 72.65116699999999,
+      "signature": {
+        "signatureSha256Hex": "ccd7d3622d34525aecb5ef7225cbcd798f6c640d475f728fd98e07bce4faf387",
+        "prepareMs": 45.68279200000006,
+        "signMs": 26.968374999999924,
+        "signingHttpMs": 72.65116699999999,
+        "signatureB64u": "CZ7u05neLeyYFyvRaPbrjYuuqZlrfkfAUyVJkCq4905R3KAxKhdM2J-M2X-MDE4zof32NdiKT4YyDgfIgiSUDQ",
+        "digestB64u": "NOCovo4b_x5bgYpvSTaRGEtFyDkP5ujorvphr8iL_Bo",
+        "publicKeyB64u": "0X1ZUs04p4XkT8wPsoumxaeLYDl4yRa9JANZfYTOGLQ",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "WEUR",
+      "routerExecuteMs": 290.04041700000016,
+      "signingHttpMs": 67.77420799999891,
+      "signature": {
+        "signatureSha256Hex": "c7dcea655f34b7f6d5dd962776db9fededb4bcb5cf298068a089d50c821aae03",
+        "prepareMs": 39.53779099999974,
+        "signMs": 28.236416999999165,
+        "signingHttpMs": 67.77420799999891,
+        "signatureB64u": "wt7FmOWmB3F_ILaadR_pxzDxZYZanukHpzX-EO3x-5omutX5KqQlApyU0ZwEWofOkxhxrByYmz_LNcFzLtoCDQ",
+        "digestB64u": "LgJFp8UMWATRxuPdAqyYezDG63Z1xG4wzZM5eYukjtI",
+        "publicKeyB64u": "gnW0iemM3z-UJHOFpnea5_59mIc0zi52OokjoyBvAMY",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "APAC",
+      "routerExecuteMs": 314.8420409999999,
+      "signingHttpMs": 64.089750000001,
+      "signature": {
+        "signatureSha256Hex": "bd368a79a6717271c6f8f642d07a2775522d889ea0b081569664ad54f18b2e55",
+        "prepareMs": 39.91625000000022,
+        "signMs": 24.173500000000786,
+        "signingHttpMs": 64.089750000001,
+        "signatureB64u": "3zCLglgae0SymtON6d6e-av20yB-H5XUT5fBwRH_rEWzae92z2jPi2FB4VOR49h8y4eWc-dBkE7u4ityQKS3Dg",
+        "digestB64u": "Ejf9IF84AJ5pmLni9qEU3NljSZepnZam6xA6zswxEHo",
+        "publicKeyB64u": "ZtOXQL87_pdkA4uoCYibOX5FRM8s1PEuO6MkSPnxW6c",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "OC",
+      "routerExecuteMs": 292.02891699999964,
+      "signingHttpMs": 69.39687500000036,
+      "signature": {
+        "signatureSha256Hex": "77cca0f5ef4e350f2b09b2bd6a8d4a0033c35c264802de803d499f06bb1cf395",
+        "prepareMs": 38.672583999999915,
+        "signMs": 30.72429100000045,
+        "signingHttpMs": 69.39687500000036,
+        "signatureB64u": "Ak_Nky-olJi4nYP6PKKRYNbIQIzE-ebmCHJqguILMFALMT7eG3G4CGC8Kr_N5BXz_I5rwWA96iOlyf6_B4RQCg",
+        "digestB64u": "oykYuif9eBswTsnDlXNlYay3tYpes9dFznTV-HKsGX4",
+        "publicKeyB64u": "qVhc6nZMfbIq167NTQSQqwFnr1pc1lgqiWmfuyDUThk",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "US",
+      "routerExecuteMs": 302.5048750000001,
+      "signingHttpMs": 79.9921260000001,
+      "signature": {
+        "signatureSha256Hex": "094cc73e0a10f9c4307d0fad3857f9221d78c0ffe4feed7f5f66ccc1cdf53e93",
+        "prepareMs": 53.50195900000017,
+        "signMs": 26.49016699999993,
+        "signingHttpMs": 79.9921260000001,
+        "signatureB64u": "Ms9Z10l1lNt-PrH3s_x37YOWs9_zUtt6TY0PxNQFRZPtS0QSbH-sFs_rTOtzwa-m3m6m83BzkOe3-4Bu6XwRAw",
+        "digestB64u": "2NaGUqfM7nrKsLgodHdUq6eVCqU2DCuvZKM6_UtgwJ0",
+        "publicKeyB64u": "tzWjZWmAmib7Dgbp4VllZc7WWZkkUcSfQmemhO-8alo",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "WEUR",
+      "routerExecuteMs": 288.57787499999995,
+      "signingHttpMs": 69.2333749999998,
+      "signature": {
+        "signatureSha256Hex": "ab4c6b916e8db657cff021c860ef31ed480f89fe356d09c41a172da29efe3ad2",
+        "prepareMs": 39.59491699999944,
+        "signMs": 29.638458000000355,
+        "signingHttpMs": 69.2333749999998,
+        "signatureB64u": "Skl6qzwt2pqrSgr17tLIq6ANo3i2bnAycHc7-1uAHXTDFMtV6YaUz8jf6HXS7MDuP59SHRN6PMSMTg-ZZjwkDA",
+        "digestB64u": "3VRGlEuvw6k7VASCsnYozJ2GeYsYYL4lj6U1cjGVfAg",
+        "publicKeyB64u": "MbtWklqRJfCgKZKxO8bjZtutuinnofw8_ULTcwonK08",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "APAC",
+      "routerExecuteMs": 287.46191700000054,
+      "signingHttpMs": 70.28566599999976,
+      "signature": {
+        "signatureSha256Hex": "00a515b546c2a0179f1d223675985d09d7099a9860ac624b1253aa7e29d5edfa",
+        "prepareMs": 46.23554100000001,
+        "signMs": 24.050124999999753,
+        "signingHttpMs": 70.28566599999976,
+        "signatureB64u": "shjXKMCpwpaugWPJ1H7QfXpVOs1yqVQ1p4jnixhAOyxRA8rAzf-TADycjPnK3-u8fV08bt1xiIBjZ0i-0lSXAQ",
+        "digestB64u": "J9YlI0ses59k2Yei3e7hoOwC8jvsy_KXpWwn7LcRT4I",
+        "publicKeyB64u": "oBdZIGwVhxbgIXptoAYSZYlvHQr3hRd3bXqaxIyuXgE",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "OC",
+      "routerExecuteMs": 286.2325000000001,
+      "signingHttpMs": 75.25675099999899,
+      "signature": {
+        "signatureSha256Hex": "10da49d220dc2f569a8e3f3a038bc58ae37bafe9043ab520222e4240af186b1c",
+        "prepareMs": 46.94795899999917,
+        "signMs": 28.308791999999812,
+        "signingHttpMs": 75.25675099999899,
+        "signatureB64u": "lL85J3vtjiB7msVWSWikB6z14IpILwVZoYmb14HOq5wwP46jMR5P81glDt0-UKyfWTAhaZ3YIeU1jmJB3uEzBw",
+        "digestB64u": "5Jx6gY1NVr1NHm_8ooO8oe3qle0Fzvka0e7yzslJhLE",
+        "publicKeyB64u": "27E_oNZhCmLEJQUkQQPZvy85o3cx-K0JAemZTQkYOC4",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      }
+    }
+  ],
+  "signatureProofs": [
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "US",
+      "ed25519": {
+        "signatureSha256Hex": "dad35e0d63536de69b40bfa7ccefcea4d8bc9f7041ebd9d640e89e23eabb69f7",
+        "prepareMs": 42.39520799999991,
+        "signMs": 31.48700000000008,
+        "signingHttpMs": 73.88220799999999,
+        "signatureB64u": "uCP5HqI2-ms0w8fEHhEM9ieYtoFvDnC8JkLJ2W77oNza8pj6MQELrrNZH54iYlo6km_noE2WqKQf4BTydWzmAw",
+        "digestB64u": "r690bEF7sJLNzV4Q5IgvmaQRyeSX29AC4J3f9ILXGs4",
+        "publicKeyB64u": "0q9xtNw0P_AagX6fsxkC09rbkaXsKQbVT0T0C0Y5sqM",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "35F_BmTmUD_zYL_o2axPDqS8jEIvkUuztjn8MUMgaw83o5eW4B0QftEo6WhZM1l_6Xzmcr_fIk9FsIqueI46UwE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "Ayv36XWkf64oi1x3wyCXeuhst-yLgwfoIhXCYiFA6JT_",
+        "signatureSha256Hex": "4be79da1fb336cb593a13b2be9ed1afcd57a67a70f53304451cb84e504bac12b"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "WEUR",
+      "ed25519": {
+        "signatureSha256Hex": "cef6a87ecf6aa8f2f21bafc37fcfb2b774e1d31e60d03449fd6129f8fe5ed0e6",
+        "prepareMs": 48.312834000000294,
+        "signMs": 26.675124999999753,
+        "signingHttpMs": 74.98795900000005,
+        "signatureB64u": "reNzSMfSF61umqeEnN079utwgCRw2BHoECVZAYO03OiKTLFBBQUE7PkfHlvjLGrjwV-1h4RH60vQ8N1TINGnCA",
+        "digestB64u": "6awidFG8BYgBwv1BWr9HMLOUB8EbE9Q6S9DCOgjSCJs",
+        "publicKeyB64u": "xNIEIxjYoiW9fhAd9TSZG1EvdvxZmZJAXku9BLpGan8",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "TLqYw3y5NcsJHItQ6jE-AvIlMhTOw-qbgDb11c6DCjQuBr3HXPSGRIawm1iXrPGNaw7CQ2iQtOvvoEQyejaRoQA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A9-7cra0Z0PCBSucYVvvxWvWZAwkFZXYzW4JXQRj-ZFq",
+        "signatureSha256Hex": "942573b12296759b2e3a6aba5745834c488d7baab1a0782200d70958f11bc364"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "APAC",
+      "ed25519": {
+        "signatureSha256Hex": "c6ac609efba00665d36d35b11a3e8450ec1441fbd46e9e8570e754879779d304",
+        "prepareMs": 37.03995800000121,
+        "signMs": 28.134916000000885,
+        "signingHttpMs": 65.17487400000209,
+        "signatureB64u": "LBKONhnwW9xr2Yp9WAyimHXzLAXJAlg78jR3_OPorbhVHHW2bTAT3A6sL8vA8HvmZvPAaiQ4BH9S934BnXReCg",
+        "digestB64u": "tODXsI-F8RyyAMS1043n6S8Zy_jeg_qhQWaAPWbguZM",
+        "publicKeyB64u": "VOkWeTTAeax_H_pH1hFpH0cKYPFxXqj2nZuaShmuT1U",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "Iz0_k_Ut00mF2X_PlwS7ynqYnk-BxubadGY0AIY1x6xF2QZmXr7Hin-sQL6yKISvFu7RJ7fK7orvX5wnBZhGDwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AgBbqPUiSUA6ZnPuaT-HWm7Vav6pYt7DrJL7qrWav64j",
+        "signatureSha256Hex": "5175850d592fd46a8e94c5a1b999ca2e437c7d902a70e10a160c398c349366e7"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 1,
+      "home": "OC",
+      "ed25519": {
+        "signatureSha256Hex": "e009ac839273294096097c74f863bc389463de38b84997de7389f1268945dc92",
+        "prepareMs": 46.336833999999726,
+        "signMs": 26.757290999999896,
+        "signingHttpMs": 73.09412499999962,
+        "signatureB64u": "QTAp4-U4FVAAmuKyJS0f495zT9CITcZhKl83kis9m7KLkdmPJj68g3_e29baUdUHemtuw-zOMFRN6LO0vaOOAw",
+        "digestB64u": "1y3WXdwpGIMXM3SRFLCPux1x_7KspuCShgCRDbPVgRI",
+        "publicKeyB64u": "nbCj84B7pTzIhh7XbB_t8OsxoqrHdHjHFDQ_LC2v82k",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "eXUvsDKfiC3lU1uOpuF1d5kO_-TGQaCfrEJhUuwO2fx6QATSgMfDd_oA9PIH8tvhKifQc7E2A7ChG9wFZ8WIfwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A4giyLfBcLBA2ot20c-peyvGlk2Fzy9zteJy1W-F6rJ6",
+        "signatureSha256Hex": "67768be4fc2b4f900d6a5deb2d487dc605cdf45bf06be7222c42226d1b745179"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "US",
+      "ed25519": {
+        "signatureSha256Hex": "99d4421bc7481d88d9b088fa244b99f5961e7862c3155d2a9d0825061d1fc2fe",
+        "prepareMs": 35.82216600000038,
+        "signMs": 23.749624999999924,
+        "signingHttpMs": 59.5717910000003,
+        "signatureB64u": "JNescVVAh8JKSSUXK5Mq6-DJR6DHkJyGDYCttepH2DwPFJvPtovtQzJ_y0Q3m0laAC9JJsicZ1vA1Yg8l3xsBw",
+        "digestB64u": "QjtojQJ8l00yWMx20KAuPcd4rDI0jl3-PzeQ8VuO91o",
+        "publicKeyB64u": "UwJvBep8w1OXJ-Elsu8WvnkluyrGatxgFGCQYEwBeaA",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "wg-qhQuazSFvrPHlRGYzYTKO23KqHSIbswsQ3_KodPFs5_bOEPos9i0J2r6RkHmfr0QRZ91vc5OXESIgFJFUqAA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AhAH6dmnYaYMdKPAAdLegjryaSQOUYvxQl4n6W4mhH68",
+        "signatureSha256Hex": "22ab5bb9c5fe17d6129e1d04c9bc9ac28c28974f44b2602159a640fd70970b02"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "WEUR",
+      "ed25519": {
+        "signatureSha256Hex": "67ee288902ede2863f46085266026bfe5a755b0ac34fd4ff4fe4773381e82780",
+        "prepareMs": 39.557958999999755,
+        "signMs": 27.04966599999989,
+        "signingHttpMs": 66.60762499999964,
+        "signatureB64u": "H16YxNfkakANRZh1K_VCsMuCn0kNf-X6wR4LCeySPzTx6wbPWU6jWcwLWqmSzprsYHNqHRICp11-pZ6NPEfGDA",
+        "digestB64u": "fJXnHO_vGD13CzldD2pIRONDxjuOs3pKr4AvWBs_OBI",
+        "publicKeyB64u": "u--Dt-fuvg2nTfts6C_aeLoIAlc_ttJk4kV6xWJ1sOQ",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "VWMKOhdp76AX6N7X5RtZf39uvGv0lPORgjXiAxqJAH5Vl4vQAw2GGVWodaKVBBqDgxrFPDDC2OmXsVVG0cQn7gA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AwdfgtFzFZ-OhSeUgcsxziNgYP7IeubBcVCrfJvKWC5G",
+        "signatureSha256Hex": "c3b3b072c62cf16959fe3d6b08cff542f39131dfea4f379ca4da0f3e732eb034"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "APAC",
+      "ed25519": {
+        "signatureSha256Hex": "e9ac41e9ebc29097462bdede09e1f849297935e52b8d88c92da6b37d8ff992d1",
+        "prepareMs": 37.20000000000073,
+        "signMs": 28.4011249999985,
+        "signingHttpMs": 65.60112499999923,
+        "signatureB64u": "a7QUT388Pz5_Ef4ehANvp_7Cm3_L0c7IjKFYWx6uQT_w6mR2BYKCIeT-89a8yLJbnN9x6CS1fTSbFQkD-NELDg",
+        "digestB64u": "Qxm9NddiqK6H4KDkIcfFZPuJKN9g1Ul9-wn8x1tmDwU",
+        "publicKeyB64u": "0QuGwWZAYlz-K3vpsQabgYjxuS7IjOiK4LVptHmgu1s",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "JuAiLiW0AbEQegt9W5SyUG3VIn-CnsGgskS6TM2x4qYWeXGbPu1rFgm-IA8jTK1BjVnHsd0HRGET4t_uCwNPzQE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A0YsllYLC0IAxL4G5Fa5UBk1K-QqsPFMS2PWGOseNSNi",
+        "signatureSha256Hex": "b549067392ee1894261db7d2c9d88e5c574ec3421a9db7bc4a603460720eb30e"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 2,
+      "home": "OC",
+      "ed25519": {
+        "signatureSha256Hex": "47181084d69a5bd35ef0fcce08206b5347a01b604ec41271e78e754a704f2afe",
+        "prepareMs": 36.63145800000166,
+        "signMs": 28.613666999999623,
+        "signingHttpMs": 65.24512500000128,
+        "signatureB64u": "Fz88ZaLKzdoWl_6n9IKOv7qs_j4RlueHCnsJwidZ5NAfD2cgl0UPSYzDPP9g8wzM6yHQsuKmoxL1FrionKoTCQ",
+        "digestB64u": "l3zWgIlMO-dd44ypNfTFfoU2W5BL3b67ysbB_iZdyKI",
+        "publicKeyB64u": "jGTJBrYMneXIA45UqsM4DmHHE0M_HZmsScF9Ew_ePiI",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "r-xaLVruNR-sHjtZQadRD5ynjVh8tYHbrMX3gaRorrF2QskmD0uOWTU91L9gotq9KmrV6A1Wya2ak6IC1UcwpwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AvQRHODhhY9rg4UGtHAT5vNktI_Wom9OUNgjLUzjjqcd",
+        "signatureSha256Hex": "776c73f28f7ee765d209715658f9a6d043dbba34b1b910084189200e98e88df6"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "US",
+      "ed25519": {
+        "signatureSha256Hex": "2410fef5849cd0fc3996c8a16945d252162725608fe2ff145a728520ef49095d",
+        "prepareMs": 39.21937500000013,
+        "signMs": 29.678333000000293,
+        "signingHttpMs": 68.89770800000042,
+        "signatureB64u": "zH3kbA_At0JnTru-Yu8BYrGwbizO_gdY-yLGnenPfrQUWaPrOVXIRw8SlfnjvYuFgVaZZgA-VTe0OIsBOT3-Bw",
+        "digestB64u": "XYn2QZ3qRpSgpo2VCgTqicaYOVMVX_U_qFTgI37dAz8",
+        "publicKeyB64u": "JjGFRobhNEcxLaLyTuiJY_c6Mzv62QcnzW_T8i5gQLo",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "73bqQb7ihDlIZmCv4TCWQ9TuD87dVP-lizE-4CyF7GF0xKcEMg3TpFeK3dGj9DJiQXNxfG2JUJWbXkjxsykntAE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "Ah_s-JVUv3oZ8uIl3zrtK_xFTUcUTXBNhcuJd0zwyizq",
+        "signatureSha256Hex": "5793c537530ed2331fa12d588a8e61738b714cc62b28c683b5559d09ccc0d478"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "WEUR",
+      "ed25519": {
+        "signatureSha256Hex": "48c5ab98ef9ce2b8174c363607eb9bbdefbc36330094c7fc526f7912e3482bb6",
+        "prepareMs": 44.338292000000365,
+        "signMs": 29.22479199999998,
+        "signingHttpMs": 73.56308400000034,
+        "signatureB64u": "RDgjMaUOZL-cod0nuVrNttdsbhP7BuYS2olA7Xkmxzk6an8p1ZqtuCSUFYDiOjC5BSoEepAQew6fDVhgc0RmAg",
+        "digestB64u": "_a9gsB36CusC2trfR-npJhsSs2bZVeW_B9JjTyH1xME",
+        "publicKeyB64u": "kIF2j1u1t1nYRWKwECN7xMFHqHxiSLSw4VejBZ3WWKA",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "yDB1ShH6lsUbrVSTDTCxvNzli98__OjvH-SKLClQgg9u1eHhR_JnzvpzZ1y7QtohGXXh0Yu0MYR3BoCQ5O49SgA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AlttKaaJkn2HEaKXKm6aakXkYe5UMPpq1y1Aw7cBBVgi",
+        "signatureSha256Hex": "c971477b099096ca775f5b9470ccdbfdcd3b9d68dc2919afc8a05c05f6634b2f"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "APAC",
+      "ed25519": {
+        "signatureSha256Hex": "2fe8e93bd7724ac92ca8002c34356e3c9594a5099e01f4211b9b3bc955bf1125",
+        "prepareMs": 36.60070799999994,
+        "signMs": 24.61933300000055,
+        "signingHttpMs": 61.22004100000049,
+        "signatureB64u": "Np18Lssr_owWU6pTsNNcWOVZDRwtj1AzibY81V92b7J4JFPiyv5NnHT8gISvDasVFiSem8NhsLwKy-1KjrjYCw",
+        "digestB64u": "kqI-5V1wL2SojXgGR4VuaG8Nq8_YHdg_psynIxLhIVs",
+        "publicKeyB64u": "SLzAlUHdD6Cc1WbaolioR-Gfxjna3-E1dVUoxIGgo5Y",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "Fuf-ScilzdSwG2jdhPFzQq_RX_trd3vLRrd5g0UtJA9glYkXRNWenVjQ1roDZ3-Bx1YuKh1uBtD4UT19v8cZmgE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "ArHIIn10858NSjNXiR0YjbGmioi3n3AtevjupAXgut1o",
+        "signatureSha256Hex": "b3aad49c6a49e87f1ee1a01e8e4b14469593d1966d1e8d465d3c30aa87634927"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 3,
+      "home": "OC",
+      "ed25519": {
+        "signatureSha256Hex": "3abe811ed98900541149f672dab7f4bf2b27abdae7d7cfdf4fdf2e6f40caaf62",
+        "prepareMs": 41.248875000001135,
+        "signMs": 29.060082999998485,
+        "signingHttpMs": 70.30895799999962,
+        "signatureB64u": "rRSOS99IVuAhl_rpFK7fzXeGH457_QYTTczNr5dVai76y85wqUFPlCzMSKCBN0xBxPp5GaZ9nth2UaDeb5QgCA",
+        "digestB64u": "mbsdeIe2ay113ZZUNMVdiRXigB0mJ9hixZbo1Ujb6Ms",
+        "publicKeyB64u": "f_HrcConz6gQAEcLEGp9FIXPkgPXxz5Icguif1ToG3o",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "OLo_8M3PPY0W8Vt83l-zZ56Jg9gbH7-HiTU7zBnwWwZxDcJYshmV2i6VDnwro7lRLK3SnvcFn3OJ5OKgyF6MXwE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A51Al0bql5QlDiWQS_BNSUBQ3hCY2ZzXNy02TjPi1Aar",
+        "signatureSha256Hex": "0669dc5ddf48a1c596d10009b8ab5589aaefa2d8b327a32b8d5e349e4c0796d4"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "US",
+      "ed25519": {
+        "signatureSha256Hex": "62c33f53823abbd5c3f5d91511933ea0ef1d8595fe63fb1cfb9bd6b960debf02",
+        "prepareMs": 47.63558299999977,
+        "signMs": 29.967916999999943,
+        "signingHttpMs": 77.60349999999971,
+        "signatureB64u": "vLmUdKxOAFeToRzW9IW1krtgXyBPols8a-UWAxRR0AaAL8g1egol68QeE_lwve3QsW9oKrE-wu9KX2KMBzn0BA",
+        "digestB64u": "McOK4-ohx7jgp9NmCPoqQruUfntM1dGQvEyOdVx4vgQ",
+        "publicKeyB64u": "48x9H1BUAdfBMGYuWsxRUwBFKmtu89vDBJq90HgLns4",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "MzyZNm-cTaRFLgs46wEfgoFGnJLLfWIalppGbjM7Gz9K-HW5yyog4p2hR4pSQmscyinMrk3UkOdCPf1RBE5F4QA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A0hPfXyzcEJViU5Z4P6Vg1wKwWUzJg4X11rpgyvjqC0a",
+        "signatureSha256Hex": "22901acfef837e672076b0df4a5e2dcae799cab54901a87c83aedbeff79bd6aa"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "WEUR",
+      "ed25519": {
+        "signatureSha256Hex": "ca6903fc338d76233227aec6991159fa78ae666e4a0935387d97e872cfe0a697",
+        "prepareMs": 39.57566700000007,
+        "signMs": 27.991374999999607,
+        "signingHttpMs": 67.56704199999967,
+        "signatureB64u": "FI7ij9BQorYWoXlA1Mx843OuNdu-U7T6X6i2weYSJHfL2SlpQZNsCk2ljNrxj2j2Hbu6L6OPL0_BrMt2hOo0Dw",
+        "digestB64u": "mkWlmbYSB5cUgtQqLaIL-GeD2DTNp_LLEQsXgjRt0q4",
+        "publicKeyB64u": "gif93hK3yzPVhRjYbW8x4bXQUk4yibl2zXfNRPsXl8A",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "O2NC2AAWGLVg7tp13zO3fNgcaSOeUQWe3SaYZiDbcqAs-OnJ6G0UuuSX_MzNmdcT6mG5YPjXmIGvkI21DIunTAA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "Av3dAJpcSslnNV7BFZFGjWdAVOC-oLB46TGUO3Wu8_Ba",
+        "signatureSha256Hex": "415a2944623d1d017b6bcd6cb8e70ee3e6054b28db24305dc3509e61143ad54b"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "APAC",
+      "ed25519": {
+        "signatureSha256Hex": "84a93d083a148995e21780a8c0294438473acd297993209b6032019f2a8788bf",
+        "prepareMs": 35.41337500000009,
+        "signMs": 25.125625000000582,
+        "signingHttpMs": 60.53900000000067,
+        "signatureB64u": "Ppk1IO9grf--tDGAv8yv1ti3yGMA8s_HsqXNOLiggUMxoxLqKSY2wdNY4jO8ZNs2xCyxwLtH0-UqohhcOD9xDQ",
+        "digestB64u": "1QGch8V4QGHKEnmwliCRvYuMkgDKeLYyRSCcb5Hukes",
+        "publicKeyB64u": "68-3zV4j7k2T6W__e5E9JC3HbNoomXc7DJl9LuvduBs",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "i9FslC4PBQCHOBc3W_vga_HCT1Gpz-gYjpb6pSdgZ80x1aaIlLwho8vYVWfejH3JsGusSQ32j-GeT3KRZ2idNQE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "Ax2806KYQwJBGvZGr6NOIvh19heykN7eHiOUDfD1TqzL",
+        "signatureSha256Hex": "6f0cfc7e03fef811812b290e97e5b29ab74d594c45af302579086e83d3ece098"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 4,
+      "home": "OC",
+      "ed25519": {
+        "signatureSha256Hex": "70fb0c2aa58f5250d014eaa680004ef4e9db7f28630cb39bd32763c03fd6f8bf",
+        "prepareMs": 40.56450000000041,
+        "signMs": 29.33758400000079,
+        "signingHttpMs": 69.9020840000012,
+        "signatureB64u": "-aY68MRQGKivVa3hf_qlgCl524jz4Fno9Y2nPmDJZQjG9cEHvWhuNZ_EbgIC9N2-xeJGn1AjiUlpUx15iq2vBA",
+        "digestB64u": "6PAaPb8t62kHaI0ApEnTWgIto4k5E-SNheeLYl6rX7A",
+        "publicKeyB64u": "TjccznyYkmnhqw6c0fdVth0D7jhbnWh3jWTUx_GP2_0",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "rj6QV6KAUINTFTC744pEsjBKcktZ0wofrEhaB0wN8-E13Xs7xXOvpLexelgLu6p0ydqKI0kAOHkQBAkx2DPbSwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "ApZm-vwYd32aHHDNupGyBxshiDSgdO7N0xtxWj3CmJpV",
+        "signatureSha256Hex": "da069dbd964197a874e17f51e67a2291734d9a442c31f00b03dcc5e28e5f3985"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "US",
+      "ed25519": {
+        "signatureSha256Hex": "ccd7d3622d34525aecb5ef7225cbcd798f6c640d475f728fd98e07bce4faf387",
+        "prepareMs": 45.68279200000006,
+        "signMs": 26.968374999999924,
+        "signingHttpMs": 72.65116699999999,
+        "signatureB64u": "CZ7u05neLeyYFyvRaPbrjYuuqZlrfkfAUyVJkCq4905R3KAxKhdM2J-M2X-MDE4zof32NdiKT4YyDgfIgiSUDQ",
+        "digestB64u": "NOCovo4b_x5bgYpvSTaRGEtFyDkP5ujorvphr8iL_Bo",
+        "publicKeyB64u": "0X1ZUs04p4XkT8wPsoumxaeLYDl4yRa9JANZfYTOGLQ",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "94Dfq0BSybKyo-RrQxp0pz6K8HrO38hkD_5MdchuR2gQEg8-jdIFMVQKCt4ibYRCGKDM-43tgiepKnf0Fyho7gE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AuocygUJVLhHRl-4OrxgBZPN9YhI5LXwMLtboBxOA_nX",
+        "signatureSha256Hex": "8cba88de2afa0a9775e5b70d96293415196221b9b7d5a6c4743c471555232116"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "WEUR",
+      "ed25519": {
+        "signatureSha256Hex": "c7dcea655f34b7f6d5dd962776db9fededb4bcb5cf298068a089d50c821aae03",
+        "prepareMs": 39.53779099999974,
+        "signMs": 28.236416999999165,
+        "signingHttpMs": 67.77420799999891,
+        "signatureB64u": "wt7FmOWmB3F_ILaadR_pxzDxZYZanukHpzX-EO3x-5omutX5KqQlApyU0ZwEWofOkxhxrByYmz_LNcFzLtoCDQ",
+        "digestB64u": "LgJFp8UMWATRxuPdAqyYezDG63Z1xG4wzZM5eYukjtI",
+        "publicKeyB64u": "gnW0iemM3z-UJHOFpnea5_59mIc0zi52OokjoyBvAMY",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "CVYljVi3l_vphvpJPJVCjpIqKu-SlC7wyW7xTw-eAScRTN5tkQPP2JdvZUq2j4Vz_UP2Bj0YQwpWkvqcTWZjJwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A8i36DJG7eVXVxXybTu3HN5wn6VtJhtyhGgXJUdjkIYR",
+        "signatureSha256Hex": "7959ccee9ef1f447ea97268de9be68112bd394d8488823ac25635d094dc38114"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "APAC",
+      "ed25519": {
+        "signatureSha256Hex": "bd368a79a6717271c6f8f642d07a2775522d889ea0b081569664ad54f18b2e55",
+        "prepareMs": 39.91625000000022,
+        "signMs": 24.173500000000786,
+        "signingHttpMs": 64.089750000001,
+        "signatureB64u": "3zCLglgae0SymtON6d6e-av20yB-H5XUT5fBwRH_rEWzae92z2jPi2FB4VOR49h8y4eWc-dBkE7u4ityQKS3Dg",
+        "digestB64u": "Ejf9IF84AJ5pmLni9qEU3NljSZepnZam6xA6zswxEHo",
+        "publicKeyB64u": "ZtOXQL87_pdkA4uoCYibOX5FRM8s1PEuO6MkSPnxW6c",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "4CPzh9dZoFJD6a2Mldy_qXm9LsZaaFLSIB8-1q-nLmJ9ayavilWRPzaroYA239kLSya1AXDpv8r0SJkmcDjbaAA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A0fsnpbslmmpNXStqVwcB9rkFbeHVFScsASltDq7OT-z",
+        "signatureSha256Hex": "385a83049f063c62a67bd0054653a1a20df29c7521aa0cfca72d5b18a5850b3d"
+      }
+    },
+    {
+      "arm": "control",
+      "group": 5,
+      "home": "OC",
+      "ed25519": {
+        "signatureSha256Hex": "77cca0f5ef4e350f2b09b2bd6a8d4a0033c35c264802de803d499f06bb1cf395",
+        "prepareMs": 38.672583999999915,
+        "signMs": 30.72429100000045,
+        "signingHttpMs": 69.39687500000036,
+        "signatureB64u": "Ak_Nky-olJi4nYP6PKKRYNbIQIzE-ebmCHJqguILMFALMT7eG3G4CGC8Kr_N5BXz_I5rwWA96iOlyf6_B4RQCg",
+        "digestB64u": "oykYuif9eBswTsnDlXNlYay3tYpes9dFznTV-HKsGX4",
+        "publicKeyB64u": "qVhc6nZMfbIq167NTQSQqwFnr1pc1lgqiWmfuyDUThk",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "D5tQP7yFQhKIloFWT9nsRsHFWgk_ZW98X2HWvVOF0l8cLzy4kRm3FPErRonrCWkh3emUkfEJm6kI9kdzawLW-gA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A6mXF9dVm1mEiQrDwcYlUGL3Ph2e9DrTyJeqej7nDxv3",
+        "signatureSha256Hex": "22b599900717d0a6c6b36a9be3228f4c714131ce6b7c92ecd71e9546b74812b3"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "US",
+      "ed25519": {
+        "signatureSha256Hex": "094cc73e0a10f9c4307d0fad3857f9221d78c0ffe4feed7f5f66ccc1cdf53e93",
+        "prepareMs": 53.50195900000017,
+        "signMs": 26.49016699999993,
+        "signingHttpMs": 79.9921260000001,
+        "signatureB64u": "Ms9Z10l1lNt-PrH3s_x37YOWs9_zUtt6TY0PxNQFRZPtS0QSbH-sFs_rTOtzwa-m3m6m83BzkOe3-4Bu6XwRAw",
+        "digestB64u": "2NaGUqfM7nrKsLgodHdUq6eVCqU2DCuvZKM6_UtgwJ0",
+        "publicKeyB64u": "tzWjZWmAmib7Dgbp4VllZc7WWZkkUcSfQmemhO-8alo",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "yDTRpH2pNSV8utqksy7BjfA75qL9KOSm8iLusPVt8WJhYEjcK-QmIQEC-BXuoxR6g-sdgPpnzdexFjXbVvwgkgE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AlDuJs3V_hyo0pbMmxbhD4nPPK4WYGWbJgPAwaKI0nA0",
+        "signatureSha256Hex": "33bfba7c5414a027ccd18e06a19baaa8dc3daefc21b664fd411604b692bc5ca5"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "WEUR",
+      "ed25519": {
+        "signatureSha256Hex": "ab4c6b916e8db657cff021c860ef31ed480f89fe356d09c41a172da29efe3ad2",
+        "prepareMs": 39.59491699999944,
+        "signMs": 29.638458000000355,
+        "signingHttpMs": 69.2333749999998,
+        "signatureB64u": "Skl6qzwt2pqrSgr17tLIq6ANo3i2bnAycHc7-1uAHXTDFMtV6YaUz8jf6HXS7MDuP59SHRN6PMSMTg-ZZjwkDA",
+        "digestB64u": "3VRGlEuvw6k7VASCsnYozJ2GeYsYYL4lj6U1cjGVfAg",
+        "publicKeyB64u": "MbtWklqRJfCgKZKxO8bjZtutuinnofw8_ULTcwonK08",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "iZ7uLl0XbUOFVhF4u3DClJ6YReRUeNrchzOvYyweozU_Q_h0yFGXSkNZlGWGGp366q-AC3hQNeFZBbXqd1MRKwA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AvrWwrcJoHL845zC4x1p75BquePYRyum1N7KFvgrpNCL",
+        "signatureSha256Hex": "254bbef51dad69253c05946b35444ec26cc74145c001ed9466d21c44ca614642"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "APAC",
+      "ed25519": {
+        "signatureSha256Hex": "00a515b546c2a0179f1d223675985d09d7099a9860ac624b1253aa7e29d5edfa",
+        "prepareMs": 46.23554100000001,
+        "signMs": 24.050124999999753,
+        "signingHttpMs": 70.28566599999976,
+        "signatureB64u": "shjXKMCpwpaugWPJ1H7QfXpVOs1yqVQ1p4jnixhAOyxRA8rAzf-TADycjPnK3-u8fV08bt1xiIBjZ0i-0lSXAQ",
+        "digestB64u": "J9YlI0ses59k2Yei3e7hoOwC8jvsy_KXpWwn7LcRT4I",
+        "publicKeyB64u": "oBdZIGwVhxbgIXptoAYSZYlvHQr3hRd3bXqaxIyuXgE",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "UfJ2TA5JW9go6wm9nIlyil56MwgGyMqBKaBzETfhvOdvoFw6AYdSuNYNB88CTDVldsX0B6kf-a4PU7DuNtnZdAA",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "A1avaPmsWW0HtjDZ4MYo4vCPs9rZmpkCGqAlmN45snXL",
+        "signatureSha256Hex": "85623dd4cf042a1f3759071f7c25b62503934226fec319df1303f7b9786c4e9c"
+      }
+    },
+    {
+      "arm": "candidate",
+      "group": 6,
+      "home": "OC",
+      "ed25519": {
+        "signatureSha256Hex": "10da49d220dc2f569a8e3f3a038bc58ae37bafe9043ab520222e4240af186b1c",
+        "prepareMs": 46.94795899999917,
+        "signMs": 28.308791999999812,
+        "signingHttpMs": 75.25675099999899,
+        "signatureB64u": "lL85J3vtjiB7msVWSWikB6z14IpILwVZoYmb14HOq5wwP46jMR5P81glDt0-UKyfWTAhaZ3YIeU1jmJB3uEzBw",
+        "digestB64u": "5Jx6gY1NVr1NHm_8ooO8oe3qle0Fzvka0e7yzslJhLE",
+        "publicKeyB64u": "27E_oNZhCmLEJQUkQQPZvy85o3cx-K0JAemZTQkYOC4",
+        "independentlyVerified": true,
+        "prepareAndFinalizeReplay": true
+      },
+      "ecdsa": {
+        "independentlyVerified": true,
+        "signatureB64u": "-H-sYILJIpgfDkNIWsjiLLRhO_wggCL4Qe36cd8JiZYL17GLiqhnT1grj3Bl036ZVWPMnY48eGsP8r-g82tTkQE",
+        "digestB64u": "nw2ijRdgO3J2NGIOQLx7xY190EdnX6BI1KOkCJcBjyc",
+        "publicKeyB64u": "AiQvZWTBjUIFmLbxPKynoy9JV71MLqCdRgC6PJuK7t-h",
+        "signatureSha256Hex": "11da65232fda6231df891de66f9594a3ef7cac9aac70c6dc5ac0bae43041d513"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "scenario": "preparation-before-socket",
+      "exitCode": 0
+    },
+    {
+      "scenario": "queued-input-relocation",
+      "exitCode": 0
+    },
+    {
+      "scenario": "cancelled-b-before-claim",
+      "exitCode": 0
+    },
+    {
+      "scenario": "lost-input-source-fenced",
+      "exitCode": 0
+    },
+    {
+      "scenario": "preparation-evicted-before-socket",
+      "exitCode": 0
+    },
+    {
+      "scenario": "duplicate-router",
+      "exitCode": 0
+    },
+    {
+      "scenario": "socket-before-preparation",
+      "exitCode": 0
+    },
+    {
+      "scenario": "preparation-reply-lost",
+      "exitCode": 0
+    },
+    {
+      "scenario": "duplicate-socket",
+      "exitCode": 0
+    },
+    {
+      "scenario": "duplicate-execution",
+      "exitCode": 0
+    },
+    {
+      "scenario": "preparation-never-arrives",
+      "exitCode": 0
+    },
+    {
+      "scenario": "preparation-fails",
+      "exitCode": 0
+    },
+    {
+      "scenario": "late-preparation-after-refusal",
+      "exitCode": 0
+    },
+    {
+      "scenario": "changed-generation",
+      "exitCode": 0
+    },
+    {
+      "scenario": "connection-refused",
+      "exitCode": 0
+    },
+    {
+      "scenario": "wrong-scope",
+      "exitCode": 0
+    },
+    {
+      "scenario": "lost-upgrade-reply",
+      "exitCode": 0
+    },
+    {
+      "scenario": "protocol-disconnect",
+      "exitCode": 0
+    },
+    {
+      "scenario": "cancelled-root",
+      "exitCode": 0
+    },
+    {
+      "scenario": "missing-admission",
+      "exitCode": 0
+    },
+    {
+      "scenario": "late-preparation-after-burn",
+      "exitCode": 0
+    },
+    {
+      "scenario": "expired-input-retry",
+      "exitCode": 0
+    }
+  ],
+  "promptCases": [
+    {
+      "kind": "prepared",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "expired",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm",
+        "/router-ab/deriver-b/ed25519-yao/duplex"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "abandoned",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "cancelled",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "admission-failure",
+      "passed": true,
+      "onlineFallbackAfterAdmissionFailure": true
+    }
+  ],
+  "builds": [
+    {
+      "arm": "control",
+      "role": "router",
+      "wasmSha256": "24b8e49b386a3ff3c9aa6db54d5cee72c4e186f7ffeed2c71519f033aa2e884d"
+    },
+    {
+      "arm": "control",
+      "role": "deriver-a",
+      "wasmSha256": "5c36012b30c97595f0b0153305dc1c5ec93b66a19558b31847753334766d1dc0"
+    },
+    {
+      "arm": "control",
+      "role": "deriver-b",
+      "wasmSha256": "320d4a8c2dbff6550f2a640673a7df1e919a688bbf432550c02ca1c01b45fa7e"
+    },
+    {
+      "arm": "control",
+      "role": "signing-worker",
+      "wasmSha256": "22586ec2f852e2bcde8a8d6106e491a63c939f7eed2ba677c600372bc60b8d08"
+    },
+    {
+      "arm": "control",
+      "role": "tenant-root-control-plane",
+      "wasmSha256": "0cdc9bcb388d80df80c3f285f1c4691302a38e62adc9ddb8ef0feb4efdf15aa9"
+    },
+    {
+      "arm": "candidate",
+      "role": "router",
+      "wasmSha256": "7f32c33a6c832f21f24e842c491c79de6fe71eb1ffab930ed1d3da88b5025eb4"
+    },
+    {
+      "arm": "candidate",
+      "role": "deriver-a",
+      "wasmSha256": "42d318a72af6bd2a6f8b15018d88a555206e723e308f9b903e7d3fe8ca93f2d5"
+    },
+    {
+      "arm": "candidate",
+      "role": "deriver-b",
+      "wasmSha256": "62c9b045a5e9425d4605efdfe1cba9ba2a26b6f1feabee215ef8920d96ec4be9"
+    },
+    {
+      "arm": "candidate",
+      "role": "signing-worker",
+      "wasmSha256": "9cb2e2e7d5fa0434b1c0b5cd27e312977c6d62ac81ed7ffd0c6078139c419016"
+    },
+    {
+      "arm": "candidate",
+      "role": "tenant-root-control-plane",
+      "wasmSha256": "761d98e6b9cec00d80ef874495268b9ecfbf05a3a9ec780751f3411fd64179d4"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs",
+      "sha256": "8379a42b18d0991fa4434145ca148e8d693bb55ce396df286dcfc1e3aec60d3c"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/mod.rs",
+      "sha256": "c18cb2d8791e34c139989c02c55cdbd90b50d474b47cd158ded12d2fcd1fee41"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/router_wallet.rs",
+      "sha256": "efcdedd4894ef533f5da5acb576d259d4d8d4194fab99f5a6b97ccac618aef39"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+      "sha256": "cd065aa9e59cfa0fb3d461dbfa81954f1a8ee3bf47d29ac50918e4ce02c9266f"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/deriver_b_state.rs",
+      "sha256": "fa358e50c8ae39401400ae18261e38d854a21ed52aac0180e3bc7030afb0e380"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+      "sha256": "af634404d53f26006ec7f42ae339a41789fa5a8ec65bee5ce502eb7738f754a4"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/router_coordinator.rs",
+      "sha256": "13c1ec24e23b216d1cef906fc29bb6ee85cfd137bf3013a920551c01c72796c0"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/router_coordinator/execute_request.rs",
+      "sha256": "63df9e98127511ad2d751b09c6aa019ededb97f937028b292904717fe604f199"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs",
+      "sha256": "bbee3783152b5ee264298119b68da88ad118c9b4f0728fe9bac3e127209f94fa"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/deriver_relocation.rs",
+      "sha256": "eeaddfb851c4e80c73963fb84cea4f6ca5ad86d07799e8437b61f939a3babd72"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ed25519_yao_pair_protocol.rs",
+      "sha256": "5ef66b476a29a58c7ca0f8894e8a55825f222d8a72f081a739f0b2c35824d313"
+    }
+  ]
+}

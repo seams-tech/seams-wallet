@@ -1,5 +1,9 @@
 # Registration optimization opportunities — October 15, 2026
 
+Update, October 16: items 1 and 2 are implemented in `18b09520`. Correctness
+checks pass. The combined local medians are unchanged; hosted savings remain
+unmeasured. See the [implementation and evidence](registration-router-orchestration-20261016.md).
+
 The current objective is to shorten execution itself: fewer network exchanges,
 fewer durable transitions, and less protocol computation. The prompt-overlap
 proposal below remains a UX option; it does not reduce the computation.
@@ -164,7 +168,8 @@ Do not weaken ownership checks or apply this permission to an existing wallet.
   headers 16–17 ms. These spans include required durable work, so their sum is
   not removable latency. Moving orchestration could remove crossings while retaining
   the writes, but the current evidence does not justify a large saving. This also
-  touches the claim path Claude is investigating; do not implement it concurrently.
+  touches the claim path Claude is investigating. The implementation preserves
+  those claim transitions; his R155J investigation remains separate.
 - **Garbling before execution.** R155H already deferred this after garbling and
   evaluation began overlapping. Activation has 65,780 AND gates and 2,104,960
   bytes of table payload. Retaining that table adds memory and single-use state.
