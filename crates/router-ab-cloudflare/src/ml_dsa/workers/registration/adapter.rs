@@ -8,7 +8,6 @@ pub(super) struct Adapter<'a> {
     pub ceremony: [u8; 32],
     pub loaded_frames: usize,
     pub loaded_bytes: usize,
-    pub load_wall_ms: u64,
 }
 fn failed(_: impl std::fmt::Display) -> RuntimeError {
     RuntimeError::TableFrame
@@ -56,9 +55,6 @@ impl prepared::Transport for Adapter<'_> {
         .map_err(failed)?;
         self.loaded_frames += 1;
         self.loaded_bytes += bytes.len();
-        self.load_wall_ms += crate::cloudflare_now_unix_ms_v1()
-            .map_err(failed)?
-            .saturating_sub(now);
         Ok(bytes)
     }
     fn phase(&mut self, _: prepared::Phase) {}

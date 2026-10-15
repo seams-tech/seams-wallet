@@ -1,0 +1,317 @@
+{
+  "schema": "seams.ml-dsa-registration-cpu-samples.v1",
+  "scope": "Local workerd participant B during complete registration, including stock installation and incidental cleanup. Categories overlap. Counts are statistical samples, not CPU milliseconds or hosted latency. Each profile needs a successful separate calibration.",
+  "wasm_sha256": "b82d89e7061879355bc970229a592f302828040298e806e71e1d2de4439d7d30",
+  "symbol_map_sha256": "ed12200be99d69f80851904ebee7b2bd3010337f112badc756c7ad3d76aa966d",
+  "e2e_sha256": "3fd6ac1a6aa00753462e430f4ffa1877979d16e7e70831441b76b6b2c226d913",
+  "profiles": [
+    {
+      "profile_sha256": "4cffc597aa5de34d1c496ca96f67fea9622080eac688a35cce1b7e02526ecf50",
+      "total_samples": 864,
+      "categories": {
+        "garbled_circuit_run_inclusive": {
+          "samples": 167,
+          "percent_of_all_samples": 19.33
+        },
+        "hpke_aes_gcm_suite_inclusive": {
+          "samples": 1,
+          "percent_of_all_samples": 0.12
+        },
+        "hpke_chacha_suite_inclusive": {
+          "samples": 98,
+          "percent_of_all_samples": 11.34
+        },
+        "idle": {
+          "samples": 8,
+          "percent_of_all_samples": 0.93
+        },
+        "storage_aead_primitive_inclusive": {
+          "samples": 50,
+          "percent_of_all_samples": 5.79
+        },
+        "storage_js_leaf": {
+          "samples": 281,
+          "percent_of_all_samples": 32.52
+        },
+        "table_load_inclusive": {
+          "samples": 448,
+          "percent_of_all_samples": 51.85
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "get",
+          "samples": 203
+        },
+        {
+          "function": "",
+          "samples": 70
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::sub_bytes",
+          "samples": 67
+        },
+        {
+          "function": "delete",
+          "samples": 47
+        },
+        {
+          "function": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+          "samples": 36
+        },
+        {
+          "function": "__wbg___wbindgen_string_get_fa2687d531ed17a5",
+          "samples": 33
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 32
+        },
+        {
+          "function": "put",
+          "samples": 31
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_1",
+          "samples": 28
+        },
+        {
+          "function": "<&curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625 as core[9b3796e30d99ddb7]::ops::arith::Mul>::mul",
+          "samples": 28
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::aes128_encrypt",
+          "samples": 25
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 24
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::PreparedCircuit>::run::<router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter>::{closure#0}",
+          "samples": 21
+        },
+        {
+          "function": "<curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625>::square_inner",
+          "samples": 21
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 16
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::Evaluator>::evaluate_and",
+          "samples": 14
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 13
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}, router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 13
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 11
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 9
+        },
+        {
+          "function": "<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519 as hpke_ng[6dfdced5c514bfd9]::kem::dh::DiffieHellman>::dh",
+          "samples": 9
+        },
+        {
+          "function": "(idle)",
+          "samples": 8
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+          "samples": 8
+        },
+        {
+          "function": "(program)",
+          "samples": 7
+        },
+        {
+          "function": "ed25519_yao[b344fa54524bf456]::passive::prepare_hash_input",
+          "samples": 6
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_3",
+          "samples": 6
+        },
+        {
+          "function": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+          "samples": 5
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 5
+        },
+        {
+          "function": "<&curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625 as core[9b3796e30d99ddb7]::ops::arith::Sub>::sub",
+          "samples": 4
+        },
+        {
+          "function": "router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::engine::connected::{closure#0}",
+          "samples": 3
+        }
+      ]
+    },
+    {
+      "profile_sha256": "d46f0f77d202bae6f3d8e7220dfaa7b6dc3ea38245b4a5f04023274eb3d12c36",
+      "total_samples": 722,
+      "categories": {
+        "garbled_circuit_run_inclusive": {
+          "samples": 183,
+          "percent_of_all_samples": 25.35
+        },
+        "hpke_chacha_suite_inclusive": {
+          "samples": 93,
+          "percent_of_all_samples": 12.88
+        },
+        "idle": {
+          "samples": 9,
+          "percent_of_all_samples": 1.25
+        },
+        "storage_aead_primitive_inclusive": {
+          "samples": 42,
+          "percent_of_all_samples": 5.82
+        },
+        "storage_js_leaf": {
+          "samples": 137,
+          "percent_of_all_samples": 18.98
+        },
+        "table_load_inclusive": {
+          "samples": 299,
+          "percent_of_all_samples": 41.41
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "get",
+          "samples": 96
+        },
+        {
+          "function": "",
+          "samples": 79
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::sub_bytes",
+          "samples": 71
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::aes128_encrypt",
+          "samples": 39
+        },
+        {
+          "function": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+          "samples": 36
+        },
+        {
+          "function": "__wbg___wbindgen_string_get_fa2687d531ed17a5",
+          "samples": 32
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 30
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 28
+        },
+        {
+          "function": "delete",
+          "samples": 27
+        },
+        {
+          "function": "<&curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625 as core[9b3796e30d99ddb7]::ops::arith::Mul>::mul",
+          "samples": 27
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_1",
+          "samples": 26
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::PreparedCircuit>::run::<router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter>::{closure#0}",
+          "samples": 18
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}, router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[b4d4a1804c131bb4]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 16
+        },
+        {
+          "function": "put",
+          "samples": 14
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 14
+        },
+        {
+          "function": "<curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625>::square_inner",
+          "samples": 13
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 12
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_3",
+          "samples": 11
+        },
+        {
+          "function": "(idle)",
+          "samples": 9
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::Evaluator>::evaluate_and",
+          "samples": 9
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 9
+        },
+        {
+          "function": "<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519 as hpke_ng[6dfdced5c514bfd9]::kem::dh::DiffieHellman>::dh",
+          "samples": 8
+        },
+        {
+          "function": "ed25519_yao[b344fa54524bf456]::passive::prepare_hash_input",
+          "samples": 8
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+          "samples": 7
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 7
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 5
+        },
+        {
+          "function": "(program)",
+          "samples": 4
+        },
+        {
+          "function": "<serde_core[48d418027fb1745e]::de::value::SeqDeserializer<core[9b3796e30d99ddb7]::iter::adapters::map::Map<js_sys[8765965618afd412]::ArrayIter, <serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer as core[9b3796e30d99ddb7]::convert::From<wasm_bindgen[c33feeafceb850a1]::JsValue>>::from>, serde_wasm_bindgen[e3dbf1ab01ce4dad]::error::Error> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+          "samples": 4
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 4
+        },
+        {
+          "function": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+          "samples": 3
+        }
+      ]
+    }
+  ]
+}

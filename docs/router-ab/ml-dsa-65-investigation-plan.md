@@ -2,7 +2,7 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [latest private Worker integration campaign](ml-dsa-65-registration-worker-report.md) measures complete registration at 11.73 seconds, recovery at 10.92 seconds, and signing at 5.10 and 4.04 seconds.
+The [latest storage-cipher campaign](ml-dsa-65-registration-cpu-report.md) measures complete registration at 8.48 seconds, recovery at 6.92 seconds, and signing at 1.54 and 2.21 seconds.
 Both cases pass functional checks. The five-second target remains unmet. These timings include durable installation and signing settlement.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
 It targets 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
@@ -1026,3 +1026,18 @@ The changed scheduler reduced hosted signing to 5.10 and 4.04 seconds at the cli
 The slower fence call fell to 65 and 64 milliseconds. Create and recovery still took 11.73 and 10.92 seconds.
 The five-second target remains unmet. Hosted phase clocks returned zero during real table work and cannot attribute its cost.
 Next, calibrate CPU profiling for table authentication, serialization, restoration, and circuit evaluation before choosing the registration optimization.
+
+
+### Registration CPU and stored preparation — October 16, 2026
+
+The [CPU and storage-cipher report](ml-dsa-65-registration-cpu-report.md) records a calibrated local profiler and a complete hosted control.
+The baseline local profiles place about 14–16% of samples in garbled-circuit execution and 26–29% in the storage encryption/decryption primitive.
+Prepared storage now uses the existing HPKE library with ChaCha20-Poly1305 and explicit Poly1305 state wiping.
+All four storage domains advance to v2. Old prepared stock must be regenerated. Stable batch identifiers remain independent of that storage version.
+Canonical key derivation, wallet-seed recovery, and ordinary FIPS seed/key export remain unchanged.
+
+Local registration takes 1.50–1.71 seconds with profiling enabled. Hosted create and recovery take 8.48 and 6.92 seconds.
+Two hosted signatures verify in 1.54 and 2.21 seconds. Preparation, including four signing batches, takes 117.54 and 160.32 seconds.
+These samples do not establish consistent latency. Complete registration still misses five seconds.
+Next, measure activation and prepared-stock installation, compare bounded table I/O batches, and qualify terminal WebSocket handling and concurrency.
+GPU work stays deferred.

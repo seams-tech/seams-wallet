@@ -2,7 +2,7 @@
 //! Trusted admission owns the pool scope, role, schedule, expiry, and ceremony identity.
 use super::*;
 use zeroize::Zeroizing;
-const DOMAIN: &[u8] = b"seams/ml-dsa/registration-preparation/v1";
+const DOMAIN: &[u8] = b"seams/ml-dsa/registration-preparation/v2";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

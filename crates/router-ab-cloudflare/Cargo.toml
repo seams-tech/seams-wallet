@@ -58,6 +58,8 @@ frost-ed25519 = { version = "=2.2.0", default-features = false, features = ["ser
 futures = "=0.3.32"
 getrandom = { version = "=0.2.17", features = ["js"] }
 hpke-ng = { version = "=0.1.0", default-features = false }
+# HPKE's ChaCha20Poly1305 backend otherwise leaves its derived MAC state unwiped.
+poly1305 = { version = "=0.8.0", default-features = false, features = ["zeroize"] }
 rand_core = { version = "=0.9.5", default-features = false }
 rand_core_06 = { package = "rand_core", version = "=0.6.4" }
 rand_chacha = "=0.3.1"

@@ -1,9 +1,11 @@
 //! Authenticated role-private envelopes; storage state owns freshness.
 use super::*;
-use hpke_ng::{Aes256Gcm, DhKemX25519HkdfSha256, HkdfSha256, Hpke, Kem};
+use hpke_ng::{ChaCha20Poly1305, DhKemX25519HkdfSha256, HkdfSha256, Hpke, Kem};
 use zeroize::Zeroizing;
-type Cipher = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
-const INFO: &[u8] = b"seams/ml-dsa/prepared-storage/v1";
+// HPKE binds its AEAD suite ID into key derivation. Earlier AES-GCM preparation
+// cannot authenticate under this suite and must be replaced with fresh stock.
+type Cipher = Hpke<DhKemX25519HkdfSha256, HkdfSha256, ChaCha20Poly1305>;
+const INFO: &[u8] = b"seams/ml-dsa/prepared-storage/v2";
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Binding {

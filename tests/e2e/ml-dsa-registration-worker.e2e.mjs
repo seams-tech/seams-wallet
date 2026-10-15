@@ -7,11 +7,14 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
+import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
+const profilePrefix = process.env.ML_DSA_REGISTRATION_CPU_PROFILE;
+assert.ok(!(hostedUrl && profilePrefix), 'Inspector profiling requires local workerd');
 const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   ? (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim()
   : randomBytes(32).toString('hex');
@@ -52,10 +55,15 @@ let runtime;
 let keks;
 try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
+  if (profilePrefix) observations.profilerCalibration = await calibrateCpuProfiler(profilePrefix);
   let client = await startClient();
   keks = await Promise.all(['a', 'b'].map(readKek));
   if (!hostedUrl) {
-    runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+    runtime = new Miniflare({
+      workers: workers(),
+      durableObjectsPersist: persistence,
+      inspectorPort: profilePrefix ? 0 : undefined,
+    });
     await runtime.ready;
   }
   const denied = await raw('/router-ab/ml-dsa/registration/prepare', { wallet }, serviceAuth);
@@ -88,6 +96,7 @@ try {
     const ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
     assert.equal(ready.ready, true);
     const preparationMs = performance.now() - prepareStarted;
+    const profiler = profilePrefix ? await startCpuProfile(runtime, 'b') : null;
     const started = performance.now();
     const response = await post('/router-ab/ml-dsa/register', payload.request);
     const serverResponseMs = performance.now() - started;
@@ -100,6 +109,7 @@ try {
     const checked = await next(client);
     assert.equal(checked.verified, true);
     const registrationWithClientVerificationMs = performance.now() - started;
+    if (profiler) await profiler.stop(`${profilePrefix}-epoch-${epoch}.cpuprofile`);
     assert.deepEqual(await post('/router-ab/ml-dsa/register', payload.request), response);
     const changed = structuredClone(payload.request);
     changed.epoch += 1;
@@ -124,7 +134,11 @@ try {
     previous = result;
     if (!hostedUrl && epoch === 1) {
       await runtime.dispose();
-      runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+      runtime = new Miniflare({
+        workers: workers(),
+        durableObjectsPersist: persistence,
+        inspectorPort: profilePrefix ? 0 : undefined,
+      });
       await runtime.ready;
       assert.deepEqual(await post('/router-ab/ml-dsa/register', firstRequest), response);
       observations.registrationSurvivesRestart = true;

@@ -1,6 +1,7 @@
 # ML-DSA registration on Workers
 
 The private Worker registration flow creates and recovers a canonical ML-DSA-65 key.
+The subsequent [CPU and storage-cipher campaign](ml-dsa-65-registration-cpu-report.md) updates the timings and removes the unqualified phase clocks below.
 The first hosted campaign passed its functional checks and missed the five-second target.
 Public Wallet authentication, custody persistence, and SDK integration remain open.
 

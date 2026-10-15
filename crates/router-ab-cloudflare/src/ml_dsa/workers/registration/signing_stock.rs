@@ -1,14 +1,11 @@
 //! Key-independent signing batches prepared before registration, then rebound once.
 use super::*;
 use ed25519_yao::ml_dsa_signing::prepared_signing::gmw::prepare_gmw_reservation;
-const DOMAIN: &[u8] = b"seams/ml-dsa/registration-signing-stock/v1";
+const DOMAIN: &[u8] = b"seams/ml-dsa/registration-signing-stock/v2";
 #[derive(Serialize, Deserialize)]
 struct Stored {
     encapsulated_key: [u8; 32],
     chunks: usize,
-}
-fn batch(job: &core::Job, ordinal: usize) -> Result<[u8; 32]> {
-    digest(DOMAIN, &(job.id, ordinal))
 }
 pub(super) async fn prepare(
     env: &Env,
@@ -25,7 +22,7 @@ pub(super) async fn prepare(
     let participant = configured_role(env).map_err(storage_error)?;
     let mut topologies = Default::default();
     for ordinal in 0..job.signing_batches {
-        let id = batch(job, ordinal)?;
+        let id = core::signing_batch_id(job, ordinal)?;
         let prepared = prepare_gmw_reservation(role, id, 4, &schedules, &mut topologies, wire)
             .await
             .map_err(runtime_error)?;
@@ -86,7 +83,7 @@ pub(super) async fn install(
         let binding = Binding {
             key: key.clone(),
             role: participant,
-            batch: batch(&claim.job, ordinal)?,
+            batch: core::signing_batch_id(&claim.job, ordinal)?,
             expires_at_ms: claim.job.expires_at,
             wrapping_key_version: version.clone(),
         };
