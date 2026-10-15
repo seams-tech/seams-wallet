@@ -24,6 +24,12 @@ pub async fn claim(store: &impl Store, key: KeyScope, now: u64) -> Result<Claim>
     {
         return Err(invalid("ML-DSA preprocessing key is inactive"));
     }
+    let foreground = admission::active_until(store, now)
+        .await?
+        .max(registration::active_until(store, now).await?);
+    if let Some(retry_at_ms) = foreground {
+        return Ok(Claim::Busy { retry_at_ms });
+    }
     if let Some(active) = store.get::<Job>(ACTIVE).await? {
         if active.expires_at_ms > now {
             return Ok(Claim::Busy {

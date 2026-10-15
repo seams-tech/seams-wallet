@@ -3434,6 +3434,10 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Reject republishing consumed registration preparation. Keep participant ciphertext and wrapping secrets separate.
 - Authenticate each registration table frame against its reservation, circuit, position, and length. Read it only after the exact ceremony consumes private preparation.
 - Consume table frames atomically. Retire unused fallbacks in bounded steps, and fence late writers even when cancellation precedes the first frame.
+- Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
+- Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
+- Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.
+- Keep signing capacity reserved through both role settlements. New key-bound refill must wait for active signing settlement and registration to finish or expire.
 - Require an exact ML-DSA transaction approval before preparing a private Router signing request.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
 - Require both verified factor evidence and an operation-specific owner proof within their validity windows.

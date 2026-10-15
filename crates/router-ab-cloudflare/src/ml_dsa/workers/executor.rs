@@ -28,7 +28,7 @@ impl Host for WorkerHost<'_> {
     }
 }
 
-pub(super) fn wrapping_key(env: &Env) -> Result<(Identifier, Zeroizing<[u8; 32]>)> {
+pub(super) fn holder_key(env: &Env) -> Result<(Identifier, Zeroizing<[u8; 32]>)> {
     let version = Identifier::try_from(
         env.var("DERIVER_ROLE_PRIVATE_D1_KEK_VERSION")
             .map_err(storage_error)?
@@ -43,6 +43,10 @@ pub(super) fn wrapping_key(env: &Env) -> Result<(Identifier, Zeroizing<[u8; 32]>
         crate::ed25519_yao_lifecycle::role_d1::decode_role_private_d1_private_key(&encoded)
             .map_err(storage_error)?,
     );
+    Ok((version, private))
+}
+pub(super) fn wrapping_key(env: &Env) -> Result<(Identifier, Zeroizing<[u8; 32]>)> {
+    let (version, private) = holder_key(env)?;
     let mut hash = Sha256::new();
     hash.update(b"seams/ml-dsa/role-wrapping-seed/v1");
     hash.update(private.as_ref());

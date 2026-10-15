@@ -13,6 +13,8 @@ pub use ecdsa_signing_fetch::*;
 pub mod ml_dsa;
 #[cfg(feature = "workers-rs")]
 pub use ml_dsa::workers::{RouterAbMlDsaAdmissionDurableObject, RouterAbMlDsaPoolDurableObject};
+#[cfg(feature = "workers-rs")]
+pub use ml_dsa::workers::registration::RouterAbMlDsaRegistrationDurableObject;
 mod auth;
 mod authorized_operations;
 pub use authorized_operations::*;

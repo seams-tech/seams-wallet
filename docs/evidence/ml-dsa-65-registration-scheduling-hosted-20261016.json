@@ -1,0 +1,72 @@
+{
+  "observedAt": "2026-10-15T16:03:53.495Z",
+  "wallet": {
+    "org": "registration-e2e",
+    "project": "wallet",
+    "environment": "temporary",
+    "wallet": "wallet-3dfb1c366fc0e845"
+  },
+  "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+  "hosted": true,
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "minimum_ready_batches": 2,
+    "refill_target_batches": 4
+  },
+  "cases": [
+    {
+      "epoch": 1,
+      "preparationMs": 177291.88533299998,
+      "serverResponseMs": 11725.0815,
+      "registrationWithClientVerificationMs": 11728.35712499998,
+      "underFiveSeconds": false,
+      "canonicalKeyVerified": true,
+      "holderResultsAuthenticated": true,
+      "manifestVerified": true,
+      "exactReplay": true,
+      "changedReplayRejected": true,
+      "initialStockSign": {
+        "verified": true,
+        "elapsedMs": 5097.964040999999
+      }
+    },
+    {
+      "epoch": 2,
+      "preparationMs": 180815.796375,
+      "serverResponseMs": 10921.64183400001,
+      "registrationWithClientVerificationMs": 10923.193417000002,
+      "underFiveSeconds": false,
+      "canonicalKeyVerified": true,
+      "holderResultsAuthenticated": true,
+      "manifestVerified": true,
+      "exactReplay": true,
+      "changedReplayRejected": true,
+      "initialStockSign": {
+        "verified": true,
+        "elapsedMs": 4035.658624999982
+      }
+    }
+  ],
+  "functionalPassed": true,
+  "latencyTargetMet": false,
+  "builds": {
+    "router": "1bbf4e8d909b8526021da2bb9d4254a98aa36260e2f7fd4dab8683a33f0d0f12",
+    "deriver-a": "6358709e94100f10e900848d243c8b82fda8900058458d1c0ff1f32435fcf834",
+    "deriver-b": "21ef9980a41960cf943bdd6134ba788f5ecb0c4250f34f835fe7bf44b906e028"
+  },
+  "scriptSha256": "7abe088f474c65eda372cd8f04b4bd90b14b2e80cebf820e3cca73f8616cdab0",
+  "wrongCredentialRejected": true,
+  "emptyPoolRetryTime": true,
+  "recoveryPreservesCanonicalKey": true,
+  "hosted_phase_clock_qualified": false,
+  "deployment_versions": {
+    "router": "18d35b34-164d-4965-b67f-eb8f8fb818c2",
+    "a": "24b24665-a593-4ea0-bcac-9fff83161218",
+    "b": "c5450312-f77c-4ba5-8ab1-88a91a64bd75"
+  }
+}

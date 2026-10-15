@@ -2,6 +2,7 @@
 mod coordinator;
 mod executor;
 mod preparation;
+pub(crate) mod registration;
 mod schedules;
 mod transport;
 use super::{
@@ -35,6 +36,30 @@ const CHECK_PATH: &str = "/check";
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AdmissionCommand {
+    PrepareRegistration {
+        scope: [u8; 32],
+        schedule: [u8; 32],
+        signing_schedule: [u8; 32],
+        signing_batches: usize,
+    },
+    ReadyRegistration {
+        job: super::registration::Job,
+        role: Participant,
+    },
+    CheckRegistrationJob {
+        job: super::registration::Job,
+    },
+    ClaimRegistration {
+        request: super::registration::Request,
+        schedule: [u8; 32],
+    },
+    CheckRegistrationClaim {
+        claim: super::registration::Claim,
+    },
+    FinishRegistration {
+        claim: super::registration::Claim,
+        result: super::registration::Completed,
+    },
     ClaimRefill {
         key: KeyScope,
     },
@@ -70,6 +95,9 @@ pub enum AdmissionCommand {
         permit: Permit,
         completion: Completion,
     },
+    Settled {
+        request: super::SigningRequest,
+    },
     Lookup {
         request: super::SigningRequest,
     },
@@ -77,6 +105,12 @@ pub enum AdmissionCommand {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RoleCommand {
+    InstallRegistrationBatch {
+        claim: super::registration::Claim,
+        ordinal: usize,
+        binding: Binding,
+        sealed: Sealed,
+    },
     StartRefill {
         job: refill::Job,
     },
@@ -134,6 +168,7 @@ pub enum RoleCommand {
 impl RoleCommand {
     fn key(&self) -> &KeyScope {
         match self {
+            Self::InstallRegistrationBatch { binding, .. } => &binding.key,
             Self::StartRefill { job } => &job.key,
             Self::CheckMaterial { activation } => &activation.key,
             Self::InstallMaterial { record } => &record.activation.key,
@@ -222,6 +257,9 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
             && !matches!(
                 command,
                 AdmissionCommand::Lookup { .. }
+                    | AdmissionCommand::ReadyRegistration { .. }
+                    | AdmissionCommand::CheckRegistrationJob { .. }
+                    | AdmissionCommand::CheckRegistrationClaim { .. }
                     | AdmissionCommand::ActiveKey { .. }
                     | AdmissionCommand::KeyState { .. }
                     | AdmissionCommand::ClaimRefill { .. }
@@ -259,6 +297,38 @@ async fn execute_admission(
     now: u64,
 ) -> Result<serde_json::Value> {
     match command {
+        AdmissionCommand::PrepareRegistration {
+            scope,
+            schedule,
+            signing_schedule,
+            signing_batches,
+        } => json(
+            super::registration::prepare(
+                store,
+                scope,
+                schedule,
+                signing_schedule,
+                signing_batches,
+                now,
+            )
+            .await?,
+        ),
+        AdmissionCommand::ReadyRegistration { job, role } => {
+            super::registration::ready(store, &job, role, now).await?;
+            json(true)
+        }
+        AdmissionCommand::CheckRegistrationJob { job } => {
+            json(super::registration::check_job(store, &job, now).await?)
+        }
+        AdmissionCommand::ClaimRegistration { request, schedule } => {
+            json(super::registration::claim(store, request, schedule, now).await?)
+        }
+        AdmissionCommand::CheckRegistrationClaim { claim } => {
+            json(super::registration::check_claim(store, &claim, now).await?)
+        }
+        AdmissionCommand::FinishRegistration { claim, result } => {
+            json(super::registration::finish(store, &claim, result, now).await?)
+        }
         AdmissionCommand::ClaimRefill { key } => json(refill::claim(store, key, now).await?),
         AdmissionCommand::CheckRefill { job } => json(refill::check(store, &job, now).await?),
         AdmissionCommand::FinishRefill { job } => {
@@ -286,6 +356,10 @@ async fn execute_admission(
         }
         AdmissionCommand::Finish { permit, completion } => {
             json(admission::finish(store, &permit, completion, now).await?)
+        }
+        AdmissionCommand::Settled { request } => {
+            admission::settled(store, &request).await?;
+            json(true)
         }
         AdmissionCommand::Lookup { request } => {
             json(admission::lookup(store, &request, now).await?)
@@ -374,6 +448,37 @@ fn configured_role(env: &Env) -> worker::Result<Participant> {
 }
 async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> {
     let (request, expected) = match command {
+        RoleCommand::InstallRegistrationBatch {
+            claim,
+            ordinal,
+            binding,
+            ..
+        } => {
+            let allowed: bool = service_call(
+                env,
+                CallAuthority::Internal,
+                &AdmissionCommand::CheckRegistrationClaim {
+                    claim: claim.clone(),
+                },
+            )
+            .await?;
+            let expected_batch = digest(
+                b"seams/ml-dsa/registration-signing-stock/v1",
+                &(claim.job.id, ordinal),
+            )?;
+            if !allowed
+                || *ordinal >= claim.job.signing_batches
+                || binding.batch != expected_batch
+                || binding.key.wallet != claim.request.wallet
+                || binding.key.key_id != claim.request.key_id
+                || binding.key.epoch != claim.request.epoch
+                || binding.key.schedule_digest != claim.job.signing_schedule
+                || binding.expires_at_ms != claim.job.expires_at
+            {
+                return Err(invalid("Registration signing stock lacks exact admission"));
+            }
+            return Ok(());
+        }
         RoleCommand::StartRefill { job } => return preparation::check_job(env, job).await,
         RoleCommand::Reserve { claim, .. } => (
             &claim.request,
@@ -487,6 +592,15 @@ async fn execute_role(
     now: u64,
 ) -> Result<serde_json::Value> {
     match command {
+        RoleCommand::InstallRegistrationBatch {
+            binding, sealed, ..
+        } => {
+            if binding.role != role {
+                return Err(invalid("Registration stock belongs to another role"));
+            }
+            pool::install_registration_batch(store, binding, sealed, now).await?;
+            json(true)
+        }
         RoleCommand::StartRefill { job } => {
             refill::start_role(store, &job, now).await?;
             json(true)
@@ -654,7 +768,10 @@ async fn service_call<T: serde::de::DeserializeOwned>(
 }
 
 pub(crate) fn is_role_path(path: &str) -> bool {
-    path == ROLE_PATH || path == PREPARE_PATH || is_execution_path(path)
+    path == ROLE_PATH
+        || path == PREPARE_PATH
+        || is_execution_path(path)
+        || path == registration::ROLE_PATH
 }
 pub(crate) async fn handle_role_request(
     request: worker::Request,
@@ -662,6 +779,7 @@ pub(crate) async fn handle_role_request(
     context: worker::Context,
 ) -> worker::Result<Response> {
     match request.path().as_str() {
+        registration::ROLE_PATH => registration::handle_role(request, &env).await,
         ROLE_PATH => handle_role(request, &env).await,
         PREPARE_PATH => handle_prepare(request, env, context).await,
         _ => handle_execute(request, env, context).await,

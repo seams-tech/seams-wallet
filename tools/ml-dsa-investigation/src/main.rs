@@ -31,6 +31,7 @@ mod signing_lifecycle_evidence;
 mod signing_mask_evidence;
 mod silent_correlation_evidence;
 mod wallet_recovery_evidence;
+mod worker_registration_client;
 mod worker_arithmetic_audit;
 mod worker_fixtures;
 
@@ -99,6 +100,7 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if worker_registration_client::run()? { return Ok(()); }
     if silent_correlation_evidence::try_run_child()? {
         return Ok(());
     }

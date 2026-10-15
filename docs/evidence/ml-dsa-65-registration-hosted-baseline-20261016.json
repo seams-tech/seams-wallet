@@ -1,0 +1,70 @@
+{
+  "observedAt": "2026-10-15T15:26:29.797Z",
+  "wallet": {
+    "org": "registration-e2e",
+    "project": "wallet",
+    "environment": "temporary",
+    "wallet": "wallet-7778f72b99c9359f"
+  },
+  "holdRefillControl": false,
+  "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+  "hosted": true,
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "minimum_ready_batches": 2,
+    "refill_target_batches": 4
+  },
+  "cases": [
+    {
+      "epoch": 1,
+      "refillControlWaitMs": null,
+      "preparationMs": 226503.350833,
+      "serverResponseMs": 16172.134125000011,
+      "registrationWithClientVerificationMs": 16173.05791600002,
+      "underFiveSeconds": false,
+      "canonicalKeyVerified": true,
+      "holderResultsAuthenticated": true,
+      "manifestVerified": true,
+      "exactReplay": true,
+      "changedReplayRejected": true,
+      "initialStockSign": {
+        "verified": true,
+        "elapsedMs": 30171.13712500001
+      }
+    },
+    {
+      "epoch": 2,
+      "refillControlWaitMs": null,
+      "preparationMs": 204886.86204100004,
+      "serverResponseMs": 11910.778833999997,
+      "registrationWithClientVerificationMs": 11913.107749999966,
+      "underFiveSeconds": false,
+      "canonicalKeyVerified": true,
+      "holderResultsAuthenticated": true,
+      "manifestVerified": true,
+      "exactReplay": true,
+      "changedReplayRejected": true,
+      "initialStockSign": {
+        "verified": true,
+        "elapsedMs": 20973.49116600002
+      }
+    }
+  ],
+  "builds": {
+    "router": "9b8d41232d63cf3b5f8ac13570464687d814c51a2c38b3ca3a810c3ed3e7f39a",
+    "deriver-a": "6a8cda116c263167bbddec70b69d3152fca3b6e558de7a3074a9f7f4b1b4d9da",
+    "deriver-b": "454192fb9834797a3b50854cb4576c299339048b623c2050a3955568176212de"
+  },
+  "scriptSha256": "73963a702bf49703e805ed8692649e72d720f124682bd9e4f0387c5c29180683",
+  "wrongCredentialRejected": true,
+  "emptyPoolRetryTime": true,
+  "recoveryPreservesCanonicalKey": true,
+  "functionalPassed": true,
+  "latencyTargetMet": false,
+  "evidence_note": "Two-case hosted baseline. The original passed field tested functional assertions only. No five-second qualification."
+}

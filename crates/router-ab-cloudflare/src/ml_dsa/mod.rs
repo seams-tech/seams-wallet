@@ -5,6 +5,7 @@ pub mod execution;
 pub mod material;
 pub mod policy;
 pub mod refill;
+pub mod registration;
 pub mod registration_preparation;
 pub mod registration_tables;
 pub mod pool;
