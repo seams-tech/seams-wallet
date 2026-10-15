@@ -280,7 +280,9 @@ pub(crate) async fn handle_activate(
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::AuthorizeKey { activation },
+        &AdmissionCommand::AuthorizeKey {
+            activation: activation.clone(),
+        },
     )
     .await
     .map_err(protocol_error)?;
@@ -291,7 +293,32 @@ pub(crate) async fn handle_activate(
     if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
         return Response::error("ML-DSA key activation is incomplete", 503);
     }
-    Response::from_json(&true)
+    let check = RoleCommand::CheckMaterial {
+        activation: activation.clone(),
+    };
+    let (a, b) = futures::join!(
+        role_call::<bool>(env, "DERIVER_A", &check),
+        role_call::<bool>(env, "DERIVER_B", &check)
+    );
+    if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
+        return Response::from_json(&admission::KeyState::Installing { activation });
+    }
+    let state: admission::KeyState = service_call(
+        env,
+        CallAuthority::Gateway(request.headers()),
+        &AdmissionCommand::CommitKey { activation },
+    )
+    .await
+    .map_err(protocol_error)?;
+    // Re-enqueue after commit: an earlier alarm may have observed Installing.
+    let (a, b) = futures::join!(
+        role_call::<bool>(env, "DERIVER_A", &command),
+        role_call::<bool>(env, "DERIVER_B", &command)
+    );
+    if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
+        return Response::error("ML-DSA activation refill scheduling is incomplete", 503);
+    }
+    Response::from_json(&state)
 }
 
 async fn reconcile_unpaired(

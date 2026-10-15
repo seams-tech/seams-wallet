@@ -47,6 +47,12 @@ pub enum AdmissionCommand {
     AuthorizeKey {
         activation: admission::KeyActivation,
     },
+    KeyState {
+        key: KeyScope,
+    },
+    CommitKey {
+        activation: admission::KeyActivation,
+    },
     ActiveKey {
         key: KeyScope,
     },
@@ -73,6 +79,9 @@ pub enum AdmissionCommand {
 pub enum RoleCommand {
     StartRefill {
         job: refill::Job,
+    },
+    CheckMaterial {
+        activation: admission::KeyActivation,
     },
     InstallMaterial {
         record: material::Record,
@@ -126,6 +135,7 @@ impl RoleCommand {
     fn key(&self) -> &KeyScope {
         match self {
             Self::StartRefill { job } => &job.key,
+            Self::CheckMaterial { activation } => &activation.key,
             Self::InstallMaterial { record } => &record.activation.key,
             Self::LoadMaterial { permit } => &permit.request.key,
             Self::Install { key }
@@ -213,6 +223,7 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
                 command,
                 AdmissionCommand::Lookup { .. }
                     | AdmissionCommand::ActiveKey { .. }
+                    | AdmissionCommand::KeyState { .. }
                     | AdmissionCommand::ClaimRefill { .. }
                     | AdmissionCommand::CheckRefill { .. }
                     | AdmissionCommand::FinishRefill { .. }
@@ -259,6 +270,10 @@ async fn execute_admission(
             json(true)
         }
         AdmissionCommand::ActiveKey { key } => json(admission::active_key(store, &key).await?),
+        AdmissionCommand::KeyState { key } => json(admission::key_state(store, &key).await?),
+        AdmissionCommand::CommitKey { activation } => {
+            json(admission::commit_key(store, activation).await?)
+        }
         AdmissionCommand::Begin { request } => {
             json(admission::begin(store, policy, request, now).await?)
         }
@@ -412,15 +427,15 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             };
         }
         RoleCommand::InstallMaterial { record } => {
-            let actual: Option<admission::KeyActivation> = service_call(
+            let actual: Option<admission::KeyState> = service_call(
                 env,
                 CallAuthority::Internal,
-                &AdmissionCommand::ActiveKey {
+                &AdmissionCommand::KeyState {
                     key: record.activation.key.clone(),
                 },
             )
             .await?;
-            if actual.as_ref() != Some(&record.activation) {
+            if actual.as_ref().map(admission::KeyState::activation) != Some(&record.activation) {
                 return Err(invalid("ML-DSA role material lacks custody authorization"));
             }
             let secrets = executor::wrapping_key(env)?;
@@ -432,20 +447,21 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             return Ok(());
         }
         RoleCommand::Install { key } => {
-            let actual: Option<admission::KeyActivation> = service_call(
+            let actual: Option<admission::KeyState> = service_call(
                 env,
                 CallAuthority::Internal,
-                &AdmissionCommand::ActiveKey { key: key.clone() },
+                &AdmissionCommand::KeyState { key: key.clone() },
             )
             .await?;
-            if actual.map(|value| value.key).as_ref() != Some(key) {
+            if actual.as_ref().map(|value| &value.activation().key) != Some(key) {
                 return Err(invalid(
                     "ML-DSA installation lacks Gateway custody authorization",
                 ));
             }
             return Ok(());
         }
-        RoleCommand::Put { .. }
+        RoleCommand::CheckMaterial { .. }
+        | RoleCommand::Put { .. }
         | RoleCommand::Inventory { .. }
         | RoleCommand::RefillStatus { .. }
         | RoleCommand::Inspect { .. }
@@ -478,6 +494,9 @@ async fn execute_role(
         RoleCommand::InstallMaterial { record } => {
             material::put(store, record).await?;
             json(true)
+        }
+        RoleCommand::CheckMaterial { activation } => {
+            json(material::installed(store, role, &activation).await?)
         }
         RoleCommand::LoadMaterial { permit } => {
             json(material::get(store, &permit.request.key).await?)

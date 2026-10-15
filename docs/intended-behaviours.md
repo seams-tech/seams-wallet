@@ -3507,6 +3507,9 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Code recovery must preserve the wallet seed when sealing the replacement factor.
 - Initial custody establishment must seal the wallet seed and ten distinct recovery codes.
 - Treat native custody output as proposed commit data. Publish signing capability only after both role stores confirm durable activation.
+- Keep Router activation in Installing until both roles confirm the exact durable share installation.
+- Refuse signing and key-bound refill while activation is Installing. Exact activation retries must preserve installed material.
+- Reject activation completion from an earlier ceremony or epoch after recovery starts.
 - Encrypt each role's stored signing material under a separate role-private wrapping key.
 - Bind storage to the environment, wrapping-key version, wallet, signing key, role, creation operation, epoch, and public key.
 - Obtain expected storage coordinates from trusted admission and activation state. A ciphertext cannot supply its own authority.

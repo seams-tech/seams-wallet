@@ -145,13 +145,17 @@ pub(super) fn run(
     let version = identifier("role-private-e2e")?;
     persist_material(
         &db,
-        activation,
+        activation.clone(),
         participant,
         public_key,
         &version,
         material,
         &seed,
     )?;
+    sync(role, transport)?;
+    if role == SigningRole::A {
+        tx(&router, admission::commit_key(&router, activation))?;
+    }
     sync(role, transport)?;
     let started = Instant::now();
     let mut topologies = Default::default();

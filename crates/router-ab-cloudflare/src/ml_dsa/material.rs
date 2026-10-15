@@ -83,6 +83,18 @@ pub async fn put(store: &impl Store, record: Record) -> Result<()> {
     }
     store.put(&name, &record).await
 }
+/// Only public completion metadata leaves the participant.
+pub async fn installed(
+    store: &impl Store,
+    role: Participant,
+    activation: &admission::KeyActivation,
+) -> Result<bool> {
+    super::pool::check_key(store, &activation.key).await?;
+    Ok(store
+        .get::<Record>(&record_key(&activation.key)?)
+        .await?
+        .is_some_and(|record| record.activation == *activation && record.role == role))
+}
 pub async fn get(store: &impl Store, key: &KeyScope) -> Result<Record> {
     super::pool::check_key(store, key).await?;
     let record: Record = store
