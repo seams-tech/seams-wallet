@@ -313,6 +313,20 @@ test(
   verifyExactTransportRetry,
 );
 
+async function verifyRegistrationWaitsOutRespondExecution({
+  harness,
+}: {
+  harness: IntendedBehaviourHarness;
+}): Promise<void> {
+  await harness.registerPasskeyEd25519YaoWalletWhileRespondExecutionRuns();
+  await harness.signNearTransaction('post_registration');
+}
+
+test(
+  'a registration whose respond execution failed while still running completes through the execute route',
+  verifyRegistrationWaitsOutRespondExecution,
+);
+
 async function verifyTerminalFailureWithoutRetry({
   harness,
 }: {

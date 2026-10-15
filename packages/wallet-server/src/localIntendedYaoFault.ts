@@ -17,10 +17,20 @@ const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1 = 'x-seams-local-intended-router-burn
  *   execute, and expects the Gateway to send the identical request again.
  * - `return_terminal_burned_once` has the Router end the first execute
  *   burned, and expects the Gateway to answer that failure without retrying.
+ * - `answer_retryable_while_running_once` lets the Router keep running the
+ *   first execute, and answers the Gateway at once that it failed
+ *   recoverably, as a Deriver that refused a late preparation does. The
+ *   Router's claim stays held until that run records its answer.
  */
-type LocalIntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
+type LocalIntendedYaoFaultModeV1 =
+  | 'drop_router_response_once'
+  | 'return_terminal_burned_once'
+  | 'answer_retryable_while_running_once';
 
-type LocalIntendedYaoFaultProofV1 = 'exact_request_replayed' | 'terminal_failure_not_retried';
+type LocalIntendedYaoFaultProofV1 =
+  | 'exact_request_replayed'
+  | 'terminal_failure_not_retried'
+  | 'execution_left_running';
 
 type LocalIntendedYaoFaultViolationV1 =
   | 'fault_already_armed'
@@ -84,6 +94,7 @@ export function parseLocalIntendedYaoFaultModeV1(
   switch (value) {
     case 'drop_router_response_once':
     case 'return_terminal_burned_once':
+    case 'answer_retryable_while_running_once':
       return value;
     default:
       return null;
@@ -104,7 +115,11 @@ export function isLocalIntendedYaoFaultTokenV1(value: string | null): value is s
 export class LocalIntendedYaoFaultControllerV1 {
   private state: LocalIntendedYaoFaultStateV1 = { kind: 'idle' };
 
-  constructor(private readonly baseFetch: typeof globalThis.fetch) {}
+  constructor(
+    private readonly baseFetch: typeof globalThis.fetch,
+    /** Keeps a Router call alive after the Gateway answered without it. */
+    private readonly keepRunning: (running: Promise<unknown>) => void,
+  ) {}
 
   arm(mode: LocalIntendedYaoFaultModeV1): void {
     if (this.state.kind !== 'idle') {
@@ -156,6 +171,16 @@ export class LocalIntendedYaoFaultControllerV1 {
     request: Request,
     mode: LocalIntendedYaoFaultModeV1,
   ): Promise<Response> {
+    if (mode === 'answer_retryable_while_running_once') {
+      const running = this.baseFetch.call(globalThis, request);
+      this.keepRunning(running.then((response) => response.arrayBuffer()));
+      this.state = { kind: 'proved', proof: 'execution_left_running' };
+      return Response.json({
+        status: 'recoverable_failure',
+        code: 'conflicting_pair',
+        retry_after_ms: 100,
+      });
+    }
     if (mode === 'return_terminal_burned_once') {
       const headers = new Headers(request.headers);
       headers.set(LOCAL_INTENDED_ROUTER_BURN_HEADER_V1, 'burned');

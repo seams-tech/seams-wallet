@@ -1458,26 +1458,31 @@ function emitRegistrationEvent(
 const REGISTRATION_DELAY_NOTICE_MS = 5_000;
 
 /**
- * Emits `phase` once if `request` has not settled after
- * `REGISTRATION_DELAY_NOTICE_MS`. The request itself is not changed.
+ * Watches the requests of one registration step. The first watched request
+ * that has not settled after `REGISTRATION_DELAY_NOTICE_MS` emits `phase`;
+ * the step emits it at most once. The requests themselves are not changed.
  */
-async function withRegistrationDelayNotice<T>(
+function registrationDelayNotice(
   onEvent: RegistrationHooksOptions['onEvent'] | undefined,
   accountId: string,
   phase:
     | RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED
     | RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED,
-  request: Promise<T>,
-): Promise<T> {
-  if (!onEvent) return await request;
-  const notice = setTimeout(() => {
-    emitRegistrationEvent(onEvent, accountId, { authMethod: 'passkey', phase, status: 'running' });
-  }, REGISTRATION_DELAY_NOTICE_MS);
-  try {
-    return await request;
-  } finally {
-    clearTimeout(notice);
-  }
+): <T>(request: Promise<T>) => Promise<T> {
+  let shown = false;
+  return async (request) => {
+    if (!onEvent || shown) return await request;
+    const notice = setTimeout(() => {
+      if (shown) return;
+      shown = true;
+      emitRegistrationEvent(onEvent, accountId, { authMethod: 'passkey', phase, status: 'running' });
+    }, REGISTRATION_DELAY_NOTICE_MS);
+    try {
+      return await request;
+    } finally {
+      clearTimeout(notice);
+    }
+  };
 }
 
 async function emailOtpEmailHashHex(email: string): Promise<string> {
@@ -4892,14 +4897,18 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       return authority;
     });
     type PasskeyAuthority = Awaited<typeof passkeyAuthorityPending>;
+    /* The custody execution runs in respond, or after it through the execute
+       route, which waits out a Router claim that respond kept. */
+    const signerDelay = registrationDelayNotice(
+      options.onEvent,
+      eventAccountId,
+      RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED,
+    );
     const respond = async (
       authority: PasskeyAuthority,
       ed25519Execution?: Parameters<typeof respondWalletRegistration>[0]['ed25519Execution'],
     ) => {
-      const answer = await withRegistrationDelayNotice(
-        options.onEvent,
-        eventAccountId,
-        RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED,
+      const answer = await signerDelay(
         respondWalletRegistration({
           relayerUrl,
           registrationCeremonyId: setup.registrationCeremonyId,
@@ -5002,7 +5011,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
           passkeyAuthority,
           described.admissionRequest.scope.threshold_session_id,
         );
-        established = await custodyRun;
+        established = await signerDelay(custodyRun);
       } else {
         passkeyAuthority = await passkeyAuthorityPending;
         admission = await respond(passkeyAuthority);
@@ -5010,10 +5019,12 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
           passkeyAuthority,
           admission.admissionRequest.scope.threshold_session_id,
         );
-        established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
-          ...custodyRunFor(admission),
-          factor: custodyFactorOf(passkeyAuthority),
-        });
+        established = await signerDelay(
+          context.signingEngine.establishWalletCustodyNearEd25519KeySet({
+            ...custodyRunFor(admission),
+            factor: custodyFactorOf(passkeyAuthority),
+          }),
+        );
       }
     } finally {
       if (walletCustodyFactorSecret) zeroizeArrayBuffer(walletCustodyFactorSecret);
@@ -5075,10 +5086,11 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       thresholdSessionId: sealPreparation.thresholdSessionId,
       preparationId: sealPreparation.preparationId,
     });
-    const finalized = await withRegistrationDelayNotice(
+    const finalized = await registrationDelayNotice(
       options.onEvent,
       eventAccountId,
       RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED,
+    )(
       completeWalletRegistrationNearProvisioning({
         relayerUrl,
         registrationCeremonyId: setup.registrationCeremonyId,

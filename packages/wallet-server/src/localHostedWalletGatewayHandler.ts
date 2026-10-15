@@ -418,6 +418,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   // Each registration owns its fault state, including every internal Router retry.
   const controller = new LocalIntendedYaoFaultControllerV1(
     gatewayEnv.MPC_ROUTER.fetch.bind(gatewayEnv.MPC_ROUTER),
+    ctx.waitUntil.bind(ctx),
   );
   controller.arm(mode);
   const response = await handleSplitGatewayRequest(

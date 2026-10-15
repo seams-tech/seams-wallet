@@ -728,7 +728,9 @@ Expected behaviour:
 - An exact retry of that respond replays the admission and the recorded
   execution. When the execution does not complete inside respond, the reply
   includes the admission alone, and the client sends the same execute request
-  to the execute route. Email OTP registration and mixed registration receive
+  to the execute route. That execution may still be running at the Router,
+  which then answers that it is in progress; the client waits it out as a
+  resumed execution does, below. Email OTP registration and mixed registration receive
   no description: their respond issues the admission, and the execute route
   runs the execution.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.

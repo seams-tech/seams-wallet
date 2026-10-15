@@ -98,7 +98,6 @@ import type {
 import { RouterAbEd25519YaoHttpActivationTransportV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import {
   ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
-  ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
@@ -2756,18 +2755,16 @@ export class BrowserSigningSurface {
           activationResultJson = executedWithProof;
           return activationResultJson;
         }
-        const response = await transport.send({
-          kind: 'execute',
-          path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
-          body: JSON.parse(yaoExecuteRequestJson),
+        /* Respond may have started this execution and kept the Router's claim
+           after a recoverable failure, so the same request waits out the
+           claim as a resume does. Kept so the metadata below is rebuilt from
+           the same bytes the ceremony completed against — re-fetching could
+           return a different activation and describe a key this run did not
+           register. */
+        activationResultJson = await executeWalletRegistrationEd25519RoundV1({
+          executeRequestJson: yaoExecuteRequestJson,
+          transport,
         });
-        if (!response.ok) {
-          throw new Error(`Router Ed25519 Yao execute failed: ${response.message}`);
-        }
-        /* Kept so the metadata below is rebuilt from the same bytes the
-           ceremony completed against — re-fetching could return a different
-           activation and describe a key this run did not register. */
-        activationResultJson = JSON.stringify(response.value);
         return activationResultJson;
       },
     });

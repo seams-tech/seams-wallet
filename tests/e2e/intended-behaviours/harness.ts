@@ -233,11 +233,15 @@ const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
 const WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS = 30_000;
 const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'http://127.0.0.1:4100';
 
-type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
+type IntendedYaoFaultModeV1 =
+  | 'drop_router_response_once'
+  | 'return_terminal_burned_once'
+  | 'answer_retryable_while_running_once';
 
 type IntendedYaoFaultProofV1 =
   | 'exact_request_replayed'
   | 'terminal_failure_not_retried'
+  | 'execution_left_running'
   | 'decision_committed_then_storage_lost'
   | 'recovery_replies_lost_after_router_executed'
   | 'recovery_execute_withheld'
@@ -1945,6 +1949,35 @@ export class IntendedBehaviourHarness {
     expect(await retained.json()).toMatchObject({ ok: false, code: 'execution_failed' });
     expect(retained.request().postData()).toBe(initial.request().postData());
     await this.signArcEvmTransaction('post_unlock');
+  }
+
+  /**
+   * Respond's execution fails recoverably while the Router still runs it, as
+   * on staging when Deriver A refused a preparation that arrived late. The
+   * page runs the execution through the execute route, meets the Router's
+   * held claim, and sends the exact request again until the Router answers.
+   */
+  async registerPasskeyEd25519YaoWalletWhileRespondExecutionRuns(): Promise<void> {
+    this.recordStage('register_passkey_ed25519_yao_wallet_while_respond_execution_runs');
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = this.armIntendedYaoFault('answer_retryable_while_running_once');
+    const executeStatuses: number[] = [];
+    const recordExecute = (response: Response): void => {
+      if (isNearRegistrationExecutionResponse(response)) executeStatuses.push(response.status());
+    };
+    this.page.on('response', recordExecute);
+    try {
+      await this.registerPasskeyEd25519YaoWallet();
+      this.assertIntendedYaoFaultProof(proofStartIndex, faultToken, 'execution_left_running');
+      expect(executeStatuses[0]).toBe(409);
+      expect(executeStatuses.at(-1)).toBe(200);
+      this.recordService(
+        `the execute route waited out the held Router claim after ${executeStatuses.length - 1} refusals`,
+      );
+    } finally {
+      this.page.off('response', recordExecute);
+      this.intendedYaoFaultInjection = { kind: 'idle' };
+    }
   }
 
   async assertPasskeyEd25519YaoTerminalFailureWithoutRetry(): Promise<void> {
