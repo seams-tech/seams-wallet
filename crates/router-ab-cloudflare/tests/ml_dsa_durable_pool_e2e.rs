@@ -103,6 +103,8 @@ fn activate(db: &Db, key: &KeyScope) {
         ),
     )
     .unwrap();
+    let state = tx(db, admission::key_state(db, key)).unwrap().unwrap();
+    tx(db, admission::commit_key(db, state.activation().clone())).unwrap();
 }
 fn binding(key: &KeyScope, role: Participant, batch: u8) -> sealing::Binding {
     sealing::Binding {
@@ -151,6 +153,19 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let a = Db::open(&a_path);
     let b = Db::open(&b_path);
     let first = request(&key, 1);
+    let activation = admission::KeyActivation {
+        key: key.clone(), ceremony_id: [44; 32], manifest_digest: [45; 32],
+    };
+    tx(&router, admission::authorize_key(&router, activation.clone())).unwrap();
+    assert!(tx(&router, admission::active_key(&router, &key)).unwrap().is_none());
+    assert!(tx(&router, admission::begin(&router, &policy, first.clone(), 1_000)).is_err());
+    drop(router);
+    let router = Db::open(&service_path);
+    assert!(matches!(tx(&router, admission::key_state(&router, &key)).unwrap(),
+        Some(admission::KeyState::Installing { .. })));
+    let mut changed_activation = activation.clone();
+    changed_activation.ceremony_id = [46; 32];
+    assert!(tx(&router, admission::commit_key(&router, changed_activation)).is_err());
     let first_claim = claim(&router, &policy, first.clone(), 1_000);
     assert!(matches!(
         tx(
@@ -501,6 +516,12 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     assert!(tx(&a, pool::install_key(&a, substituted)).is_err());
     let mut recovered = key.clone();
     recovered.epoch = 2;
+    let recovered_activation = admission::KeyActivation {
+        key: recovered.clone(), ceremony_id: [44; 32], manifest_digest: [45; 32],
+    };
+    tx(&router, admission::authorize_key(&router, recovered_activation)).unwrap();
+    assert!(tx(&router, admission::active_key(&router, &recovered)).unwrap().is_none());
+    assert!(tx(&router, admission::commit_key(&router, activation)).is_err());
     activate(&router, &recovered);
     tx(&a, pool::install_key(&a, recovered.clone())).unwrap();
     assert!(tx(&a, pool::inventory(&a, &key, 10, 62_001, 62_001)).is_err());
@@ -662,7 +683,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
-        "reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
+        "pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,

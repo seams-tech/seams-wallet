@@ -1,3 +1,4 @@
+import { installMlDsaActivation } from '../helpers/mlDsaActivation.e2e.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, createPublicKey, verify } from 'node:crypto';
 import { readFile, writeFile, mkdir, mkdtemp, rm, readdir } from 'node:fs/promises';
@@ -107,8 +108,7 @@ try {
   const denied = await raw('router', '/router-ab/ml-dsa/activate', records[0].activation, serviceAuth);
   assert.equal(denied.status, 403);
   initialRefillStarted = performance.now();
-  await post('router', '/router-ab/ml-dsa/activate', records[0].activation, gatewayAuth);
-  await Promise.all(records.map(installRecord));
+  observations.activation = await installMlDsaActivation(runtime, records, gatewayAuth, serviceAuth);
   observations.wrongAuthorityRejected = true;
   const refillStarted = performance.now();
   observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
@@ -336,11 +336,7 @@ async function post(worker, path, input, credential = serviceAuth) {
   assert.equal(response.status, 200, `${worker}${path}: ${body}`);
   return JSON.parse(body);
 }
-async function installRecord(record, index) {
-  await post(index === 0 ? 'a' : 'b', '/router-ab/ml-dsa/role', {
-    command: 'install_material', record,
-  });
-}
+
 async function inventory(role) {
   return post(role, '/router-ab/ml-dsa/role', {
     command: 'inventory',

@@ -72,6 +72,23 @@ pub struct KeyActivation {
     pub ceremony_id: [u8; 32],
     pub manifest_digest: [u8; 32],
 }
+/// Installing authorizes role-local storage only. Active permits signing and refill.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub enum KeyState {
+    Installing { activation: KeyActivation },
+    Active { activation: KeyActivation },
+}
+impl KeyState {
+    pub fn activation(&self) -> &KeyActivation {
+        match self {
+            Self::Installing { activation } | Self::Active { activation } => activation,
+        }
+    }
+}
+pub async fn key_state(store: &impl Store, key: &KeyScope) -> Result<Option<KeyState>> {
+    store.get(&activation_key(key)?).await
+}
 fn activation_key(key: &KeyScope) -> Result<String> {
     Ok(format!(
         "activation/{}",
@@ -79,7 +96,22 @@ fn activation_key(key: &KeyScope) -> Result<String> {
     ))
 }
 pub async fn active_key(store: &impl Store, key: &KeyScope) -> Result<Option<KeyActivation>> {
-    store.get(&activation_key(key)?).await
+    Ok(match key_state(store, key).await? {
+        Some(KeyState::Active { activation }) => Some(activation),
+        Some(KeyState::Installing { .. }) | None => None,
+    })
+}
+/// Called only after the coordinator checks both durable role installations.
+pub async fn commit_key(store: &impl Store, activation: KeyActivation) -> Result<KeyState> {
+    let current = key_state(store, &activation.key).await?;
+    if current.as_ref().map(KeyState::activation) != Some(&activation) {
+        return Err(invalid("ML-DSA installation authorization changed"));
+    }
+    let state = KeyState::Active { activation };
+    store
+        .put(&activation_key(&state.activation().key)?, &state)
+        .await?;
+    Ok(state)
 }
 pub async fn authorize_key(store: &impl Store, activation: KeyActivation) -> Result<()> {
     if activation.ceremony_id == [0; 32]
@@ -90,8 +122,9 @@ pub async fn authorize_key(store: &impl Store, activation: KeyActivation) -> Res
             "ML-DSA activation requires a custody completion identity",
         ));
     }
-    if let Some(current) = active_key(store, &activation.key).await? {
-        if current == activation {
+    if let Some(state) = key_state(store, &activation.key).await? {
+        let current = state.activation();
+        if *current == activation {
             return Ok(());
         }
         if activation.key.public_key_digest != current.key.public_key_digest {
@@ -121,7 +154,10 @@ pub async fn authorize_key(store: &impl Store, activation: KeyActivation) -> Res
         store.put("active", &retained).await?;
     }
     store
-        .put(&activation_key(&activation.key)?, &activation)
+        .put(
+            &activation_key(&activation.key)?,
+            &KeyState::Installing { activation },
+        )
         .await
 }
 

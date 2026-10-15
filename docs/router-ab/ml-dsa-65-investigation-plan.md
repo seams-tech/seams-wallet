@@ -973,3 +973,14 @@ Public authentication, authoritative custody registry lookup, claim persistence,
 The E2E injects those inputs and exercises real local Worker execution after the gate.
 Complete these authority sources before mounting a public ML-DSA route.
 Then complete Worker registration and recovery, hosted qualification, and the SDK/NEAR path in that order.
+
+
+### MVP execution plan — October 15, 2026
+
+The [MVP plan](ml-dsa-65-mvp-plan.md) tracks custody activation, admitted registration, public signing, hosted qualification, and the limited pilot.
+Router installation authorization now has explicit Installing and Active states.
+The coordinator checks both durable role installations before it commits Active.
+Signing and key-bound refill remain unavailable during Installing. Exact retries preserve completed installations.
+The native lifecycle campaign verifies pending-state restart and stale-commit rejection during recovery.
+The [activation report](ml-dsa-65-activation-report.md) records the passing Worker HTTP campaign and its limits.
+This barrier does not establish public Gateway custody authority or implement Worker key generation.
