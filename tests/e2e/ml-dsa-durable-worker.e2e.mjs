@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, createPublicKey, verify } from 'node:crypto';
 import { readFile, writeFile, mkdir, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -9,10 +9,18 @@ import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 import { build } from 'esbuild';
 import { pathToFileURL } from 'node:url';
+import { deserialize } from 'node:v8';
+import { isDeepStrictEqual } from 'node:util';
+import { execFileSync } from 'node:child_process';
+import { startProfiles, stopProfiles, closeProfiles } from '../../crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs';
 
 const fixtures = resolve(process.argv[2] ?? '/private/tmp/ml-dsa-worker-fixtures');
 const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.json');
 const root = resolve(import.meta.dirname, '../..');
+const options = new Set(process.argv.slice(4));
+for (const option of options) assert.ok(['--profile-preparation', '--passive-preparation-observer'].includes(option), 'Unknown measurement option');
+const profilePreparation = options.has('--profile-preparation');
+const passivePreparationObserver = options.has('--passive-preparation-observer');
 const authHeader = 'x-router-ab-internal-service-auth';
 const serviceAuth = randomBytes(32).toString('hex');
 const gatewayAuth = randomBytes(32).toString('hex');
@@ -43,9 +51,35 @@ const bindings = {
 const observations = {
   scope: 'Local workerd, real strict Worker bundles, synthetic canonical wallet key, typed Gateway owner admission, and durable signing. Verified factor inputs, claimed-operation persistence, and custody activation are injected. HTTP login, public session routes, and hosted latency remain outside this test.',
   policy,
+  profilePreparation,
+  passivePreparationObserver,
+  initialReserveMilestones: [],
+  preparationReads: [],
+  postSignInventories: [],
   signatures: [],
   failedOperations: [],
   publicKeyHex: Buffer.from(records[0].public_key).toString("hex"),
+};
+observations.provenance = {
+  revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+  node: process.version,
+  openssl: process.versions.openssl,
+  miniflare: JSON.parse(await readFile(join(root, 'node_modules/miniflare/package.json'), 'utf8')).version,
+  sourceSha256: Object.fromEntries(await Promise.all([
+    'tests/e2e/ml-dsa-durable-worker.e2e.mjs',
+    'tests/helpers/mlDsaOwnerAdmission.fixtures.ts',
+    'crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs',
+    'crates/router-ab-cloudflare/Cargo.lock',
+    'crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs',
+  ].map(fileDigest))),
+  workerJsSha256: Object.fromEntries(await Promise.all([
+    'crates/router-ab-cloudflare/build/router/worker/shim.mjs',
+    'crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs',
+    'crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs',
+    'crates/router-ab-cloudflare/build/router/index.js',
+    'crates/router-ab-cloudflare/build/deriver-a/index.js',
+    'crates/router-ab-cloudflare/build/deriver-b/index.js',
+  ].map(fileDigest))),
 };
 observations.workerWasmSha256 = Object.fromEntries(await Promise.all(["router", "deriver-a", "deriver-b"].map(wasmDigest)));
 
@@ -63,18 +97,33 @@ class OwnerRouterProxy {
 
 let runtime;
 let lastSuccessful;
+let profileConnections = [];
+let initialRefillStarted;
 try {
-  runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+  runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence, ...(profilePreparation ? { inspectorPort: 0 } : {}) });
   await runtime.ready;
   observations.idleTimerMs = await timerControl();
+  if (profilePreparation) profileConnections = await startProfiles(runtime, participantTarget);
   const denied = await raw('router', '/router-ab/ml-dsa/activate', records[0].activation, serviceAuth);
   assert.equal(denied.status, 403);
+  initialRefillStarted = performance.now();
   await post('router', '/router-ab/ml-dsa/activate', records[0].activation, gatewayAuth);
   await Promise.all(records.map(installRecord));
   observations.wrongAuthorityRejected = true;
   const refillStarted = performance.now();
+  observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
   await waitReady(4);
   observations.initialFourBatchRefillMs = performance.now() - refillStarted;
+  observations.activationToFourBatchReserveMs = performance.now() - initialRefillStarted;
+  if (passivePreparationObserver) await verifyPassiveInventory();
+  initialRefillStarted = undefined;
+  if (profilePreparation) {
+    observations.preparationProfile = {
+      scope: 'Local workerd V8 sampling from before activation through first four-batch reserve. Includes setup, storage, protocol waits and idle samples. Sampling can perturb latency. This is not billed CPU.',
+      profiles: await stopProfiles(profileConnections),
+    };
+    profileConnections = [];
+  }
   // Let the full-pool maintenance alarm settle before the first consumption.
   await new Promise(waitForQuietPool);
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
@@ -100,6 +149,7 @@ try {
     }
     assert.equal(result.operation.state, 'succeeded');
     assert.equal(result.operation.signature.length, 3309);
+    verifyStandardSignature(records[0].public_key, message, input.context, result.operation.signature);
     assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
     const changed = structuredClone(input);
     changed.message.push(0);
@@ -122,7 +172,8 @@ try {
       assert.ok(observations.firstConsumptionRefillStartedMs < 3000, 'Consumption did not advance the maintenance alarm');
     }
     const inventory = await inventories();
-    assert.ok(inventory.some((value) => value.refill_due));
+    observations.postSignInventories.push(inventory);
+    assert.ok(inventory.some(refillRequested) || pairedStock(inventory) >= policy.refill_target_batches);
   }
   assert.equal(observations.signatures.length, 3);
   observations.automaticRefillAfterSigning = true;
@@ -187,12 +238,14 @@ try {
   assert.equal(expired.state, 'failed');
   observations.stalledOperationExpiredWithoutSignature = true;
   observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
+  observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
   observations.passed = true;
 } catch (error) {
   observations.passed = false;
   observations.error = String(error);
   throw error;
 } finally {
+  closeProfiles(profileConnections);
   await runtime?.dispose();
   await mkdir(resolve(artifact, '..'), { recursive: true });
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
@@ -302,11 +355,22 @@ async function inventories() {
 async function waitReady(count) {
   const deadline = performance.now() + 300000;
   while (performance.now() < deadline) {
-    const [a, b] = await inventories();
+    const readStarted = performance.now();
+    const [a, b] = passivePreparationObserver && initialRefillStarted !== undefined
+      ? await passiveInventories() : await inventories();
+    if (initialRefillStarted !== undefined) {
+      observations.preparationReads.push({ startMs: readStarted - initialRefillStarted, finishMs: performance.now() - initialRefillStarted });
+    }
     const peer = new Set(b.ready.map(batchId));
     let paired = 0;
     for (const id of a.ready) {
       if (peer.has(batchId(id))) paired += 1;
+    }
+    if (initialRefillStarted !== undefined) {
+      const previous = observations.initialReserveMilestones.at(-1);
+      if (previous === undefined || previous.paired !== paired) {
+        observations.initialReserveMilestones.push({ paired, elapsedMs: performance.now() - initialRefillStarted });
+      }
     }
     if (paired >= count) return;
     await new Promise(waitOneSecond);
@@ -361,3 +425,57 @@ async function waitForPreprocessingStart(before) {
   throw new Error('Neither participant started replacement preparation after consumption');
 }
 function waitForMarker(resolve) { setTimeout(resolve, 50); }
+
+function participantTarget(target) { return /core:user:(a|b)$/.test(target.title); }
+
+function verifyStandardSignature(publicKey, message, context, signature) {
+  assert.equal(context.length, 0, 'This NEAR transaction fixture uses an empty ML-DSA context');
+  const prefix = Buffer.from('308207b2300b0609608648016503040312038207a100', 'hex');
+  const key = createPublicKey({
+    key: Buffer.concat([prefix, Buffer.from(publicKey)]), type: 'spki', format: 'der',
+  });
+  assert.equal(verify(null, Buffer.from(message), key, Buffer.from(signature)), true);
+  const changed = Buffer.from(message);
+  changed[0] ^= 1;
+  assert.equal(verify(null, changed, key, Buffer.from(signature)), false);
+}
+
+function refillRequested(value) { return value.refill_due; }
+function pairedStock([a, b]) {
+  const peer = new Set([...b.ready, ...b.reserved].map(batchId));
+  return [...a.ready, ...a.reserved].map(batchId).filter(Set.prototype.has.bind(peer)).length;
+}
+async function passiveInventories() { return Promise.all(['a', 'b'].map(passiveInventory)); }
+async function passiveInventory(role) {
+  const directory = join(persistence, `${role}-RouterAbMlDsaPoolDurableObject`);
+  const files = (await readdir(directory)).filter(walletDatabase);
+  assert.equal(files.length, 1);
+  const database = new DatabaseSync(join(directory, files[0]), { readOnly: true });
+  try {
+    const rows = database.prepare("SELECT value FROM _cf_KV WHERE key LIKE 'batch/%'").all();
+    const ready = [];
+    for (const row of rows) {
+      const record = deserialize(row.value);
+      if (record.state.state === 'ready'
+        && isDeepStrictEqual(record.binding.key, records[0].activation.key)
+        && record.binding.expires_at_ms >= Date.now() + policy.operation_timeout_ms) {
+        ready.push(record.binding.batch);
+      }
+    }
+    return { ready };
+  } finally {
+    database.close();
+  }
+}
+async function verifyPassiveInventory() {
+  const passive = await passiveInventories();
+  const active = await inventories();
+  for (let role = 0; role < 2; role += 1) {
+    assert.deepEqual(passive[role].ready.map(batchId).sort(), active[role].ready.map(batchId).sort());
+  }
+  observations.passiveInventoryMatchesWorker = true;
+}
+async function fileDigest(path) {
+  const bytes = await readFile(join(root, path));
+  return [path, createHash('sha256').update(bytes).digest('hex')];
+}
