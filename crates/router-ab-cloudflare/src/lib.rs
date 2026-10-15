@@ -9,6 +9,10 @@ mod ecdsa_signing_fetch;
 #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 pub use ecdsa_signing_fetch::*;
 
+/// Durable ML-DSA preparation and admission boundaries.
+pub mod ml_dsa;
+#[cfg(feature = "workers-rs")]
+pub use ml_dsa::workers::{RouterAbMlDsaAdmissionDurableObject, RouterAbMlDsaPoolDurableObject};
 mod auth;
 mod authorized_operations;
 pub use authorized_operations::*;

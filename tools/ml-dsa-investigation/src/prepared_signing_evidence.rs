@@ -1,24 +1,24 @@
 //! Separate-process prepared signing on material from canonical wallet keygen.
 
 use crate::{
-    InvestigationResult, boolean_engine_evidence::run_ready, digest, material_storage_evidence,
+    boolean_engine_evidence::run_ready, digest, material_storage_evidence,
     prepared_keygen_evidence::HostTransport, private_execution, private_signing, reference,
-    require,
+    require, InvestigationResult,
 };
 use ed25519_yao::{
     ml_dsa_runtime::{
-        TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
+        TrustedMlDsaSchedule,
     },
     ml_dsa_signing::{
-        OwnSigningShare, SigningRole,
         prepared_signing::{self, Reservation},
+        OwnSigningShare, SigningRole,
     },
 };
 use ed25519_yao_generator::{
-    MlDsaSigningWorkloadV1 as Workload, compile_ml_dsa_private_signing_circuit_v1,
+    compile_ml_dsa_private_signing_circuit_v1, MlDsaSigningWorkloadV1 as Workload,
 };
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{env, ffi::OsStr, fs, path::Path, time::Instant};
 
@@ -131,6 +131,15 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                 &mut Default::default(),
                 &mut transport,
             ))??;
+            let generic = crate::durable_preparation_evidence::roundtrip(
+                role,
+                generic,
+                reservation.id,
+                reservation.candidates,
+                &schedules,
+                &public_key,
+                Path::new(&args[5]),
+            )?;
             run_ready(ready(role, &mut transport))??;
             preparation_traffic = transport.counts[0].json();
             let activation_started = Instant::now();
@@ -280,6 +289,7 @@ pub(super) fn run_operation(
         ("half-gates", 24, "sign"),
         ("gmw", 4, "sign"),
         ("gmw", 8, "sign"),
+        ("gmw", 16, "sign"),
         ("gmw", 1, "key-mismatch"),
         ("gmw", 1, "epoch-mismatch"),
         ("pool", 4, "lifecycle"),
@@ -410,10 +420,10 @@ pub(super) fn run_operation(
     require(
         cases
             .iter()
-            .any(|case| case["a"]["result"]["status"] == "signed"),
-        "No prepared signature completed",
+            .any(|case| case["engine"] == "gmw" && case["a"]["result"]["status"] == "signed"),
+        "No signature from persisted GMW preparation completed",
     )?;
     Ok(
-        json!({"scope": "Native separate-process signing from a wallet-derived canonical key before test recovery. Direct uniform nonce sampling; no exact FIPS hedged nonce procedure claim.", "cases": cases}),
+        json!({"scope": "Native separate-process signing from a wallet-derived canonical key before test recovery. GMW reservations are sealed, stored in SQLite, reopened, atomically consumed, and decoded before activation. Direct uniform nonce sampling; no exact FIPS hedged nonce procedure claim.", "cases": cases}),
     )
 }

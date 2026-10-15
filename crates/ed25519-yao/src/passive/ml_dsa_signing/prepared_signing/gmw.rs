@@ -3,6 +3,7 @@
 mod nonce;
 /// Bounded ready reservations with automatic rollover and consuming lifecycle.
 pub mod pool;
+mod storage;
 
 use std::rc::Rc;
 
@@ -128,15 +129,7 @@ pub async fn prepare_gmw_reservation<'a>(
     )
     .await
     .map_err(runtime_error)?;
-    let mut bound_schedules = Vec::with_capacity(count * (COLUMNS + ROWS));
-    for _ in 0..count {
-        for index in 0..COLUMNS + ROWS {
-            bound_schedules.push(schedule(
-                schedules,
-                if index < COLUMNS { 0x8e } else { 0x97 },
-            )?);
-        }
-    }
+    let bound_schedules = bound_schedules(count, schedules)?;
     let bounds = prepare_batch(
         role,
         &bound_schedules,
@@ -375,4 +368,20 @@ impl PreparedGmwSigner<'_> {
             public_rejections,
         }))
     }
+}
+
+fn bound_schedules<'a>(
+    count: usize,
+    schedules: &'a [TrustedMlDsaSchedule<'a>],
+) -> Result<Vec<&'a TrustedMlDsaSchedule<'a>>> {
+    let mut bound_schedules = Vec::with_capacity(count * (COLUMNS + ROWS));
+    for _ in 0..count {
+        for index in 0..COLUMNS + ROWS {
+            bound_schedules.push(schedule(
+                schedules,
+                if index < COLUMNS { 0x8e } else { 0x97 },
+            )?);
+        }
+    }
+    Ok(bound_schedules)
 }

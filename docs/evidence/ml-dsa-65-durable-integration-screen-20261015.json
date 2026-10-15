@@ -1,0 +1,147 @@
+{
+  "schema": "seams.ml-dsa-durable-integration-screen.v1",
+  "created_at": "2026-10-15T00:58:33.715420+00:00",
+  "production_eligible": false,
+  "scope": "Native persistence/cryptographic E2Es and Worker target checks. Public Gateway/SDK caller, live Worker threshold executor, and automatic preparation dispatcher remain unwired. No hosted latency claim.",
+  "native_canonical_key_cases": 6,
+  "all_canonical_keys_verified": true,
+  "signatures_from_persisted_gmw_preparation": 3,
+  "lifecycle_e2e_passed": true,
+  "worker_targets": [
+    {
+      "feature": "strict-worker-router-entrypoint",
+      "target": "wasm32-unknown-unknown",
+      "passed": true,
+      "log_sha256": "6eee2fbe035d768d21dbe5831d6dab1b5b2c684d7ae3031ab80acfecc8ccba09"
+    },
+    {
+      "feature": "strict-worker-deriver-a-entrypoint",
+      "target": "wasm32-unknown-unknown",
+      "passed": true,
+      "log_sha256": "379062a98e4bcfa0b6d3c5e6119f267ddd6ec2428b89eb533e935e0fb1da2054"
+    },
+    {
+      "feature": "strict-worker-deriver-b-entrypoint",
+      "target": "wasm32-unknown-unknown",
+      "passed": true,
+      "log_sha256": "6f4745611ec36717648abcf7519b2a93f5d6574fb186857ae1210011d340a691"
+    }
+  ],
+  "wrangler_namespace_ownership_validated": true,
+  "gpu_work_deferred": true,
+  "commands": [
+    "ML_DSA_E2E_REPORT=/private/tmp/ml-dsa-durable-admission-e2e.json cargo test --manifest-path crates/router-ab-cloudflare/Cargo.toml --test ml_dsa_durable_pool_e2e --offline -- --nocapture",
+    "cargo run --release --manifest-path tools/ml-dsa-investigation/Cargo.toml --offline -- prepared-keygen /private/tmp/ml-dsa-durable-threshold-final.json"
+  ],
+  "source_inventory_scope": "Source hashes at report creation. The native artifact separately pins its executable and listed source files.",
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
+      "sha256": "3e1167830f2974e7aee2b175f5710759af57ec0511870a9138aa0e7164ba8578"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
+      "sha256": "9e9ad69f2e5cf429f7ef129b455289f869eee63b482b89b390ad5d0039656cd5"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
+      "sha256": "407a790846cfaf26055ba9fc150fbbf4d9930540985946a4d9f049bdb6a57a69"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/storage.rs",
+      "sha256": "69c8f8726c6f15a6ee99d8e18f9131057f59b21677f812b4a6cdd87f5e6dba30"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.lock",
+      "sha256": "9160d077ced7fb5b67ae928acb8a7033b599598813b530f30c686c7792d86c51"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.toml",
+      "sha256": "6334a1c0613da921a0befa99422b90d5f3d5aea5c8736f29d28bb70d308080e9"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/lib.rs",
+      "sha256": "b82f8546d7f055056079d07fc85a3fd0983427c6960a4148d7317349c5ebeb6d"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/admission.rs",
+      "sha256": "df539061088138410940a5d81d7ff5a22ba22af916400c9f945d9f477f727df5"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/mod.rs",
+      "sha256": "d9204b708fe16d19200bd60cfac718cfd812893e0a3e8d4daf4fa3b83951025f"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/policy.rs",
+      "sha256": "7f247b643c44a7efeb09c27876b4447fea6e22a7b3bcac60955c3076d8c598a9"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/pool.rs",
+      "sha256": "8b6e7337963d1ac311f879180bf82dcb3c7ffcca5e5ba34fd5f41215bc69da79"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs",
+      "sha256": "88d586117e942309d3767cd4945aae4893b2e76fc759da1fb1dcdc2d60abfa85"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/workers.rs",
+      "sha256": "ba3f8f2e13aaed01055983c6a24ed1d206e762512315aac353b2bd69dc1097e3"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/ml_dsa/workers/coordinator.rs",
+      "sha256": "c78173a93f5be805b633b23769e347cce6e1b136c3da35d79d7019229ab34914"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/strict_worker/deriver.rs",
+      "sha256": "31d9968777b256a81fa4a717814e27184c4754ca9f4f7b93e32166accb8759ce"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/strict_worker/router.rs",
+      "sha256": "93ae332655c0aba761e415c3e0b6f10121ff88a7cd50257e508136a20e116728"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/ml_dsa_durable_pool_e2e.rs",
+      "sha256": "a9668c45c490ab1b46bdba75b9d24eaedbc53b26f403b5f79be34066a8c6f7a9"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/wrangler.deriver-a.toml",
+      "sha256": "e8d716dafdc35068112a7728f6048d51065531c5b97439e15788ea3e45443b70"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/wrangler.deriver-b.toml",
+      "sha256": "6b7928cd4d8d4751245402b538217e88648afb10a4c789624259ca9440976b47"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/wrangler.router.toml",
+      "sha256": "9e32246c3b4dc512d80c4012379c0d89cd1e819849b666ac106d6ae3ca57c126"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/Cargo.lock",
+      "sha256": "d3cd178abaa8e9aa3c681c4687bf7a3f864708d05e8bccc17be6854ccddc131f"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/Cargo.toml",
+      "sha256": "96d213d0741aebc94c125e9bfd128adf5a121c12a9cc4056cd1dc581a2640e78"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs",
+      "sha256": "e6e3526c6082d7cadae80d5ad028f8f9bcaf68a8b9833f73ac6bcd315941ebcd"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/main.rs",
+      "sha256": "0a23dfc0e805468b15b96d44e5b6612a834fed821a82fa5dc2971e851771f614"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
+      "sha256": "d54a350bdcff87e4530f5e7b73dbbe3a8e7fd6288fe2330107c771a8f3ba11c2"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
+      "sha256": "6d8d844c7e2018be567c5c5200e9b0f58bf7cfa11d2c0eca954c1f1dc95d495b"
+    }
+  ],
+  "artifact_hashes": {
+    "ml-dsa-65-durable-admission-e2e-20261015.json": "18c43d599a706e1c6fcc8e886a476f1479593dae4032b762449a99a29c02c2dd",
+    "ml-dsa-65-durable-threshold-e2e-20261015.json": "94491480d4989aff6b62f08a69c91e5876ab241ae7c486b195888c56b43c0bef"
+  }
+}

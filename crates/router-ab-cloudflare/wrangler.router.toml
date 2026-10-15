@@ -8,6 +8,7 @@ command = "cargo install -q --locked worker-build --version 0.8.4 && bash ./scri
 
 [durable_objects]
 bindings = [
+  { name = "ML_DSA_ADMISSION_DO", class_name = "RouterAbMlDsaAdmissionDurableObject" },
   { name = "ROUTER_TENANT_ROOT_CREATION_DO", class_name = "RouterAbTenantRootCreationDurableObject" },
   { name = "ROUTER_WALLET_DO", class_name = "RouterAbRouterWalletDurableObject" },
 ]
@@ -137,3 +138,15 @@ enabled = true
   [observability.traces]
   enabled = true
   head_sampling_rate = 1
+
+[[migrations]]
+tag = "ml-dsa-admission-v1"
+new_sqlite_classes = ["RouterAbMlDsaAdmissionDurableObject"]
+
+[[env.staging.durable_objects.bindings]]
+name = "ML_DSA_ADMISSION_DO"
+class_name = "RouterAbMlDsaAdmissionDurableObject"
+
+[[env.production-testnet.durable_objects.bindings]]
+name = "ML_DSA_ADMISSION_DO"
+class_name = "RouterAbMlDsaAdmissionDurableObject"
