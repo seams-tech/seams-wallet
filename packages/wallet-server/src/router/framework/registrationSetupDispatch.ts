@@ -1,6 +1,10 @@
 import type { WalletRegistrationSetupInput } from '../domains/walletRegistration/walletRegistrationInputs';
 import type { WalletRegistrationSetupResponseV2 } from '../../core/threeRouteRegistrationContracts';
 import type { RouteResponse } from './routeExecutionContext';
+import {
+  recordRegistrationServerTiming,
+  registrationServerTimingHeaders,
+} from '../cloudflare/d1/registration/d1RegistrationSetupSupport';
 
 export interface WalletRegistrationSetupDispatcher {
   dispatch(input: WalletRegistrationSetupInput): Promise<RouteResponse | null>;
@@ -28,17 +32,21 @@ export async function dispatchWalletRegistrationSetup(
   },
   input: WalletRegistrationSetupInput,
 ): Promise<RouteResponse> {
+  const serverTiming = input.serverTiming ?? [];
+  const dispatchStartedAtMs = Date.now();
   const forwarded = await context.dispatcher?.dispatch(input);
   if (forwarded) return forwarded;
+  recordRegistrationServerTiming(serverTiming, 'setup_dispatch', dispatchStartedAtMs);
   const result = await context.local.setupWalletRegistration(input);
-  if (result.ok) return { status: 200, body: result };
+  const headers = registrationServerTimingHeaders(serverTiming);
+  if (result.ok) return { status: 200, body: result, ...(headers ? { headers } : {}) };
   const serverFailure =
     result.code === 'storage_unavailable'
       ? SETUP_STORAGE_UNAVAILABLE
       : result.code === 'internal'
         ? SETUP_INTERNAL_FAILURE
         : null;
-  if (!serverFailure) return { status: 400, body: result };
+  if (!serverFailure) return { status: 400, body: result, ...(headers ? { headers } : {}) };
   // The cause stays on the server. It can carry the storage driver's text.
   console.error('[wallet-registration] setup failed', {
     code: result.code,
@@ -47,5 +55,6 @@ export async function dispatchWalletRegistrationSetup(
   return {
     status: serverFailure.status,
     body: { ok: false, code: result.code, message: serverFailure.message },
+    ...(headers ? { headers } : {}),
   };
 }

@@ -1,4 +1,8 @@
 import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
+import {
+  recordRegistrationServerTiming,
+  registrationServerTimingHeaders,
+} from '../../cloudflare/d1/registration/d1RegistrationSetupSupport';
 import { parseRegistrationSetupOperationId } from '@shared/utils/registrationSetupOperation';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
@@ -2069,6 +2073,8 @@ export async function handleRouterApiWalletRegistrationSetup(
   }
   const request = parseWalletRegistrationSetupRequest(input.body);
   if (!request.ok) return routeError(400, request.code, request.message);
+  const serverTiming: Array<readonly [string, number]> = [];
+  const contextStartedAtMs = Date.now();
   const context = await resolveWalletRegistrationContext({
     registration: request.value,
     environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
@@ -2081,6 +2087,7 @@ export async function handleRouterApiWalletRegistrationSetup(
     route: input.route,
     routeAuthNotConfiguredMessage: 'Wallet registration setup requires API credential auth policy',
   });
+  recordRegistrationServerTiming(serverTiming, 'setup_context', contextStartedAtMs);
   if (!context.ok) {
     if (context.status === 401)
       return routeError(401, 'unauthorized', `${context.code}: ${context.message}`);
@@ -2088,6 +2095,7 @@ export async function handleRouterApiWalletRegistrationSetup(
       return routeError(403, 'forbidden', `${context.code}: ${context.message}`);
     return routeError(context.status, 'internal', `${context.code}: ${context.message}`);
   }
+  const policyStartedAtMs = Date.now();
   const resolved = await enforceRoutePolicy({
     headers: input.headers,
     logger: input.logger,
@@ -2097,9 +2105,11 @@ export async function handleRouterApiWalletRegistrationSetup(
     sourceIp: input.sourceIp,
     resolvers: { apiCredentials: publishableKeyRoutePrincipal.bind(undefined, context.principal) },
   });
+  recordRegistrationServerTiming(serverTiming, 'setup_route_policy', policyStartedAtMs);
   if (!resolved.ok) return routeJson(resolved.status, resolved.body);
   const principal = context.principal;
   if (input.services.registrationSetupRateLimit) {
+    const limitStartedAtMs = Date.now();
     try {
       const limit = await input.services.registrationSetupRateLimit({
         apiKeyId: principal.apiKeyId,
@@ -2108,6 +2118,7 @@ export async function handleRouterApiWalletRegistrationSetup(
         envId: context.environment.key,
         sourceIp: input.sourceIp || 'unknown',
       });
+      recordRegistrationServerTiming(serverTiming, 'setup_rate_limit', limitStartedAtMs);
       if (!limit.allowed) {
         return routeJson(429, {
           ok: false,
@@ -2138,6 +2149,7 @@ export async function handleRouterApiWalletRegistrationSetup(
     runtimePolicyScope,
     signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
     signingRootVersion: runtimePolicyScope.signingRootVersion,
+    serverTiming,
   });
 }
 
@@ -2177,7 +2189,7 @@ export async function handleRouterApiWalletRegistrationRespond(
   );
   const status = result.ok ? 200 : result.code === 'storage_unavailable' ? 503 : 400;
   return routeJson(status, result, {
-    headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+    headers: registrationServerTimingHeaders(serverTiming),
   });
 }
 
@@ -2473,7 +2485,7 @@ export async function handleRouterApiWalletRegistrationActivate(
     );
   }
   return routeJson(200, result, {
-    headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+    headers: registrationServerTimingHeaders(serverTiming),
   });
 }
 
@@ -2543,7 +2555,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
         503,
         { ok: false, code: sealed.code, message: sealed.message },
         {
-          headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+          headers: registrationServerTimingHeaders(serverTiming),
         },
       );
     }
@@ -2551,23 +2563,13 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
       200,
       { ...result, sessionSeal: sealed.value },
       {
-        headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+        headers: registrationServerTimingHeaders(serverTiming),
       },
     );
   }
   return routeJson(200, result, {
-    headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+    headers: registrationServerTimingHeaders(serverTiming),
   });
-}
-
-function ecdsaGatewayServerTimingHeaders(
-  serverTiming: readonly (readonly [string, number])[],
-): Record<string, string> | undefined {
-  if (serverTiming.length === 0) return undefined;
-  const header = serverTiming
-    .map(([name, durationMs]) => `${name};dur=${Math.max(0, durationMs).toFixed(1)}`)
-    .join(', ');
-  return { 'Server-Timing': header };
 }
 
 export async function handleRouterApiWalletAddSignerStart(

@@ -4460,6 +4460,7 @@ export class CloudflareD1WalletRegistrationService {
     const ceremony = input.ceremony;
     const stored = storedRespondEd25519DeferredWork(ceremony.signerState);
     let authority: StoredRegistrationAuthority;
+    const authorityStartedAtMs = Date.now();
     if (stored) {
       const replayAuthority = await this.verifyRespondReplayAuthority({
         ceremony,
@@ -4491,6 +4492,7 @@ export class CloudflareD1WalletRegistrationService {
       if (!verified.ok) return { ok: false, code: verified.code, message: verified.message };
       authority = verified.authority;
     }
+    recordRegistrationServerTiming(input.serverTiming, 'respond_authority_verify', authorityStartedAtMs);
     if (authority.walletId !== ceremony.intent.walletId) {
       return {
         ok: false,
@@ -4506,6 +4508,7 @@ export class CloudflareD1WalletRegistrationService {
         message: 'Ed25519 Yao registration is unavailable',
       };
     }
+    const requestStartedAtMs = Date.now();
     const admissionRequest = stored
       ? stored.admissionRequest
       : await buildRespondEd25519AdmissionRequest({
@@ -4514,6 +4517,7 @@ export class CloudflareD1WalletRegistrationService {
           authority,
           signingWorkerId: runtime.signingWorkerId,
         });
+    recordRegistrationServerTiming(input.serverTiming, 'yao_admission_request', requestStartedAtMs);
     const verifiedAuthority = authority;
     const branchKey = input.branch.branchKey;
     const ceremonyStore = this.getRegistrationCeremonyIntentStore();
@@ -4532,6 +4536,7 @@ export class CloudflareD1WalletRegistrationService {
         ],
       },
     });
+    const bindStartedAtMs = Date.now();
     const admitted = await runtime.bindAndAdmitVerifiedRegistration(
       {
         kind: 'verified_registration_intent',
@@ -4552,10 +4557,12 @@ export class CloudflareD1WalletRegistrationService {
       input.startedDispatchRoot,
       requireRegistrationEd25519YaoMint(ceremony).sessionId,
     );
+    recordRegistrationServerTiming(input.serverTiming, 'yao_admission_bind', bindStartedAtMs);
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };
     // An admission that already existed carried no write of this request.
     if (!stored && admitted.companionWrite === 'not_committed') {
       const next = authorizedCeremony(admitted.admissionRequest);
+      const commitStartedAtMs = Date.now();
       try {
         await ceremonyStore.commitEcdsaClaim({ expected: input.snapshot, next });
       } catch (error: unknown) {
@@ -4566,6 +4573,7 @@ export class CloudflareD1WalletRegistrationService {
           throw error;
         }
       }
+      recordRegistrationServerTiming(input.serverTiming, 'respond_ceremony_commit', commitStartedAtMs);
     }
     /* The credential is verified and the ceremony holds it. Claim it through
        shared authority while the client runs the Yao execution, so that

@@ -38,6 +38,8 @@ export type WalletRegistrationSetupInput = {
   readonly runtimePolicyScope?: ThresholdRuntimePolicyScope;
   readonly signingRootId?: string;
   readonly signingRootVersion?: string;
+  /** Collects the `[name, ms]` waits of this setup for its `Server-Timing` header. */
+  readonly serverTiming?: Array<readonly [string, number]>;
 };
 
 export type WalletRegistrationRespondInput = {

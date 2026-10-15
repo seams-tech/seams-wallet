@@ -41,6 +41,8 @@ import {
   registrationSignerBranchesFromPlan,
   registrationPreparedContextEcdsaChainTargets,
   resolveRegistrationPreparedContextFromPlan,
+  recordRegistrationPromiseTiming,
+  recordRegistrationServerTiming,
 } from './d1RegistrationSetupSupport';
 import {
   buildWalletRegistrationSetupSignature,
@@ -67,6 +69,7 @@ export async function executeD1WalletRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: WalletRegistrationSetupDependencies,
 ): Promise<WalletRegistrationSetupResponseV2> {
+  const serverTiming = input.serverTiming ?? [];
   try {
     const normalized = normalizeWalletRegistrationSetupRequest(input.request);
     if (!normalized.ok) return walletRegistrationSetupError(normalized.code, normalized.message);
@@ -76,7 +79,9 @@ export async function executeD1WalletRegistrationSetup(
         'registration_authority_unavailable',
         'Registration reservation authority is required',
       );
+    const reserveStartedAtMs = Date.now();
     const admitted = await dependencies.reservation.reserve(input);
+    recordRegistrationServerTiming(serverTiming, 'setup_reserve', reserveStartedAtMs);
     if (!admitted.ok) return admitted;
     const reservation = admitted.reservation;
     const wallet = { walletId: reservation.walletId };
@@ -94,20 +99,33 @@ export async function executeD1WalletRegistrationSetup(
       return walletRegistrationSetupError('registration_expired', 'Registration setup has expired');
     // The reservation fixes the wallet and its home. Address initialization
     // can overlap the ceremony read and write; neither grants signing authority.
+    const parallelStartedAtMs = Date.now();
     const [startup, setup] = await Promise.allSettled([
-      dependencies.startRegistrationWallets?.({
-        kind: 'objects',
-        walletId: wallet.walletId,
-        ownershipGeneration: admitted.ownershipGeneration,
+      recordRegistrationPromiseTiming({
+        sink: serverTiming,
+        name: 'setup_wallet_objects',
+        startedAtMs: parallelStartedAtMs,
+        promise: dependencies.startRegistrationWallets?.({
+          kind: 'objects',
+          walletId: wallet.walletId,
+          ownershipGeneration: admitted.ownershipGeneration,
+        }),
       }),
-      completeReservedRegistrationSetup(input, dependencies, admitted, normalized, expiresAtMs),
+      recordRegistrationPromiseTiming({
+        sink: serverTiming,
+        name: 'setup_ceremony',
+        startedAtMs: parallelStartedAtMs,
+        promise: completeReservedRegistrationSetup(input, dependencies, admitted, normalized, expiresAtMs),
+      }),
     ]);
     if (setup.status === 'rejected') throw setup.reason;
     if (!setup.value.ok) return setup.value;
     if (startup.status === 'rejected') throw startup.reason;
     if (dependencies.startRegistrationWallets) {
       try {
+        const pairStartedAtMs = Date.now();
         const preparation = await describeCommittedSetupPair(setup.value, dependencies);
+        recordRegistrationServerTiming(serverTiming, 'setup_pair_describe', pairStartedAtMs);
         if (preparation.status === 'described') {
           await dependencies.startRegistrationWallets({
             kind: 'pair',
