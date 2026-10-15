@@ -7,6 +7,8 @@ import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
+import { build } from 'esbuild';
+import { pathToFileURL } from 'node:url';
 
 const fixtures = resolve(process.argv[2] ?? '/private/tmp/ml-dsa-worker-fixtures');
 const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.json');
@@ -15,6 +17,14 @@ const authHeader = 'x-router-ab-internal-service-auth';
 const serviceAuth = randomBytes(32).toString('hex');
 const gatewayAuth = randomBytes(32).toString('hex');
 const persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-worker-e2e-'));
+const admissionBundle = await build({
+  entryPoints: [join(root, 'tests/helpers/mlDsaOwnerAdmission.fixtures.ts')],
+  bundle: true, format: 'esm', platform: 'node', write: false,
+  tsconfig: join(root, 'packages/wallet-server/tsconfig.json'),
+});
+const admissionPath = join(persistence, 'owner-admission.mjs');
+await writeFile(admissionPath, admissionBundle.outputFiles[0].contents);
+const admission = await import(pathToFileURL(admissionPath).href);
 const records = await Promise.all(['a', 'b'].map(readRecord));
 const keks = await Promise.all(['a', 'b'].map(readKek));
 const policy = {
@@ -31,13 +41,26 @@ const bindings = {
   ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
 };
 const observations = {
-  scope: 'Local workerd, real strict Worker bundles, synthetic wallet-derived key, durable admission and automatic paired preprocessing. Gateway custody authorization is injected by this harness. This is not a public SDK or hosted-latency test.',
+  scope: 'Local workerd, real strict Worker bundles, synthetic canonical wallet key, typed Gateway owner admission, and durable signing. Verified factor inputs, claimed-operation persistence, and custody activation are injected. HTTP login, public session routes, and hosted latency remain outside this test.',
   policy,
   signatures: [],
   failedOperations: [],
   publicKeyHex: Buffer.from(records[0].public_key).toString("hex"),
 };
 observations.workerWasmSha256 = Object.fromEntries(await Promise.all(["router", "deriver-a", "deriver-b"].map(wasmDigest)));
+
+class OwnerRouterProxy {
+  constructor(router) { this.router = router; }
+  get internalServiceAuthSecret() { return gatewayAuth; }
+  async fetch(request) {
+    return this.router.fetch(request.url, {
+      method: request.method,
+      headers: Object.fromEntries(request.headers),
+      body: await request.arrayBuffer(),
+    });
+  }
+}
+
 let runtime;
 let lastSuccessful;
 try {
@@ -54,32 +77,30 @@ try {
   observations.initialFourBatchRefillMs = performance.now() - refillStarted;
   // Let the full-pool maintenance alarm settle before the first consumption.
   await new Promise(waitForQuietPool);
-  const initialStarts = await preprocessingStarts();
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
     await waitReady(4);
-    const message = Array.from(Buffer.from(`ML-DSA durable Worker transaction ${index}`));
-    const input = {
-      request: {
-        key: records[0].activation.key,
-        operation: Array.from(randomBytes(32)),
-        message_digest: digest(message),
-        context_digest: digest([]),
-      },
-      message,
-      context: [],
-    };
+    const message = digest(Array.from(Buffer.from(`ML-DSA durable Worker transaction ${index}`)));
+    const owner = await admission.mlDsaOwnerFixture(records[0], new Uint8Array(message), `worker-${index}`);
+    assert.equal(owner.admitted.kind, 'prepared');
+    if (index === 0) observations.ownerAdmission = await admission.verifyMlDsaAdmissionRefusals(owner);
+    const prepared = owner.admitted.operation;
+    const input = JSON.parse(prepared.encode());
+    const initialStarts = await preprocessingStarts();
     const started = performance.now();
-    const result = await post('router', '/router-ab/ml-dsa/sign', input, gatewayAuth);
+    const router = await runtime.getWorker('router');
+    const response = await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared);
+    assert.equal(response.status, 200, await response.clone().text());
+    const result = await response.json();
     const elapsedMs = performance.now() - started;
     assert.equal(result.status, 'existing');
     if (result.operation.state === 'failed') {
       observations.failedOperations.push({ elapsedMs });
-      assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', input, gatewayAuth), result);
+      assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
       continue;
     }
     assert.equal(result.operation.state, 'succeeded');
     assert.equal(result.operation.signature.length, 3309);
-    assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', input, gatewayAuth), result);
+    assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
     const changed = structuredClone(input);
     changed.message.push(0);
     changed.request.message_digest = digest(changed.message);
@@ -94,7 +115,7 @@ try {
       contextHex: Buffer.from(input.context).toString('hex'),
       signatureHex: Buffer.from(result.operation.signature).toString('hex'),
     });
-    lastSuccessful = { input, result };
+    lastSuccessful = { input, result, prepared };
     if (observations.signatures.length === 1) {
       await waitForPreprocessingStart(initialStarts);
       observations.firstConsumptionRefillStartedMs = performance.now() - started;
@@ -111,7 +132,7 @@ try {
   runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
   await runtime.ready;
   assert.deepEqual(
-    await post('router', '/router-ab/ml-dsa/sign', lastSuccessful.input, gatewayAuth),
+    await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(await runtime.getWorker('router')), lastSuccessful.prepared)).json(),
     lastSuccessful.result,
   );
   assert.deepEqual(

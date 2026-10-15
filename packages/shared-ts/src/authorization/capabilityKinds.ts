@@ -1,3 +1,4 @@
+import type { Variant } from '../utils/variant';
 import type { DomainId } from '../utils/domainIds';
 import { hasWhitespaceOrControlCharacters } from '../utils/domainIds';
 
@@ -13,6 +14,7 @@ export type AuthorizationParseResult<T> =
 export const CAPABILITY_KINDS = {
   vaultAccess: 'vault_access',
   nearEd25519MpcSigning: 'near_ed25519_mpc_signing',
+  nearMlDsa65MpcSigning: 'near_ml_dsa_65_mpc_signing',
   evmEcdsaMpcSigning: 'evm_ecdsa_mpc_signing',
 } as const;
 
@@ -35,6 +37,14 @@ export const NEAR_ED25519_MPC_OPERATION_KINDS = {
 export type NearEd25519MpcOperationKind =
   (typeof NEAR_ED25519_MPC_OPERATION_KINDS)[keyof typeof NEAR_ED25519_MPC_OPERATION_KINDS];
 
+export const NEAR_ML_DSA_65_MPC_OPERATION_KINDS = {
+  signTransaction: 'near.sign_transaction',
+  exportKey: 'near.export_key',
+} as const;
+
+export type NearMlDsa65MpcOperationKind =
+  (typeof NEAR_ML_DSA_65_MPC_OPERATION_KINDS)[keyof typeof NEAR_ML_DSA_65_MPC_OPERATION_KINDS];
+
 export const EVM_ECDSA_MPC_OPERATION_KINDS = {
   signTransaction: 'evm.sign_transaction',
   exportKey: 'evm.export_key',
@@ -46,6 +56,7 @@ export type EvmEcdsaMpcOperationKind =
 type CapabilityOperationKindByCapability = {
   readonly vault_access: VaultOperationKind;
   readonly near_ed25519_mpc_signing: NearEd25519MpcOperationKind;
+  readonly near_ml_dsa_65_mpc_signing: NearMlDsa65MpcOperationKind;
   readonly evm_ecdsa_mpc_signing: EvmEcdsaMpcOperationKind;
 };
 
@@ -55,6 +66,12 @@ export type CapabilityOperationRef = {
     readonly operationKind: CapabilityOperationKindByCapability[K];
   };
 }[CapabilityKind];
+
+type MlDsaOperationRef = Variant<
+  CapabilityOperationRef,
+  'capabilityKind',
+  'near_ml_dsa_65_mpc_signing'
+>;
 
 export const AUTHORIZATION_EVIDENCE_KINDS = {
   seamsSession: 'seams_session',
@@ -147,6 +164,14 @@ export function buildNearEd25519MpcOperationRef<TOperationKind extends NearEd255
   };
 }
 
+export function buildNearMlDsa65MpcOperationRef<TOperationKind extends NearMlDsa65MpcOperationKind>(
+  operationKind: TOperationKind,
+): MlDsaOperationRef & {
+  readonly operationKind: TOperationKind;
+} {
+  return { capabilityKind: CAPABILITY_KINDS.nearMlDsa65MpcSigning, operationKind };
+}
+
 export function buildEvmEcdsaMpcOperationRef<TOperationKind extends EvmEcdsaMpcOperationKind>(
   operationKind: TOperationKind,
 ): Extract<CapabilityOperationRef, { readonly capabilityKind: 'evm_ecdsa_mpc_signing' }> & {
@@ -177,6 +202,14 @@ export function parseCapabilityOperationRef(
         return { ok: true, value: buildNearEd25519MpcOperationRef(value.operationKind) };
       }
       return invalidResult('NEAR Ed25519 MPC capability operation is unsupported');
+    case CAPABILITY_KINDS.nearMlDsa65MpcSigning:
+      if (
+        value.operationKind === NEAR_ML_DSA_65_MPC_OPERATION_KINDS.signTransaction ||
+        value.operationKind === NEAR_ML_DSA_65_MPC_OPERATION_KINDS.exportKey
+      ) {
+        return { ok: true, value: buildNearMlDsa65MpcOperationRef(value.operationKind) };
+      }
+      return invalidResult('NEAR ML-DSA-65 MPC capability operation is unsupported');
     case CAPABILITY_KINDS.evmEcdsaMpcSigning:
       if (isEvmEcdsaMpcOperationKind(value.operationKind)) {
         return { ok: true, value: buildEvmEcdsaMpcOperationRef(value.operationKind) };

@@ -7,6 +7,8 @@ import {
 import {
   parseDigestField,
   parseEd25519PublicKeyB64u,
+  parseMlDsa65PublicKeyB64u,
+  parseMlDsaMaterialEpoch,
   parseKeyCreationSignerSlot,
   parseSecp256k1CompressedPublicKeyB64u,
   parseUnixMs,
@@ -43,6 +45,8 @@ import type {
   DelegatedSpendAuthorizationId,
   Ed25519WalletKeyRecord,
   EvmFamilyWalletKeyRecord,
+  MlDsa65WalletKeyRecord,
+  MlDsaSigningKeyId,
   LinkedDeviceSigningLaneRecord,
   OwnerEmailOtpSigningLaneRecord,
   OwnerPasskeySigningLaneRecord,
@@ -105,6 +109,13 @@ const ED25519_WALLET_KEY_FIELDS = [
   'keyCreationSignerSlot',
   'registeredPublicKeyB64u',
 ] as const;
+const ML_DSA_WALLET_KEY_FIELDS = [
+  ...WALLET_KEY_COMMON_FIELDS,
+  'mlDsaSigningKeyId',
+  'registeredPublicKeyB64u',
+  'materialEpoch',
+  'keyManifestDigestB64u',
+] as const;
 const EVM_WALLET_KEY_FIELDS = [
   ...WALLET_KEY_COMMON_FIELDS,
   'evmFamilySigningKeySlotId',
@@ -112,7 +123,7 @@ const EVM_WALLET_KEY_FIELDS = [
   'evmAddress',
 ] as const;
 const ALL_WALLET_KEY_FIELDS: readonly string[] = Array.from(
-  new Set([...ED25519_WALLET_KEY_FIELDS, ...EVM_WALLET_KEY_FIELDS]),
+  new Set([...ED25519_WALLET_KEY_FIELDS, ...EVM_WALLET_KEY_FIELDS, ...ML_DSA_WALLET_KEY_FIELDS]),
 );
 
 const WALLET_KEY_LIFECYCLE_FIELDS = [
@@ -503,6 +514,34 @@ export function buildEd25519WalletKeyRecord(args: {
   };
 }
 
+export function parseMlDsaSigningKeyId(raw: unknown): MlDsaSigningKeyId {
+  return parseRequiredDomainId<'MlDsaSigningKeyId'>(raw, 'mlDsaSigningKeyId');
+}
+
+export function buildMlDsa65WalletKeyRecord(args: {
+  readonly walletId: WalletId;
+  readonly walletKeyId: WalletKeyId;
+  readonly walletKeyVersion: WalletKeyVersion;
+  readonly mlDsaSigningKeyId: MlDsaSigningKeyId;
+  readonly registeredPublicKeyB64u: MlDsa65WalletKeyRecord['registeredPublicKeyB64u'];
+  readonly materialEpoch: MlDsa65WalletKeyRecord['materialEpoch'];
+  readonly keyManifestDigestB64u: MlDsa65WalletKeyRecord['keyManifestDigestB64u'];
+  readonly lifecycle: WalletKeyLifecycle;
+}): MlDsa65WalletKeyRecord {
+  return {
+    kind: 'wallet_key_record_v1',
+    keyFamily: 'ml_dsa_65',
+    walletId: args.walletId,
+    walletKeyId: args.walletKeyId,
+    walletKeyVersion: args.walletKeyVersion,
+    mlDsaSigningKeyId: args.mlDsaSigningKeyId,
+    registeredPublicKeyB64u: args.registeredPublicKeyB64u,
+    materialEpoch: args.materialEpoch,
+    keyManifestDigestB64u: args.keyManifestDigestB64u,
+    lifecycle: args.lifecycle,
+  };
+}
+
 export function buildEvmFamilyWalletKeyRecord(args: {
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;
@@ -744,6 +783,19 @@ export function parseWalletKeyRecord(raw: unknown, label = 'walletKeyRecord'): W
       lifecycle: parseWalletKeyLifecycleState(record.lifecycle, `${label}.lifecycle`),
     });
   }
+  if (record.keyFamily === 'ml_dsa_65') {
+    rejectUnknownFields(record, ML_DSA_WALLET_KEY_FIELDS, label, ALL_WALLET_KEY_FIELDS);
+    return buildMlDsa65WalletKeyRecord({
+      walletId: requireParsed(parseWalletId(record.walletId), `${label}.walletId`),
+      walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`),
+      walletKeyVersion: parseWalletKeyVersion(record.walletKeyVersion),
+      mlDsaSigningKeyId: parseMlDsaSigningKeyId(record.mlDsaSigningKeyId),
+      registeredPublicKeyB64u: parseMlDsa65PublicKeyB64u(record.registeredPublicKeyB64u),
+      materialEpoch: parseMlDsaMaterialEpoch(record.materialEpoch),
+      keyManifestDigestB64u: parseDigestField(record.keyManifestDigestB64u, `${label}.keyManifestDigestB64u`),
+      lifecycle: parseWalletKeyLifecycleState(record.lifecycle, `${label}.lifecycle`),
+    });
+  }
   if (record.keyFamily === 'ecdsa_secp256k1') {
     rejectUnknownFields(record, EVM_WALLET_KEY_FIELDS, label, ALL_WALLET_KEY_FIELDS);
     return buildEvmFamilyWalletKeyRecord({
@@ -762,7 +814,7 @@ export function parseWalletKeyRecord(raw: unknown, label = 'walletKeyRecord'): W
       lifecycle: parseWalletKeyLifecycleState(record.lifecycle, `${label}.lifecycle`),
     });
   }
-  throw new Error(`${label}.keyFamily must be ed25519 or ecdsa_secp256k1`);
+  throw new Error(`${label}.keyFamily must be ed25519, ecdsa_secp256k1, or ml_dsa_65`);
 }
 
 export function parseSigningLaneRecord(

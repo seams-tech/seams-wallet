@@ -109,6 +109,7 @@ function authorizedOperationMaterialScopeMatches(
   material: AuthorizedOperationMaterialScope | undefined,
   snapshot: EcdsaMaterialReadSnapshot | null,
 ): boolean {
+  if (operation.operation.operation.capabilityKind === CAPABILITY_KINDS.nearMlDsa65MpcSigning) return false;
   if (snapshot && snapshot.walletId !== material?.walletId) return false;
   const requiresMaterial =
     operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
@@ -527,7 +528,10 @@ export async function prepareAuthorizedOperationAdmission(
   },
 ): Promise<PreparedAuthorizedOperationAdmission> {
   const operation = await buildAuthorizedOperation(input.operation);
-  if (operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning) {
+  if (
+    operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning ||
+    operation.operation.operation.capabilityKind === CAPABILITY_KINDS.nearMlDsa65MpcSigning
+  ) {
     return { kind: 'material_mismatch' };
   }
   const existing = await readAuthorizedOperationForAdmission(context, {

@@ -3427,6 +3427,15 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Keep durable replay rejection, cancellation, and epoch transitions at the admitted storage boundary.
 - Prepare generic garbled circuits and random OT without wallet-specific secret inputs.
 - Consume each prepared circuit and its OT material at most once. Recovery must use fresh preparation.
+- Require an exact ML-DSA transaction approval before preparing a private Router signing request.
+- Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
+- Require both verified factor evidence and an operation-specific owner proof within their validity windows.
+- Preserve the Router operation ID across internal claim retries for the same logical operation. Require new approval for a different logical operation.
+- Refuse ML-DSA in generic signing-lane and D1 admission until dedicated custody and session integration exists.
+
+The [owner admission E2E](router-ab/ml-dsa-65-owner-admission-report.md) composes the typed gate with real local Worker signing.
+Its verified factor inputs, operation-claim persistence, and custody activation are synthetic test inputs.
+The public route still requires authoritative registry and session integration.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
 Router admission, durable lifecycle behavior, and the public SDK route remain required before production use.
