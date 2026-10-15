@@ -30,11 +30,13 @@ pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
     request: &CloudflareEd25519YaoPairPrepareRequestV1,
     pair_object: String,
     access: RootUseAccess,
-) -> RouterAbProtocolResult<(DeriverAPairPreparationV1, DeriverATargetSource)> {
+) -> RouterAbProtocolResult<
+    Result<(DeriverAPairPreparationV1, DeriverATargetSource), crate::tenant_root_role_runtime::AttemptConflictV1>,
+> {
     let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
     request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
-        load_ed25519_yao_tenant_root_role_share_v2(
+        match load_ed25519_yao_tenant_root_role_share_v2(
             env,
             CloudflareWorkerRoleV1::DeriverA,
             &request.tenant_root,
@@ -42,7 +44,11 @@ pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
             Some(pair_object),
             access,
         )
-        .await?;
+        .await?
+        {
+            Ok(loaded) => loaded,
+            Err(conflict) => return Ok(Err(conflict)),
+        };
     let prepared_at_ms =
         cloudflare_yao_now_unix_ms().map_err(|error| invalid_lifecycle(error.to_string()))?;
     let expires_at_ms = prepared_at_ms
@@ -56,14 +62,14 @@ pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
         stable_context,
         None,
     )?;
-    Ok((
+    Ok(Ok((
         DeriverAPairPreparationV1 {
             root_metadata_digest,
             prepared_at_ms,
             expires_at_ms,
         },
         DeriverATargetSource::AdmittedNow(target),
-    ))
+    )))
 }
 
 /// Prepares A's proof while B opens its connection. The caller sends it only
@@ -87,7 +93,8 @@ pub(super) async fn prepare_deriver_a_target(
             Some(execution.pair_object.clone()),
             RootUseAccess::ReadAdmitted,
         )
-        .await?;
+        .await?
+        .map_err(crate::tenant_root_role_runtime::AttemptConflictV1::into_error)?;
     validate_expected_root_metadata_digest(
         execution.expected_root_metadata_digest,
         root_metadata_digest,
@@ -146,12 +153,17 @@ pub(super) async fn load_ed25519_yao_tenant_root_role_share_v2(
     pair_binding: &Ed25519YaoInputPairBindingV1,
     pair_object: Option<String>,
     access: RootUseAccess,
-) -> RouterAbProtocolResult<(
-    TenantRootCustodyBindingV1,
-    VerifiedTenantRootOnlineRoleShareV1,
-    Ed25519YaoStableKeyDerivationContextV1,
-    [u8; 32],
-)> {
+) -> RouterAbProtocolResult<
+    Result<
+        (
+            TenantRootCustodyBindingV1,
+            VerifiedTenantRootOnlineRoleShareV1,
+            Ed25519YaoStableKeyDerivationContextV1,
+            [u8; 32],
+        ),
+        crate::tenant_root_role_runtime::AttemptConflictV1,
+    >,
+> {
     tenant_root.validate_for_pair(pair_binding)?;
     let now_unix_ms =
         cloudflare_yao_now_unix_ms().map_err(|_| invalid_lifecycle("Yao clock is unavailable"))?;
@@ -189,6 +201,10 @@ pub(super) async fn load_ed25519_yao_tenant_root_role_share_v2(
         access,
     )
     .await?;
+    let role_share = match role_share {
+        Ok(role_share) => role_share,
+        Err(conflict) => return Ok(Err(conflict)),
+    };
     let root_metadata_digest = *role_share
         .binding()
         .digest()
@@ -201,10 +217,10 @@ pub(super) async fn load_ed25519_yao_tenant_root_role_share_v2(
                     "Ed25519 Yao stable context construction failed: {error}"
                 ))
             })?;
-    Ok((
+    Ok(Ok((
         custody_binding,
         role_share,
         stable_context,
         root_metadata_digest,
-    ))
+    )))
 }

@@ -1,6 +1,6 @@
 mod bound_share;
 pub use bound_share::tenant_root_deriver_load_bound_role_share_v1;
-pub(crate) use bound_share::load_role_share_with_access;
+pub(crate) use bound_share::{load_role_share_with_access, AttemptConflictV1};
 use rand_core_06::SeedableRng;
 use router_ab_core::MpcPrfSigningRootShareWireV1;
 use router_ab_core::{

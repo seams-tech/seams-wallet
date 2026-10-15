@@ -767,22 +767,46 @@ struct DeriverBWalletDoStorageV1 {
 }
 
 impl DeriverBYaoSessionD1V1 {
-    async fn registration_preparation_access(
+    /// Loads B's role share for this preparation, binding to the wallet
+    /// object's registration preparation when it holds one.
+    async fn load_role_share_for_preparation(
         &self,
         request: &CloudflareEd25519YaoPairPrepareRequestV1,
-    ) -> worker::Result<RootUseAccess> {
+    ) -> worker::Result<
+        RouterAbProtocolResult<(
+            TenantRootCustodyBindingV1,
+            VerifiedTenantRootOnlineRoleShareV1,
+            Ed25519YaoStableKeyDerivationContextV1,
+            [u8; 32],
+        )>,
+    > {
+        let load = |access| {
+            load_ed25519_yao_tenant_root_role_share_v2(
+                &self.env,
+                CloudflareWorkerRoleV1::DeriverB,
+                &request.tenant_root,
+                &request.pair_binding,
+                self.pair_object_id(),
+                access,
+            )
+        };
         #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
         if let Some(wallet) = &self.wallet_do {
-            return crate::durable_object::registration_preparation::access_for_execution(
+            return crate::durable_object::registration_preparation::load_for_execution(
                 &wallet.object_id,
                 &wallet.sql,
                 &self.env,
                 &request.tenant_root,
                 &request.pair_binding,
+                load,
             )
             .await;
         }
-        Ok(RootUseAccess::Admit)
+        Ok(load(RootUseAccess::Admit)
+            .await
+            .and_then(|loaded| {
+                loaded.map_err(crate::tenant_root_role_runtime::AttemptConflictV1::into_error)
+            }))
     }
     #[cfg(not(feature = "strict-worker-deriver-b-entrypoint"))]
     fn new(env: Env) -> Self {
@@ -908,17 +932,10 @@ impl DeriverBYaoSessionD1V1 {
         {
             return Response::from_json(&answer);
         }
-        let access = self.registration_preparation_access(&request).await?;
-        let (_, role_share, _, root_metadata_digest) = load_ed25519_yao_tenant_root_role_share_v2(
-            &self.env,
-            CloudflareWorkerRoleV1::DeriverB,
-            &request.tenant_root,
-            &request.pair_binding,
-            self.pair_object_id(),
-            access,
-        )
-        .await
-        .map_err(|error| worker::Error::RustError(error.to_string()))?;
+        let (_, role_share, _, root_metadata_digest) = self
+            .load_role_share_for_preparation(&request)
+            .await?
+            .map_err(|error| worker::Error::RustError(error.to_string()))?;
         drop(role_share);
         // The root read yielded. Another request may have prepared, claimed
         // or burned this pair meanwhile: answer from what is stored now.
@@ -2210,7 +2227,8 @@ async fn execute_deriver_b_role(
             pair_object,
             RootUseAccess::ReadAdmitted,
         )
-        .await?;
+        .await?
+        .map_err(crate::tenant_root_role_runtime::AttemptConflictV1::into_error)?;
     validate_expected_root_metadata_digest(expected_root_metadata_digest, root_metadata_digest)?;
     if let Some(start) = prepared_start {
         let acknowledgement = crate::registration_pair_connection::Reply::Started {

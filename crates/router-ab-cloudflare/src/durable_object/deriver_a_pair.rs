@@ -714,21 +714,18 @@ impl RouterAbDeriverAWalletDurableObject {
         // The admission names this object. Refuse another wallet's request
         // before it is written.
         self.check_owner(&owner, true)?;
-        let access = super::registration_preparation::access_for_execution(
-            &self.state.id().to_string(),
+        let state_id = self.state.id().to_string();
+        let (preparation, target) = super::registration_preparation::load_for_execution(
+            &state_id,
             &self.sql,
             &self.env,
             &request.tenant_root,
             pair,
+            |access| {
+                prepare_deriver_a_pair_for_wallet_do_v1(&self.env, &request, state_id.clone(), access)
+            },
         )
-        .await?;
-        let (preparation, target) = prepare_deriver_a_pair_for_wallet_do_v1(
-            &self.env,
-            &request,
-            self.state.id().to_string(),
-            access,
-        )
-        .await
+        .await?
         .map_err(|error| pair_error(error.to_string()))?;
         let DeriverAPairPreparationV1 {
             root_metadata_digest,
