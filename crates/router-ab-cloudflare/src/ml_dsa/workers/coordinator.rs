@@ -14,23 +14,32 @@ pub(crate) async fn handle_admit(
     let input: super::super::SigningRequest = decode_bounded_json_request(&mut request, 16_384)
         .await
         .map_err(protocol_error)?;
-    let policy = policy(env).map_err(protocol_error)?;
+    let result = admit(env, request.headers(), input)
+        .await
+        .map_err(protocol_error)?;
+    Response::from_json(&result)
+}
+async fn admit(
+    env: &Env,
+    headers: &worker::Headers,
+    input: super::super::SigningRequest,
+) -> Result<Decision> {
+    let policy = policy(env)?;
     let decision: Decision = service_call(
         env,
-        CallAuthority::Gateway(request.headers()),
+        CallAuthority::Gateway(headers),
         &AdmissionCommand::Begin { request: input },
     )
-    .await
-    .map_err(protocol_error)?;
+    .await?;
     let Decision::Claimed { claim } = decision else {
-        return Response::from_json(&decision);
+        return Ok(decision);
     };
     let outcome = reserve_pair(env, &policy, &claim).await;
     match outcome {
         Ok((batches, retry_at_ms)) if batches.len() >= policy.minimum_ready_batches() => {
             let result: Result<Decision> = service_call(
                 env,
-                CallAuthority::Gateway(request.headers()),
+                CallAuthority::Gateway(headers),
                 &AdmissionCommand::Admit {
                     claim: claim.clone(),
                     batches: batches.clone(),
@@ -38,28 +47,25 @@ pub(crate) async fn handle_admit(
             )
             .await;
             match result {
-                Ok(decision) => Response::from_json(&decision),
+                Ok(decision) => Ok(decision),
                 Err(error) => {
                     // Admission may have committed despite a lost response. Do not release.
                     let _ = retry_at_ms;
-                    Err(protocol_error(error))
+                    Err(error)
                 }
             }
         }
         Ok((batches, retry_at_ms)) => {
             let _: bool = service_call(
                 env,
-                CallAuthority::Gateway(request.headers()),
+                CallAuthority::Gateway(headers),
                 &AdmissionCommand::Cancel {
                     claim: claim.clone(),
                 },
             )
-            .await
-            .map_err(protocol_error)?;
-            release_pair(env, &claim.request, batches, pool::Settlement::Declined)
-                .await
-                .map_err(protocol_error)?;
-            Response::from_json(&Decision::Unavailable {
+            .await?;
+            release_pair(env, &claim.request, batches, pool::Settlement::Declined).await?;
+            Ok(Decision::Unavailable {
                 reason: admission::UnavailableReason::EmptyPool,
                 retry_at_ms,
             })
@@ -68,15 +74,14 @@ pub(crate) async fn handle_admit(
             // No admission was attempted. Cancellation fences both participants.
             let _: bool = service_call(
                 env,
-                CallAuthority::Gateway(request.headers()),
+                CallAuthority::Gateway(headers),
                 &AdmissionCommand::Cancel {
                     claim: claim.clone(),
                 },
             )
-            .await
-            .map_err(protocol_error)?;
+            .await?;
             // A partial reservation expires without ever exposing private material.
-            Err(protocol_error(error))
+            Err(error)
         }
     }
 }
@@ -168,7 +173,7 @@ async fn release_pair(
     }
     Ok(())
 }
-async fn role_call<T: serde::de::DeserializeOwned>(
+pub(super) async fn role_call<T: serde::de::DeserializeOwned>(
     env: &Env,
     binding: &str,
     command: &RoleCommand,
@@ -311,11 +316,12 @@ async fn reconcile_unpaired(
     if states.len() != batches.len() {
         return Err(invalid("ML-DSA peer inventory length changed"));
     }
-    let retired: Vec<_> = batches
-        .into_iter()
-        .zip(states)
-        .filter_map(retired_batch)
-        .collect();
+    let mut retired = Vec::new();
+    for (batch, state) in batches.into_iter().zip(states) {
+        if state == pool::BatchAvailability::Retired {
+            retired.push(batch);
+        }
+    }
     if !retired.is_empty() {
         let accepted: bool = role_call(
             env,
@@ -332,10 +338,91 @@ async fn reconcile_unpaired(
     }
     Ok(())
 }
-fn retired_batch((batch, state): ([u8; 32], pool::BatchAvailability)) -> Option<[u8; 32]> {
-    if state == pool::BatchAvailability::Retired {
-        Some(batch)
-    } else {
-        None
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SignRequest {
+    request: super::super::SigningRequest,
+    message: Vec<u8>,
+    context: Vec<u8>,
+}
+pub(crate) async fn handle_sign(
+    mut request: worker::Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
+    if request.method() != Method::Post {
+        return Response::error("ML-DSA signing requires POST", 405);
+    }
+    let input: SignRequest = decode_bounded_json_request(&mut request, 131_072)
+        .await
+        .map_err(protocol_error)?;
+    if input.message.len() > 16384
+        || input.context.len() > 255
+        || <[u8; 32]>::from(Sha256::digest(&input.message)) != input.request.message_digest
+        || <[u8; 32]>::from(Sha256::digest(&input.context)) != input.request.context_digest
+    {
+        return Response::error("ML-DSA message differs from authorization", 400);
+    }
+    let decision = admit(env, request.headers(), input.request)
+        .await
+        .map_err(protocol_error)?;
+    let Decision::Admitted { permit } = decision else {
+        return Response::from_json(&decision);
+    };
+    let execution = execution::Request {
+        permit: permit.clone(),
+        message: input.message,
+        context: input.context,
+    };
+    let result = before_deadline(permit.expires_at_ms, dispatch_execution(env, &execution)).await;
+    let completion = match result {
+        Ok((public_key, execution::Outcome::Signed { signature, .. })) => Completion::Succeeded {
+            public_key,
+            message: execution.message,
+            context: execution.context,
+            signature,
+        },
+        Ok((_, execution::Outcome::Exhausted { .. })) | Err(_) => Completion::Failed,
+    };
+    let status: Status = service_call(
+        env,
+        CallAuthority::Gateway(request.headers()),
+        &AdmissionCommand::Finish {
+            permit: permit.clone(),
+            completion,
+        },
+    )
+    .await
+    .map_err(protocol_error)?;
+    let settlement = match &status {
+        Status::Succeeded { .. } => pool::Settlement::Succeeded,
+        Status::Failed => pool::Settlement::Failed,
+        _ => return Response::error("ML-DSA execution did not settle", 503),
+    };
+    release_pair(env, &permit.request, permit.batches, settlement)
+        .await
+        .map_err(protocol_error)?;
+    Response::from_json(&Decision::Existing { operation: status })
+}
+async fn dispatch_execution(
+    env: &Env,
+    input: &execution::Request,
+) -> Result<(Vec<u8>, execution::Outcome)> {
+    let mut response = crate::router_coordinator::post_role_request(
+        env,
+        "DERIVER_A",
+        "https://ml-dsa-role.internal",
+        EXECUTE_PATH,
+        "ML-DSA admitted signing",
+        input,
+        None,
+    )
+    .await?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA execution failed"));
+    }
+    response.json().await.map_err(storage_error)
 }

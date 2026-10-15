@@ -1,0 +1,393 @@
+//! Durable alarms dispatch fresh paired preparation outside signing requests.
+use super::*;
+use ed25519_yao::ml_dsa_signing::{prepared_signing::gmw::prepare_gmw_reservation, SigningRole};
+use std::time::Duration;
+use worker::{Context, WebSocket, WebSocketPair};
+pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
+const QUEUE: &str = "preprocessing-queue";
+
+pub(super) fn needs_refill(command: &RoleCommand) -> bool {
+    matches!(
+        command,
+        RoleCommand::Install { .. }
+            | RoleCommand::Inventory { .. }
+            | RoleCommand::Take { .. }
+            | RoleCommand::Release { .. }
+    )
+}
+pub(super) async fn enqueue(store: &impl Store, key: &KeyScope) -> Result<()> {
+    let mut queue: Vec<KeyScope> = store.get(QUEUE).await?.unwrap_or_default();
+    queue.retain(|current| current.key_id != key.key_id || current == key);
+    if !queue.contains(key) {
+        queue.push(key.clone());
+    }
+    store.put(QUEUE, &queue).await
+}
+pub(super) async fn check_job(env: &Env, job: &refill::Job) -> Result<()> {
+    let current: bool = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::CheckRefill { job: job.clone() },
+    )
+    .await?;
+    if !current {
+        return Err(invalid("ML-DSA preprocessing lease is inactive"));
+    }
+    Ok(())
+}
+pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> {
+    if configured_role(env)? != Participant::A {
+        return Response::from_json(&false);
+    }
+    let queue: Vec<KeyScope> = state.storage().get(QUEUE).await?.unwrap_or_default();
+    let Some(key) = queue.first().cloned() else {
+        return Response::from_json(&true);
+    };
+    // Arm recovery before network work. A crash never loses the refill request.
+    state.storage().set_alarm(Duration::from_secs(5)).await?;
+    let active: Option<admission::KeyActivation> = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::ActiveKey { key: key.clone() },
+    )
+    .await
+    .map_err(protocol_error)?;
+    if active.map(|value| value.key).as_ref() != Some(&key) {
+        remove_queued(state, &key).await?;
+        return Response::from_json(&false);
+    }
+    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+    let policy = policy(env).map_err(protocol_error)?;
+    let command = RoleCommand::Inventory {
+        key: key.clone(),
+        target: policy.refill_target_batches(),
+        ready_until_ms: policy.deadline(now).map_err(protocol_error)?,
+    };
+    let a: pool::Inventory = serde_json::from_value(
+        role_transaction(
+            state,
+            Participant::A,
+            RoleCommand::Inventory {
+                key: key.clone(),
+                target: policy.refill_target_batches(),
+                ready_until_ms: policy.deadline(now).map_err(protocol_error)?,
+            },
+        )
+        .await?,
+    )
+    .map_err(|_| protocol_error(invalid("Invalid ML-DSA local inventory")))?;
+    let b: pool::Inventory = coordinator::role_call(env, "DERIVER_B", &command)
+        .await
+        .map_err(protocol_error)?;
+    let paired = a
+        .ready
+        .iter()
+        .filter(|batch| b.ready.contains(batch))
+        .count();
+    if paired >= policy.refill_target_batches() {
+        // Keep a durable timer so idle wallets replace expiring preparation.
+        rotate_queued(state, &key).await?;
+        state.storage().set_alarm(Duration::from_secs(30)).await?;
+        return Response::from_json(&true);
+    }
+    let claim: refill::Claim = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::ClaimRefill { key: key.clone() },
+    )
+    .await
+    .map_err(protocol_error)?;
+    let refill::Claim::Acquired { job } = claim else {
+        return Response::from_json(&false);
+    };
+    // This alarm owns A's producer. Retire halves left by its earlier interrupted runs.
+    let only_a = a
+        .ready
+        .iter()
+        .filter(|batch| !b.ready.contains(batch))
+        .copied()
+        .collect();
+    let only_b = b
+        .ready
+        .into_iter()
+        .filter(|batch| !a.ready.contains(batch))
+        .collect();
+    let result = before_deadline(
+        job.expires_at_ms,
+        reconcile_and_produce(env, state, &job, only_a, only_b),
+    )
+    .await;
+    let _: bool = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::FinishRefill { job },
+    )
+    .await
+    .map_err(protocol_error)?;
+    state
+        .storage()
+        .set_alarm(Duration::from_secs(if result.is_ok() { 1 } else { 5 }))
+        .await?;
+    if let Err(error) = &result {
+        worker::console_error!("ML-DSA refill failed: {}", error);
+    }
+    result.map_err(protocol_error)?;
+    Response::from_json(&true)
+}
+async fn remove_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
+    let key = key.clone();
+    state
+        .storage()
+        .transaction(move |transaction| async move {
+            let store = TransactionStore(transaction);
+            let mut queue: Vec<KeyScope> = store
+                .get(QUEUE)
+                .await
+                .map_err(protocol_error)?
+                .unwrap_or_default();
+            queue.retain(|current| current != &key);
+            store.put(QUEUE, &queue).await.map_err(protocol_error)
+        })
+        .await
+}
+async fn rotate_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
+    let key = key.clone();
+    state
+        .storage()
+        .transaction(move |transaction| async move {
+            let store = TransactionStore(transaction);
+            let mut queue: Vec<KeyScope> = store
+                .get(QUEUE)
+                .await
+                .map_err(protocol_error)?
+                .unwrap_or_default();
+            if let Some(index) = queue.iter().position(|current| current == &key) {
+                let current = queue.remove(index);
+                queue.push(current);
+                store.put(QUEUE, &queue).await.map_err(protocol_error)?;
+            }
+            Ok(())
+        })
+        .await
+}
+async fn prepare(
+    env: &Env,
+    job: &refill::Job,
+    transport: &mut transport::Duplex<'_>,
+) -> Result<(Binding, Sealed)> {
+    let participant = configured_role(env).map_err(storage_error)?;
+    let role = match participant {
+        Participant::A => SigningRole::A,
+        Participant::B => SigningRole::B,
+    };
+    let schedules = schedules::load()?;
+    if execution::schedule_digest(&schedules) != job.key.schedule_digest {
+        return Err(invalid("ML-DSA preprocessing schedule changed"));
+    }
+    let prepared = prepare_gmw_reservation(
+        role,
+        job.batch,
+        4,
+        &schedules,
+        &mut Default::default(),
+        transport,
+    )
+    .await
+    .map_err(|_| invalid("ML-DSA preprocessing protocol failed"))?;
+    check_job(env, job).await?;
+    let (version, seed) = executor::wrapping_key(env)?;
+    let binding = Binding {
+        key: job.key.clone(),
+        role: participant,
+        batch: job.batch,
+        expires_at_ms: job.material_expires_at_ms,
+        wrapping_key_version: version,
+    };
+    let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
+    Ok((binding, sealed))
+}
+async fn produce_a(env: &Env, state: &State, job: &refill::Job) -> Result<()> {
+    check_job(env, job).await?;
+    role_transaction(
+        state,
+        Participant::A,
+        RoleCommand::StartRefill { job: job.clone() },
+    )
+    .await
+    .map_err(storage_error)?;
+    let request = socket_request(env, PREPARE_PATH, job)?;
+    let response = env
+        .service("DERIVER_B")
+        .map_err(storage_error)?
+        .fetch_request(request)
+        .await
+        .map_err(storage_error)?;
+    if response.status_code() != 101 {
+        return Err(invalid("ML-DSA peer preparation refused"));
+    }
+    let socket = response
+        .websocket()
+        .ok_or_else(|| invalid("ML-DSA preparation socket is absent"))?;
+    let result = produce_a_connected(env, state, job, &socket).await;
+    let _ = socket.close(
+        Some(if result.is_ok() { 1000 } else { 1011 }),
+        Some("ML-DSA preparation ended"),
+    );
+    result
+}
+async fn produce_a_connected(
+    env: &Env,
+    state: &State,
+    job: &refill::Job,
+    socket: &WebSocket,
+) -> Result<()> {
+    let mut transport = transport::Duplex::new(socket, job.expires_at_ms).map_err(storage_error)?;
+    let (binding, sealed) = prepare(env, job, &mut transport).await?;
+    if transport
+        .receive(1)
+        .await
+        .map_err(|_| invalid("ML-DSA peer preparation was not stored"))?
+        != [1]
+    {
+        return Err(invalid("Invalid ML-DSA preparation acknowledgement"));
+    }
+    check_job(env, job).await?;
+    role_transaction(state, Participant::A, RoleCommand::Put { binding, sealed })
+        .await
+        .map_err(storage_error)?;
+    transport
+        .send(&[2])
+        .await
+        .map_err(|_| invalid("ML-DSA paired preparation acknowledgement failed"))?;
+    Ok(())
+}
+pub(crate) async fn handle_prepare(
+    request: worker::Request,
+    env: Env,
+    context: Context,
+) -> worker::Result<Response> {
+    if let Err(error) = crate::require_cloudflare_internal_service_auth_request_v1(&request, &env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
+    }
+    if configured_role(&env)? != Participant::B {
+        return Response::error("ML-DSA preparation requires participant B", 400);
+    }
+    let job: refill::Job = socket_input(&request).map_err(protocol_error)?;
+    check_job(&env, &job).await.map_err(protocol_error)?;
+    let response = local_call(&env, &RoleCommand::StartRefill { job: job.clone() })
+        .await
+        .map_err(protocol_error)?;
+    if response.status_code() != 200 {
+        return Response::error("ML-DSA preparation was already claimed", 409);
+    }
+    let pair = WebSocketPair::new()?;
+    context.wait_until(async move {
+        let result = before_deadline(job.expires_at_ms, produce_b(&env, &job, &pair.server)).await;
+        if result.is_err() {
+            let _ = pair
+                .server
+                .close(Some(1011), Some("ML-DSA preparation failed"));
+        }
+    });
+    Response::from_websocket(pair.client)
+}
+async fn produce_b(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<()> {
+    let mut transport = transport::Duplex::new(socket, job.expires_at_ms).map_err(storage_error)?;
+    let (binding, sealed) = prepare(env, job, &mut transport).await?;
+    let response = local_call(env, &RoleCommand::Put { binding, sealed }).await?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA peer preparation storage failed"));
+    }
+    transport
+        .send(&[1])
+        .await
+        .map_err(|_| invalid("ML-DSA preparation acknowledgement failed"))?;
+    if transport
+        .receive(1)
+        .await
+        .map_err(|_| invalid("ML-DSA paired preparation was not stored"))?
+        != [2]
+    {
+        return Err(invalid("Invalid ML-DSA paired preparation acknowledgement"));
+    }
+    Ok(())
+}
+
+async fn reconcile_and_produce(
+    env: &Env,
+    state: &State,
+    job: &refill::Job,
+    only_a: Vec<[u8; 32]>,
+    only_b: Vec<[u8; 32]>,
+) -> Result<()> {
+    // Inspect B directly, then retire A locally. Calling this actor through its own
+    // service binding would add a recursive Durable Object request.
+    if !only_a.is_empty() {
+        let states: Vec<pool::BatchAvailability> = coordinator::role_call(
+            env,
+            "DERIVER_B",
+            &RoleCommand::Inspect {
+                key: job.key.clone(),
+                batches: only_a.clone(),
+            },
+        )
+        .await?;
+        if states.len() != only_a.len() {
+            return Err(invalid("Invalid peer inventory"));
+        }
+        let mut retired = Vec::new();
+        for (id, state) in only_a.into_iter().zip(states) {
+            if matches!(
+                state,
+                pool::BatchAvailability::Missing | pool::BatchAvailability::Retired
+            ) {
+                retired.push(id);
+            }
+        }
+        role_transaction(
+            state,
+            Participant::A,
+            RoleCommand::RetireUnpaired {
+                key: job.key.clone(),
+                batches: retired,
+            },
+        )
+        .await
+        .map_err(storage_error)?;
+    }
+    if !only_b.is_empty() {
+        // A has no active producer. Missing local records cannot become publishable.
+        let states: Vec<pool::BatchAvailability> = serde_json::from_value(
+            role_transaction(
+                state,
+                Participant::A,
+                RoleCommand::Inspect {
+                    key: job.key.clone(),
+                    batches: only_b.clone(),
+                },
+            )
+            .await
+            .map_err(storage_error)?,
+        )
+        .map_err(|_| invalid("Invalid local inventory"))?;
+        let mut retired = Vec::new();
+        for (id, availability) in only_b.into_iter().zip(states) {
+            if matches!(
+                availability,
+                pool::BatchAvailability::Missing | pool::BatchAvailability::Retired
+            ) {
+                retired.push(id);
+            }
+        }
+        let _: bool = coordinator::role_call(
+            env,
+            "DERIVER_B",
+            &RoleCommand::RetireUnpaired {
+                key: job.key.clone(),
+                batches: retired,
+            },
+        )
+        .await?;
+    }
+    produce_a(env, state, job).await
+}

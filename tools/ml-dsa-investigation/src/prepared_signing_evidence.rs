@@ -1,24 +1,24 @@
 //! Separate-process prepared signing on material from canonical wallet keygen.
 
 use crate::{
-    boolean_engine_evidence::run_ready, digest, material_storage_evidence,
+    InvestigationResult, boolean_engine_evidence::run_ready, digest, material_storage_evidence,
     prepared_keygen_evidence::HostTransport, private_execution, private_signing, reference,
-    require, InvestigationResult,
+    require,
 };
 use ed25519_yao::{
     ml_dsa_runtime::{
-        prepared::{Phase, Transport},
         TrustedMlDsaSchedule,
+        prepared::{Phase, Transport},
     },
     ml_dsa_signing::{
-        prepared_signing::{self, Reservation},
         OwnSigningShare, SigningRole,
+        prepared_signing::{self, Reservation},
     },
 };
 use ed25519_yao_generator::{
-    compile_ml_dsa_private_signing_circuit_v1, MlDsaSigningWorkloadV1 as Workload,
+    MlDsaSigningWorkloadV1 as Workload, compile_ml_dsa_private_signing_circuit_v1,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{env, ffi::OsStr, fs, path::Path, time::Instant};
 
@@ -63,7 +63,6 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         .map_err(|_| "Invalid public key size")?;
     let material = material_storage_evidence::open(Path::new(&args[2]), role, &public_key)?;
     let own = OwnSigningShare::parse(&material)?;
-    drop(material);
     let bytes = prepared_signing::SCHEDULES
         .iter()
         .map(|(name, _)| fs::read(Path::new(&args[1]).join(format!("{name}.bin"))))
@@ -93,6 +92,22 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         "Unknown scenario",
     )?;
     let mut transport = HostTransport::new(Path::new(&args[5]).to_owned(), 0);
+    if operation["engine"] == "durable" {
+        let report = crate::durable_execution_evidence::run(
+            role,
+            material,
+            &public_key,
+            &schedules,
+            reservation,
+            Path::new(&args[5]),
+            &message,
+            &context,
+            &mut transport,
+        )?;
+        fs::write(&args[6], serde_json::to_vec_pretty(&report)?)?;
+        return Ok(true);
+    }
+    drop(material);
     if operation["engine"] == "pool" {
         let report = crate::pool_evidence::run(
             role,
@@ -293,6 +308,7 @@ pub(super) fn run_operation(
         ("gmw", 1, "key-mismatch"),
         ("gmw", 1, "epoch-mismatch"),
         ("pool", 4, "lifecycle"),
+        ("durable", 4, "lifecycle"),
     ]
     .into_iter()
     .enumerate()
@@ -380,7 +396,42 @@ pub(super) fn run_operation(
                 "Prepared signer traffic differs",
             )?;
         }
-        let verification = if engine == "pool" {
+        let verification = if engine == "durable" {
+            let operations = a["result"]["operations"]
+                .as_array()
+                .ok_or("Missing durable operations")?;
+            require(
+                operations.len()
+                    == b["result"]["operations"]
+                        .as_array()
+                        .ok_or("Missing peer operations")?
+                        .len(),
+                "Durable operation counts differ",
+            )?;
+            let mut signed = 0;
+            let mut rollover = 0;
+            for (index, operation) in operations.iter().enumerate() {
+                require(
+                    operation["outcome"] == b["result"]["operations"][index]["outcome"],
+                    "Durable outcomes differ",
+                )?;
+                if operation["outcome"]["consumed_batches"]
+                    .as_u64()
+                    .unwrap_or(0)
+                    > 1
+                {
+                    rollover += 1;
+                }
+                if operation["outcome"]["status"] == "signed" {
+                    let signature: Vec<u8> =
+                        serde_json::from_value(operation["outcome"]["signature"].clone())?;
+                    reference::verify_threshold_signature(&public, &message, &context, &signature)?;
+                    signed += 1;
+                }
+            }
+            require(signed > 0, "No durable threshold signature completed")?;
+            json!({"standard_signatures_verified": signed, "operations_with_rollover": rollover, "pool_drained": true})
+        } else if engine == "pool" {
             crate::pool_evidence::verify(&public, &a, &b)?
         } else if a["result"]["status"] == "signed" {
             let signature = hex::decode(
@@ -402,7 +453,7 @@ pub(super) fn run_operation(
             )?;
             json!({"pool_exhausted_without_signature": true})
         };
-        if engine == "pool" {
+        if engine == "pool" || engine == "durable" {
             eprintln!("Pool lifecycle completed: {}", verification);
         } else {
             eprintln!(

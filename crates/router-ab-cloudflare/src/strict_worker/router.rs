@@ -466,6 +466,9 @@ pub(super) async fn handle_strict_router_fetch_v1(
     env: Env,
 ) -> worker::Result<Response> {
     let path = request.path();
+    if path == crate::ml_dsa::workers::SIGN_PATH {
+        return crate::ml_dsa::workers::handle_sign(request, &env).await;
+    }
     if path == crate::ml_dsa::workers::ACTIVATE_PATH {
         return crate::ml_dsa::workers::handle_activate(request, &env).await;
     }

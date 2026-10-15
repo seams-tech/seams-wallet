@@ -1,18 +1,18 @@
 //! Real preparation survives sealed SQLite storage before threshold signing.
-use crate::{boolean_engine_evidence::run_ready, require, InvestigationResult};
+use crate::{InvestigationResult, boolean_engine_evidence::run_ready, require};
 use ed25519_yao::{
-    ml_dsa_runtime::{boolean_comparison::prepared::PublicTopologies, TrustedMlDsaSchedule},
-    ml_dsa_signing::{prepared_signing::gmw::PreparedGmwReservation, SigningRole},
+    ml_dsa_runtime::{TrustedMlDsaSchedule, boolean_comparison::prepared::PublicTopologies},
+    ml_dsa_signing::{SigningRole, prepared_signing::gmw::PreparedGmwReservation},
 };
 use router_ab_cloudflare::ml_dsa::{self as durable, admission::Permit, pool, sealing, *};
 use rusqlite::{Connection, OptionalExtension};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
 use std::{future::Future, path::Path};
 use zeroize::Zeroizing;
-struct Db(Connection);
+pub(super) struct Db(Connection);
 impl Db {
-    fn open(path: &Path) -> InvestigationResult<Self> {
+    pub(super) fn open(path: &Path) -> InvestigationResult<Self> {
         let connection = Connection::open(path)?;
         connection.execute_batch(
             "CREATE TABLE IF NOT EXISTS records (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
@@ -20,7 +20,7 @@ impl Db {
         Ok(Self(connection))
     }
 }
-fn error(_: impl core::fmt::Display) -> router_ab_core::RouterAbProtocolError {
+pub(super) fn error(_: impl core::fmt::Display) -> router_ab_core::RouterAbProtocolError {
     router_ab_core::RouterAbProtocolError::new(
         router_ab_core::RouterAbProtocolErrorCode::InvalidGateDecision,
         "Durable ML-DSA E2E storage failed",
@@ -49,13 +49,16 @@ impl Store for Db {
         Ok(())
     }
 }
-fn tx<T>(db: &Db, work: impl Future<Output = durable::Result<T>>) -> InvestigationResult<T> {
+pub(super) fn tx<T>(
+    db: &Db,
+    work: impl Future<Output = durable::Result<T>>,
+) -> InvestigationResult<T> {
     db.0.execute_batch("BEGIN IMMEDIATE")?;
     let result = run_ready(work)?;
     db.0.execute_batch(if result.is_ok() { "COMMIT" } else { "ROLLBACK" })?;
     Ok(result?)
 }
-fn identifier(value: &str) -> InvestigationResult<Identifier> {
+pub(super) fn identifier(value: &str) -> InvestigationResult<Identifier> {
     Ok(Identifier::try_from(value.to_owned())?)
 }
 pub(super) fn roundtrip<'a>(

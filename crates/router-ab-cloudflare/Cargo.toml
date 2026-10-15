@@ -41,6 +41,7 @@ workers-rs = [
 ]
 
 [dependencies]
+ed25519-yao = { path = "../ed25519-yao", features = ["ml-dsa-runtime-benchmark"] }
 ml-dsa = { version = "=0.1.1", default-features = false, features = ["alloc"] }
 base64 = "=0.22.1"
 bs58 = "=0.5.1"
@@ -65,7 +66,7 @@ threshold-prf = { path = "../threshold-prf" }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
 sha2 = "=0.10.9"
-signer-core = { path = "../signer-core", default-features = false, features = ["near-threshold-ed25519"] }
+signer-core = { path = "../signer-core", default-features = false, features = ["near-threshold-ed25519", "ml-dsa-custody"] }
 subtle = "=2.6.1"
 wasm-bindgen = { version = "=0.2.123", optional = true }
 web-sys = { version = "=0.3.100", optional = true, features = [

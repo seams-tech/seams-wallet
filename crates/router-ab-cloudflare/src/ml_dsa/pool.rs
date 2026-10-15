@@ -126,7 +126,7 @@ fn batch_name(batch: &[u8; 32]) -> String {
 fn chunk_name(batch: &[u8; 32], chunk: usize) -> String {
     format!("ciphertext/{}/{chunk}", hex(batch))
 }
-async fn check_key(store: &impl Store, key: &KeyScope) -> Result<()> {
+pub(super) async fn check_key(store: &impl Store, key: &KeyScope) -> Result<()> {
     if store.get::<KeyScope>(&key_name(key)?).await?.as_ref() != Some(key) {
         return Err(invalid("ML-DSA key or epoch is inactive"));
     }

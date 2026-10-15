@@ -595,11 +595,66 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .unwrap(),
         Some(success)
     );
+    // Preprocessing uses a separate global lease and fresh IDs after interruption.
+    let refill_key = self::key("refill-wallet");
+    activate(&router, &refill_key);
+    tx(&a, pool::install_key(&a, refill_key.clone())).unwrap_err();
+    let refill_store_path = directory.join("refill.sqlite");
+    let refill_store = Db::open(&refill_store_path);
+    tx(
+        &refill_store,
+        pool::install_key(&refill_store, refill_key.clone()),
+    )
+    .unwrap();
+    let m::refill::Claim::Acquired { job } = tx(
+        &router,
+        m::refill::claim(&router, refill_key.clone(), 600_000),
+    )
+    .unwrap() else {
+        panic!("Missing preprocessing lease")
+    };
+    assert!(matches!(
+        tx(
+            &router,
+            m::refill::claim(&router, refill_key.clone(), 600_001)
+        )
+        .unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    tx(
+        &refill_store,
+        m::refill::start_role(&refill_store, &job, 600_001),
+    )
+    .unwrap();
+    drop(refill_store);
+    let refill_store = Db::open(&refill_store_path);
+    assert!(tx(
+        &refill_store,
+        m::refill::start_role(&refill_store, &job, 600_002)
+    )
+    .is_err());
+    assert!(!tx(&router, m::refill::check(&router, &job, job.expires_at_ms)).unwrap());
+    let m::refill::Claim::Acquired { job: replacement } = tx(
+        &router,
+        m::refill::claim(&router, refill_key, job.expires_at_ms),
+    )
+    .unwrap() else {
+        panic!("Lease expiry did not release capacity")
+    };
+    assert_ne!(job.batch, replacement.batch);
+    tx(&router, m::refill::finish(&router, &job)).unwrap();
+    assert!(tx(
+        &router,
+        m::refill::check(&router, &replacement, replacement.expires_at_ms - 1)
+    )
+    .unwrap());
+    tx(&router, m::refill::finish(&router, &replacement)).unwrap();
+    drop(refill_store);
     let output = std::env::var_os("ML_DSA_E2E_REPORT")
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
-        "schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":3,
+        "preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,
