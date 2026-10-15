@@ -1,7 +1,10 @@
 //! Durable ML-DSA admission and role-private prepared material.
 //! Store implementations execute one command in one atomic transaction.
 pub mod admission;
+pub mod execution;
+pub mod material;
 pub mod policy;
+pub mod refill;
 pub mod pool;
 pub mod sealing;
 #[cfg(feature = "workers-rs")]

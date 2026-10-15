@@ -1,5 +1,9 @@
 //! Private Worker routes and transactional Durable Object adapters.
 mod coordinator;
+mod executor;
+mod preparation;
+mod schedules;
+mod transport;
 use super::{
     admission::{self, Claim, Completion, Decision, Permit, Status},
     policy::Policy,
@@ -8,10 +12,15 @@ use super::{
     *,
 };
 use crate::durable_object::tenant_root_creation::decode_bounded_json_request;
-pub(crate) use coordinator::{handle_activate, handle_admit, handle_complete, handle_status};
+pub(crate) use coordinator::{
+    handle_activate, handle_admit, handle_complete, handle_sign, handle_status,
+};
+use executor::{handle_execute, is_execution_path, EXECUTE_PATH};
+use preparation::{handle_prepare, PREPARE_PATH};
 use std::{cell::RefCell, rc::Rc};
 use worker::{durable_object, DurableObject, Env, Method, Response, State, Transaction};
 
+pub const SIGN_PATH: &str = "/router-ab/ml-dsa/sign";
 pub const ACTIVATE_PATH: &str = "/router-ab/ml-dsa/activate";
 pub const ADMIT_PATH: &str = "/router-ab/ml-dsa/admit";
 pub const COMPLETE_PATH: &str = "/router-ab/ml-dsa/complete";
@@ -26,6 +35,15 @@ const CHECK_PATH: &str = "/check";
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AdmissionCommand {
+    ClaimRefill {
+        key: KeyScope,
+    },
+    CheckRefill {
+        job: refill::Job,
+    },
+    FinishRefill {
+        job: refill::Job,
+    },
     AuthorizeKey {
         activation: admission::KeyActivation,
     },
@@ -53,6 +71,15 @@ pub enum AdmissionCommand {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RoleCommand {
+    StartRefill {
+        job: refill::Job,
+    },
+    InstallMaterial {
+        record: material::Record,
+    },
+    LoadMaterial {
+        permit: Permit,
+    },
     Inspect {
         key: KeyScope,
         batches: Vec<[u8; 32]>,
@@ -98,6 +125,9 @@ pub enum RoleCommand {
 impl RoleCommand {
     fn key(&self) -> &KeyScope {
         match self {
+            Self::StartRefill { job } => &job.key,
+            Self::InstallMaterial { record } => &record.activation.key,
+            Self::LoadMaterial { permit } => &permit.request.key,
             Self::Install { key }
             | Self::Inventory { key, .. }
             | Self::RefillStatus { key }
@@ -181,7 +211,11 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         if checking
             && !matches!(
                 command,
-                AdmissionCommand::Lookup { .. } | AdmissionCommand::ActiveKey { .. }
+                AdmissionCommand::Lookup { .. }
+                    | AdmissionCommand::ActiveKey { .. }
+                    | AdmissionCommand::ClaimRefill { .. }
+                    | AdmissionCommand::CheckRefill { .. }
+                    | AdmissionCommand::FinishRefill { .. }
             )
         {
             return Response::error("ML-DSA read authority required", 403);
@@ -214,6 +248,12 @@ async fn execute_admission(
     now: u64,
 ) -> Result<serde_json::Value> {
     match command {
+        AdmissionCommand::ClaimRefill { key } => json(refill::claim(store, key, now).await?),
+        AdmissionCommand::CheckRefill { job } => json(refill::check(store, &job, now).await?),
+        AdmissionCommand::FinishRefill { job } => {
+            refill::finish(store, &job).await?;
+            json(true)
+        }
         AdmissionCommand::AuthorizeKey { activation } => {
             admission::authorize_key(store, activation).await?;
             json(true)
@@ -263,26 +303,53 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         authorize_role_command(&self.env, &command)
             .await
             .map_err(protocol_error)?;
-        let output = Rc::new(RefCell::new(None));
-        let captured = Rc::clone(&output);
-        self.state
-            .storage()
-            .transaction(move |transaction| async move {
-                let store = TransactionStore(transaction);
-                let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                let value = execute_role(&store, role, command, now)
-                    .await
-                    .map_err(protocol_error)?;
-                captured.replace(Some(value));
-                Ok(())
-            })
-            .await?;
-        let value = output.borrow_mut().take().ok_or_else(|| {
-            worker::Error::RustError("ML-DSA pool transaction returned no result".into())
-        })?;
+        if role == Participant::A
+            && preparation::needs_refill(&command)
+            && self.state.storage().get_alarm().await?.is_none()
+        {
+            self.state
+                .storage()
+                .set_alarm(std::time::Duration::from_secs(1))
+                .await?;
+        }
+        let value = role_transaction(&self.state, role, command).await?;
         Response::from_json(&value)
     }
+    async fn alarm(&self) -> worker::Result<Response> {
+        preparation::alarm(&self.env, &self.state).await
+    }
 }
+async fn role_transaction(
+    state: &State,
+    role: Participant,
+    command: RoleCommand,
+) -> worker::Result<serde_json::Value> {
+    let output = Rc::new(RefCell::new(None));
+    let captured = Rc::clone(&output);
+    state
+        .storage()
+        .transaction(move |transaction| async move {
+            let store = TransactionStore(transaction);
+            let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+            if role == Participant::A && preparation::needs_refill(&command) {
+                preparation::enqueue(&store, command.key())
+                    .await
+                    .map_err(protocol_error)?;
+            }
+            let value = execute_role(&store, role, command, now)
+                .await
+                .map_err(protocol_error)?;
+            captured.replace(Some(value));
+            Ok(())
+        })
+        .await?;
+    let value = output
+        .borrow_mut()
+        .take()
+        .ok_or_else(|| protocol_error(invalid("ML-DSA pool transaction returned no result")))?;
+    Ok(value)
+}
+
 fn configured_role(env: &Env) -> worker::Result<Participant> {
     match env
         .var("DERIVER_ROLE_PRIVATE_D1_ROLE")?
@@ -298,13 +365,14 @@ fn configured_role(env: &Env) -> worker::Result<Participant> {
 }
 async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> {
     let (request, expected) = match command {
+        RoleCommand::StartRefill { job } => return preparation::check_job(env, job).await,
         RoleCommand::Reserve { claim, .. } => (
             &claim.request,
             Status::Preparing {
                 claim: claim.clone(),
             },
         ),
-        RoleCommand::Take { permit, .. } => (
+        RoleCommand::Take { permit, .. } | RoleCommand::LoadMaterial { permit } => (
             &permit.request,
             Status::Running {
                 permit: permit.clone(),
@@ -349,6 +417,26 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
                 Err(invalid("ML-DSA settlement changed"))
             };
         }
+        RoleCommand::InstallMaterial { record } => {
+            let actual: Option<admission::KeyActivation> = service_call(
+                env,
+                CallAuthority::Internal,
+                &AdmissionCommand::ActiveKey {
+                    key: record.activation.key.clone(),
+                },
+            )
+            .await?;
+            if actual.as_ref() != Some(&record.activation) {
+                return Err(invalid("ML-DSA role material lacks custody authorization"));
+            }
+            let secrets = executor::wrapping_key(env)?;
+            drop(record.open(
+                configured_role(env).map_err(storage_error)?,
+                &secrets.0,
+                &secrets.1,
+            )?);
+            return Ok(());
+        }
         RoleCommand::Install { key } => {
             let actual: Option<admission::KeyActivation> = service_call(
                 env,
@@ -389,6 +477,17 @@ async fn execute_role(
     now: u64,
 ) -> Result<serde_json::Value> {
     match command {
+        RoleCommand::StartRefill { job } => {
+            refill::start_role(store, &job, now).await?;
+            json(true)
+        }
+        RoleCommand::InstallMaterial { record } => {
+            material::put(store, record).await?;
+            json(true)
+        }
+        RoleCommand::LoadMaterial { permit } => {
+            json(material::get(store, &permit.request.key).await?)
+        }
         RoleCommand::Inspect { key, batches } => json(pool::inspect(store, &key, &batches).await?),
         RoleCommand::RetireUnpaired { key, batches } => {
             pool::retire_unpaired(store, &key, &batches).await?;
@@ -452,15 +551,23 @@ pub(crate) async fn handle_role(
     let command: RoleCommand = decode_bounded_json_request(&mut request, 24 * 1024 * 1024)
         .await
         .map_err(protocol_error)?;
+    local_call(env, &command).await.map_err(protocol_error)
+}
+async fn local_call(env: &Env, command: &RoleCommand) -> Result<Response> {
     let name = format!(
         "ml-dsa-pool-{}",
-        hex(&digest(b"wallet", &command.key().wallet).map_err(protocol_error)?)
+        hex(&digest(b"wallet", &command.key().wallet)?)
     );
-    let namespace = env.durable_object(POOL_BINDING)?;
-    let stub = namespace.id_from_name(&name)?.get_stub()?;
-    let forwarded = object_request(env, CallAuthority::Internal, ROLE_PATH, &command)
-        .map_err(protocol_error)?;
-    stub.fetch_with_request(forwarded).await
+    let namespace = env.durable_object(POOL_BINDING).map_err(storage_error)?;
+    let stub = namespace
+        .id_from_name(&name)
+        .map_err(storage_error)?
+        .get_stub()
+        .map_err(storage_error)?;
+    let forwarded = object_request(env, CallAuthority::Internal, ROLE_PATH, command)?;
+    stub.fetch_with_request(forwarded)
+        .await
+        .map_err(storage_error)
 }
 #[derive(Clone, Copy)]
 enum CallAuthority<'a> {
@@ -531,4 +638,90 @@ async fn service_call<T: serde::de::DeserializeOwned>(
         return Err(invalid("ML-DSA admission service refused the request"));
     }
     response.json().await.map_err(storage_error)
+}
+
+pub(crate) fn is_role_path(path: &str) -> bool {
+    path == ROLE_PATH || path == PREPARE_PATH || is_execution_path(path)
+}
+pub(crate) async fn handle_role_request(
+    request: worker::Request,
+    env: Env,
+    context: worker::Context,
+) -> worker::Result<Response> {
+    match request.path().as_str() {
+        ROLE_PATH => handle_role(request, &env).await,
+        PREPARE_PATH => handle_prepare(request, env, context).await,
+        _ => handle_execute(request, env, context).await,
+    }
+}
+
+const SOCKET_INPUT_HEADER: &str = "x-ml-dsa-input";
+const MAX_SOCKET_INPUT: usize = 80_000;
+fn socket_request(env: &Env, path: &str, input: &impl Serialize) -> Result<worker::Request> {
+    use base64::Engine;
+    let bytes = serde_json::to_vec(input).map_err(|_| invalid("Invalid ML-DSA socket input"))?;
+    if bytes.len() > MAX_SOCKET_INPUT {
+        return Err(invalid("ML-DSA socket input is too large"));
+    }
+    let mut request =
+        worker::Request::new(&format!("https://ml-dsa-role.internal{path}"), Method::Get)
+            .map_err(storage_error)?;
+    let headers = request.headers_mut().map_err(storage_error)?;
+    headers.set("upgrade", "websocket").map_err(storage_error)?;
+    headers
+        .set(
+            SOCKET_INPUT_HEADER,
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes),
+        )
+        .map_err(storage_error)?;
+    crate::set_cloudflare_internal_service_auth_header_v1(env, headers, "ML-DSA peer socket")?;
+    Ok(request)
+}
+fn socket_input<T: serde::de::DeserializeOwned>(request: &worker::Request) -> Result<T> {
+    use base64::Engine;
+    if request.method() != Method::Get
+        || request
+            .headers()
+            .get("upgrade")
+            .map_err(storage_error)?
+            .as_deref()
+            != Some("websocket")
+    {
+        return Err(invalid("ML-DSA peer requires a GET WebSocket upgrade"));
+    }
+    let encoded = request
+        .headers()
+        .get(SOCKET_INPUT_HEADER)
+        .map_err(storage_error)?
+        .ok_or_else(|| invalid("Missing ML-DSA socket input"))?;
+    if encoded.len() > MAX_SOCKET_INPUT.div_ceil(3) * 4 {
+        return Err(invalid("ML-DSA socket input is too large"));
+    }
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(encoded)
+        .map_err(|_| invalid("Invalid ML-DSA socket input"))?;
+    if bytes.len() > MAX_SOCKET_INPUT {
+        return Err(invalid("ML-DSA socket input is too large"));
+    }
+    serde_json::from_slice(&bytes).map_err(|_| invalid("Invalid ML-DSA socket input"))
+}
+
+async fn before_deadline<T>(
+    deadline: u64,
+    future: impl core::future::Future<Output = Result<T>>,
+) -> Result<T> {
+    use futures::future::{select, Either};
+    let now = crate::cloudflare_now_unix_ms_v1()?;
+    if now >= deadline {
+        return Err(invalid("ML-DSA operation deadline expired"));
+    }
+    let timeout = worker::Delay::from(std::time::Duration::from_millis(deadline - now));
+    let result = match select(Box::pin(future), Box::pin(timeout)).await {
+        Either::Left((result, _)) => result,
+        Either::Right(_) => return Err(invalid("ML-DSA operation deadline expired")),
+    };
+    if crate::cloudflare_now_unix_ms_v1()? >= deadline {
+        return Err(invalid("ML-DSA operation deadline expired"));
+    }
+    result
 }

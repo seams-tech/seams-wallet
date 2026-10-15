@@ -43,6 +43,9 @@ pub(super) async fn handle_strict_deriver_a_fetch_v1(
     if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
         return cloudflare_private_service_auth_error_response_v1(err);
     }
+    if crate::ml_dsa::workers::is_role_path(&request.path()) {
+        return crate::ml_dsa::workers::handle_role_request(request, env, context).await;
+    }
     if request.path() == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         if request.method() != Method::Post {
             return cloudflare_prewarm_response_v1(&request);
@@ -220,9 +223,6 @@ async fn handle_strict_deriver_fetch_v1(
     _context: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
-    if path == crate::ml_dsa::workers::ROLE_PATH {
-        return crate::ml_dsa::workers::handle_role(request, &env).await;
-    }
     if path == crate::registration_pair_preparation::ROLE_PATH
         || path == crate::registration_pair_preparation::SOCKET_PATH
     {
@@ -1071,6 +1071,9 @@ pub(super) async fn handle_strict_deriver_b_fetch_v1(
 ) -> worker::Result<Response> {
     if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
         return cloudflare_private_service_auth_error_response_v1(err);
+    }
+    if crate::ml_dsa::workers::is_role_path(&request.path()) {
+        return crate::ml_dsa::workers::handle_role_request(request, env, context).await;
     }
     if request.path() == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         if request.method() != Method::Post {

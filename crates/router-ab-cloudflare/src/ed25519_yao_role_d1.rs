@@ -526,7 +526,7 @@ fn validate_scope(scope: &RolePairRecordScopeV1) -> worker::Result<()> {
     Ok(())
 }
 
-fn decode_role_private_d1_private_key(encoded: &str) -> worker::Result<[u8; 32]> {
+pub(crate) fn decode_role_private_d1_private_key(encoded: &str) -> worker::Result<[u8; 32]> {
     let hex = encoded
         .trim()
         .strip_prefix(ROLE_PRIVATE_D1_KEK_SECRET_PREFIX)

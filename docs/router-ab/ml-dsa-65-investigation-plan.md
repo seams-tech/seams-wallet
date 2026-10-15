@@ -886,14 +886,14 @@ The wallet identity includes organization, project, environment, and wallet. Cha
 - [x] Add the durable role-private storage layer and validate atomic consumption across restart with native SQLite E2E.
 - [x] Admit only after both participants reserve the same untouched candidate batches.
 - [x] Charge the cooldown when the operation becomes admitted. Keep the charge after failure or a lost response.
-- [ ] Bind internal candidate retries to that admitted operation. They consume further batches without a new cooldown charge.
+- [x] Bind internal candidate retries to that admitted operation. Native and local Worker execution consume further reserved batches without a new cooldown charge.
 - [x] Return existing status or the verified result for an exact operation-ID retry. Reject changed request fields under that ID.
 - [x] Persist key-scoped refill demand immediately after material consumption.
-- [ ] Connect the Worker preparation executor to that demand and test replenishment during use.
+- [x] Connect the Worker preparation executor to durable alarms and test replenishment during use in local workerd. Hosted qualification remains open.
 - [x] Refuse an empty pool with an explicit retry timestamp before charging the cooldown.
 - [x] Bound service-wide concurrent operations through shared durable admission, including claims that are reserving role material.
 - [x] Test default 60-second, configured 300-second, and disabled wallet cooldowns. Disabling cooldown must preserve capacity and single-use checks.
-- [ ] Complete private Gateway-to-Router and Router-to-role admission tests. Public SDK route integration remains a separate milestone.
+- [x] Test private Gateway-credential admission, Router-to-role execution, automatic refill, restart replay, and stalled-peer expiry in local workerd. Public Gateway owner authorization remains a separate milestone.
 - [x] Verify epoch replacement retires old preparation and rejects public-key substitution. Native canonical recovery and persistent cooldown checks pass.
 - [ ] Complete the admitted recovery and signing lifecycle through Worker HTTP and the public SDK.
 
@@ -922,3 +922,22 @@ The supported limit is per admitted operation. Internal rejection attempts remai
 A storage snapshot rollback is outside an in-database tombstone guarantee. Restore procedures must advance epochs and discard prepared material.
 
 The [durable admission report](ml-dsa-65-durable-admission-report.md) distinguishes completed components from remaining live Worker dispatch and Gateway/SDK wiring.
+
+### Worker execution milestone — October 15, 2026
+
+The [Worker execution report](ml-dsa-65-worker-execution-report.md) records the implemented private flow and its limits.
+Local workerd completed three standard signatures in 0.63–1.05 seconds through Router admission, durable consumption, verification, and settlement.
+The initial four-batch refill took 45.5 seconds. Automatic refill and cached results after restart passed.
+The stalled peer failed without a signature, but closure took 9.7 seconds under a one-second configured deadline. Timeout scheduling during refill needs investigation.
+Native execution also passed seven signatures, three internal rollovers, and canonical wallet-seed recovery.
+These results do not establish hosted latency or public SDK registration readiness.
+
+Next tasks, in dependency order:
+
+1. Connect verified Gateway owner/session authorization and custody completion to the private routes.
+2. Complete admitted Worker key generation and role-material installation. Provide durable generic preparation for registrations.
+3. Test hosted storage, refill, concurrent signing, and recovery against the five-second target. Record exhaustion separately from successful signatures.
+4. Investigate delayed timeout scheduling during refill. Inject interruption between paired publication writes and during durable consumption. Test concurrent epoch replacement.
+5. Connect the SDK/NEAR caller, verify a threshold-signed transaction through that path, and package the selected library.
+
+Preparation speed optimization and the two-service GPU design remain deferred.

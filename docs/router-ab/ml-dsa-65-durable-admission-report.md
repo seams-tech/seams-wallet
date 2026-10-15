@@ -1,7 +1,8 @@
 # ML-DSA durable pools and admission
 
-Status: backend storage and private admission implemented, 2026-10-15.
-Live Worker signing execution and automatic preparation dispatch remain unwired.
+Status: this report records the storage and admission foundation, 2026-10-15.
+The [Worker execution follow-up](ml-dsa-65-worker-execution-report.md) adds live private signing, automatic refill, and local workerd evidence.
+The remaining-work list below describes the foundation at its original validation point. Use the follow-up for current integration status.
 This change does not enable a public Wallet signing route or deploy new infrastructure.
 GPU preparation and further preparation-speed work remain deferred.
 
