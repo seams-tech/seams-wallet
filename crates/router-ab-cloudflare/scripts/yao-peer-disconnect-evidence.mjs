@@ -9,7 +9,7 @@
 // spent and stays spent.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
@@ -44,13 +44,19 @@ const admissionTable = 'tenant_root_root_use_admissions';
 const scenarios = {
   'socket-before-preparation': { outcome: 'completed', preparation: 'after-connection' },
   'preparation-before-socket': { outcome: 'completed', connection: 'after-preparation' },
+  'preparation-evicted-before-socket': { outcome: 'released', preparation: 'evict', connection: 'after-preparation', b: 'missing' },
+  'queued-input-relocation': { outcome: 'completed', preparation: 'check-relocation', connection: 'after-preparation' },
+  'cancelled-b-before-claim': { outcome: 'burned', preparation: 'cancel-b', connection: 'after-preparation', b: 'prepared' },
+  'lost-input-source-fenced': { outcome: 'burned', preparation: 'evict-and-fence', connection: 'after-preparation', b: 'missing' },
+  'expired-input-retry': { outcome: 'released', preparation: 'after-execution', expireBeforeRetry: true, b: 'prepared' },
   'preparation-reply-lost': { outcome: 'completed', preparation: 'lose-reply' },
   'duplicate-socket': { outcome: 'completed', connection: 'duplicate' },
+  'duplicate-router': { outcome: 'completed', duplicateRouter: true, connection: 'after-preparation' },
   'duplicate-execution': { outcome: 'completed', execution: 'duplicate' },
   'preparation-never-arrives': { outcome: 'released', preparation: 'never', b: 'missing' },
   'preparation-fails': { outcome: 'released', preparation: 'd1-error', b: 'missing', leaseMs: 6_000 },
   'late-preparation-after-refusal': { outcome: 'released', preparation: 'after-execution', b: 'prepared' },
-  'changed-generation': { outcome: 'released', connection: 'changed-generation', b: 'prepared' },
+  'changed-generation': { outcome: 'burned', connection: 'changed-generation', b: 'burned' },
   'connection-refused': { outcome: 'burned', connection: 'refused-after-preparation', b: 'prepared' },
   'wrong-scope': { outcome: 'burned', connection: 'wrong-root', b: 'prepared' },
   'lost-upgrade-reply': { outcome: 'burned', connection: 'lose-reply', b: 'burned' },
@@ -70,10 +76,12 @@ const leaseMs = plan.leaseMs ?? (plan.outcome === 'released' ? 2_000 : null);
 
 const watchedSpans = new Set([
   'deriver_a.target_prepared', 'deriver_a.websocket_connect', 'deriver_b.await_preparation',
+  'deriver_b.begin_pair', 'deriver_b.role_execution',
 ]);
 
 class SpanLog extends Log {
   spans = [];
+  pairWrites = [];
 
   constructor() {
     super(LogLevel.INFO);
@@ -90,6 +98,7 @@ class SpanLog extends Log {
     if (start < 0) return;
     try {
       const event = JSON.parse(message.slice(start));
+      if (event.event === 'pair_record_write') this.pairWrites.push(event);
       if (typeof event.span === 'string' && watchedSpans.has(event.span)) {
         this.spans.push({ span: event.span, outcome: event.outcome, durationMs: event.duration_ms });
       }
@@ -191,7 +200,7 @@ function rescoped(request, behaviour) {
   const headers = new Headers(request.headers);
   const start = JSON.parse(headers.get('x-seams-yao-wallet-pair-scope'));
   if (behaviour === 'changed-generation') start.scope.ownership_generation += 1;
-  else start.scope.root_identity.project_id = start.scope.root_identity.project_id + '-other';
+  else start.scope.root_identity.projectId = start.scope.root_identity.projectId + '-other';
   headers.set('x-seams-yao-wallet-pair-scope', JSON.stringify(start));
   return new Request(request, { headers });
 }
@@ -329,9 +338,32 @@ class PreparationBinding {
         await setTimeout(300);
       }
       if (plan.preparation === 'after-execution') await firstRun.executionAnswered.promise;
+      const input = await request.clone().json();
+      const credential = request.headers.get(authHeader);
       const response = await worker.fetch(request);
       const body = await response.text();
       this.delivered = { forwarded: true, status: response.status, body: body.slice(0, 300) };
+      if (plan.preparation === 'evict' || plan.preparation === 'evict-and-fence') {
+        const ids = await topology.listDurableObjectIds('RouterAbDeriverBWalletDurableObject', 'deriver-b');
+        assert.equal(ids.length, 1, 'Only the prepared wallet exists');
+        await topology.unsafeEvictDurableObject('deriver-b', 'RouterAbDeriverBWalletDurableObject', { id: ids[0] });
+        this.delivered.evictedAfterReply = true;
+      }
+      if (plan.preparation === 'check-relocation' || plan.preparation === 'evict-and-fence') {
+        const fence = await fencePreparedWallet(worker, input, credential);
+        const expected = plan.preparation === 'check-relocation' ? 'pending' : 'settled_fence';
+        assert.equal(fence.body.kind, expected, fence.text);
+        if (expected === 'pending') assert.equal(fence.body.pending_pairs, 1);
+        this.delivered.sourceFence = fence.body.kind;
+        if (expected === 'settled_fence') {
+          this.delivered.reconciled = await reconcilePreparedWallet(topology, input, false);
+          assert.equal(this.delivered.reconciled, 'fenced');
+        }
+      }
+      if (plan.preparation === 'cancel-b') {
+        this.delivered.reconciled = await reconcilePreparedWallet(topology, input, true);
+        assert.equal(this.delivered.reconciled, 'fenced');
+      }
       if (plan.preparation === 'lose-reply') {
         return new Response('E2E lost preparation reply', { status: 503 });
       }
@@ -342,7 +374,42 @@ class PreparationBinding {
   }
 }
 
-async function post(worker, path, body, credential) {
+async function reconcilePreparedWallet(topology, input, cancelAdmission) {
+  const session = Buffer.from(input.pair_binding.ceremony.binding.session_id).toString('hex');
+  if (cancelAdmission) {
+    const database = await topology.getD1Database('DERIVER_ROLE_PRIVATE_DB', 'deriver-b');
+    const result = await database.prepare(`UPDATE ${admissionTable} SET status = 'cancelled'
+      WHERE attempt_key_hex = ? AND status = 'admitted'`).bind(session).run();
+    assert.equal(result.meta.changes, 1);
+  }
+  const namespace = await topology.getDurableObjectNamespace('DERIVER_B_WALLET_DO', 'deriver-b');
+  const object = namespace.get(namespace.idFromString(input.tenant_root.wallet_route.addresses.deriver_b));
+  const response = await object.fetch('https://custody.test/router-ab/internal/deriver-b/wallet-pair/reconcile', {
+    method: 'POST',
+    body: JSON.stringify({ session_hex: session, fence: true, peer_settled: false, now_ms: Date.now() }),
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  return response.json();
+}
+
+async function fencePreparedWallet(worker, input, credential) {
+  const route = input.tenant_root.wallet_route;
+  const context = await post(worker, '/router-ab/internal/deriver-b/wallet/relocation-context',
+    { kind: 'cipher' }, credential, route.addresses);
+  assert.equal(context.status, 200, context.text);
+  const identity = input.tenant_root.identity;
+  return post(worker, '/router-ab/internal/deriver-b/wallet/fence-relocation', {
+    owner: { org_id: identity.orgId, project_id: identity.projectId, env_id: identity.envId,
+      wallet_id: input.pair_binding.ceremony.binding.lifecycle.account_id },
+    move_id: `wmove_${'p'.repeat(43)}`,
+    request_digest_hex: 'de'.repeat(32),
+    cipher_context_digest_hex: context.body.digest_hex,
+    source_generation: input.tenant_root.ownership_generation,
+    destination_generation: input.tenant_root.ownership_generation + 1,
+  }, credential, route.addresses);
+}
+
+async function post(worker, path, body, credential, addresses) {
   const startedAt = Date.now();
   const response = await worker.fetch(`https://custody.test${path}`, {
     method: 'POST',
@@ -350,6 +417,7 @@ async function post(worker, path, body, credential) {
       'content-type': 'application/json',
       [authHeader]: credential,
       'x-seams-wallet-home-region': 'US',
+      'x-seams-wallet-object-addresses': JSON.stringify(addresses),
     },
     body: JSON.stringify(body),
   });
@@ -363,8 +431,22 @@ async function post(worker, path, body, credential) {
   return { status: response.status, body: parsed, text, elapsedMs: Date.now() - startedAt };
 }
 
+async function allocateWalletAddresses(topology) {
+  const addresses = {};
+  for (const [role, binding, worker] of [
+    ['router', 'ROUTER_WALLET_DO', 'router'],
+    ['deriver_a', 'DERIVER_A_WALLET_DO', 'deriver-a'],
+    ['deriver_b', 'DERIVER_B_WALLET_DO', 'deriver-b'],
+    ['signing_worker', 'SIGNING_WORKER_WALLET_DO', 'fixture-signing-worker'],
+  ]) {
+    const namespace = await topology.getDurableObjectNamespace(binding, worker);
+    addresses[role] = namespace.newUniqueId().toString();
+  }
+  return addresses;
+}
+
 async function pairState(worker, role, scope, credential) {
-  const result = await post(worker, `/router-ab/${role}/ed25519-yao/read-pair-status`, scope, credential);
+  const result = await post(worker, `/router-ab/${role}/ed25519-yao/read-pair-status`, scope, credential, scope.wallet_route.addresses);
   assert.equal(result.status, 200, result.text);
   return result.body.status;
 }
@@ -372,7 +454,7 @@ async function pairState(worker, role, scope, credential) {
 async function requirePairState(worker, role, scope, credential, expectedState) {
   let state;
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    state = await pairState(worker, role, scope, credential);
+    state = await pairState(worker, role, scope, credential, scope.wallet_route.addresses);
     if (state === expectedState) return state;
     await setTimeout(50);
   }
@@ -421,13 +503,37 @@ router.serviceBindings.DERIVER_A = execution.fetch.bind(execution);
 router.serviceBindings.DERIVER_B = preparation.fetch.bind(preparation);
 const a = deriverAWorker(fixture);
 a.serviceBindings.DERIVER_B = 'pair-connection-proxy';
+const observedB = deriverBWorker(fixture);
+const observedPath = resolve(root, `.artifacts/yao-peer-disconnect/${scenario}-b-observed.mjs`);
+await mkdir(dirname(observedPath), { recursive: true });
+const observedImport = relative(dirname(observedPath), observedB.scriptPath);
+await writeFile(observedPath, `
+import { RouterAbDeriverBWalletDurableObject as WalletObject } from ${JSON.stringify(observedImport)};
+export * from ${JSON.stringify(observedImport)};
+export { default } from ${JSON.stringify(observedImport)};
+export class RouterAbDeriverBWalletDurableObject extends WalletObject {
+  constructor(state, env) {
+    const sql = state.storage.sql;
+    const execute = sql.exec.bind(sql);
+    sql.exec = (query, ...bindings) => {
+      const result = execute(query, ...bindings);
+      if (/^(INSERT INTO|UPDATE) yao_pair_sessions\\b/.test(query)) {
+        console.log(JSON.stringify({ event: 'pair_record_write', session: bindings[0], lifecycle: bindings[2], rowsWritten: result.rowsWritten }));
+      }
+      return result;
+    };
+    super(state, env);
+  }
+}
+`);
+observedB.scriptPath = observedPath;
 const topology = new Miniflare({
   log,
   handleRuntimeStdio: log.connect.bind(log),
   workers: [
     router,
     a,
-    deriverBWorker(fixture),
+    observedB,
     tenantRootControlPlaneWorker(fixture),
     signingWorker('fixture-signing-worker', 'disconnect-signing-worker', fixture),
     {
@@ -467,14 +573,27 @@ try {
   if (plan.preparation === 'd1-error') {
     await databases.deriverB.exec(`ALTER TABLE ${admissionTable} RENAME TO ${heldTable}`);
   }
-  const first = await post(routerBinding, executePath, envelope, gatewayCredential);
+  const addresses = await allocateWalletAddresses(topology);
+  const attempts = await Promise.all(Array.from({ length: plan.duplicateRouter ? 2 : 1 },
+    () => post(routerBinding, executePath, envelope, gatewayCredential, addresses)));
+  const first = attempts.find(attempt => attempt.body?.status === 'succeeded') ?? attempts[0];
+  if (plan.duplicateRouter) {
+    assert.equal(attempts.filter(attempt => attempt.body?.status === 'succeeded').length, 1);
+    const duplicate = attempts.find(attempt => attempt !== first);
+    assert.equal(duplicate.status, 200, duplicate.text);
+    assert.equal(duplicate.body.status, 'recoverable_failure', duplicate.text);
+    assert.equal(duplicate.body.code, 'execution_in_progress', duplicate.text);
+  }
   if (plan.preparation === 'd1-error') {
     await databases.deriverB.exec(`ALTER TABLE ${heldTable} RENAME TO ${admissionTable}`);
+  }
+  if (plan.preparation === 'cancel-b' || plan.preparation === 'evict-and-fence') {
+    assert.equal(preparation.delivered.reconciled, 'fenced', 'The injected fence must complete before the connection');
   }
   assert.ok(execution.request, 'The Router sent Deriver A its execution');
   const request = execution.request;
   const scope = {
-    wallet_home: request.tenant_root.wallet_home,
+    wallet_route: request.tenant_root.wallet_route,
     ownership_generation: request.tenant_root.ownership_generation,
     root_identity: request.tenant_root.identity,
     pair_binding: request.pair_binding,
@@ -490,6 +609,7 @@ try {
       code: first.body?.code ?? null,
       elapsedMs: first.elapsedMs,
     },
+    concurrentRouterStatuses: attempts.map(attempt => attempt.status),
     preparationDelivery: preparation.delivered,
     reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/yao-peer-disconnect-evidence.mjs ${scenario}`,
   };
@@ -520,12 +640,25 @@ try {
     if (plan.execution === 'duplicate') {
       assert.ok(execution.duplicate, 'Two identical executions reached Deriver A');
     }
+    const completedConnections = evidence.connectionAttempts;
+    if (scenario === 'preparation-before-socket') {
+      await topology.unsafeEvictDurableObject('router', 'RouterAbRouterWalletDurableObject', { id: addresses.router });
+    }
+    const replay = await post(routerBinding, executePath, envelope, gatewayCredential, addresses);
+    assert.equal(replay.status, 200, replay.text);
+    assert.deepEqual(replay.body, first.body, 'Router restart must replay the durable result');
+    assert.equal((await proxyEvidence(proxy)).connectionAttempts, completedConnections);
+    artifact.completedReplayAfterRouterEviction = scenario === 'preparation-before-socket';
+    artifact.completedReplayRanNoProtocol = true;
     artifact.duplicateExecution = execution.duplicate;
     artifact.admissions = {
       deriverA: await settledAdmissions(databases.deriverA, sessionHex),
       deriverB: await settledAdmissions(databases.deriverB, sessionHex),
     };
     artifact.connection = evidence;
+    artifact.pairRecordWrites = log.pairWrites.filter(event => event.session === sessionHex && event.rowsWritten > 0);
+    assert.deepEqual(artifact.pairRecordWrites.map(event => event.lifecycle), ['running', 'completed'],
+      'B must combine the encrypted input with its durable running claim');
   } else {
     assert.notEqual(first.body?.status, 'succeeded', first.text);
     const evidence = await closedConnectionEvidence(proxy);
@@ -539,6 +672,15 @@ try {
       deriverB: await admissions(databases.deriverB, sessionHex),
     };
     artifact.connection = evidence;
+    artifact.pairRecordWrites = log.pairWrites.filter(event => event.session === sessionHex && event.rowsWritten > 0);
+    artifact.roleSpans = log.spans;
+    if (plan.preparation === 'cancel-b') {
+      assert.equal(evidence.connections, 0, 'The cancelled B claim must refuse the upgrade');
+      assert.equal(evidence.aMessages + evidence.bMessages, 0, 'The cancelled B claim must send no protocol material');
+      assert.equal(artifact.pairRecordWrites.some(write => write.lifecycle === 'running'), false);
+    }
+    await writeFile(resolve(root, `.artifacts/yao-peer-disconnect/${scenario}-observed.json`),
+      JSON.stringify(artifact, null, 2) + '\n');
 
     if (plan.outcome === 'released') {
       // Deriver B said it holds no claim, before any protocol message.
@@ -560,11 +702,16 @@ try {
       if (plan.preparation === 'never') {
         assert.deepEqual(artifact.admissionsAfterFirstRun.deriverB, [], 'B admitted nothing');
       }
+      if (plan.expireBeforeRetry) {
+        await setTimeout(60_100);
+        await requirePairState(bBinding, 'deriver-b', scope, roleCredential, 'missing');
+        artifact.expiredUnusedInputDiscarded = true;
+      }
       // The exact retry runs once the Router's claim has lapsed.
       await setTimeout(Math.max(0, leaseMs + 250 - first.elapsedMs));
       let retry;
       for (let attempt = 0; attempt < 20; attempt += 1) {
-        retry = await post(routerBinding, executePath, envelope, gatewayCredential);
+        retry = await post(routerBinding, executePath, envelope, gatewayCredential, addresses);
         if (retry.body?.code !== 'execution_in_progress') break;
         await setTimeout(250);
       }
@@ -600,7 +747,7 @@ try {
           'The refused late preparation admitted nothing',
         );
       }
-      const retried = await post(aBinding, '/router-ab/deriver-a/ed25519-yao/execute-pair', request, roleCredential);
+      const retried = await post(aBinding, '/router-ab/deriver-a/ed25519-yao/execute-pair', request, roleCredential, addresses);
       assert.ok(retried.status >= 400, 'A burned pair cannot return successful custody');
       const afterRetry = await proxyEvidence(proxy);
       assert.equal(
@@ -617,7 +764,8 @@ try {
 
   // Another wallet's pair is unaffected.
   const fresh = buildEd25519ExecuteRequest(fixture, 'second_tenant_activation', roots.secondTenantRoot);
-  const independent = await post(routerBinding, executePath, fresh, gatewayCredential);
+  const freshAddresses = await allocateWalletAddresses(topology);
+  const independent = await post(routerBinding, executePath, fresh, gatewayCredential, freshAddresses);
   assert.equal(independent.status, 200, independent.text);
   assert.equal(independent.body.status, 'succeeded', independent.text);
   artifact.independentWalletCompleted = true;

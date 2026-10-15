@@ -494,7 +494,7 @@ impl RouterAbDeriverAWalletDurableObject {
                 }
                 self.check_owner(&command.owner, true)?;
                 if path == SOURCE_FENCE_PATH {
-                    relocation::fence_settled_source(&self.sql, command)
+                    relocation::fence_settled_source(&self.sql, command, 0)
                 } else {
                     relocation::reserve(&self.storage, self.sql.clone(), command).await
                 }

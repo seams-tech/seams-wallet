@@ -26,6 +26,10 @@ pub(crate) const SOURCE_FENCE_PATH: &str = "/router-ab/internal/deriver-b/wallet
 
 pub(crate) const PREPARATION_PATH: &str = "/router-ab/internal/deriver-b/wallet/prepare-relocation";
 
+pub(crate) fn require_deriver_b_pair_writes_open(sql: &SqlStorage) -> worker::Result<()> {
+    relocation::require_open::<DeriverBWalletOwnerV1>(sql)
+}
+
 const BINDING: &str = "DERIVER_B_WALLET_DO";
 const COMMAND_PATH: &str = "/router-ab/internal/deriver-b/wallet-pair";
 const RECONCILE_PATH: &str = "/router-ab/internal/deriver-b/wallet-pair/reconcile";
@@ -121,7 +125,7 @@ struct PairScopeRowV1 {
 
 #[derive(Deserialize)]
 struct PairRevisionRowV1 {
-    revision: u64,
+    revision: i64,
 }
 
 /// How many failed preparations one object instance remembers at most.
@@ -162,6 +166,7 @@ pub struct RouterAbDeriverBWalletDurableObject {
     /// it the connection waits until the run ends.
     failed_preparations: Rc<RefCell<HashMap<[u8; 32], Ed25519YaoOuterBindingV2>>>,
     prepared_peer: Rc<std::cell::Cell<bool>>,
+    prepared_inputs: Rc<RefCell<crate::ed25519_yao_lifecycle::role_d1::PreparedPairInputs>>,
 }
 
 impl DurableObject for RouterAbDeriverBWalletDurableObject {
@@ -174,6 +179,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
             env,
             failed_preparations: Rc::default(),
             prepared_peer: Rc::default(),
+            prepared_inputs: Rc::default(),
         }
     }
 
@@ -196,7 +202,11 @@ impl RouterAbDeriverBWalletDurableObject {
     async fn prepare_registration(&self, mut request: Request) -> worker::Result<Response> {
         relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
         let socket = request.path() == crate::registration_pair_preparation::SOCKET_PATH;
-        let method = if socket { worker::Method::Get } else { worker::Method::Post };
+        let method = if socket {
+            worker::Method::Get
+        } else {
+            worker::Method::Post
+        };
         if request.method() != method {
             return Response::error("Registration preparation method is invalid", 405);
         }
@@ -269,7 +279,10 @@ impl RouterAbDeriverBWalletDurableObject {
 
     /// The revision of the pair record this object holds for a session, or
     /// `None` without one.
-    pub(crate) fn pair_revision(&self, session: &[u8; 32]) -> worker::Result<Option<u64>> {
+    pub(crate) fn pair_revision(
+        &self,
+        session: &[u8; 32],
+    ) -> worker::Result<Option<crate::ed25519_yao_lifecycle::role_d1::PairRecordRevision>> {
         Ok(self
             .sql
             .exec(
@@ -279,7 +292,14 @@ impl RouterAbDeriverBWalletDurableObject {
             .to_array::<PairRevisionRowV1>()?
             .into_iter()
             .next()
-            .map(|row| row.revision))
+            .map(|row| {
+                crate::ed25519_yao_lifecycle::role_d1::PairRecordRevision::Stored(row.revision)
+            })
+            .or_else(|| {
+                self.prepared_inputs
+                    .borrow()
+                    .revision(&encode_hex_slice(session))
+            }))
     }
 
     /// Whether the preparation of the Router run named by `outer_binding`
@@ -352,7 +372,8 @@ impl RouterAbDeriverBWalletDurableObject {
             .map_err(pair_error);
         }
         if path == SNAPSHOT_PATH {
-            let command: relocation::snapshot::Command<DeriverBWalletOwnerV1> = request.json().await?;
+            let command: relocation::snapshot::Command<DeriverBWalletOwnerV1> =
+                request.json().await?;
             command.source().validate()?;
             if !command.source().context_matches(&self.env)? {
                 return Response::error("Deriver encryption context differs from source", 409);
@@ -373,19 +394,30 @@ impl RouterAbDeriverBWalletDurableObject {
                 return Response::error("Deriver encryption context differs from source", 409);
             }
             self.check_owner(&command.owner, true)?;
+            let queued_inputs = self
+                .prepared_inputs
+                .borrow_mut()
+                .pending(crate::cloudflare_now_unix_ms_v1().map_err(pair_error)?);
             return if path == SOURCE_FENCE_PATH {
-                relocation::fence_settled_source(&self.sql, command)
+                relocation::fence_settled_source(&self.sql, command, queued_inputs)
+            } else if queued_inputs != 0 {
+                Response::error("Deriver destination holds queued pair inputs", 409)
             } else {
                 relocation::reserve(&self.storage, self.sql.clone(), command).await
             };
         }
         if path == RECONCILE_PATH {
-            relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+            if !relocation::source_is_frozen(&self.sql)? {
+                relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
+            }
             let reconcile: TenantRootWalletPairReconcileRequestV1 = request.json().await?;
             return Response::from_json(&self.reconcile(&reconcile)?);
         }
         let request: DeriverBWalletDoRequestV1 = request.json().await?;
-        if !matches!(request.command, DeriverBYaoSessionCommandV1::ReadPairStatus { .. }) {
+        if !matches!(
+            request.command,
+            DeriverBYaoSessionCommandV1::ReadPairStatus { .. }
+        ) {
             relocation::require_open::<DeriverBWalletOwnerV1>(&self.sql)?;
         }
         self.execute(request).await
@@ -409,7 +441,8 @@ impl RouterAbDeriverBWalletDurableObject {
                 "Deriver B pair session must be 64 lowercase hex characters",
             ));
         }
-        if request.fence {
+        let source_frozen = relocation::source_is_frozen(&self.sql)?;
+        if request.fence && !source_frozen {
             self.sql.exec(
                 "INSERT INTO yao_pair_admission_fences (session_hex, fenced_at_ms) \
                  SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions \
@@ -439,7 +472,9 @@ impl RouterAbDeriverBWalletDurableObject {
             .is_empty();
         Ok(if completed {
             TenantRootWalletPairReconciliationV1::Completed
-        } else if fenced {
+        } else if fenced || source_frozen {
+            // A frozen source can never start another execution. It also fences
+            // unused inputs lost on restart, without writing into the snapshot.
             TenantRootWalletPairReconciliationV1::Fenced
         } else {
             TenantRootWalletPairReconciliationV1::Open
@@ -473,7 +508,10 @@ impl RouterAbDeriverBWalletDurableObject {
         result
     }
 
-    async fn execute_command(&self, request: DeriverBWalletDoRequestV1) -> worker::Result<Response> {
+    async fn execute_command(
+        &self,
+        request: DeriverBWalletDoRequestV1,
+    ) -> worker::Result<Response> {
         request.scope.validate().map_err(pair_error)?;
         request.command.validate().map_err(pair_error)?;
         if let DeriverBYaoSessionCommandV1::PreparePair {
@@ -514,6 +552,7 @@ impl RouterAbDeriverBWalletDurableObject {
             owner.object_name()?,
             self.state.id().to_string(),
             encode_hex_slice(root_digest.as_bytes()),
+            self.prepared_inputs.clone(),
         );
         engine.execute(request.command).await
     }
@@ -625,7 +664,9 @@ pub(crate) async fn reconcile_deriver_b_wallet_pair_v1(
             response.status_code()
         )));
     }
-    response.json::<TenantRootWalletPairReconciliationV1>().await
+    response
+        .json::<TenantRootWalletPairReconciliationV1>()
+        .await
 }
 
 fn pair_error(error: impl ToString) -> worker::Error {
@@ -633,7 +674,9 @@ fn pair_error(error: impl ToString) -> worker::Error {
 }
 
 impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
-    fn object_id(route: crate::WalletObjectRoute) -> crate::WalletObjectId { route.addresses.deriver_b }
+    fn object_id(route: crate::WalletObjectRoute) -> crate::WalletObjectId {
+        route.addresses.deriver_b
+    }
 
     type Pair = snapshot::PairRow;
     fn cipher(
@@ -662,13 +705,8 @@ impl relocation::WalletOwner for DeriverBWalletOwnerV1 {
 }
 
 pub(crate) async fn call_preparation(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverBWalletOwnerV1>(
-        request,
-        env,
-        BINDING,
-        PREPARATION_PATH,
-    )
-    .await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, PREPARATION_PATH)
+        .await
 }
 
 pub(crate) async fn read_relocation_context(
@@ -679,15 +717,11 @@ pub(crate) async fn read_relocation_context(
 }
 
 pub(crate) async fn call_source_fence(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::call_preparation::<DeriverBWalletOwnerV1>(
-        request,
-        env,
-        BINDING,
-        SOURCE_FENCE_PATH,
-    )
-    .await
+    relocation::call_preparation::<DeriverBWalletOwnerV1>(request, env, BINDING, SOURCE_FENCE_PATH)
+        .await
 }
 
 pub(crate) async fn call_snapshot(request: Request, env: &Env) -> worker::Result<Response> {
-    relocation::snapshot::forward::<DeriverBWalletOwnerV1>(request, env, BINDING, SNAPSHOT_PATH).await
+    relocation::snapshot::forward::<DeriverBWalletOwnerV1>(request, env, BINDING, SNAPSHOT_PATH)
+        .await
 }

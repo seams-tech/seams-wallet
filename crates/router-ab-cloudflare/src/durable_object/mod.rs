@@ -48,6 +48,7 @@ mod router_wallet;
 #[cfg(feature = "workers-rs")]
 pub(crate) use router_wallet::{
     call_router_wallet_freeze_v1, call_router_wallet_transfer_v1, call_router_wallet_v1,
+    execute_router_wallet_command, forward_router_wallet_execution,
 };
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-router-entrypoint"))]
 pub(crate) use wallet_startup::start_registration_wallets;
@@ -69,8 +70,7 @@ pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
 pub(crate) use deriver_a_pair::{
     call_deriver_a_wallet_do_lookup_v1, call_deriver_a_wallet_do_work_v1,
     deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
-    deriver_a_wallet_do_status_work_path_v1,
-    reconcile_deriver_a_wallet_pair_v1,
+    deriver_a_wallet_do_status_work_path_v1, reconcile_deriver_a_wallet_pair_v1,
 };
 #[cfg(all(
     feature = "workers-rs",
@@ -93,9 +93,10 @@ pub(crate) use deriver_b_pair::{
     call_snapshot as snapshot_deriver_b_wallet_source,
     call_source_fence as fence_deriver_b_wallet_source, deriver_b_wallet_object_name_v1,
     read_relocation_context as read_deriver_b_relocation_context,
-    reconcile_deriver_b_wallet_pair_v1, DeriverBWalletDoRequestV1,
-    CONTEXT_PATH as DERIVER_B_CONTEXT_PATH, PREPARATION_PATH as DERIVER_B_PREPARATION_PATH,
-    SNAPSHOT_PATH as DERIVER_B_SNAPSHOT_PATH, SOURCE_FENCE_PATH as DERIVER_B_SOURCE_FENCE_PATH,
+    reconcile_deriver_b_wallet_pair_v1, require_deriver_b_pair_writes_open,
+    DeriverBWalletDoRequestV1, CONTEXT_PATH as DERIVER_B_CONTEXT_PATH,
+    PREPARATION_PATH as DERIVER_B_PREPARATION_PATH, SNAPSHOT_PATH as DERIVER_B_SNAPSHOT_PATH,
+    SOURCE_FENCE_PATH as DERIVER_B_SOURCE_FENCE_PATH,
 };
 #[cfg(all(
     feature = "workers-rs",

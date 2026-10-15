@@ -23,7 +23,6 @@ pub(crate) trait WalletOwner: Serialize + DeserializeOwned + Clone + 'static {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Preparation<Owner> {
@@ -193,10 +192,18 @@ fn reserve_destination<Owner: WalletOwner>(
     }
 }
 
+pub(crate) fn source_is_frozen(sql: &SqlStorage) -> worker::Result<bool> {
+    Ok(!sql
+        .exec(
+            "SELECT request_json FROM wallet_relocation_source WHERE id = 1",
+            None,
+        )?
+        .to_array::<ReservationRow>()?
+        .is_empty())
+}
+
 pub(crate) fn require_open<Owner: WalletOwner>(sql: &SqlStorage) -> worker::Result<()> {
-    let frozen = sql.exec("SELECT request_json FROM wallet_relocation_source WHERE id = 1", None)?
-        .to_array::<ReservationRow>()?;
-    if !frozen.is_empty() {
+    if source_is_frozen(sql)? {
         return Err(pair_error(format!("{} source is frozen", Owner::LABEL)));
     }
 
@@ -223,14 +230,22 @@ fn pair_error(message: impl Into<String>) -> worker::Error {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum ContextRequest<Owner> {
     Cipher,
-    Wallet { owner: Owner, ownership_generation: u64 },
+    Wallet {
+        owner: Owner,
+        ownership_generation: u64,
+    },
 }
 
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum CipherContext {
-    DeriverCipherContext { digest_hex: String },
-    DeriverWalletContext { digest_hex: String, object_id: String },
+    DeriverCipherContext {
+        digest_hex: String,
+    },
+    DeriverWalletContext {
+        digest_hex: String,
+        object_id: String,
+    },
 }
 
 pub(crate) async fn read_context<Owner: WalletOwner>(
@@ -253,12 +268,18 @@ pub(crate) async fn read_context<Owner: WalletOwner>(
     let digest_hex = Owner::cipher(env)?.relocation_context_digest()?;
     let response = match context {
         ContextRequest::Cipher => CipherContext::DeriverCipherContext { digest_hex },
-        ContextRequest::Wallet { owner, ownership_generation } => {
+        ContextRequest::Wallet {
+            owner,
+            ownership_generation,
+        } => {
             owner.physical_object_name(ownership_generation)?;
             let route = crate::WalletObjectRoute::from_gateway_request(&request)
                 .map_err(|error| pair_error(error.to_string()))?;
             let object_id = Owner::object_id(route).as_str().to_owned();
-            CipherContext::DeriverWalletContext { digest_hex, object_id }
+            CipherContext::DeriverWalletContext {
+                digest_hex,
+                object_id,
+            }
         }
     };
     Response::from_json(&response)
@@ -272,6 +293,7 @@ struct PendingPairs {
 pub(crate) fn fence_settled_source<Owner: WalletOwner>(
     sql: &SqlStorage,
     command: Preparation<Owner>,
+    queued_inputs: usize,
 ) -> worker::Result<Response> {
     sql.exec(super::registration_preparation::SCHEMA, None)?;
     snapshot::import::require_source_generation(sql, &command)?;
@@ -296,9 +318,11 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
         let [pending] = pending.as_slice() else {
             return Err(pair_error("Deriver source inventory is unavailable"));
         };
-        if pending.count != 0 {
+        let pending_count = pending.count
+            + u64::try_from(queued_inputs).map_err(|error| pair_error(error.to_string()))?;
+        if pending_count != 0 {
             return Response::from_json(&serde_json::json!({
-                "kind": "pending", "pending_pairs": pending.count,
+                "kind": "pending", "pending_pairs": pending_count,
             }));
         }
         // Synchronous SQL runs without an await between the inventory check and fence.

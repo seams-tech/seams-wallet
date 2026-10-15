@@ -1,4 +1,4 @@
-use std::{cell::RefCell, future::Future, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, future::Future, rc::Rc};
 
 use hpke_ng::Kem;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -64,6 +64,11 @@ const INSERT_WALLET_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
     (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms, root_identity_digest_hex) \
     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7) ON CONFLICT(session_hex) DO NOTHING \
     RETURNING session_hex";
+const INSERT_UNFENCED_WALLET_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
+    (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms, root_identity_digest_hex) \
+    SELECT ?1, ?2, ?3, ?4, 1, ?5, ?6, ?7 \
+    WHERE NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences WHERE session_hex = ?1) \
+    ON CONFLICT(session_hex) DO NOTHING RETURNING session_hex";
 const UPDATE_WALLET_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_hex = ?2, \
     lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
     updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7 AND root_identity_digest_hex = ?8 \
@@ -112,8 +117,104 @@ pub(crate) struct RolePairRecordScopeV1 {
 #[derive(Clone)]
 struct CachedPairV1 {
     record_json: String,
-    revision: i64,
+    revision: PairRecordRevision,
     scope: RolePairRecordScopeV1,
+}
+
+/// A queued input has not claimed execution. A stored revision has crossed the durable boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PairRecordRevision {
+    Input(u64),
+    Stored(i64),
+}
+
+impl PairRecordRevision {
+    fn stored(self) -> Option<i64> {
+        match self {
+            Self::Input(_) => None,
+            Self::Stored(revision) => Some(revision),
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct PreparedPairInputs {
+    sequence: u64,
+    records: HashMap<String, QueuedPairInput>,
+}
+
+struct QueuedPairInput {
+    identity: String,
+    value: CachedPairV1,
+    expires_at_ms: u64,
+}
+
+impl PreparedPairInputs {
+    pub(crate) fn revision(&self, session: &str) -> Option<PairRecordRevision> {
+        self.records
+            .get(session)
+            .map(|record| record.value.revision)
+    }
+
+    fn discard_expired(&mut self, now_ms: u64) {
+        self.records.retain(|_, entry| entry.expires_at_ms > now_ms);
+    }
+
+    pub(crate) fn pending(&mut self, now_ms: u64) -> usize {
+        self.discard_expired(now_ms);
+        self.records.len()
+    }
+
+    fn read(
+        &mut self,
+        session: &str,
+        identity: &str,
+        now_ms: u64,
+    ) -> worker::Result<Option<CachedPairV1>> {
+        self.discard_expired(now_ms);
+        self.records
+            .get(session)
+            .map(|record| {
+                if record.identity != identity {
+                    return Err(role_d1_error("Queued pair identity differs from request"));
+                }
+                Ok(record.value.clone())
+            })
+            .transpose()
+    }
+
+    fn put(
+        &mut self,
+        session: &str,
+        identity: &str,
+        record: PendingPairV1,
+        scope: RolePairRecordScopeV1,
+    ) -> worker::Result<CachedPairV1> {
+        // Unclaimed input is disposable. Every access applies the same expiry
+        // rule; an exact retry must resupply input before it can claim execution.
+        self.discard_expired(record.updated_at_ms);
+        if self.records.len() >= 64 && !self.records.contains_key(session) {
+            return Err(role_d1_error("Too many pending pair inputs"));
+        }
+        self.sequence = self
+            .sequence
+            .checked_add(1)
+            .ok_or_else(|| role_d1_error("Pair input sequence exhausted"))?;
+        let value = CachedPairV1 {
+            record_json: record.record_json,
+            revision: PairRecordRevision::Input(self.sequence),
+            scope,
+        };
+        self.records.insert(
+            session.to_owned(),
+            QueuedPairInput {
+                identity: identity.to_owned(),
+                value: value.clone(),
+                expires_at_ms: record.expires_at_ms,
+            },
+        );
+        Ok(value)
+    }
 }
 
 #[derive(Clone)]
@@ -381,7 +482,10 @@ pub(crate) fn migrate_wallet_generation(encoded: &str) -> worker::Result<String>
         .map_err(|error| role_d1_error(format!("role-private record is malformed: {error}")))?;
     let mut changed = false;
     for path in ["/tenant_root", "/payload/tenant_root"] {
-        if let Some(context) = record.pointer_mut(path).and_then(serde_json::Value::as_object_mut) {
+        if let Some(context) = record
+            .pointer_mut(path)
+            .and_then(serde_json::Value::as_object_mut)
+        {
             if !context.contains_key("ownership_generation") {
                 context.insert("ownership_generation".to_owned(), serde_json::json!(1));
                 changed = true;
@@ -498,7 +602,7 @@ pub(super) struct RolePairD1StorageV1 {
 
 enum RolePairStorageBackendV1 {
     D1(D1DatabaseSession),
-    WalletDo(SqlStorage),
+    WalletDo(SqlStorage, Rc<RefCell<PreparedPairInputs>>),
 }
 
 impl RolePairD1StorageV1 {
@@ -533,10 +637,11 @@ impl RolePairD1StorageV1 {
         session_id: [u8; 32],
         object_name: &str,
         root_identity_digest_hex: &str,
+        inputs: Rc<RefCell<PreparedPairInputs>>,
     ) -> worker::Result<Self> {
         let session_hex = encode_hex(session_id);
         Ok(Self {
-            backend: RolePairStorageBackendV1::WalletDo(sql),
+            backend: RolePairStorageBackendV1::WalletDo(sql, inputs),
             record_identity: format!("{object_name}:{root_identity_digest_hex}:{session_hex}"),
             session_hex,
             root_identity_digest_hex: Some(root_identity_digest_hex.to_owned()),
@@ -604,7 +709,7 @@ impl RolePairD1StorageV1 {
                     .bind_refs([D1Type::Text(self.session_hex.as_str())].iter())?;
                 statement.first::<PairRowV1>(None).await?
             }
-            RolePairStorageBackendV1::WalletDo(sql) => {
+            RolePairStorageBackendV1::WalletDo(sql, _) => {
                 let rows = sql
                     .exec(
                         LOAD_WALLET_PAIR_SQL,
@@ -638,13 +743,24 @@ impl RolePairD1StorageV1 {
             .map(|row| {
                 self.cipher
                     .open(&self.record_identity, &row.ciphertext_json)
-                    .and_then(|opened| Ok(CachedPairV1 {
-                        record_json: migrate_wallet_generation(&opened.record_json)?,
-                        revision: row.revision,
-                        scope: opened.scope,
-                    }))
+                    .and_then(|opened| {
+                        Ok(CachedPairV1 {
+                            record_json: migrate_wallet_generation(&opened.record_json)?,
+                            revision: PairRecordRevision::Stored(row.revision),
+                            scope: opened.scope,
+                        })
+                    })
             })
             .transpose()?;
+        let row = match (&self.backend, row) {
+            (RolePairStorageBackendV1::WalletDo(_, inputs), None) => inputs.borrow_mut().read(
+                &self.session_hex,
+                &self.record_identity,
+                crate::cloudflare_now_unix_ms_v1()
+                    .map_err(|error| role_d1_error(error.to_string()))?,
+            )?,
+            (_, row) => row,
+        };
         self.cached.replace(Some(row.clone()));
         Ok(row)
     }
@@ -655,7 +771,7 @@ impl RolePairD1StorageV1 {
     async fn admission_cancelled(&self) -> worker::Result<bool> {
         let session = match &self.backend {
             RolePairStorageBackendV1::D1(session) => session,
-            RolePairStorageBackendV1::WalletDo(sql) => {
+            RolePairStorageBackendV1::WalletDo(sql, _) => {
                 return Ok(!sql
                     .exec(
                         "SELECT session_hex FROM yao_pair_admission_fences WHERE session_hex = ?",
@@ -693,6 +809,36 @@ impl RolePairD1StorageV1 {
                 role_d1_error("role-private D1 initial lifecycle scope is unavailable")
             })?;
         validate_pending_scope(&pending.record_json, &scope)?;
+        if let RolePairStorageBackendV1::WalletDo(_, inputs) = &self.backend {
+            if let Some(CachedPairV1 {
+                revision: PairRecordRevision::Input(revision),
+                ..
+            }) = &initial
+            {
+                if inputs.borrow().revision(&self.session_hex)
+                    != Some(PairRecordRevision::Input(*revision))
+                {
+                    return Err(role_d1_error(
+                        "Pair input changed before its execution claim",
+                    ));
+                }
+            }
+            if pending.lifecycle == "prepared" {
+                #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
+                if let RolePairStorageBackendV1::WalletDo(sql, _) = &self.backend {
+                    crate::durable_object::require_deriver_b_pair_writes_open(sql)?;
+                }
+                let queued = inputs.borrow_mut().put(
+                    &self.session_hex,
+                    &self.record_identity,
+                    pending,
+                    scope,
+                )?;
+                self.cached.replace(Some(Some(queued)));
+                return Ok(());
+            }
+        }
+        let revision = initial.and_then(|record| record.revision.stored());
         let ciphertext_json =
             self.cipher
                 .seal(&self.record_identity, &scope, &pending.record_json)?;
@@ -707,9 +853,9 @@ impl RolePairD1StorageV1 {
             ("completed", _) => Some(SETTLE_COMPLETED_PAIR_ADMISSION_SQL),
             _ => None,
         };
-        let changes = match (&self.backend, &initial) {
-            (RolePairStorageBackendV1::D1(session), initial) => {
-                let revision_text = initial.as_ref().map(|current| current.revision.to_string());
+        let changes = match (&self.backend, revision) {
+            (RolePairStorageBackendV1::D1(session), revision) => {
+                let revision_text = revision.map(|revision| revision.to_string());
                 let write = match &revision_text {
                     None => session.prepare(INSERT_PAIR_SQL).bind_refs(
                         [
@@ -763,7 +909,9 @@ impl RolePairD1StorageV1 {
                     let results = session.batch(vec![write, admission]).await?;
                     results
                         .first()
-                        .ok_or_else(|| role_d1_error("role-private Yao lifecycle batch returned no result"))?
+                        .ok_or_else(|| {
+                            role_d1_error("role-private Yao lifecycle batch returned no result")
+                        })?
                         .meta()?
                         .and_then(|meta| meta.changes)
                         .unwrap_or_default()
@@ -776,9 +924,13 @@ impl RolePairD1StorageV1 {
                         .unwrap_or_default()
                 }
             }
-            (RolePairStorageBackendV1::WalletDo(sql), None) => sql
+            (RolePairStorageBackendV1::WalletDo(sql, _), None) => sql
                 .exec(
-                    INSERT_WALLET_PAIR_SQL,
+                    if advances {
+                        INSERT_UNFENCED_WALLET_PAIR_SQL
+                    } else {
+                        INSERT_WALLET_PAIR_SQL
+                    },
                     vec![
                         SqlStorageValue::String(self.session_hex.clone()),
                         SqlStorageValue::String(pending.pair_digest_hex.clone()),
@@ -795,7 +947,7 @@ impl RolePairD1StorageV1 {
                 )?
                 .to_array::<ChangedWalletPairRowV1>()?
                 .len(),
-            (RolePairStorageBackendV1::WalletDo(sql), Some(current)) => sql
+            (RolePairStorageBackendV1::WalletDo(sql, _), Some(current)) => sql
                 .exec(
                     if advances {
                         UPDATE_UNFENCED_WALLET_PAIR_SQL
@@ -809,7 +961,7 @@ impl RolePairD1StorageV1 {
                         SqlStorageValue::String(ciphertext_json.clone()),
                         SqlStorageValue::String(expires_at_ms.clone()),
                         SqlStorageValue::String(updated_at_ms.clone()),
-                        SqlStorageValue::String(current.revision.to_string()),
+                        SqlStorageValue::String(current.to_string()),
                         SqlStorageValue::String(
                             self.root_identity_digest_hex
                                 .clone()
@@ -826,7 +978,7 @@ impl RolePairD1StorageV1 {
                     "LifecycleTransitionInProgress: this tenant-root operation's admission was cancelled here; start it again",
                 ));
             }
-            let phase = if initial.is_some() {
+            let phase = if revision.is_some() {
                 "update"
             } else {
                 "insert"
@@ -835,12 +987,13 @@ impl RolePairD1StorageV1 {
                 "role-private Yao lifecycle {phase} conflict (rows written: {changes})"
             )));
         }
-        let next_revision = initial
-            .as_ref()
-            .map_or(1, |row| row.revision.saturating_add(1));
+        let next_revision = revision.map_or(1, |revision| revision.saturating_add(1));
+        if let RolePairStorageBackendV1::WalletDo(_, inputs) = &self.backend {
+            inputs.borrow_mut().records.remove(&self.session_hex);
+        }
         self.cached.replace(Some(Some(CachedPairV1 {
             record_json: pending.record_json,
-            revision: next_revision,
+            revision: PairRecordRevision::Stored(next_revision),
             scope,
         })));
         Ok(())
@@ -917,7 +1070,10 @@ fn validate_pending_scope(record_json: &str, scope: &RolePairRecordScopeV1) -> w
     validate_record_scope(&record, scope)
 }
 
-fn validate_record_scope(record: &PairYaoSessionRecordV1, scope: &RolePairRecordScopeV1) -> worker::Result<()> {
+fn validate_record_scope(
+    record: &PairYaoSessionRecordV1,
+    scope: &RolePairRecordScopeV1,
+) -> worker::Result<()> {
     let record_root_metadata_digest = match record {
         PairYaoSessionRecordV1::Prepared {
             root_metadata_digest,
@@ -1017,13 +1173,27 @@ mod tests {
     }
 }
 
-
-pub(crate) fn validate_terminal_wallet_record(opened: &OpenedRolePairRecordV1, pair_digest_hex: &str, lifecycle: &str) -> worker::Result<()> {
-    let record: PairYaoSessionRecordV1 = serde_json::from_str(&opened.record_json)
-        .map_err(|error| role_d1_error(format!("Deriver B imported record is malformed: {error}")))?;
+pub(crate) fn validate_terminal_wallet_record(
+    opened: &OpenedRolePairRecordV1,
+    pair_digest_hex: &str,
+    lifecycle: &str,
+) -> worker::Result<()> {
+    let record: PairYaoSessionRecordV1 =
+        serde_json::from_str(&opened.record_json).map_err(|error| {
+            role_d1_error(format!("Deriver B imported record is malformed: {error}"))
+        })?;
     validate_record_scope(&record, &opened.scope)?;
-    if !matches!(record, PairYaoSessionRecordV1::Completed { .. } | PairYaoSessionRecordV1::Burned { .. } | PairYaoSessionRecordV1::Expired { .. })
-        || pair_lifecycle(&record) != lifecycle || encode_hex(record.pair_digest()) != pair_digest_hex
-    { return Err(role_d1_error("Deriver B imported lifecycle or pair digest differs")); }
+    if !matches!(
+        record,
+        PairYaoSessionRecordV1::Completed { .. }
+            | PairYaoSessionRecordV1::Burned { .. }
+            | PairYaoSessionRecordV1::Expired { .. }
+    ) || pair_lifecycle(&record) != lifecycle
+        || encode_hex(record.pair_digest()) != pair_digest_hex
+    {
+        return Err(role_d1_error(
+            "Deriver B imported lifecycle or pair digest differs",
+        ));
+    }
     Ok(())
 }

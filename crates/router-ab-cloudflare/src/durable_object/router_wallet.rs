@@ -25,6 +25,7 @@ use crate::{
 
 const BINDING: &str = "ROUTER_WALLET_DO";
 const COMMAND_PATH: &str = "/router-wallet/v1/command";
+const EXECUTE_PATH: &str = "/router-wallet/v1/execute-registration";
 
 enum WalletCall {
     Ordinary(RouterWalletRequestV1),
@@ -43,19 +44,18 @@ struct RouterWalletRefusalV1 {
 #[durable_object]
 pub struct RouterAbRouterWalletDurableObject {
     state: State,
+    env: Env,
     timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbRouterWalletDurableObject {
-    fn new(state: State, _env: Env) -> Self {
+    fn new(state: State, env: Env) -> Self {
         let timing = super::command_timing::WalletCommandTiming::new(state.id().to_string());
-        Self { state, timing }
+        Self { state, env, timing }
     }
 
     async fn fetch(&self, request: Request) -> worker::Result<Response> {
-        let observation = self
-            .timing
-            .begin(&self.state, "router", request.path());
+        let observation = self.timing.begin(&self.state, "router", request.path());
         observation.finish(self.handle_request(request).await)
     }
 }
@@ -68,6 +68,13 @@ impl RouterAbRouterWalletDurableObject {
         }
         if request.path() == super::custody_target::OBSERVE_PATH {
             return super::custody_target::observe_location().await;
+        }
+        if request.method() == Method::Post && request.path() == EXECUTE_PATH {
+            let execution = request
+                .json::<crate::router_coordinator::WalletRegistrationExecution>()
+                .await?;
+            return crate::router_coordinator::execute_in_wallet(&self.state, &self.env, execution)
+                .await;
         }
         if request.method() != Method::Post
             || (request.path() != COMMAND_PATH
@@ -106,50 +113,101 @@ impl RouterAbRouterWalletDurableObject {
             WalletCall::Freeze(_) => "freeze",
             WalletCall::Transfer(_) => "transfer",
         };
-        worker::console_log!(
-            "{}",
-            serde_json::json!({
-                "event": "router_wallet_operation",
-                "operation": operation,
-            })
-        );
-        let outcome = Rc::new(RefCell::new(None));
-        let captured = Rc::clone(&outcome);
-        self.state
-            .storage()
-            .transaction(move |transaction| async move {
-                let store = TransactionStoreV1 {
-                    transaction,
-                    storage_error: RefCell::new(None),
-                };
-                let result = match command {
-                    WalletCall::Ordinary(command) => router_wallet_serve_v1(&store, command)
-                        .await
-                        .and_then(encode_response),
-                    WalletCall::Freeze(command) => freeze_router_wallet_v1(&store, command)
-                        .await
-                        .and_then(encode_response),
-                    WalletCall::Transfer(command) => transfer_router_wallet_v1(&store, command)
-                        .await
-                        .and_then(encode_response),
-                };
-                if let Some(error) = store.storage_error.borrow_mut().take() {
-                    return Err(worker::Error::RustError(error));
-                }
-                captured.replace(Some(result));
-                Ok(())
-            })
-            .await?;
-        let result = outcome.borrow_mut().take();
+        let result = transact(&self.state, operation, move |store| async move {
+            match command {
+                WalletCall::Ordinary(command) => router_wallet_serve_v1(&store, command)
+                    .await
+                    .and_then(encode_response),
+                WalletCall::Freeze(command) => freeze_router_wallet_v1(&store, command)
+                    .await
+                    .and_then(encode_response),
+                WalletCall::Transfer(command) => transfer_router_wallet_v1(&store, command)
+                    .await
+                    .and_then(encode_response),
+            }
+        })
+        .await;
         match result {
-            Some(Ok(response)) => Response::from_json(&response),
-            Some(Err(error)) => refusal_response(&error),
-            None => refusal_response(&RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "Router wallet object transaction produced no outcome",
-            )),
+            Ok(response) => Response::from_json(&response),
+            Err(error) => refusal_response(&error),
         }
     }
+}
+
+async fn transact<T, F, Fut>(
+    state: &State,
+    operation: &'static str,
+    action: F,
+) -> RouterAbProtocolResult<T>
+where
+    T: 'static,
+    F: FnOnce(TransactionStoreV1) -> Fut + 'static,
+    Fut: std::future::Future<Output = RouterAbProtocolResult<T>> + 'static,
+{
+    worker::console_log!(
+        "{}",
+        serde_json::json!({"event": "router_wallet_operation", "operation": operation})
+    );
+    let outcome = Rc::new(RefCell::new(None));
+    let captured = Rc::clone(&outcome);
+    state
+        .storage()
+        .transaction(move |transaction| async move {
+            let storage_error = Rc::new(RefCell::new(None));
+            let result = action(TransactionStoreV1 {
+                transaction,
+                storage_error: Rc::clone(&storage_error),
+            })
+            .await;
+            if let Some(error) = storage_error.borrow_mut().take() {
+                return Err(worker::Error::RustError(error));
+            }
+            captured.replace(Some(result));
+            Ok(())
+        })
+        .await
+        .map_err(|error| unavailable(format!("Router wallet transaction failed: {error}")))?;
+    let result = outcome.borrow_mut().take();
+    result.unwrap_or_else(|| {
+        Err(unavailable(
+            "Router wallet transaction produced no outcome".into(),
+        ))
+    })
+}
+
+pub(crate) async fn execute_router_wallet_command(
+    state: &State,
+    request: RouterWalletRequestV1,
+) -> RouterAbProtocolResult<RouterWalletResponseV1> {
+    transact(
+        state,
+        command_label(&request.command),
+        move |store| async move { router_wallet_serve_v1(&store, request).await },
+    )
+    .await
+}
+
+pub(crate) async fn forward_router_wallet_execution(
+    env: &Env,
+    registration: &crate::RouterWalletRegistrationV1,
+    execution: crate::router_coordinator::WalletRegistrationExecution,
+) -> worker::Result<Response> {
+    let namespace = env.durable_object(BINDING)?;
+    let name = registration
+        .owner
+        .object_name(registration.ownership_generation)
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
+    let stub = execution
+        .wallet_route
+        .wallet_stub(&namespace, &name, "router")?;
+    let body = serde_json::to_string(&execution)?;
+    let outbound = Request::new_with_init(
+        &format!("https://router-wallet.internal{EXECUTE_PATH}"),
+        worker::RequestInit::new()
+            .with_method(Method::Post)
+            .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body))),
+    )?;
+    stub.fetch_with_request(outbound).await
 }
 
 fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {
@@ -329,7 +387,7 @@ fn unavailable(message: String) -> RouterAbProtocolError {
 /// write.
 struct TransactionStoreV1 {
     transaction: worker::Transaction,
-    storage_error: RefCell<Option<String>>,
+    storage_error: Rc<RefCell<Option<String>>>,
 }
 
 impl TransactionStoreV1 {

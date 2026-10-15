@@ -888,6 +888,11 @@ Expected behaviour:
 - Refreshing must not send a second OTP solely because the wallet name changed.
 - Refreshing must not finalize registration without the same required
   operation-bound owner proof.
+- Deriver B can discard unused encrypted registration input when its object
+  restarts or its preparation window expires. An exact retry supplies the input
+  again. No protocol material may be sent before the role's execution claim is
+  durable. A completed registration remains replayable after the Router object
+  restarts.
 - Retrying the same activation or deferred NEAR provisioning request uses the
   original ceremony and idempotency key. The server returns the credential-free
   V2 committed projection without repeating custody effects; a changed request
