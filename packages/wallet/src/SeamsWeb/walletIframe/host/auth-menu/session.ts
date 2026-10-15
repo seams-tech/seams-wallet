@@ -3380,9 +3380,10 @@ export class AuthMenuSession {
     if (state.kind !== 'performing') return;
     const viewModel = state.viewModel;
     if (viewModel.kind !== 'passkey' || viewModel.status.kind !== 'busy') return;
+    // The passkey prompt finished before respond was sent: the wait is now the network's.
     this.stateValue = {
       ...state,
-      viewModel: { ...viewModel, status: { ...viewModel.status, headline: event.message } },
+      viewModel: { ...viewModel, status: { kind: 'busy', headline: event.message } },
     };
     this.updateElement();
   };
