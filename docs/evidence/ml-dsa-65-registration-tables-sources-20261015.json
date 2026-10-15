@@ -1,0 +1,12 @@
+{
+  "artifact": "ml-dsa-65-registration-tables-native-20261015.json.gz",
+  "uncompressed_sha256": "afe48f62d2afe1775d00f26631d410b35668b14666840d6299cea70f6c4e8b6f",
+  "source_sha256": {
+    "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs": "7eea5e1dd71f9b94a4a8ad579382c74a1acbb26276be3013ea9c821d8ce66c76",
+    "crates/router-ab-cloudflare/src/ml_dsa/registration_preparation.rs": "f472cf292acbf21cae599098c25ec0356fe99037ead70a1d03ea52a89a4c355b",
+    "tools/ml-dsa-investigation/src/registration_tables_evidence.rs": "bd86625c0eb911744fb1233b378f4f0bb13a905850e05da40a0053f90faa9509",
+    "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs": "338cf8f47d5a303580e5b4f9d071bd017e688cd91d18cc4ec686ac4ce7ed3b8a",
+    "tools/ml-dsa-investigation/src/keygen_storage_evidence.rs": "ef5fb6aa86263275bc45304c0b0dd0178e10eca94db9a0c248d9fe7024612a32",
+    "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs": "25f8e5727dc3f6dd2d161f446e5ee649a6a3e64f032e7b5642c0453f6f5164b7"
+  }
+}

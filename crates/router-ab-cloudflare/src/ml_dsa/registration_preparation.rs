@@ -31,7 +31,7 @@ enum Record {
 fn name(binding: &Binding) -> String {
     format!("registration-preparation/{}", hex(&binding.reservation))
 }
-fn valid(binding: &Binding, now: u64) -> Result<()> {
+pub(super) fn valid(binding: &Binding, now: u64) -> Result<()> {
     if binding.pool_scope == [0; 32]
         || binding.reservation == [0; 32]
         || binding.schedule_digest == [0; 32]
@@ -66,6 +66,7 @@ pub async fn publish(
 ) -> Result<()> {
     valid(&binding, now)?;
     sealed.validate()?;
+    super::registration_tables::require_publishable(store, &binding).await?;
     let owner = (binding.pool_scope, binding.role);
     if let Some(current) = store
         .get::<([u8; 32], Participant)>("registration-preparation-owner")
@@ -135,6 +136,7 @@ pub async fn consume(
     if binding != *expected {
         return Err(invalid("ML-DSA registration preparation binding changed"));
     }
+    super::registration_tables::require_publishable(store, expected).await?;
     let prefix = format!("{key}/ciphertext");
     let sealed = sealing::Sealed::load_chunks(store, &prefix, chunks, encapsulated_key).await?;
     sealing::erase_chunks(store, &prefix, chunks).await?;
@@ -142,4 +144,30 @@ pub async fn consume(
         .put(&key, &Record::Consumed { binding, ceremony })
         .await?;
     Ok(sealed)
+}
+
+pub(super) async fn require_unpublished(store: &impl Store, binding: &Binding) -> Result<()> {
+    if store.get::<Record>(&name(binding)).await?.is_some() {
+        return Err(invalid(
+            "ML-DSA registration preparation is already published",
+        ));
+    }
+    Ok(())
+}
+pub(super) async fn require_consumed(
+    store: &impl Store,
+    expected: &Binding,
+    ceremony: [u8; 32],
+    now: u64,
+) -> Result<()> {
+    valid(expected, now)?;
+    match store.get::<Record>(&name(expected)).await? {
+        Some(Record::Consumed {
+            binding,
+            ceremony: actual,
+        }) if binding == *expected && actual == ceremony => Ok(()),
+        _ => Err(invalid(
+            "ML-DSA registration preparation has no matching consume",
+        )),
+    }
 }

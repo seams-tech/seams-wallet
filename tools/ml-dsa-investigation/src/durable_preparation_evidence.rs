@@ -12,6 +12,12 @@ use std::{future::Future, path::Path};
 use zeroize::Zeroizing;
 pub(super) struct Db(Connection);
 impl Db {
+    pub(super) fn remaining_registration_table_chunks(&self) -> InvestigationResult<usize> {
+        Ok(self.0.query_row(
+            "SELECT COUNT(*) FROM records WHERE key LIKE 'registration-tables/%/ciphertext/%'",
+            [], |row| row.get(0),
+        )?)
+    }
     pub(super) fn open(path: &Path) -> InvestigationResult<Self> {
         let connection = Connection::open(path)?;
         connection.execute_batch(

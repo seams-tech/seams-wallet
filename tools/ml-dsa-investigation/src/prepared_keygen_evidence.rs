@@ -44,6 +44,9 @@ pub(super) struct Counts {
     table_reads: usize,
 }
 impl Counts {
+    pub(super) fn table_write(&mut self, bytes: usize) { self.table_bytes_written += bytes; }
+    pub(super) fn table_read(&mut self, bytes: usize) { self.table_bytes_read += bytes; self.table_reads += 1; }
+
     pub(super) fn json(&self) -> Value {
         json!({"sent_bytes": self.sent, "received_bytes": self.received, "sent_messages": self.sends, "received_messages": self.receives, "table_bytes_written": self.table_bytes_written, "table_bytes_read": self.table_bytes_read, "table_frame_reads": self.table_reads})
     }
@@ -95,7 +98,7 @@ impl Transport for HostTransport {
             .open(self.directory.join(hex::encode(binding)))
             .map_err(io_failure)?;
         file.write_all(bytes).map_err(io_failure)?;
-        self.counts[self.phase].table_bytes_written += bytes.len();
+        self.counts[self.phase].table_write(bytes.len());
         Ok(())
     }
     async fn load(
@@ -110,8 +113,7 @@ impl Transport for HostTransport {
             .map_err(io_failure)?;
         let mut bytes = vec![0; length];
         file.read_exact(&mut bytes).map_err(io_failure)?;
-        self.counts[self.phase].table_bytes_read += length;
-        self.counts[self.phase].table_reads += 1;
+        self.counts[self.phase].table_read(length);
         Ok(bytes)
     }
     fn phase(&mut self, phase: Phase) {
@@ -146,23 +148,29 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         .collect::<Result<Vec<_>, _>>()?;
     let own_root = Zeroizing::new(fs::read(&args[2])?);
     let own_root: &[u8; 32] = own_root.as_slice().try_into()?;
-    let mut transport = HostTransport {
+    let host = HostTransport {
         directory: PathBuf::from(&args[3]),
         counts: Default::default(),
         phase: 0,
         one_way_delay_us: args[5].parse()?,
     };
+    let mut transport = crate::registration_tables_evidence::RegistrationTransport::new(
+        host, role, &schedules, Path::new(&args[3]),
+    )?;
     let started = Instant::now();
     let prepared = run_ready(prepare_keygen(role, &schedules, &mut transport))??;
+    transport.check_before_consume()?;
     let (prepared, preparation_storage) = crate::keygen_storage_evidence::roundtrip(
-        prepared, role, &schedules, Path::new(&args[3]),
+        prepared, role, &schedules, Path::new(&args[3]), &transport.binding, &transport.seed,
     )?;
+    transport.check_after_consume()?;
     run_ready(barrier(role, &mut transport))??;
     let offline_ns = started.elapsed().as_nanos();
     transport.phase(Phase::Online);
     let started = Instant::now();
     let (key, wallet) = run_ready(prepared.run(own_root, &mut transport))??;
     let online_ns = started.elapsed().as_nanos();
+    let table_storage = transport.cleanup()?;
     let sealing_started = Instant::now();
     let material_storage = material_storage_evidence::persist(
         Path::new(&args[3]),
@@ -179,8 +187,8 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
             "public_key_hex": hex::encode(key.public_key), "own_material_bytes": key.own_material.len(),
             "offline_ns": offline_ns, "online_ns": online_ns,
         "post_timer_sealing_ns": post_timer_sealing_ns, "material_storage": material_storage,
-        "preparation_storage": preparation_storage,
-            "offline": transport.counts[0].json(), "online": transport.counts[1].json(),
+        "preparation_storage": preparation_storage, "table_storage": table_storage,
+            "offline": transport.inner.counts[0].json(), "online": transport.inner.counts[1].json(),
             "circuits": key.circuits.len() + 1, "wallet_seed_table_bytes": wallet.table_bytes,
         }))?,
     )?;

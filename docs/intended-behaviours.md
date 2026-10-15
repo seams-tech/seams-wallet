@@ -3432,6 +3432,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Consume each prepared circuit and its OT material at most once. Recovery must use fresh preparation.
 - Restore private key-generation preparation only after its durable consume commits. Pin its role, reservation, and circuit schedules from trusted admission.
 - Reject republishing consumed registration preparation. Keep participant ciphertext and wrapping secrets separate.
+- Authenticate each registration table frame against its reservation, circuit, position, and length. Read it only after the exact ceremony consumes private preparation.
+- Consume table frames atomically. Retire unused fallbacks in bounded steps, and fence late writers even when cancellation precedes the first frame.
 - Require an exact ML-DSA transaction approval before preparing a private Router signing request.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
 - Require both verified factor evidence and an operation-specific owner proof within their validity windows.
