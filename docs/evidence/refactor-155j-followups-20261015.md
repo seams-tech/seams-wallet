@@ -197,6 +197,52 @@ deployed by another session). Scripts and tails:
   read, so that its clock moves (as in the race hook above), on a quiet and
   a slow evening.
 
+## Durable writes tonight, and where the tail sits
+
+### Facts
+
+- **Writes were slower across services, without new work.** At 00:30 JST
+  the staging Console's write calls took about three times longer than in
+  the acceptance run (`claim-passkey` 22–24 → 58–62 ms, `publish-routes`
+  26–28 → 72–78 ms, `complete` 26–28 → 70–76 ms), while its read
+  (`tenant-root/active-lineage`) stayed at 18–22 ms. The Console database
+  (`seams-console-sin-candidate-20261014`, primary in Singapore, bound by
+  both the old and the new Console version) received about 7 writes per
+  wallet in both runs, and its batch time stayed at 2.2–2.8 ms at p90.
+  Finalize's server total grew from 199 to 319–421 ms, with each durable
+  step about twice as long.
+- **The Deriver A waits are on the database path.** Both Deriver role
+  databases have Singapore primaries. Deriver A's database receives about 60
+  reads an hour without traffic, so it is never idle, and its batch time
+  stayed at 1.1–1.5 ms at p90 tonight. In the slow preparations the D1 call
+  started at the preparation's start, before the execution arrived; in one,
+  the read returned in 67 ms after the object's own writes and the next D1
+  write batch took 6.3 s.
+- **Schema statements are not a cost.** A probe object (approved probe
+  name, deleted afterwards) answered a pure read in 10–11 ms at the median
+  and a read after `CREATE TABLE IF NOT EXISTS` in 10–11 ms, against 19–20 ms
+  for one insert. SQLite and workerd treat the schema statement as a write,
+  but the production storage confirms the empty commit without a wait.
+
+| Slowest 10% after the passkey step, excess over the median | respond | role execution in respond | pair preparation in respond | finalize |
+| --- | ---: | ---: | ---: | ---: |
+| Acceptance, 203 wallets | +1,242 ms | +564 ms | +248 ms | +326 ms |
+| Two 0.10.2 runs on October 14, 198 wallets | +627 ms | +278 ms | +192 ms | +222 ms |
+| Best run, October 14 13:30, 99 wallets | +334 ms | +219 ms | +20 ms | +149 ms |
+
+### What this means
+
+- **Inferred:** the variance of registration time comes mostly from the
+  latency of durable writes and D1 round trips on Cloudflare in Singapore,
+  which changes by the hour and by database and sometimes stalls for
+  seconds. Our code cannot shorten one write; it can only reduce the writes
+  in series after the passkey step or move them into the prompt.
+- Respond carries most of the tail. About 430 ms of respond's tail excess in
+  the acceptance run lies outside the Router's role work; `b948567b` times
+  that part once it is deployed.
+- Finalize already runs its independent writes together; about four durable
+  stages remain in series.
+
 ## Evening serving outside Japan
 
 ### Method
