@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
 import { once } from 'node:events';
+import { DatabaseSync } from 'node:sqlite';
 
 const fixtures = resolve(process.argv[2] ?? '/private/tmp/ml-dsa-worker-fixtures');
 const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.json');
@@ -42,6 +43,7 @@ let lastSuccessful;
 try {
   runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
   await runtime.ready;
+  observations.idleTimerMs = await timerControl();
   const denied = await raw('router', '/router-ab/ml-dsa/activate', records[0].activation, serviceAuth);
   assert.equal(denied.status, 403);
   await post('router', '/router-ab/ml-dsa/activate', records[0].activation, gatewayAuth);
@@ -50,6 +52,9 @@ try {
   const refillStarted = performance.now();
   await waitReady(4);
   observations.initialFourBatchRefillMs = performance.now() - refillStarted;
+  // Let the full-pool maintenance alarm settle before the first consumption.
+  await new Promise(waitForQuietPool);
+  const initialStarts = await preprocessingStarts();
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
     await waitReady(4);
     const message = Array.from(Buffer.from(`ML-DSA durable Worker transaction ${index}`));
@@ -90,6 +95,11 @@ try {
       signatureHex: Buffer.from(result.operation.signature).toString('hex'),
     });
     lastSuccessful = { input, result };
+    if (observations.signatures.length === 1) {
+      await waitForPreprocessingStart(initialStarts);
+      observations.firstConsumptionRefillStartedMs = performance.now() - started;
+      assert.ok(observations.firstConsumptionRefillStartedMs < 3000, 'Consumption did not advance the maintenance alarm');
+    }
     const inventory = await inventories();
     assert.ok(inventory.some((value) => value.refill_due));
   }
@@ -115,6 +125,18 @@ try {
   };
   const admitted = await post('router', '/router-ab/ml-dsa/admit', stalled, gatewayAuth);
   assert.equal(admitted.status, 'admitted');
+  observations.stalledPermitRemainingMs = admitted.permit.expires_at_ms - Date.now();
+  observations.stalledReservationStates = await Promise.all([
+    post('a', '/router-ab/ml-dsa/role', { command: 'inspect', key: stalled.key, batches: admitted.permit.batches }),
+    post('b', '/router-ab/ml-dsa/role', { command: 'inspect', key: stalled.key, batches: admitted.permit.batches }),
+  ]);
+  observations.reservedInventory = await inventories();
+  for (const inventory of observations.reservedInventory) {
+    assert.equal(inventory.ready.length, 0);
+    assert.equal(inventory.reserved.length, admitted.permit.batches.length);
+    assert.equal(inventory.refill_due, false);
+  }
+  const control = timerControl();
   const peer = await runtime.getWorker('b');
   const started = performance.now();
   const response = await peer.fetch('https://ml-dsa.internal/router-ab/ml-dsa/connect', {
@@ -128,13 +150,18 @@ try {
       })).toString('base64url'),
     },
   });
+  observations.stalledHandshakeMs = performance.now() - started;
   assert.equal(response.status, 101);
   const socket = response.webSocket;
   assert.ok(socket);
-  const closed = once(socket, 'close', { signal: AbortSignal.timeout(10000) });
+  const closed = once(socket, 'close', { signal: AbortSignal.timeout(30000) });
   socket.accept();
   await closed;
   observations.stalledPeerClosedMs = performance.now() - started;
+  observations.stalledSocketWaitMs = observations.stalledPeerClosedMs - observations.stalledHandshakeMs;
+  observations.concurrentTimerMs = await control;
+  assert.ok(observations.stalledPeerClosedMs < 2000, 'The idle signing peer exceeded the timeout tolerance');
+  assert.ok(observations.concurrentTimerMs < 2000, 'Background work delayed the independent timer');
   const expired = await post('router', '/router-ab/ml-dsa/status', stalled, gatewayAuth);
   assert.equal(expired.state, 'failed');
   observations.stalledOperationExpiredWithoutSignature = true;
@@ -149,7 +176,7 @@ try {
   await mkdir(resolve(artifact, '..'), { recursive: true });
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
   await rm(persistence, { recursive: true, force: true });
-  console.log(JSON.stringify(observations));
+  console.log(JSON.stringify({ artifact, passed: observations.passed, signingMs: observations.signatures.map(signingTime), stalledPeerClosedMs: observations.stalledPeerClosedMs }));
 }
 async function readRecord(role) {
   return JSON.parse(await readFile(join(fixtures, `${role}.json`), 'utf8'));
@@ -187,6 +214,18 @@ function workers() {
     },
     roleWorker('a', 0),
     roleWorker('b', 1),
+    {
+      name: 'timer-control',
+      modules: true,
+      script: `
+        function waitOneSecond(resolve) { setTimeout(resolve, 1000); }
+        async function fetch() {
+          await new Promise(waitOneSecond);
+          return Response.json({ completed: true });
+        }
+        export default { fetch };
+      `,
+    },
   ];
 }
 function roleWorker(role, index) {
@@ -264,3 +303,40 @@ async function wasmDigest(role) {
   const bytes = await readFile(join(root, 'crates/router-ab-cloudflare/build', role, 'index_bg.wasm'));
   return [role, createHash('sha256').update(bytes).digest('hex')];
 }
+
+async function timerControl() {
+  const peer = await runtime.getWorker('timer-control');
+  const started = performance.now();
+  const response = await peer.fetch('https://timer.internal');
+  assert.deepEqual(await response.json(), { completed: true });
+  return performance.now() - started;
+}
+
+function signingTime(value) { return value.elapsedMs; }
+
+function waitForQuietPool(resolve) { setTimeout(resolve, 2500); }
+async function preprocessingStarts() {
+  return Promise.all(['a', 'b'].map(rolePreprocessingStarts));
+}
+async function rolePreprocessingStarts(role) {
+  const directory = join(persistence, `${role}-RouterAbMlDsaPoolDurableObject`);
+  const files = (await readdir(directory)).filter(walletDatabase);
+  assert.equal(files.length, 1);
+  const database = new DatabaseSync(join(directory, files[0]), { readOnly: true });
+  try {
+    return database.prepare("SELECT count(*) AS count FROM _cf_KV WHERE key LIKE 'preprocessing/%'").get().count;
+  } finally {
+    database.close();
+  }
+}
+function walletDatabase(name) { return name.endsWith('.sqlite') && name !== 'metadata.sqlite'; }
+async function waitForPreprocessingStart(before) {
+  const deadline = performance.now() + 10000;
+  while (performance.now() < deadline) {
+    const current = await preprocessingStarts();
+    if (current[0] > before[0] && current[1] > before[1]) return;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('Neither participant started replacement preparation after consumption');
+}
+function waitForMarker(resolve) { setTimeout(resolve, 50); }

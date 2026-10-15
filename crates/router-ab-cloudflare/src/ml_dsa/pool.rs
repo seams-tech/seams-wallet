@@ -33,8 +33,17 @@ struct Record {
 #[serde(deny_unknown_fields)]
 pub struct Inventory {
     pub ready: Vec<[u8; 32]>,
+    /// Untouched material held by live operations. It cannot admit another request.
+    pub reserved: Vec<[u8; 32]>,
     pub retry_at_ms: u64,
     pub refill_due: bool,
+}
+impl Inventory {
+    pub(crate) fn stock_batches(&self) -> Vec<[u8; 32]> {
+        let mut stock = self.ready.clone();
+        stock.extend_from_slice(&self.reserved);
+        stock
+    }
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -235,6 +244,7 @@ pub async fn inventory(
         return Err(invalid("ML-DSA readiness window is expired"));
     }
     let mut ready = Vec::new();
+    let mut reserved = Vec::new();
     let mut retained = Vec::new();
     for id in index(store).await? {
         let mut record = store
@@ -253,16 +263,17 @@ pub async fn inventory(
             erase(store, &mut record).await?;
             continue;
         }
-        if record.binding.key == *key
-            && matches!(record.state, State::Ready)
-            && record.binding.expires_at_ms >= ready_until_ms
-        {
-            ready.push(id);
+        if record.binding.key == *key && record.binding.expires_at_ms >= ready_until_ms {
+            match record.state {
+                State::Ready => ready.push(id),
+                State::Reserved { .. } => reserved.push(id),
+                State::Consumed { .. } | State::Burned => {}
+            }
         }
         retained.push(id);
     }
     store.put("index", &retained).await?;
-    let refill_due = ready.len() < target;
+    let refill_due = ready.len() + reserved.len() < target;
     let refill_key = format!("refill/{}", key_name(key)?);
     let previous = store.get::<Refill>(&refill_key).await?;
     let retry_at_ms = previous
@@ -282,6 +293,7 @@ pub async fn inventory(
         .await?;
     Ok(Inventory {
         ready,
+        reserved,
         retry_at_ms,
         refill_due,
     })

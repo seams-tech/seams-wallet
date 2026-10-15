@@ -937,7 +937,20 @@ Next tasks, in dependency order:
 1. Connect verified Gateway owner/session authorization and custody completion to the private routes.
 2. Complete admitted Worker key generation and role-material installation. Provide durable generic preparation for registrations.
 3. Test hosted storage, refill, concurrent signing, and recovery against the five-second target. Record exhaustion separately from successful signatures.
-4. Investigate delayed timeout scheduling during refill. Inject interruption between paired publication writes and during durable consumption. Test concurrent epoch replacement.
+4. Qualify deadlines during legitimate concurrent preprocessing. Inject interruption between paired publication writes and during durable consumption. Test concurrent epoch replacement.
 5. Connect the SDK/NEAR caller, verify a threshold-signed transaction through that path, and package the selected library.
 
 Preparation speed optimization and the two-service GPU design remain deferred.
+
+### Refill scheduling correction — October 15, 2026
+
+The [refill scheduling report](ml-dsa-65-refill-scheduling-report.md) identifies the delayed-timeout cause in the local control.
+Reserved batches counted as missing stock and triggered unnecessary preprocessing. Refill now counts Ready and Reserved stock, while admission still uses only Ready batches.
+Every alarm path preserves earlier demand. The native storage E2E and controlled Worker E2E passed.
+Stalled-peer closure improved from 10.31 seconds to 0.95 seconds. The independent one-second timer returned in 1.01 seconds.
+Replacement preparation started 1.02 seconds after the signing request. Three signatures took 0.29–0.49 seconds, with no failed operations.
+These results qualify this local case. Hosted concurrent-load measurements remain required.
+
+The next Gateway change needs an explicit ML-DSA capability and wallet-key variant.
+Bind its operation to the authenticated wallet, registered public key, epoch, message, context, and verified custody result.
+Then complete the Worker registration ceremony and generic registration pool before the public SDK/NEAR path.

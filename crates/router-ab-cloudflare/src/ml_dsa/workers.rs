@@ -303,14 +303,8 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         authorize_role_command(&self.env, &command)
             .await
             .map_err(protocol_error)?;
-        if role == Participant::A
-            && preparation::needs_refill(&command)
-            && self.state.storage().get_alarm().await?.is_none()
-        {
-            self.state
-                .storage()
-                .set_alarm(std::time::Duration::from_secs(1))
-                .await?;
+        if role == Participant::A && preparation::needs_refill(&command) {
+            schedule_refill_alarm(&self.state, 1_000).await?;
         }
         let value = role_transaction(&self.state, role, command).await?;
         Response::from_json(&value)
@@ -724,4 +718,23 @@ async fn before_deadline<T>(
         return Err(invalid("ML-DSA operation deadline expired"));
     }
     result
+}
+
+// Storage input gates keep this read/update together. Never postpone demand
+// that arrived while a producer awaited its peer's inventory or publication.
+async fn schedule_refill_alarm(state: &State, delay_ms: u64) -> worker::Result<()> {
+    let next = crate::cloudflare_now_unix_ms_v1()
+        .map_err(protocol_error)?
+        .saturating_add(delay_ms);
+    let next =
+        i64::try_from(next).map_err(|_| protocol_error(invalid("ML-DSA alarm time overflow")))?;
+    let scheduled = state.storage().get_alarm().await?;
+    if scheduled.is_none_or(|current| current > next) {
+        let date = worker::Date::new(worker::DateInit::Millis(next as u64));
+        state
+            .storage()
+            .set_alarm(worker::ScheduledTime::new(date.into()))
+            .await?;
+    }
+    Ok(())
 }
