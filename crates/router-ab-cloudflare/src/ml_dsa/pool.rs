@@ -501,3 +501,36 @@ pub async fn release(
     }
     store.put("index", &ids).await
 }
+
+/// Registration may retry an identical delivery before activation enables signing.
+/// Consumed, reserved, burned, or changed records remain permanent refusals.
+pub async fn install_registration_batch(
+    store: &impl Store,
+    binding: Binding,
+    sealed: Sealed,
+    now: u64,
+) -> Result<()> {
+    check_key(store, &binding.key).await?;
+    if binding.expires_at_ms <= now {
+        return Err(invalid("Registration signing stock expired"));
+    }
+    if let Some(record) = store.get::<Record>(&batch_name(&binding.batch)).await? {
+        if record.binding != binding || !matches!(record.state, State::Ready) {
+            return Err(invalid("Registration signing stock is consumed or changed"));
+        }
+        let stored = Sealed::load_chunks(
+            store,
+            &chunk_prefix(&binding.batch),
+            record.chunks,
+            record.encapsulated_key,
+        )
+        .await?;
+        if digest(b"registration-batch-delivery", &stored)?
+            != digest(b"registration-batch-delivery", &sealed)?
+        {
+            return Err(invalid("Registration signing ciphertext changed"));
+        }
+        return Ok(());
+    }
+    put(store, binding, sealed, now).await
+}

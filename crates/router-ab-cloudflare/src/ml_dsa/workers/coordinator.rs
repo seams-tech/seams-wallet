@@ -234,6 +234,15 @@ pub(crate) async fn handle_complete(
     release_pair(env, &input.permit.request, input.permit.batches, settlement)
         .await
         .map_err(protocol_error)?;
+    let _: bool = service_call(
+        env,
+        CallAuthority::Gateway(request.headers()),
+        &AdmissionCommand::Settled {
+            request: input.permit.request,
+        },
+    )
+    .await
+    .map_err(protocol_error)?;
     Response::from_json(&result)
 }
 pub(crate) async fn handle_status(
@@ -274,12 +283,19 @@ pub(crate) async fn handle_activate(
     let activation: admission::KeyActivation = decode_bounded_json_request(&mut request, 16_384)
         .await
         .map_err(protocol_error)?;
+    activate(env, request.headers(), activation).await
+}
+pub(super) async fn activate(
+    env: &Env,
+    headers: &worker::Headers,
+    activation: admission::KeyActivation,
+) -> worker::Result<Response> {
     let command = RoleCommand::Install {
         key: activation.key.clone(),
     };
     let _: bool = service_call(
         env,
-        CallAuthority::Gateway(request.headers()),
+        CallAuthority::Gateway(headers),
         &AdmissionCommand::AuthorizeKey {
             activation: activation.clone(),
         },
@@ -305,7 +321,7 @@ pub(crate) async fn handle_activate(
     }
     let state: admission::KeyState = service_call(
         env,
-        CallAuthority::Gateway(request.headers()),
+        CallAuthority::Gateway(headers),
         &AdmissionCommand::CommitKey { activation },
     )
     .await
@@ -432,6 +448,15 @@ pub(crate) async fn handle_sign(
     release_pair(env, &permit.request, permit.batches, settlement)
         .await
         .map_err(protocol_error)?;
+    let _: bool = service_call(
+        env,
+        CallAuthority::Gateway(request.headers()),
+        &AdmissionCommand::Settled {
+            request: permit.request,
+        },
+    )
+    .await
+    .map_err(protocol_error)?;
     Response::from_json(&Decision::Existing { operation: status })
 }
 async fn dispatch_execution(

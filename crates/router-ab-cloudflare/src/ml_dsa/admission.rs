@@ -87,12 +87,19 @@ impl KeyState {
     }
 }
 pub async fn key_state(store: &impl Store, key: &KeyScope) -> Result<Option<KeyState>> {
-    store.get(&activation_key(key)?).await
+    current_key(store, &key.wallet, &key.key_id).await
 }
-fn activation_key(key: &KeyScope) -> Result<String> {
+pub async fn current_key(
+    store: &impl Store,
+    wallet: &WalletScope,
+    key_id: &Identifier,
+) -> Result<Option<KeyState>> {
+    store.get(&activation_key(wallet, key_id)?).await
+}
+fn activation_key(wallet: &WalletScope, key_id: &Identifier) -> Result<String> {
     Ok(format!(
         "activation/{}",
-        hex(&digest(b"ml-dsa-key-slot", &(&key.wallet, &key.key_id))?)
+        hex(&digest(b"ml-dsa-key-slot", &(wallet, key_id))?)
     ))
 }
 pub async fn active_key(store: &impl Store, key: &KeyScope) -> Result<Option<KeyActivation>> {
@@ -109,7 +116,13 @@ pub async fn commit_key(store: &impl Store, activation: KeyActivation) -> Result
     }
     let state = KeyState::Active { activation };
     store
-        .put(&activation_key(&state.activation().key)?, &state)
+        .put(
+            &activation_key(
+                &state.activation().key.wallet,
+                &state.activation().key.key_id,
+            )?,
+            &state,
+        )
         .await?;
     Ok(state)
 }
@@ -145,8 +158,13 @@ pub async fn authorize_key(store: &impl Store, activation: KeyActivation) -> Res
             if record.request.key.wallet == activation.key.wallet
                 && record.request.key.key_id == activation.key.key_id
             {
-                record.status = Status::Failed;
-                store.put(&slot.record_key, &record).await?;
+                if matches!(
+                    record.status,
+                    Status::Preparing { .. } | Status::Running { .. }
+                ) {
+                    record.status = Status::Failed;
+                    store.put(&slot.record_key, &record).await?;
+                }
             } else {
                 retained.push(slot);
             }
@@ -155,7 +173,7 @@ pub async fn authorize_key(store: &impl Store, activation: KeyActivation) -> Res
     }
     store
         .put(
-            &activation_key(&activation.key)?,
+            &activation_key(&activation.key.wallet, &activation.key.key_id)?,
             &KeyState::Installing { activation },
         )
         .await
@@ -408,9 +426,41 @@ pub async fn finish(
         }
         Completion::Failed => Status::Failed,
     };
-    let mut active = store.get::<Vec<Slot>>("active").await?.unwrap_or_default();
-    active.retain(|slot| slot.record_key != key);
-    store.put("active", &active).await?;
+    // Keep capacity until both pools are fenced and settled. A crashed coordinator
+    // still releases capacity at the original operation deadline.
     store.put(&key, &record).await?;
     Ok(record.status)
+}
+
+pub(super) async fn active_until(store: &impl Store, now: u64) -> Result<Option<u64>> {
+    Ok(store
+        .get::<Vec<Slot>>("active")
+        .await?
+        .unwrap_or_default()
+        .into_iter()
+        .map(|slot| slot.expires_at_ms)
+        .filter(|expiry| *expiry > now)
+        .max())
+}
+
+/// The authenticated coordinator calls this after both role settlements succeed.
+pub async fn settled(store: &impl Store, request: &SigningRequest) -> Result<()> {
+    let key = request.record_key()?;
+    let record = store
+        .get::<Record>(&key)
+        .await?
+        .ok_or_else(|| invalid("Unknown ML-DSA settlement"))?;
+    if record.request != *request
+        || !matches!(
+            record.status,
+            Status::Succeeded { .. } | Status::Failed | Status::Declined
+        )
+    {
+        return Err(invalid(
+            "ML-DSA settlement requires the exact terminal operation",
+        ));
+    }
+    let mut active = store.get::<Vec<Slot>>("active").await?.unwrap_or_default();
+    active.retain(|slot| slot.record_key != key);
+    store.put("active", &active).await
 }

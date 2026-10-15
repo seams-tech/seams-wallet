@@ -1,10 +1,12 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: feasibility and integration work active; production release remains gated, 2026-10-15.
+Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
+The [latest private Worker integration campaign](ml-dsa-65-registration-worker-report.md) measures complete registration at 11.73 seconds, recovery at 10.92 seconds, and signing at 5.10 and 4.04 seconds.
+Both cases pass functional checks. The five-second target remains unmet. These timings include durable installation and signing settlement.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
 It targets 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
-The [ready-pool report](ml-dsa-65-ready-pool-report.md) records the latest complete hosted pool campaign.
+The [ready-pool report](ml-dsa-65-ready-pool-report.md) records an earlier prepared-protocol pool campaign. Those measurements have a narrower boundary than complete durable Worker registration.
 Prepared registration takes 1.978–2.676 seconds across four sessions.
 Twenty-three successful signing requests take 0.214–1.321 seconds, including eleven automatic rollovers.
 Three of twenty-six nonempty-pool requests exhaust all available candidates.
@@ -1002,3 +1004,25 @@ The frame adapter binds reads to the exact private-preparation consume and cerem
 Cancellation creates a permanent retirement marker, including before the first frame arrives.
 The generic pool allocator and admitted Worker registration route remain open.
 This milestone does not establish hosted registration latency.
+
+### Private Worker registration — October 16, 2026
+
+The [Worker registration report](ml-dsa-65-registration-worker-report.md) records the generic allocator, admitted Worker ceremony, initial signing-stock installation, and canonical recovery.
+The private hosted route now returns authenticated participant results after both durable installations.
+Exact retries preserve the stored result. Changed requests under the same operation ID are refused.
+The client verifies the ordinary canonical key and recorded manifest across recovery.
+
+The first hosted create and recovery took 16.17 and 11.91 seconds. Complete signing took 30.17 and 20.97 seconds.
+These measurements include durable operations that earlier protocol-only measurements excluded.
+Background refill overlaps both long signing-settlement waits. Registration also has more than seven seconds of participant-B CPU work.
+The scheduling change retains foreground capacity through settlement or its original deadline and delays new refill during active registration.
+It does not interrupt an existing producer or establish a five-second guarantee.
+
+Remaining work starts with hosted qualification and registration phase profiling.
+Then add automatic generic-pool replenishment, interruption and concurrent-recovery coverage, authoritative Gateway state, and SDK/NEAR integration.
+GPU work remains deferred. Standard FIPS seed export and wallet-seed recovery remain required.
+
+The changed scheduler reduced hosted signing to 5.10 and 4.04 seconds at the client, including settlement.
+The slower fence call fell to 65 and 64 milliseconds. Create and recovery still took 11.73 and 10.92 seconds.
+The five-second target remains unmet. Hosted phase clocks returned zero during real table work and cannot attribute its cost.
+Next, calibrate CPU profiling for table authentication, serialization, restoration, and circuit evaluation before choosing the registration optimization.

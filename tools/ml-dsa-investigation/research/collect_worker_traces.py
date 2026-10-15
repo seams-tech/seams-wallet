@@ -21,7 +21,8 @@ def records(path, role):
             break
         item, position = decoder.raw_decode(source, position)
         request = item.get("event", {}).get("request", {})
-        query = urllib.parse.parse_qs(urllib.parse.urlsplit(request.get("url", "")).query)
+        url = urllib.parse.urlsplit(request.get("url", ""))
+        query = urllib.parse.parse_qs(url.query)
         run_id = query.get("run_id", [None])[0]
         run_id_available = run_id is not None and re.fullmatch("[0-9a-f]{32}", run_id) is not None
         if run_id is not None and re.fullmatch("[0-9a-f]{32}", run_id) is None:
@@ -30,6 +31,8 @@ def records(path, role):
         if operation not in ["prepared-keygen", "prepared-signing", "prepared-gmw-signing", "prepared-gmw-pool"]:
             operation = None
         progress = []
+        transport = []
+        registration = []
         for log in item.get("logs", []):
             for message in log.get("message", []):
                 try:
@@ -38,6 +41,15 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                if value.get("event") == "router_ab_yao_transport_v1":
+                    transport.append({key: value[key] for key in [
+                        "duration_ms", "request_bytes", "service", "stage", "status",
+                    ] if key in value})
+                if value.get("event") == "ml_dsa_registration_execution_v1":
+                    registration.append({key: value[key] for key in [
+                        "role", "restore_wall_ms", "run_wall_ms", "table_load_wall_ms",
+                        "loaded_frames", "loaded_bytes",
+                    ] if key in value})
                 if value.get("event") not in ["ml-dsa-boolean-preparation-progress", "ml-dsa-signing-key-ready", "ml-dsa-generic-preparation-ready", "ml-dsa-keygen-preparation-ready"]:
                     continue
                 progress.append({key: value[key] for key in [
@@ -50,12 +62,15 @@ def records(path, role):
             "run_id": run_id,
             "run_id_available": run_id_available,
             "operation": operation,
+            "path": url.path,
             "event_timestamp_ms": item.get("eventTimestamp"),
             "cpu_ms": item.get("cpuTime"),
             "wall_ms": item.get("wallTime"),
             "outcome": item.get("outcome"),
             "exception_names": [error.get("name") for error in item.get("exceptions", [])],
             "public_preparation_progress": progress,
+            "transport": transport,
+            "registration": registration,
         })
     return result
 
@@ -65,8 +80,11 @@ def main():
     parser.add_argument("role_a", type=pathlib.Path)
     parser.add_argument("role_b", type=pathlib.Path)
     parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("--router", type=pathlib.Path)
     args = parser.parse_args()
     retained = records(args.role_a, "a") + records(args.role_b, "b")
+    if args.router:
+        retained += records(args.router, "router")
     report = {
         "schema": "seams.ml-dsa-silent-worker-traces.v1",
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),

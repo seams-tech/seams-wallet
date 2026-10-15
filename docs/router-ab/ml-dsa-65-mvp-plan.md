@@ -25,7 +25,7 @@ They do not yet form a public Wallet registration flow.
 - [x] Allow exact delivery and activation retries without replacing installed material.
 - [x] Reject stale activation completion after an epoch transition.
 - [x] Verify the new barrier through the actual Worker HTTP routes and record the result.
-- [ ] Connect the barrier to admitted key generation, rather than synthetic material installation.
+- [x] Connect the barrier to admitted key generation, rather than synthetic material installation.
 
 The Gateway's custody assertion remains a prerequisite. Client-supplied manifest data does not establish that assertion.
 Activation status must remain distinct from signing-pool availability.
@@ -39,14 +39,14 @@ The [activation report](ml-dsa-65-activation-report.md) records the implementati
 - [ ] Discover authenticated role recipient keys and deliver only each role's encrypted input.
 - [x] Add encrypted storage and consuming restoration for generic private key-generation state, with exact schedule and participant bindings.
 - [x] Add authenticated, single-use external table storage and bounded cleanup, verified by native canonical key generation.
-- [ ] Connect the complete private-state and table reservation to Worker key generation.
-- [ ] Keep generic signing preparation ready before registration. Bind it to the new key without regenerating correlations.
+- [x] Connect the complete private-state and table reservation to Worker key generation.
+- [x] Keep generic signing preparation ready before registration. Bind it to the new key without regenerating correlations.
 - [ ] Distinguish durable key activation from signer readiness. Require the configured paired signing reserve before reporting immediate signing availability.
-- [ ] Atomically consume preparation before private input selection. Burn uncertain or interrupted reservations.
-- [ ] Execute real wallet-derived key generation on Workers and store each output share locally.
-- [ ] Check public-key agreement and bind the verified manifest to the durable activation.
+- [x] Atomically consume preparation before private input selection. Burn uncertain or interrupted reservations.
+- [x] Execute real wallet-derived key generation on Workers and store each output share locally.
+- [x] Check public-key agreement and bind the verified manifest to the durable activation.
 - [ ] Publish the Wallet key only after both installations and custody persistence complete.
-- [ ] Recover the same canonical key with fresh shares, preparation, and an advanced epoch.
+- [x] Recover the same canonical key with fresh shares, preparation, and an advanced epoch.
 - [ ] Test interruption after each participant's installation and before public key publication.
 
 Exit: SDK registration and recovery create a durable signer that survives Worker restart.
@@ -68,7 +68,7 @@ Exit: public requests cannot select another wallet, key, epoch, transaction, or 
 ## 4. Hosted qualification
 
 - [ ] Deploy matching Gateway, Router, A, and B builds to the authorized test environment.
-- [ ] Measure registration, successful signing, and recovery with prepared capacity available.
+- [x] Measure registration, successful signing, and recovery with prepared capacity available.
 - [ ] Measure pool wait, refill throughput, full-reserve cost, and failures separately.
 - [ ] Preserve typed exhaustion, transport, protocol, storage, and timeout outcomes in Worker evidence before qualifying availability.
 - [ ] Exercise simultaneous wallets, rejection retries, empty pools, and service capacity.
@@ -89,3 +89,10 @@ A few local successes do not establish this result.
 - [ ] Start with conservative service capacity and explicit empty-pool behavior.
 
 No production-readiness claim follows from an individual completed component.
+
+## Private registration milestone — October 16, 2026
+
+The [Worker registration report](ml-dsa-65-registration-worker-report.md) records complete private registration and canonical recovery on hosted Workers.
+The first two hosted cases pass functional checks and fail the five-second latency target.
+These completed private components do not satisfy the public SDK exit criteria.
+Generic registration replenishment remains an explicit private operation. Automatic replenishment and production authority sources remain open.

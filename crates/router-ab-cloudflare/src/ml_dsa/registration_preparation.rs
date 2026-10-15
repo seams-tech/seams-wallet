@@ -17,6 +17,9 @@ pub struct Binding {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 enum Record {
+    Retired {
+        binding: Binding,
+    },
     Ready {
         binding: Binding,
         encapsulated_key: [u8; 32],
@@ -170,4 +173,32 @@ pub(super) async fn require_consumed(
             "ML-DSA registration preparation has no matching consume",
         )),
     }
+}
+
+pub async fn retire(store: &impl Store, expected: &Binding) -> Result<()> {
+    let key = name(expected);
+    match store.get::<Record>(&key).await? {
+        Some(Record::Ready {
+            binding, chunks, ..
+        }) => {
+            if binding != *expected {
+                return Err(invalid("Registration retirement binding changed"));
+            }
+            sealing::erase_chunks(store, &format!("{key}/ciphertext"), chunks).await?;
+        }
+        Some(Record::Consumed { binding, .. } | Record::Retired { binding }) => {
+            if binding != *expected {
+                return Err(invalid("Registration retirement binding changed"));
+            }
+        }
+        None => (),
+    }
+    store
+        .put(
+            &key,
+            &Record::Retired {
+                binding: expected.clone(),
+            },
+        )
+        .await
 }
