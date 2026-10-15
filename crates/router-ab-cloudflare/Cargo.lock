@@ -1702,6 +1702,7 @@ dependencies = [
  "cpufeatures 0.2.17",
  "opaque-debug",
  "universal-hash",
+ "zeroize",
 ]
 
 [[package]]
@@ -1913,6 +1914,7 @@ dependencies = [
  "getrandom 0.2.17",
  "hpke-ng",
  "ml-dsa",
+ "poly1305",
  "postgres-protocol",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",

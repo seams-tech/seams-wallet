@@ -1,0 +1,144 @@
+{
+  "schema": "seams.ml-dsa-prepared-keygen-native.v1",
+  "scope": "Input-independent fresh garbling and random OT, followed by wallet-derived canonical keygen. Separate native roles, role-local disk tables, and private input correction. No production storage or hosted latency claim.",
+  "executable_sha256": "addcff28e8810c8a64866872050ede854964fb10d94b2878b3bb3bd5540cb998",
+  "production_eligible": false,
+  "temporary_files_removed": true,
+  "prepared_component_checks": {
+    "all_combined_bound_patterns": 2048,
+    "all_matched_independent_oracle": true,
+    "decomposition_boundary_values": 50,
+    "low_response_single_bad_coefficient_cases": 8
+  },
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared.rs",
+      "sha256": "dc453d3d587362f14f58e1c60266964463e73761b3bdb38ff04f0e5e62975df7"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/keygen.rs",
+      "sha256": "89c6a20db57b5e0feb8a1ea7717be485e8001ce07570a5aef6d082fba7163038"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+      "sha256": "34ebbdadfe28f85daad43ebab37bc9e8d906589e7902ae1b4753f20b9aa70fbf"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
+      "sha256": "ec8d0ec9a7185bde5af3192cf120539d8d86ce78262500b4932b28ca864df4c8"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
+      "sha256": "c0aa0cb95b741a5746a0a084b8e34ca7ce7fc3b3070ff67c4df009384653dc23"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
+      "sha256": "338cf8f47d5a303580e5b4f9d071bd017e688cd91d18cc4ec686ac4ce7ed3b8a"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs",
+      "sha256": "8462176f8c3fe01b4e584e8c8a955adacdb90be99f525ab9448b673fc36929f7"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
+      "sha256": "407a790846cfaf26055ba9fc150fbbf4d9930540985946a4d9f049bdb6a57a69"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/nonce.rs",
+      "sha256": "6ee68ec5886917a64fea55ef3032e9f1bedd61968fb72cf0f080246b2c85b45d"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
+      "sha256": "6763a52729ceedbd5725717566a0d1b7ea51a1eab19b04e04b4dee8d210ac130"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
+      "sha256": "d7da8d9175610bf72778f8cd329c98d3342a94dcfa77f2f24a396b6cf2f701f7"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+      "sha256": "bdda00fe1428ab4724965665664adaaf7e788422118d5c3eb7df439d82bc7bc1"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+      "sha256": "321082969b0743f111ae4b72d79720eb9146d1df183565ceb39f9f67dc31bfef"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
+      "sha256": "3e1167830f2974e7aee2b175f5710759af57ec0511870a9138aa0e7164ba8578"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "sha256": "2ab6f5f00b53fd415b644479017bbc4b206f9127284d8208ff98ac724bb0bfa9"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
+      "sha256": "ba314a105230a475d27146f19262a011cc8301b623c11c3813b70f132d66de63"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/pool_evidence.rs",
+      "sha256": "1335d8a0f359c53bbeabc946ee5dcc91b6304f8fd97f1e7a089be3deb76811cf"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs",
+      "sha256": "25f8e5727dc3f6dd2d161f446e5ee649a6a3e64f032e7b5642c0453f6f5164b7"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/storage.rs",
+      "sha256": "69c8f8726c6f15a6ee99d8e18f9131057f59b21677f812b4a6cdd87f5e6dba30"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
+      "sha256": "9e9ad69f2e5cf429f7ef129b455289f869eee63b482b89b390ad5d0039656cd5"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/pool.rs",
+      "sha256": "ed56c8d3cd5e42b54ede37393395e4c6c4ad030bcc41f1a9d21a6391c714ab5a"
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
+      "sha256": "ce6b80187494e78299b5554ad24c339b7f1963b6c581046c5b0c54f3ee5350ab"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/public_sampling_evidence.rs",
+      "sha256": "0a8a9b09b8b8d57a9d67ea5af69914733fcae20e0c4648a105f2bc880e5762a2"
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs",
+      "sha256": "67c5a3c1826da0d0d81f11f37207b59ff0170f513db8e62bbdb8107fe2c0e175"
+    }
+  ],
+  "source_artifact_sha256": "3a3bdec16db81688a1dff06c7c794ea37198858dbdb4a4896c8e62b66447fa70",
+  "cases": [
+    {
+      "canonical_key_verified": true,
+      "injected_rtt_ms": 0,
+      "warmup": true
+    },
+    {
+      "canonical_key_verified": true,
+      "injected_rtt_ms": 0,
+      "warmup": false
+    },
+    {
+      "canonical_key_verified": true,
+      "injected_rtt_ms": 0,
+      "warmup": false
+    },
+    {
+      "canonical_key_verified": true,
+      "injected_rtt_ms": 0,
+      "warmup": false
+    },
+    {
+      "canonical_key_verified": true,
+      "injected_rtt_ms": 5,
+      "warmup": false
+    },
+    {
+      "canonical_key_verified": true,
+      "injected_rtt_ms": 20,
+      "warmup": false
+    }
+  ]
+}

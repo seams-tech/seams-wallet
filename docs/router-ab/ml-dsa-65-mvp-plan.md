@@ -96,3 +96,10 @@ The [Worker registration report](ml-dsa-65-registration-worker-report.md) record
 The first two hosted cases pass functional checks and fail the five-second latency target.
 These completed private components do not satisfy the public SDK exit criteria.
 Generic registration replenishment remains an explicit private operation. Automatic replenishment and production authority sources remain open.
+
+
+## Registration CPU milestone — October 16, 2026
+
+The [CPU report](ml-dsa-65-registration-cpu-report.md) records calibrated sampling, versioned ChaCha20-Poly1305 preparation storage, and the updated hosted campaign.
+Canonical recovery, old-ciphertext rejection, and replay checks pass. Hosted registration remains above five seconds at 8.48/6.92 seconds.
+The next performance work targets table I/O, activation, and initial signing-stock installation. Public SDK readiness and load qualification remain open.

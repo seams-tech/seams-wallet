@@ -3432,6 +3432,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Consume each prepared circuit and its OT material at most once. Recovery must use fresh preparation.
 - Restore private key-generation preparation only after its durable consume commits. Pin its role, reservation, and circuit schedules from trusted admission.
 - Reject republishing consumed registration preparation. Keep participant ciphertext and wrapping secrets separate.
+- Keep prepared signing-batch identity independent of the storage-cipher version. Admission and installation must compute the same identity.
+- Reject retired preparation ciphertext without a cipher fallback. Regenerate preparation after a storage-suite change.
 - Authenticate each registration table frame against its reservation, circuit, position, and length. Read it only after the exact ceremony consumes private preparation.
 - Consume table frames atomically. Retire unused fallbacks in bounded steps, and fence late writers even when cancellation precedes the first frame.
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.

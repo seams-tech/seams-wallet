@@ -84,7 +84,6 @@ pub(super) async fn connected(
         ceremony,
         loaded_frames: 0,
         loaded_bytes: 0,
-        load_wall_ms: 0,
     };
     if matches!(
         command,
@@ -155,21 +154,15 @@ pub(super) async fn connected(
     let bytes = registration_preparation::open(sealed, &binding, &seed)?;
     let prepared = PreparedKeygen::from_consumed_storage(signing_role, job.id, &schedules, bytes)
         .map_err(runtime_error)?;
-    let run_started = crate::cloudflare_now_unix_ms_v1()?;
-    let restore_wall_ms = run_started.saturating_sub(now);
     let (key, _) = prepared
         .run(&root, &mut adapter)
         .await
         .map_err(runtime_error)?;
-    let run_wall_ms = crate::cloudflare_now_unix_ms_v1()?.saturating_sub(run_started);
     worker::console_log!(
         "{}",
         serde_json::json!({
             "event": "ml_dsa_registration_execution_v1",
             "role": role,
-            "restore_wall_ms": restore_wall_ms,
-            "run_wall_ms": run_wall_ms,
-            "table_load_wall_ms": adapter.load_wall_ms,
             "loaded_frames": adapter.loaded_frames,
             "loaded_bytes": adapter.loaded_bytes,
         })

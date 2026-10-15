@@ -1,7 +1,7 @@
 //! Authenticated evaluator table frames. All mutations require a storage transaction.
 use super::{registration_preparation as preparation, *};
 use zeroize::Zeroizing;
-const DOMAIN: &[u8] = b"seams/ml-dsa/registration-table/v1";
+const DOMAIN: &[u8] = b"seams/ml-dsa/registration-table/v2";
 const MAX_FRAME: usize = 65_544;
 const MAX_CIRCUITS: usize = 35;
 const MAX_FRAMES: usize = 8192;

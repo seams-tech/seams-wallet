@@ -1,0 +1,313 @@
+{
+  "schema": "seams.ml-dsa-registration-cpu-samples.v1",
+  "scope": "Local workerd participant B during complete registration, including stock installation and incidental cleanup. Categories overlap. Counts are statistical samples, not CPU milliseconds or hosted latency. Each profile needs a successful separate calibration.",
+  "wasm_sha256": "21ef9980a41960cf943bdd6134ba788f5ecb0c4250f34f835fe7bf44b906e028",
+  "symbol_map_sha256": "b5a15790ee2d4ef6c4f12be5f80e5c1fb5cf2df955fab5967d3fc5b9bfed615d",
+  "e2e_sha256": "9349a9a29b52cbada676b0c276af7de1b8362ea834c7085c15808c24cd362143",
+  "profiles": [
+    {
+      "profile_sha256": "f264db1b546298148a1087c92bbac8b2c12a75380ea3b50f2945aa30c82e9f50",
+      "total_samples": 1130,
+      "categories": {
+        "garbled_circuit_run_inclusive": {
+          "samples": 179,
+          "percent_of_all_samples": 15.84
+        },
+        "hpke_aes_gcm_suite_inclusive": {
+          "samples": 370,
+          "percent_of_all_samples": 32.74
+        },
+        "idle": {
+          "samples": 8,
+          "percent_of_all_samples": 0.71
+        },
+        "storage_aead_primitive_inclusive": {
+          "samples": 325,
+          "percent_of_all_samples": 28.76
+        },
+        "storage_js_leaf": {
+          "samples": 245,
+          "percent_of_all_samples": 21.68
+        },
+        "table_load_inclusive": {
+          "samples": 590,
+          "percent_of_all_samples": 52.21
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::sub_bytes",
+          "samples": 201
+        },
+        {
+          "function": "get",
+          "samples": 177
+        },
+        {
+          "function": "<polyval[2d1e673bc142d0d]::backend::soft::Polyval as universal_hash[fbf326f767884686]::UhfBackend>::proc_block",
+          "samples": 80
+        },
+        {
+          "function": "",
+          "samples": 73
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_1",
+          "samples": 72
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::aes128_encrypt",
+          "samples": 52
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::aes256_encrypt",
+          "samples": 51
+        },
+        {
+          "function": "delete",
+          "samples": 39
+        },
+        {
+          "function": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+          "samples": 38
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_3",
+          "samples": 35
+        },
+        {
+          "function": "put",
+          "samples": 29
+        },
+        {
+          "function": "__wbg___wbindgen_string_get_fa2687d531ed17a5",
+          "samples": 28
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 27
+        },
+        {
+          "function": "<&curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625 as core[9b3796e30d99ddb7]::ops::arith::Mul>::mul",
+          "samples": 18
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 14
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}, router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 14
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::PreparedCircuit>::run::<router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter>::{closure#0}",
+          "samples": 12
+        },
+        {
+          "function": "<hpke_ng[877e79101af45f1d]::kem::dh::X25519 as hpke_ng[877e79101af45f1d]::kem::dh::DiffieHellman>::dh",
+          "samples": 12
+        },
+        {
+          "function": "<curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625>::square_inner",
+          "samples": 11
+        },
+        {
+          "function": "ed25519_yao[b344fa54524bf456]::passive::prepare_hash_input",
+          "samples": 9
+        },
+        {
+          "function": "(idle)",
+          "samples": 8
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 8
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 8
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 8
+        },
+        {
+          "function": "<ctr[c48fe0df56145f4c]::ctr_core::CtrCore<&aes[40ddfa879986df99]::soft::Aes256, ctr[c48fe0df56145f4c]::flavors::ctr32::Ctr32BE> as cipher[ff45aef5fd1704d]::stream_core::StreamCipherCore>::apply_keystream_blocks_inout",
+          "samples": 7
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 7
+        },
+        {
+          "function": "<ghash[182daed28b7de9e7]::GHash as universal_hash[fbf326f767884686]::UniversalHash>::update_padded",
+          "samples": 7
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+          "samples": 6
+        },
+        {
+          "function": "(program)",
+          "samples": 6
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::Evaluator>::evaluate_and",
+          "samples": 6
+        }
+      ]
+    },
+    {
+      "profile_sha256": "51549a5e5b5d4312d5fe55f9d186cd0ddb0ee4f25273a5262001a769f255367e",
+      "total_samples": 1377,
+      "categories": {
+        "garbled_circuit_run_inclusive": {
+          "samples": 196,
+          "percent_of_all_samples": 14.23
+        },
+        "hpke_aes_gcm_suite_inclusive": {
+          "samples": 408,
+          "percent_of_all_samples": 29.63
+        },
+        "idle": {
+          "samples": 9,
+          "percent_of_all_samples": 0.65
+        },
+        "storage_aead_primitive_inclusive": {
+          "samples": 357,
+          "percent_of_all_samples": 25.93
+        },
+        "storage_js_leaf": {
+          "samples": 406,
+          "percent_of_all_samples": 29.48
+        },
+        "table_load_inclusive": {
+          "samples": 768,
+          "percent_of_all_samples": 55.77
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "get",
+          "samples": 279
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::sub_bytes",
+          "samples": 216
+        },
+        {
+          "function": "delete",
+          "samples": 89
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_1",
+          "samples": 82
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::aes256_encrypt",
+          "samples": 78
+        },
+        {
+          "function": "",
+          "samples": 75
+        },
+        {
+          "function": "<polyval[2d1e673bc142d0d]::backend::soft::Polyval as universal_hash[fbf326f767884686]::UhfBackend>::proc_block",
+          "samples": 71
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::mix_columns_3",
+          "samples": 46
+        },
+        {
+          "function": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+          "samples": 42
+        },
+        {
+          "function": "put",
+          "samples": 38
+        },
+        {
+          "function": "__wbg___wbindgen_string_get_fa2687d531ed17a5",
+          "samples": 37
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::aes128_encrypt",
+          "samples": 35
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 29
+        },
+        {
+          "function": "<&curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625 as core[9b3796e30d99ddb7]::ops::arith::Mul>::mul",
+          "samples": 24
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::PreparedCircuit>::run::<router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter>::{closure#0}",
+          "samples": 22
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 14
+        },
+        {
+          "function": "<curve25519_dalek[99f099d1b281b8f7]::backend::serial::u32::field::FieldElement2625>::square_inner",
+          "samples": 13
+        },
+        {
+          "function": "ed25519_yao[b344fa54524bf456]::passive::prepare_hash_input",
+          "samples": 13
+        },
+        {
+          "function": "<ghash[182daed28b7de9e7]::GHash as universal_hash[fbf326f767884686]::UniversalHash>::update_padded",
+          "samples": 11
+        },
+        {
+          "function": "<ctr[c48fe0df56145f4c]::ctr_core::CtrCore<&aes[40ddfa879986df99]::soft::Aes256, ctr[c48fe0df56145f4c]::flavors::ctr32::Ctr32BE> as cipher[ff45aef5fd1704d]::stream_core::StreamCipherCore>::apply_keystream_blocks_inout",
+          "samples": 11
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}, router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::transaction<alloc[a941a2cfab7efbc4]::vec::Vec<u8>, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}, <router_ab_cloudflare[4cc75979bad01e6d]::ml_dsa::workers::registration::adapter::Adapter as ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::prepared::Transport>::load::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 11
+        },
+        {
+          "function": "(idle)",
+          "samples": 9
+        },
+        {
+          "function": "<hpke_ng[877e79101af45f1d]::kem::dh::X25519 as hpke_ng[877e79101af45f1d]::kem::dh::DiffieHellman>::dh",
+          "samples": 9
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+          "samples": 8
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 8
+        },
+        {
+          "function": "(program)",
+          "samples": 8
+        },
+        {
+          "function": "<ed25519_yao[b344fa54524bf456]::passive::Evaluator>::evaluate_and",
+          "samples": 8
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 7
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 7
+        },
+        {
+          "function": "__wbg_read_8426c146431f2905",
+          "samples": 6
+        }
+      ]
+    }
+  ]
+}

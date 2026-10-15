@@ -462,10 +462,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
                 },
             )
             .await?;
-            let expected_batch = digest(
-                b"seams/ml-dsa/registration-signing-stock/v1",
-                &(claim.job.id, ordinal),
-            )?;
+            let expected_batch = super::registration::signing_batch_id(&claim.job, *ordinal)?;
             if !allowed
                 || *ordinal >= claim.job.signing_batches
                 || binding.batch != expected_batch

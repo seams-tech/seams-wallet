@@ -12,6 +12,13 @@ pub struct Job {
     pub prepare_until: u64,
     pub expires_at: u64,
 }
+/// Protocol identity stays independent of the stored envelope's cipher version.
+pub(super) fn signing_batch_id(job: &Job, ordinal: usize) -> Result<[u8; 32]> {
+    digest(
+        b"seams/ml-dsa/registration-signing-stock/v1",
+        &(job.id, ordinal),
+    )
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Continuity {

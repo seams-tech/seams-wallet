@@ -257,6 +257,14 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     )
     .unwrap();
     assert!(sealing::open(wrong_role_envelope, &wrong_role_binding, &[1; 32]).is_err());
+    // Both a prior domain and an AES envelope using the new domain must fail closed.
+    for domain in [
+        b"seams/ml-dsa/prepared-storage/v1".as_slice(),
+        b"seams/ml-dsa/prepared-storage/v2".as_slice(),
+    ] {
+        let incompatible = aes_envelope(&wrong_role_binding, &[2; 32], domain);
+        assert!(sealing::open(incompatible, &wrong_role_binding, &[2; 32]).is_err());
+    }
     assert!(
         tx(&a, pool::inventory(&a, &key, 10, 1_004, 1_004))
             .unwrap()
@@ -782,7 +790,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
         "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
-        "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,
+        "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,"prior_aes_suite_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,
         "concurrent_service_claim_winners":1,"verified_completion_and_restart_replay":true,"scope":"Transactional lifecycle and encrypted storage E2E. Synthetic prepared bytes. Real threshold persistence is covered by the investigation harness. No hosted latency claim."
@@ -907,4 +915,43 @@ fn registration_request(wallet: &str, operation: u8) -> m::registration::Request
         input_a: serde_json::from_value(encrypted.clone()).unwrap(),
         input_b: serde_json::from_value(encrypted).unwrap(),
     }
+}
+
+struct FixtureRng;
+impl rand_core::RngCore for FixtureRng {
+    fn next_u32(&mut self) -> u32 {
+        let mut bytes = [0; 4];
+        self.fill_bytes(&mut bytes);
+        u32::from_le_bytes(bytes)
+    }
+    fn next_u64(&mut self) -> u64 {
+        let mut bytes = [0; 8];
+        self.fill_bytes(&mut bytes);
+        u64::from_le_bytes(bytes)
+    }
+    fn fill_bytes(&mut self, bytes: &mut [u8]) {
+        getrandom::getrandom(bytes).unwrap();
+    }
+}
+impl rand_core::CryptoRng for FixtureRng {}
+
+fn aes_envelope(binding: &sealing::Binding, seed: &[u8; 32], domain: &[u8]) -> sealing::Sealed {
+    use base64::Engine;
+    use hpke_ng::{Aes256Gcm, DhKemX25519HkdfSha256, HkdfSha256, Hpke, Kem};
+    type IncompatibleCipher = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
+    let (secret, public) = DhKemX25519HkdfSha256::derive_key_pair(seed).unwrap();
+    let (enc, ciphertext) = IncompatibleCipher::seal_auth(
+        &mut FixtureRng,
+        &public,
+        domain,
+        &m::digest(domain, binding).unwrap(),
+        &[8; 100],
+        &secret,
+    )
+    .unwrap();
+    serde_json::from_value(serde_json::json!({
+        "encapsulated_key": enc.as_ref(),
+        "ciphertext_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ciphertext),
+    }))
+    .unwrap()
 }
