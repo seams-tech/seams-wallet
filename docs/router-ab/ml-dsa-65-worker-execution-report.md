@@ -1,5 +1,8 @@
 # ML-DSA durable Worker execution — October 15, 2026
 
+The [refill scheduling follow-up](ml-dsa-65-refill-scheduling-report.md) resolves the unnecessary work behind the delayed timeout recorded below.
+Its local control closed the stalled peer in 946 ms. Legitimate concurrent preprocessing still needs hosted qualification.
+
 The private Router/Worker path now connects admission to threshold signing and automatic pool refill.
 Public Gateway owner authorization, SDK calls, and the complete Worker custody ceremony remain separate integration tasks.
 Wallet-seed recovery and ordinary FIPS seed export remain required. GPU work remains deferred.

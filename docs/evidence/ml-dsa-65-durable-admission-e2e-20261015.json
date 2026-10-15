@@ -1,6 +1,7 @@
 {
   "changed_message_replay_rejected": true,
   "concurrent_service_claim_winners": 1,
+  "consumption_triggers_refill": true,
   "cooldown_across_keys_and_restart": true,
   "cross_role_open_rejected": true,
   "disabled_cooldown_preserves_capacity": true,
@@ -17,6 +18,7 @@
   "recovery_cannot_substitute_public_key": true,
   "recovery_epoch_retires_preparation": true,
   "refill_requests_are_key_scoped": true,
+  "reserved_stock_does_not_trigger_refill": true,
   "restart_and_single_use": true,
   "schema": "seams.ml-dsa-durable-admission-e2e.v1",
   "scope": "Transactional lifecycle and encrypted storage E2E. Synthetic prepared bytes. Real threshold persistence is covered by the investigation harness. No hosted latency claim.",

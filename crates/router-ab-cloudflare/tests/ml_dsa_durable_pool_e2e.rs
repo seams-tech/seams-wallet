@@ -185,12 +185,20 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         Decision::Admitted { permit } => permit,
         _ => panic!(),
     };
+    let reserved_inventory = tx(&a, pool::inventory(&a, &key, 3, 1_002, 1_002)).unwrap();
+    assert!(reserved_inventory.ready.is_empty());
+    assert_eq!(reserved_inventory.reserved, batches);
+    assert!(!reserved_inventory.refill_due);
     let (own_binding, sealed) =
         tx(&a, pool::take(&a, Participant::A, &permit, [0; 32], 1_003)).unwrap();
     assert_eq!(
         sealing::open(sealed, &own_binding, &[1; 32]).unwrap().len(),
         100_000
     );
+    let after_take = tx(&a, pool::inventory(&a, &key, 3, 1_003, 1_003)).unwrap();
+    assert!(after_take.ready.is_empty());
+    assert_eq!(after_take.reserved, vec![[1; 32], [2; 32]]);
+    assert!(after_take.refill_due);
     drop(a);
     let a = Db::open(&a_path);
     assert!(tx(&a, pool::take(&a, Participant::A, &permit, [0; 32], 1_004)).is_err());
@@ -654,7 +662,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
-        "preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
+        "reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,

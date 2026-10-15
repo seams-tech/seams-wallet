@@ -1,7 +1,6 @@
 //! Durable alarms dispatch fresh paired preparation outside signing requests.
 use super::*;
 use ed25519_yao::ml_dsa_signing::{prepared_signing::gmw::prepare_gmw_reservation, SigningRole};
-use std::time::Duration;
 use worker::{Context, WebSocket, WebSocketPair};
 pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
 const QUEUE: &str = "preprocessing-queue";
@@ -44,7 +43,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         return Response::from_json(&true);
     };
     // Arm recovery before network work. A crash never loses the refill request.
-    state.storage().set_alarm(Duration::from_secs(5)).await?;
+    schedule_refill_alarm(state, 30_000).await?;
     let active: Option<admission::KeyActivation> = service_call(
         env,
         CallAuthority::Internal,
@@ -54,6 +53,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     .map_err(protocol_error)?;
     if active.map(|value| value.key).as_ref() != Some(&key) {
         remove_queued(state, &key).await?;
+        schedule_refill_alarm(state, 1_000).await?;
         return Response::from_json(&false);
     }
     let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
@@ -79,15 +79,16 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     let b: pool::Inventory = coordinator::role_call(env, "DERIVER_B", &command)
         .await
         .map_err(protocol_error)?;
-    let paired = a
-        .ready
+    let stock_a = a.stock_batches();
+    let stock_b = b.stock_batches();
+    let paired = stock_a
         .iter()
-        .filter(|batch| b.ready.contains(batch))
+        .filter(|batch| stock_b.contains(batch))
         .count();
     if paired >= policy.refill_target_batches() {
         // Keep a durable timer so idle wallets replace expiring preparation.
         rotate_queued(state, &key).await?;
-        state.storage().set_alarm(Duration::from_secs(30)).await?;
+        schedule_refill_alarm(state, 30_000).await?;
         return Response::from_json(&true);
     }
     let claim: refill::Claim = service_call(
@@ -98,6 +99,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     .await
     .map_err(protocol_error)?;
     let refill::Claim::Acquired { job } = claim else {
+        schedule_refill_alarm(state, 5_000).await?;
         return Response::from_json(&false);
     };
     // This alarm owns A's producer. Retire halves left by its earlier interrupted runs.
@@ -124,10 +126,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     )
     .await
     .map_err(protocol_error)?;
-    state
-        .storage()
-        .set_alarm(Duration::from_secs(if result.is_ok() { 1 } else { 5 }))
-        .await?;
+    schedule_refill_alarm(state, if result.is_ok() { 1_000 } else { 5_000 }).await?;
     if let Err(error) = &result {
         worker::console_error!("ML-DSA refill failed: {}", error);
     }
