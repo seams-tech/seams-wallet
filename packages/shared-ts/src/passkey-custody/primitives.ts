@@ -15,6 +15,9 @@ export type EnvelopeCiphertextB64u = string & PasskeyCustodyBrand<'EnvelopeCiphe
 // 32-byte Ed25519 public key. This is public identity, not custody material.
 export type Ed25519PublicKeyB64u = string & PasskeyCustodyBrand<'Ed25519PublicKeyB64u'>;
 
+export type MlDsa65PublicKeyB64u = string & PasskeyCustodyBrand<'MlDsa65PublicKeyB64u'>;
+export type MlDsaMaterialEpoch = number & PasskeyCustodyBrand<'MlDsaMaterialEpoch'>;
+
 // 33-byte compressed secp256k1 point. This is public identity, not custody
 // material.
 export type Secp256k1CompressedPublicKeyB64u = string &
@@ -101,6 +104,30 @@ export function parseEd25519PublicKeyB64u(
     throw new Error(`${label} must decode to a 32-byte Ed25519 public key`);
   }
   return value as Ed25519PublicKeyB64u;
+}
+
+function isMlDsaMaterialEpoch(value: unknown): value is MlDsaMaterialEpoch {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+export function parseMlDsaMaterialEpoch(value: unknown): MlDsaMaterialEpoch {
+  if (!isMlDsaMaterialEpoch(value))
+    throw new Error('ML-DSA material epoch must be a positive safe integer');
+  return value;
+}
+
+function isMlDsa65PublicKeyB64u(value: unknown): value is MlDsa65PublicKeyB64u {
+  return (
+    typeof value === 'string' &&
+    requireCanonicalBase64Url(value, 'ML-DSA-65 public key').length === 1952
+  );
+}
+
+export function parseMlDsa65PublicKeyB64u(value: unknown): MlDsa65PublicKeyB64u {
+  if (!isMlDsa65PublicKeyB64u(value)) {
+    throw new Error('ML-DSA-65 public key must contain 1952 bytes in canonical base64url');
+  }
+  return value;
 }
 
 export function parseSecp256k1CompressedPublicKeyB64u(

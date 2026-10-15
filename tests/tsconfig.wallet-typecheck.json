@@ -9,6 +9,8 @@
     "typecheck/voice-assistant-card.typecheck.ts",
     "typecheck/voiceid-enrollment-store.typecheck.ts",
     "typecheck/wallet-locale.typecheck.ts",
+    "typecheck/ml-dsa-owner-admission.typecheck.ts",
+    "helpers/mlDsaOwnerAdmission.fixtures.ts",
     "typecheck/wallet-object-addresses.typecheck.ts",
     "typecheck/yao-registration-ceremony.typecheck.ts",
     "typecheck/wallet-command-inputs.typecheck.ts",

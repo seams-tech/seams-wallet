@@ -94,6 +94,8 @@ function serializeWalletKey(value: WalletKeyRecord) {
         evmAddress: value.evmAddress,
         lifecycle: serializeWalletKeyLifecycle(value.lifecycle),
       };
+    case 'ml_dsa_65':
+      throw new Error('ML-DSA requires its exact owner admission');
     default:
       value satisfies never;
       return value;

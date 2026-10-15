@@ -4,9 +4,12 @@ import type {
   WalletAuthMethodId,
   WalletId,
 } from '../utils/domainIds';
+import type { DigestB64u } from '../utils/canonicalPrimitives';
 import type { KeyCreationSignerSlot } from '../passkey-custody/primitives';
 import type {
   Ed25519PublicKeyB64u,
+  MlDsa65PublicKeyB64u,
+  MlDsaMaterialEpoch,
   Secp256k1CompressedPublicKeyB64u,
 } from '../passkey-custody/primitives';
 import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
@@ -38,6 +41,9 @@ export type WalletKeyLifecycle =
 export type Ed25519WalletKeyRecord = {
   readonly kind: 'wallet_key_record_v1';
   readonly keyFamily: 'ed25519';
+  readonly mlDsaSigningKeyId?: never;
+  readonly materialEpoch?: never;
+  readonly keyManifestDigestB64u?: never;
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;
   readonly walletKeyVersion: WalletKeyVersion;
@@ -53,6 +59,9 @@ export type Ed25519WalletKeyRecord = {
 export type EvmFamilyWalletKeyRecord = {
   readonly kind: 'wallet_key_record_v1';
   readonly keyFamily: 'ecdsa_secp256k1';
+  readonly mlDsaSigningKeyId?: never;
+  readonly materialEpoch?: never;
+  readonly keyManifestDigestB64u?: never;
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;
   readonly walletKeyVersion: WalletKeyVersion;
@@ -65,7 +74,27 @@ export type EvmFamilyWalletKeyRecord = {
   readonly registeredPublicKeyB64u?: never;
 };
 
-export type WalletKeyRecord = Ed25519WalletKeyRecord | EvmFamilyWalletKeyRecord;
+export type MlDsaSigningKeyId = DomainId<'MlDsaSigningKeyId'>;
+
+export type MlDsa65WalletKeyRecord = {
+  readonly kind: 'wallet_key_record_v1';
+  readonly keyFamily: 'ml_dsa_65';
+  readonly walletId: WalletId;
+  readonly walletKeyId: WalletKeyId;
+  readonly walletKeyVersion: WalletKeyVersion;
+  readonly mlDsaSigningKeyId: MlDsaSigningKeyId;
+  readonly registeredPublicKeyB64u: MlDsa65PublicKeyB64u;
+  readonly materialEpoch: MlDsaMaterialEpoch;
+  readonly keyManifestDigestB64u: DigestB64u;
+  readonly lifecycle: WalletKeyLifecycle;
+  readonly nearEd25519SigningKeyId?: never;
+  readonly keyCreationSignerSlot?: never;
+  readonly evmFamilySigningKeySlotId?: never;
+  readonly thresholdPublicKey33B64u?: never;
+  readonly evmAddress?: never;
+};
+
+export type WalletKeyRecord = Ed25519WalletKeyRecord | EvmFamilyWalletKeyRecord | MlDsa65WalletKeyRecord;
 
 export type SigningLaneKind =
   | 'owner_passkey'

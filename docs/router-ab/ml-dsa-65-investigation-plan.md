@@ -957,3 +957,19 @@ These results qualify this local case. Hosted concurrent-load measurements remai
 The next Gateway change needs an explicit ML-DSA capability and wallet-key variant.
 Bind its operation to the authenticated wallet, registered public key, epoch, message, context, and verified custody result.
 Then complete the Worker registration ceremony and generic registration pool before the public SDK/NEAR path.
+
+
+### Exact owner admission milestone — October 15, 2026
+
+The [owner admission report](ml-dsa-65-owner-admission-report.md) defines the new internal Gateway boundary.
+An explicit ML-DSA capability and wallet-key variant now bind an exact owner approval to its private Router request.
+The gate requires a claimed operation, verified factor evidence, and an operation-specific owner proof.
+It binds the wallet scope, ownership generation, key identity, epoch, manifest, schedule, transaction hash, and empty context.
+The Router operation ID remains stable across internal claims for the same logical operation.
+Generic signing-lane and D1 paths explicitly refuse ML-DSA.
+
+This completes the internal gate portion of Gateway integration.
+Public authentication, authoritative custody registry lookup, claim persistence, and ML-DSA session projection remain open.
+The E2E injects those inputs and exercises real local Worker execution after the gate.
+Complete these authority sources before mounting a public ML-DSA route.
+Then complete Worker registration and recovery, hosted qualification, and the SDK/NEAR path in that order.

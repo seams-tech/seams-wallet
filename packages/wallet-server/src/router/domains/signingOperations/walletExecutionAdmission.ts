@@ -595,6 +595,8 @@ function operationMatchesWalletKey(
       return (
         operation.operation.operation.capabilityKind === CAPABILITY_KINDS.nearEd25519MpcSigning
       );
+    case 'ml_dsa_65':
+      return false;
     case 'ecdsa_secp256k1':
       return operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
   }
