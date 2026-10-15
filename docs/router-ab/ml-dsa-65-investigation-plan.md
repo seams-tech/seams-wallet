@@ -2,6 +2,8 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-15.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
+The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
+It targets 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
 The [ready-pool report](ml-dsa-65-ready-pool-report.md) records the latest complete hosted pool campaign.
 Prepared registration takes 1.978–2.676 seconds across four sessions.
 Twenty-three successful signing requests take 0.214–1.321 seconds, including eleven automatic rollovers.
@@ -16,7 +18,8 @@ The [generic-preparation report](ml-dsa-65-generic-preparation-report.md) record
 Canonical wallet-seed recovery and standard FIPS seed/key export continue to pass native E2E checks.
 The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) records the passive disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
 
-The user accepts approximately 10–20 seconds of preparation for now and defers further optimization.
+The user now requests focused preparation investigation toward 10–20 seconds, with online signing allowed up to two seconds.
+The comparison plan defines fresh measurement boundaries. GPU optimization remains deferred.
 Hosted refill currently measures 19.26–22.24 seconds per four-candidate batch and 203.22 seconds for ten sequential batches.
 One batch does not guarantee one signature. A larger server or GPU remains a future option, with no current deployment change.
 Preprocessing stays on Workers. Integration must expose empty pools and include replenishment in capacity and cost measurements.
@@ -940,7 +943,7 @@ Next tasks, in dependency order:
 4. Qualify deadlines during legitimate concurrent preprocessing. Inject interruption between paired publication writes and during durable consumption. Test concurrent epoch replacement.
 5. Connect the SDK/NEAR caller, verify a threshold-signed transaction through that path, and package the selected library.
 
-Preparation speed optimization and the two-service GPU design remain deferred.
+The preparation comparison plan now resumes targeted preparation investigation. The two-service GPU design remains deferred.
 
 ### Refill scheduling correction — October 15, 2026
 
