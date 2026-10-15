@@ -37,7 +37,8 @@ The [activation report](ml-dsa-65-activation-report.md) records the implementati
 
 - [ ] Admit the custody operation through existing Wallet authentication and ownership checks.
 - [ ] Discover authenticated role recipient keys and deliver only each role's encrypted input.
-- [ ] Persist generic key-generation preparation with exact schedule and participant bindings.
+- [x] Add encrypted storage and consuming restoration for generic private key-generation state, with exact schedule and participant bindings.
+- [ ] Persist and authenticate the external table frames and connect the complete reservation to Workers.
 - [ ] Keep generic signing preparation ready before registration. Bind it to the new key without regenerating correlations.
 - [ ] Distinguish durable key activation from signer readiness. Require the configured paired signing reserve before reporting immediate signing availability.
 - [ ] Atomically consume preparation before private input selection. Burn uncertain or interrupted reservations.
@@ -68,6 +69,7 @@ Exit: public requests cannot select another wallet, key, epoch, transaction, or 
 - [ ] Deploy matching Gateway, Router, A, and B builds to the authorized test environment.
 - [ ] Measure registration, successful signing, and recovery with prepared capacity available.
 - [ ] Measure pool wait, refill throughput, full-reserve cost, and failures separately.
+- [ ] Preserve typed exhaustion, transport, protocol, storage, and timeout outcomes in Worker evidence before qualifying availability.
 - [ ] Exercise simultaneous wallets, rejection retries, empty pools, and service capacity.
 - [ ] Inject lost responses, partial installation, Worker restart, and concurrent epoch replacement.
 - [ ] Verify exact replay, no preparation reuse, and consistent cooldown charging after failure.

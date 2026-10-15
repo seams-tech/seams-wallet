@@ -7,6 +7,7 @@ mod fresh_mask_evidence;
 mod garbled_execution;
 mod hybrid_keygen;
 mod material_storage_evidence;
+mod keygen_storage_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
 mod pool_evidence;

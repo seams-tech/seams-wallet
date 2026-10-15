@@ -5,6 +5,7 @@ pub mod execution;
 pub mod material;
 pub mod policy;
 pub mod refill;
+pub mod registration_preparation;
 pub mod pool;
 pub mod sealing;
 #[cfg(feature = "workers-rs")]

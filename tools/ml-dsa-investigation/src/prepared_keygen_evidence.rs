@@ -154,6 +154,9 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     };
     let started = Instant::now();
     let prepared = run_ready(prepare_keygen(role, &schedules, &mut transport))??;
+    let (prepared, preparation_storage) = crate::keygen_storage_evidence::roundtrip(
+        prepared, role, &schedules, Path::new(&args[3]),
+    )?;
     run_ready(barrier(role, &mut transport))??;
     let offline_ns = started.elapsed().as_nanos();
     transport.phase(Phase::Online);
@@ -176,6 +179,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
             "public_key_hex": hex::encode(key.public_key), "own_material_bytes": key.own_material.len(),
             "offline_ns": offline_ns, "online_ns": online_ns,
         "post_timer_sealing_ns": post_timer_sealing_ns, "material_storage": material_storage,
+        "preparation_storage": preparation_storage,
             "offline": transport.counts[0].json(), "online": transport.counts[1].json(),
             "circuits": key.circuits.len() + 1, "wallet_seed_table_bytes": wallet.table_bytes,
         }))?,

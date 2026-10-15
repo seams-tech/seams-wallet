@@ -37,6 +37,14 @@ pub fn seal(
     binding: &Binding,
     wrapping_seed: &[u8; 32],
 ) -> Result<Sealed> {
+    seal_bound(bytes, INFO, binding, wrapping_seed)
+}
+pub(crate) fn seal_bound(
+    bytes: Zeroizing<Vec<u8>>,
+    domain: &[u8],
+    binding: &impl Serialize,
+    wrapping_seed: &[u8; 32],
+) -> Result<Sealed> {
     if bytes.is_empty() || bytes.len() > 16 * 1024 * 1024 {
         return Err(invalid("Invalid preparation length"));
     }
@@ -45,8 +53,8 @@ pub fn seal(
     let (enc, ciphertext) = Cipher::seal_auth(
         &mut crate::hpke::CloudflareHpkeGetrandomRngV1,
         &public,
-        INFO,
-        &digest(INFO, binding)?,
+        domain,
+        &digest(domain, binding)?,
         &bytes,
         &secret,
     )
@@ -66,6 +74,14 @@ pub fn open(
     binding: &Binding,
     wrapping_seed: &[u8; 32],
 ) -> Result<Zeroizing<Vec<u8>>> {
+    open_bound(sealed, INFO, binding, wrapping_seed)
+}
+pub(crate) fn open_bound(
+    sealed: Sealed,
+    domain: &[u8],
+    binding: &impl Serialize,
+    wrapping_seed: &[u8; 32],
+) -> Result<Zeroizing<Vec<u8>>> {
     sealed.validate()?;
     let enc =
         DhKemX25519HkdfSha256::enc_from_bytes(&sealed.encapsulated_key).map_err(crypto_error)?;
@@ -74,8 +90,8 @@ pub fn open(
     Cipher::open_auth(
         &enc,
         &secret,
-        INFO,
-        &digest(INFO, binding)?,
+        domain,
+        &digest(domain, binding)?,
         &sealed.ciphertext,
         &public,
     )
@@ -107,4 +123,55 @@ fn decode_ciphertext<'de, D: serde::Deserializer<'de>>(
     base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(encoded)
         .map_err(serde::de::Error::custom)
+}
+
+const CHUNK_BYTES: usize = 48 * 1024;
+impl Sealed {
+    pub(crate) async fn store_chunks(&self, store: &impl Store, prefix: &str) -> Result<usize> {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        self.validate()?;
+        for (ordinal, bytes) in self.ciphertext.chunks(CHUNK_BYTES).enumerate() {
+            store
+                .put(&format!("{prefix}/{ordinal}"), &STANDARD.encode(bytes))
+                .await?;
+        }
+        Ok(self.ciphertext.len().div_ceil(CHUNK_BYTES))
+    }
+    pub(crate) async fn load_chunks(
+        store: &impl Store,
+        prefix: &str,
+        chunks: usize,
+        encapsulated_key: [u8; 32],
+    ) -> Result<Self> {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        if chunks == 0 || chunks > (16usize * 1024 * 1024 + 16).div_ceil(CHUNK_BYTES) {
+            return Err(invalid("Invalid ML-DSA chunk count"));
+        }
+        let mut ciphertext = Vec::new();
+        for ordinal in 0..chunks {
+            let encoded = store
+                .get::<String>(&format!("{prefix}/{ordinal}"))
+                .await?
+                .ok_or_else(|| invalid("Missing ML-DSA ciphertext chunk"))?;
+            let bytes = STANDARD
+                .decode(encoded)
+                .map_err(|_| invalid("Invalid ML-DSA ciphertext chunk"))?;
+            if bytes.len() > CHUNK_BYTES {
+                return Err(invalid("Oversized ML-DSA ciphertext chunk"));
+            }
+            ciphertext.extend_from_slice(&bytes);
+        }
+        let sealed = Self {
+            encapsulated_key,
+            ciphertext,
+        };
+        sealed.validate()?;
+        Ok(sealed)
+    }
+}
+pub(crate) async fn erase_chunks(store: &impl Store, prefix: &str, chunks: usize) -> Result<()> {
+    for ordinal in 0..chunks {
+        store.delete(&format!("{prefix}/{ordinal}")).await?;
+    }
+    Ok(())
 }
