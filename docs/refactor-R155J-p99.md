@@ -4,7 +4,7 @@ Status, October 15, 2026: **the tail target is not met on release 0.10.2.**
 The [acceptance population](evidence/refactor-155j-acceptance-0102.md) has 204
 attempts: p99 5,966 ms without the passkey step, 11 registrations above 4 s,
 and one failed attempt. Its slowest registrations and the failure are
-attributed; fixes for the failure path are in review.
+attributed; the failure path is fixed on `dev` in `bc2328c3` and `e311a6f6`.
 
 The last verified staging release is 0.10.2. Do not confuse an implemented
 fix, a successful bounded check, a published release, and acceptance of the
@@ -29,7 +29,7 @@ CPU/round-trip work, preparation at setup, its cost controls, and transient
 | B binding-await delay | All three arms showed the asymmetry; an unchanged three-wallet control later ran in 12–21 ms | Separate database, transport, runtime, and clock effects if it recurs; no migration is justified now |
 | First-signature HTTP 503 | One diagnostic capture recorded it | Cause remains unresolved |
 | Router object reply wait | One 12.2 s `finish_registration` reply on 0.10.2; our code and transport excluded ([record](evidence/refactor-155j-router-finish-hold-20261014.md)) | A platform wait; only Cloudflare can refine it. 1 of 1,779 Router calls on October 14 |
-| Execution before its preparation | The failed acceptance attempt: a 2.4 s Deriver A start, an inline preparation that lost `ConflictingPair` to the setup preparation, then 409 from a held Router claim | Fixes in review: wait for the setup preparation, and pass the Router's retry time to the SDK |
+| Execution before its preparation | The failed acceptance attempt: a 2.4 s Deriver A start, an inline preparation that lost `ConflictingPair` to the setup preparation, then 409 from a held Router claim | Fixed on `dev`: `bc2328c3` binds such an execution to its setup preparation (no reproduction inside the object); `e311a6f6` makes the SDK wait out the held claim, with a contract case that fails with the staging error before the change |
 | Final p99 acceptance | [204 attempts on 0.10.2](evidence/refactor-155j-acceptance-0102.md): p99 5,966 ms, 5.4% above 4 s, 1 failure | Not met. First batches after idle hold 5 of the 11 slowest; a Gateway wait before the Yao execution holds 3 |
 
 The next diagnostic work is the cold first batch after idle, the Gateway
