@@ -174,11 +174,6 @@ export {
   resolveSourceIpFromFetchHeaders,
 } from './auth/routerApiKeyAuth';
 export { createCloudflareRouter } from './cloudflare/runtime/createCloudflareRouter';
-export type { SelfHostedCloudflareSigningWorkerFactoryInput } from './cloudflare/runtime/createSelfHostedCloudflareSigningWorker';
-export {
-  createSelfHostedCloudflareSigningRouter,
-  createSelfHostedCloudflareSigningWorker,
-} from './cloudflare/runtime/createSelfHostedCloudflareSigningWorker';
 export {
   CloudflareDurableObjectVersionedJsonRecordStore,
   CloudflareVersionedJsonRecordStoreError,

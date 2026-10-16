@@ -1,11 +1,6 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import {
-  RedisTcpClient,
-  type RedisResp,
-  UpstashRedisRestClient,
-} from '../../../../core/ThresholdService/kv';
-import { createInMemorySigningSessionSealRateLimiter } from './index';
-import type { CreateSigningSessionSealRateLimitGuardOptions, SigningSessionSealRateLimiter } from './index';
+import { UpstashRedisRestClient } from '../../../../core/ThresholdService/kv';
+import type { SigningSessionSealRateLimiter } from './index';
 
 const WINDOW_COUNTER_LUA = `
 local key = KEYS[1]
@@ -116,145 +111,8 @@ class UpstashSigningSessionSealRateLimiter implements SigningSessionSealRateLimi
   }
 }
 
-function redisRespToString(resp: RedisResp): string | null {
-  if (resp.type === 'error') return null;
-  if (resp.type === 'bulk') return typeof resp.value === 'string' ? resp.value : null;
-  if (resp.type === 'integer') return String(resp.value);
-  if (resp.type === 'simple') return resp.value;
-  return null;
-}
-
-export interface CreateRedisTcpSigningSessionSealRateLimiterOptions {
-  redisUrl: string;
-  keyPrefix?: string;
-}
-
-class RedisTcpSigningSessionSealRateLimiter implements SigningSessionSealRateLimiter {
-  private readonly client: RedisTcpClient;
-  private readonly keyPrefix: string;
-
-  constructor(input: CreateRedisTcpSigningSessionSealRateLimiterOptions) {
-    this.client = new RedisTcpClient(input.redisUrl);
-    this.keyPrefix = toOptionalTrimmedString(input.keyPrefix);
-  }
-
-  private withPrefix(key: string): string {
-    return this.keyPrefix ? `${this.keyPrefix}${key}` : key;
-  }
-
-  async consume(input: { key: string; limit: number; windowMs: number; nowMs: number }) {
-    const key = this.withPrefix(toOptionalTrimmedString(input.key));
-    if (!key) {
-      return {
-        ok: false as const,
-        code: 'invalid_rate_limit_key',
-        message: 'Rate-limit key is required',
-      };
-    }
-    try {
-      const resp = await this.client.send([
-        'EVAL',
-        WINDOW_COUNTER_LUA,
-        '1',
-        key,
-        String(Math.max(1, Math.floor(Number(input.windowMs) || 0))),
-      ]);
-      if (resp.type === 'error') {
-        return { ok: false as const, code: 'internal', message: `Redis EVAL error: ${resp.value}` };
-      }
-      const raw = redisRespToString(resp);
-      const parsed = parseCounterWindow(raw);
-      if (!parsed) {
-        return {
-          ok: false as const,
-          code: 'internal',
-          message: 'Invalid Redis rate-limit response',
-        };
-      }
-      return finalizeConsume({
-        count: parsed.count,
-        ttlMs: parsed.ttlMs,
-        limit: Math.max(1, Math.floor(Number(input.limit) || 0)),
-        nowMs: Math.floor(Number(input.nowMs) || 0),
-      });
-    } catch (error: unknown) {
-      return {
-        ok: false as const,
-        code: 'internal',
-        message:
-          error instanceof Error ? error.message : String(error || 'Redis rate-limit failed'),
-      };
-    }
-  }
-}
-
 export function createUpstashSigningSessionSealRateLimiter(
   options: CreateUpstashSigningSessionSealRateLimiterOptions,
 ): SigningSessionSealRateLimiter {
   return new UpstashSigningSessionSealRateLimiter(options);
-}
-
-export function createRedisTcpSigningSessionSealRateLimiter(
-  options: CreateRedisTcpSigningSessionSealRateLimiterOptions,
-): SigningSessionSealRateLimiter {
-  return new RedisTcpSigningSessionSealRateLimiter(options);
-}
-
-export interface CreateSigningSessionSealRateLimitFromEnvInput {
-  limiterKind?: 'in-memory' | 'upstash-redis-rest' | 'redis-tcp' | null;
-  upstashUrl?: string | null;
-  upstashToken?: string | null;
-  redisUrl?: string | null;
-  keyPrefix?: string | null;
-  limit: number;
-  windowMs: number;
-}
-
-export function resolveSigningSessionSealRateLimitFromEnv(
-  input: CreateSigningSessionSealRateLimitFromEnvInput,
-): Pick<CreateSigningSessionSealRateLimitGuardOptions, 'limiter' | 'limit' | 'windowMs'> {
-  const limiterKind = toOptionalTrimmedString(input.limiterKind || '').toLowerCase();
-  const upstashUrl = toOptionalTrimmedString(input.upstashUrl || '');
-  const upstashToken = toOptionalTrimmedString(input.upstashToken || '');
-  const redisUrl = toOptionalTrimmedString(input.redisUrl || '');
-  const keyPrefix = toOptionalTrimmedString(input.keyPrefix || '') || undefined;
-
-  const selectedKind =
-    limiterKind ||
-    (upstashUrl || upstashToken ? 'upstash-redis-rest' : redisUrl ? 'redis-tcp' : 'in-memory');
-
-  if (selectedKind === 'upstash-redis-rest') {
-    if (!upstashUrl || !upstashToken) {
-      throw new Error('Upstash Signing-session seal rate limiter requires both upstashUrl and upstashToken');
-    }
-    return {
-      limiter: createUpstashSigningSessionSealRateLimiter({
-        url: upstashUrl,
-        token: upstashToken,
-        keyPrefix,
-      }),
-      limit: input.limit,
-      windowMs: input.windowMs,
-    };
-  }
-
-  if (selectedKind === 'redis-tcp') {
-    if (!redisUrl) {
-      throw new Error('Redis TCP Signing-session seal rate limiter requires redisUrl');
-    }
-    return {
-      limiter: createRedisTcpSigningSessionSealRateLimiter({
-        redisUrl,
-        keyPrefix,
-      }),
-      limit: input.limit,
-      windowMs: input.windowMs,
-    };
-  }
-
-  return {
-    limiter: createInMemorySigningSessionSealRateLimiter(),
-    limit: input.limit,
-    windowMs: input.windowMs,
-  };
 }

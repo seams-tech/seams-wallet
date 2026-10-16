@@ -45,13 +45,9 @@ export type {
   SigningSessionSealRateLimitRejectedEvent,
 } from './guards';
 export type {
-  CreateSigningSessionSealRateLimitFromEnvInput,
-  CreateRedisTcpSigningSessionSealRateLimiterOptions,
   CreateUpstashSigningSessionSealRateLimiterOptions,
 } from './guards/backends';
 export type {
-  CreateSigningSessionSealIdempotencyFromEnvInput,
-  CreateRedisTcpSigningSessionSealIdempotencyStoreOptions,
   CreateUpstashSigningSessionSealIdempotencyStoreOptions,
 } from './idempotencyBackends';
 export {
@@ -82,14 +78,10 @@ export {
   createSigningSessionSealRateLimitGuard,
 } from './guards';
 export {
-  createRedisTcpSigningSessionSealRateLimiter,
   createUpstashSigningSessionSealRateLimiter,
-  resolveSigningSessionSealRateLimitFromEnv,
 } from './guards/backends';
 export {
-  createRedisTcpSigningSessionSealIdempotencyStore,
   createUpstashSigningSessionSealIdempotencyStore,
-  resolveSigningSessionSealIdempotencyFromEnv,
 } from './idempotencyBackends';
 export { composeSigningSessionSealGuards } from './guards';
 export { handleSigningSessionSealRoutes } from './transport/fetch';
