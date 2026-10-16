@@ -1,5 +1,10 @@
 # Registration orchestration and B execution claims — October 16, 2026
 
+Update, October 16, 15:36 JST: measured on staging in release 0.11.0, the
+Router wallet object adds about 180 ms before the Deriver calls and about 200 ms
+after Deriver A answers, against the 0.10.2 orchestration. Respond is about
+400 ms slower at the median ([record](release-0110-staging-20261016.md)).
+
 The implementation removes one Router-to-object call and one B pair-record write.
 Correctness checks pass. The local comparison shows no material latency change.
 Hosted savings remain unmeasured.
