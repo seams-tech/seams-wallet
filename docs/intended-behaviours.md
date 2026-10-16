@@ -3436,6 +3436,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Reject retired preparation ciphertext without a cipher fallback. Regenerate preparation after a storage-suite change.
 - Authenticate each registration table frame against its reservation, circuit, position, and length. Read it only after the exact ceremony consumes private preparation.
 - Consume table frames atomically. Retire unused fallbacks in bounded steps, and fence late writers even when cancellation precedes the first frame.
+- Consume at most eight contiguous frames from one circuit per table-read transaction. Release plaintext only after commit. Burn unused prefetched frames after interruption.
+- Permit read-only role-storage initialization during an exact live registration claim. It must not install material, schedule refill, or delay completed key generation.
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
 - Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
 - Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.

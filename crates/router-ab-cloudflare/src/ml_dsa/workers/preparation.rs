@@ -5,14 +5,13 @@ use worker::{Context, WebSocket, WebSocketPair};
 pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
 const QUEUE: &str = "preprocessing-queue";
 
-pub(super) fn needs_refill(command: &RoleCommand) -> bool {
-    matches!(
-        command,
-        RoleCommand::Install { .. }
-            | RoleCommand::Inventory { .. }
-            | RoleCommand::Take { .. }
-            | RoleCommand::Release { .. }
-    )
+pub(super) fn refill_key(command: &RoleCommand) -> Option<&KeyScope> {
+    match command {
+        RoleCommand::Install { key } | RoleCommand::Inventory { key, .. } => Some(key),
+        RoleCommand::Take { permit, .. } => Some(&permit.request.key),
+        RoleCommand::Release { request, .. } => Some(&request.key),
+        _ => None,
+    }
 }
 pub(super) async fn enqueue(store: &impl Store, key: &KeyScope) -> Result<()> {
     let mut queue: Vec<KeyScope> = store.get(QUEUE).await?.unwrap_or_default();

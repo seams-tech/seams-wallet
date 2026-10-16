@@ -105,6 +105,9 @@ pub enum AdmissionCommand {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RoleCommand {
+    InitializeRegistrationStorage {
+        claim: super::registration::Claim,
+    },
     InstallRegistrationBatch {
         claim: super::registration::Claim,
         ordinal: usize,
@@ -166,25 +169,27 @@ pub enum RoleCommand {
     },
 }
 impl RoleCommand {
-    fn key(&self) -> &KeyScope {
+    fn wallet(&self) -> &super::WalletScope {
         match self {
-            Self::InstallRegistrationBatch { binding, .. } => &binding.key,
-            Self::StartRefill { job } => &job.key,
-            Self::CheckMaterial { activation } => &activation.key,
-            Self::InstallMaterial { record } => &record.activation.key,
-            Self::LoadMaterial { permit } => &permit.request.key,
+            Self::InitializeRegistrationStorage { claim } => &claim.request.wallet,
+            Self::InstallRegistrationBatch { binding, .. } | Self::Put { binding, .. } => {
+                &binding.key.wallet
+            }
+            Self::StartRefill { job } => &job.key.wallet,
+            Self::CheckMaterial { activation } => &activation.key.wallet,
+            Self::InstallMaterial { record } => &record.activation.key.wallet,
+            Self::LoadMaterial { permit } | Self::Take { permit, .. } => &permit.request.key.wallet,
             Self::Install { key }
             | Self::Inventory { key, .. }
             | Self::RefillStatus { key }
             | Self::Inspect { key, .. }
-            | Self::RetireUnpaired { key, .. } => key,
-            Self::Put { binding, .. } => &binding.key,
-            Self::Reserve { claim, .. } => &claim.request.key,
-            Self::Take { permit, .. } => &permit.request.key,
-            Self::Release { request, .. } | Self::Fence { request, .. } => &request.key,
+            | Self::RetireUnpaired { key, .. } => &key.wallet,
+            Self::Reserve { claim, .. } => &claim.request.key.wallet,
+            Self::Release { request, .. } | Self::Fence { request, .. } => &request.key.wallet,
         }
     }
 }
+
 pub fn policy(env: &Env) -> Result<Policy> {
     match env.var("ML_DSA_ADMISSION_POLICY") {
         Ok(value) => Policy::parse(&value.to_string()),
@@ -392,7 +397,7 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         authorize_role_command(&self.env, &command)
             .await
             .map_err(protocol_error)?;
-        if role == Participant::A && preparation::needs_refill(&command) {
+        if role == Participant::A && preparation::refill_key(&command).is_some() {
             schedule_refill_alarm(&self.state, 1_000).await?;
         }
         let value = role_transaction(&self.state, role, command).await?;
@@ -414,10 +419,12 @@ async fn role_transaction(
         .transaction(move |transaction| async move {
             let store = TransactionStore(transaction);
             let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-            if role == Participant::A && preparation::needs_refill(&command) {
-                preparation::enqueue(&store, command.key())
-                    .await
-                    .map_err(protocol_error)?;
+            if role == Participant::A {
+                if let Some(key) = preparation::refill_key(&command) {
+                    preparation::enqueue(&store, key)
+                        .await
+                        .map_err(protocol_error)?;
+                }
             }
             let value = execute_role(&store, role, command, now)
                 .await
@@ -448,6 +455,23 @@ fn configured_role(env: &Env) -> worker::Result<Participant> {
 }
 async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> {
     let (request, expected) = match command {
+        RoleCommand::InitializeRegistrationStorage { claim } => {
+            let allowed: bool = service_call(
+                env,
+                CallAuthority::Internal,
+                &AdmissionCommand::CheckRegistrationClaim {
+                    claim: claim.clone(),
+                },
+            )
+            .await?;
+            return if allowed {
+                Ok(())
+            } else {
+                Err(invalid(
+                    "Storage initialization requires a live registration",
+                ))
+            };
+        }
         RoleCommand::InstallRegistrationBatch {
             claim,
             ordinal,
@@ -589,6 +613,11 @@ async fn execute_role(
     now: u64,
 ) -> Result<serde_json::Value> {
     match command {
+        RoleCommand::InitializeRegistrationStorage { claim } => {
+            // A bounded read warms this actor without changing custody or pool state.
+            let _ = pool::installed_key(store, &claim.request.key_id).await?;
+            json(true)
+        }
         RoleCommand::InstallRegistrationBatch {
             binding, sealed, ..
         } => {
@@ -678,10 +707,7 @@ pub(crate) async fn handle_role(
     local_call(env, &command).await.map_err(protocol_error)
 }
 async fn local_call(env: &Env, command: &RoleCommand) -> Result<Response> {
-    let name = format!(
-        "ml-dsa-pool-{}",
-        hex(&digest(b"wallet", &command.key().wallet)?)
-    );
+    let name = format!("ml-dsa-pool-{}", hex(&digest(b"wallet", command.wallet())?));
     let namespace = env.durable_object(POOL_BINDING).map_err(storage_error)?;
     let stub = namespace
         .id_from_name(&name)

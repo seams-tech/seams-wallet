@@ -48,7 +48,7 @@ def records(path, role):
                 if value.get("event") == "ml_dsa_registration_execution_v1":
                     registration.append({key: value[key] for key in [
                         "role", "restore_wall_ms", "run_wall_ms", "table_load_wall_ms",
-                        "loaded_frames", "loaded_bytes",
+                        "loaded_frames", "loaded_bytes", "table_read_transactions", "peak_cached_frames",
                     ] if key in value})
                 if value.get("event") not in ["ml-dsa-boolean-preparation-progress", "ml-dsa-signing-key-ready", "ml-dsa-generic-preparation-ready", "ml-dsa-keygen-preparation-ready"]:
                     continue

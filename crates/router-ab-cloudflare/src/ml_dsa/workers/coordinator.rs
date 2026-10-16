@@ -178,12 +178,18 @@ pub(super) async fn role_call<T: serde::de::DeserializeOwned>(
     binding: &str,
     command: &RoleCommand,
 ) -> Result<T> {
+    let operation = match command {
+        RoleCommand::InitializeRegistrationStorage { .. } => {
+            "ML-DSA registration storage initialization"
+        }
+        _ => "ML-DSA role storage",
+    };
     let mut response = crate::router_coordinator::post_role_request(
         env,
         binding,
         "https://ml-dsa-role.internal",
         ROLE_PATH,
-        "ML-DSA role storage",
+        operation,
         command,
         None,
     )

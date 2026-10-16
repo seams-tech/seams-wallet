@@ -70,7 +70,7 @@ pub async fn refill_status(
 ) -> Result<RefillStatus> {
     check_key(store, key).await?;
     let record = store
-        .get::<Refill>(&format!("refill/{}", key_name(key)?))
+        .get::<Refill>(&format!("refill/{}", key_name(&key.key_id)?))
         .await?;
     match record {
         Some(value) if value.key == *key && value.due => Ok(RefillStatus::Requested {
@@ -87,8 +87,8 @@ pub async fn refill_status(
     }
 }
 
-fn key_name(key: &KeyScope) -> Result<String> {
-    Ok(format!("key/{}", hex(&digest(b"key-slot", &key.key_id)?)))
+fn key_name(key_id: &Identifier) -> Result<String> {
+    Ok(format!("key/{}", hex(&digest(b"key-slot", key_id)?)))
 }
 fn fence_name(request: &SigningRequest) -> Result<String> {
     Ok(format!("closed/{}", hex(&request.digest()?)))
@@ -133,8 +133,11 @@ fn batch_name(batch: &[u8; 32]) -> String {
 fn chunk_prefix(batch: &[u8; 32]) -> String {
     format!("ciphertext/{}", hex(batch))
 }
+pub async fn installed_key(store: &impl Store, key_id: &Identifier) -> Result<Option<KeyScope>> {
+    store.get(&key_name(key_id)?).await
+}
 pub(super) async fn check_key(store: &impl Store, key: &KeyScope) -> Result<()> {
-    if store.get::<KeyScope>(&key_name(key)?).await?.as_ref() != Some(key) {
+    if installed_key(store, &key.key_id).await?.as_ref() != Some(key) {
         return Err(invalid("ML-DSA key or epoch is inactive"));
     }
     Ok(())
@@ -158,7 +161,7 @@ pub async fn install_key(store: &impl Store, key: KeyScope) -> Result<()> {
     } else {
         store.put("owner", &key.wallet).await?;
     }
-    let name = key_name(&key)?;
+    let name = key_name(&key.key_id)?;
     if let Some(current) = store.get::<KeyScope>(&name).await? {
         if current == key {
             return Ok(());
@@ -265,7 +268,7 @@ pub async fn inventory(
     }
     store.put("index", &retained).await?;
     let refill_due = ready.len() + reserved.len() < target;
-    let refill_key = format!("refill/{}", key_name(key)?);
+    let refill_key = format!("refill/{}", key_name(&key.key_id)?);
     let previous = store.get::<Refill>(&refill_key).await?;
     let retry_at_ms = previous
         .map(|value| value.retry_at_ms)
@@ -376,7 +379,7 @@ pub async fn take(
     let mut ids = index(store).await?;
     ids.retain(|id| *id != batch);
     store.put("index", &ids).await?;
-    let refill_key = format!("refill/{}", key_name(&permit.request.key)?);
+    let refill_key = format!("refill/{}", key_name(&permit.request.key.key_id)?);
     let target = store
         .get::<Refill>(&refill_key)
         .await?

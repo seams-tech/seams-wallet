@@ -127,7 +127,7 @@ fn decode_ciphertext<'de, D: serde::Deserializer<'de>>(
         .map_err(serde::de::Error::custom)
 }
 
-const CHUNK_BYTES: usize = 48 * 1024;
+pub(super) const CHUNK_BYTES: usize = 48 * 1024;
 impl Sealed {
     pub(crate) async fn store_chunks(&self, store: &impl Store, prefix: &str) -> Result<usize> {
         use base64::{engine::general_purpose::STANDARD, Engine};
@@ -155,6 +155,9 @@ impl Sealed {
                 .get::<String>(&format!("{prefix}/{ordinal}"))
                 .await?
                 .ok_or_else(|| invalid("Missing ML-DSA ciphertext chunk"))?;
+            if encoded.len() > CHUNK_BYTES.div_ceil(3) * 4 {
+                return Err(invalid("Oversized ML-DSA encoded ciphertext chunk"));
+            }
             let bytes = STANDARD
                 .decode(encoded)
                 .map_err(|_| invalid("Invalid ML-DSA ciphertext chunk"))?;

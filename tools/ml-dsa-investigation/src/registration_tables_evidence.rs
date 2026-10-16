@@ -32,6 +32,9 @@ pub(super) struct RegistrationTransport {
     frames_written: usize,
     frames_read: usize,
     replay_checked: bool,
+    frames: Option<tables::ConsumedFrames>,
+    read_transactions: usize,
+    peak_cached_frames: usize,
 }
 impl RegistrationTransport {
     pub(super) fn new(
@@ -63,6 +66,9 @@ impl RegistrationTransport {
             frames_written: 0,
             frames_read: 0,
             replay_checked: false,
+            frames: None,
+            read_transactions: 0,
+            peak_cached_frames: 0,
         })
     }
     pub(super) fn check_before_consume(&self) -> InvestigationResult<()> {
@@ -126,8 +132,35 @@ impl RegistrationTransport {
             .is_err(),
             "Opened table with wrong wrapping key",
         )?;
+        let record_name = format!(
+            "registration-tables/{}/{}/0",
+            hex::encode(self.binding.reservation),
+            hex::encode(circuit)
+        );
+        let record: Value = run_ready(self.db.get(&record_name))??.ok_or("Missing frame record")?;
+        let mut oversized = record.clone();
+        oversized["chunks"] = json!(100);
+        tx(&self.db, self.db.put(&record_name, &oversized))?;
+        require(
+            tx(
+                &self.db,
+                tables::take(
+                    &self.db,
+                    &self.binding,
+                    [52; 32],
+                    *circuit,
+                    0,
+                    bytes.len(),
+                    &self.seed,
+                    3,
+                ),
+            )
+            .is_err(),
+            "Accepted an oversized table chunk count",
+        )?;
+        tx(&self.db, self.db.put(&record_name, &record))?;
         let name = format!(
-            "registration-tables/{}/{}/0/ciphertext/0",
+            "registration-tables/{}/{}/1/ciphertext/0",
             hex::encode(self.binding.reservation),
             hex::encode(circuit)
         );
@@ -151,12 +184,18 @@ impl RegistrationTransport {
                 ),
             )
             .is_err(),
-            "Opened modified table ciphertext",
+            "Opened modified second frame or failed to roll back first frame",
         )?;
         tx(&self.db, self.db.put(&name, &encoded))?;
         Ok(())
     }
     pub(super) fn cleanup(&mut self) -> InvestigationResult<Value> {
+        require(
+            self.frames
+                .as_ref()
+                .is_none_or(|frames| frames.remaining() == 0),
+            "Key generation left prefetched frames unused",
+        )?;
         let mut steps = 0;
         while !tx(&self.db, tables::retire_next(&self.db, &self.binding))? {
             steps += 1;
@@ -222,8 +261,9 @@ impl RegistrationTransport {
         }
         Ok(
             json!({"role":self.binding.role,"frames_written":self.frames_written,"frames_read":self.frames_read,
+            "read_transactions":self.read_transactions,"peak_cached_frames":self.peak_cached_frames,
             "cleanup_steps":steps+1,"cleanup_complete":true,"remaining_ciphertext_chunks":self.db.remaining_registration_table_chunks()?,"replay_checked":self.replay_checked,
-            "evaluator_negative_cases": if self.first.is_some() { vec!["before_consume", "wrong_ceremony", "wrong_key", "modified_ciphertext", "repeated_read", "retired_read", "retired_republish", "cancel_before_first_frame"] } else { vec![] }}),
+            "evaluator_negative_cases": if self.first.is_some() { vec!["before_consume", "wrong_ceremony", "wrong_key", "bounded_frame_chunks", "modified_later_frame_rolls_back_batch", "cached_order", "unserved_prefetch_replay_after_restart", "repeated_read", "retired_read", "retired_republish", "cancel_before_first_frame"] } else { vec![] }}),
         )
     }
 }
@@ -269,22 +309,12 @@ impl Transport for RegistrationTransport {
         ordinal: usize,
         length: usize,
     ) -> Result<Vec<u8>, RuntimeError> {
-        let bytes = tx(
-            &self.db,
-            tables::take(
-                &self.db,
-                &self.binding,
-                [52; 32],
-                circuit,
-                ordinal,
-                length,
-                &self.seed,
-                3,
-            ),
-        )
-        .map_err(failure)?;
-        if !self.replay_checked {
-            if tx(
+        if self
+            .frames
+            .as_ref()
+            .is_none_or(|frames| frames.remaining() == 0)
+        {
+            let frames = tx(
                 &self.db,
                 tables::take(
                     &self.db,
@@ -297,12 +327,44 @@ impl Transport for RegistrationTransport {
                     3,
                 ),
             )
-            .is_ok()
-            {
+            .map_err(failure)?;
+            self.peak_cached_frames = self.peak_cached_frames.max(frames.remaining());
+            self.read_transactions += 1;
+            self.frames = Some(frames);
+        }
+        if !self.replay_checked {
+            let frames = self.frames.as_mut().ok_or(RuntimeError::TableFrame)?;
+            if frames.remaining() < 2 || frames.next(circuit, ordinal + 1, length).is_ok() {
                 return Err(RuntimeError::SessionBinding);
+            }
+            let reopened = Db::open(&self.database).map_err(failure)?;
+            for already_consumed in [ordinal, ordinal + 1] {
+                if tx(
+                    &reopened,
+                    tables::take(
+                        &reopened,
+                        &self.binding,
+                        [52; 32],
+                        circuit,
+                        already_consumed,
+                        length,
+                        &self.seed,
+                        3,
+                    ),
+                )
+                .is_ok()
+                {
+                    return Err(RuntimeError::SessionBinding);
+                }
             }
             self.replay_checked = true;
         }
+        let bytes = self
+            .frames
+            .as_mut()
+            .ok_or(RuntimeError::TableFrame)?
+            .next(circuit, ordinal, length)
+            .map_err(failure)?;
         self.frames_read += 1;
         self.inner.counts[1].table_read(length);
         Ok(bytes)

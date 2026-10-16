@@ -198,15 +198,9 @@ pub(crate) async fn handle_register(
         } => claim,
         other => return Response::from_json(&other),
     };
-    let execution: core::ExecutionReply = role_call(
-        env,
-        "DERIVER_A",
-        &Command::Execute {
-            claim: claim.clone(),
-        },
-    )
-    .await
-    .map_err(protocol_error)?;
+    let execution = execute_with_storage_initialization(env, &claim)
+        .await
+        .map_err(protocol_error)?;
     let result = match execution {
         core::ExecutionReply::Complete { result } => result,
         core::ExecutionReply::Running => {
@@ -455,4 +449,38 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
         }
         Response::from_json(&done)
     }
+}
+
+async fn execute_with_storage_initialization(
+    env: &Env,
+    claim: &core::Claim,
+) -> Result<core::ExecutionReply> {
+    let command = Command::Execute {
+        claim: claim.clone(),
+    };
+    let execution = role_call(env, "DERIVER_A", &command);
+    let initialization = before_deadline(claim.deadline, initialize_storage(env, claim));
+    futures::pin_mut!(execution, initialization);
+    match futures::future::select(execution, initialization).await {
+        futures::future::Either::Left((result, _)) => result,
+        futures::future::Either::Right((initialized, execution)) => {
+            if initialized.is_err() {
+                worker::console_warn!("Optional ML-DSA storage initialization failed");
+            }
+            execution.await
+        }
+    }
+}
+async fn initialize_storage(env: &Env, claim: &core::Claim) -> Result<()> {
+    let command = RoleCommand::InitializeRegistrationStorage {
+        claim: claim.clone(),
+    };
+    let (a, b) = futures::join!(
+        coordinator::role_call::<bool>(env, "DERIVER_A", &command),
+        coordinator::role_call::<bool>(env, "DERIVER_B", &command),
+    );
+    if !a? || !b? {
+        return Err(invalid("ML-DSA storage initialization was refused"));
+    }
+    Ok(())
 }
