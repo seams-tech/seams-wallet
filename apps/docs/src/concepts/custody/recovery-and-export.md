@@ -33,8 +33,8 @@ export path.
 
 ## Recovery
 
-The hosted wallet menu accepts an unused wallet recovery code and lets the owner choose
-a new Passkey or Google sign-in with Email OTP. Either target can recover a
+The hosted wallet menu first takes an unused wallet recovery code, then lets the owner
+choose a new Passkey or Google sign-in with Email OTP. Either target can recover a
 Passkey-only, Email-only, or mixed-method wallet. The code authorizes recovery. The new
 method must also complete its own factor verification.
 

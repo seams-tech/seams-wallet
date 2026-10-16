@@ -32,6 +32,40 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
+## Upgrading to 0.12.0
+
+Pin the application package and backend package to **0.12.0**, and build the
+wallet-origin runtime, workers, WASM, and support assets from the same release:
+
+```sh
+# Application
+pnpm add @seams/wallet@0.12.0
+
+# Backend deployment
+pnpm add @seams/wallet-server@0.12.0
+```
+
+Release 0.12.0 removes server exports that no Workers host uses:
+
+- `createSelfHostedCloudflareSigningRouter`, `createSelfHostedCloudflareSigningWorker`,
+  and the type `SelfHostedCloudflareSigningWorkerFactoryInput` from
+  `@seams/wallet-server/router/cloudflare`. Both hosts use the same Worker entrypoints.
+- The Node Redis TCP session-seal adapters
+  (`createRedisTcpSigningSessionSealRateLimiter`,
+  `createRedisTcpSigningSessionSealIdempotencyStore`) and the environment-based
+  selectors (`resolveSigningSessionSealRateLimitFromEnv`,
+  `resolveSigningSessionSealIdempotencyFromEnv`) from `@seams/wallet-server`. Use the
+  Upstash, D1, in-memory, or HTTP-based providers.
+
+The hosted wallet menu now takes the recovery code in its own step. After the code
+passes a format check, the owner chooses the sign-in method that recovery adds: a new
+Passkey, or Google with Email OTP. The code input accepts a pasted code with dashes in
+any letter case, and reads O as 0 and I or L as 1.
+
+The wallet-management protocol stays `4`, and the registration and recovery requests
+do not change: a 0.11 application works with a 0.12.0 backend. The release changes no
+role Worker and adds no D1 migration.
+
 ## Upgrading to 0.11.0
 
 Pin the application package and backend package to **0.11.0**, and build the
