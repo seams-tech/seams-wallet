@@ -236,7 +236,9 @@ deployed by another session). Scripts and tails:
   latency of durable writes and D1 round trips on Cloudflare in Singapore,
   which changes by the hour and by database and sometimes stalls for
   seconds. Our code cannot shorten one write; it can only reduce the writes
-  in series after the passkey step or move them into the prompt.
+  in series after the passkey step. Running the Yao execution before the
+  proof is not an option: on October 16 the owner rejected it, because it
+  would defeat the proof.
 - Respond carries most of the tail. About 430 ms of respond's tail excess in
   the acceptance run lies outside the Router's role work; `b948567b` times
   that part once it is deployed.

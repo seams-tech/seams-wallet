@@ -113,6 +113,10 @@ loading cost before its extra build variants are justified.
 
 ## Leading candidate: actual execution during the prompt
 
+**Rejected by the owner on October 16, 2026:** the Yao execution stays after
+the verified passkey proof, because running it first defeats the proof. Keep
+the section as a record; do not implement it.
+
 The current NEAR passkey path already starts the custody ceremony during the
 prompt. Setup describes the session-bound admission. The custody Worker can
 prepare the encrypted role inputs before the passkey result exists. The
