@@ -31,7 +31,24 @@ try {
   await expect(input).toHaveAttribute('inputmode', 'text');
   await expect(page.locator('.seams-recovery-code-count')).toHaveText('32/32');
   await expect(continueButton).toBeEnabled();
+  // A full code still shows where the caret is: after the last character.
+  await expect(page.locator('.seams-otp-slot.is-caret-after')).toHaveCount(1);
   await page.screenshot({ path: `${artifacts}/complete.png` });
+
+  // A click on a slot puts the caret there; the left half is before its character.
+  const third = page.locator('[data-recovery-slot="8"]');
+  const box = await third.boundingBox();
+  if (!box) throw new Error('Recovery slot 8 has no box');
+  await page.mouse.click(box.x + box.width * 0.25, box.y + box.height / 2);
+  await expect(page.locator('.seams-otp-slot.is-caret')).toHaveAttribute('data-recovery-slot', '8');
+  await expect.poll(() => input.evaluate((element) => element.selectionStart)).toBe(8);
+
+  // A selection is visible, so typing over it reads as a replacement.
+  await input.press(`${modifier}+A`);
+  await expect(page.locator('.seams-otp-slot.is-selected')).toHaveCount(32);
+  await page.screenshot({ path: `${artifacts}/selected.png` });
+  await input.press('ArrowRight');
+  await expect(page.locator('.seams-otp-slot.is-selected')).toHaveCount(0);
 
   await input.press('ArrowLeft');
   await input.press('Backspace');
@@ -87,6 +104,8 @@ try {
         formattedPaste: true,
         crockfordReadings: true,
         caretEditing: true,
+        clickToPlace: true,
+        visibleSelection: true,
         keyboardNavigation: true,
         methodChoice: true,
         mobile: true,

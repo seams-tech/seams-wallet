@@ -367,7 +367,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(codeInput).toBeFocused();
     await expect(codeInput).toHaveAttribute(
       'aria-describedby',
-      'seams-recovery-code-feedback seams-recovery-code-count',
+      'seams-recovery-code-feedback seams-recovery-code-count seams-recovery-code-hint',
     );
     await expect(recoveryFeedback).toHaveCount(1);
     await expect(recoveryFeedback).toHaveText('Enter a recovery code.');

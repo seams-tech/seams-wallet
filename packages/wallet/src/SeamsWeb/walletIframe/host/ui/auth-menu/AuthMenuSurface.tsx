@@ -72,7 +72,17 @@ function recoveryInputCharacters(code: string): string {
   return characters;
 }
 
-function renderRecoveryCodeGroups(code: string, caret: number | null): ComponentChildren[] {
+/** The part of the recovery code the input's selection covers, in code characters. */
+type RecoveryCodeSelection = { readonly start: number; readonly end: number };
+
+function renderRecoveryCodeGroups(
+  code: string,
+  selection: RecoveryCodeSelection | null,
+): ComponentChildren[] {
+  const caret = selection && selection.start === selection.end ? selection.start : null;
+  // A full code has no empty slot, so its caret sits after the last character.
+  const lastIndex = WALLET_RECOVERY_CODE_CHAR_LENGTH - 1;
+  const focusIndex = selection === null ? null : Math.min(selection.start, lastIndex);
   const groups: ComponentChildren[] = [];
   for (
     let start = 0;
@@ -86,20 +96,58 @@ function renderRecoveryCodeGroups(code: string, caret: number | null): Component
       const classes = ['seams-otp-slot'];
       if (character) classes.push('is-filled');
       if (index === caret) classes.push('is-caret');
+      if (caret === WALLET_RECOVERY_CODE_CHAR_LENGTH && index === lastIndex) {
+        classes.push('is-caret-after');
+      }
+      if (selection && index >= selection.start && index < selection.end) {
+        classes.push('is-selected');
+      }
       slots.push(
-        <span class={classes.join(' ')} key={index}>
+        <span class={classes.join(' ')} key={index} data-recovery-slot={index}>
           {character}
         </span>,
       );
     }
-    const active = caret !== null && caret >= start && caret < end;
+    const groupClasses = ['seams-recovery-code-group'];
+    if (focusIndex !== null && focusIndex >= start && focusIndex < end) {
+      groupClasses.push('is-active');
+    }
+    if (code.length >= end) groupClasses.push('is-complete');
     groups.push(
-      <div class={`seams-recovery-code-group ${active ? 'is-active' : ''}`} key={start}>
+      <div class={groupClasses.join(' ')} key={start}>
         {slots}
       </div>,
     );
   }
   return groups;
+}
+
+/* The input lies over the slots and is transparent, so a click lands on its
+   hidden text, not on the slot under the pointer. Map the pointer to the slot:
+   its left half puts the caret before that character, its right half after. */
+function recoveryCaretAtPoint(
+  root: HTMLElement,
+  clientX: number,
+  clientY: number,
+  codeLength: number,
+): number | null {
+  let nearest: {
+    readonly index: number;
+    readonly distance: number;
+    readonly after: boolean;
+  } | null = null;
+  for (const slot of root.querySelectorAll<HTMLElement>('[data-recovery-slot]')) {
+    const index = Number(slot.dataset.recoverySlot);
+    const box = slot.getBoundingClientRect();
+    const dx = clientX < box.left ? box.left - clientX : Math.max(0, clientX - box.right);
+    const dy = clientY < box.top ? box.top - clientY : Math.max(0, clientY - box.bottom);
+    const distance = dx * dx + dy * dy;
+    if (nearest === null || distance < nearest.distance) {
+      nearest = { index, distance, after: clientX > box.left + box.width / 2 };
+    }
+  }
+  if (nearest === null) return null;
+  return Math.min(nearest.after ? nearest.index + 1 : nearest.index, codeLength);
 }
 
 function renderOtpCodeDigit(digit: string): ComponentChildren {
@@ -340,12 +388,12 @@ const ACCOUNT_MENU_EXIT_MS = 160;
 
 type AuthMenuSurfaceState = {
   accountMenu: AccountMenuState;
-  // Where the next recovery-code character goes, while the code input has focus.
-  recoveryCaret: number | null;
+  // The recovery code input's caret or selection, while the input has focus.
+  recoverySelection: RecoveryCodeSelection | null;
 };
 
 export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSurfaceState> {
-  state: AuthMenuSurfaceState = { accountMenu: 'closed', recoveryCaret: null };
+  state: AuthMenuSurfaceState = { accountMenu: 'closed', recoverySelection: null };
   private accountMenuExitTimer: ReturnType<typeof setTimeout> | null = null;
   // The account a click chose and the one selected before it. The list keeps
   // rendering both as they were at the click while it blinks and fades out.
@@ -704,27 +752,43 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       input.value = code;
       input.setSelectionRange(Math.min(caret, code.length), Math.min(caret, code.length));
     }
-    this.syncRecoveryCaret(input);
+    this.syncRecoverySelection(input);
     this.emitIntent({ kind: 'recovery_code_changed', recoveryCode: code });
   };
 
-  private onRecoveryCaretMove = (event: Event): void => {
-    if (event.currentTarget instanceof HTMLInputElement)
-      this.syncRecoveryCaret(event.currentTarget);
+  private onRecoverySelectionMove = (event: Event): void => {
+    if (event.currentTarget instanceof HTMLInputElement) {
+      this.syncRecoverySelection(event.currentTarget);
+    }
+  };
+
+  private onRecoveryCodeClick = (event: MouseEvent): void => {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+    // A drag or double click made a selection; keep it.
+    if (input.selectionStart === input.selectionEnd) {
+      const caret = recoveryCaretAtPoint(
+        this.props.element,
+        event.clientX,
+        event.clientY,
+        input.value.length,
+      );
+      if (caret !== null) input.setSelectionRange(caret, caret);
+    }
+    this.syncRecoverySelection(input);
   };
 
   private onRecoveryCodeBlur = (): void => {
-    this.setState({ recoveryCaret: null });
+    this.setState({ recoverySelection: null });
   };
 
-  private syncRecoveryCaret(input: HTMLInputElement): void {
-    const caret = Math.min(
-      input.selectionStart ?? input.value.length,
-      WALLET_RECOVERY_CODE_CHAR_LENGTH - 1,
-    );
-    // A full code has no next slot: the caret only shows while there is room.
-    const recoveryCaret = input.value.length < WALLET_RECOVERY_CODE_CHAR_LENGTH ? caret : null;
-    if (recoveryCaret !== this.state.recoveryCaret) this.setState({ recoveryCaret });
+  private syncRecoverySelection(input: HTMLInputElement): void {
+    const length = input.value.length;
+    const start = Math.min(input.selectionStart ?? length, length);
+    const end = Math.min(Math.max(input.selectionEnd ?? start, start), length);
+    const current = this.state.recoverySelection;
+    if (current?.start === start && current.end === end) return;
+    this.setState({ recoverySelection: { start, end } });
   }
 
   private onRecoverySubmit = (event: SubmitEvent): void => {
@@ -1204,20 +1268,24 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   aria-invalid={viewModel.recoveryCodeError ? 'true' : 'false'}
                   aria-describedby={
                     viewModel.recoveryCodeError
-                      ? 'seams-recovery-code-feedback seams-recovery-code-count'
-                      : 'seams-recovery-code-count'
+                      ? 'seams-recovery-code-feedback seams-recovery-code-count seams-recovery-code-hint'
+                      : 'seams-recovery-code-count seams-recovery-code-hint'
                   }
                   value={code}
                   onInput={this.onRecoveryCodeInput}
-                  onFocus={this.onRecoveryCaretMove}
-                  onKeyUp={this.onRecoveryCaretMove}
-                  onClick={this.onRecoveryCaretMove}
+                  onFocus={this.onRecoverySelectionMove}
+                  onKeyUp={this.onRecoverySelectionMove}
+                  onSelect={this.onRecoverySelectionMove}
+                  onClick={this.onRecoveryCodeClick}
                   onBlur={this.onRecoveryCodeBlur}
                 />
                 <div class="seams-otp-slots seams-recovery-code-slots" aria-hidden="true">
-                  {renderRecoveryCodeGroups(code, this.state.recoveryCaret)}
+                  {renderRecoveryCodeGroups(code, this.state.recoverySelection)}
                 </div>
               </div>
+              <p id="seams-recovery-code-hint" class="seams-recovery-code-hint">
+                You can paste the whole code. Dashes are optional.
+              </p>
             </div>
             <button
               class="seams-auth-method-btn seams-auth-method-btn-primary"
