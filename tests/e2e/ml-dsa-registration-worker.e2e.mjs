@@ -9,11 +9,30 @@ import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
 import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
 
+const initializationFaultScript = `
+let injections = 0;
+async function fetch(request, env) {
+  if (new URL(request.url).pathname === '/injections') return new Response(String(injections));
+  if (new URL(request.url).pathname === '/router-ab/ml-dsa/role') {
+    const command = await request.clone().json();
+    if (command.command === 'initialize_registration_storage') {
+      injections += 1;
+      await scheduler.wait(10000);
+      return new Response('Injected initialization stall', { status: 503 });
+    }
+  }
+  return env.NEXT.fetch(request);
+}
+export default { fetch };
+`;
+
 const root = resolve(import.meta.dirname, '../..');
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
 const profilePrefix = process.env.ML_DSA_REGISTRATION_CPU_PROFILE;
+const stallInitialization = process.env.ML_DSA_REGISTRATION_STALL_INITIALIZATION === '1';
+assert.ok(!(hostedUrl && stallInitialization), 'Initialization fault injection is local-only');
 assert.ok(!(hostedUrl && profilePrefix), 'Inspector profiling requires local workerd');
 const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   ? (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim()
@@ -40,6 +59,7 @@ const observations = {
   scope:
     'Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.',
   hosted: Boolean(hostedUrl),
+  initializationStallMs: stallInitialization ? 10000 : 0,
   policy,
   cases: [],
   functionalPassed: false,
@@ -100,6 +120,8 @@ try {
     const started = performance.now();
     const response = await post('/router-ab/ml-dsa/register', payload.request);
     const serverResponseMs = performance.now() - started;
+    if (stallInitialization)
+      assert.ok(serverResponseMs < 10000, 'Optional initialization blocked registration');
     assert.equal(response.status, 'existing');
     assert.equal(response.operation.state, 'complete');
     const result = response.operation.result;
@@ -110,14 +132,19 @@ try {
     assert.equal(checked.verified, true);
     const registrationWithClientVerificationMs = performance.now() - started;
     if (profiler) await profiler.stop(`${profilePrefix}-epoch-${epoch}.cpuprofile`);
+    if (!hostedUrl) {
+      const inactive = { job: ready.job, request: payload.request, deadline: Date.now() + 30000 };
+      await rejectInactiveInitialization(inactive);
+      observations.inactiveInitializationRejected = true;
+    }
+    if (stallInitialization) await requireInjectedInitialization();
     assert.deepEqual(await post('/router-ab/ml-dsa/register', payload.request), response);
     const changed = structuredClone(payload.request);
     changed.epoch += 1;
     const replay = await raw('/router-ab/ml-dsa/register', changed, gatewayAuth);
     assert.notEqual(replay.status, 200);
     if (previous) assert.deepEqual(result.a.public_key, previous.a.public_key);
-    const signed = await sign(result);
-    observations.cases.push({
+    const measurement = {
       epoch,
       preparationMs,
       serverResponseMs,
@@ -128,9 +155,11 @@ try {
       manifestVerified: true,
       exactReplay: true,
       changedReplayRejected: true,
-      initialStockSign: signed,
+      initialStockSign: { state: 'pending' },
       publicKeyHex: Buffer.from(result.a.public_key).toString('hex'),
-    });
+    };
+    observations.cases.push(measurement);
+    measurement.initialStockSign = await sign(result);
     previous = result;
     if (!hostedUrl && epoch === 1) {
       await runtime.dispose();
@@ -145,7 +174,9 @@ try {
     }
   }
   observations.recoveryPreservesCanonicalKey = true;
-  observations.functionalPassed = true;
+  observations.registrationChecksPassed = true;
+  observations.functionalPassed = observations.cases.every(signatureCheckPassed);
+  if (!observations.functionalPassed) process.exitCode = 1;
   observations.latencyTargetMet = observations.cases.every(meetsLatencyTarget);
 } catch (error) {
   observations.error = String(error);
@@ -212,10 +243,16 @@ function workers() {
       durableObjects: {
         ML_DSA_ADMISSION_DO: { className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true },
       },
-      serviceBindings: { DERIVER_A: 'a', DERIVER_B: 'b' },
+      serviceBindings: {
+        DERIVER_A: stallInitialization ? 'stall-a' : 'a',
+        DERIVER_B: stallInitialization ? 'stall-b' : 'b',
+      },
     },
     role('a', 0),
     role('b', 1),
+    ...(stallInitialization
+      ? [initializationFaultWorker('a'), initializationFaultWorker('b')]
+      : []),
   ];
 }
 function role(name, index) {
@@ -279,7 +316,9 @@ async function sign(result) {
     return { cooldownPreserved: true, retryAtMs: response.retry_at_ms };
   }
   assert.equal(response.status, 'existing');
-
+  if (response.operation.state === 'failed') {
+    return { failed: true, elapsedMs, operation: request.operation };
+  }
   assert.equal(response.operation.state, 'succeeded');
   const key = createPublicKey({
     key: Buffer.concat([
@@ -293,7 +332,7 @@ async function sign(result) {
     verify(null, Buffer.from(message), key, Buffer.from(response.operation.signature)),
     true,
   );
-  return { verified: true, elapsedMs };
+  return { verified: true, elapsedMs, operation: request.operation };
 }
 
 function caseSummary(value) {
@@ -316,5 +355,45 @@ function meetsLatencyTarget(value) {
     value.underFiveSeconds &&
     value.initialStockSign.verified === true &&
     value.initialStockSign.elapsedMs < 5000
+  );
+}
+
+async function rejectInactiveInitialization(claim) {
+  for (const role of ['a', 'b']) {
+    const response = await (
+      await runtime.getWorker(role)
+    ).fetch('https://ml-dsa.internal/router-ab/ml-dsa/role', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-router-ab-internal-service-auth': serviceAuth,
+      },
+      body: JSON.stringify({ command: 'initialize_registration_storage', claim }),
+    });
+    assert.notEqual(response.status, 200, 'Inactive storage initialization succeeded');
+  }
+}
+function initializationFaultWorker(role) {
+  return {
+    name: 'stall-' + role,
+    modules: true,
+    script: initializationFaultScript,
+    compatibilityDate: '2026-06-12',
+    serviceBindings: { NEXT: role },
+  };
+}
+
+async function requireInjectedInitialization() {
+  for (const role of ['a', 'b']) {
+    const response = await (
+      await runtime.getWorker('stall-' + role)
+    ).fetch('https://ml-dsa.internal/injections');
+    assert.ok(Number(await response.text()) >= 1, 'Initialization stall was not exercised');
+  }
+}
+
+function signatureCheckPassed(value) {
+  return (
+    value.initialStockSign.verified === true || value.initialStockSign.cooldownPreserved === true
   );
 }

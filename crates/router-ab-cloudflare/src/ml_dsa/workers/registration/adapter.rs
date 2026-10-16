@@ -8,6 +8,9 @@ pub(super) struct Adapter<'a> {
     pub ceremony: [u8; 32],
     pub loaded_frames: usize,
     pub loaded_bytes: usize,
+    pub read_transactions: usize,
+    pub peak_cached_frames: usize,
+    pub frames: Option<registration_tables::ConsumedFrames>,
 }
 fn failed(_: impl std::fmt::Display) -> RuntimeError {
     RuntimeError::TableFrame
@@ -41,18 +44,33 @@ impl prepared::Transport for Adapter<'_> {
         ordinal: usize,
         length: usize,
     ) -> std::result::Result<Vec<u8>, RuntimeError> {
-        let binding = self.binding.clone();
-        let seed = self.seed.clone();
-        let ceremony = self.ceremony;
-        let now = crate::cloudflare_now_unix_ms_v1().map_err(failed)?;
-        let bytes = transaction(&self.state, move |store| async move {
-            registration_tables::take(
-                &store, &binding, ceremony, circuit, ordinal, length, &seed, now,
-            )
+        if self
+            .frames
+            .as_ref()
+            .is_none_or(|frames| frames.remaining() == 0)
+        {
+            let binding = self.binding.clone();
+            let seed = self.seed.clone();
+            let ceremony = self.ceremony;
+            let now = crate::cloudflare_now_unix_ms_v1().map_err(failed)?;
+            let frames = transaction(&self.state, move |store| async move {
+                registration_tables::take(
+                    &store, &binding, ceremony, circuit, ordinal, length, &seed, now,
+                )
+                .await
+            })
             .await
-        })
-        .await
-        .map_err(failed)?;
+            .map_err(failed)?;
+            self.peak_cached_frames = self.peak_cached_frames.max(frames.remaining());
+            self.read_transactions += 1;
+            self.frames = Some(frames);
+        }
+        let bytes = self
+            .frames
+            .as_mut()
+            .ok_or(RuntimeError::TableFrame)?
+            .next(circuit, ordinal, length)
+            .map_err(failed)?;
         self.loaded_frames += 1;
         self.loaded_bytes += bytes.len();
         Ok(bytes)

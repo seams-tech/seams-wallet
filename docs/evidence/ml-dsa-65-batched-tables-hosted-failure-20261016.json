@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-10-16T01:59:24.627Z",
+  "wallet": {
+    "org": "registration-e2e",
+    "project": "wallet",
+    "environment": "temporary",
+    "wallet": "wallet-c56ca0c8977a6d03"
+  },
+  "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+  "hosted": true,
+  "initializationStallMs": 0,
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "minimum_ready_batches": 2,
+    "refill_target_batches": 4
+  },
+  "cases": [],
+  "functionalPassed": false,
+  "latencyTargetMet": false,
+  "builds": {
+    "router": "f76c6f8102a6a141f6b6809d03ba20d1b290e4979b406be3cb03c85daedb63a6",
+    "deriver-a": "8e9964b88b890d959bbf69ff3095d3be1893cffa42ccb68cb1238d7e17982aa9",
+    "deriver-b": "1223e3f883f5d81ef1ffba944b20a192fc97515d16eaff189d2a8eb02d7f5b06"
+  },
+  "scriptSha256": "1b27a08f47a83ce7b18415e84ed7f0f054f594c0e14532a2c8b162098639d20f",
+  "wrongCredentialRejected": true,
+  "emptyPoolRetryTime": true,
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'failed'\n- 'succeeded'\n"
+}

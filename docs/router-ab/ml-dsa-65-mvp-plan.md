@@ -103,3 +103,11 @@ Generic registration replenishment remains an explicit private operation. Automa
 The [CPU report](ml-dsa-65-registration-cpu-report.md) records calibrated sampling, versioned ChaCha20-Poly1305 preparation storage, and the updated hosted campaign.
 Canonical recovery, old-ciphertext rejection, and replay checks pass. Hosted registration remains above five seconds at 8.48/6.92 seconds.
 The next performance work targets table I/O, activation, and initial signing-stock installation. Public SDK readiness and load qualification remain open.
+
+## Bounded table-read milestone — October 16, 2026
+
+The [bounded-read report](ml-dsa-65-batched-tables-report.md) records 83 transactions for 643 evaluator frames and concurrent read-only pool initialization.
+Native corruption, rollback, restart, and cleanup checks pass. Local injected initialization stalls do not delay completed registration.
+Hosted creation takes 5.67 seconds and recovery takes 6.69 seconds. Both preserve the canonical key.
+Signing takes 4.98/7.94 seconds in the repeat campaign. The first campaign retains a failed signing request.
+Next steps are explicit signing-failure diagnostics, WebSocket completion, bounded execution, and material-installation profiling before load qualification.

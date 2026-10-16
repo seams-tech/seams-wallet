@@ -84,6 +84,9 @@ pub(super) async fn connected(
         ceremony,
         loaded_frames: 0,
         loaded_bytes: 0,
+        read_transactions: 0,
+        peak_cached_frames: 0,
+        frames: None,
     };
     if matches!(
         command,
@@ -165,6 +168,8 @@ pub(super) async fn connected(
             "role": role,
             "loaded_frames": adapter.loaded_frames,
             "loaded_bytes": adapter.loaded_bytes,
+            "table_read_transactions": adapter.read_transactions,
+            "peak_cached_frames": adapter.peak_cached_frames,
         })
     );
     check(env, command).await?;
