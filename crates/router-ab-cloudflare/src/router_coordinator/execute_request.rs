@@ -47,16 +47,14 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         if replay {
             return protocol_error_response(crate::router_wallet_registration_replay_refused_v1());
         }
-        return crate::durable_object::forward_router_wallet_execution(
+        return execute_claimed_registration(
             env,
-            &registration,
-            WalletRegistrationExecution {
-                wallet_route,
-                request: gateway_envelope,
-                trace_id: trace_id.map(crate::CloudflareTraceIdV1::as_hex),
-                #[cfg(feature = "local-intended-router-burn")]
-                burn,
-            },
+            wallet_route,
+            registration,
+            trace_id,
+            parse_started_at_ms,
+            #[cfg(feature = "local-intended-router-burn")]
+            burn,
         )
         .await;
     }
@@ -83,68 +81,40 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     .await
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct WalletRegistrationExecution {
-    pub(crate) wallet_route: crate::WalletObjectRoute,
-    request: CloudflareRouterEd25519YaoExecuteRequestV2,
-    trace_id: Option<String>,
-    #[cfg(feature = "local-intended-router-burn")]
-    burn: bool,
-}
-
-struct ClaimedRegistration<'a> {
-    state: &'a worker::State,
+struct ClaimedRegistration {
     registration: crate::RouterWalletRegistrationV1,
     generation: u64,
     lapses_at_ms: u64,
 }
 
-pub(crate) async fn execute_in_wallet(
-    state: &worker::State,
+/// Claims a registration in the Router's wallet object, then runs it here.
+///
+/// The claim decides whether this run replays, and an exact retry of a
+/// finished run gets the recorded answer. The object's reply waits for the
+/// claim write, so no protocol material leaves before the claim is durable.
+/// The roles are called from this stateless Worker, not from the wallet
+/// object: each wallet has a fresh object, and a service-binding call from a
+/// fresh object starts cold isolates of the role Workers.
+async fn execute_claimed_registration(
     env: &Env,
-    execution: WalletRegistrationExecution,
+    wallet_route: crate::WalletObjectRoute,
+    registration: crate::RouterWalletRegistrationV1,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+    parse_started_at_ms: u64,
+    #[cfg(feature = "local-intended-router-burn")] burn: bool,
 ) -> worker::Result<Response> {
-    let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
-    let trace_id = match execution
-        .trace_id
-        .as_deref()
-        .map(crate::CloudflareTraceIdV1::parse)
-        .transpose()
-    {
-        Ok(trace_id) => trace_id,
+    let now_ms = match cloudflare_now_unix_ms_v1() {
+        Ok(now_ms) => now_ms,
         Err(error) => return protocol_error_response(error),
     };
-    if execution.wallet_route.addresses.router.as_str() != state.id().to_string() {
-        return protocol_error_response(invalid_coordinator(
-            "Registration addresses another Router object",
-        ));
-    }
-    if let Err(error) = execution.request.validate() {
-        return protocol_error_response(error);
-    }
-    let registration = match crate::RouterWalletRegistrationV1::from_request(&execution.request) {
-        Ok(Some(registration)) => registration,
-        Ok(None) => {
-            return protocol_error_response(invalid_coordinator(
-                "Wallet execution requires registration",
-            ))
-        }
-        Err(error) => return protocol_error_response(error),
-    };
-    let now_ms =
-        cloudflare_now_unix_ms_v1().map_err(|error| worker::Error::RustError(error.to_string()))?;
     let lease_ms = match crate::parse_router_yao_registration_lease_ms_v1(
         &CloudflareWorkerEnvReaderV1::new(env),
     ) {
         Ok(lease) => lease,
         Err(error) => return protocol_error_response(error),
     };
-    let answer = crate::durable_object::execute_router_wallet_command(
-        state,
-        registration.claim(now_ms, lease_ms),
-    )
-    .await;
+    let claim = registration.claim(now_ms, lease_ms);
+    let answer = crate::durable_object::call_router_wallet_v1(env, wallet_route, &claim).await;
     let (pinned, replay, generation) = match answer {
         Ok(crate::RouterWalletResponseV1::Run {
             request_json,
@@ -157,23 +127,20 @@ pub(crate) async fn execute_in_wallet(
         Ok(answer) => return router_wallet_answer_response(answer),
         Err(error) => return protocol_error_response(error),
     };
-    // The storage transaction has ended. The DO output gate keeps outbound
-    // requests behind confirmation of the claim write.
     execute_request(
         env,
-        execution.wallet_route,
+        wallet_route,
         pinned,
         trace_id,
         replay,
         Some(ClaimedRegistration {
-            state,
             registration,
             generation,
             lapses_at_ms: now_ms.saturating_add(lease_ms),
         }),
         parse_started_at_ms,
         #[cfg(feature = "local-intended-router-burn")]
-        execution.burn,
+        burn,
     )
     .await
 }
@@ -184,7 +151,7 @@ async fn execute_request(
     gateway_envelope: CloudflareRouterEd25519YaoExecuteRequestV2,
     trace_id: Option<crate::CloudflareTraceIdV1>,
     replay: bool,
-    claimed: Option<ClaimedRegistration<'_>>,
+    claimed: Option<ClaimedRegistration>,
     parse_started_at_ms: u64,
     #[cfg(feature = "local-intended-router-burn")] burn: bool,
 ) -> worker::Result<Response> {
@@ -226,7 +193,8 @@ async fn execute_request(
                 router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
             )
         });
-        return finish_router_execution_response(claimed.as_ref(), result).await;
+        return finish_router_execution_response(env, wallet_route, claimed.as_ref(), result)
+            .await;
     }
     #[cfg(feature = "strict-worker-router-entrypoint")]
     if replay && execute_request.operation() == Ed25519YaoOperationV1::Registration {
@@ -248,7 +216,8 @@ async fn execute_request(
         .await
         .transpose()
         {
-            return finish_router_execution_response(claimed.as_ref(), result).await;
+            return finish_router_execution_response(env, wallet_route, claimed.as_ref(), result)
+                .await;
         }
     }
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
@@ -295,7 +264,8 @@ async fn execute_request(
         started_at_ms,
         if result.is_ok() { "success" } else { "failure" },
     );
-    let response = finish_router_execution_response(claimed.as_ref(), result).await?;
+    let response =
+        finish_router_execution_response(env, wallet_route, claimed.as_ref(), result).await?;
     response
         .headers()
         .set("Server-Timing", &timing.server_timing())?;
@@ -308,7 +278,9 @@ async fn execute_request(
 /// over is answered that the execution is in progress. A recoverable answer
 /// leaves the claim to lapse.
 async fn finish_router_execution_response(
-    claimed: Option<&ClaimedRegistration<'_>>,
+    env: &Env,
+    wallet_route: crate::WalletObjectRoute,
+    claimed: Option<&ClaimedRegistration>,
     result: RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1>,
 ) -> worker::Result<Response> {
     let result = match result {
@@ -325,7 +297,7 @@ async fn finish_router_execution_response(
         Ok(None) => return Response::from_json(&result),
         Err(error) => return protocol_error_response(error),
     };
-    match crate::durable_object::execute_router_wallet_command(claim.state, finish).await {
+    match crate::durable_object::call_router_wallet_v1(env, wallet_route, &finish).await {
         Ok(answer) => router_wallet_answer_response(answer),
         Err(error) => protocol_error_response(error),
     }

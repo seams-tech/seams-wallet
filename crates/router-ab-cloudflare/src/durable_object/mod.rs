@@ -48,7 +48,6 @@ mod router_wallet;
 #[cfg(feature = "workers-rs")]
 pub(crate) use router_wallet::{
     call_router_wallet_freeze_v1, call_router_wallet_transfer_v1, call_router_wallet_v1,
-    execute_router_wallet_command, forward_router_wallet_execution,
 };
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-router-entrypoint"))]
 pub(crate) use wallet_startup::start_registration_wallets;

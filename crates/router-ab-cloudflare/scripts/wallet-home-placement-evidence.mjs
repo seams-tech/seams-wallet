@@ -37,7 +37,6 @@ class PlacementLog extends Log {
   commands = [];
   routerDispatches = [];
   routerTransport = [];
-  localRouterOperations = [];
   storageReadiness = [];
 
   constructor() {
@@ -59,7 +58,6 @@ class PlacementLog extends Log {
       const value = JSON.parse(message.slice(start));
       if (value.event === 'wallet_do_placement_requested') this.placements.push(value);
       if (value.event === 'wallet_do_command_timing') this.commands.push(value);
-      if (value.event === 'router_wallet_operation') this.localRouterOperations.push(value.operation);
       if (value.event === 'router_wallet_dispatch_timing') this.routerDispatches.push(value);
       if (value.event === 'router_wallet_transport_timing') this.routerTransport.push(value);
       if (value.event === 'wallet_startup_storage_observation') {
@@ -512,11 +510,10 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     const result = await retried.json();
     assert.equal(result.status, 'succeeded');
     assert.deepEqual(
-      log.localRouterOperations.filter(operation => operation === 'claim_registration' || operation === 'finish_registration'),
+      log.routerDispatches.map((event) => event.operation),
       ['claim_registration', 'finish_registration', 'claim_registration'],
       'Lost-reply replay must claim the stored answer without another finish',
     );
-    assert.equal(log.routerDispatches.length, 0, 'Claim and finish stay inside the Router object');
     for (const event of log.routerDispatches) {
       assert.equal(event.outcome, 'success');
       assert.equal(event.wallet_home, home);
@@ -535,7 +532,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     assert.equal(routerCommands[0].first_command_after_constructor, true);
     assert.ok(
       routerCommands
-        .filter((command) => command.path.endsWith('/execute-registration'))
+        .filter((command) => command.path.endsWith('/command'))
         .every((command) => command.first_command_after_constructor === false),
       'Registration commands must reuse the live object reached by startup',
     );
@@ -657,7 +654,6 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       admissions,
       roleObjects,
       routerDispatches: log.routerDispatches,
-      localRouterOperations: log.localRouterOperations,
       routerTransport: log.routerTransport,
       routerCommands,
       routerExecuteHttpMs: lost.firstExecutionMs,
