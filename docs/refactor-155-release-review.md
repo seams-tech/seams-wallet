@@ -17,6 +17,58 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.11.0
+
+Status: **prepared October 16, 2026; not yet published.** Minor release. It
+runs the Wallet backend on Cloudflare Workers only and carries the work on
+public `dev` since 0.10.2. The wallet-management protocol stays `4`.
+
+- **Workers only.** `codex/refactor-190-workers-backend`, rebased onto `dev`
+  as `a0a749fe`, removes the Node Wallet Gateway and VM launcher
+  (`b87eb1c4`), the native Router A/B VM hosts (`01c55db4`) and the public
+  Express entry `@seams/wallet-server/router/express` (`73386c0b`). The
+  removed entry is the reason for a minor version.
+- **Registration execution.** `18b09520` runs the Router's registration
+  orchestration inside its wallet object and combines Deriver B's input
+  preparation with its running claim.
+- **Execution before its preparation.** `bc2328c3`: an execution that reaches
+  a Deriver wallet object before the setup preparation binds to that
+  preparation instead of failing with `ConflictingPair`. `e311a6f6`: the SDK
+  waits out a Router claim that respond kept. A temporary hook reproduced the
+  race inside both Derivers; without `bc2328c3` the registration fails
+  ([record](evidence/refactor-155j-followups-20261015.md)).
+- **Delay notice.** When respond or finalize has not answered after 5 s, the
+  SDK sends one `onEvent` event for that step (`ae6f9871`, `cc2bb31f`), and
+  the hosted menu shows it without the passkey prompt line (`ce5729fb`).
+- **Gateway step timing.** `b948567b` reports the steps of setup, of respond
+  before the Yao execution, and of Ed25519 signing in `Server-Timing`.
+- **Account menu.** Account-menu modals get a host header and a seams footer
+  (`339d5934`); the origin row stays fixed (`3c770236`); authentication
+  methods and recovery codes become settings cards (`480723ed`, `a877f481`,
+  `683cf950`); linked devices open as embedded screens (`38a01fec`); the
+  recovery-code dialog is a build module again (`611ae616`).
+- **Code-size ratchet.** The rebased branch lowered the duplication
+  baseline. `7b1c61f7` removes the three blocks that `dev`'s later work
+  repeated: a shared request head for the two Router execute routes, the
+  signing stage timer, and the shared authentication method row.
+- **Compatibility.** A 0.10 application works with a 0.11.0 backend: the
+  registration contract and the protocol did not change. Deploy the Gateway,
+  wallet runtime, Router, both Derivers and the Signing Worker together. No
+  D1 migration is added. The CLI source is unchanged, so the CLI stays at
+  0.10.1.
+- **Local validation.** On `7b1c61f7`: the contract suite passes, 134 of 136
+  cases on release Workers in three shards and the two debug-only cases on
+  the debug Router. Eight cases first failed while three parallel stacks
+  started under a load average of 15 to 18: the local tenant-root bootstrap
+  reached the Router before it was registered ("Worker
+  `router-ab-mpc-router` not found"). All eight pass alone. The CI wallet
+  steps pass (bloat and lock checks, build, type checks, 20 representative
+  browser and 55 unit cases, packed wallet, docs, example, test app), and so
+  do the CI Rust steps (550 core, 18 dev and 519 Cloudflare tests, five
+  entrypoint checks). The private check and build pass against the candidate
+  after three private changes for the removed Express entry, and all 13
+  private deep imports of the SDK resolve.
+
 ## 0.10.2
 
 Status: **published October 14, 2026, 11:37 UTC, and deployed to staging.**

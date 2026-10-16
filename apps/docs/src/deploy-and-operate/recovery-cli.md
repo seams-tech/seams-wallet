@@ -12,8 +12,8 @@ destination credentials through command-line arguments or environment
 variables.
 
 The current launcher is **0.10.1**. Its signed native assets are published at
-tag `seams-cli-v0.10.1`. Wallet 0.10.2 changed no CLI code, so it has no
-launcher 0.10.2.
+tag `seams-cli-v0.10.1`. Wallets 0.10.2 and 0.11.0 changed no CLI code, so neither has a
+launcher of its own.
 
 ## Install and retain an offline copy
 
