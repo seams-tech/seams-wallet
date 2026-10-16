@@ -2,11 +2,21 @@
 
 Release 0.11.0 serves on the staging Singapore lane. 66 measured registrations
 passed, with no failure. The R155J tail target is still not met, and 66 attempts
-are too few for a p99 claim. Respond is about 400 ms slower at the median than in
-every 0.10.2 population. The cause is cold callee isolates: since `18b09520`
-the Router wallet object, which is fresh for each wallet, calls the Derivers and
-the Signing Worker itself, and such calls start new isolates of these large
-Workers. A probe confirmed the mechanism and ruled out write confirmation.
+are too few for a p99 claim. Respond is 422 ms slower at the median than in the
+0.10.2 acceptance run. Against the three 0.10.2 controls of the same day it is 42
+and 146 ms slower and 303 ms faster; those controls ran under other conditions,
+so browser totals do not isolate the change. Two measures differ from every
+0.10.2 population: the Router waits 270 ms before its first Deriver call (88 to
+120 ms), and 89 to 97% of the Deriver calls show the cold-start CPU (13 to 39%).
+
+The likely cause is cold callee isolates: since `18b09520` the Router wallet
+object, which is fresh for each wallet, calls the Derivers and the Signing Worker
+itself. A probe confirmed that calls from fresh objects reach new isolates and
+ruled out write confirmation. It did not measure what a cold start of the real
+Workers costs. The fix tests the cause; see
+[Limits and predictions](#limits-and-predictions). An earlier version of this
+record said that respond was about 400 ms slower than in every 0.10.2 population;
+that holds only against the acceptance run.
 
 ## Deployment
 
@@ -61,7 +71,7 @@ control).
 
 ## The respond regression
 
-**Cause: cold callee isolates.** Since `18b09520`, the Router wallet object
+**Likely cause: cold callee isolates.** Since `18b09520`, the Router wallet object
 calls Deriver A, Deriver B and the Signing Worker itself. Each wallet has a
 fresh Router wallet object, and a service-binding call from a fresh object
 almost always starts a new isolate of the callee. These callees are large
@@ -73,9 +83,15 @@ The Router's own `Server-Timing` steps for respond, median / p90 (ms):
 | Population | `yao_router_execution` | `yao_router_prepare_pair` | `yao_router_role_execution` | Browser respond |
 | --- | --- | --- | --- | --- |
 | Acceptance 0.10.2 | 805 / 1,464 | 149 / 465 | 575 / 1,057 | 1,076 / 1,834 |
+| Control 0.10.2, 00:30 | 1,427 / 5,824 | 154 / 644 | 1,143 / 5,270 | 1,801 / 6,091 |
 | Control 0.10.2, 00:46 | 882 / 1,636 | 170 / 540 | 644 / 1,327 | 1,352 / 2,117 |
 | Control 0.10.2, 10:14 | 758 / 1,211 | 141 / 542 | 537 / 1,041 | 1,456 / 2,076 |
 | 0.11.0 | 1,232 / 1,540 | 469 / 624 | 909 / 1,208 | 1,498 / 1,810 |
+
+The 00:30 control ran under the slow Deriver A condition: its median Deriver A
+stateless call took 834 ms (471 to 596 ms in the other populations, 568 ms in
+0.11.0). Its Router execution is therefore longer than in 0.11.0, although its
+Router dispatch is fast.
 
 ### Where the time goes
 
@@ -83,16 +99,17 @@ The tails give real-time event timestamps. Events are linked per registration
 by the `x-seams-trace-id` header of the stateless events and by the object id
 that each stateless event logs before it calls its wallet object. Medians (ms):
 
-| Interval | Acceptance 0.10.2 | Controls 0.10.2 | 0.11.0 |
+| Interval | Acceptance 0.10.2 | Three controls 0.10.2 | 0.11.0 |
 | --- | ---: | ---: | ---: |
-| Router `execute` event | 773 | 717 to 851 | 1,184 |
-| Router start to tenant-root read (claim and parsing)¹ | 187 | 82 to 133 | 61 |
-| Tenant-root read to first Deriver start | 42 | 38 to 42 | 207 |
-| Router start to first Deriver start | 88 | 89 to 119 | 270 |
-| Deriver A object end to Router end (package delivery and finish)¹ | 168 | 170 | 256 |
+| Router `execute` event | 773 | 717, 851, 1,357 | 1,184 |
+| Router start to tenant-root read (claim and parsing)¹ | 187 | 82, 133, 152 | 61 |
+| Tenant-root read to first Deriver start¹ | 42 | 38, 42, 40 | 207 |
+| Router start to first Deriver start | 88 | 89, 119, 120 | 270 |
+| Deriver A object end to Router end (package delivery and finish)¹ | 168 | 158, 197, 166 | 256 |
 
-¹ Linked executions only: 18 and 43 in the acceptance run, 26 and 42 in the
-controls, 28 and 64 in 0.11.0. Some executions lack a matching event in the tail.
+Controls in the order 10:14, 00:46, 00:30. ¹ Linked executions only: 18 and 43
+in the acceptance run, 17, 9 and 15 in the controls, 28 and 64 in 0.11.0. Some
+executions lack a matching event in the tail.
 
 The claim inside the object is faster than the two command calls of 0.10.2, as
 intended. The time is lost after it: between the tenant-root read and the first
@@ -164,6 +181,20 @@ Then the peer reported an isolate id and a request count:
 A placed callee does not keep a shared warm isolate for calls from fresh
 objects. The probe sources, results and tails are in the private
 `seams-monorepo/.artifacts/r155j-release-0110/gate-probe/`.
+
+### Limits and predictions
+
+- The probe's peer is tiny JavaScript, so the probe shows isolate reuse, not the
+  cost of a cold start of the real Workers. That cost is inferred from the tails:
+  in every population, Deriver calls with the cold-start CPU start later than
+  the others.
+- No 0.10.2 population ran at the same time as 0.11.0, and the conditions of the
+  day changed browser totals by hundreds of milliseconds.
+- If cold callees are the cause, the fixed Router must show: (1) the cold-start
+  CPU in about 13 to 39% of the Deriver and Signing Worker calls; (2) the first
+  Deriver start about 90 to 120 ms after the Router start; (3) a Router execute
+  event near the 0.10.2 values of runs without the slow Deriver A condition. If
+  (1) holds but (2) and (3) do not, the cold starts are not the cost.
 
 ### Consequence
 
