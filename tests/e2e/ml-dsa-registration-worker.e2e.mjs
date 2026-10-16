@@ -9,11 +9,30 @@ import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
 import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
 
-const initializationFaultScript = `
+const registrationFaultScript = `
 let injections = 0;
+let delayedRequest = null;
 async function fetch(request, env) {
   if (new URL(request.url).pathname === '/injections') return new Response(String(injections));
-  if (new URL(request.url).pathname === '/router-ab/ml-dsa/role') {
+  if (new URL(request.url).pathname === '/late-result') {
+    if (!delayedRequest) return new Response('No delayed request', { status: 409 });
+    await scheduler.wait(2000);
+    const response = await env.NEXT.fetch(delayedRequest.url, delayedRequest.init);
+    return Response.json({ injections, lateStatus: response.status });
+  }
+  if (env.STALL_EXECUTION && new URL(request.url).pathname === '/router-ab/ml-dsa/registration/role') {
+    const command = await request.clone().json();
+    if (command.command === 'execute' && injections === 0) {
+      injections += 1;
+      delayedRequest = {
+        url: request.url,
+        init: { method: request.method, headers: Object.fromEntries(request.headers), body: await request.text() },
+      };
+      await scheduler.wait(45000);
+      return new Response('Injected execution stall', { status: 503 });
+    }
+  }
+  if (!env.STALL_EXECUTION && new URL(request.url).pathname === '/router-ab/ml-dsa/role') {
     const command = await request.clone().json();
     if (command.command === 'initialize_registration_storage') {
       injections += 1;
@@ -32,7 +51,9 @@ const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
 const profilePrefix = process.env.ML_DSA_REGISTRATION_CPU_PROFILE;
 const stallInitialization = process.env.ML_DSA_REGISTRATION_STALL_INITIALIZATION === '1';
-assert.ok(!(hostedUrl && stallInitialization), 'Initialization fault injection is local-only');
+const stallExecution = process.env.ML_DSA_REGISTRATION_STALL_EXECUTION === '1';
+assert.ok(!(stallInitialization && stallExecution), 'Select one registration fault');
+assert.ok(!(hostedUrl && (stallInitialization || stallExecution)), 'Fault injection is local-only');
 assert.ok(!(hostedUrl && profilePrefix), 'Inspector profiling requires local workerd');
 const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   ? (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim()
@@ -73,6 +94,7 @@ observations.scriptSha256 = createHash('sha256')
   .digest('hex');
 let runtime;
 let keks;
+let executionFaultArmed = stallExecution;
 try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   if (profilePrefix) observations.profilerCalibration = await calibrateCpuProfiler(profilePrefix);
@@ -101,10 +123,7 @@ try {
             public_key_digest: previous.a.activation.key.public_key_digest,
             manifest_digest: previous.a.activation.manifest_digest,
           };
-    client.process.stdin.write(
-      `${JSON.stringify({ wallet, key_id: 'near', epoch, operation: Array.from(randomBytes(32)), continuity })}\n`,
-    );
-    const payload = await next(client);
+    let payload = await registrationInput(client, epoch, continuity);
     if (epoch === 1) {
       const empty = await post('/router-ab/ml-dsa/register', payload.request);
       assert.equal(empty.status, 'unavailable');
@@ -113,9 +132,31 @@ try {
       firstRequest = payload.request;
     }
     const prepareStarted = performance.now();
-    const ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
+    let ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
     assert.equal(ready.ready, true);
-    const preparationMs = performance.now() - prepareStarted;
+    let preparationMs = performance.now() - prepareStarted;
+    if (epoch === 1 && stallExecution) {
+      observations.executionDeadline = await checkExecutionDeadline(payload.request);
+      observations.executionDeadline.failedPreparationMs = preparationMs;
+      const consumedJob = ready.job.id;
+      executionFaultArmed = false;
+      await runtime.dispose();
+      runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+      await runtime.ready;
+      assert.equal((await post('/router-ab/ml-dsa/register', payload.request)).operation.state, 'failed');
+      observations.executionDeadline.failedReplaySurvivesRestart = true;
+      // Use direct role bindings after the injected request and runtime restart.
+      client.process.kill();
+      client = await startClient();
+      payload = await registrationInput(client, epoch, continuity);
+      firstRequest = payload.request;
+      const refillStarted = performance.now();
+      ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
+      assert.equal(ready.ready, true);
+      preparationMs = performance.now() - refillStarted;
+      assert.notDeepEqual(ready.job.id, consumedJob);
+      observations.executionDeadline.freshPreparation = true;
+    }
     const profiler = profilePrefix ? await startCpuProfile(runtime, 'b') : null;
     const started = performance.now();
     const response = await post('/router-ab/ml-dsa/register', payload.request);
@@ -208,6 +249,28 @@ async function startClient() {
   assert.equal((await next(client)).ready, true);
   return client;
 }
+async function registrationInput(client, epoch, continuity) {
+  client.process.stdin.write(
+    `${JSON.stringify({ wallet, key_id: 'near', epoch, operation: Array.from(randomBytes(32)), continuity })}\n`,
+  );
+  return next(client);
+}
+
+async function checkExecutionDeadline(input) {
+  const started = performance.now();
+  const response = await raw('/router-ab/ml-dsa/register', input, gatewayAuth);
+  const elapsedMs = performance.now() - started;
+  assert.notEqual(response.status, 200);
+  assert.ok(elapsedMs >= 29000 && elapsedMs < 32000, 'Execution did not end at its deadline');
+  const late = await (await runtime.getWorker('stall-a')).fetch('https://fault.internal/late-result', { signal: AbortSignal.timeout(10000) });
+  const evidence = await late.json();
+  assert.equal(evidence.injections, 1);
+  assert.ok(evidence.lateStatus >= 400, 'Late execution was accepted');
+  const replay = await post('/router-ab/ml-dsa/register', input);
+  assert.equal(replay.status, 'existing');
+  assert.equal(replay.operation.state, 'failed');
+  return { elapsedMs, lateStatus: evidence.lateStatus, exactReplayFailed: true };
+}
 async function next(client) {
   const line = await client.lines.next();
   assert.equal(line.done, false, 'Native custody verifier ended early');
@@ -244,15 +307,14 @@ function workers() {
         ML_DSA_ADMISSION_DO: { className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true },
       },
       serviceBindings: {
-        DERIVER_A: stallInitialization ? 'stall-a' : 'a',
+        DERIVER_A: stallInitialization || executionFaultArmed ? 'stall-a' : 'a',
         DERIVER_B: stallInitialization ? 'stall-b' : 'b',
       },
     },
     role('a', 0),
     role('b', 1),
-    ...(stallInitialization
-      ? [initializationFaultWorker('a'), initializationFaultWorker('b')]
-      : []),
+    ...(stallInitialization ? [registrationFaultWorker('a'), registrationFaultWorker('b')] : []),
+    ...(executionFaultArmed ? [registrationFaultWorker('a')] : []),
   ];
 }
 function role(name, index) {
@@ -373,11 +435,12 @@ async function rejectInactiveInitialization(claim) {
     assert.notEqual(response.status, 200, 'Inactive storage initialization succeeded');
   }
 }
-function initializationFaultWorker(role) {
+function registrationFaultWorker(role) {
   return {
     name: 'stall-' + role,
     modules: true,
-    script: initializationFaultScript,
+    script: registrationFaultScript,
+    bindings: { STALL_EXECUTION: stallExecution },
     compatibilityDate: '2026-06-12',
     serviceBindings: { NEXT: role },
   };

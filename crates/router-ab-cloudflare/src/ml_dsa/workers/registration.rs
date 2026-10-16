@@ -458,7 +458,7 @@ async fn execute_with_storage_initialization(
     let command = Command::Execute {
         claim: claim.clone(),
     };
-    let execution = role_call(env, "DERIVER_A", &command);
+    let execution = before_deadline(claim.deadline, role_call(env, "DERIVER_A", &command));
     let initialization = before_deadline(claim.deadline, initialize_storage(env, claim));
     futures::pin_mut!(execution, initialization);
     match futures::future::select(execution, initialization).await {

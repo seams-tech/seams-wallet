@@ -1,0 +1,15 @@
+{
+  "boundary": "B-only hosted socket lifecycle control. Router and A deployments unchanged.",
+  "versions": {
+    "router": "6fa79b04-c7f0-4417-9f8f-253293aeab4f",
+    "a": "029add18-bbba-4f70-888f-8dba0aa3e21b",
+    "b": "3700d9c6-7a22-41e2-9ad0-17f3c5b4c13c"
+  },
+  "source_hashes": {
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs": "c03db54aa96b589f5624c21294c812168f72456497c4fab7970bb28c5623b20f",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "2dad68f924dba75df55b966e4531838e4b623a126a851e7e37330985b41f4f42",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/transport.rs": "234271fc4974c24ea8bdafad752be7d648350d3ec74910f6783818957a497d95",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/coordinator.rs": "9c75375793c3a14ab64ea6c03e08817ad4783c93037d5a099cf3742158f8f35c",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/registration.rs": "d151710611974544da08119b8f097963b0bf798068fa30768bedce107a83edd4"
+  }
+}

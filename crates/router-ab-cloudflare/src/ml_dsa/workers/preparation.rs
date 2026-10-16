@@ -281,11 +281,21 @@ pub(crate) async fn handle_prepare(
     let pair = WebSocketPair::new()?;
     context.wait_until(async move {
         let result = before_deadline(job.expires_at_ms, produce_b(&env, &job, &pair.server)).await;
-        if result.is_err() {
-            let _ = pair
-                .server
-                .close(Some(1011), Some("ML-DSA preparation failed"));
-        }
+        let code = if result.is_ok() { 1000 } else { 1011 };
+        let closed = pair
+            .server
+            .close(Some(code), Some("ML-DSA preparation ended"));
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_socket_completion_v1",
+                "kind": "preparation",
+                "id": hex(&job.batch),
+                "protocol_completed": result.is_ok(),
+                "close_code": code,
+                "close_requested": closed.is_ok(),
+            })
+        );
     });
     Response::from_websocket(pair.client)
 }
@@ -308,6 +318,10 @@ async fn produce_b(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<(
     {
         return Err(invalid("Invalid ML-DSA paired preparation acknowledgement"));
     }
+    transport
+        .flush()
+        .await
+        .map_err(|_| invalid("ML-DSA final preparation acknowledgement failed"))?;
     Ok(())
 }
 

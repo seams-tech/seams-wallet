@@ -111,3 +111,11 @@ Native corruption, rollback, restart, and cleanup checks pass. Local injected in
 Hosted creation takes 5.67 seconds and recovery takes 6.69 seconds. Both preserve the canonical key.
 Signing takes 4.98/7.94 seconds in the repeat campaign. The first campaign retains a failed signing request.
 Next steps are explicit signing-failure diagnostics, WebSocket completion, bounded execution, and material-installation profiling before load qualification.
+
+## Execution lifecycle milestone — October 16, 2026
+
+The [execution report](ml-dsa-65-execution-diagnostics-report.md) records typed dispatch failures, public batch counts, and a bounded key-generation RPC.
+The deadline E2E checks late delivery, failed replay after restart, and fresh canonical registration.
+A now waits for B's normal close event after result agreement. Both final hosted requests verify without the previous runtime error.
+They take 9.98/5.75 seconds and miss the latency target. Twelve/eight evaluated candidates show why one-batch timings are insufficient.
+Next: complete lifecycle deadlines and fault injection, installation profiling, candidate-batch comparisons, and fixed-load qualification before public integration.

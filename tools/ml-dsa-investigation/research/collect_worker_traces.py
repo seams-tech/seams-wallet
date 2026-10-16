@@ -9,6 +9,15 @@ import re
 import urllib.parse
 
 
+def exception_category(error):
+    message = error.get("message", "")
+    if isinstance(message, str) and message.startswith(
+        "The Workers runtime canceled this request because it detected that your Worker's code had hung"
+    ):
+        return "runtime_hung_response"
+    return "unclassified"
+
+
 def records(path, role):
     source = path.read_text()
     decoder = json.JSONDecoder()
@@ -33,6 +42,9 @@ def records(path, role):
         progress = []
         transport = []
         registration = []
+        signing = []
+        socket_completion = []
+        peer_close = []
         for log in item.get("logs", []):
             for message in log.get("message", []):
                 try:
@@ -41,6 +53,25 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                if value.get("event") == "ml_dsa_peer_close_v1":
+                    peer_close.append({key: value[key] for key in [
+                        "operation", "close_code", "was_clean",
+                    ] if key in value})
+                if value.get("event") == "ml_dsa_socket_completion_v1":
+                    socket_completion.append({key: value[key] for key in [
+                        "kind", "id", "protocol_completed", "close_code", "close_requested",
+                    ] if key in value})
+                if value.get("event") == "ml_dsa_signing_outcome_v1":
+                    outcome = value.get("outcome", {})
+                    operation_id = value.get("operation", "")
+                    if isinstance(outcome, dict) and isinstance(operation_id, str) and re.fullmatch("[0-9a-f]{64}", operation_id):
+                        public = {key: outcome[key] for key in [
+                            "status", "consumed_batches", "evaluated_candidates",
+                        ] if key in outcome}
+                        failure = outcome.get("failure")
+                        if isinstance(failure, dict):
+                            public["failure"] = {key: failure[key] for key in ["reason", "status"] if key in failure}
+                        signing.append({"operation": operation_id, "outcome": public})
                 if value.get("event") == "router_ab_yao_transport_v1":
                     transport.append({key: value[key] for key in [
                         "duration_ms", "request_bytes", "service", "stage", "status",
@@ -68,9 +99,13 @@ def records(path, role):
             "wall_ms": item.get("wallTime"),
             "outcome": item.get("outcome"),
             "exception_names": [error.get("name") for error in item.get("exceptions", [])],
+            "exception_categories": [exception_category(error) for error in item.get("exceptions", [])],
             "public_preparation_progress": progress,
             "transport": transport,
             "registration": registration,
+            "signing": signing,
+            "socket_completion": socket_completion,
+            "peer_close": peer_close,
         })
     return result
 
@@ -88,7 +123,7 @@ def main():
     report = {
         "schema": "seams.ml-dsa-silent-worker-traces.v1",
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory.",
+        "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory. Signing outcomes describe role dispatch before Router verification and settlement.",
         "records": retained,
     }
     args.output.write_text(json.dumps(report, indent=2) + "\n")
