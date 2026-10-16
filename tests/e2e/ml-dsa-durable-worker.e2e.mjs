@@ -228,7 +228,9 @@ try {
   assert.ok(socket);
   const closed = once(socket, 'close', { signal: AbortSignal.timeout(30000) });
   socket.accept();
-  await closed;
+  const [closeEvent] = await closed;
+  assert.equal(closeEvent.code, 1011, 'The stalled peer did not signal an execution failure');
+  observations.stalledPeerCloseCode = closeEvent.code;
   observations.stalledPeerClosedMs = performance.now() - started;
   observations.stalledSocketWaitMs = observations.stalledPeerClosedMs - observations.stalledHandshakeMs;
   observations.concurrentTimerMs = await control;

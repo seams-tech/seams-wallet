@@ -1,0 +1,169 @@
+{
+  "scope": "Public events from final local durable and registration E2E campaigns. These campaigns ran concurrently.",
+  "events": [
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "eda1d99955b6ffea0102ec793b92ad346441940fb1f35a1fb3d866f0dddee060",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "c2bfd6f254cd87a7d267090b01ac3b5d35e3967298777050cb19f508987554ab",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "a592ba06bd00c7913b330f98d8d29f0e0217a12e88b16115534b3aaf5c1317c7",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "8a47762e27225c1bde6ed6440f9f1589109172ce5c3aad6f600b37a54609469d",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+      "kind": "signing",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "event": "ml_dsa_peer_close_v1",
+      "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+      "was_clean": true
+    },
+    {
+      "event": "ml_dsa_signing_outcome_v1",
+      "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+      "outcome": {
+        "consumed_batches": 1,
+        "evaluated_candidates": 4,
+        "status": "signed"
+      }
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "a64569e756cdde9666b29a7079c2a2e8998359d69d79570f51dbbd996b58c69d",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+      "kind": "signing",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "event": "ml_dsa_peer_close_v1",
+      "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+      "was_clean": true
+    },
+    {
+      "event": "ml_dsa_signing_outcome_v1",
+      "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+      "outcome": {
+        "consumed_batches": 1,
+        "evaluated_candidates": 4,
+        "status": "signed"
+      }
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "ba37090bf786e3e948a78dcf0bd8f0e0ba3f374985cc5152c4d3b6fa8d977193",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+      "kind": "signing",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "event": "ml_dsa_peer_close_v1",
+      "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+      "was_clean": true
+    },
+    {
+      "event": "ml_dsa_signing_outcome_v1",
+      "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+      "outcome": {
+        "consumed_batches": 1,
+        "evaluated_candidates": 4,
+        "status": "signed"
+      }
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "7f443722d79aac873081a9731e8ba4fd793c1aeb3c4022268d41736d322d48c8",
+      "kind": "preparation",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1011,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "9c592d4c43e727f1f6b5aab08982f49d128b818b345122f528163a242cfe582d",
+      "kind": "signing",
+      "protocol_completed": false
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "aad607f0d07299b080be165df8055e555fbf2a77634debfb5293af528c6b9bf6",
+      "kind": "signing",
+      "protocol_completed": true
+    },
+    {
+      "close_code": 1000,
+      "event": "ml_dsa_peer_close_v1",
+      "operation": "aad607f0d07299b080be165df8055e555fbf2a77634debfb5293af528c6b9bf6",
+      "was_clean": true
+    },
+    {
+      "event": "ml_dsa_signing_outcome_v1",
+      "operation": "aad607f0d07299b080be165df8055e555fbf2a77634debfb5293af528c6b9bf6",
+      "outcome": {
+        "consumed_batches": 1,
+        "evaluated_candidates": 4,
+        "status": "signed"
+      }
+    },
+    {
+      "close_code": 1000,
+      "close_requested": true,
+      "event": "ml_dsa_socket_completion_v1",
+      "id": "6d2f33bb9d6c8fc44e80bfd8a5b01bc1ecf463304348ebfc196e212a4fb9ce36",
+      "kind": "preparation",
+      "protocol_completed": true
+    }
+  ]
+}

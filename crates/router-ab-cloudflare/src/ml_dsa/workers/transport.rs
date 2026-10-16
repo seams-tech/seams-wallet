@@ -82,17 +82,38 @@ impl<'a> Duplex<'a> {
             self.poll().await?;
         }
     }
-    async fn poll(&mut self) -> core::result::Result<(), RuntimeError> {
+    /// Wait for delivery acknowledgments before the server closes its socket.
+    pub(super) async fn flush(&mut self) -> core::result::Result<(), RuntimeError> {
+        while self.acknowledged < self.sent {
+            self.poll().await?;
+        }
+        if !self.pending.is_empty() {
+            return Err(RuntimeError::SessionBinding);
+        }
+        Ok(())
+    }
+    pub(super) async fn peer_closed(&mut self) -> core::result::Result<bool, RuntimeError> {
+        if self.acknowledged != self.sent || !self.pending.is_empty() {
+            return Err(RuntimeError::SessionBinding);
+        }
+        match self.event().await? {
+            WebsocketEvent::Close(event) if event.code() == 1000 => Ok(event.was_clean()),
+            _ => Err(RuntimeError::SessionBinding),
+        }
+    }
+    async fn event(&mut self) -> core::result::Result<WebsocketEvent, RuntimeError> {
         let delay = worker::Delay::from(Duration::from_millis(self.remaining()?));
         let event = self.events.next();
         futures::pin_mut!(delay, event);
-        let event = match select(event, delay).await {
+        match select(event, delay).await {
             Either::Left((event, _)) => event
                 .ok_or(RuntimeError::MessageLength)?
-                .map_err(transport_error)?,
-            Either::Right(_) => return Err(RuntimeError::SessionBinding),
-        };
-        let WebsocketEvent::Message(message) = event else {
+                .map_err(transport_error),
+            Either::Right(_) => Err(RuntimeError::SessionBinding),
+        }
+    }
+    async fn poll(&mut self) -> core::result::Result<(), RuntimeError> {
+        let WebsocketEvent::Message(message) = self.event().await? else {
             return Err(RuntimeError::MessageLength);
         };
         let bytes = message.bytes().ok_or(RuntimeError::MessageLength)?;

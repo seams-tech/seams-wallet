@@ -145,6 +145,26 @@ async fn execute(
     if peer != digest {
         return Err(invalid("ML-DSA participants returned different results"));
     }
+    if role == Participant::B {
+        transport
+            .flush()
+            .await
+            .map_err(|_| invalid("ML-DSA final delivery acknowledgement failed"))?;
+    } else {
+        let was_clean = transport
+            .peer_closed()
+            .await
+            .map_err(|_| invalid("ML-DSA peer did not close normally"))?;
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_peer_close_v1",
+                "operation": hex(&input.permit.request.operation),
+                "close_code": 1000,
+                "was_clean": was_clean,
+            })
+        );
+    }
     Ok((record.public_key, outcome))
 }
 
@@ -187,11 +207,21 @@ pub(crate) async fn handle_execute(
                     execute(&env, &input, &pair.server),
                 )
                 .await;
-                if result.is_err() {
-                    let _ = pair
-                        .server
-                        .close(Some(1011), Some("ML-DSA execution failed"));
-                }
+                let code = if result.is_ok() { 1000 } else { 1011 };
+                let closed = pair
+                    .server
+                    .close(Some(code), Some("ML-DSA execution ended"));
+                worker::console_log!(
+                    "{}",
+                    serde_json::json!({
+                        "event": "ml_dsa_socket_completion_v1",
+                        "kind": "signing",
+                        "id": hex(&input.permit.request.operation),
+                        "protocol_completed": result.is_ok(),
+                        "close_code": code,
+                        "close_requested": closed.is_ok(),
+                    })
+                );
             });
             Response::from_websocket(pair.client)
         }

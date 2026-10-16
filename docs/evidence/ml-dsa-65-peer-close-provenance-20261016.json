@@ -1,0 +1,15 @@
+{
+  "scope": "Hosted peer-close control changes A only relative to the B-only close control. The final B build is validated locally.",
+  "deployments": {
+    "router": "6fa79b04-c7f0-4417-9f8f-253293aeab4f",
+    "a": "c16a4bf7-9cd3-40b5-9741-c6d0e813c12e",
+    "b": "3700d9c6-7a22-41e2-9ad0-17f3c5b4c13c"
+  },
+  "source_sha256": {
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/coordinator.rs": "9c75375793c3a14ab64ea6c03e08817ad4783c93037d5a099cf3742158f8f35c",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs": "3d8eb4edf1da30b70a046c570a16164571b1a13a9e147033f162e5afe2109dee",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "2dad68f924dba75df55b966e4531838e4b623a126a851e7e37330985b41f4f42",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/transport.rs": "10df63964cbe5701943a82a4fcc6450a1e9e8fad66731a8a7da1b62d2b768ab5",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/registration.rs": "d151710611974544da08119b8f097963b0bf798068fa30768bedce107a83edd4"
+  }
+}

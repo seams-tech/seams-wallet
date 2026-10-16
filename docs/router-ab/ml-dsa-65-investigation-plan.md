@@ -2,8 +2,9 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [latest bounded-read campaign](ml-dsa-65-batched-tables-report.md) measures complete registration at 5.67 seconds, recovery at 6.69 seconds, and successful signing at 4.98 and 7.94 seconds.
-An earlier request in this campaign failed signing after a 9.46-second Router invocation. The five-second target remains unmet.
+The [latest execution-lifecycle campaign](ml-dsa-65-execution-diagnostics-report.md) records complete hosted registration at 7.30 seconds and recovery at 9.79 seconds.
+Later signing-only requests take 9.98 and 5.75 seconds, with twelve and eight evaluated candidates. The five-second target remains unmet.
+Waiting for the peer-close event removes the observed shutdown error in those two requests. Load qualification and complete registration deadlines remain open.
 Table reads use 83 transactions for 643 frames. These timings include durable installation and signing settlement.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
 It targets 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.

@@ -427,14 +427,19 @@ pub(crate) async fn handle_sign(
         context: input.context,
     };
     let result = before_deadline(permit.expires_at_ms, dispatch_execution(env, &execution)).await;
+    log_execution(&permit.request.operation, &result);
     let completion = match result {
-        Ok((public_key, execution::Outcome::Signed { signature, .. })) => Completion::Succeeded {
-            public_key,
-            message: execution.message,
-            context: execution.context,
-            signature,
-        },
-        Ok((_, execution::Outcome::Exhausted { .. })) | Err(_) => Completion::Failed,
+        Ok(Ok((public_key, execution::Outcome::Signed { signature, .. }))) => {
+            Completion::Succeeded {
+                public_key,
+                message: execution.message,
+                context: execution.context,
+                signature,
+            }
+        }
+        Ok(Ok((_, execution::Outcome::Exhausted { .. }))) | Ok(Err(_)) | Err(_) => {
+            Completion::Failed
+        }
     };
     let status: Status = service_call(
         env,
@@ -465,10 +470,22 @@ pub(crate) async fn handle_sign(
     .map_err(protocol_error)?;
     Response::from_json(&Decision::Existing { operation: status })
 }
-async fn dispatch_execution(
-    env: &Env,
-    input: &execution::Request,
-) -> Result<(Vec<u8>, execution::Outcome)> {
+async fn dispatch_execution(env: &Env, input: &execution::Request) -> Result<DispatchResult> {
+    Ok(dispatch_response(env, input).await)
+}
+
+type DispatchResult = std::result::Result<(Vec<u8>, execution::Outcome), DispatchFailure>;
+
+#[derive(Serialize)]
+#[serde(tag = "reason", rename_all = "snake_case")]
+enum DispatchFailure {
+    Request,
+    Http { status: u16 },
+    ResponseBody,
+    ResponseDecode,
+}
+
+async fn dispatch_response(env: &Env, input: &execution::Request) -> DispatchResult {
     let mut response = crate::router_coordinator::post_role_request(
         env,
         "DERIVER_A",
@@ -478,9 +495,50 @@ async fn dispatch_execution(
         input,
         None,
     )
-    .await?;
+    .await
+    .map_err(|_| DispatchFailure::Request)?;
     if response.status_code() != 200 {
-        return Err(invalid("ML-DSA execution failed"));
+        return Err(DispatchFailure::Http {
+            status: response.status_code(),
+        });
     }
-    response.json().await.map_err(storage_error)
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|_| DispatchFailure::ResponseBody)?;
+    serde_json::from_slice(&bytes).map_err(|_| DispatchFailure::ResponseDecode)
+}
+
+fn log_execution(operation: &[u8; 32], result: &Result<DispatchResult>) {
+    let outcome = match result {
+        Ok(Ok((
+            _,
+            execution::Outcome::Signed {
+                consumed_batches,
+                evaluated_candidates,
+                ..
+            },
+        ))) => {
+            serde_json::json!({"status": "signed", "consumed_batches": consumed_batches, "evaluated_candidates": evaluated_candidates})
+        }
+        Ok(Ok((
+            _,
+            execution::Outcome::Exhausted {
+                consumed_batches,
+                evaluated_candidates,
+            },
+        ))) => {
+            serde_json::json!({"status": "exhausted", "consumed_batches": consumed_batches, "evaluated_candidates": evaluated_candidates})
+        }
+        Ok(Err(failure)) => serde_json::json!({"status": "dispatch_error", "failure": failure}),
+        Err(_) => serde_json::json!({"status": "deadline_or_clock_error"}),
+    };
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_signing_outcome_v1",
+            "operation": hex(operation),
+            "outcome": outcome,
+        })
+    );
 }

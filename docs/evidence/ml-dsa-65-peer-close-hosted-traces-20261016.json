@@ -1,0 +1,314 @@
+{
+  "schema": "seams.ml-dsa-silent-worker-traces.v1",
+  "created_at": "2026-10-16T03:04:30.633078+00:00",
+  "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory. Signing outcomes describe role dispatch before Router verification and settlement.",
+  "records": [
+    {
+      "role": "a",
+      "worker": "ml-dsa-reg-1016-15dd34-a",
+      "version": "c16a4bf7-9cd3-40b5-9741-c6d0e813c12e",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": null,
+      "path": "/router-ab/ml-dsa/execute",
+      "event_timestamp_ms": 1792119637729,
+      "cpu_ms": 2257,
+      "wall_ms": 7589,
+      "outcome": "ok",
+      "exception_names": [],
+      "exception_categories": [],
+      "public_preparation_progress": [],
+      "transport": [],
+      "registration": [],
+      "signing": [],
+      "socket_completion": [],
+      "peer_close": [
+        {
+          "operation": "338d65bffcc097a06b3069cfa36dd8626d916c0873ce3363dae39f8b718cda25",
+          "close_code": 1000,
+          "was_clean": true
+        }
+      ]
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-reg-1016-15dd34-a",
+      "version": "c16a4bf7-9cd3-40b5-9741-c6d0e813c12e",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": null,
+      "path": "/router-ab/ml-dsa/execute",
+      "event_timestamp_ms": 1792119709535,
+      "cpu_ms": 822,
+      "wall_ms": 2538,
+      "outcome": "ok",
+      "exception_names": [],
+      "exception_categories": [],
+      "public_preparation_progress": [],
+      "transport": [],
+      "registration": [],
+      "signing": [],
+      "socket_completion": [],
+      "peer_close": [
+        {
+          "operation": "9be36be3932d8bb40cc90b183f60526c70b04e49fdb254bf6aec8591898aa264",
+          "close_code": 1000,
+          "was_clean": true
+        }
+      ]
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-reg-1016-15dd34-b",
+      "version": "3700d9c6-7a22-41e2-9ad0-17f3c5b4c13c",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": null,
+      "path": "/router-ab/ml-dsa/connect",
+      "event_timestamp_ms": 1792119637763,
+      "cpu_ms": 1977,
+      "wall_ms": 7556,
+      "outcome": "ok",
+      "exception_names": [],
+      "exception_categories": [],
+      "public_preparation_progress": [],
+      "transport": [],
+      "registration": [],
+      "signing": [],
+      "socket_completion": [
+        {
+          "kind": "signing",
+          "id": "338d65bffcc097a06b3069cfa36dd8626d916c0873ce3363dae39f8b718cda25",
+          "protocol_completed": true,
+          "close_code": 1000,
+          "close_requested": true
+        }
+      ],
+      "peer_close": []
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-reg-1016-15dd34-b",
+      "version": "3700d9c6-7a22-41e2-9ad0-17f3c5b4c13c",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": null,
+      "path": "/router-ab/ml-dsa/connect",
+      "event_timestamp_ms": 1792119709557,
+      "cpu_ms": 849,
+      "wall_ms": 2517,
+      "outcome": "ok",
+      "exception_names": [],
+      "exception_categories": [],
+      "public_preparation_progress": [],
+      "transport": [],
+      "registration": [],
+      "signing": [],
+      "socket_completion": [
+        {
+          "kind": "signing",
+          "id": "9be36be3932d8bb40cc90b183f60526c70b04e49fdb254bf6aec8591898aa264",
+          "protocol_completed": true,
+          "close_code": 1000,
+          "close_requested": true
+        }
+      ],
+      "peer_close": []
+    },
+    {
+      "role": "router",
+      "worker": "ml-dsa-reg-1016-15dd34-router",
+      "version": "6fa79b04-c7f0-4417-9f8f-253293aeab4f",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": null,
+      "path": "/router-ab/ml-dsa/sign",
+      "event_timestamp_ms": 1792119635672,
+      "cpu_ms": 149,
+      "wall_ms": 9247,
+      "outcome": "ok",
+      "exception_names": [],
+      "exception_categories": [],
+      "public_preparation_progress": [],
+      "transport": [
+        {
+          "duration_ms": 702,
+          "request_bytes": 492,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 1289,
+          "request_bytes": 492,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 54,
+          "request_bytes": 1502,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 65,
+          "request_bytes": 1502,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 7640,
+          "request_bytes": 1499,
+          "service": "ML-DSA admitted signing",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 49,
+          "request_bytes": 1336,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 49,
+          "request_bytes": 1336,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 48,
+          "request_bytes": 1728,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 65,
+          "request_bytes": 1728,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        }
+      ],
+      "registration": [],
+      "signing": [
+        {
+          "operation": "338d65bffcc097a06b3069cfa36dd8626d916c0873ce3363dae39f8b718cda25",
+          "outcome": {
+            "status": "signed",
+            "consumed_batches": 3,
+            "evaluated_candidates": 12
+          }
+        }
+      ],
+      "socket_completion": [],
+      "peer_close": []
+    },
+    {
+      "role": "router",
+      "worker": "ml-dsa-reg-1016-15dd34-router",
+      "version": "6fa79b04-c7f0-4417-9f8f-253293aeab4f",
+      "run_id": null,
+      "run_id_available": false,
+      "operation": null,
+      "path": "/router-ab/ml-dsa/sign",
+      "event_timestamp_ms": 1792119706601,
+      "cpu_ms": 92,
+      "wall_ms": 5258,
+      "outcome": "ok",
+      "exception_names": [],
+      "exception_categories": [],
+      "public_preparation_progress": [],
+      "transport": [
+        {
+          "duration_ms": 595,
+          "request_bytes": 492,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 2399,
+          "request_bytes": 492,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 51,
+          "request_bytes": 1381,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 59,
+          "request_bytes": 1381,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 2555,
+          "request_bytes": 1383,
+          "service": "ML-DSA admitted signing",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 46,
+          "request_bytes": 1218,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 59,
+          "request_bytes": 1218,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 67,
+          "request_bytes": 1494,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        },
+        {
+          "duration_ms": 68,
+          "request_bytes": 1494,
+          "service": "ML-DSA role storage",
+          "stage": "fetch_headers",
+          "status": 200
+        }
+      ],
+      "registration": [],
+      "signing": [
+        {
+          "operation": "9be36be3932d8bb40cc90b183f60526c70b04e49fdb254bf6aec8591898aa264",
+          "outcome": {
+            "status": "signed",
+            "consumed_batches": 2,
+            "evaluated_candidates": 8
+          }
+        }
+      ],
+      "socket_completion": [],
+      "peer_close": []
+    }
+  ],
+  "selection": {
+    "operation_ids": [
+      "338d65bffcc097a06b3069cfa36dd8626d916c0873ce3363dae39f8b718cda25",
+      "9be36be3932d8bb40cc90b183f60526c70b04e49fdb254bf6aec8591898aa264"
+    ],
+    "rule": "Exact operation identifier in peer-close, socket-completion, or signing-dispatch events. Background invocations excluded."
+  }
+}

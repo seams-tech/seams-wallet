@@ -3524,10 +3524,13 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Consume table frames atomically. Retire unused fallbacks in bounded steps, and fence late writers even when cancellation precedes the first frame.
 - Consume at most eight contiguous frames from one circuit per table-read transaction. Release plaintext only after commit. Burn unused prefetched frames after interruption.
 - Permit read-only role-storage initialization during an exact live registration claim. It must not install material, schedule refill, or delay completed key generation.
+- Bound the Router's key-generation service call by the registration claim deadline. Reject execution delivered after expiry and preserve failed replay across restart.
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
 - Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
 - Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.
 - Keep signing capacity reserved through both role settlements. New key-bound refill must wait for active signing settlement and registration to finish or expire.
+- Record public role-dispatch outcomes separately from final signing status. Distinguish candidate exhaustion, request failure, HTTP failure, response-body failure, and response-decoding failure.
+- B drains final data acknowledgments before requesting normal socket closure. A waits for peer close code 1000 within the operation deadline before returning the completed signing result.
 - Require an exact ML-DSA transaction approval before preparing a private Router signing request.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
 - Require both verified factor evidence and an operation-specific owner proof within their validity windows.
