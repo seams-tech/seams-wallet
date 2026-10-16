@@ -151,23 +151,6 @@ impl LocalEd25519YaoEffectiveIdentityV1 {
             && self.signer_set_id == binding.lifecycle.signer_set_id
             && self.signing_worker_id == binding.lifecycle.selected_server_id
     }
-
-    pub(crate) fn validate_persisted_v1(&self) -> RouterAbProtocolResult<()> {
-        if self
-            .stable_key_context_binding
-            .into_bytes()
-            .iter()
-            .all(|byte| *byte == 0)
-            || self.account_id.trim().is_empty()
-            || self.signer_set_id.trim().is_empty()
-            || self.signing_worker_id.trim().is_empty()
-        {
-            return Err(invalid_refresh(
-                "persisted Ed25519 Yao effective identity is invalid",
-            ));
-        }
-        Ok(())
-    }
 }
 
 impl Ord for LocalEd25519YaoEffectiveIdentityV1 {
@@ -230,10 +213,6 @@ macro_rules! define_effective_state {
 
             pub fn active_contribution(&self) -> $server {
                 <$server>::from_secret_bytes(self.y, self.tau)
-            }
-
-            pub(crate) fn identity(&self) -> &LocalEd25519YaoEffectiveIdentityV1 {
-                &self.identity
             }
 
             pub fn prepare_refresh(

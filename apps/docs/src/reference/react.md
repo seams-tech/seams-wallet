@@ -64,6 +64,31 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
+`AccountMenuButtonMock` is an interactive, provider-free account-menu preview.
+It shares the connected `AccountMenuButton` renderer, including the authentication-methods
+view and enrollment rows. The connected menu supplies its live wallet inventory and
+authenticated actions; the preview supplies sample data. Navigation, confirmation
+preferences, device details, recovery previews, and locking use local state.
+It never creates a wallet session, signs, exports keys, requests camera access,
+or accesses wallet storage. Export keys opens the shared key-selection screen. Its sample NEAR and EVM
+choices show an authentication-required summary.
+
+```tsx
+import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
+import '@seams/wallet/react/styles';
+
+<AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
+```
+
+Use `defaultOpen={false}` to start collapsed. All screens stay inside one panel;
+there is no overlay backdrop. The panel animates its measured height between screens,
+and respects reduced-motion preferences. Authentication methods opens directly for the current wallet, with separate
+Passkey and Email OTP rows. Device linking is available from the main menu.
+Transaction settings open in a separate resizing screen. The scanner is a static
+camera preview. The recovery preview shows four distinct 16-digit sample codes. Method rows display enrollment rather than selectable preferences.
+Live enrollment and removal retain authenticated SDK operations.
+The preview never starts wallet operations or reveals real signing keys.
+
 `WalletSettingsPage` provides account, auth-method, recovery-code, linked-device,
 export, and transaction-preference settings. It uses the same provider and
 wallet-origin operations. Signed-out users see hosted authentication. The page
@@ -86,14 +111,14 @@ Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
 `near.signAndSendTransaction` or the EVM and Tempo
 `signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
 
-| Export | Purpose |
-| --- | --- |
-| `TransactionReviewHost` | Hosts app review content in the SDK dialog. |
-| `TransactionReview` | Requires `title`, `validity`, and `render`. Accepts optional `className`. |
-| `TransactionReviewControls` | `continueToWallet()`, `cancel()`, and `fail(error)`. |
-| `TransactionReviewValidity` | `{ kind: 'unbounded' }` or `{ kind: 'expires_at', atMs: number }`. |
-| `TransactionReviewError` | Review failure class with a typed `code`. |
-| `TransactionReviewErrorCode` | Union of review failure codes. |
+| Export                       | Purpose                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `TransactionReviewHost`      | Hosts app review content in the SDK dialog.                               |
+| `TransactionReview`          | Requires `title`, `validity`, and `render`. Accepts optional `className`. |
+| `TransactionReviewControls`  | `continueToWallet()`, `cancel()`, and `fail(error)`.                      |
+| `TransactionReviewValidity`  | `{ kind: 'unbounded' }` or `{ kind: 'expires_at', atMs: number }`.        |
+| `TransactionReviewError`     | Review failure class with a typed `code`.                                 |
+| `TransactionReviewErrorCode` | Union of review failure codes.                                            |
 
 The renderer returns React content synchronously. Continue leads to a separate
 wallet approval. Hosted iframe mode, modal confirmation, and explicit approval

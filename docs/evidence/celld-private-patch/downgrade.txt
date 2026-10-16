@@ -1,0 +1,4 @@
+2026-10-13T04:36:17.716526Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.
+2026-10-13T04:36:17.716557Z  INFO celld: host runtime initialized event="host_runtime" worker_count=14
+<jemalloc>: option background_thread currently supports pthread only
+Error: deployment requires feature "external-durable-objects-v1" this celld build does not support; upgrade celld

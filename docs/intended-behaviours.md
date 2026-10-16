@@ -140,6 +140,25 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 
 ## Wallet settings presentation
 
+- `AccountMenuButton` uses one fixed-width panel for overview, account addresses,
+  export selection, recovery entry, authentication methods, linked devices, and
+  QR scanning. Back returns to the previous screen. Transaction preferences
+  have their own resizing screen. Closing the panel resets navigation to the overview.
+- Screen changes animate the panel's measured height. Interruptions retarget from
+  the current height. Reduced motion disables resizing motion and keeps a content
+  fade. The panel does not introduce an overlay backdrop for its nested screens.
+- Sensitive recovery backup and key export retain wallet-origin authentication and
+  confirmation. The account menu never renders secret material in host-origin React.
+- `AccountMenuButtonMock` shares the panel, navigation, and display components. All
+  sample actions stay local; it makes no wallet requests and opens no camera.
+  Completing the recovery preview requires an explicit saved-codes acknowledgement;
+  copying or downloading does not check the box automatically.
+  Its recovery preview shows four distinct 16-digit sample codes. Authentication methods opens directly for
+  the current wallet and displays each enrolled method as its own row. Device
+  inventory stays under Linked devices; methods are never a preference toggle.
+  Export keys opens shared NEAR/EVM selection; preview choices display an
+  authentication-required summary without exporting secrets.
+
 - `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
   full-page sidebar and a selected settings panel. Signed-out users authenticate
   through the hosted authentication menu before accessing wallet settings.
@@ -709,7 +728,9 @@ Expected behaviour:
 - An exact retry of that respond replays the admission and the recorded
   execution. When the execution does not complete inside respond, the reply
   includes the admission alone, and the client sends the same execute request
-  to the execute route. Email OTP registration and mixed registration receive
+  to the execute route. That execution may still be running at the Router,
+  which then answers that it is in progress; the client waits it out as a
+  resumed execution does, below. Email OTP registration and mixed registration receive
   no description: their respond issues the admission, and the execute route
   runs the execution.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
@@ -867,6 +888,11 @@ Expected behaviour:
 - Refreshing must not send a second OTP solely because the wallet name changed.
 - Refreshing must not finalize registration without the same required
   operation-bound owner proof.
+- Deriver B can discard unused encrypted registration input when its object
+  restarts or its preparation window expires. An exact retry supplies the input
+  again. No protocol material may be sent before the role's execution claim is
+  durable. A completed registration remains replayable after the Router object
+  restarts.
 - Retrying the same activation or deferred NEAR provisioning request uses the
   original ceremony and idempotency key. The server returns the credential-free
   V2 committed projection without repeating custody effects; a changed request

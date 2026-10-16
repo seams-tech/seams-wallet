@@ -1,0 +1,23 @@
+<jemalloc>: option background_thread currently supports pthread only
+2026-10-13T03:40:57.561226Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.
+celld dev
+  Project  /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-9O34Ei/external.json
+  State    /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-9O34Ei/.celld/dev
+  Watch    disabled
+  ● opening the local storage
+  ● building the application
+ celld 0.6.2
+───────────────────────────────────────────────
+Total Upload: 0.35 KiB / gzip: 0.22 KiB
+Your Worker has access to the following bindings:
+Binding                           Resource
+env.TENANT_ROOT (TenantRoot)      Durable Object
+env.ROUTER (Service)              owner
+Bundled caller (0.00 sec)
+<jemalloc>: option background_thread currently supports pthread only
+2026-10-13T03:40:57.575827Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.
+2026-10-13T03:40:57.575846Z  INFO celld: host runtime initialized event="host_runtime" worker_count=14
+2026-10-13T03:40:57.606482Z  INFO celld::pool: isolate started isolate=1 slot=0 total=1
+2026-10-13T03:40:57.611361Z  INFO celld::pool: isolate started isolate=2 slot=0 total=1
+Error: Durable Object class TenantRoot is exported by more than one co-hosted script
+Error: the local node exited before it announced its operator listener

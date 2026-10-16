@@ -30,7 +30,7 @@ import {
 import type { GoogleEmailOtpWalletAuthFlow } from '@/SeamsWeb/publicApi/types';
 import { defaultLoginAccount, loginAccountOptions, passkeyRecentWalletId } from './account-options';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
-import type { LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
+import type { LinkDeviceFlowEvent, RegistrationFlowEvent } from '@/core/types/sdkSentEvents';
 import type {
   StartDevice2LinkingTargetV1,
   StartDevice2LinkingFlowArgs,
@@ -201,13 +201,14 @@ export class AuthMenuController {
     try {
       session.mount();
       await yieldAfterAuthMenuMount();
-      session.setRegistrationPreparation((registrationValue, cancellation) =>
+      session.setRegistrationPreparation((registrationValue, cancellation, onEvent) =>
         this.prepareRegistration(
           args.request,
           requestId,
           session.identity.authMenuSessionId,
           registrationValue,
           cancellation,
+          onEvent,
         ),
       );
       if (requestedWalletId) {
@@ -392,6 +393,7 @@ export class AuthMenuController {
     authMenuSessionId: HostedAuthMenuOpenRequest['authMenuSessionId'],
     registrationValue: string,
     cancellation: Extract<WebAuthnPromptCancellation, { kind: 'abort_signal' }>,
+    onEvent: (event: RegistrationFlowEvent) => void,
   ): Promise<
     import('@/SeamsWeb/operations/registration/registration').HostedPasskeyRegistrationPrepared
   > {
@@ -420,7 +422,7 @@ export class AuthMenuController {
       authMenuSessionId,
       requestId,
       cancellation,
-      options: {},
+      options: { onEvent },
     });
   }
 

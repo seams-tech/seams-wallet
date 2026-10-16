@@ -84,6 +84,7 @@ export class GatewayRequestEvidence {
       if (observed.outcome.kind !== 'pending' && observed.outcome.atMs < startedAtMs) continue;
       const response = observed.response?.value;
       const header = response ? await response.headerValue('X-Benchmark-D1') : null;
+      const serverTiming = response ? await response.headerValue('Server-Timing') : null;
       const timing = observed.request.timing();
       requests.push({
         path: observed.path,
@@ -101,9 +102,8 @@ export class GatewayRequestEvidence {
         status: response?.status() ?? null,
         browserRequestElapsedMs: timing.responseEnd < 0 ? null : timing.responseEnd,
         gatewayPlacement: response ? await response.headerValue('X-Benchmark-Placement') : null,
-        stagesMs: Object.fromEntries(
-          parseEcdsaServerTiming(response ? await response.headerValue('Server-Timing') : null),
-        ),
+        serverTiming,
+        stagesMs: Object.fromEntries(parseEcdsaServerTiming(serverTiming)),
         d1: header === null ? null : JSON.parse(header),
       });
     }

@@ -1,17 +1,16 @@
-/* The menu's own header: the site asking, the mode, then the title. It opens
-   with a one-line origin row, so the card's top padding tightens around it. */
-:where(.seams-auth-menu-surface) .seams-signup-menu-root:has(.seams-menu-header) {
-  --seams-auth-menu-padding-top: 1.125rem;
-}
-
+/* The menu's own header: the mode, then the title. The origin row above it
+   belongs to the card, not to the view. */
 :where(.seams-auth-menu-surface) .seams-menu-header {
   margin-bottom: 1rem;
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-origin {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 0.4375rem;
+  min-block-size: 1.125rem;
+  margin-block-end: calc(var(--seams-menu-origin-block-size) - 1.125rem);
   color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
 }
@@ -23,7 +22,7 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-eyebrow {
-  margin: 0.75rem 0 0.1875rem;
+  margin: 0 0 0.1875rem;
   color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
   letter-spacing: 0.015em;
@@ -35,10 +34,6 @@
   font-weight: 550;
   letter-spacing: -0.035em;
   line-height: 1.2;
-}
-
-:where(.seams-auth-menu-surface) .seams-menu-origin + .seams-title {
-  margin-top: 0.75rem;
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-header .seams-subhead {
@@ -121,7 +116,9 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 7px;
-  background: var(--seams-colors-surface2);
+  /* A theme can tint the tile; the default keeps it a quiet surface. */
+  background: var(--seams-colors-menuOptionIconBackground, var(--seams-colors-surface2));
+  color: var(--seams-colors-menuOptionIconColor, inherit);
   transition: background-color 160ms ease;
 }
 
@@ -133,7 +130,10 @@
 
 :where(.seams-auth-menu-surface) .seams-menu-option:hover .seams-menu-option-icon,
 :where(.seams-auth-menu-surface) .seams-menu-option:focus-visible .seams-menu-option-icon {
-  background: var(--seams-colors-surface3, var(--seams-colors-borderPrimary));
+  background: var(
+    --seams-colors-menuOptionIconHoverBackground,
+    var(--seams-colors-surface3, var(--seams-colors-borderPrimary))
+  );
 }
 
 :where(.seams-auth-menu-surface) .seams-menu-option-text {

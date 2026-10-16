@@ -49,7 +49,7 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='st
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone'][data-seams-recovery-stage='summary'],
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone'][data-seams-recovery-stage='opening'] {
-  width: min(30rem, calc(100vw - 1.5rem));
+  width: min(26.25rem, calc(100vw - 1.5rem));
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone'][data-seams-recovery-stage='recovery_codes'] {
@@ -75,7 +75,7 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='summary'],
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='opening'] {
-  width: 30rem;
+  width: 26.25rem;
   max-width: 100vw;
 }
 
@@ -157,32 +157,88 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   gap: 0;
 }
 
-[data-seams-wallet-recovery-backup-dialog] .recovery-summary-row {
+/* The summary reads as a short settings card: a small-caps section label,
+   then rows with an icon tile, a title over a muted detail, and a quiet
+   status tag at the end. */
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-section-label {
+  margin: 0 0 0.25rem;
+  color: var(--seams-colors-textSecondary, oklch(0.53 0.02 240));
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-item {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1.5rem;
+  align-items: center;
+  gap: 0.875rem;
   padding-block: 0.75rem;
   border-bottom: 1px solid var(--seams-colors-borderPrimary, oklch(0.35 0.018 240));
 }
 
-[data-seams-wallet-recovery-backup-dialog] .recovery-summary-label {
-  color: var(--seams-colors-textSecondary, oklch(0.53 0.02 240));
-  font-size: 0.8125rem;
-  font-weight: 400;
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-item-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--seams-shape-control, 10px);
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary, oklch(0.97 0.002 240)),
+    transparent 93%
+  );
 }
 
-[data-seams-wallet-recovery-backup-dialog] .recovery-summary-value {
-  color: var(--seams-colors-textPrimary, oklch(0.97 0.002 240));
-  font-size: 0.875rem;
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-item-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-item-text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-item-title {
+  font-size: 0.9375rem;
   font-weight: 500;
-  text-align: end;
+  line-height: 1.3;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-item-detail {
+  color: var(--seams-colors-textSecondary, oklch(0.53 0.02 240));
+  font-size: 0.8125rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-summary-badge {
+  flex: none;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary, oklch(0.97 0.002 240)),
+    transparent 93%
+  );
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-summary-open {
   width: 100%;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
+  font-weight: 500;
 }
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-summary-ellipsis {
@@ -234,10 +290,10 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-backup-title {
   margin: 0 0 0.5rem;
-  font-size: 1.3125rem;
+  font-size: 1.375rem;
   line-height: 1.25;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  letter-spacing: -0.025em;
 }
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-backup-title:focus {

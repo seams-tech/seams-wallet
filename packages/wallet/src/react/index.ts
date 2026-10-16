@@ -167,6 +167,7 @@ export { TxExecutionStatus } from '../core/types/actions';
 
 export {
   AccountMenuButton,
+  AccountMenuButtonMock,
   ProfileSettingsButton,
   WalletSettingsPage,
 } from './components/AccountMenuButton';
@@ -302,3 +303,5 @@ export type {
   TransactionReviewErrorCode,
   ReviewedTransactionInput,
 } from './transactionReview/contract';
+
+export type { AccountMenuButtonMockProps } from './components/AccountMenuButton';

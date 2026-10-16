@@ -1,10 +1,13 @@
 //! One expiring, input-free preparation per wallet object.
 
-use router_ab_core::{Ed25519YaoInputPairBindingV1, TenantRootCustodyBindingV1};
+use router_ab_core::{
+    Ed25519YaoInputPairBindingV1, RouterAbProtocolResult, TenantRootCustodyBindingV1,
+};
 use serde::Deserialize;
 use worker::{Env, Response, SqlStorage, SqlStorageValue, State};
 
 use crate::registration_pair_preparation::RegistrationPreparation;
+use crate::tenant_root_role_runtime::AttemptConflictV1;
 use crate::tenant_root_role_d1::{
     CloudflareTenantRootRoleShareStoreV1, RootUseAccess, TenantRootRootUseAttemptV1,
 };
@@ -162,6 +165,8 @@ pub(crate) async fn access_for_execution(
         && read(sql)?.as_ref() == Some(&prepared)
         && !is_admitted(sql)?
     {
+        // A fence ends the preparation's admission without releasing its row.
+        require_unfenced(sql, &prepared)?;
         worker::Delay::from(std::time::Duration::from_millis(10)).await;
     }
     if read(sql)?.as_ref() != Some(&prepared) {
@@ -183,6 +188,41 @@ pub(crate) async fn access_for_execution(
     Ok(RootUseAccess::BindRegistration {
         preparation_digest: digest(&binding)?,
     })
+}
+
+/// Runs `load` with this execution's root-use access.
+///
+/// An execution can reach a late-starting wallet object before the setup
+/// preparation of its own pair. It then admits fresh, and if the
+/// preparation's admission commits first, the fresh admission conflicts.
+/// The preparation writes its row before its admission, so a second look
+/// binds to it, as if the execution had arrived after it. A conflict with any
+/// other admission still fails. The store refuses a conflicting admission
+/// before any share is opened, so the share is still opened once.
+pub(crate) async fn load_for_execution<T, Load, Loaded>(
+    state_id: &str,
+    sql: &SqlStorage,
+    env: &Env,
+    context: &CloudflareEd25519YaoTenantRootContextV2,
+    pair: &Ed25519YaoInputPairBindingV1,
+    load: Load,
+) -> worker::Result<RouterAbProtocolResult<T>>
+where
+    Load: Fn(RootUseAccess) -> Loaded,
+    Loaded: std::future::Future<Output = RouterAbProtocolResult<Result<T, AttemptConflictV1>>>,
+{
+    let access = access_for_execution(state_id, sql, env, context, pair).await?;
+    let admitted_fresh = matches!(access, RootUseAccess::Admit);
+    let loaded = match load(access).await {
+        Ok(Err(conflict)) if admitted_fresh => {
+            match access_for_execution(state_id, sql, env, context, pair).await? {
+                RootUseAccess::Admit => Ok(Err(conflict)),
+                access => load(access).await,
+            }
+        }
+        loaded => loaded,
+    };
+    Ok(loaded.and_then(|loaded| loaded.map_err(AttemptConflictV1::into_error)))
 }
 
 pub(crate) async fn expire(state: &State, sql: &SqlStorage, env: &Env) -> worker::Result<Response> {

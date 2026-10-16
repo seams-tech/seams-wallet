@@ -4,7 +4,7 @@ import { generateKeyPairSync, createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { DatabaseSync } from 'node:sqlite';
+import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -24,9 +24,6 @@ await build({
     loader: 'ts',
     contents: `
       export { createSponsoredNamedNearAccountForOptions } from './packages/wallet-server/src/router/cloudflare/d1/near/d1SponsoredNearAccount';
-      export { createSyncSqliteDatabase } from './packages/wallet-server/src/storage/syncSqlite';
-      export { nodeSqliteConnection } from './packages/wallet-server/src/router/node/nodeSqlite';
-      export { applySignerSqlMigrationsV1 } from './packages/wallet-server/src/router/node/signerSqlMigrations';
       export { parseWalletId } from './packages/shared-ts/src/utils/domainIds';
       export { base58Encode } from './packages/shared-ts/src/utils/base58';
     `,
@@ -39,20 +36,14 @@ const publicBytes = keys.publicKey.export({ type: 'spki', format: 'der' }).subar
 const publicKey = `ed25519:${api.base58Encode(publicBytes)}`;
 const secret = `ed25519:${api.base58Encode(Buffer.concat([seed, publicBytes]))}`;
 const blockHash = api.base58Encode(new Uint8Array(32));
-const sqlite = new DatabaseSync(':memory:');
-const connection = api.nodeSqliteConnection(sqlite);
-const database = api.createSyncSqliteDatabase(connection);
+const opened = await openSignerD1();
+const { database } = opened;
 const requests = [];
 let settledTransactionHash = null;
 const rpc = createServer(handleRpc);
 rpc.listen(0, '127.0.0.1');
 await once(rpc, 'listening');
 try {
-  api.applySignerSqlMigrationsV1(
-    connection,
-    'packages/wallet-server/migrations/d1-signer',
-    Date.now(),
-  );
   const options = {
     database,
     namespace: 'sponsored-owner',
@@ -74,10 +65,10 @@ try {
   const first = await api.createSponsoredNamedNearAccountForOptions(options, input);
   assert.equal(first.kind, 'retryable', JSON.stringify(first));
   assert.ok(
-    sqlite.prepare('SELECT 1 FROM router_ab_yao_versioned_json_records').get(),
+    await database.prepare('SELECT 1 FROM router_ab_yao_versioned_json_records').first(),
     JSON.stringify(first),
   );
-  const claim = readEffect();
+  const claim = await readEffect();
   assert.equal(claim.kind, 'router_ab_ed25519_yao_registration_side_effect_claim_v1');
   assert.equal(claim.prepared.walletId, input.walletId);
   const signedBytes = claim.prepared.transaction.signedTransactionBorshB64u;
@@ -91,14 +82,14 @@ try {
   });
   assert.equal(conflict.kind, 'rejected');
   assert.equal(requests.length, callsBeforeConflict, 'Cross-wallet retry must make no RPC calls');
-  assert.deepEqual(readEffect(), claim);
+  assert.deepEqual(await readEffect(), claim);
   await delay(Math.max(0, claim.claimedAtMs + 30_001 - Date.now()));
   settledTransactionHash = claim.prepared.transaction.transactionHash;
   const broadcastsBeforeResume = requests.filter(isBroadcast).length;
   const resumed = await api.createSponsoredNamedNearAccountForOptions(options, input);
   assert.equal(resumed.kind, 'created', JSON.stringify(resumed));
   assert.equal(resumed.transactionHash, settledTransactionHash);
-  const completed = readEffect();
+  const completed = await readEffect();
   assert.equal(completed.kind, 'router_ab_ed25519_yao_registration_side_effect_completion_v1');
   assert.equal(completed.prepared.walletId, input.walletId);
   assert.equal(completed.prepared.transaction.signedTransactionBorshB64u, signedBytes);
@@ -126,7 +117,7 @@ try {
     'PASS: wallet-owned sponsorship survives uncertain broadcast, rejects cross-wallet retry, and reconciles exact bytes',
   );
 } finally {
-  sqlite.close();
+  await opened.close();
   rpc.closeAllConnections();
   rpc.close();
   await once(rpc, 'close');
@@ -138,8 +129,10 @@ function walletId(value) {
   return parsed.value;
 }
 
-function readEffect() {
-  const row = sqlite.prepare('SELECT record_json FROM router_ab_yao_versioned_json_records').get();
+async function readEffect() {
+  const row = await database
+    .prepare('SELECT record_json FROM router_ab_yao_versioned_json_records')
+    .first();
   assert.ok(row);
   return JSON.parse(row.record_json);
 }

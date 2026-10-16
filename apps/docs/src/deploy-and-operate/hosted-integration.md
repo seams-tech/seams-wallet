@@ -32,6 +32,35 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
+## Upgrading to 0.11.0
+
+Pin the application package and backend package to **0.11.0**, and build the
+wallet-origin runtime, workers, WASM, and support assets from the same release:
+
+```sh
+# Application
+pnpm add @seams/wallet@0.11.0
+
+# Backend deployment
+pnpm add @seams/wallet-server@0.11.0
+```
+
+Release 0.11.0 runs the Wallet backend on Cloudflare Workers only. It removes the
+Node Wallet Gateway and the Express entry `@seams/wallet-server/router/express`. A
+backend that imports that entry must move to the Workers host
+(`@seams/wallet-server/router/cloudflare`) before it upgrades.
+
+The wallet-management protocol stays `4`, and the registration contract does not
+change: a 0.10 application works with a 0.11.0 backend. The Router and Deriver B
+changed how they coordinate a registration, so deploy the Gateway, wallet runtime,
+Router, both Derivers, and the Signing Worker from the same release. The release adds
+no D1 migration.
+
+When the registration response or finalization has not answered after five seconds,
+the SDK sends one `onEvent` event for that step, with the message "Taking longer than
+usual... waiting on the network…", and the hosted menu shows that message. Keep the
+attempt open; it continues.
+
 ## Upgrading to 0.10.0
 
 Pin the application package and backend package to **0.10.2**, the current patch

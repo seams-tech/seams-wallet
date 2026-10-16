@@ -21,6 +21,7 @@ import {
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import http from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
@@ -125,6 +126,7 @@ const gatewayOnlyRouterPaths = new Set([
   '/router-ab/ed25519/sign',
   ecdsaSigningPreparePath,
   ecdsaSigningPath,
+  ecdsaActivationPath,
 ]);
 const gatewayOnlyPresignPaths = new Set([
   ecdsaPresignSessionInitPath,
@@ -857,7 +859,7 @@ export async function applyMigrations(miniflare, binding, workerName, migrations
 /// trigger body is itself a semicolon-terminated statement wrapped in
 /// BEGIN ... END, and a semicolon inside a string literal is not a boundary
 /// either.
-function splitSqlStatements(sql) {
+export function splitSqlStatements(sql) {
   const collapsed = sql
     .split('\n')
     .map((line) => line.replace(/--.*$/u, '').trim())
@@ -883,7 +885,7 @@ function splitSqlStatements(sql) {
       continue;
     }
     if (inString) continue;
-    if (/\bBEGIN$/iu.test(current) && /^[\s(]|^$/u.test(collapsed[index + 1] ?? ' ')) {
+    if (/\b(?:BEGIN|CASE)$/iu.test(current) && /^[\s(]|^$/u.test(collapsed[index + 1] ?? ' ')) {
       blockDepth += 1;
       continue;
     }
@@ -914,8 +916,6 @@ function authenticatedJsonRequest(body, additionalHeaders = {}) {
     body: JSON.stringify(body),
   };
 }
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function responseBytes(response) {
   return Buffer.from(await response.arrayBuffer());
@@ -2010,7 +2010,7 @@ export async function testEcdsaNormalSigning(
         false,
         'The previous ownership generation cannot reserve destination material',
       );
-      assert.match(await rejected.text(), /Wallet relocation has closed ECDSA pool admission|ECDSA wallet activation material is missing/);
+      assert.match(await rejected.text(), /ECDSA execution ownership generation differs/);
     }
     const prepareResponse = await postWorkerJson(
       router,
@@ -4903,7 +4903,7 @@ async function callDeriverAWalletDo(object, body) {
   }
 }
 
-async function testTenantRootManagedRestoreOperatingPath(
+export async function testTenantRootManagedRestoreOperatingPath(
   topology,
   fixture,
   tenantRoot,
@@ -5093,7 +5093,7 @@ async function testTenantRootManagedRestoreOperatingPath(
 
 /// A root refreshes again after an availability restore, and an exact retry
 /// of the restore still returns its durable outcome.
-async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, databases, restore) {
+export async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, databases, restore) {
   const router = await topology.getWorker('router');
   const identityDigestHex = Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
     'hex',

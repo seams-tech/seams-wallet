@@ -81,17 +81,19 @@ test('account menu removes an added passkey through the wallet email prompt and 
     const menu = page.getByTestId('intended-account-menu');
     await menu.getByRole('button', { name: 'Show account menu', exact: true }).click();
     await menu.locator('[aria-haspopup="menu"]').click({ timeout: 10_000 });
-    await page.getByRole('button', { name: /Linked Devices/ }).click({ timeout: 10_000 });
-    const dialog = page.getByRole('dialog', { name: 'Your devices', exact: true });
-    const devices = dialog.locator('.seams-linked-devices-modal-item--row');
+    await page.getByRole('button', { name: /Linked devices/ }).click({ timeout: 10_000 });
+    const inventory = page.getByRole('region', { name: 'Linked devices', exact: true });
+    const devices = inventory.locator('.seams-account-method-button');
     await expect(devices).toHaveCount(2);
-    await dialog.getByRole('button', { name: /^Remove / }).click();
-    await dialog.getByRole('button', { name: 'Yes, remove', exact: true }).click();
-    await expect(dialog.getByLabel('Verification code', { exact: true })).toHaveCount(0);
+    await devices.filter({ hasNotText: 'Email code' }).click();
+    const details = page.getByRole('region', { name: 'Device details', exact: true });
+    await details.getByRole('button', { name: /^Remove / }).click();
+    await details.getByRole('button', { name: 'Yes, remove', exact: true }).click();
+    await expect(details.getByLabel('Verification code', { exact: true })).toHaveCount(0);
     await autoConfirmWalletIframeUntil(page, expect(devices).toHaveCount(1, { timeout: 60_000 }));
     expect(evidence.challenges).toBe(1);
-    await expect(dialog.getByRole('button', { name: /^Remove / })).toHaveCount(0);
-    await dialog.getByRole('button', { name: 'Close linked devices', exact: true }).click();
+    await expect(devices.filter({ hasText: 'Email code' })).toHaveCount(1);
+    await inventory.getByRole('button', { name: 'Back', exact: true }).click();
   } finally {
     context.off('request', observe);
   }

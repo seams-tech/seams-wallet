@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import type {
   LinkedDeviceSummaryV1,
   LinkedOwnerCredentialMetadataV1,
@@ -7,6 +8,7 @@ import type {
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
 import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
+import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import { LaptopIcon } from './icons/LaptopIcon';
 import { LockIcon } from './icons/LockIcon';
 import { MailIcon } from './icons/MailIcon';
@@ -17,7 +19,7 @@ interface LinkedDevicesModalProps {
   walletId: string | null;
   isOpen: boolean;
   onClose: () => void;
-  presentation?: 'modal' | 'page';
+  presentation?: 'modal' | 'page' | 'embedded';
 }
 
 type LinkedDevicesLoadState =
@@ -310,6 +312,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   const { seams, loginState } = useSeams();
   const [loadState, setLoadState] = React.useState<LinkedDevicesLoadState>({ kind: 'idle' });
   const [revokeState, setRevokeState] = React.useState<RevokeState>({ kind: 'idle' });
+  const [selectedDeviceId, setSelectedDeviceId] = React.useState<string | null>(null);
   const [announcement, setAnnouncement] = React.useState('');
   const loadSeq = React.useRef(0);
   const seamsRef = React.useRef(seams);
@@ -353,6 +356,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
     if (!isOpen) {
       loadSeq.current += 1;
       setLoadState({ kind: 'idle' });
+      setSelectedDeviceId(null);
       setRevokeState({ kind: 'idle' });
       setAnnouncement('');
       return;
@@ -393,6 +397,8 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   if (!isOpen) return null;
 
   const devices = loadState.kind === 'loaded' ? loadState.devices : [];
+  const selectedDevice = devices.find((entry) => viewId(entry.view) === selectedDeviceId);
+  const visibleDevices = selectedDevice ? [selectedDevice] : devices;
   const showEmpty = loadState.kind === 'loaded' && devices.length === 0;
   const selectedWalletAuthMethodId =
     loginState.isLoggedIn && loginState.currentAuthMethod.kind === 'selected'
@@ -402,16 +408,29 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   return (
     <AccountMenuDialogFrame
       presentation={presentation}
-      onClose={onClose}
+      onClose={selectedDevice ? setSelectedDeviceId.bind(null, null) : onClose}
       dialogRef={dialogRef}
       contentClassName="seams-linked-devices-inventory-content"
       titleId="seams-linked-devices-modal-title"
-      title="Your devices"
+      title={selectedDevice ? 'Device details' : 'Linked devices'}
       closeLabel="Close linked devices"
     >
-      <p className="seams-linked-devices-modal-subtitle">
-        Anything listed here can unlock this wallet.
-      </p>
+      {selectedDevice ? (
+        <AccountMenuDeviceDetails
+          title={credentialDescription(viewCredential(selectedDevice.view))}
+          description={deviceMetaLine(
+            selectedDevice.view,
+            selectedDevice.deviceNumber,
+            false,
+            Date.now(),
+          )}
+          details={[{ label: 'Status', value: deviceStateAttr(selectedDevice.view) }]}
+        />
+      ) : (
+        <p className="seams-linked-devices-modal-subtitle">
+          Anything listed here can unlock this wallet.
+        </p>
+      )}
 
       <div className="seams-linked-devices-modal-body">
         {loadState.kind === 'loading' || loadState.kind === 'idle' ? (
@@ -441,7 +460,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
 
         {devices.length > 0 ? (
           <ul className="seams-linked-devices-modal-list seams-linked-devices-modal-list--grouped">
-            {devices.map(({ view, deviceNumber }) => {
+            {visibleDevices.map(({ view, deviceNumber }) => {
               const cardId = viewId(view);
               const title = credentialDescription(viewCredential(view));
               const titleCollides = devices.some(
@@ -461,10 +480,23 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                 revokeState.walletAuthMethodId === walletAuthMethodId;
               const revocationInProgress = revokeState.kind === 'working';
               const showRemoveButton = hasRemovableSibling && !isSelectedMethod && !confirming;
+              if (presentation === 'embedded' && !selectedDevice) {
+                return (
+                  <AuthenticationMethodRow
+                    key={cardId}
+                    kind={viewCredential(view).kind}
+                    icon={credentialIcon(viewCredential(view))}
+                    title={title}
+                    description={deviceMetaLine(view, deviceNumber, titleCollides, Date.now())}
+                    onSelect={setSelectedDeviceId.bind(null, cardId)}
+                  />
+                );
+              }
               return (
                 <li
                   key={cardId}
                   className="seams-linked-devices-modal-item seams-linked-devices-modal-item--row"
+                  data-detail={selectedDevice ? 'true' : undefined}
                   data-device-kind={view.kind}
                   data-device-state={deviceStateAttr(view)}
                 >

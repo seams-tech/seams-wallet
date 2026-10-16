@@ -1,9 +1,7 @@
 use router_ab_core::{
-    Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverAPrefaceInFlightV2,
-    Ed25519YaoDeriverAToBTargetProofPayloadV2, Ed25519YaoDeriverBPrefaceInFlightV2,
-    Ed25519YaoDeriverBToATargetProofPayloadV2, Ed25519YaoInputPairBindingV1,
-    Ed25519YaoRefreshBindingV1, RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbProtocolError,
-    RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    Ed25519YaoCeremonyBindingV1, Ed25519YaoRefreshBindingV1,
+    RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
+    RouterAbProtocolResult,
 };
 use router_ab_ed25519_yao::{
     build_product_activation_deriver_a_with_server_v1,
@@ -24,62 +22,6 @@ use signer_core::ed25519_yao_derivation::{
     Ed25519YaoDeriverAServerContributionV1, Ed25519YaoDeriverBServerContributionV1,
     Ed25519YaoStableKeyDerivationContextV1,
 };
-
-use super::{CloudflareEd25519YaoTenantRootContextV2, LocalTenantRootRoleShareV1};
-
-pub(crate) fn prepare_local_deriver_a_target_v2(
-    context: &CloudflareEd25519YaoTenantRootContextV2,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
-    role_share: &LocalTenantRootRoleShareV1,
-) -> RouterAbProtocolResult<Ed25519YaoDeriverAPrefaceInFlightV2> {
-    router_ab_cloudflare::cloudflare_ed25519_yao_prepare_deriver_a_target_v2(
-        context,
-        pair_binding,
-        &role_share.binding,
-        &role_share.share_wire,
-    )
-}
-
-pub(crate) fn prepare_local_deriver_b_target_v2(
-    context: &CloudflareEd25519YaoTenantRootContextV2,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
-    role_share: &LocalTenantRootRoleShareV1,
-) -> RouterAbProtocolResult<Ed25519YaoDeriverBPrefaceInFlightV2> {
-    router_ab_cloudflare::cloudflare_ed25519_yao_prepare_deriver_b_target_v2(
-        context,
-        pair_binding,
-        &role_share.binding,
-        &role_share.share_wire,
-    )
-}
-
-pub(crate) fn complete_local_deriver_a_target_v2(
-    preface: Ed25519YaoDeriverAPrefaceInFlightV2,
-    incoming: &Ed25519YaoDeriverBToATargetProofPayloadV2,
-    incoming_plaintext: &[u8],
-    context: &CloudflareEd25519YaoTenantRootContextV2,
-) -> RouterAbProtocolResult<Ed25519YaoDeriverAServerContributionV1> {
-    router_ab_cloudflare::cloudflare_ed25519_yao_complete_deriver_a_target_v2(
-        preface,
-        incoming,
-        incoming_plaintext,
-        context,
-    )
-}
-
-pub(crate) fn complete_local_deriver_b_target_v2(
-    preface: Ed25519YaoDeriverBPrefaceInFlightV2,
-    incoming: &Ed25519YaoDeriverAToBTargetProofPayloadV2,
-    incoming_plaintext: &[u8],
-    context: &CloudflareEd25519YaoTenantRootContextV2,
-) -> RouterAbProtocolResult<Ed25519YaoDeriverBServerContributionV1> {
-    router_ab_cloudflare::cloudflare_ed25519_yao_complete_deriver_b_target_v2(
-        preface,
-        incoming,
-        incoming_plaintext,
-        context,
-    )
-}
 
 pub fn build_local_activation_deriver_a_with_server_v1(
     request: LocalEd25519YaoActivationDeriverARequestV1,

@@ -1,4 +1,9 @@
-import { isLocalIntendedYaoFaultTokenV1 } from './localIntendedYaoFault';
+import { assertString, requireRecord } from '@shared/utils/validation';
+import type { D1RegistrationCeremonyRecordStore } from './router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+import {
+  isLocalIntendedYaoFaultTokenV1,
+  parseLocalIntendedKeptRouterRequestV1,
+} from './localIntendedYaoFault';
 
 export const LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1 = 'x-seams-intended-yao-signing-fault-v1';
 export const LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1 =
@@ -34,9 +39,9 @@ type KeptFinalizeV1 = {
   readonly original: { readonly status: number; readonly body: string } | null;
 };
 
-/* Kept in the Gateway process, so the service credential on the finalize
-   never leaves it; a release finds its finalize by the fault token. */
-const keptFinalizes = new Map<string, KeptFinalizeV1>();
+// The local Gateway's D1 store retains the credential across Worker instances.
+const KEPT_FINALIZE_SCOPE = 'signing-finalize';
+const KEPT_FINALIZE_TTL_MS = 10 * 60 * 1000;
 
 export function parseLocalIntendedYaoSigningFaultModeV1(
   value: string | null,
@@ -63,6 +68,7 @@ export class LocalIntendedYaoSigningFaultControllerV1 {
     private readonly baseFetch: typeof globalThis.fetch,
     private readonly mode: 'capture_signing_finalize' | 'withhold_signing_finalize',
     private readonly token: string,
+    private readonly storage: D1RegistrationCeremonyRecordStore,
   ) {}
 
   async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -79,7 +85,7 @@ export class LocalIntendedYaoSigningFaultControllerV1 {
       body: await request.clone().text(),
     };
     if (this.mode === 'withhold_signing_finalize') {
-      this.keep({ request: kept, original: null });
+      await this.keep({ request: kept, original: null });
       return Response.json(
         {
           ok: false,
@@ -90,16 +96,21 @@ export class LocalIntendedYaoSigningFaultControllerV1 {
       );
     }
     const response = await this.baseFetch.call(globalThis, request);
-    this.keep({
+    await this.keep({
       request: kept,
       original: { status: response.status, body: await response.clone().text() },
     });
     return response;
   }
 
-  private keep(finalize: KeptFinalizeV1): void {
+  private async keep(finalize: KeptFinalizeV1): Promise<void> {
+    await this.storage.insertOrRead({
+      scope: KEPT_FINALIZE_SCOPE,
+      id: this.token,
+      value: finalize,
+      expiresAtMs: Date.now() + KEPT_FINALIZE_TTL_MS,
+    });
     this.kept = true;
-    if (!keptFinalizes.has(this.token)) keptFinalizes.set(this.token, finalize);
   }
 
   outcome(): string {
@@ -114,24 +125,30 @@ export class LocalIntendedYaoSigningFaultControllerV1 {
 export async function releaseLocalIntendedYaoSigningFinalizeV1(
   router: { fetch(request: Request): Promise<Response> },
   token: string,
+  storage: D1RegistrationCeremonyRecordStore,
 ): Promise<Response> {
-  const kept = keptFinalizes.get(token);
+  const kept = await storage.take(KEPT_FINALIZE_SCOPE, token);
   if (!kept) {
     return Response.json({ code: 'intended_signing_finalize_missing' }, { status: 404 });
   }
-  keptFinalizes.delete(token);
-  const reply = await router.fetch(
-    new Request(kept.request.url, {
-      method: 'POST',
-      headers: kept.request.headers.map(([name, value]) => [name, value] as [string, string]),
-      body: kept.request.body,
-    }),
-  );
+  const request = parseLocalIntendedKeptRouterRequestV1(kept.request);
+  const original = parseKeptOriginalReply(kept.original);
+  const reply = await router.fetch(request);
   return Response.json({
     status: reply.status,
     body: await reply.text(),
-    original: kept.original,
+    original,
   });
+}
+
+function parseKeptOriginalReply(value: unknown): KeptFinalizeV1['original'] {
+  if (value === null) return null;
+  const record = requireRecord(value, 'Kept original reply');
+  const status = record.status;
+  if (typeof status !== 'number' || !Number.isInteger(status) || status < 100 || status > 599) {
+    throw new Error('Kept original reply status is invalid');
+  }
+  return { status, body: assertString(record.body, 'Kept original reply body') };
 }
 
 export function requestWithoutLocalIntendedYaoSigningFaultHeadersV1(request: Request): Request {

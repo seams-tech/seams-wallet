@@ -246,3 +246,32 @@ A release is incomplete until all of these hold:
 Rollback must preserve storage compatibility and one-use signing state. Never
 roll back a Worker binary across an applied schema or Durable Object migration
 unless the release procedure explicitly proves that combination safe.
+
+
+## Application hosting contract
+
+The Wallet Server uses the Workers programming model on both supported hosts.
+Cloudflare runs the released Worker handlers and WASM artifacts through workerd.
+Self-hosted qualification runs the same artifacts through the pinned private celld build on Google Cloud.
+Runtime packaging, permissions, and process supervision belong to the deployment boundary.
+The application uses Worker service bindings, Durable Objects, D1, KV, and separate A/B object-storage bindings.
+
+The Server package no longer publishes `@seams/wallet-server/router/express`.
+The Express Router constructor, response conversion, session-seal registration, and Express-specific source-IP helpers are removed.
+Use the existing Worker/fetch entrypoints, including `router/cloudflare` and `hosted-wallet-gateway-worker`.
+The `router/cloudflare` name identifies the Workers API surface used by both hosts.
+No deprecated export or Node HTTP bridge replaces the removed Express entrypoint.
+
+The Node Gateway, its SQLite facade, and the VM Wallet launcher are removed.
+SQLite inspection remains only in test evidence tooling.
+The removed Node listener supplied a 1 MiB request-body cap. Configure and qualify request limits at the self-hosted HTTPS ingress.
+A local candidate must pass the same lifecycle contracts before release and deployment.
+Deployments with durable state require an inventoried, state-safe cutover; source deletion does not migrate that state.
+
+The native Rust VM servers, their SQLite hosts, scheduler, process controller,
+and seed commands are removed. Their host-specific transport tests are retired.
+The `router_ab_local_init` tool still generates local Worker deployment inputs.
+Independent protocol helpers remain for Cloudflare fixtures and client validation.
+The retained helper, client registration, and Workers ownership checks verify
+those consumers. Full distributed Wallet qualification remains a separate gate.
+See [native-host removal evidence](../evidence/r190-native-host-removal.json).

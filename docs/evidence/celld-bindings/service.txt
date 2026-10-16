@@ -1,0 +1,35 @@
+<jemalloc>: option background_thread currently supports pthread only
+2026-10-13T03:40:57.132493Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.
+celld dev
+  Project  /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-9O34Ei/service.json
+  State    /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-9O34Ei/.celld/dev
+  Watch    disabled
+  ● opening the local storage
+  ● building the application
+ celld 0.6.2
+───────────────────────────────────────────────
+Total Upload: 0.35 KiB / gzip: 0.22 KiB
+Your Worker has access to the following bindings:
+Binding                   Resource
+env.ROUTER (Service)      owner
+Bundled caller (0.00 sec)
+<jemalloc>: option background_thread currently supports pthread only
+2026-10-13T03:40:57.147174Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.
+2026-10-13T03:40:57.147193Z  INFO celld: host runtime initialized event="host_runtime" worker_count=14
+2026-10-13T03:40:57.176415Z  INFO celld::pool: isolate started isolate=1 slot=0 total=1
+2026-10-13T03:40:57.180676Z  INFO celld::pool: isolate started isolate=2 slot=0 total=1
+2026-10-13T03:40:57.356259Z  INFO celld::actor::effects: node lease attempt started event="node_lease_attempt_started" node=dev-d4c3473ae97e attempt="acquire" prior_authority_headroom_ms=0
+2026-10-13T03:40:57.356626Z  INFO celld::actor::effects: node lease attempt completed event="node_lease_attempt" node=dev-d4c3473ae97e attempt="acquire" outcome="applied" elapsed_ms=0 prior_authority_headroom_ms=0 candidate_headroom_ms=9999
+2026-10-13T03:40:57.356786Z  INFO celld::ltx_repl: resumed clean local replica cell="TenantRoot:75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86" epoch=1
+2026-10-13T03:40:57.358341Z  INFO celld::node_log: fleet durability requested and no peer is available; writes wait for the bucket. A second node acknowledges a write when its follower holds it on disk, which is much faster live_peers=0
+2026-10-13T03:40:57.358361Z  INFO celld: every live lease reads a paged epoch, or one does not event="paged_gate" open=true format=2 live_leases=1 view_age_ms=425
+2026-10-13T03:40:57.360077Z  INFO celld: the fleet is settled; serving readiness is open event="ready_gate_open" readiness_reason="fleet_settled" waited_ms=4
+2026-10-13T03:40:57.362211Z  INFO celld::pool: isolate started isolate=3 slot=0 total=1
+2026-10-13T03:40:57.362702Z  INFO celld::runtime: cell isolate startup completed event="cell_isolate_startup_timing" outcome="ready" failure_phase="" scope=TenantRoot:75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86 node=dev-d4c3473ae97e region=us-east-1 runtime_version="0.6.2" epoch=1 fresh=false total_us=4518
+2026-10-13T03:40:57.362729Z  INFO celld::runtime: cell runtime published event="cell_runtime_publication" outcome="published" scope=TenantRoot:75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86 node=dev-d4c3473ae97e region=us-east-1 runtime_version="0.6.2" epoch=1 isolate_startup_us=4518
+celld listening on 127.0.0.1:52009 (ownership=dev)
+celld internal listening on 127.0.0.1:52012 (advertise=127.0.0.1:52012)
+  ready  http://127.0.0.1:52009
+2026-10-13T03:40:57.549802Z  INFO celld::runtime: cell left its isolate for a generation swap event="generation_swap_out" scope=TenantRoot:75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86 epoch=1 generation=1
+2026-10-13T03:40:57.549895Z  INFO celld::ltx_repl: final durability barrier passed event="final_durability_barrier" cell="TenantRoot:75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86" epoch=1 elapsed_ms=0
+2026-10-13T03:40:57.550581Z  INFO celld: prepared local cells for an exact-generation reload event="clean_reload_prepared" stale_live_databases_pruned=0

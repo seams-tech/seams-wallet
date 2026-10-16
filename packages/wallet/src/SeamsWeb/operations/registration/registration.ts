@@ -1454,6 +1454,37 @@ function emitRegistrationEvent(
   onEvent?.(createRegistrationLifecycleEvent({ accountId, event }));
 }
 
+/** How long a registration request runs before the user is told that it is slow. */
+const REGISTRATION_DELAY_NOTICE_MS = 5_000;
+
+/**
+ * Watches the requests of one registration step. The first watched request
+ * that has not settled after `REGISTRATION_DELAY_NOTICE_MS` emits `phase`;
+ * the step emits it at most once. The requests themselves are not changed.
+ */
+function registrationDelayNotice(
+  onEvent: RegistrationHooksOptions['onEvent'] | undefined,
+  accountId: string,
+  phase:
+    | RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED
+    | RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED,
+): <T>(request: Promise<T>) => Promise<T> {
+  let shown = false;
+  return async (request) => {
+    if (!onEvent || shown) return await request;
+    const notice = setTimeout(() => {
+      if (shown) return;
+      shown = true;
+      emitRegistrationEvent(onEvent, accountId, { authMethod: 'passkey', phase, status: 'running' });
+    }, REGISTRATION_DELAY_NOTICE_MS);
+    try {
+      return await request;
+    } finally {
+      clearTimeout(notice);
+    }
+  };
+}
+
 async function emailOtpEmailHashHex(email: string): Promise<string> {
   const normalizedEmail = String(email || '')
     .trim()
@@ -4866,24 +4897,33 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       return authority;
     });
     type PasskeyAuthority = Awaited<typeof passkeyAuthorityPending>;
+    /* The custody execution runs in respond, or after it through the execute
+       route, which waits out a Router claim that respond kept. */
+    const signerDelay = registrationDelayNotice(
+      options.onEvent,
+      eventAccountId,
+      RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED,
+    );
     const respond = async (
       authority: PasskeyAuthority,
       ed25519Execution?: Parameters<typeof respondWalletRegistration>[0]['ed25519Execution'],
     ) => {
-      const answer = await respondWalletRegistration({
-        relayerUrl,
-        registrationCeremonyId: setup.registrationCeremonyId,
-        signerPlanKind: 'near_ed25519',
-        signedSetup: setup.signedSetup,
-        headers: {
-          ...registrationRouteHeaders(traceContext),
-          ...buildWalletHomeRoutingHeaders(setup.home),
-        },
-        kind: 'passkey',
-        webauthnRegistration: authority.webauthnRegistration,
-        ...(ed25519Execution ? { ed25519Execution } : {}),
-        onServerTiming: recordRegistrationServerTimingBuckets.bind(undefined, registrationTiming),
-      });
+      const answer = await signerDelay(
+        respondWalletRegistration({
+          relayerUrl,
+          registrationCeremonyId: setup.registrationCeremonyId,
+          signerPlanKind: 'near_ed25519',
+          signedSetup: setup.signedSetup,
+          headers: {
+            ...registrationRouteHeaders(traceContext),
+            ...buildWalletHomeRoutingHeaders(setup.home),
+          },
+          kind: 'passkey',
+          webauthnRegistration: authority.webauthnRegistration,
+          ...(ed25519Execution ? { ed25519Execution } : {}),
+          onServerTiming: recordRegistrationServerTimingBuckets.bind(undefined, registrationTiming),
+        }),
+      );
       registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.respond');
       if (answer.kind !== 'near_ed25519') {
         throw new Error('Ed25519-only registration respond returned a different signer branch');
@@ -4971,7 +5011,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
           passkeyAuthority,
           described.admissionRequest.scope.threshold_session_id,
         );
-        established = await custodyRun;
+        established = await signerDelay(custodyRun);
       } else {
         passkeyAuthority = await passkeyAuthorityPending;
         admission = await respond(passkeyAuthority);
@@ -4979,10 +5019,12 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
           passkeyAuthority,
           admission.admissionRequest.scope.threshold_session_id,
         );
-        established = await context.signingEngine.establishWalletCustodyNearEd25519KeySet({
-          ...custodyRunFor(admission),
-          factor: custodyFactorOf(passkeyAuthority),
-        });
+        established = await signerDelay(
+          context.signingEngine.establishWalletCustodyNearEd25519KeySet({
+            ...custodyRunFor(admission),
+            factor: custodyFactorOf(passkeyAuthority),
+          }),
+        );
       }
     } finally {
       if (walletCustodyFactorSecret) zeroizeArrayBuffer(walletCustodyFactorSecret);
@@ -5044,25 +5086,31 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       thresholdSessionId: sealPreparation.thresholdSessionId,
       preparationId: sealPreparation.preparationId,
     });
-    const finalized = await completeWalletRegistrationNearProvisioning({
-      relayerUrl,
-      registrationCeremonyId: setup.registrationCeremonyId,
-      signedSetup: setup.signedSetup,
-      headers: {
-        ...registrationRouteHeaders(traceContext),
-        ...buildWalletHomeRoutingHeaders(setup.home),
-      },
-      idempotencyKey: nearProvisioningIdempotencyKey,
-      ed25519: { activationReference: established.activationReference },
-      auth: { kind: 'passkey' },
-      sessionSeal: {
-        thresholdSessionId: sealPreparation.thresholdSessionId,
-        ciphertext: clientSeal.ciphertext,
-      },
-      /* The projection, not the ceremony's output: the continuity cache and
+    const finalized = await registrationDelayNotice(
+      options.onEvent,
+      eventAccountId,
+      RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED,
+    )(
+      completeWalletRegistrationNearProvisioning({
+        relayerUrl,
+        registrationCeremonyId: setup.registrationCeremonyId,
+        signedSetup: setup.signedSetup,
+        headers: {
+          ...registrationRouteHeaders(traceContext),
+          ...buildWalletHomeRoutingHeaders(setup.home),
+        },
+        idempotencyKey: nearProvisioningIdempotencyKey,
+        ed25519: { activationReference: established.activationReference },
+        auth: { kind: 'passkey' },
+        sessionSeal: {
+          thresholdSessionId: sealPreparation.thresholdSessionId,
+          ciphertext: clientSeal.ciphertext,
+        },
+        /* The projection, not the ceremony's output: the continuity cache and
            any role-local material stay on this device. */
-      walletCustodyCommit,
-    });
+        walletCustodyCommit,
+      }),
+    );
     registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.finalize');
     if (!finalized.ok || finalized.kind !== 'near_ed25519') {
       throw new Error('Deferred NEAR provisioning returned a different signer branch');

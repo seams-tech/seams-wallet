@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { ScanIcon } from './icons/ScanIcon';
 import { KeyIcon } from './icons/KeyIcon';
 import { LinkIcon } from './icons/LinkIcon';
@@ -7,8 +6,8 @@ import { GlobeIcon } from './icons/GlobeIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { RecoveryCodesIcon } from './icons/RecoveryCodesIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
-import { UserAccountButton } from './UserAccountButton';
-import { ProfileDropdown } from './ProfileDropdown';
+import { AccountMenuScreen } from './AccountMenuScreen';
+import { AccountMenuButtonView } from './AccountMenuButtonView';
 import { useProfileState } from './hooks/useProfileState';
 import { useSeams } from '../../context';
 import type { AccountMenuButtonProps, AccountsSectionRow, ExportChain, MenuItem } from './types';
@@ -32,10 +31,27 @@ import { parseVerifiedEmailAddress } from '@shared/utils/domainIds';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { WalletSettingsLayout, WalletSettingsHeader } from './WalletSettingsLayout';
 import { AccountsSection } from './AccountsSection';
+import { ExportKeysScreen } from './ExportKeysScreen';
 import { ExportKeysSection } from './ExportKeysSection';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { HostedSeamsAuthMenu } from '../HostedSeamsAuthMenu/public';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from '../HostedSeamsAuthMenu/types';
+
+type AccountMenuRoute =
+  | 'overview'
+  | 'accounts'
+  | 'export-keys'
+  | 'recovery-codes'
+  | 'authentication-methods'
+  | 'scan-link-device'
+  | 'linked-devices'
+  | 'transaction-settings';
+function resetNavigation(
+  isOpen: boolean,
+  setScreen: React.Dispatch<React.SetStateAction<AccountMenuRoute>>,
+): void {
+  if (!isOpen) setScreen('overview');
+}
 
 function remainOnSettingsPage(): void {}
 
@@ -121,21 +137,6 @@ async function resolveNearAccountIdForExport(input: {
   throw new Error('Ed25519 export requires an active NEAR signer.');
 }
 
-function resolveDefaultPortalTarget(
-  explicit: HTMLElement | ShadowRoot | null | undefined,
-  buttonRoot: HTMLDivElement | null,
-): HTMLElement | ShadowRoot | null {
-  if (explicit) return explicit;
-  try {
-    const root = buttonRoot?.getRootNode?.();
-    if (root && typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot) {
-      return root;
-    }
-  } catch {}
-  if (typeof document === 'undefined') return null;
-  return document.body;
-}
-
 /**
  * Account Menu Button Component
  * Provides user settings, account management, and the device-link scanner shell.
@@ -182,7 +183,6 @@ const AccountMenuButtonInner: React.FC<
   toggleColors,
   style,
   className,
-  portalTarget,
   isMenuOpen,
   onMenuOpenChange,
   highlightedMenuItem,
@@ -209,13 +209,9 @@ const AccountMenuButtonInner: React.FC<
 
   // Local state for modals/expanded sections
   const [showQRScanner, setShowQRScanner] = useState(false);
-  const [showLinkedDevices, setShowLinkedDevices] = useState(false);
-  const [showAuthenticationMethods, setShowAuthenticationMethods] = useState(false);
+  const [screen, setScreen] = useState<AccountMenuRoute>('overview');
   const [recoveryCodesOpen, setRecoveryCodesOpen] = useState(false);
-  const [exportKeysOpen, setExportKeysOpen] = useState(false);
   const [exportLoadingChain, setExportLoadingChain] = useState<ExportChain | null>(null);
-  const [transactionSettingsOpen, setTransactionSettingsOpen] = useState(false);
-  const [accountsOpen, setAccountsOpen] = useState(false);
   const [currentConfirmConfig, setCurrentConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -224,6 +220,8 @@ const AccountMenuButtonInner: React.FC<
     open: typeof isMenuOpen === 'boolean' ? isMenuOpen : undefined,
     onOpenChange: onMenuOpenChange,
   });
+
+  useEffect(resetNavigation.bind(null, isOpen, setScreen), [isOpen]);
 
   // Read current theme from Theme context (falls back to system preference)
   const { theme } = useTheme();
@@ -237,8 +235,7 @@ const AccountMenuButtonInner: React.FC<
 
   useEffect(() => {
     if (!canManageLinkedDevices) {
-      setShowLinkedDevices(false);
-      setShowAuthenticationMethods(false);
+      setScreen('overview');
     }
   }, [canManageLinkedDevices]);
 
@@ -435,7 +432,7 @@ const AccountMenuButtonInner: React.FC<
         label: 'Accounts',
         description: 'View accounts on block explorers',
         disabled: !loginState.isLoggedIn,
-        onClick: () => setAccountsOpen((v) => !v),
+        onClick: setScreen.bind(null, 'accounts'),
         keepOpenOnClick: true,
       });
     }
@@ -444,14 +441,12 @@ const AccountMenuButtonInner: React.FC<
       items.push({
         id: PROFILE_MENU_ITEM_IDS.EXPORT_KEYS,
         icon: exportLoadingChain ? <SpinnerIcon /> : <KeyIcon />,
-        label: 'Export Keys',
+        label: 'Export keys',
         description: accountMenuCapabilities.canExportKeys
           ? 'Export wallet signing keys'
           : 'Owner key export is not available on this device yet',
         disabled: !accountMenuCapabilities.canExportKeys,
-        onClick: () => {
-          setExportKeysOpen((v) => !v);
-        },
+        onClick: setScreen.bind(null, 'export-keys'),
         keepOpenOnClick: true,
       });
     }
@@ -460,12 +455,10 @@ const AccountMenuButtonInner: React.FC<
       items.push({
         id: PROFILE_MENU_ITEM_IDS.RECOVERY_CODES,
         icon: recoveryCodesOpen ? <SpinnerIcon /> : <RecoveryCodesIcon />,
-        label: 'Recovery Codes',
+        label: 'Recovery codes',
         description: 'Back up wallet recovery codes',
         disabled: recoveryCodesOpen,
-        onClick: () => {
-          void startRecoveryCodesFlow();
-        },
+        onClick: setScreen.bind(null, 'recovery-codes'),
         keepOpenOnClick: true,
       });
     }
@@ -476,30 +469,28 @@ const AccountMenuButtonInner: React.FC<
         {
           id: PROFILE_MENU_ITEM_IDS.AUTHENTICATION_METHODS,
           icon: <TouchIcon />,
-          label: 'Authentication Methods',
+          label: 'Authentication methods',
           description: 'Add or remove ways to unlock this device',
           disabled: !canManageLinkedDevices,
-          onClick: () => setShowAuthenticationMethods(true),
+          onClick: setScreen.bind(null, 'authentication-methods'),
           keepOpenOnClick: true,
         },
         {
           id: PROFILE_MENU_ITEM_IDS.SCAN_LINK_DEVICE,
           icon: <ScanIcon />,
-          label: 'Scan and Link Device',
+          label: 'Scan and link device',
           description: 'Scan QR to link a device',
           disabled: !canManageLinkedDevices,
-          onClick: () => {
-            setShowQRScanner(true);
-          },
+          onClick: setScreen.bind(null, 'scan-link-device'),
           keepOpenOnClick: true,
         },
         {
           id: PROFILE_MENU_ITEM_IDS.LINKED_DEVICES,
           icon: <LinkIcon />,
-          label: 'Linked Devices',
+          label: 'Linked devices',
           description: 'See devices using this wallet',
           disabled: !canManageLinkedDevices,
-          onClick: () => setShowLinkedDevices(true),
+          onClick: setScreen.bind(null, 'linked-devices'),
           keepOpenOnClick: true,
         },
       );
@@ -517,10 +508,10 @@ const AccountMenuButtonInner: React.FC<
     items.push({
       id: PROFILE_MENU_ITEM_IDS.TRANSACTION_SETTINGS,
       icon: <SlidersIcon />,
-      label: 'Transaction Settings',
+      label: 'Transaction settings',
       description: 'Customize confirmation behavior',
       disabled: !loginState.isLoggedIn,
-      onClick: () => setTransactionSettingsOpen((v) => !v),
+      onClick: setScreen.bind(null, 'transaction-settings'),
       keepOpenOnClick: true,
     });
     return items;
@@ -566,8 +557,85 @@ const AccountMenuButtonInner: React.FC<
     handleClose();
   };
 
-  const portalHost = resolveDefaultPortalTarget(portalTarget, refs.buttonRef.current);
-  const canPortal = !!portalHost;
+  const backToMenu = setScreen.bind(null, 'overview');
+  const screens: Record<typeof screen, React.ReactNode> = {
+    overview: null,
+    'transaction-settings': (
+      <AccountMenuScreen title="Transaction settings" onBack={backToMenu}>
+        {currentConfirmConfig ? (
+          <TransactionSettingsSection
+            currentConfirmConfig={currentConfirmConfig}
+            onSetUiMode={handleSetUiMode}
+            onToggleSkipClick={handleToggleSkipClick}
+            onSetDelay={handleSetDelay}
+            isOpen
+            theme={theme}
+          />
+        ) : (
+          <p role="status">Loading transaction settings…</p>
+        )}
+      </AccountMenuScreen>
+    ),
+    accounts: (
+      <AccountMenuScreen title="Accounts" onBack={backToMenu}>
+        <p className="seams-account-description">Your addresses across networks.</p>
+        <AccountsSection rows={accountsRows} />
+      </AccountMenuScreen>
+    ),
+    'export-keys': (
+      <ExportKeysScreen
+        onBack={backToMenu}
+        loadingChain={exportLoadingChain}
+        canExportNearKey={canExportNearKey}
+        canExportEvmKeys={canExportEvmKeys}
+        onSelectChain={startExportKeyFlow}
+      />
+    ),
+    'recovery-codes': (
+      <AccountMenuScreen title="Recovery codes" onBack={backToMenu}>
+        <p className="seams-account-description">
+          Keep a recovery code somewhere safe. Use it to restore access to your wallet.
+        </p>
+        <div className="seams-account-inset">
+          Only you should have this code. Anyone with it can start recovering your wallet.
+        </div>
+        <button
+          type="button"
+          className="seams-account-action primary"
+          disabled={recoveryCodesOpen}
+          onClick={startRecoveryCodesFlow}
+        >
+          {recoveryCodesOpen ? 'Opening recovery codes…' : 'View recovery codes'}
+        </button>
+      </AccountMenuScreen>
+    ),
+    'authentication-methods': (
+      <AuthenticationMethodsModal
+        walletId={walletId ?? null}
+        isOpen
+        presentation="embedded"
+        onClose={backToMenu}
+      />
+    ),
+    'linked-devices': (
+      <LinkedDevicesModal
+        walletId={walletId ?? null}
+        isOpen
+        presentation="embedded"
+        onClose={backToMenu}
+      />
+    ),
+    'scan-link-device': (
+      <QRCodeScanner
+        presentation="embedded"
+        isOpen
+        onQRCodeScanned={backToMenu}
+        onClose={backToMenu}
+        onError={deviceLinkingScannerParams?.onError}
+        onEvent={deviceLinkingScannerParams?.onEvent}
+      />
+    ),
+  };
 
   if (presentation === 'page' && loginState.isLoggedIn && walletId) {
     return (
@@ -650,93 +718,43 @@ const AccountMenuButtonInner: React.FC<
   }
 
   return (
-    <div
-      ref={refs.buttonRef}
-      className={`seams-profile-button-morphable ${isOpen ? 'open' : 'closed'}${className ? ` ${className}` : ''}`}
+    <AccountMenuButtonView
+      buttonRef={refs.buttonRef}
+      dropdownRef={refs.dropdownRef}
+      className={className}
       style={style}
-      data-state={isOpen ? 'open' : 'closed'}
+      trigger={{
+        label: loginState.isLoggedIn ? 'Settings' : 'Logged out',
+        username: accountName,
+        hideUsername,
+        fullAccountId: walletId || undefined,
+        emailAddress: emailAddress || undefined,
+        isOpen,
+        onClick: handleToggle,
+        theme,
+      }}
+      dropdown={{
+        isOpen,
+        menuItems: MENU_ITEMS,
+        onLock: handleLock,
+        onClose: handleClose,
+        menuItemsRef: refs.menuItemsRef,
+        toggleColors,
+        theme,
+        highlightedMenuItemId,
+      }}
     >
-      <UserAccountButton
-        username={accountName}
-        hideUsername={hideUsername}
-        // identity line under "Settings": the wallet id, not the chain account
-        fullAccountId={walletId || undefined}
-        emailAddress={emailAddress || undefined}
-        isOpen={isOpen}
-        onClick={handleToggle}
-        theme={theme}
-      />
-
-      {/* Visible menu structure for actual interaction */}
-      <ProfileDropdown
-        ref={refs.dropdownRef}
-        isOpen={isOpen}
-        menuItems={MENU_ITEMS}
-        onLock={handleLock}
-        onClose={handleClose}
-        menuItemsRef={refs.menuItemsRef}
-        toggleColors={toggleColors}
-        currentConfirmConfig={currentConfirmConfig}
-        onSetUiMode={handleSetUiMode}
-        onToggleSkipClick={handleToggleSkipClick}
-        onSetDelay={handleSetDelay}
-        transactionSettingsOpen={transactionSettingsOpen}
-        accountsRows={accountsRows}
-        accountsOpen={accountsOpen}
-        exportKeysOpen={exportKeysOpen}
-        exportLoadingChain={exportLoadingChain}
-        canExportNearKey={canExportNearKey}
-        canExportEvmKeys={canExportEvmKeys}
-        onExportChain={startExportKeyFlow}
-        walletId={walletId}
-        nearAccountId={nearAccountId}
-        theme={theme}
-        highlightedMenuItemId={highlightedMenuItemId}
-      />
-
-      {/* QR Scanner Modal (portaled to nearest root for robustness) */}
-      {canPortal &&
-        createPortal(
-          <QRCodeScanner
-            key="profile-qr-scanner"
-            isOpen={showQRScanner}
-            onQRCodeScanned={handleQrCodeScanned}
-            onError={(error) => {
-              deviceLinkingScannerParams?.onError?.(error);
-              setShowQRScanner(false);
-              handleClose();
-            }}
-            onClose={() => {
-              deviceLinkingScannerParams?.onClose?.();
-              setShowQRScanner(false);
-              handleClose();
-            }}
-            onEvent={(event) => deviceLinkingScannerParams?.onEvent?.(event)}
-          />,
-          portalHost,
-        )}
-
-      {/* Linked Devices Modal (portaled alongside the other account-menu modals) */}
-      {canPortal &&
-        createPortal(
-          <AuthenticationMethodsModal
-            walletId={walletId ?? null}
-            isOpen={showAuthenticationMethods}
-            onClose={() => setShowAuthenticationMethods(false)}
-          />,
-          portalHost,
-        )}
-
-      {canPortal &&
-        createPortal(
-          <LinkedDevicesModal
-            walletId={walletId ?? null}
-            isOpen={showLinkedDevices}
-            onClose={() => setShowLinkedDevices(false)}
-          />,
-          portalHost,
-        )}
-    </div>
+      {screen === 'overview' ? null : (
+        <>
+          {screens[screen]}
+          {settingsError ? (
+            <p className="seams-account-error" role="alert">
+              {settingsError}
+            </p>
+          ) : null}
+        </>
+      )}
+    </AccountMenuButtonView>
   );
 };
 
@@ -756,9 +774,7 @@ export const AccountMenuButton: React.FC<AccountMenuButtonProps> = (props) => {
 export const ProfileSettingsButton = AccountMenuButton;
 
 /** Full-page wallet settings, mounted inside SeamsWebProvider. */
-export function WalletSettingsPage(
-  props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>,
-) {
+export function WalletSettingsPage(props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>) {
   const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
   if (loginState.isLoggedIn) {
@@ -779,3 +795,6 @@ export function WalletSettingsPage(
     </div>
   );
 }
+
+export { AccountMenuButtonMock } from './AccountMenuButtonMock';
+export type { AccountMenuButtonMockProps } from './AccountMenuButtonMock';

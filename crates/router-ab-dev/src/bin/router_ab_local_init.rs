@@ -1,7 +1,7 @@
-#[path = "local_dev_process/mod.rs"]
-mod local_dev_process;
+#[path = "local_initializer/mod.rs"]
+mod local_initializer;
 
-use local_dev_process::{free_loopback_origin, LocalWorkerUrls};
+use local_initializer::{free_loopback_origin, LocalWorkerUrls};
 use router_ab_dev::{local_env_materialization_plan_at_v1, LocalStackOriginsV1};
 use serde::Serialize;
 use std::{
@@ -19,7 +19,6 @@ struct InitOptions {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct InitSummary {
     root: String,
-    directories: Vec<String>,
     files: Vec<String>,
     urls: Option<LocalWorkerUrls>,
 }
@@ -40,10 +39,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     let plan = local_env_materialization_plan_at_v1(&seed, &origins.unwrap_or_default())?;
-
-    for directory in &plan.directories {
-        fs::create_dir_all(options.root.join(directory))?;
-    }
 
     let paths: Vec<(&str, &str)> = plan
         .files
@@ -73,7 +68,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let summary = InitSummary {
         root: options.root.display().to_string(),
-        directories: plan.directories,
         files: plan
             .files
             .into_iter()

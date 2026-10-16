@@ -44,12 +44,14 @@
 }
 
 .seams-account-seg {
+  box-sizing: border-box;
+  min-width: 0;
   position: relative;
   min-height: 54px;
   overflow: hidden;
   padding: 5px;
   border: none;
-  background: var(--seams-colors-surface2);
+  background: color-mix(in srgb, var(--seams-colors-textPrimary) 6%, var(--seams-colors-surface2));
   border-radius: var(--seams-border-radius-xl);
 }
 

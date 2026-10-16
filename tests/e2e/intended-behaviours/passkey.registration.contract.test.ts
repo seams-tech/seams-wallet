@@ -183,6 +183,54 @@ test('mixed registration exposes gateway and finalization timings', async ({ har
   expect(await activateResponse.json()).not.toHaveProperty('gatewayServerTiming');
 });
 
+test('NEAR registration and signing expose gateway step timings', async ({ harness, page }) => {
+  const setup = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/setup'));
+  const respond = page.waitForResponse(
+    isRegistrationPost.bind(undefined, '/wallets/register/respond'),
+  );
+  await harness.registerPasskeyEd25519YaoWallet();
+  const [setupResponse, respondResponse] = await Promise.all([setup, respond]);
+  const prepare = page.waitForResponse(
+    isRegistrationPost.bind(undefined, '/router-ab/ed25519/sign/prepare'),
+  );
+  const sign = page.waitForResponse(isRegistrationPost.bind(undefined, '/router-ab/ed25519/sign'));
+  await harness.signNearMessage('Expose the Gateway signing step timings');
+  const [prepareResponse, signResponse] = await Promise.all([prepare, sign]);
+
+  expect(serverTimingNames(await setupResponse.headerValue('Server-Timing'))).toEqual(
+    expect.arrayContaining([
+      'setup_context',
+      'setup_route_policy',
+      'setup_dispatch',
+      'setup_reserve',
+      'setup_ceremony',
+    ]),
+  );
+  expect(serverTimingNames(await respondResponse.headerValue('Server-Timing'))).toEqual(
+    expect.arrayContaining([
+      'respond_authority_verify',
+      'yao_admission_request',
+      'yao_admission_bind',
+    ]),
+  );
+  const signingSteps = [
+    'ed25519_sign_authorize',
+    'ed25519_sign_admit',
+    'ed25519_sign_proxy',
+    'ed25519_sign_total',
+  ];
+  expect(serverTimingNames(await prepareResponse.headerValue('Server-Timing'))).toEqual(
+    expect.arrayContaining(signingSteps),
+  );
+  expect(serverTimingNames(await signResponse.headerValue('Server-Timing'))).toEqual(
+    expect.arrayContaining([...signingSteps, 'ed25519_sign_complete']),
+  );
+});
+
+function serverTimingNames(header: string | null): string[] {
+  return (header ?? '').split(',').map((metric) => metric.trim().split(';')[0]);
+}
+
 test('mixed registration starts one NEAR admission while ECDSA activate is in flight', async ({
   harness,
   context,

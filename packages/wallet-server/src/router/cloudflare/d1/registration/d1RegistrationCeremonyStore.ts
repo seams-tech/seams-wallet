@@ -129,6 +129,10 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     return this.storage.prepareGet('ceremony', registrationCeremonyId);
   }
 
+  prepareFoundingRecordsRead(registrationCeremonyId: string): D1PreparedStatementLike {
+    return this.storage.prepareFoundingRecordsRead(registrationCeremonyId);
+  }
+
   async parseCeremonyRead(
     registrationCeremonyId: string,
     result: D1ResultLike<Record<string, unknown>>,

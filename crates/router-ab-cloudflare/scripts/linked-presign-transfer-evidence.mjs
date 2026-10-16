@@ -848,20 +848,7 @@ export async function cleanupTransferredWalletSource(topology, credential, recei
 }
 
 export async function evictTransferredWallet(topology, name, scope, generation) {
-  assert.ok(Number.isSafeInteger(generation) && generation > 0);
-  const namespace = await topology.getDurableObjectNamespace('SIGNING_WORKER_WALLET_DO', name);
-  const digest = createHash('sha256')
-    .update('seams/signing-worker/wallet-do/v1')
-    .update(JSON.stringify(scope))
-    .digest('hex');
-  const logicalName = `signing-worker-wallet-${digest}`;
-  const physicalName = generation === 1 ? logicalName : `${logicalName}/generation/${generation}`;
-  const id = namespace.idFromName(physicalName).toString();
-  const walletClass = 'RouterAbSigningWorkerWalletDurableObject';
-  const ids = await topology.listDurableObjectIds(walletClass, workerName);
-  assert.ok(ids.includes(id), 'The scoped wallet must already exist before eviction');
-  await topology.unsafeEvictDurableObject(workerName, walletClass, { id });
-  return id;
+  return topology.evictWalletObject(name, scope, generation);
 }
 
 export async function returnTransferredWallet(topology, credential, previousReceipt) {

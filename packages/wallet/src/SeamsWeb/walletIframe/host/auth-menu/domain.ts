@@ -46,6 +46,8 @@ type AuthMenuSurfaceStatus =
       readonly kind: 'busy';
       /** Names the wait, e.g. "Verifying your email code". */
       readonly headline: string;
+      /** Optional illustration for a passkey credential prompt. */
+      readonly illustration?: 'passkey';
       /** Optional secondary line, shown only when the host opts into progress. */
       readonly detail?: string;
     }
@@ -293,6 +295,8 @@ export type AuthMenuRecoveryViewModel = AuthMenuViewModelCommon & {
   readonly kind: 'recovery';
   readonly mode: 'login';
   readonly recoveryCode: string;
+  /** Preview display length; live recovery defaults to the protocol code length. */
+  readonly recoveryCodeSlotCount?: 16 | 32;
   readonly recoveryCodeError: string | null;
   readonly passkeyName?: never;
   readonly passkeyNameLabel?: never;

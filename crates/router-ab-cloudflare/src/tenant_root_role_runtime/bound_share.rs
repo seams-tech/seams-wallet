@@ -10,6 +10,18 @@ use crate::tenant_root_role_d1::RootUseAccess;
 /// unused binding for a retired epoch and a binding for an epoch not yet
 /// active here are refused. The host's role chooses the local role; no
 /// selector is accepted from the request body.
+/// The store refused this attempt's admission: it is admitted here under
+/// another binding. Only the admission step below constructs it, before any
+/// share is opened, so a caller may look for its own preparation and retry.
+#[derive(Debug)]
+pub(crate) struct AttemptConflictV1(());
+
+impl AttemptConflictV1 {
+    pub(crate) fn into_error(self) -> RouterAbProtocolError {
+        tenant_root_attempt_conflict_error_v1()
+    }
+}
+
 pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
@@ -23,7 +35,8 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
         now_ms,
         RootUseAccess::Admit,
     )
-    .await
+    .await?
+    .map_err(AttemptConflictV1::into_error)
 }
 
 pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
@@ -32,7 +45,7 @@ pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
     attempt: &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1,
     now_ms: u64,
     access: RootUseAccess,
-) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
+) -> RouterAbProtocolResult<Result<VerifiedTenantRootOnlineRoleShareV1, AttemptConflictV1>> {
     let worker_role = host.worker_role();
     let expected_role = match worker_role {
         crate::CloudflareWorkerRoleV1::DeriverA => TwoPartyDeriverRole::DeriverA,
@@ -71,7 +84,7 @@ pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
             return Err(tenant_root_epoch_not_yet_active_error_v1());
         }
         crate::tenant_root_role_d1::TenantRootBoundShareV1::AttemptConflict => {
-            return Err(tenant_root_attempt_conflict_error_v1());
+            return Ok(Err(AttemptConflictV1(())));
         }
         crate::tenant_root_role_d1::TenantRootBoundShareV1::Cancelled => {
             return Err(tenant_root_attempt_cancelled_error_v1());
@@ -121,5 +134,5 @@ pub(crate) async fn load_role_share_with_access<Host: TenantRootDeriverHostV1>(
             }
         }
     }
-    Ok(opened)
+    Ok(Ok(opened))
 }

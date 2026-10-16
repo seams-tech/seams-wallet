@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-10-13T03:40:56.518Z",
+  "sourceCommit": "23da141cd21d74f8f55deec9d08598f8132eea9c",
+  "node": "v26.4.0",
+  "platform": "darwin-arm64",
+  "celld": "celld 0.6.2",
+  "celldSha256": "92ededd2bcfebeb1e78cc2d97219f00214a79eb6606f0eef48208fca3f98c15a",
+  "miniflare": "4.20260710.0",
+  "workerd": "1.20260710.1",
+  "harnessSha256": "a03996125e213702dacb7f5a2ba71305060eba6eaf365e56cf87b8c9553fd4b3",
+  "fixtureHashes": {
+    "owner": "b8d0c4052b84809102ca972c49f756fd1efa0c65d3c465457792290ffcea2873",
+    "caller": "037c2dc7bfb3723ca7b4fdde86642f601dba8953be9d3d50f6da705bfe9cc606"
+  },
+  "status": "failed",
+  "stage": "celld-cross-script-object",
+  "reference": {
+    "throughService": {
+      "owner": "router",
+      "count": 1
+    },
+    "throughObject": {
+      "owner": "router",
+      "count": 2
+    },
+    "readThroughService": {
+      "owner": "router",
+      "count": 2
+    }
+  },
+  "owner": [
+    {
+      "owner": "router",
+      "count": 1
+    }
+  ],
+  "serviceControl": [
+    {
+      "owner": "router",
+      "count": 2
+    },
+    {
+      "owner": "router",
+      "count": 2
+    }
+  ],
+  "error": "Error: celld exited before readiness: <jemalloc>: option background_thread currently supports pthread only\n2026-10-13T03:40:57.561226Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\ncelld dev\n  Project  /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-9O34Ei/external.json\n  State    /Users/pta/Dev/rust/seams-wallet-r190/.artifacts/celld-bindings-9O34Ei/.celld/dev\n  Watch    disabled\n  ● opening the local storage\n  ● building the application\n celld 0.6.2\n───────────────────────────────────────────────\nTotal Upload: 0.35 KiB / gzip: 0.22 KiB\nYour Worker has access to the following bindings:\nBinding                           Resource\nenv.TENANT_ROOT (TenantRoot)      Durable Object\nenv.ROUTER (Service)              owner\nBundled caller (0.00 sec)\n<jemalloc>: option background_thread currently supports pthread only\n2026-10-13T03:40:57.575827Z  WARN celld::memory: the allocator will not run a background thread, so freed pages return only when a thread allocates again error=`name` or `mib` specifies an unknown/invalid value.\n2026-10-13T03:40:57.575846Z  INFO celld: host runtime initialized event=\"host_runtime\" worker_count=14\n2026-10-13T03:40:57.606482Z  INFO celld::pool: isolate started isolate=1 slot=0 total=1\n2026-10-13T03:40:57.611361Z  INFO celld::pool: isolate started isolate=2 slot=0 total=1\nError: Durable Object class TenantRoot is exported by more than one co-hosted script\nError: the local node exited before it announced its operator listener\n"
+}

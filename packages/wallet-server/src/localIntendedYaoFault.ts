@@ -1,3 +1,4 @@
+import { assertString, requireArray, requireRecord } from '@shared/utils/validation';
 import { ROUTER_AB_TRACE_ID_HEADER_V1 } from '@shared/utils/routerAbTraceContext';
 
 export const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
@@ -17,10 +18,20 @@ const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1 = 'x-seams-local-intended-router-burn
  *   execute, and expects the Gateway to send the identical request again.
  * - `return_terminal_burned_once` has the Router end the first execute
  *   burned, and expects the Gateway to answer that failure without retrying.
+ * - `answer_retryable_while_running_once` lets the Router keep running the
+ *   first execute, and answers the Gateway at once that it failed
+ *   recoverably, as a Deriver that refused a late preparation does. The
+ *   Router's claim stays held until that run records its answer.
  */
-type LocalIntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
+type LocalIntendedYaoFaultModeV1 =
+  | 'drop_router_response_once'
+  | 'return_terminal_burned_once'
+  | 'answer_retryable_while_running_once';
 
-type LocalIntendedYaoFaultProofV1 = 'exact_request_replayed' | 'terminal_failure_not_retried';
+type LocalIntendedYaoFaultProofV1 =
+  | 'exact_request_replayed'
+  | 'terminal_failure_not_retried'
+  | 'execution_left_running';
 
 type LocalIntendedYaoFaultViolationV1 =
   | 'fault_already_armed'
@@ -84,6 +95,7 @@ export function parseLocalIntendedYaoFaultModeV1(
   switch (value) {
     case 'drop_router_response_once':
     case 'return_terminal_burned_once':
+    case 'answer_retryable_while_running_once':
       return value;
     default:
       return null;
@@ -101,10 +113,30 @@ export function isLocalIntendedYaoFaultTokenV1(value: string | null): value is s
   return !!value && LOCAL_INTENDED_YAO_FAULT_TOKEN_PATTERN_V1.test(value);
 }
 
+/** Reconstructs a local fault request from its persisted boundary value. */
+export function parseLocalIntendedKeptRouterRequestV1(value: unknown): Request {
+  const record = requireRecord(value, 'Kept Router request');
+  const headers = new Headers();
+  for (const value of requireArray(record.headers, 'Kept Router headers')) {
+    const pair = requireArray(value, 'Kept Router header');
+    if (pair.length !== 2) throw new Error('Kept Router header must contain a name and value');
+    headers.append(assertString(pair[0], 'header name'), assertString(pair[1], 'header value'));
+  }
+  return new Request(assertString(record.url, 'Kept Router URL'), {
+    method: 'POST',
+    headers,
+    body: assertString(record.body, 'Kept Router body'),
+  });
+}
+
 export class LocalIntendedYaoFaultControllerV1 {
   private state: LocalIntendedYaoFaultStateV1 = { kind: 'idle' };
 
-  constructor(private readonly baseFetch: typeof globalThis.fetch) {}
+  constructor(
+    private readonly baseFetch: typeof globalThis.fetch,
+    /** Keeps a Router call alive after the Gateway answered without it. */
+    private readonly keepRunning: (running: Promise<unknown>) => void,
+  ) {}
 
   arm(mode: LocalIntendedYaoFaultModeV1): void {
     if (this.state.kind !== 'idle') {
@@ -156,6 +188,16 @@ export class LocalIntendedYaoFaultControllerV1 {
     request: Request,
     mode: LocalIntendedYaoFaultModeV1,
   ): Promise<Response> {
+    if (mode === 'answer_retryable_while_running_once') {
+      const running = this.baseFetch.call(globalThis, request);
+      this.keepRunning(running.then((response) => response.arrayBuffer()));
+      this.state = { kind: 'proved', proof: 'execution_left_running' };
+      return Response.json({
+        status: 'recoverable_failure',
+        code: 'conflicting_pair',
+        retry_after_ms: 100,
+      });
+    }
     if (mode === 'return_terminal_burned_once') {
       const headers = new Headers(request.headers);
       headers.set(LOCAL_INTENDED_ROUTER_BURN_HEADER_V1, 'burned');

@@ -1,7 +1,10 @@
+import { AccountMenuScreen } from './AccountMenuScreen';
 import React, { useEffect } from 'react';
 import { Theme, useTheme } from '../theme';
+import { LayersIcon } from './icons/LayersIcon';
+import { LockKeyholeIcon } from './icons/LockKeyholeIcon';
 
-type AccountMenuDialogPresentation = 'modal' | 'page';
+type AccountMenuDialogPresentation = 'modal' | 'page' | 'embedded';
 
 // Keyboard handling for an account-menu dialog: Escape closes it, Tab and Shift+Tab wrap
 // within it, and closing returns focus to where it was. A page presentation is not modal, so
@@ -46,7 +49,7 @@ export function useAccountMenuDialogKeyboard(input: {
   );
 
   useEffect(() => {
-    if (!isOpen || presentation === 'page') return;
+    if (!isOpen || presentation !== 'modal') return;
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
@@ -59,8 +62,9 @@ export function useAccountMenuDialogKeyboard(input: {
   }, [dialogRef, handleDialogKeyDown, isOpen, presentation]);
 }
 
-// The themed backdrop, dialog, close button and title an account-menu dialog renders its
-// content inside. As a page it is a labelled region with no close button.
+// The themed backdrop, dialog, title and chrome an account-menu dialog renders its content
+// inside. A modal has a header with the page's host and the close button, and a "Powered by
+// seams" footer. As a page it is a labelled region with neither: the settings page has its own.
 export const AccountMenuDialogFrame: React.FC<{
   readonly presentation: AccountMenuDialogPresentation;
   readonly onClose: () => void;
@@ -85,6 +89,13 @@ export const AccountMenuDialogFrame: React.FC<{
     () => (theme === 'dark' ? { dark: tokens } : { light: tokens }),
     [theme, tokens],
   );
+  if (presentation === 'embedded') {
+    return (
+      <AccountMenuScreen title={title} onBack={onClose} className={contentClassName}>
+        {children}
+      </AccountMenuScreen>
+    );
+  }
   return (
     <Theme theme={theme} tokens={scopedTokens}>
       <div
@@ -104,19 +115,31 @@ export const AccountMenuDialogFrame: React.FC<{
           tabIndex={-1}
         >
           {presentation === 'modal' ? (
-            <button
-              type="button"
-              className="seams-linked-devices-modal-close"
-              onClick={onClose}
-              aria-label={closeLabel}
-            >
-              ✕
-            </button>
+            <header className="seams-account-menu-dialog-header">
+              <LockKeyholeIcon size={13} />
+              <span className="seams-account-menu-dialog-host">{window.location.host}</span>
+              <button
+                type="button"
+                className="seams-linked-devices-modal-close"
+                onClick={onClose}
+                aria-label={closeLabel}
+              >
+                ✕
+              </button>
+            </header>
           ) : null}
-          <h2 id={titleId} className="seams-linked-devices-modal-title">
-            {title}
-          </h2>
-          {children}
+          <div className="seams-account-menu-dialog-main">
+            <h2 id={titleId} className="seams-linked-devices-modal-title">
+              {title}
+            </h2>
+            {children}
+          </div>
+          {presentation === 'modal' ? (
+            <footer className="seams-account-menu-dialog-footer">
+              <LayersIcon size={13} />
+              Powered by seams
+            </footer>
+          ) : null}
         </div>
       </div>
     </Theme>

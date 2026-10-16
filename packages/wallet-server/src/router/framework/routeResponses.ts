@@ -1,4 +1,3 @@
-import type { Response as ExpressResponse } from 'express';
 import type { RouteResponse } from './routeExecutionContext';
 import type { RoutePolicyFailureCode } from './routeAuthPolicy';
 import type { RouteUsageData } from './routeMeteringPolicy';
@@ -41,16 +40,6 @@ export function routeError(
   message: string,
 ): RouteResponse<RouteErrorBody> {
   return routeJson(status, { ok: false, code, message });
-}
-
-export function sendExpressRouteResponse<TBody>(
-  res: ExpressResponse,
-  response: RouteResponse<TBody>,
-): void {
-  for (const [name, value] of Object.entries(response.headers || {})) {
-    res.set(name, value);
-  }
-  res.status(response.status).json(response.body);
 }
 
 export function toFetchRouteResponse<TBody>(response: RouteResponse<TBody>): Response {

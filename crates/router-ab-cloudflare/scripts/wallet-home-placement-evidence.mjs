@@ -37,6 +37,7 @@ class PlacementLog extends Log {
   commands = [];
   routerDispatches = [];
   routerTransport = [];
+  localRouterOperations = [];
   storageReadiness = [];
 
   constructor() {
@@ -58,6 +59,7 @@ class PlacementLog extends Log {
       const value = JSON.parse(message.slice(start));
       if (value.event === 'wallet_do_placement_requested') this.placements.push(value);
       if (value.event === 'wallet_do_command_timing') this.commands.push(value);
+      if (value.event === 'router_wallet_operation') this.localRouterOperations.push(value.operation);
       if (value.event === 'router_wallet_dispatch_timing') this.routerDispatches.push(value);
       if (value.event === 'router_wallet_transport_timing') this.routerTransport.push(value);
       if (value.event === 'wallet_startup_storage_observation') {
@@ -187,12 +189,14 @@ class MiniflareWorkerBinding {
 }
 
 class WalletFixtureWorker {
-  constructor(binding, identity) {
+  constructor(binding, identity, serviceCredential) {
     this.binding = binding;
     this.identity = identity;
+    this.serviceCredential = serviceCredential;
   }
   async fetch(input, init) {
     const request = new Request(input, init);
+    if (this.serviceCredential !== null) request.headers.set(authHeader, this.serviceCredential);
     for (const [name, value] of Object.entries(walletObjectIdentityHeaders(this.identity)))
       request.headers.set(name, value);
     return this.binding.fetch(request);
@@ -200,14 +204,15 @@ class WalletFixtureWorker {
 }
 
 class WalletFixtureTopology {
-  constructor(topology, home, database, identity) {
-    Object.assign(this, { topology, home, database, identity });
+  constructor(topology, home, database, identity, gatewayCredential) {
+    Object.assign(this, { topology, home, database, identity, gatewayCredential });
   }
   async getWorker(name) {
     const worker = new MiniflareWorkerBinding(await this.topology.getWorker(name));
     return new WalletFixtureWorker(
       new WalletHomeCustodyBinding(worker, this.home, this.database, 'placement'),
       this.identity,
+      name === 'router' ? this.gatewayCredential : null,
     );
   }
 }
@@ -341,6 +346,7 @@ async function verifyFirstSignature(binding, envelope, result, fixture, credenti
     expires_at_ms: Date.now() + 120_000,
   });
   const request = { ...signing.prepare, authorized_operation: signing.authorized_operation };
+  const prepareStarted = performance.now();
   const prepared = await postWallet(
     binding,
     envelope,
@@ -348,6 +354,7 @@ async function verifyFirstSignature(binding, envelope, result, fixture, credenti
     '/router-ab/ed25519/sign/prepare',
     request,
   );
+  const prepareMs = performance.now() - prepareStarted;
   assert.deepEqual(
     await postWallet(binding, envelope, credential, '/router-ab/ed25519/sign/prepare', request),
     prepared,
@@ -360,6 +367,7 @@ async function verifyFirstSignature(binding, envelope, result, fixture, credenti
     prepared,
     authorized_operation: signing.authorized_operation,
   });
+  const signStarted = performance.now();
   const response = await postWallet(
     binding,
     envelope,
@@ -367,6 +375,7 @@ async function verifyFirstSignature(binding, envelope, result, fixture, credenti
     '/router-ab/ed25519/sign',
     finalized,
   );
+  const signMs = performance.now() - signStarted;
   const signatureSha256Hex = verifySigningResponse(response, signing, activation);
   assert.deepEqual(
     await postWallet(binding, envelope, credential, '/router-ab/ed25519/sign', finalized),
@@ -374,6 +383,9 @@ async function verifyFirstSignature(binding, envelope, result, fixture, credenti
   );
   return {
     signatureSha256Hex,
+    prepareMs,
+    signMs,
+    signingHttpMs: prepareMs + signMs,
     signatureB64u: Buffer.from(response.signature.bytes).toString('base64url'),
     digestB64u: signing.signing_digest_b64u,
     publicKeyB64u: Buffer.from(activation.public_receipt.registered_public_key).toString(
@@ -500,10 +512,11 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     const result = await retried.json();
     assert.equal(result.status, 'succeeded');
     assert.deepEqual(
-      log.routerDispatches.map((event) => event.operation),
+      log.localRouterOperations.filter(operation => operation === 'claim_registration' || operation === 'finish_registration'),
       ['claim_registration', 'finish_registration', 'claim_registration'],
       'Lost-reply replay must claim the stored answer without another finish',
     );
+    assert.equal(log.routerDispatches.length, 0, 'Claim and finish stay inside the Router object');
     for (const event of log.routerDispatches) {
       assert.equal(event.outcome, 'success');
       assert.equal(event.wallet_home, home);
@@ -522,7 +535,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
     assert.equal(routerCommands[0].first_command_after_constructor, true);
     assert.ok(
       routerCommands
-        .filter((command) => command.path.endsWith('/command'))
+        .filter((command) => command.path.endsWith('/execute-registration'))
         .every((command) => command.first_command_after_constructor === false),
       'Registration commands must reuse the live object reached by startup',
     );
@@ -583,7 +596,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       );
     }
     const signing = await verifyFirstSignature(binding, envelope, result, fixture, credential);
-    const scopedTopology = new WalletFixtureTopology(topology, home, gateway, identity);
+    const scopedTopology = new WalletFixtureTopology(topology, home, gateway, identity, credential);
     const ecdsa = await testEcdsaRegistrationAndActivation(
       scopedTopology,
       fixture,
@@ -644,6 +657,7 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
       admissions,
       roleObjects,
       routerDispatches: log.routerDispatches,
+      localRouterOperations: log.localRouterOperations,
       routerTransport: log.routerTransport,
       routerCommands,
       routerExecuteHttpMs: lost.firstExecutionMs,

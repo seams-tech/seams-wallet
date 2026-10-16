@@ -34,9 +34,12 @@ function routerExecuteRequest(traceId: string, body: string, replay: boolean): R
   });
 }
 
+/** These modes answer only after the Router did, so nothing runs on. */
+function runsNothingInBackground(): void {}
+
 async function verifyOverlappingIntendedFaultIsolation(): Promise<void> {
-  const retryController = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch);
-  const terminalController = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch);
+  const retryController = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch, runsNothingInBackground);
+  const terminalController = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch, runsNothingInBackground);
   retryController.arm('drop_router_response_once');
   terminalController.arm('return_terminal_burned_once');
 
@@ -102,7 +105,7 @@ function verifyOpaqueFaultTokenBoundary(): void {
 test('intended Yao fault token accepts only opaque UUIDv4 values', verifyOpaqueFaultTokenBoundary);
 
 async function rejectChangedReplayAndTerminalRetry(): Promise<void> {
-  const replay = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch);
+  const replay = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch, runsNothingInBackground);
   replay.arm('drop_router_response_once');
   await expect(replay.fetch(routerExecuteRequest('trace', 'original', false))).rejects.toThrow(
     'dropped the completed Router response',
@@ -115,7 +118,7 @@ async function rejectChangedReplayAndTerminalRetry(): Promise<void> {
     violation: 'router_retry_body_changed',
   });
 
-  const terminal = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch);
+  const terminal = new LocalIntendedYaoFaultControllerV1(intendedRouterFetch, runsNothingInBackground);
   terminal.arm('return_terminal_burned_once');
   await terminal.fetch(routerExecuteRequest('terminal', 'original', false));
   await expect(terminal.fetch(routerExecuteRequest('terminal', 'original', true))).rejects.toThrow(

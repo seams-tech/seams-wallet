@@ -1,0 +1,50 @@
+{
+  "status": "passed",
+  "scope": "retained local Worker initializer and independent Cloudflare fixture builders execute after native-host removal",
+  "publicRevision": "4249f42dacbd5451206ad1b37473d5ebd9f5e28b",
+  "workingTree": "native-host deletion pending commit",
+  "executables": {
+    "router_ab_local_init": "9d05a259d440229197871f04beb6e5cc211f780c07ec807d1311e8d039f5a230",
+    "cloudflare_private_d1_fixture": "bfcd3a676ad928c7283a8b31a68aedf89954d951a793d8602b11b964350aae88"
+  },
+  "artifactDirectory": "/var/folders/7k/nz1ldp1n0bz4n2wdmy_wvnkw0000gn/T/seams-r190-native-inputs-g2e701tn",
+  "retainedTestCount": 18,
+  "checks": [
+    "all retained router-ab-dev tests",
+    "all-target cargo check",
+    "local initializer writes Worker role inputs",
+    "private-D1 fixture output parses",
+    "Ed25519 signing fixture mode compiles; protocol input is supplied by existing signing E2Es",
+    "all five role configurations prepare from the retained initializer inputs",
+    "10 existing Ed25519-Yao client registration checks pass",
+    "209 existing Workers binding, tenant cutover, and signing lane checks pass",
+    "all 38 Cargo locks pass --locked",
+    "pnpm report:bloat --check passes"
+  ],
+  "sourceFiles": {
+    "crates/router-ab-dev/Cargo.lock": "876c7900c4b4bcf7aac828af1a90ed2105fddf481da14c91f7809f119ad751db",
+    "crates/router-ab-dev/Cargo.toml": "d223b54132892d81a0d965da0ae2de75534e6c14a3aba786702a687032599880",
+    "crates/router-ab-dev/env/deriver-a.local.example": "8a01279402b4f860f184df7c1931fa13dd0403ddd946a28c13c5227a1a3f8d4e",
+    "crates/router-ab-dev/env/deriver-b.local.example": "a799a2057b6982959044333d68ec54f7355bc3d89ad73d7832aa12b34f172b78",
+    "crates/router-ab-dev/env/router.local.example": "14938a7ee659aade10c1db4b6d21bc061538edb5ed0140181aaacd7d82174d17",
+    "crates/router-ab-dev/env/signing-worker.local.example": "d683f84cf18aca8cf027dc34c612c1e26b69ef82d8e5dfb96f9c92b3c9997090",
+    "crates/router-ab-dev/src/bin/router_ab_local_init.rs": "67f8d6f043d6345d8aa4e7bc6f018597d5381ff81e93232314f5e57715d31d8f",
+    "crates/router-ab-dev/src/lib.rs": "eec4e35932e18d38593011acdd1e7f9f52f0843cea2318d917547659038cafb1",
+    "crates/router-ab-dev/src/local_ed25519_yao_api.rs": "fbd74564c740d407b1c73884ab7ba0ffa0325b76ac0e4669f5afd8cb0ac05134",
+    "crates/router-ab-dev/src/local_ed25519_yao_refresh.rs": "300a78f9b714187514e6356a099b6b073edb481ca96b7a8dfcc7f4e5b9f100db",
+    "crates/router-ab-dev/src/local_tenant_root_env.rs": "e6575d5b35ea2281c6f4a390933b4c5a8361dc5c651ec8978159e2d4a3c36938",
+    "crates/router-ab-dev/tests/local_worker_env.rs": "b71035e0d4314872fe5e2e601498e324beb096ea28daece9062225f3021f401f",
+    "crates/router-ab-dev/src/bin/local_initializer/mod.rs": "9167c2786fdb7e7f04bbd1ed377c20efcb3c8147663433a46fb1016cd4cb0351"
+  },
+  "testClassification": {
+    "retired": "native HTTP transport, SQLite host, process startup and native-to-Cloudflare parity fixtures are obsolete with the removed backend",
+    "retained": "protocol helpers, independent signature fixtures, client registration, Workers binding and ownership checks remain authoritative"
+  },
+  "configurationPreparation": {
+    "status": "passed",
+    "resultSha256": "9af237741f72b3ac8b559bae9a25a20d0129f11ffed6b8b379909090222fe2da",
+    "command": "NODE_PATH=/tmp/seams-r190-fault-fixed/node_modules node /tmp/seams-r190-native-config-proof.mjs ARTIFACT_DIRECTORY",
+    "dependency": "frozen @seams/wallet-server 0.9.4; configuration tool input only",
+    "initialFailure": "environment_or_infrastructure_failure: package resolution unavailable in the isolated worktree; explicit NODE_PATH resolved it"
+  }
+}

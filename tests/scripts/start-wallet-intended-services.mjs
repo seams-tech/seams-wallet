@@ -18,12 +18,6 @@ const walletDistRoot =
   process.env.SEAMS_INTENDED_WALLET_DIST_ROOT || path.join(repoRoot, 'packages', 'wallet', 'dist');
 const productionApp = process.env.SEAMS_INTENDED_PRODUCTION === '1';
 const externalGateway = parseExternalGatewayMode();
-// `vm` runs the Wallet on the VM reference (ordinary processes, SQLite, the
-// Gateway on Node); the default runs it on local Workers.
-const walletHost = process.env.SEAMS_INTENDED_WALLET_HOST || 'workers';
-if (walletHost !== 'workers' && walletHost !== 'vm') {
-  throw new Error('SEAMS_INTENDED_WALLET_HOST must be workers or vm');
-}
 const children = [];
 let stopping = false;
 
@@ -54,7 +48,7 @@ function buildWalletRuntime() {
     'run',
     productionApp ? 'build:prod' : 'build:sdk-full',
   ]);
-  if (externalGateway || walletHost === 'vm') return;
+  if (externalGateway) return;
   for (const role of [
     'signing-worker',
     'deriver-a',
@@ -74,26 +68,6 @@ function buildWalletRuntime() {
 }
 
 function startWalletSystem() {
-  if (walletHost === 'vm') {
-    const child = spawn(
-      process.execPath,
-      [
-        path.join(repoRoot, 'crates/router-ab-dev/scripts/start-vm-wallet-system.mjs'),
-        '--root',
-        runtimeRoot,
-        '--app-origin',
-        appOrigin,
-        '--wallet-origin',
-        walletOrigin,
-      ],
-      childOptions({
-        ...process.env,
-        SEAMS_VM_SKIP_BUILD: process.env.SEAMS_INTENDED_SKIP_BUILD === '1' ? '1' : '',
-      }),
-    );
-    trackChild('Wallet system', child);
-    return;
-  }
   const child = spawn(
     process.execPath,
     [

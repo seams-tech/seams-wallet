@@ -2,6 +2,8 @@ import type { RegistrationAuthority } from '../../packages/shared-ts/src/utils/r
 import type {
   CloudflareD1WalletRegistrationCommitStore,
   D1WalletRegistrationCommitStore,
+  RegistrationFoundingRead,
+  RegistrationFoundingSnapshot,
 } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
 import type { runRouterAbEd25519YaoRegistrationSideEffectV2 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
 import type { RegistrationInitialSessionCommit } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationEstablishedSessionIssuer';
@@ -56,3 +58,15 @@ const contradictorySessionPlan: RegistrationInitialSessionPlan = {
   kind: 'separate',
 };
 void [missingSessionCommit, contradictorySessionCommit, contradictorySessionPlan];
+
+declare const snapshotFounding: RegistrationFoundingSnapshot;
+// @ts-expect-error A snapshot cannot also request an independent read.
+const conflictingFoundingRead: RegistrationFoundingRead = {
+  ...snapshotFounding,
+  kind: 'read',
+  ids: {
+    walletAuthorityId: snapshotFounding.records.walletAuthorityId,
+    walletAuthMethodId: snapshotFounding.records.walletAuthMethodId,
+  },
+};
+void conflictingFoundingRead;

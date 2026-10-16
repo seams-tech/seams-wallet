@@ -174,8 +174,8 @@ function resolveModule(fromFile, specifier) {
 
 // A package's build decides which sources its published files come from: a Rolldown
 // config object with a single-file input names its output with entryFileNames, and the
-// output path need not match the source path (src/router/express-adaptor.ts is published
-// as router/express.js). Every such standalone bundle, and every object-form input, counts
+// output path need not match the source path (src/router/cloudflare-adaptor.ts is published
+// as router/cloudflare.js). Every such standalone bundle, and every object-form input, counts
 // as an entry point whether or not package.json exports it.
 function rolldownEntries(dir) {
   const text = read(`${dir}/rolldown.config.ts`) ?? '';

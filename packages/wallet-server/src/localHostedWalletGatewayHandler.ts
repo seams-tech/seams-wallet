@@ -1,3 +1,4 @@
+import { D1RegistrationCeremonyRecordStore } from './router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
 import { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
 import { WalletHomeCustodyBinding } from './router/cloudflare/runtime/routerAbServiceBindings';
 import { requireCanonicalString } from '@shared/utils/validation';
@@ -241,7 +242,7 @@ async function handleEcdsaRespondFault(
 /**
  * The local Gateway: the hosted Gateway handler plus the intended-suite
  * transport faults, which a request arms with local-only headers. The local
- * Worker and the local Node host both serve through this.
+ * Worker serves through this handler.
  */
 export async function handleLocalHostedWalletGatewayRequestV1(
   request: Request,
@@ -269,6 +270,11 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     SIGNING_WORKER: new WalletHomeCustodyBinding(env.SIGNING_WORKER, 'US', env.SIGNER_DB, tenantScope.namespace, null),
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
+  const faultStorage = new D1RegistrationCeremonyRecordStore({
+    database: env.SIGNER_DB,
+    scope: tenantScope,
+    keyPrefix: 'local-intended:',
+  });
   const canceledPresign = await localPresignCancellationProbe(
     request,
     gatewayEnv,
@@ -312,6 +318,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       dependencies,
       yaoRecoveryMode,
       yaoRecoveryToken,
+      faultStorage,
     );
   }
   const yaoSigningMode = request.headers.get(LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1);
@@ -324,6 +331,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       dependencies,
       yaoSigningMode,
       yaoSigningToken,
+      faultStorage,
     );
   }
   const yaoExportMode = request.headers.get(LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1);
@@ -418,6 +426,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   // Each registration owns its fault state, including every internal Router retry.
   const controller = new LocalIntendedYaoFaultControllerV1(
     gatewayEnv.MPC_ROUTER.fetch.bind(gatewayEnv.MPC_ROUTER),
+    ctx.waitUntil.bind(ctx),
   );
   controller.arm(mode);
   const response = await handleSplitGatewayRequest(
@@ -479,6 +488,7 @@ async function handleYaoRecoveryFault(
   dependencies: HostedWalletGatewayDependenciesV1 | undefined,
   rawMode: string | null,
   rawToken: string | null,
+  storage: D1RegistrationCeremonyRecordStore,
 ): Promise<Response> {
   const mode = parseLocalIntendedYaoRecoveryFaultModeV1(rawMode);
   const token = parseLocalIntendedYaoRecoveryFaultTokenV1(rawToken);
@@ -494,12 +504,13 @@ async function handleYaoRecoveryFault(
     return Response.json({ code: 'invalid_intended_yao_recovery_fault' }, { status: 400 });
   }
   if (mode === 'release_router_recovery_execute') {
-    return await releaseLocalIntendedYaoRecoveryExecuteV1(env.MPC_ROUTER, token);
+    return await releaseLocalIntendedYaoRecoveryExecuteV1(env.MPC_ROUTER, token, storage);
   }
   const controller = new LocalIntendedYaoRecoveryFaultControllerV1(
     env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
     mode,
     token,
+    storage,
   );
   const response = await handleSplitGatewayRequest(
     requestWithoutLocalIntendedYaoRecoveryFaultHeadersV1(request),
@@ -637,6 +648,7 @@ async function handleYaoSigningFault(
   dependencies: HostedWalletGatewayDependenciesV1 | undefined,
   rawMode: string | null,
   rawToken: string | null,
+  storage: D1RegistrationCeremonyRecordStore,
 ): Promise<Response> {
   const mode = parseLocalIntendedYaoSigningFaultModeV1(rawMode);
   const token = parseLocalIntendedYaoSigningFaultTokenV1(rawToken);
@@ -652,12 +664,13 @@ async function handleYaoSigningFault(
     return Response.json({ code: 'invalid_intended_yao_signing_fault' }, { status: 400 });
   }
   if (mode === 'release_signing_finalize') {
-    return await releaseLocalIntendedYaoSigningFinalizeV1(env.MPC_ROUTER, token);
+    return await releaseLocalIntendedYaoSigningFinalizeV1(env.MPC_ROUTER, token, storage);
   }
   const controller = new LocalIntendedYaoSigningFaultControllerV1(
     env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
     mode,
     token,
+    storage,
   );
   const response = await handleSplitGatewayRequest(
     requestWithoutLocalIntendedYaoSigningFaultHeadersV1(request),

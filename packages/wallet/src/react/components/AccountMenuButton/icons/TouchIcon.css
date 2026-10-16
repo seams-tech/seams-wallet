@@ -1,9 +1,5 @@
 /* TouchIcon specific styles and animations */
 
-.seams-fingerprint-icon {
-  transition: transform 400ms ease;
-}
-
 .seams-fingerprint-icon path {
   /* Normalize path length so dash animations are simple */
   stroke: currentColor;
@@ -39,8 +35,4 @@
   to {
     stroke-dashoffset: 0;
   }
-}
-
-.seams-fingerprint-icon:hover {
-  transform: rotate(180deg) scale(1.2);
 }

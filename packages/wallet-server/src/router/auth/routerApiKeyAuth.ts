@@ -41,31 +41,11 @@ export function extractRouterApiEnvironmentId(headers: HeaderBag): string | null
   return null;
 }
 
-export function resolveSourceIpFromExpressRequest(input: {
-  headers: Record<string, unknown>;
-  ip?: string | null;
-}): string | null {
-  const forwarded = readHeader(input.headers, 'x-forwarded-for');
-  const realIp = readHeader(input.headers, 'x-real-ip');
-  return normalizeSourceIp(forwarded || realIp || String(input.ip || ''));
-}
-
 export function resolveSourceIpFromFetchHeaders(headers: HeaderBag): string | null {
   const cfConnecting = readHeader(headers, 'cf-connecting-ip');
   const forwarded = readHeader(headers, 'x-forwarded-for');
   const realIp = readHeader(headers, 'x-real-ip');
   return normalizeSourceIp(cfConnecting || forwarded || realIp);
-}
-
-export function resolveRequestOriginRateLimitKeyFromExpressRequest(input: {
-  headers: Record<string, unknown>;
-  ip?: string | null;
-}): string {
-  const sourceIp = resolveSourceIpFromExpressRequest(input);
-  if (sourceIp) return `ip:${sourceIp}`;
-  const origin = readHeader(input.headers, 'origin');
-  if (origin) return `origin:${origin}`;
-  return 'origin:unknown-express';
 }
 
 export function resolveRequestOriginRateLimitKeyFromFetchHeaders(headers: HeaderBag): string {

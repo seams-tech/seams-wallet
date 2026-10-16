@@ -55,7 +55,11 @@
 :where(.seams-auth-menu-surface) .seams-signup-menu-root {
   /* CSS sentinel (used by tests/diagnostics to confirm stylesheet is applied) */
   --seams-auth-menu-css-ready: 1;
-  --seams-auth-menu-padding-top: calc(var(--seams-spacing-lg) + 4px);
+  /* The origin row opens every view, so the card's top padding stays tight
+     around it and never changes between views. */
+  --seams-auth-menu-padding-top: 1.125rem;
+  /* The origin row's line plus its gap to the view below. */
+  --seams-menu-origin-block-size: 1.875rem;
   --seams-auth-menu-padding-inline: var(--seams-spacing-lg);
   position: relative;
   box-sizing: border-box;
@@ -97,7 +101,8 @@
 /* Back button */
 :where(.seams-auth-menu-surface) .seams-back-button {
   position: absolute;
-  top: 1rem;
+  /* Below the origin row, level with the first line of the view. */
+  top: calc(var(--seams-auth-menu-padding-top) + var(--seams-menu-origin-block-size) - 0.75rem);
   left: 1rem;
   width: 40px;
   height: 40px;
@@ -273,10 +278,6 @@
   width: 100%;
 }
 
-:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-signin-menu {
-  padding-block-start: calc(var(--seams-spacing-md) + 0rem);
-}
-
 :where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-title,
 :where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-subhead {
   text-align: center;
@@ -286,8 +287,9 @@
   justify-content: center;
 }
 
-:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-back-button {
-  top: calc(var(--seams-auth-menu-padding-top) + var(--seams-spacing-md));
+/* The title sits on the same line as the main view's, so a switch only swaps it. */
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-title {
+  margin-top: 0;
 }
 
 :where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-header > div {
@@ -1206,7 +1208,8 @@
   min-height: 260px;
   width: min(100%, 360px);
   margin-inline: auto;
-  padding: 1.5rem 0.5rem 0.5rem;
+  /* No top inset: the back button sits beside the title, under the origin row. */
+  padding: 0 0.5rem 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1629,39 +1632,53 @@
   margin: 0 0 6px;
 }
 
-:where(.seams-auth-menu-surface) .seams-recovery-input {
-  box-sizing: border-box;
-  inline-size: 100%;
-  min-block-size: 44px;
-  padding: 10px 12px;
+:where(.seams-auth-menu-surface) .seams-recovery-code-slots {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  padding: 2px;
   border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: var(--seams-shape-control, 10px);
-  outline: none;
-  background: var(--seams-colors-surface);
-  color: var(--seams-colors-textPrimary);
-  font: inherit;
-  font-size: 16px;
+  border-radius: 6px;
+  background: var(--seams-colors-surface2);
 }
 
-:where(.seams-auth-menu-surface) .seams-recovery-code-input {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+:where(.seams-auth-menu-surface) .seams-recovery-code-slots .seams-otp-slot {
+  aspect-ratio: auto;
+  min-height: 32px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: clamp(12px, 3.5vw, 16px);
+  font-weight: 500;
+  box-shadow: none;
 }
 
-:where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible {
-  border-color: var(--seams-colors-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+:where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within .seams-otp-slot {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-field:has(input:focus-visible) .seams-recovery-code-group {
+  background: color-mix(in srgb, var(--seams-colors-surface2), var(--seams-colors-textPrimary) 5%);
+}
+
+:where(.seams-auth-menu-surface)
+  .seams-recovery-code-field:has([aria-invalid='true'])
+  .seams-recovery-code-group {
+  border-color: var(--seams-colors-error);
 }
 
 @media (forced-colors: active) {
-  :where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible,
+  :where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within,
   :where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
   }
-}
-
-:where(.seams-auth-menu-surface) .seams-recovery-input[aria-invalid='true'] {
-  border-color: var(--seams-colors-error);
 }
 
 :where(.seams-auth-menu-surface) .seams-recovery-error,
@@ -1877,3 +1894,35 @@
 :where(.seams-auth-menu-surface) [data-dot-index="10"] { --dot-index: 10; }
 
 :where(.seams-auth-menu-surface) [data-dot-index="11"] { --dot-index: 11; }
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root:has(.seams-passkey-prompt) {
+  --seams-menu-min-block-size: 220px;
+}
+
+:where(.seams-auth-menu-surface) .seams-passkey-prompt {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 2px;
+  border: 1px solid color-mix(in srgb, var(--seams-colors-textPrimary) 8%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-textPrimary) 4%);
+  color: var(--seams-colors-textPrimary);
+}
+:where(.seams-auth-menu-surface) .seams-passkey-prompt svg {
+  width: 40px;
+  height: 40px;
+}
+:where(.seams-auth-menu-surface) .seams-passkey-prompt svg path {
+  stroke-width: 1.5;
+}
+:where(.seams-auth-menu-surface) .seams-passkey-instruction {
+  max-width: 240px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--seams-colors-textSecondary);
+  text-wrap: balance;
+}

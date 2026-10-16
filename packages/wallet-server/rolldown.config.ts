@@ -29,7 +29,6 @@ const external = [
   /^node:.*/,
   '@simplewebauthn/server',
   'bs58',
-  'express',
   /\.wasm$/,
 ];
 
@@ -77,19 +76,6 @@ export default [
       preserveModulesRoot: SERVER_SRC_ROOT_ABS,
       entryFileNames: preservedEntryFileNames,
       chunkFileNames: preservedEntryFileNames,
-      sourcemap: true,
-    },
-    external,
-    resolve: {
-      alias: aliasConfig,
-    },
-  },
-  {
-    input: 'src/router/express-adaptor.ts',
-    output: {
-      dir: 'dist/esm',
-      format: 'esm',
-      entryFileNames: 'router/express.js',
       sourcemap: true,
     },
     external,

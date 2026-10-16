@@ -603,8 +603,9 @@ pub struct CloudflareEd25519YaoPairExecuteRequestV1 {
     pub deadline_ms: u64,
 }
 
-/// What Deriver B's pair record holds after a preparation request: the
-/// preparation it stored, or the execution that already used it.
+/// Deriver B has queued the encrypted input, or execution already claimed it.
+/// Queued input can disappear when the wallet object restarts. An exact retry
+/// supplies it again. Running and completed execution claims are durable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CloudflareEd25519YaoPairPreparationV1 {

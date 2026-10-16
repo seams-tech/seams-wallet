@@ -1,12 +1,14 @@
 # R155J — Reduce registration outliers
 
-Status, October 14, 2026: **targeted fixes and bounded captures are complete;
-the original causes and final p99 acceptance remain open.**
+Status, October 15, 2026: **the tail target is not met on release 0.10.2.**
+The [acceptance population](evidence/refactor-155j-acceptance-0102.md) has 204
+attempts: p99 5,966 ms without the passkey step, 11 registrations above 4 s,
+and one failed attempt. Its slowest registrations and the failure are
+attributed; the failure path is fixed on `dev` in `bc2328c3` and `e311a6f6`.
 
-The last verified staging release is 0.10.1. The October 14 SDK/finalization
-candidate was measured temporarily, then all original Worker versions were restored.
-Do not confuse an implemented fix, a successful bounded check, a published release,
-and acceptance of the tail target.
+The last verified staging release is 0.10.2. Do not confuse an implemented
+fix, a successful bounded check, a published release, and acceptance of the
+tail target.
 
 This plan extends [R155H](refactor-155H.md). It owns outlier diagnosis, supported
 failure-path fixes, and combined tail acceptance. R155H owns routine registration
@@ -26,10 +28,20 @@ CPU/round-trip work, preparation at setup, its cost controls, and transient
 | Founding-read overlap | `f6422f37` committed; explicit-argument cleanup `f36b32a1` and focused checks pass | Hosted contribution is unmeasured; include it in the next accumulated candidate |
 | B binding-await delay | All three arms showed the asymmetry; an unchanged three-wallet control later ran in 12–21 ms | Separate database, transport, runtime, and clock effects if it recurs; no migration is justified now |
 | First-signature HTTP 503 | One diagnostic capture recorded it | Cause remains unresolved |
-| Final p99 acceptance | Several bounded populations have evidence | A matched, budgeted acceptance population is still missing; do not pool different builds to reach 500 |
+| Router object reply wait | One 12.2 s `finish_registration` reply on 0.10.2; our code and transport excluded ([record](evidence/refactor-155j-router-finish-hold-20261014.md)) | A platform wait; only Cloudflare can refine it. 1 of 1,779 Router calls on October 14 |
+| Execution before its preparation | The failed acceptance attempt: a 2.4 s Deriver A start, an inline preparation that lost `ConflictingPair` to the setup preparation, then 409 from a held Router claim | Fixed on `dev`: `bc2328c3` binds such an execution to its setup preparation; `e311a6f6` makes the SDK wait out the held claim. A temporary hook reproduced the race inside both Derivers on October 15: with `bc2328c3` the registration passes; without it the Deriver fails with the staging error and the registration fails about 11 s later, even with `e311a6f6` ([record](evidence/refactor-155j-followups-20261015.md)) |
+| Gateway steps before the Yao execution | Three of the eleven slowest registrations waited 1.2 to 1.7 s in respond with no timing for that stretch | `b948567b` reports setup, respond and Ed25519 signing steps in `Server-Timing`; the hosted test keeps the raw header. Read them in the next staging population |
+| Delay notice | The SDK sends one event when respond or finalize has not answered after 5 s; verified live in the SDK and in the hosted menu | `ce5729fb` drops the passkey prompt line from the menu's delay view. A mixed (ECDSA and NEAR) registration sends no delay event |
+| Slow Deriver A preparations | Control of 33 wallets on October 16, 00:30 JST: p95 8,099 ms after the passkey step (3,025 ms in the acceptance run); 9 of 33 Deriver A preparations over 3 s (0 of 204 before) with the same Deriver A version and a nearly idle database ([record](evidence/refactor-155j-followups-20261015.md)) | Time the database read inside the preparation with a clock that moves; repeat on a quiet and a slow evening |
+| First batch after idle | Idle series on October 15: first wallets 4.9 to 13.1 s without the passkey step, during the same slow condition; cold allocates are frequent but at most 232 ms of CPU | No cause of its own is shown yet; a warm-up does not address the Deriver A wait |
+| Evening serving outside Japan | 24-hour probe: our hostnames served from Portland or Seattle in 20 of 72 samples from 21:00 to 24:00 JST after a Tokyo ingress; Cloudflare's hosts never. Fits Traffic Manager's shedding of Free traffic | The zone plan is the owner's decision; a higher plan is untested |
+| Tail location | In every population the slowest 10% lose most time in respond (+334 to +1,242 ms over the median), then in finalize (+149 to +326 ms). Tonight Console writes took three times longer with unchanged work; a no-op schema statement costs no write confirmation (probe) | Reduce the writes in series after the passkey step. The Yao execution stays after the verified passkey proof: on October 16 the owner rejected running it before the proof, because that would defeat the proof |
+| Final p99 acceptance | [204 attempts on 0.10.2](evidence/refactor-155j-acceptance-0102.md): p99 5,966 ms, 5.4% above 4 s, 1 failure | Not met. First batches after idle hold 5 of the 11 slowest; a Gateway wait before the Yao execution holds 3 |
 
-The next diagnostic work is the unexplained startup/delivery/503 behavior, using
-matched boundaries and current serving versions. Apply a fix only when the evidence
+The next diagnostic work is the cold first batch after idle, the Gateway
+wait before the Yao execution (now timed by `b948567b`), and the unexplained
+startup/delivery/503 behavior, using matched boundaries and current serving
+versions. Apply a fix only when the evidence
 supports it. Keep accepted call reductions even when a small noisy comparison does
 not establish their individual saving. No production deployment is part of this plan.
 
@@ -125,6 +137,11 @@ handled command, with `prewarm: none`. The missing interval precedes handler ent
 - [ ] Capture the missing pre-handler boundary when the real slow startup recurs.
   Separate dispatch, handler entry, initialization/storage, and reply. Label any
   interval the available tools cannot observe instead of assigning it to transit.
+  Recurred on October 15 in the failed acceptance attempt: the Deriver A
+  Worker forwarded the wallet start at −2,941 ms, and the object's first event
+  began at −538 ms, as its first command after the constructor, with no CPU in
+  between. Handler entry and the commands are at +0 of that event. So the
+  2.4 s lies before the object's event; the tails cannot see inside it.
 - [ ] Explain the older 14.6-second B preparation failure after a version switch,
   if reproduced. The October 14 binding-await samples are a different observation.
 
@@ -240,29 +257,30 @@ Completed bounded verification is distinct from acceptance of the tail target:
 
 Remaining acceptance work:
 
-- [ ] Freeze the next accumulated candidate after its correctness checks. Include
-  accepted changes deliberately, including founding-read overlap, seal warm-up,
-  and transient `respond` retries if selected. These later changes were outside
-  the 42-wallet comparison. Record the exact release/source set and the available
-  full-suite result.
-- [ ] Coordinate the staging window and capture current versions, database bindings,
-  migrations, and activation state. Never restore the deleted Hong Kong databases
-  or the old write-fenced Console database.
-- [ ] Run at least 500 attempts across five or more time-separated groups if the
-  remaining $25 budget supports it. Use fresh wallets, the same Tokyo client,
-  origins, confirmation policy, and workload. Otherwise record the smaller
-  population and the resulting uncertainty explicitly.
-- [ ] Include first-use attempts in the primary population. Label separate warmed
-  cohorts and post-deployment runs. Retain every failed, cancelled, or incomplete
-  attempt and its retry time; do not silently replace it.
-- [ ] Report p50, p90, p95, interpolated p99, nearest-rank p99, maximums, failures,
-  and counts above four, five, and six seconds. Keep inclusive interaction timings
-  and individual group results. Use the existing `(n - 1) * p` interpolation.
-- [ ] Attribute the ten slowest attempts using matched request, object, CPU, storage,
-  and placement evidence. State missing boundaries. Verify every completed
-  signature, remove temporary diagnostics/probes, and verify the final serving state.
-- [ ] Compare against the stated targets and write the final acceptance decision.
-  A correct optimization or a fast three-wallet control does not establish p99.
+- [x] Freeze the next accumulated candidate after its correctness checks. Release
+  0.10.2 (`main` `70f5674f`) carries founding-read overlap, seal warm-up and the
+  `respond` retries; its suite result is in the
+  [release review](refactor-155-release-review.md).
+- [x] Coordinate the staging window and capture current versions, database bindings,
+  migrations, and activation state. The run compared all 14 serving versions with
+  a frozen snapshot before each group. Another session deployed a staging Console
+  build at 07:05 JST on October 15, so group 3 was skipped.
+- [x] Run at least 500 attempts across five or more time-separated groups if the
+  remaining $25 budget supports it. Two groups of 102 ran at 00:00 and 01:30 JST.
+  The user stopped the run after the target was already missed; at 204 attempts,
+  p99 rests on about two observations.
+- [x] Include first-use attempts in the primary population. The first batch of
+  each group is included and also reported on its own; it holds 5 of the 11
+  slowest registrations.
+- [x] Report p50, p90, p95, interpolated p99, nearest-rank p99, maximums, failures,
+  and counts above four, five, and six seconds. See the
+  [acceptance record](evidence/refactor-155j-acceptance-0102.md).
+- [x] Attribute the ten slowest attempts using matched request, object, CPU, storage,
+  and placement evidence. Eleven registrations above 4 s and the one failure are
+  attributed; two `respond` events were missing from the tail. All 203 completed
+  signatures verify. No diagnostic ran on staging.
+- [x] Compare against the stated targets and write the final acceptance decision.
+  **Not met** on 0.10.2: p99 5,966 ms and 5.4% above 4 s, against 4 s and 1%.
 
 Check expected cost before the run and impose a fixed attempt cap. Do not run an
 unbounded benchmark to improve confidence. Implement accepted improvements together
