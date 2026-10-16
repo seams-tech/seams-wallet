@@ -44,6 +44,94 @@ def refill_job(request, path):
         return None
 
 
+def public_counter(value):
+    return type(value) is int and 0 <= value <= 2**64 - 1
+
+
+def public_time(value):
+    return value is None or public_counter(value)
+
+
+def public_object_list(value, maximum):
+    return isinstance(value, list) and len(value) <= maximum and all(isinstance(item, dict) for item in value)
+
+
+def public_signing_trace(value, timestamp=None):
+    if not isinstance(value, dict) or not public_time(timestamp):
+        return None
+    required = ["operation", "role", "module_instance", "signing_call", "schedule_cache_hit", "completed", "transport"]
+    if any(key not in value for key in required):
+        return None
+    operation = value.get("operation")
+    if "module_instance" not in value or not public_time(timestamp):
+        return None
+    identity = value["module_instance"]
+    if not isinstance(operation, str) or not re.fullmatch("[0-9a-f]{64}", operation):
+        return None
+    if identity is not None and (not isinstance(identity, str) or not re.fullmatch("[0-9a-f]{32}", identity)):
+        return None
+    if value.get("role") not in ("a", "b") or not public_counter(value.get("signing_call")):
+        return None
+    if type(value.get("schedule_cache_hit")) is not bool or type(value.get("completed")) is not bool:
+        return None
+    trace = {key: value[key] for key in ["operation", "role", "module_instance", "signing_call", "schedule_cache_hit", "completed"]}
+    trace["log_timestamp_ms"] = timestamp
+    milestones = value.get("milestones")
+    if not public_object_list(milestones, 256):
+        return None
+    trace["milestones"] = []
+    for item in milestones:
+        if item.get("name") not in ("started", "permit_checked", "material_loaded", "material_opened", "schedules_loaded", "protocol_completed", "completed") or not public_time(item.get("at_ms")):
+            return None
+        trace["milestones"].append({key: item.get(key) for key in ["name", "at_ms"]})
+    batches = value.get("batches")
+    if not public_object_list(batches, 256):
+        return None
+    trace["batches"] = []
+    for item in batches:
+        stage = item.get("value")
+        if not isinstance(stage, dict) or not public_time(item.get("at_ms")):
+            return None
+        name = stage.get("stage")
+        if name not in ("bound", "taking", "taken", "restored", "activated", "checked"):
+            return None
+        public = {"stage": name}
+        keys = [] if name == "bound" else ["batch"]
+        if name == "restored":
+            keys += ["topology_builds", "topology_hits"]
+        for key in keys:
+            if not public_counter(stage.get(key)):
+                return None
+            public[key] = stage[key]
+        trace["batches"].append({"at_ms": item.get("at_ms"), "value": public})
+    transport = value.get("transport")
+    if transport is None:
+        trace["transport"] = None
+        return trace
+    if not isinstance(transport, dict):
+        return None
+    public = {}
+    for key in ["sent_bytes", "received_bytes", "acknowledgments_sent", "acknowledgments_received", "ready_events", "pending_events", "pending_event_boundary_ms", "maximum_event_boundary_ms"]:
+        if not public_counter(transport.get(key)):
+            return None
+        public[key] = transport[key]
+    phases = transport.get("phases")
+    if not public_object_list(phases, 2048):
+        return None
+    public["phases"] = []
+    for item in phases:
+        if not public_time(item.get("at_ms")):
+            return None
+        phase = {"at_ms": item.get("at_ms")}
+        for key in ["phase", "sent_frames", "received_frames"]:
+            if not public_counter(item.get(key)):
+                return None
+            phase[key] = item[key]
+        public["phases"].append(phase)
+    trace["transport"] = public
+    return trace
+
+
 def records(path, role):
     source = path.read_text()
     decoder = json.JSONDecoder()
@@ -70,6 +158,7 @@ def records(path, role):
         registration = []
         registration_preparation = []
         signing = []
+        signing_traces = []
         socket_completion = []
         peer_close = []
         refill = []
@@ -82,6 +171,10 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                if value.get("event") == "ml_dsa_signing_trace_v1":
+                    public_trace = public_signing_trace(value, log.get("timestamp"))
+                    if public_trace is not None:
+                        signing_traces.append(public_trace)
                 if value.get("event") == "ml_dsa_inventory_v1":
                     public_inventory = {key: value[key] for key in [
                         "key", "epoch", "ready_a", "ready_b", "reserved_a", "reserved_b",
@@ -153,6 +246,7 @@ def records(path, role):
             "registration": registration,
             "registration_preparation": registration_preparation,
             "signing": signing,
+            "signing_traces": signing_traces,
             "socket_completion": socket_completion,
             "peer_close": peer_close,
             "refill": refill,

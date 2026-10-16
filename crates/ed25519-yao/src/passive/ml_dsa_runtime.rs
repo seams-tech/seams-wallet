@@ -310,6 +310,7 @@ impl<'a> TrustedMlDsaSchedule<'a> {
     pub const fn schedule_bytes(&self) -> usize {
         self.bytes.len()
     }
+    #[inline(always)]
     fn gate(&self, index: usize) -> Gate {
         let start = SCHEDULE_HEADER_BYTES + index * (1 + self.width * 3);
         let record = &self.bytes[start..start + 1 + self.width * 3];

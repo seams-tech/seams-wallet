@@ -20,20 +20,37 @@ struct Group<'a> {
 #[derive(Default)]
 pub struct PublicTopologies {
     entries: Vec<([u8; 32], Rc<Topology>)>,
+    builds: usize,
+    hits: usize,
 }
 
 impl PublicTopologies {
+    /// Shares only immutable public layouts; measurement counts start at zero.
+    pub fn fork(&self) -> Self {
+        Self {
+            entries: self.entries.clone(),
+            builds: 0,
+            hits: 0,
+        }
+    }
     fn get(&mut self, schedule: &TrustedMlDsaSchedule<'_>) -> Rc<Topology> {
         if let Some((_, topology)) = self
             .entries
             .iter()
             .find(|(digest, _)| *digest == schedule.digest)
         {
+            self.hits += 1;
             return Rc::clone(topology);
         }
+        self.builds += 1;
         let topology = Rc::new(Topology::compile(schedule));
         self.entries.push((schedule.digest, Rc::clone(&topology)));
         topology
+    }
+
+    /// Public layout construction and reuse counts for this cache handle.
+    pub fn cache_statistics(&self) -> (usize, usize) {
+        (self.builds, self.hits)
     }
 
     /// Distinct public allocations; private correlations are excluded.
@@ -279,15 +296,26 @@ impl PreparedGmwBatch<'_> {
 fn empty_values(group: &Group<'_>) -> Zeroizing<Vec<u32>> {
     Zeroizing::new(vec![0; group.topology.wires * group.words])
 }
+#[inline(always)]
 fn word_bytes(group: &Group<'_>, word: usize) -> usize {
     (group.lanes - word * 32).min(32).div_ceil(8)
 }
+#[inline(always)]
 fn read_word(bytes: &[u8]) -> u32 {
-    let mut word = [0; 4];
-    word[..bytes.len()].copy_from_slice(bytes);
-    u32::from_le_bytes(word)
+    // Width is a public lane count. Direct loads avoid a temporary copy.
+    match bytes {
+        [] => 0,
+        [a] => u32::from(*a),
+        [a, b] => u32::from(*a) | (u32::from(*b) << 8),
+        [a, b, c] => u32::from(*a) | (u32::from(*b) << 8) | (u32::from(*c) << 16),
+        [a, b, c, d] => {
+            u32::from(*a) | (u32::from(*b) << 8) | (u32::from(*c) << 16) | (u32::from(*d) << 24)
+        }
+        _ => unreachable!("Packed GMW word exceeds four bytes"),
+    }
 }
 
+#[inline(always)]
 fn correlation_word(bytes: &[u8], group: &Group<'_>, gate: usize, word: usize) -> u32 {
     let start = gate * group.lanes.div_ceil(8) + word * 4;
     read_word(&bytes[start..start + word_bytes(group, word)])

@@ -76,7 +76,7 @@ pub async fn refill_status(
         Some(value) if value.key == *key && value.due => Ok(RefillStatus::Requested {
             key: value.key,
             target: value.target,
-            retry_at_ms: value.retry_at_ms,
+            retry_at_ms: value.retry_at_ms.max(now_ms.saturating_add(1_000)),
         }),
         Some(value) if value.key == *key => Ok(RefillStatus::Sufficient),
         _ => Ok(RefillStatus::Requested {
@@ -240,7 +240,8 @@ pub async fn inventory(
     let mut ready = Vec::new();
     let mut reserved = Vec::new();
     let mut retained = Vec::new();
-    for id in index(store).await? {
+    let original = index(store).await?;
+    for &id in &original {
         let mut record = store
             .get::<Record>(&batch_name(&id))
             .await?
@@ -266,25 +267,35 @@ pub async fn inventory(
         }
         retained.push(id);
     }
-    store.put("index", &retained).await?;
+    if retained != original {
+        store.put("index", &retained).await?;
+    }
     let refill_due = ready.len() + reserved.len() < target;
     let refill_key = format!("refill/{}", key_name(&key.key_id)?);
     let previous = store.get::<Refill>(&refill_key).await?;
-    let retry_at_ms = previous
-        .map(|value| value.retry_at_ms)
-        .unwrap_or(now_ms.saturating_add(1_000))
-        .max(now_ms.saturating_add(1_000));
-    store
-        .put(
-            &refill_key,
-            &Refill {
-                key: key.clone(),
-                target,
-                due: refill_due,
-                retry_at_ms,
-            },
-        )
-        .await?;
+    let retry_at_ms = match &previous {
+        Some(value) => value.retry_at_ms,
+        None => now_ms.saturating_add(1_000),
+    }
+    .max(now_ms.saturating_add(1_000));
+    let changed = match &previous {
+        Some(value) => value.key != *key || value.target != target || value.due != refill_due,
+        None => true,
+    };
+    // Query time is clamped in the response. Persist only a lifecycle change.
+    if changed {
+        store
+            .put(
+                &refill_key,
+                &Refill {
+                    key: key.clone(),
+                    target,
+                    due: refill_due,
+                    retry_at_ms,
+                },
+            )
+            .await?;
+    }
     Ok(Inventory {
         ready,
         reserved,

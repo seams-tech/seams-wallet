@@ -10,6 +10,27 @@ const WINDOW: u32 = 8;
 const MAX_BYTES: usize = ed25519_yao::ml_dsa_runtime::MAX_MESSAGE_BYTES;
 const PREPARATION_BOUNDARIES: u8 = 8;
 
+#[derive(Clone, Default, serde::Serialize)]
+pub(super) struct Metrics {
+    sent_bytes: usize,
+    received_bytes: usize,
+    acknowledgments_sent: usize,
+    acknowledgments_received: usize,
+    ready_events: usize,
+    pending_events: usize,
+    // Hosted clocks advance at I/O. These intervals include preceding CPU work.
+    pending_event_boundary_ms: u64,
+    maximum_event_boundary_ms: u64,
+    phases: Vec<PhaseBoundary>,
+}
+#[derive(Clone, serde::Serialize)]
+struct PhaseBoundary {
+    phase: usize,
+    at_ms: Option<u64>,
+    sent_frames: u32,
+    received_frames: u32,
+}
+
 enum Scheduling {
     Online,
     Preparation { remaining: u8 },
@@ -22,8 +43,10 @@ pub(super) struct Duplex<'a> {
     sent: u32,
     acknowledged: u32,
     received: u32,
+    acknowledged_to_peer: u32,
     pending: VecDeque<Vec<u8>>,
     scheduling: Scheduling,
+    metrics: Metrics,
 }
 impl<'a> Duplex<'a> {
     pub(super) fn new(socket: &'a WebSocket, deadline: u64) -> worker::Result<Self> {
@@ -55,9 +78,14 @@ impl<'a> Duplex<'a> {
             sent: 0,
             acknowledged: 0,
             received: 0,
+            acknowledged_to_peer: 0,
             pending: VecDeque::new(),
             scheduling,
+            metrics: Metrics::default(),
         })
+    }
+    pub(super) fn metrics(&self) -> Metrics {
+        self.metrics.clone()
     }
     async fn cooperate(&mut self) -> core::result::Result<(), RuntimeError> {
         let yield_now = match &mut self.scheduling {
@@ -100,14 +128,17 @@ impl<'a> Duplex<'a> {
             .sent
             .checked_add(1)
             .ok_or(RuntimeError::MessageLength)?;
-        let mut frame = Vec::with_capacity(bytes.len() + 5);
+        let mut frame = Vec::with_capacity(bytes.len() + 9);
         frame.push(0);
         frame.extend_from_slice(&self.sent.to_le_bytes());
+        frame.extend_from_slice(&self.received.to_le_bytes());
         frame.extend_from_slice(bytes);
         self.socket
             .send_with_bytes(frame)
             .map_err(transport_error)?;
         self.sent = next;
+        self.acknowledged_to_peer = self.received;
+        self.metrics.sent_bytes += bytes.len();
         Ok(())
     }
     pub(super) async fn receive(
@@ -131,6 +162,7 @@ impl<'a> Duplex<'a> {
     }
     /// Wait for delivery acknowledgments before the server closes its socket.
     pub(super) async fn flush(&mut self) -> core::result::Result<(), RuntimeError> {
+        self.send_ack()?;
         while self.acknowledged < self.sent {
             self.poll().await?;
         }
@@ -140,6 +172,7 @@ impl<'a> Duplex<'a> {
         Ok(())
     }
     pub(super) async fn peer_closed(&mut self) -> core::result::Result<bool, RuntimeError> {
+        self.send_ack()?;
         if self.acknowledged != self.sent || !self.pending.is_empty() {
             return Err(RuntimeError::SessionBinding);
         }
@@ -149,46 +182,81 @@ impl<'a> Duplex<'a> {
         }
     }
     async fn event(&mut self) -> core::result::Result<WebsocketEvent, RuntimeError> {
+        let started = crate::cloudflare_now_unix_ms_v1().map_err(transport_error)?;
         let delay = worker::Delay::from(Duration::from_millis(self.remaining()?));
         let event = self.events.next();
         futures::pin_mut!(delay, event);
-        match select(event, delay).await {
+        if let core::task::Poll::Ready(event) = futures::poll!(event.as_mut()) {
+            self.metrics.ready_events += 1;
+            return event
+                .ok_or(RuntimeError::MessageLength)?
+                .map_err(transport_error);
+        }
+        self.metrics.pending_events += 1;
+        let result = match select(event, delay).await {
             Either::Left((event, _)) => event
                 .ok_or(RuntimeError::MessageLength)?
                 .map_err(transport_error),
             Either::Right(_) => Err(RuntimeError::SessionBinding),
-        }
+        };
+        let elapsed = crate::cloudflare_now_unix_ms_v1()
+            .map_err(transport_error)?
+            .saturating_sub(started);
+        self.metrics.pending_event_boundary_ms += elapsed;
+        self.metrics.maximum_event_boundary_ms =
+            self.metrics.maximum_event_boundary_ms.max(elapsed);
+        result
     }
     async fn poll(&mut self) -> core::result::Result<(), RuntimeError> {
         let WebsocketEvent::Message(message) = self.event().await? else {
             return Err(RuntimeError::MessageLength);
         };
         let bytes = message.bytes().ok_or(RuntimeError::MessageLength)?;
-        if bytes.len() < 5 || bytes.len() > MAX_BYTES + 5 {
+        if bytes.len() < 5 || bytes.len() > MAX_BYTES + 9 {
             return Err(RuntimeError::MessageLength);
         }
         let sequence = u32::from_le_bytes(bytes[1..5].try_into().map_err(transport_error)?);
         match bytes[0] {
-            0 if sequence == self.received && self.pending.len() < WINDOW as usize => {
+            0 if bytes.len() >= 9
+                && sequence == self.received
+                && self.pending.len() < WINDOW as usize =>
+            {
+                let acknowledgment =
+                    u32::from_le_bytes(bytes[5..9].try_into().map_err(transport_error)?);
+                if acknowledgment < self.acknowledged || acknowledgment > self.sent {
+                    return Err(RuntimeError::SessionBinding);
+                }
+                self.acknowledged = acknowledgment;
                 self.received = self
                     .received
                     .checked_add(1)
                     .ok_or(RuntimeError::MessageLength)?;
-                self.pending.push_back(bytes[5..].to_vec());
-                let mut ack = vec![1];
-                ack.extend_from_slice(&self.received.to_le_bytes());
-                self.socket.send_with_bytes(ack).map_err(transport_error)
+                self.pending.push_back(bytes[9..].to_vec());
+                self.metrics.received_bytes += bytes.len() - 9;
+                // One-way streams receive bounded credits; alternating exchanges
+                // carry their cumulative acknowledgments in the next data frame.
+                if self.received - self.acknowledged_to_peer >= WINDOW / 2 {
+                    self.send_ack()?;
+                }
+                Ok(())
             }
-            1 if bytes.len() == 5
-                && sequence > self.acknowledged
-                && sequence - self.acknowledged == 1
-                && sequence <= self.sent =>
-            {
+            1 if bytes.len() == 5 && sequence > self.acknowledged && sequence <= self.sent => {
                 self.acknowledged = sequence;
+                self.metrics.acknowledgments_received += 1;
                 Ok(())
             }
             _ => Err(RuntimeError::SessionBinding),
         }
+    }
+    fn send_ack(&mut self) -> core::result::Result<(), RuntimeError> {
+        if self.acknowledged_to_peer < self.received {
+            let mut ack = vec![1];
+            ack.extend_from_slice(&self.received.to_le_bytes());
+            self.socket.send_with_bytes(ack).map_err(transport_error)?;
+            self.acknowledged_to_peer = self.received;
+            self.metrics.acknowledgments_sent += 1;
+        }
+        Ok(())
     }
 }
 fn transport_error(_: impl core::fmt::Display) -> RuntimeError {
@@ -226,5 +294,14 @@ impl boolean::Transport for Duplex<'_> {
     async fn receive(&mut self, length: usize) -> core::result::Result<Vec<u8>, RuntimeError> {
         self.receive(length).await
     }
-    fn phase(&mut self, _: boolean::Phase) {}
+    fn phase(&mut self, phase: boolean::Phase) {
+        if matches!(self.scheduling, Scheduling::Online) {
+            self.metrics.phases.push(PhaseBoundary {
+                phase: phase.index(),
+                at_ms: crate::cloudflare_now_unix_ms_v1().ok(),
+                sent_frames: self.sent,
+                received_frames: self.received,
+            });
+        }
+    }
 }
