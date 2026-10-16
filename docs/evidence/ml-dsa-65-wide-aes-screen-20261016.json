@@ -1,0 +1,383 @@
+{
+  "scope": "Isolated Node Wasm SIMD. Full-byte RustCrypto AES 0.9.1 comparison for 256 keys and 256 blocks per key in each of baseline scalar, production wide, and production scalar. Production CorrelationAes lengths 0..33 also checked for each key, including unchanged suffix. Timing uses repeated encryption, with checksum outside the loop. No complete Worker speed claim.",
+  "passed": true,
+  "node": "v26.4.0",
+  "wasmSha256": "fb3b9457ab86060eee8cb5082fa6cdecbe5b44e23c0b252fa065224ecbee09e6",
+  "samples": [
+    {
+      "mode": 0,
+      "repetition": 0,
+      "elapsedMs": 9.539917000000003,
+      "checksum": -493705765
+    },
+    {
+      "mode": 1,
+      "repetition": 0,
+      "elapsedMs": 7.77716700000002,
+      "checksum": -493705765
+    },
+    {
+      "mode": 2,
+      "repetition": 0,
+      "elapsedMs": 9.598833000000013,
+      "checksum": -493705765
+    },
+    {
+      "mode": 2,
+      "repetition": 1,
+      "elapsedMs": 9.573999999999955,
+      "checksum": 10670042
+    },
+    {
+      "mode": 1,
+      "repetition": 1,
+      "elapsedMs": 7.954666999999972,
+      "checksum": 10670042
+    },
+    {
+      "mode": 0,
+      "repetition": 1,
+      "elapsedMs": 9.464583000000005,
+      "checksum": 10670042
+    },
+    {
+      "mode": 0,
+      "repetition": 2,
+      "elapsedMs": 9.53533299999998,
+      "checksum": -556181299
+    },
+    {
+      "mode": 1,
+      "repetition": 2,
+      "elapsedMs": 7.821875000000034,
+      "checksum": -556181299
+    },
+    {
+      "mode": 2,
+      "repetition": 2,
+      "elapsedMs": 9.542750000000012,
+      "checksum": -556181299
+    },
+    {
+      "mode": 2,
+      "repetition": 3,
+      "elapsedMs": 9.532750000000021,
+      "checksum": 2086856345
+    },
+    {
+      "mode": 1,
+      "repetition": 3,
+      "elapsedMs": 7.907708000000014,
+      "checksum": 2086856345
+    },
+    {
+      "mode": 0,
+      "repetition": 3,
+      "elapsedMs": 9.460124999999948,
+      "checksum": 2086856345
+    },
+    {
+      "mode": 0,
+      "repetition": 4,
+      "elapsedMs": 9.537750000000017,
+      "checksum": 2093326402
+    },
+    {
+      "mode": 1,
+      "repetition": 4,
+      "elapsedMs": 7.911999999999978,
+      "checksum": 2093326402
+    },
+    {
+      "mode": 2,
+      "repetition": 4,
+      "elapsedMs": 9.606999999999971,
+      "checksum": 2093326402
+    },
+    {
+      "mode": 2,
+      "repetition": 5,
+      "elapsedMs": 9.57770800000003,
+      "checksum": 189583830
+    },
+    {
+      "mode": 1,
+      "repetition": 5,
+      "elapsedMs": 7.867875000000026,
+      "checksum": 189583830
+    },
+    {
+      "mode": 0,
+      "repetition": 5,
+      "elapsedMs": 9.483125000000086,
+      "checksum": 189583830
+    },
+    {
+      "mode": 0,
+      "repetition": 6,
+      "elapsedMs": 9.539541999999983,
+      "checksum": -1806949969
+    },
+    {
+      "mode": 1,
+      "repetition": 6,
+      "elapsedMs": 7.945165999999972,
+      "checksum": -1806949969
+    },
+    {
+      "mode": 2,
+      "repetition": 6,
+      "elapsedMs": 9.619584000000032,
+      "checksum": -1806949969
+    },
+    {
+      "mode": 2,
+      "repetition": 7,
+      "elapsedMs": 9.470500000000015,
+      "checksum": 276664621
+    },
+    {
+      "mode": 1,
+      "repetition": 7,
+      "elapsedMs": 7.866083000000003,
+      "checksum": 276664621
+    },
+    {
+      "mode": 0,
+      "repetition": 7,
+      "elapsedMs": 9.527082999999948,
+      "checksum": 276664621
+    },
+    {
+      "mode": 0,
+      "repetition": 8,
+      "elapsedMs": 9.523042000000032,
+      "checksum": -160517145
+    },
+    {
+      "mode": 1,
+      "repetition": 8,
+      "elapsedMs": 7.865583000000015,
+      "checksum": -160517145
+    },
+    {
+      "mode": 2,
+      "repetition": 8,
+      "elapsedMs": 9.63366700000006,
+      "checksum": -160517145
+    },
+    {
+      "mode": 2,
+      "repetition": 9,
+      "elapsedMs": 9.691708000000062,
+      "checksum": -1301277342
+    },
+    {
+      "mode": 1,
+      "repetition": 9,
+      "elapsedMs": 7.8927079999999705,
+      "checksum": -1301277342
+    },
+    {
+      "mode": 0,
+      "repetition": 9,
+      "elapsedMs": 9.557000000000016,
+      "checksum": -1301277342
+    },
+    {
+      "mode": 0,
+      "repetition": 10,
+      "elapsedMs": 9.557958999999983,
+      "checksum": 1454800122
+    },
+    {
+      "mode": 1,
+      "repetition": 10,
+      "elapsedMs": 7.924582999999984,
+      "checksum": 1454800122
+    },
+    {
+      "mode": 2,
+      "repetition": 10,
+      "elapsedMs": 9.585958000000005,
+      "checksum": 1454800122
+    },
+    {
+      "mode": 2,
+      "repetition": 11,
+      "elapsedMs": 9.639916999999969,
+      "checksum": -1956007493
+    },
+    {
+      "mode": 1,
+      "repetition": 11,
+      "elapsedMs": 7.968958000000043,
+      "checksum": -1956007493
+    },
+    {
+      "mode": 0,
+      "repetition": 11,
+      "elapsedMs": 9.48112500000002,
+      "checksum": -1956007493
+    },
+    {
+      "mode": 0,
+      "repetition": 12,
+      "elapsedMs": 9.452625000000012,
+      "checksum": -60073605
+    },
+    {
+      "mode": 1,
+      "repetition": 12,
+      "elapsedMs": 7.926833999999985,
+      "checksum": -60073605
+    },
+    {
+      "mode": 2,
+      "repetition": 12,
+      "elapsedMs": 9.610000000000014,
+      "checksum": -60073605
+    },
+    {
+      "mode": 2,
+      "repetition": 13,
+      "elapsedMs": 9.567458999999985,
+      "checksum": 2138396587
+    },
+    {
+      "mode": 1,
+      "repetition": 13,
+      "elapsedMs": 7.888790999999969,
+      "checksum": 2138396587
+    },
+    {
+      "mode": 0,
+      "repetition": 13,
+      "elapsedMs": 9.492541999999958,
+      "checksum": 2138396587
+    },
+    {
+      "mode": 0,
+      "repetition": 14,
+      "elapsedMs": 9.5122080000001,
+      "checksum": 1598189676
+    },
+    {
+      "mode": 1,
+      "repetition": 14,
+      "elapsedMs": 7.881209000000013,
+      "checksum": 1598189676
+    },
+    {
+      "mode": 2,
+      "repetition": 14,
+      "elapsedMs": 9.595416999999998,
+      "checksum": 1598189676
+    },
+    {
+      "mode": 2,
+      "repetition": 15,
+      "elapsedMs": 9.590708000000063,
+      "checksum": -1554491232
+    },
+    {
+      "mode": 1,
+      "repetition": 15,
+      "elapsedMs": 8.036291000000006,
+      "checksum": -1554491232
+    },
+    {
+      "mode": 0,
+      "repetition": 15,
+      "elapsedMs": 9.564250000000015,
+      "checksum": -1554491232
+    },
+    {
+      "mode": 0,
+      "repetition": 16,
+      "elapsedMs": 9.513458000000014,
+      "checksum": 154691273
+    },
+    {
+      "mode": 1,
+      "repetition": 16,
+      "elapsedMs": 7.956624999999917,
+      "checksum": 154691273
+    },
+    {
+      "mode": 2,
+      "repetition": 16,
+      "elapsedMs": 9.64666699999998,
+      "checksum": 154691273
+    },
+    {
+      "mode": 2,
+      "repetition": 17,
+      "elapsedMs": 9.656000000000063,
+      "checksum": 1228733118
+    },
+    {
+      "mode": 1,
+      "repetition": 17,
+      "elapsedMs": 7.952541999999994,
+      "checksum": 1228733118
+    },
+    {
+      "mode": 0,
+      "repetition": 17,
+      "elapsedMs": 9.575874999999996,
+      "checksum": 1228733118
+    },
+    {
+      "mode": 0,
+      "repetition": 18,
+      "elapsedMs": 9.525750000000016,
+      "checksum": 1881331151
+    },
+    {
+      "mode": 1,
+      "repetition": 18,
+      "elapsedMs": 8.00629200000003,
+      "checksum": 1881331151
+    },
+    {
+      "mode": 2,
+      "repetition": 18,
+      "elapsedMs": 9.692666000000031,
+      "checksum": 1881331151
+    },
+    {
+      "mode": 2,
+      "repetition": 19,
+      "elapsedMs": 9.612375000000043,
+      "checksum": -806557191
+    },
+    {
+      "mode": 1,
+      "repetition": 19,
+      "elapsedMs": 7.942875000000072,
+      "checksum": -806557191
+    },
+    {
+      "mode": 0,
+      "repetition": 19,
+      "elapsedMs": 9.604125000000067,
+      "checksum": -806557191
+    }
+  ],
+  "medians": [
+    9.526416499999982,
+    7.918291499999981,
+    9.602916499999992
+  ],
+  "production_source_sha256": {
+    "crates/ed25519-yao/src/passive/gate_aes.rs": "a574e88b88e4fe7774cd9fdd23540480e261228db2f61a8dafbe33fad122b606",
+    "crates/ed25519-yao/src/passive/gate_aes/eight.rs": "a8c60f5ba6de4bb1b04ee8453e550c44bf28f3bf8e791bd30fdce63fc17002c2",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs": "91321c80ccc05539200176db1f378d9a5097d375dfc89b37f5473bd6f5c87b35"
+  },
+  "harness_source_sha256": "d894a376890befa34d48a7d722982685618bfeee52eae8512699f2a0ae839348",
+  "manifest_sha256": "f05c60e49a9dd6164514d992b458cd002e6e5af9116b084ff33cb3f756611adb",
+  "lock_sha256": "7bc4a880bac4175ffe12febba0ff148f9be0b18897dac5d9227a2ffdc06ffed7",
+  "baseline_revision": "317aca2b21387b513decef1ffd9183224aff5c74",
+  "script_sha256": "2ec19c9e57a43820db5167b3beec7c99f81849856363082f86a0d52d4d9c3b6c"
+}

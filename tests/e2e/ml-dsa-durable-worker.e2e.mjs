@@ -21,8 +21,9 @@ const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.js
 const root = resolve(import.meta.dirname, '../..');
 const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
 const options = new Set(process.argv.slice(4));
-for (const option of options) assert.ok(['--profile-preparation', '--passive-preparation-observer'].includes(option), 'Unknown measurement option');
+for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--passive-preparation-observer'].includes(option), 'Unknown measurement option');
 const profilePreparation = options.has('--profile-preparation');
+const profileSigning = options.has('--profile-signing');
 const passivePreparationObserver = options.has('--passive-preparation-observer');
 const authHeader = 'x-router-ab-internal-service-auth';
 const serviceAuth = randomBytes(32).toString('hex');
@@ -55,6 +56,8 @@ const observations = {
   scope: 'Local workerd, real strict Worker bundles, synthetic canonical wallet key, typed Gateway owner admission, and durable signing. Verified factor inputs, claimed-operation persistence, and custody activation are injected. HTTP login, public session routes, and hosted latency remain outside this test.',
   policy,
   profilePreparation,
+  profileSigning,
+  signingProfiles: [],
   passivePreparationObserver,
   initialReserveMilestones: [],
   preparationReads: [],
@@ -103,11 +106,13 @@ let lastSuccessful;
 let profileConnections = [];
 let initialRefillStarted;
 try {
-  runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence, ...(profilePreparation ? { inspectorPort: 0 } : {}) });
+  runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence, ...(profilePreparation || profileSigning ? { inspectorPort: 0 } : {}) });
   await runtime.ready;
   observations.idleTimerMs = await timerControl();
-  if (profilePreparation) {
+  if (profilePreparation || profileSigning) {
     observations.profilerCalibration = await calibrateCpuProfiler(`${artifact}-profiler`);
+  }
+  if (profilePreparation) {
     profileConnections = await startProfiles(runtime, participantTarget, 1000);
   }
   const denied = await raw('router', '/router-ab/ml-dsa/activate', records[0].activation, serviceAuth);
@@ -145,12 +150,22 @@ try {
     const prepared = owner.admitted.operation;
     const input = JSON.parse(prepared.encode());
     const initialStarts = await preprocessingStarts();
+    if (profileSigning) profileConnections = await startProfiles(runtime, signingTarget, 1000);
     const started = performance.now();
     const router = await runtime.getWorker('router');
     const response = await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared);
     assert.equal(response.status, 200, await response.clone().text());
     const result = await response.json();
     const elapsedMs = performance.now() - started;
+    if (profileSigning) {
+      observations.signingProfiles.push({
+        index,
+        elapsedMs,
+        scope: 'Local workerd online A/B sampling for one HTTP signing request. Includes storage, protocol waits and idle samples. Sampling can perturb latency. This is not billed CPU.',
+        profiles: await stopProfiles(profileConnections),
+      });
+      profileConnections = [];
+    }
     assert.equal(result.status, 'existing');
     if (result.operation.state === 'failed') {
       observations.failedOperations.push({ elapsedMs });
@@ -490,6 +505,7 @@ async function waitForPreprocessingStart(before) {
 }
 function waitForMarker(resolve) { setTimeout(resolve, 50); }
 
+function signingTarget(target) { return /core:user:(a|b)$/.test(target.title); }
 function participantTarget(target) { return /core:user:preparer-(a|b)$/.test(target.title); }
 
 function verifyStandardSignature(publicKey, message, context, signature) {

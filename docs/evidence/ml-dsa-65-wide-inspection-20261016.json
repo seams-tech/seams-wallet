@@ -1,0 +1,116 @@
+{
+  "review_date": "2026-10-16",
+  "result": "No new blocking issue found within the private-input AES scope. Named wipes survive in both release Wasm binaries.",
+  "source_files": [
+    {
+      "path": "crates/ed25519-yao/src/passive/gate_aes.rs",
+      "sha256": "a574e88b88e4fe7774cd9fdd23540480e261228db2f61a8dafbe33fad122b606",
+      "working_tree_equals_index": true
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/gate_aes/eight.rs",
+      "sha256": "a8c60f5ba6de4bb1b04ee8453e550c44bf28f3bf8e791bd30fdce63fc17002c2",
+      "working_tree_equals_index": true
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
+      "sha256": "91321c80ccc05539200176db1f378d9a5097d375dfc89b37f5473bd6f5c87b35",
+      "working_tree_equals_index": true
+    },
+    {
+      "path": "tools/ml-dsa-investigation/research/run_private_aes_screen.py",
+      "sha256": "2ec19c9e57a43820db5167b3beec7c99f81849856363082f86a0d52d4d9c3b6c",
+      "working_tree_equals_index": true
+    }
+  ],
+  "binary_receipt": "inspection.json",
+  "instruction_evidence": "instruction-evidence.json",
+  "reproduce": [
+    "python3 .artifacts/ml-dsa-wide-resume/review/inspect_release.py",
+    "python3 .artifacts/ml-dsa-wide-resume/review/check_evidence.py"
+  ],
+  "measured_facts": [
+    {
+      "id": "F1",
+      "fact": "The supplied name maps match the original binary hashes. Every non-custom section remains byte-identical after name restoration.",
+      "instrument": "inspect_release.py, SHA-256 and section parser"
+    },
+    {
+      "id": "F2",
+      "fact": "Node validates both originals and both copies. LLVM emits 128 fixed i8x16.shuffle instructions and zero i8x16.swizzle instructions in each correlation encryption function.",
+      "instrument": "check_evidence.py, WebAssembly.validate and LLVM 20.1.8"
+    },
+    {
+      "id": "F3",
+      "fact": "All six AES function pairs have matching instructions except relocated call indexes and two panic metadata addresses. The panic calls map to panic_bounds_check.",
+      "instrument": "check_evidence.py and supplied function maps"
+    },
+    {
+      "id": "F4",
+      "fact": "Private wide state SP+128..255 and eight-block batch SP+0..127 receive 128 zero bytes. Each wipe retains its read barrier.",
+      "instrument": "Manual instruction and local-variable review, exact A/B addresses in instruction-evidence.json"
+    },
+    {
+      "id": "F5",
+      "fact": "The scalar fallback wipes its 64-byte batch. Scalar encryption wipes its 64-byte state. Each retains its read barrier.",
+      "instrument": "Manual instruction review, exact A/B addresses in instruction-evidence.json"
+    },
+    {
+      "id": "F6",
+      "fact": "Key expansion wipes its 16-byte KeyBytes temporary. Drop functions wipe the stored 704-byte scalar schedule and 1408-byte wide schedule.",
+      "instrument": "Manual instruction review, exact A/B addresses in instruction-evidence.json"
+    },
+    {
+      "id": "F7",
+      "fact": "CorrelationAes::new copies 704-byte and 1408-byte schedules from its stack frame to the return object. It then restores the stack pointer without wiping those copies.",
+      "instrument": "Constructor functions A3497/B3525. Copy addresses appear in instruction-evidence.json."
+    },
+    {
+      "id": "F8",
+      "fact": "All three production CorrelationAes::new call sites supply fixed public u128 constants.",
+      "instrument": "rg and source review of silent.rs:263 and silent/pprf.rs:12-13"
+    }
+  ],
+  "manual_inferences": [
+    "No private-input-dependent branch or memory address was found in the inspected encryption paths. Buffer lengths determine batching and padding.",
+    "Orthogonalization uses public shifts 1, 2, 4 and masks 0x55, 0x33, 0x0f. The dynamic state indexes and bounds checks derive from those public values.",
+    "The wide AES round counter starts at -1024 and advances by 512. The scalar round counter starts at -512 and advances by 256. Both remain public.",
+    "SIMD shuffle lane indexes are instruction immediates. v128.bitselect implements Boolean data operations. It does not select memory addresses or branch targets.",
+    "The constructor stack copies contain public-key schedules at the current production call sites. They prevent any total stack-erasure claim."
+  ],
+  "cause_table": [
+    {
+      "candidate": "The compiler removed the named private buffer wipes.",
+      "facts": "F4, F5 contradict this for the inspected normal-return paths.",
+      "left": false
+    },
+    {
+      "candidate": "The SIMD path uses a secret-indexed substitution table.",
+      "facts": "F2 and manual branch/address review contradict this in the inspected functions.",
+      "left": false
+    },
+    {
+      "candidate": "Name restoration changed executable sections.",
+      "facts": "F1 contradicts this. F2 independently validates the resulting modules.",
+      "left": false
+    },
+    {
+      "candidate": "All constructor schedule copies are wiped.",
+      "facts": "F7 contradicts this. F8 limits the current private-data impact.",
+      "left": false
+    }
+  ],
+  "screen_coverage_review": {
+    "executed_by_this_review": false,
+    "source_coverage": "The harness checks every output byte against RustCrypto AES 0.9.1 for 256 deterministic keys and 256 blocks per key, in baseline scalar, candidate scalar, and candidate wide modes. It also checks CorrelationAes lengths 0 through 33 and the unchanged suffix for each key.",
+    "timing_scope": "Isolated Node Wasm SIMD. Repeated encryption and a checksum outside the timed kernel. This does not establish complete Worker performance.",
+    "limitations": "The harness does not inspect memory wiping or engine machine code. It rebuilds copied production sources, so output equivalence does not itself validate the final release Worker module."
+  },
+  "limits": [
+    "This is manual source and release-Wasm inspection. It is not a formal information-flow proof.",
+    "The review confirms named linear-memory wipes on normal return and explicit Drop. It does not claim all copies, register values, engine spills, or trapping paths are erased.",
+    "The constructor retains scalar and wide schedule copies. Arbitrary-secret-key hardening is outside this result.",
+    "The review does not establish host-machine constant time. A Wasm engine may lower instructions differently. Settling that claim requires inspection of engine-generated machine code on the deployment host.",
+    "No production files changed. All evidence files are under the ignored artifact directory."
+  ]
+}

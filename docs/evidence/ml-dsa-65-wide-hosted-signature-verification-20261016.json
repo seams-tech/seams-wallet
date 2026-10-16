@@ -1,0 +1,81 @@
+{
+  "inputSha256": "8e34e9fc4794fe139d2d91ecc6d6f83688d49ed9857aace698f7c032ada58420",
+  "node": "v26.4.0",
+  "openssl": "3.6.3",
+  "algorithm": "ml-dsa-65",
+  "context": "Empty, as constructed by the retained runner",
+  "results": [
+    {
+      "operation": "ebaef148c0cbcbd36f307de05537b45cb5e5c571d1fba1509a5883fb462bc446",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "1b5a9eb36f0d6c1ee3cb508ce95781b78b708623ac4c17ecbc5146cbabbcac76",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "aa8416cba2db9c56a6ea511964ebf44b36a2f0bfe3c4d44f36ad43cf3560245f",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "995dc7b2eb35024426cf6b0a717bfa1c2e19bfe8123d20db40e0cfc0d86baa32",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "cdc64bcaf9eba666a3cdfa88718eff119775556c8c698ce83189f038185d02bd",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "04e53848b51ebbfbcefea84831739fc5c3d85dda1eb84caee90efa7cbed23fe2",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "b358b7cc5645a110e3f2caa384c614ad799b7f1dc967b674d0aa63f07104176f",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "ebc40c981fe8e86f8a619da93bf4911619a9d8a80df44edcb1eb2f5590896981",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "8fb42aa8b2545220d785f67072ee6af63e44df913d2074dab118c37f2bc18759",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "7e3140f341b4fd310c8d059210022f6664f5d15e1289db5c7c5b499bd58f5bb1",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "d4ab89b1630f5cbd66a72498861d8b14d84b2eb8d89835db5f43494ccb31365d",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    },
+    {
+      "operation": "8cb797ef437e8a8d88e42d328197ca253db8925d77aebd9ee85c5a5131b13b2d",
+      "verified": true,
+      "alteredMessageRejected": true,
+      "alteredSignatureRejected": true
+    }
+  ]
+}

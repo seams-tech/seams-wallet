@@ -1,0 +1,1765 @@
+{
+  "schema": "seams.ml-dsa-preparation-stage-samples.v1",
+  "scope": "Local workerd sampling. Preparation targets producer A/B through the first four-batch reserve. Signing targets online A/B for each HTTP signing request. Categories are disjoint by stack precedence. Inlined work can remain in other categories. Counts are samples, not elapsed or billed CPU. Hosted attribution is unproven.",
+  "phase": "signing",
+  "campaign_sha256": "8d8254572f9835faffe17950a87fe2b8cf5cd7ebe371f1cae8efb8558e07369a",
+  "script_sha256": "9a4d67a5fef825b367173a240bf6715c3dab98fc83075c3bea087fe626c79b14",
+  "calibration": {
+    "passed": true,
+    "samplingIntervalMicroseconds": 1000,
+    "cases": [
+      {
+        "iterations": 0,
+        "burnSamples": 0,
+        "samples": 1,
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/.artifacts/ml-dsa-wide-resume/candidate-local.json-profiler-calibration-0.cpuprofile"
+      },
+      {
+        "iterations": 50000000,
+        "burnSamples": 235,
+        "samples": 236,
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/.artifacts/ml-dsa-wide-resume/candidate-local.json-profiler-calibration-50000000.cpuprofile"
+      },
+      {
+        "iterations": 150000000,
+        "burnSamples": 706,
+        "samples": 707,
+        "path": "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/.artifacts/ml-dsa-wide-resume/candidate-local.json-profiler-calibration-150000000.cpuprofile"
+      }
+    ]
+  },
+  "four_batch_refill_ms": 45083.278292,
+  "profiles": [
+    {
+      "measurement_index": 0,
+      "wasm_sha256": "dded00b8ace13cdebdb34d4b702f913b590ddbfb2c268433d621c4e277c0ad36",
+      "symbol_map_sha256": "cb97d5b8e718d5342da46419c709d20bb732c45ab091c6f9271b3812d47c744f",
+      "title": "workerd: worker core:user:a",
+      "total_samples": 126,
+      "sampled_window_us": 372287,
+      "categories": {
+        "other": {
+          "samples": 118,
+          "percent": 93.65079365079364
+        },
+        "idle": {
+          "samples": 4,
+          "percent": 3.1746031746031744
+        },
+        "secret_erasure": {
+          "samples": 4,
+          "percent": 3.1746031746031744
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 22
+        },
+        {
+          "function": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+          "samples": 19
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 13
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+          "samples": 9
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+          "samples": 8
+        },
+        {
+          "function": "get",
+          "samples": 7
+        },
+        {
+          "function": "(idle)",
+          "samples": 4
+        },
+        {
+          "function": "",
+          "samples": 4
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+          "samples": 3
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+          "samples": 3
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 2
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[49c38f8953474f8d]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 2
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 2
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+          "samples": 2
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 2
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 2
+        },
+        {
+          "function": "T",
+          "samples": 2
+        },
+        {
+          "function": "__wbg_releaseLock_188846ef719acb10",
+          "samples": 1
+        },
+        {
+          "function": "fetch",
+          "samples": 1
+        },
+        {
+          "function": "router_ab_cloudflare[49c38f8953474f8d]::durable_object::tenant_root_creation::decode_bounded_json_request::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::RoleCommand>::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "hpke_ng[6dfdced5c514bfd9]::kem::dh::extract_and_expand_pieces::<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>[1]",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+          "samples": 1
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+          "samples": 1
+        },
+        {
+          "function": "(program)",
+          "samples": 1
+        },
+        {
+          "function": "__wbindgen_cast_0000000000000002",
+          "samples": 1
+        },
+        {
+          "function": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 1
+        },
+        {
+          "function": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::execute::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "keccak[703be626632cb6ef]::keccak_p::<u64>",
+          "samples": 1
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 1
+        },
+        {
+          "function": "__externref_table_alloc",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<bool>>>>",
+          "samples": 1
+        },
+        {
+          "function": "<dlmalloc[bdd41e560510e1bd]::dlmalloc::Dlmalloc<dlmalloc[bdd41e560510e1bd]::sys::System>>::malloc",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+          "samples": 1
+        },
+        {
+          "function": "<&mut serde[d46df7830da7cc84]::private::de::content::SeqDeserializer<serde_json[16b9fc8949ee70e7]::error::Error> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+          "samples": 1
+        }
+      ],
+      "symbolized_nodes": {
+        "1": "(root)",
+        "116": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "106": "__externref_table_alloc",
+        "98": "(garbage collector)",
+        "86": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+        "78": "(program)",
+        "38": "o",
+        "39": "Ie",
+        "40": "js-to-wasm:iin:ii",
+        "41": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "42": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "43": "<<js_sys[8765965618afd412]::futures::JsFuture as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise>>::from::{closure#0} as wasm_bindgen[c33feeafceb850a1]::closure::WasmClosureFnOnce<dyn core[9b3796e30d99ddb7]::ops::function::FnMut<(wasm_bindgen[c33feeafceb850a1]::JsValue,), Output = core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>, wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>>::into_fn_mut::{closure#0}[1]",
+        "44": "<js_sys[8765965618afd412]::futures::JsFuture<_> as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise<_>>>::from::finish::<wasm_bindgen[c33feeafceb850a1]::JsValue>[1]",
+        "45": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::into_raw_waker::raw_wake",
+        "46": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::force_wake",
+        "47": "<js_sys[8765965618afd412]::futures::queue::Queue>::schedule_task",
+        "48": "wasm-to-js",
+        "49": "__wbg_queueMicrotask_4698f900840e3286",
+        "20": "get",
+        "3": "",
+        "4": "o",
+        "5": "Ie",
+        "6": "js-to-wasm:iin:ii",
+        "7": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "8": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "9": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+        "30": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+        "71": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "72": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+        "65": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::pool::erase::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "66": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "67": "wasm-to-js",
+        "68": "__wbg_delete_43500499a4c09467",
+        "69": "c",
+        "70": "",
+        "58": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::Sealed>::load_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "59": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::read_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "60": "wasm-to-js",
+        "61": "__wbg_get_4655ad764ab1d107",
+        "62": "c",
+        "63": "",
+        "64": "get",
+        "31": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::Store>::get::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::material::Record>::{closure#0}",
+        "32": "<worker_sys[b1e407843daa7e41]::types::durable_object::transaction::DurableObjectTransaction>::get",
+        "33": "wasm-to-js",
+        "34": "__wbg_get_a87a6c1024dddd3b",
+        "35": "c",
+        "36": "",
+        "37": "get",
+        "15": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[49c38f8953474f8d]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "21": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::execute::{closure#0}",
+        "114": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+        "109": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<bool>>>>",
+        "104": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "110": "<alloc[a941a2cfab7efbc4]::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc[a941a2cfab7efbc4]::alloc::Global>",
+        "111": "<alloc[a941a2cfab7efbc4]::raw_vec::RawVecInner>::finish_grow",
+        "112": "__rustc[6ef78fba13ac776c]::__rdl_alloc",
+        "113": "<dlmalloc[bdd41e560510e1bd]::dlmalloc::Dlmalloc<dlmalloc[bdd41e560510e1bd]::sys::System>>::malloc",
+        "108": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+        "107": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "105": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "115": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "99": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::fill_uniform",
+        "100": "getrandom[f7e3847e810cb4f1]::imp::getrandom_inner",
+        "101": "wasm-to-js",
+        "102": "__wbg_prototypesetcall_956c7493c68e29b4",
+        "103": "T",
+        "95": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::random_bytes",
+        "96": "getrandom[f7e3847e810cb4f1]::imp::getrandom_inner",
+        "97": "wasm-to-js",
+        "93": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::expand_a",
+        "94": "keccak[703be626632cb6ef]::keccak_p::<u64>",
+        "90": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+        "91": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+        "92": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "87": "<hpke_ng[6dfdced5c514bfd9]::Hpke<hpke_ng[6dfdced5c514bfd9]::kem::dh::DhKem<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256, hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305>>::open_auth",
+        "88": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "89": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+        "84": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::decode_ciphertext::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "85": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "79": "<worker[2d4da32ec687c01e]::response::Response>::text::{closure#0}",
+        "80": "<worker[2d4da32ec687c01e]::response::Response>::bytes::{closure#0}",
+        "81": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "82": "wasm-to-js",
+        "83": "__wbindgen_cast_0000000000000002",
+        "52": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::schedules::load",
+        "53": "<std[9b61791517946214]::sync::once_lock::OnceLock<core[9b3796e30d99ddb7]::result::Result<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>, router_ab_core[9ab97d7131659ea3]::protocol::error::RouterAbProtocolError>>>::initialize::<<std[9b61791517946214]::sync::once_lock::OnceLock<core[9b3796e30d99ddb7]::result::Result<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>, router_ab_core[9ab97d7131659ea3]::protocol::error::RouterAbProtocolError>>>::get_or_init<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::schedules::validate>::{closure#0}, !>",
+        "54": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+        "57": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "55": "<digest[a951cdd8d323ac11]::core_api::wrapper::CoreWrapper<digest[a951cdd8d323ac11]::core_api::ct_variable::CtVariableCoreWrapper<sha2[d0acfcab0a4a23fc]::core_api::Sha256VarCore, typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, sha2[d0acfcab0a4a23fc]::OidSha256>> as digest[a951cdd8d323ac11]::digest::Digest>::digest::<&[u8]>[3]",
+        "56": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+        "50": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::material::Record>::open",
+        "51": "hpke_ng[6dfdced5c514bfd9]::kem::dh::extract_and_expand_pieces::<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>[1]",
+        "22": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::require_permit::{closure#0}",
+        "23": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::service_call::<core[9b3796e30d99ddb7]::option::Option<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::admission::Status>>::{closure#0}",
+        "24": "<worker[2d4da32ec687c01e]::durable::Stub>::fetch_with_request::{closure#0}",
+        "25": "wasm-to-js",
+        "26": "__wbg_fetch_b447ca2a0c0e6583",
+        "27": "c",
+        "28": "",
+        "29": "fetch",
+        "16": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::local_call::{closure#0}",
+        "17": "<worker[2d4da32ec687c01e]::durable::Stub>::fetch_with_request::{closure#0}",
+        "18": "<worker[2d4da32ec687c01e]::response::Response as core[9b3796e30d99ddb7]::convert::From<web_sys[5253c7f3f6a0b985]::features::gen_Response::Response>>::from",
+        "19": "wasm-to-js",
+        "10": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::RouterAbMlDsaPoolDurableObject>::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "117": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::service_call::<core[9b3796e30d99ddb7]::option::Option<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::admission::Status>>::{closure#0}",
+        "118": "<core[9b3796e30d99ddb7]::marker::PhantomData<alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<serde[d46df7830da7cc84]::private::de::content::ContentDeserializer<serde_json[16b9fc8949ee70e7]::error::Error>>",
+        "119": "<&mut serde[d46df7830da7cc84]::private::de::content::SeqDeserializer<serde_json[16b9fc8949ee70e7]::error::Error> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+        "73": "<worker[2d4da32ec687c01e]::response::ResponseBuilder>::from_json::<serde_json[16b9fc8949ee70e7]::value::Value>",
+        "74": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "75": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "76": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "77": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+        "11": "router_ab_cloudflare[49c38f8953474f8d]::durable_object::tenant_root_creation::decode_bounded_json_request::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::RoleCommand>::{closure#0}",
+        "12": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "13": "wasm-to-js",
+        "14": "__wbg_releaseLock_188846ef719acb10",
+        "2": "(idle)"
+      }
+    },
+    {
+      "measurement_index": 0,
+      "wasm_sha256": "828436c0c09af4319524fde7428807b920acc891e6293dd26703095b333c70dc",
+      "symbol_map_sha256": "0d837dea48fec5000a2116c8d0908f36b8ba3c1e4753d56e59fc71e798f2d4ec",
+      "title": "workerd: worker core:user:b",
+      "total_samples": 130,
+      "sampled_window_us": 363259,
+      "categories": {
+        "other": {
+          "samples": 125,
+          "percent": 96.15384615384616
+        },
+        "idle": {
+          "samples": 3,
+          "percent": 2.3076923076923075
+        },
+        "secret_erasure": {
+          "samples": 2,
+          "percent": 1.5384615384615385
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+          "samples": 21
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 16
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+          "samples": 13
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 13
+        },
+        {
+          "function": "get",
+          "samples": 10
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+          "samples": 7
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+          "samples": 7
+        },
+        {
+          "function": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::execute::{closure#0}",
+          "samples": 5
+        },
+        {
+          "function": "(idle)",
+          "samples": 3
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 3
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::context::Context>::wait_until<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::handle_execute::{closure#0}::{closure#0}>::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 2
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 2
+        },
+        {
+          "function": "",
+          "samples": 2
+        },
+        {
+          "function": "(program)",
+          "samples": 2
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 2
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+          "samples": 2
+        },
+        {
+          "function": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::service_call::<core[9b3796e30d99ddb7]::option::Option<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::admission::Status>>::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+          "samples": 1
+        },
+        {
+          "function": "<serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>::parse_integer",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::ntt",
+          "samples": 1
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+          "samples": 1
+        },
+        {
+          "function": "c",
+          "samples": 1
+        },
+        {
+          "function": "delete",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "__wbg__wbg_cb_unref_c2301a3c9b78104b",
+          "samples": 1
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+          "samples": 1
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::Deserializer>::deserialize_string::<serde_core[48d418027fb1745e]::de::impls::StringVisitor>",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 1
+        },
+        {
+          "function": "keccak[703be626632cb6ef]::keccak_p::<u64>",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::prepared_signing::agree::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::inverse_ntt",
+          "samples": 1
+        },
+        {
+          "function": "__rustc[6ef78fba13ac776c]::__rdl_alloc",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_new_from_slice_bb2d1778c0b87eb1",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_prototypesetcall_956c7493c68e29b4",
+          "samples": 1
+        },
+        {
+          "function": "router_ab_cloudflare[7b4e8da3bc0fe6da]::durable_object::tenant_root_creation::decode_bounded_json_request::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::RoleCommand>::{closure#0}",
+          "samples": 1
+        }
+      ],
+      "symbolized_nodes": {
+        "1": "(root)",
+        "105": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "103": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "92": "__rustc[6ef78fba13ac776c]::__rdl_alloc",
+        "79": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+        "75": "(program)",
+        "64": "o",
+        "65": "Ie",
+        "66": "js-to-wasm:iin:ii",
+        "67": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "68": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "69": "<<js_sys[8765965618afd412]::futures::JsFuture as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise>>::from::{closure#0} as wasm_bindgen[c33feeafceb850a1]::closure::WasmClosureFnOnce<dyn core[9b3796e30d99ddb7]::ops::function::FnMut<(wasm_bindgen[c33feeafceb850a1]::JsValue,), Output = core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>, wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>>::into_fn_mut::{closure#0}",
+        "70": "<js_sys[8765965618afd412]::futures::JsFuture<_> as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise<_>>>::from::finish::<wasm_bindgen[c33feeafceb850a1]::JsValue>",
+        "71": "<wasm_bindgen[c33feeafceb850a1]::closure::JsClosure>::_wbg_cb_unref",
+        "72": "wasm-to-js",
+        "73": "__wbg__wbg_cb_unref_c2301a3c9b78104b",
+        "48": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "33": "(garbage collector)",
+        "3": "",
+        "4": "o",
+        "5": "Ie",
+        "6": "js-to-wasm:iin:ii",
+        "7": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "8": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "9": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+        "27": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::RouterAbMlDsaPoolDurableObject>::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "28": "<worker[2d4da32ec687c01e]::response::ResponseBuilder>::from_json::<serde_json[16b9fc8949ee70e7]::value::Value>",
+        "29": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "30": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "31": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "74": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+        "32": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "22": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::context::Context>::wait_until<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::handle_execute::{closure#0}::{closure#0}>::{closure#0}>>::{closure#0}::{closure#0}",
+        "34": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::execute::{closure#0}",
+        "93": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "104": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+        "96": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::exchange::{closure#0}",
+        "106": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::receive::{closure#0}",
+        "107": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::receive::{closure#0}",
+        "108": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::poll::{closure#0}",
+        "109": "<js_sys[8765965618afd412]::Uint8Array>::to_vec",
+        "110": "wasm-to-js",
+        "111": "__wbg_prototypesetcall_956c7493c68e29b4",
+        "97": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::send::{closure#0}",
+        "98": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::send::{closure#0}",
+        "99": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::send_with_bytes::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "100": "<js_sys[8765965618afd412]::Uint8Array>::new_from_slice::__wbg_new_from_slice_bb2d1778c0b87eb1 externref shim",
+        "101": "wasm-to-js",
+        "102": "__wbg_new_from_slice_bb2d1778c0b87eb1",
+        "95": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "94": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "90": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::matrix_product_plus_error",
+        "91": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::inverse_ntt",
+        "89": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::prepared_signing::agree::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "86": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::shake256::<64usize>",
+        "87": "<digest[a951cdd8d323ac11]::core_api::wrapper::CoreWrapper<sha3[7329176cd9d0fbcc]::Shake256Core> as digest[a951cdd8d323ac11]::Update>::update::{closure#0}",
+        "88": "keccak[703be626632cb6ef]::keccak_p::<u64>",
+        "83": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+        "84": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+        "85": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "80": "<hpke_ng[6dfdced5c514bfd9]::Hpke<hpke_ng[6dfdced5c514bfd9]::kem::dh::DhKem<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256, hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305>>::open_auth",
+        "81": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "82": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+        "76": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::decode_ciphertext::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "78": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "77": "<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::Deserializer>::deserialize_string::<serde_core[48d418027fb1745e]::de::impls::StringVisitor>",
+        "42": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::schedules::load",
+        "43": "<std[9b61791517946214]::sync::once_lock::OnceLock<core[9b3796e30d99ddb7]::result::Result<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>, router_ab_core[9ab97d7131659ea3]::protocol::error::RouterAbProtocolError>>>::initialize::<<std[9b61791517946214]::sync::once_lock::OnceLock<core[9b3796e30d99ddb7]::result::Result<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>, router_ab_core[9ab97d7131659ea3]::protocol::error::RouterAbProtocolError>>>::get_or_init<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::schedules::validate>::{closure#0}, !>",
+        "44": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::parse",
+        "47": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "45": "<digest[a951cdd8d323ac11]::core_api::wrapper::CoreWrapper<digest[a951cdd8d323ac11]::core_api::ct_variable::CtVariableCoreWrapper<sha2[d0acfcab0a4a23fc]::core_api::Sha256VarCore, typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>, sha2[d0acfcab0a4a23fc]::OidSha256>> as digest[a951cdd8d323ac11]::digest::Digest>::digest::<&[u8]>[3]",
+        "46": "sha2[d0acfcab0a4a23fc]::sha256::compress256",
+        "39": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record>::open",
+        "40": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::OwnSigningShare>::parse",
+        "41": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::ntt",
+        "35": "<core[9b3796e30d99ddb7]::marker::PhantomData<signer_core[d7c0a467c1583e27]::ml_dsa_custody::material::SealedMlDsaRoleMaterialV1> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "36": "<core[9b3796e30d99ddb7]::marker::PhantomData<alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "37": "<serde_json[16b9fc8949ee70e7]::de::SeqAccess<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+        "38": "<serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>::parse_integer",
+        "19": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[7b4e8da3bc0fe6da]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "118": "router_ab_cloudflare[7b4e8da3bc0fe6da]::durable_object::tenant_root_creation::decode_bounded_json_request::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::RoleCommand>::{closure#0}",
+        "20": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::require_permit::{closure#0}",
+        "21": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::service_call::<core[9b3796e30d99ddb7]::option::Option<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::admission::Status>>::{closure#0}",
+        "10": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+        "112": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::Record>::{closure#0}",
+        "113": "<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer as serde_core[48d418027fb1745e]::de::Deserializer>::deserialize_any::<serde[d46df7830da7cc84]::private::de::content::ContentVisitor>",
+        "114": "<serde[d46df7830da7cc84]::private::de::content::ContentVisitor as serde_core[48d418027fb1745e]::de::Visitor>::visit_seq::<serde_core[48d418027fb1745e]::de::value::SeqDeserializer<core[9b3796e30d99ddb7]::iter::adapters::map::Map<js_sys[8765965618afd412]::ArrayIter, <serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer as core[9b3796e30d99ddb7]::convert::From<wasm_bindgen[c33feeafceb850a1]::JsValue>>::from>, serde_wasm_bindgen[e3dbf1ab01ce4dad]::error::Error>>",
+        "115": "<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer as serde_core[48d418027fb1745e]::de::Deserializer>::deserialize_any::<serde[d46df7830da7cc84]::private::de::content::ContentVisitor>",
+        "116": "wasm_bindgen[c33feeafceb850a1]::__wbindgen_is_bigint",
+        "117": "wasm-to-js",
+        "63": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "56": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::erase::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "57": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "58": "wasm-to-js",
+        "59": "__wbg_delete_43500499a4c09467",
+        "60": "c",
+        "61": "",
+        "62": "delete",
+        "49": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::Sealed>::load_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "50": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::read_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "51": "wasm-to-js",
+        "52": "__wbg_get_4655ad764ab1d107",
+        "53": "c",
+        "54": "",
+        "55": "get",
+        "23": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record>::{closure#0}",
+        "24": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record as serde_core[48d418027fb1745e]::de::Deserialize>::deserialize::<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer>",
+        "25": "<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::ObjectAccess as serde_core[48d418027fb1745e]::de::MapAccess>::next_value::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "26": "wasm-to-js",
+        "11": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::require_open::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "12": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<bool>::{closure#0}",
+        "13": "<worker_sys[b1e407843daa7e41]::types::durable_object::transaction::DurableObjectTransaction>::get",
+        "14": "wasm-to-js",
+        "15": "__wbg_get_a87a6c1024dddd3b",
+        "16": "c",
+        "17": "",
+        "18": "get",
+        "2": "(idle)"
+      }
+    },
+    {
+      "measurement_index": 1,
+      "wasm_sha256": "dded00b8ace13cdebdb34d4b702f913b590ddbfb2c268433d621c4e277c0ad36",
+      "symbol_map_sha256": "cb97d5b8e718d5342da46419c709d20bb732c45ab091c6f9271b3812d47c744f",
+      "title": "workerd: worker core:user:a",
+      "total_samples": 92,
+      "sampled_window_us": 266302,
+      "categories": {
+        "other": {
+          "samples": 87,
+          "percent": 94.56521739130434
+        },
+        "idle": {
+          "samples": 3,
+          "percent": 3.260869565217391
+        },
+        "secret_erasure": {
+          "samples": 2,
+          "percent": 2.1739130434782608
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+          "samples": 13
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 13
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 9
+        },
+        {
+          "function": "get",
+          "samples": 7
+        },
+        {
+          "function": "(idle)",
+          "samples": 3
+        },
+        {
+          "function": "",
+          "samples": 3
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 3
+        },
+        {
+          "function": "(program)",
+          "samples": 3
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+          "samples": 3
+        },
+        {
+          "function": "delete",
+          "samples": 2
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+          "samples": 2
+        },
+        {
+          "function": "__wbindgen_cast_0000000000000002",
+          "samples": 2
+        },
+        {
+          "function": "<worker[2d4da32ec687c01e]::response::Response>::bytes::{closure#0}",
+          "samples": 2
+        },
+        {
+          "function": "queueMicrotask",
+          "samples": 2
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 2
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+          "samples": 2
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+          "samples": 2
+        },
+        {
+          "function": "decode",
+          "samples": 1
+        },
+        {
+          "function": "<serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>::parse_number",
+          "samples": 1
+        },
+        {
+          "function": "__wbindgen_cast_000000000000000b",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 1
+        },
+        {
+          "function": "<dlmalloc[bdd41e560510e1bd]::dlmalloc::Dlmalloc<dlmalloc[bdd41e560510e1bd]::sys::System>>::malloc",
+          "samples": 1
+        },
+        {
+          "function": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::execute::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_subarray_42216645a367cd7a",
+          "samples": 1
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 1
+        },
+        {
+          "function": "setTimeout",
+          "samples": 1
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>>::exchange::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_new_from_slice_bb2d1778c0b87eb1",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_now_bce4dc999095ea77",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_url_74200ddca55ab638",
+          "samples": 1
+        }
+      ],
+      "symbolized_nodes": {
+        "1": "(root)",
+        "76": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "68": "(program)",
+        "67": "(garbage collector)",
+        "54": "o",
+        "100": "ve",
+        "101": "js-to-wasm:iin:",
+        "102": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true> externref shim",
+        "103": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true>",
+        "104": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::events::{closure#1}",
+        "105": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::force_wake",
+        "106": "<js_sys[8765965618afd412]::futures::queue::Queue>::schedule_task",
+        "107": "wasm-to-js",
+        "108": "__wbg_queueMicrotask_4698f900840e3286",
+        "55": "Ie",
+        "56": "js-to-wasm:iin:ii",
+        "57": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "58": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "59": "<<js_sys[8765965618afd412]::futures::JsFuture as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise>>::from::{closure#0} as wasm_bindgen[c33feeafceb850a1]::closure::WasmClosureFnOnce<dyn core[9b3796e30d99ddb7]::ops::function::FnMut<(wasm_bindgen[c33feeafceb850a1]::JsValue,), Output = core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>, wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>>::into_fn_mut::{closure#0}[1]",
+        "60": "<js_sys[8765965618afd412]::futures::JsFuture<_> as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise<_>>>::from::finish::<wasm_bindgen[c33feeafceb850a1]::JsValue>[1]",
+        "61": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::into_raw_waker::raw_wake",
+        "62": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::force_wake",
+        "63": "<js_sys[8765965618afd412]::futures::queue::Queue>::schedule_task",
+        "64": "wasm-to-js",
+        "65": "__wbg_queueMicrotask_4698f900840e3286",
+        "66": "queueMicrotask",
+        "3": "",
+        "4": "o",
+        "5": "Ie",
+        "6": "js-to-wasm:iin:ii",
+        "7": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "8": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "9": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+        "43": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::RouterAbMlDsaPoolDurableObject>::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "44": "<worker[2d4da32ec687c01e]::response::ResponseBuilder>::from_json::<serde_json[16b9fc8949ee70e7]::value::Value>",
+        "45": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "46": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "47": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "48": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+        "18": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[49c38f8953474f8d]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "120": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::local_call::{closure#0}",
+        "121": "<worker[2d4da32ec687c01e]::request::Request>::new_with_init",
+        "122": "<worker[2d4da32ec687c01e]::request::Request as core[9b3796e30d99ddb7]::convert::From<web_sys[5253c7f3f6a0b985]::features::gen_Request::Request>>::from",
+        "123": "<web_sys[5253c7f3f6a0b985]::features::gen_Request::Request>::url",
+        "124": "wasm-to-js",
+        "125": "__wbg_url_74200ddca55ab638",
+        "19": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::execute::{closure#0}",
+        "116": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+        "86": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "119": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+        "115": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "99": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "88": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>>::exchange::{closure#0}",
+        "109": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>>::send::{closure#0}",
+        "110": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::send::{closure#0}",
+        "117": "wasm-to-js",
+        "118": "__wbg_now_bce4dc999095ea77",
+        "111": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::send_with_bytes::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "112": "<js_sys[8765965618afd412]::Uint8Array>::new_from_slice::__wbg_new_from_slice_bb2d1778c0b87eb1 externref shim",
+        "113": "wasm-to-js",
+        "114": "__wbg_new_from_slice_bb2d1778c0b87eb1",
+        "89": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>>::receive::{closure#0}",
+        "90": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::receive::{closure#0}",
+        "91": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::poll::{closure#0}",
+        "92": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::event::{closure#0}",
+        "93": "<worker[2d4da32ec687c01e]::delay::Delay as core[9b3796e30d99ddb7]::future::future::Future>::poll",
+        "94": "wasm-to-js",
+        "95": "__wbg_setTimeout_5cc4188c9772ce9f",
+        "96": "c",
+        "97": "",
+        "98": "setTimeout",
+        "87": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+        "82": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::fill_uniform",
+        "83": "getrandom[f7e3847e810cb4f1]::imp::getrandom_inner",
+        "84": "wasm-to-js",
+        "85": "__wbg_subarray_42216645a367cd7a",
+        "77": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+        "78": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+        "80": "__rustc[6ef78fba13ac776c]::__rdl_alloc",
+        "81": "<dlmalloc[bdd41e560510e1bd]::dlmalloc::Dlmalloc<dlmalloc[bdd41e560510e1bd]::sys::System>>::malloc",
+        "79": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "72": "<hpke_ng[6dfdced5c514bfd9]::Hpke<hpke_ng[6dfdced5c514bfd9]::kem::dh::DhKem<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256, hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305>>::open_auth",
+        "73": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "75": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+        "74": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+        "70": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::decode_ciphertext::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "71": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "49": "<worker[2d4da32ec687c01e]::response::Response>::text::{closure#0}",
+        "69": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+        "50": "<worker[2d4da32ec687c01e]::response::Response>::bytes::{closure#0}",
+        "51": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "52": "wasm-to-js",
+        "53": "__wbindgen_cast_0000000000000002",
+        "20": "<core[9b3796e30d99ddb7]::marker::PhantomData<signer_core[d7c0a467c1583e27]::ml_dsa_custody::material::SealedMlDsaRoleMaterialV1> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "21": "<core[9b3796e30d99ddb7]::marker::PhantomData<alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "22": "<serde_json[16b9fc8949ee70e7]::de::SeqAccess<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+        "23": "<serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>::parse_integer",
+        "24": "<serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>::parse_number",
+        "10": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+        "42": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "35": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::pool::erase::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "36": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "37": "wasm-to-js",
+        "38": "__wbg_delete_43500499a4c09467",
+        "39": "c",
+        "40": "",
+        "41": "delete",
+        "25": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::Sealed>::load_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "26": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::read_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "30": "wasm-to-js",
+        "31": "__wbg_get_4655ad764ab1d107",
+        "32": "c",
+        "33": "",
+        "34": "get",
+        "27": "Ref(String) -> Externref externref shim",
+        "28": "wasm-to-js",
+        "29": "__wbindgen_cast_000000000000000b",
+        "11": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::Store>::get::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::pool::Record>::{closure#0}",
+        "12": "wasm-to-js",
+        "13": "__wbg_get_a87a6c1024dddd3b",
+        "14": "c",
+        "15": "",
+        "16": "f",
+        "17": "decode",
+        "2": "(idle)"
+      }
+    },
+    {
+      "measurement_index": 1,
+      "wasm_sha256": "828436c0c09af4319524fde7428807b920acc891e6293dd26703095b333c70dc",
+      "symbol_map_sha256": "0d837dea48fec5000a2116c8d0908f36b8ba3c1e4753d56e59fc71e798f2d4ec",
+      "title": "workerd: worker core:user:b",
+      "total_samples": 94,
+      "sampled_window_us": 262777,
+      "categories": {
+        "other": {
+          "samples": 90,
+          "percent": 95.74468085106383
+        },
+        "idle": {
+          "samples": 2,
+          "percent": 2.127659574468085
+        },
+        "secret_erasure": {
+          "samples": 2,
+          "percent": 2.127659574468085
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 14
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+          "samples": 13
+        },
+        {
+          "function": "get",
+          "samples": 9
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 9
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+          "samples": 9
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+          "samples": 6
+        },
+        {
+          "function": "(program)",
+          "samples": 4
+        },
+        {
+          "function": "",
+          "samples": 3
+        },
+        {
+          "function": "delete",
+          "samples": 3
+        },
+        {
+          "function": "(idle)",
+          "samples": 2
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 2
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 2
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+          "samples": 2
+        },
+        {
+          "function": "<js_sys[8765965618afd412]::futures::JsFuture as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise>>::from",
+          "samples": 1
+        },
+        {
+          "function": "<serde_json[16b9fc8949ee70e7]::de::SeqAccess<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_new_with_length_4b57a7a5dc67221c",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+          "samples": 1
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 1
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 1
+        },
+        {
+          "function": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::execute::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "<[u8]>::to_vec",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+          "samples": 1
+        },
+        {
+          "function": "__externref_table_alloc",
+          "samples": 1
+        },
+        {
+          "function": "setTimeout",
+          "samples": 1
+        },
+        {
+          "function": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true>",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_read_8426c146431f2905",
+          "samples": 1
+        },
+        {
+          "function": "<&mut serde[d46df7830da7cc84]::private::de::content::SeqDeserializer<serde_wasm_bindgen[e3dbf1ab01ce4dad]::error::Error> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+          "samples": 1
+        }
+      ],
+      "symbolized_nodes": {
+        "1": "(root)",
+        "98": "o",
+        "99": "ve",
+        "100": "js-to-wasm:iin:",
+        "101": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true> externref shim",
+        "102": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true>",
+        "90": "__externref_table_alloc",
+        "72": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "60": "(program)",
+        "4": "",
+        "5": "o",
+        "6": "Ie",
+        "7": "js-to-wasm:iin:ii",
+        "8": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "9": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "10": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+        "31": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::context::Context>::wait_until<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::handle_execute::{closure#0}::{closure#0}>::{closure#0}>>::{closure#0}::{closure#0}",
+        "32": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::execute::{closure#0}",
+        "73": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "89": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+        "82": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+        "80": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "81": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "75": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::exchange::{closure#0}",
+        "76": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::receive::{closure#0}",
+        "77": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::receive::{closure#0}",
+        "78": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::poll::{closure#0}",
+        "91": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::event::{closure#0}",
+        "92": "<worker[2d4da32ec687c01e]::delay::Delay as core[9b3796e30d99ddb7]::future::future::Future>::poll",
+        "93": "wasm-to-js",
+        "94": "__wbg_setTimeout_5cc4188c9772ce9f",
+        "95": "c",
+        "96": "",
+        "97": "setTimeout",
+        "83": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::send_with_bytes::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "84": "<web_sys[5253c7f3f6a0b985]::features::gen_WebSocket::WebSocket>::send_with_array_buffer",
+        "85": "wasm-to-js",
+        "86": "__wbg_send_93c1286dd925d92f",
+        "87": "c",
+        "88": "",
+        "79": "<[u8]>::to_vec",
+        "74": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "69": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+        "70": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+        "71": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "65": "<hpke_ng[6dfdced5c514bfd9]::Hpke<hpke_ng[6dfdced5c514bfd9]::kem::dh::DhKem<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256, hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305>>::open_auth",
+        "66": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "68": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+        "67": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+        "63": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::decode_ciphertext::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "64": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "61": "<worker[2d4da32ec687c01e]::response::Response>::text::{closure#0}",
+        "62": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+        "33": "<core[9b3796e30d99ddb7]::marker::PhantomData<signer_core[d7c0a467c1583e27]::ml_dsa_custody::material::SealedMlDsaRoleMaterialV1> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "34": "<core[9b3796e30d99ddb7]::marker::PhantomData<alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::de::DeserializeSeed>::deserialize::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "35": "<serde_json[16b9fc8949ee70e7]::de::SeqAccess<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+        "24": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+        "108": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::Record>::{closure#0}",
+        "109": "<serde[d46df7830da7cc84]::private::de::content::ContentDeserializer<serde_wasm_bindgen[e3dbf1ab01ce4dad]::error::Error> as serde_core[48d418027fb1745e]::de::Deserializer>::deserialize_tuple::<serde_core[48d418027fb1745e]::de::impls::ArrayVisitor<[u8; 32usize]>>",
+        "110": "<&mut serde[d46df7830da7cc84]::private::de::content::SeqDeserializer<serde_wasm_bindgen[e3dbf1ab01ce4dad]::error::Error> as serde_core[48d418027fb1745e]::de::SeqAccess>::next_element::<u8>",
+        "50": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "43": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::erase::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "44": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "45": "wasm-to-js",
+        "46": "__wbg_delete_43500499a4c09467",
+        "47": "c",
+        "48": "",
+        "49": "delete",
+        "36": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::Sealed>::load_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "37": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::read_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "38": "wasm-to-js",
+        "39": "__wbg_get_4655ad764ab1d107",
+        "40": "c",
+        "41": "",
+        "42": "get",
+        "25": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record>::{closure#0}",
+        "26": "<worker_sys[b1e407843daa7e41]::types::durable_object::transaction::DurableObjectTransaction>::get",
+        "27": "wasm-to-js",
+        "28": "__wbg_get_a87a6c1024dddd3b",
+        "29": "c",
+        "30": "",
+        "20": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::RouterAbMlDsaPoolDurableObject>::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "56": "<web_sys[5253c7f3f6a0b985]::features::gen_Response::Response as core[9b3796e30d99ddb7]::convert::From<worker[2d4da32ec687c01e]::response::Response>>::from",
+        "57": "<js_sys[8765965618afd412]::Uint8Array>::new_with_length::__wbg_new_with_length_4b57a7a5dc67221c externref shim",
+        "58": "wasm-to-js",
+        "59": "__wbg_new_with_length_4b57a7a5dc67221c",
+        "51": "<worker[2d4da32ec687c01e]::response::ResponseBuilder>::from_json::<serde_json[16b9fc8949ee70e7]::value::Value>",
+        "52": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "53": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "54": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "55": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+        "21": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::service_call::<core[9b3796e30d99ddb7]::option::Option<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::admission::Status>>::{closure#0}",
+        "103": "<worker[2d4da32ec687c01e]::response::Response>::text::{closure#0}",
+        "104": "<worker[2d4da32ec687c01e]::response::Response>::bytes::{closure#0}",
+        "105": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "106": "wasm-to-js",
+        "107": "__wbg_read_8426c146431f2905",
+        "22": "<worker[2d4da32ec687c01e]::durable::Stub>::fetch_with_request::{closure#0}",
+        "23": "<js_sys[8765965618afd412]::futures::JsFuture as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise>>::from",
+        "11": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[7b4e8da3bc0fe6da]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "12": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::require_permit::{closure#0}",
+        "13": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::service_call::<core[9b3796e30d99ddb7]::option::Option<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::admission::Status>>::{closure#0}",
+        "14": "<worker[2d4da32ec687c01e]::durable::ObjectId>::get_stub",
+        "15": "wasm-to-js",
+        "16": "__wbg_get_4ee1d3aa5ae5cc79",
+        "17": "c",
+        "18": "",
+        "19": "get",
+        "3": "(garbage collector)",
+        "2": "(idle)"
+      }
+    },
+    {
+      "measurement_index": 2,
+      "wasm_sha256": "dded00b8ace13cdebdb34d4b702f913b590ddbfb2c268433d621c4e277c0ad36",
+      "symbol_map_sha256": "cb97d5b8e718d5342da46419c709d20bb732c45ab091c6f9271b3812d47c744f",
+      "title": "workerd: worker core:user:a",
+      "total_samples": 169,
+      "sampled_window_us": 419789,
+      "categories": {
+        "other": {
+          "samples": 159,
+          "percent": 94.0828402366864
+        },
+        "idle": {
+          "samples": 5,
+          "percent": 2.9585798816568047
+        },
+        "secret_erasure": {
+          "samples": 5,
+          "percent": 2.9585798816568047
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 27
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+          "samples": 18
+        },
+        {
+          "function": "get",
+          "samples": 16
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 15
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+          "samples": 14
+        },
+        {
+          "function": "__wbg_read_8426c146431f2905",
+          "samples": 10
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 6
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+          "samples": 6
+        },
+        {
+          "function": "(idle)",
+          "samples": 5
+        },
+        {
+          "function": "",
+          "samples": 4
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 4
+        },
+        {
+          "function": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::execute::{closure#0}",
+          "samples": 3
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+          "samples": 3
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+          "samples": 3
+        },
+        {
+          "function": "delete",
+          "samples": 2
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 2
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+          "samples": 2
+        },
+        {
+          "function": "Response",
+          "samples": 2
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 2
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 2
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<bool>>>>",
+          "samples": 2
+        },
+        {
+          "function": "queueMicrotask",
+          "samples": 2
+        },
+        {
+          "function": "__wbg_releaseLock_188846ef719acb10",
+          "samples": 1
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 1
+        },
+        {
+          "function": "aes[40ddfa879986df99]::soft::fixslice::sub_bytes",
+          "samples": 1
+        },
+        {
+          "function": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "<serde_json[16b9fc8949ee70e7]::read::SliceRead>::skip_to_escape",
+          "samples": 1
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 1
+        },
+        {
+          "function": "__wbg__wbg_cb_unref_c2301a3c9b78104b",
+          "samples": 1
+        },
+        {
+          "function": "__externref_table_alloc",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_prototypesetcall_956c7493c68e29b4",
+          "samples": 1
+        },
+        {
+          "function": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[49c38f8953474f8d]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+          "samples": 1
+        },
+        {
+          "function": "getRandomValues",
+          "samples": 1
+        },
+        {
+          "function": "__externref_table_dealloc",
+          "samples": 1
+        },
+        {
+          "function": "send",
+          "samples": 1
+        },
+        {
+          "function": "v",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::inverse_ntt",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+          "samples": 1
+        }
+      ],
+      "symbolized_nodes": {
+        "1": "(root)",
+        "98": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "78": "o",
+        "79": "ve",
+        "80": "js-to-wasm:iin:",
+        "81": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true> externref shim",
+        "82": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true>",
+        "83": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::events::{closure#1}",
+        "84": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::force_wake",
+        "85": "<js_sys[8765965618afd412]::futures::queue::Queue>::schedule_task",
+        "86": "wasm-to-js",
+        "87": "__wbg_queueMicrotask_4698f900840e3286",
+        "102": "queueMicrotask",
+        "76": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "4": "",
+        "5": "o",
+        "6": "Ie",
+        "7": "js-to-wasm:iin:ii",
+        "8": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "9": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "10": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+        "21": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<router_ab_cloudflare[49c38f8953474f8d]::strict_worker::_worker_fetch::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "22": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::executor::execute::{closure#0}",
+        "131": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::inverse_ntt",
+        "114": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::fill_uniform",
+        "115": "getrandom[f7e3847e810cb4f1]::imp::getrandom_inner",
+        "121": "__externref_table_dealloc",
+        "116": "wasm-to-js",
+        "117": "__wbg_getRandomValues_c44a50d8cfdaebeb",
+        "118": "c",
+        "119": "",
+        "120": "getRandomValues",
+        "99": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<bool>>>>",
+        "88": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "132": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+        "103": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+        "91": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>>::exchange::{closure#0}",
+        "92": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>>::receive::{closure#0}",
+        "93": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::receive::{closure#0}",
+        "94": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::poll::{closure#0}",
+        "122": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::send_with_bytes::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "123": "wasm-to-js",
+        "124": "__wbg_send_93c1286dd925d92f",
+        "125": "c",
+        "126": "",
+        "127": "send",
+        "95": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::transport::Duplex>::event::{closure#0}",
+        "100": "<worker[2d4da32ec687c01e]::delay::Delay as core[9b3796e30d99ddb7]::future::future::Future>::poll",
+        "128": "wasm-to-js",
+        "129": "__wbindgen_cast_0000000000000007",
+        "130": "v",
+        "101": "__externref_table_alloc",
+        "96": "wasm-to-js",
+        "97": "__wbg__wbg_cb_unref_c2301a3c9b78104b",
+        "90": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "89": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "77": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+        "73": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+        "74": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+        "75": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "69": "<hpke_ng[6dfdced5c514bfd9]::Hpke<hpke_ng[6dfdced5c514bfd9]::kem::dh::DhKem<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256, hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305>>::open_auth",
+        "70": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "72": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+        "71": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+        "64": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::decode_ciphertext::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "68": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "65": "<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead> as serde_core[48d418027fb1745e]::de::Deserializer>::deserialize_string::<serde_core[48d418027fb1745e]::de::impls::StringVisitor>",
+        "66": "<serde_json[16b9fc8949ee70e7]::read::StrRead as serde_json[16b9fc8949ee70e7]::read::Read>::parse_str",
+        "67": "<serde_json[16b9fc8949ee70e7]::read::SliceRead>::skip_to_escape",
+        "59": "<worker[2d4da32ec687c01e]::response::Response>::text::{closure#0}",
+        "113": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+        "60": "<worker[2d4da32ec687c01e]::response::Response>::bytes::{closure#0}",
+        "61": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "62": "wasm-to-js",
+        "63": "__wbg_read_8426c146431f2905",
+        "23": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::material::Record>::open",
+        "24": "<hpke_ng[6dfdced5c514bfd9]::aead::Aes256Gcm as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "25": "<ctr[c48fe0df56145f4c]::ctr_core::CtrCore<&aes[40ddfa879986df99]::soft::Aes256, ctr[c48fe0df56145f4c]::flavors::ctr32::Ctr32BE> as cipher[ff45aef5fd1704d]::stream_core::StreamCipherCore>::apply_keystream_blocks_inout",
+        "26": "aes[40ddfa879986df99]::soft::fixslice::aes256_encrypt",
+        "27": "aes[40ddfa879986df99]::soft::fixslice::sub_bytes",
+        "16": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+        "104": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::pool::require_open::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "105": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::Store>::get::<bool>::{closure#0}",
+        "106": "<worker_sys[b1e407843daa7e41]::types::durable_object::transaction::DurableObjectTransaction>::get",
+        "107": "wasm-to-js",
+        "108": "__wbg_get_a87a6c1024dddd3b",
+        "109": "",
+        "47": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "40": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::pool::erase::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "41": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "42": "wasm-to-js",
+        "43": "__wbg_delete_43500499a4c09467",
+        "44": "c",
+        "45": "",
+        "46": "delete",
+        "33": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::Sealed>::load_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "34": "router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::sealing::read_chunks::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "110": "<js_sys[8765965618afd412]::Uint8Array>::to_vec",
+        "111": "wasm-to-js",
+        "112": "__wbg_prototypesetcall_956c7493c68e29b4",
+        "35": "wasm-to-js",
+        "36": "__wbg_get_4655ad764ab1d107",
+        "37": "c",
+        "38": "",
+        "39": "get",
+        "28": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::Store>::put::<alloc[a941a2cfab7efbc4]::vec::Vec<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::KeyScope>>::{closure#0}",
+        "29": "<worker_sys[b1e407843daa7e41]::types::durable_object::transaction::DurableObjectTransaction>::put",
+        "30": "wasm-to-js",
+        "31": "__wbg_put_27edc2ab773a21be",
+        "32": "",
+        "17": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::Store>::get::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::material::Record>::{closure#0}",
+        "18": "<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::material::Record as serde_core[48d418027fb1745e]::de::Deserialize>::deserialize::<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer>",
+        "19": "<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::ObjectAccess as serde_core[48d418027fb1745e]::de::MapAccess>::next_value::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "20": "wasm-to-js",
+        "11": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::RouterAbMlDsaPoolDurableObject>::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "53": "<web_sys[5253c7f3f6a0b985]::features::gen_Response::Response as core[9b3796e30d99ddb7]::convert::From<worker[2d4da32ec687c01e]::response::Response>>::from",
+        "54": "wasm-to-js",
+        "55": "__wbg_new_with_opt_buffer_source_and_init_f51f4fbe98d29f2e",
+        "56": "c",
+        "57": "",
+        "58": "Response",
+        "48": "<worker[2d4da32ec687c01e]::response::ResponseBuilder>::from_json::<serde_json[16b9fc8949ee70e7]::value::Value>",
+        "49": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "50": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "51": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "52": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+        "12": "router_ab_cloudflare[49c38f8953474f8d]::durable_object::tenant_root_creation::decode_bounded_json_request::<router_ab_cloudflare[49c38f8953474f8d]::ml_dsa::workers::RoleCommand>::{closure#0}",
+        "13": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "14": "wasm-to-js",
+        "15": "__wbg_releaseLock_188846ef719acb10",
+        "3": "(garbage collector)",
+        "2": "(idle)"
+      }
+    },
+    {
+      "measurement_index": 2,
+      "wasm_sha256": "828436c0c09af4319524fde7428807b920acc891e6293dd26703095b333c70dc",
+      "symbol_map_sha256": "0d837dea48fec5000a2116c8d0908f36b8ba3c1e4753d56e59fc71e798f2d4ec",
+      "title": "workerd: worker core:user:b",
+      "total_samples": 150,
+      "sampled_window_us": 413824,
+      "categories": {
+        "other": {
+          "samples": 143,
+          "percent": 95.33333333333333
+        },
+        "idle": {
+          "samples": 4,
+          "percent": 2.6666666666666665
+        },
+        "secret_erasure": {
+          "samples": 3,
+          "percent": 2.0
+        }
+      },
+      "top_self_samples": [
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+          "samples": 32
+        },
+        {
+          "function": "get",
+          "samples": 17
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+          "samples": 14
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+          "samples": 11
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+          "samples": 10
+        },
+        {
+          "function": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+          "samples": 9
+        },
+        {
+          "function": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::execute::{closure#0}",
+          "samples": 5
+        },
+        {
+          "function": "(idle)",
+          "samples": 4
+        },
+        {
+          "function": "__wbg_read_8426c146431f2905",
+          "samples": 4
+        },
+        {
+          "function": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+          "samples": 4
+        },
+        {
+          "function": "",
+          "samples": 4
+        },
+        {
+          "function": "delete",
+          "samples": 3
+        },
+        {
+          "function": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+          "samples": 3
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+          "samples": 3
+        },
+        {
+          "function": "(garbage collector)",
+          "samples": 2
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 2
+        },
+        {
+          "function": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+          "samples": 2
+        },
+        {
+          "function": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+          "samples": 2
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+          "samples": 2
+        },
+        {
+          "function": "__wbg_queueMicrotask_4698f900840e3286",
+          "samples": 2
+        },
+        {
+          "function": "wasm-to-js",
+          "samples": 1
+        },
+        {
+          "function": "<ghash[182daed28b7de9e7]::GHash as universal_hash[fbf326f767884686]::UniversalHash>::update_padded",
+          "samples": 1
+        },
+        {
+          "function": "(program)",
+          "samples": 1
+        },
+        {
+          "function": "<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519 as hpke_ng[6dfdced5c514bfd9]::kem::dh::DiffieHellman>::dh",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_buffer_8524b3453cde4918",
+          "samples": 1
+        },
+        {
+          "function": "__externref_table_dealloc",
+          "samples": 1
+        },
+        {
+          "function": "__externref_table_alloc",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+          "samples": 1
+        },
+        {
+          "function": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::ntt",
+          "samples": 1
+        },
+        {
+          "function": "__wbg_clearTimeout_47e9b1ea76df3afa",
+          "samples": 1
+        },
+        {
+          "function": "<alloc[a941a2cfab7efbc4]::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc[a941a2cfab7efbc4]::alloc::Global>",
+          "samples": 1
+        },
+        {
+          "function": "clearTimeout",
+          "samples": 1
+        },
+        {
+          "function": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+          "samples": 1
+        },
+        {
+          "function": "v",
+          "samples": 1
+        },
+        {
+          "function": "memcmp",
+          "samples": 1
+        }
+      ],
+      "symbolized_nodes": {
+        "1": "(root)",
+        "79": "o",
+        "102": "ve",
+        "103": "js-to-wasm:iin:",
+        "104": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true> externref shim",
+        "105": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<web_sys[5253c7f3f6a0b985]::features::gen_CloseEvent::CloseEvent, (), true>",
+        "106": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::events::{closure#1}",
+        "107": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::force_wake",
+        "108": "<js_sys[8765965618afd412]::futures::queue::Queue>::schedule_task",
+        "109": "wasm-to-js",
+        "110": "__wbg_queueMicrotask_4698f900840e3286",
+        "80": "Ie",
+        "81": "js-to-wasm:iin:ii",
+        "82": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "90": "__externref_table_alloc",
+        "83": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "84": "<<js_sys[8765965618afd412]::futures::JsFuture as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise>>::from::{closure#0} as wasm_bindgen[c33feeafceb850a1]::closure::WasmClosureFnOnce<dyn core[9b3796e30d99ddb7]::ops::function::FnMut<(wasm_bindgen[c33feeafceb850a1]::JsValue,), Output = core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>, wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>>>::into_fn_mut::{closure#0}[1]",
+        "85": "<js_sys[8765965618afd412]::futures::JsFuture<_> as core[9b3796e30d99ddb7]::convert::From<js_sys[8765965618afd412]::Promise<_>>>::from::finish::<wasm_bindgen[c33feeafceb850a1]::JsValue>[1]",
+        "86": "<js_sys[8765965618afd412]::futures::task::singlethread::Task>::force_wake",
+        "87": "<js_sys[8765965618afd412]::futures::queue::Queue>::schedule_task",
+        "88": "wasm-to-js",
+        "89": "__wbg_queueMicrotask_4698f900840e3286",
+        "49": "(program)",
+        "34": "(garbage collector)",
+        "3": "",
+        "4": "o",
+        "5": "Ie",
+        "6": "js-to-wasm:iin:ii",
+        "7": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true> externref shim multivalue shim",
+        "8": "wasm_bindgen[c33feeafceb850a1]::convert::closures::_::invoke::<wasm_bindgen[c33feeafceb850a1]::JsValue, core[9b3796e30d99ddb7]::result::Result<(), wasm_bindgen[c33feeafceb850a1]::JsError>, true>",
+        "9": "<js_sys[8765965618afd412]::futures::queue::Queue>::new::{closure#0}",
+        "43": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::RouterAbMlDsaPoolDurableObject>::fetch::{closure#0}>>::{closure#0}::{closure#0}",
+        "44": "<worker[2d4da32ec687c01e]::response::ResponseBuilder>::from_json::<serde_json[16b9fc8949ee70e7]::value::Value>",
+        "45": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "46": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "47": "<serde_json[16b9fc8949ee70e7]::value::Value as serde_core[48d418027fb1745e]::ser::Serialize>::serialize::<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>>>",
+        "48": "<&mut serde_json[16b9fc8949ee70e7]::ser::Serializer<&mut alloc[a941a2cfab7efbc4]::vec::Vec<u8>> as serde_core[48d418027fb1745e]::ser::Serializer>::serialize_str",
+        "15": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::context::Context>::wait_until<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::handle_execute::{closure#0}::{closure#0}>::{closure#0}>>::{closure#0}::{closure#0}",
+        "16": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::executor::execute::{closure#0}",
+        "112": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::receive::{closure#0}",
+        "113": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::poll::{closure#0}",
+        "114": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::event::{closure#0}",
+        "115": "<worker[2d4da32ec687c01e]::delay::Delay as core[9b3796e30d99ddb7]::future::future::Future>::poll",
+        "116": "wasm-to-js",
+        "117": "__wbindgen_cast_0000000000000007",
+        "118": "v",
+        "92": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::matrix_product_plus_error",
+        "93": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::arithmetic::ntt",
+        "78": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_signing::append_polynomial",
+        "65": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "111": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::Group>>",
+        "100": "<alloc[a941a2cfab7efbc4]::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc[a941a2cfab7efbc4]::alloc::Global>",
+        "94": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::run::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::{closure#0}",
+        "77": "core[9b3796e30d99ddb7]::ptr::drop_glue::<alloc[a941a2cfab7efbc4]::vec::Vec<zeroize[cbf0006eed33784e]::Zeroizing<alloc[a941a2cfab7efbc4]::vec::Vec<u32>>>>",
+        "73": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::correlation_word",
+        "67": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::exchange::{closure#0}",
+        "74": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::receive::{closure#0}",
+        "75": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::receive::{closure#0}",
+        "95": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::poll::{closure#0}",
+        "96": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::event::{closure#0}",
+        "97": "<worker[2d4da32ec687c01e]::delay::Delay as core[9b3796e30d99ddb7]::ops::drop::Drop>::drop",
+        "98": "wasm-to-js",
+        "99": "__wbg_clearTimeout_47e9b1ea76df3afa",
+        "101": "clearTimeout",
+        "76": "__externref_table_dealloc",
+        "68": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::Context<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>>::send::{closure#0}",
+        "69": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::transport::Duplex>::send::{closure#0}",
+        "70": "<worker[2d4da32ec687c01e]::websocket::WebSocket>::send_with_bytes::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "71": "wasm-to-js",
+        "72": "__wbg_buffer_8524b3453cde4918",
+        "66": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::read_word",
+        "62": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::PreparedGmwBatch>::restore",
+        "63": "ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::boolean_comparison::prepared::build_layout",
+        "64": "<ed25519_yao[2804e7ed7931123b]::passive::ml_dsa_runtime::TrustedMlDsaSchedule>::gate",
+        "57": "<hpke_ng[6dfdced5c514bfd9]::Hpke<hpke_ng[6dfdced5c514bfd9]::kem::dh::DhKem<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256>, hpke_ng[6dfdced5c514bfd9]::kdf::HkdfSha256, hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305>>::open_auth",
+        "59": "<hpke_ng[6dfdced5c514bfd9]::aead::ChaCha20Poly1305 as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "61": "<cipher[ff45aef5fd1704d]::stream_wrapper::StreamCipherCoreWrapper<chacha20[68ae707ae7d52339]::ChaChaCore<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>>> as cipher[ff45aef5fd1704d]::stream::StreamCipher>::apply_keystream",
+        "60": "<poly1305[3f48b41bb1f6472a]::backend::soft::State>::compute_block",
+        "58": "<hpke_ng[6dfdced5c514bfd9]::kem::dh::X25519 as hpke_ng[6dfdced5c514bfd9]::kem::dh::DiffieHellman>::dh",
+        "55": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::decode_ciphertext::<&mut serde_json[16b9fc8949ee70e7]::de::Deserializer<serde_json[16b9fc8949ee70e7]::read::StrRead>>",
+        "56": "base64[b5deb27ce4e8645a]::engine::Engine::decode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "50": "<worker[2d4da32ec687c01e]::response::Response>::text::{closure#0}",
+        "91": "core[9b3796e30d99ddb7]::str::converts::from_utf8",
+        "51": "<worker[2d4da32ec687c01e]::response::Response>::bytes::{closure#0}",
+        "52": "<worker[2d4da32ec687c01e]::streams::ByteStream as futures_core[3dd26d2e334b015b]::stream::Stream>::poll_next",
+        "53": "wasm-to-js",
+        "54": "__wbg_read_8426c146431f2905",
+        "17": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record>::open",
+        "18": "<hpke_ng[6dfdced5c514bfd9]::aead::Aes256Gcm as hpke_ng[6dfdced5c514bfd9]::aead::SealingAead>::open",
+        "19": "<aes_gcm[e0a6385bb29eb87f]::AesGcm<aes[40ddfa879986df99]::soft::Aes256, typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UInt<typenum[ad884854f238156a]::uint::UTerm, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B1>, typenum[ad884854f238156a]::bit::B0>, typenum[ad884854f238156a]::bit::B0>>>::compute_tag",
+        "20": "<ghash[182daed28b7de9e7]::GHash as universal_hash[fbf326f767884686]::UniversalHash>::update_padded",
+        "10": "js_sys[8765965618afd412]::futures::future_to_promise::<core[9b3796e30d99ddb7]::panic::unwind_safe::AssertUnwindSafe<<worker[2d4da32ec687c01e]::durable::Storage>::transaction<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}, router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::role_transaction::{closure#0}::{closure#0}::{closure#0}>::{closure#0}::{closure#0}::{closure#0}>>::{closure#0}::{closure#0}",
+        "42": "base64[b5deb27ce4e8645a]::engine::Engine::encode::inner::<base64[b5deb27ce4e8645a]::engine::general_purpose::GeneralPurpose>",
+        "35": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::erase::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "36": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::erase_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "37": "wasm-to-js",
+        "38": "__wbg_delete_43500499a4c09467",
+        "39": "c",
+        "40": "",
+        "41": "delete",
+        "27": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::Sealed>::load_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "28": "router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::sealing::read_chunks::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore>::{closure#0}",
+        "29": "wasm-to-js",
+        "30": "__wbg_get_4655ad764ab1d107",
+        "31": "c",
+        "32": "",
+        "33": "get",
+        "21": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::pool::Record>::{closure#0}",
+        "119": "memcmp",
+        "22": "wasm-to-js",
+        "23": "__wbg_get_a87a6c1024dddd3b",
+        "24": "c",
+        "25": "",
+        "26": "get",
+        "11": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::workers::TransactionStore as router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::Store>::get::<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record>::{closure#0}",
+        "12": "<router_ab_cloudflare[7b4e8da3bc0fe6da]::ml_dsa::material::Record as serde_core[48d418027fb1745e]::de::Deserialize>::deserialize::<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::Deserializer>",
+        "13": "<serde_wasm_bindgen[e3dbf1ab01ce4dad]::de::ObjectAccess as serde_core[48d418027fb1745e]::de::MapAccess>::next_value::<alloc[a941a2cfab7efbc4]::vec::Vec<u8>>",
+        "14": "wasm-to-js",
+        "2": "(idle)"
+      }
+    }
+  ]
+}

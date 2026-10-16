@@ -2,11 +2,19 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [stage optimization campaign](ml-dsa-65-preparation-stage-optimization-report.md) shortens the measured local four-batch reserve by 29.68%.
+The [private AES campaign](ml-dsa-65-private-aes-report.md) implements eight-block Wasm SIMD with unchanged protocol and pool dimensions.
+The isolated AES kernel takes 16.88% less time. A matching local reserve control measures 45.229 seconds against the earlier 48.097 seconds.
+All twelve hosted signatures verify. Eleven finish below five seconds, with online latency of 2.562–7.310 seconds and a 3.179-second median.
+Two successful two-batch requests take 3.112 and 7.310 seconds. One operation exhausts sixteen candidates.
+Preparation has a 28.001-second median. After stock depletion, observed throughput is 1.769 batches and 1.474 successful signatures per minute.
+Complete demand latency still reaches 79.613 seconds. Four-batch restoration adds 188.282 seconds after the load test.
+Hosted creation and recovery take 7.189 and 5.250 seconds online. Both preserve the canonical key and FIPS export semantics.
+Next, isolate hosted CPU variation, public-cache reuse, storage waits, and protocol waits. Keep the same pool cap and public integration gate.
+The earlier [stage optimization campaign](ml-dsa-65-preparation-stage-optimization-report.md) shortens the measured local four-batch reserve by 29.68%.
 Its hosted preparation median is 33.441 seconds. Observed refill reaches 1.199 batches per minute after initial stock depletion.
 Twelve signatures verify, with successful online requests taking 2.041–6.503 seconds. Ten of twelve finish below five seconds.
 Candidate exhaustion and capacity waits remain included. Observed signing throughput is 0.879 signatures per minute after initial stock depletion.
-Keep wallet-seed recovery, standard FIPS export, and the four-batch cap. Private AES and hosted multi-batch overhead remain the next profiling targets.
+That campaign identified private AES and hosted multi-batch overhead as the next profiling targets.
 The earlier [preparation throughput campaign](ml-dsa-65-preparation-throughput-report.md) separates refill through a durable producer queue.
 All twelve hosted signatures verify in 1.34–3.55 seconds per successful online request, including one two-batch signature.
 After initial stock depletion, observed refill supplies 0.895 batches per minute and supports 0.795 signatures per minute.

@@ -1,5 +1,7 @@
 //! Same AES-128 permutation, using the existing four-block Wasm backend.
 use crate::passive::gate_aes::FourBlocks;
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+use crate::passive::gate_aes::{EightBlockAes128, EightBlocks};
 use zeroize::{DefaultIsZeroes, Zeroizing};
 
 /// Flat secret bytes erased with one volatile whole-value write and barrier.
@@ -14,6 +16,8 @@ impl<const N: usize> Default for SecretBlockBatch<N> {
 impl<const N: usize> DefaultIsZeroes for SecretBlockBatch<N> {}
 
 pub(super) struct CorrelationAes {
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    wide: EightBlockAes128,
     #[cfg(target_arch = "wasm32")]
     cipher: crate::passive::gate_aes::FourBlockAes128,
     #[cfg(not(target_arch = "wasm32"))]
@@ -29,12 +33,29 @@ impl CorrelationAes {
             use aes09::cipher::KeyInit;
             aes09::Aes128::new(key.into())
         };
-        Self { cipher }
+        Self {
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            wide: EightBlockAes128::from_four(&cipher),
+            cipher,
+        }
     }
 
     pub(super) fn encrypt(&self, blocks: &mut [[u8; 16]]) {
         // Length and padding depend only on the public circuit dimensions.
-        for chunk in blocks.chunks_mut(4) {
+        let width = if cfg!(all(target_arch = "wasm32", target_feature = "simd128")) {
+            8
+        } else {
+            4
+        };
+        for chunk in blocks.chunks_mut(width) {
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            if chunk.len() > 4 {
+                let mut batch = Zeroizing::new(EightBlocks::default());
+                batch.0[..chunk.len()].copy_from_slice(chunk);
+                self.wide.encrypt_eight(&mut batch);
+                chunk.copy_from_slice(&batch.0[..chunk.len()]);
+                continue;
+            }
             let mut batch = Zeroizing::new(FourBlocks::default());
             batch.0[..chunk.len()].copy_from_slice(chunk);
             #[cfg(target_arch = "wasm32")]

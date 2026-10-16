@@ -16,11 +16,27 @@
 //! Apache-2.0 and MIT with permission. The code is fully bitsliced: it uses no
 //! lookup table and no branch that depends on a block.
 //!
+//! The SIMD extension shares these AES equations and widens each cell to eight
+//! block lanes. Secret substitutions still use only Boolean operations.
+//!
 //! Every output is checked against the `aes` crate in this module's tests.
 
 #![allow(clippy::unreadable_literal)]
 
 use zeroize::{DefaultIsZeroes, Zeroize};
+
+#[cfg(all(
+    feature = "ml-dsa-runtime-benchmark",
+    target_arch = "wasm32",
+    target_feature = "simd128"
+))]
+mod eight;
+#[cfg(all(
+    feature = "ml-dsa-runtime-benchmark",
+    target_arch = "wasm32",
+    target_feature = "simd128"
+))]
+pub(super) use eight::{EightBlockAes128, EightBlocks};
 
 const BLOCK_BYTES: usize = 16;
 
@@ -28,6 +44,31 @@ type BatchBlocks = [[u8; BLOCK_BYTES]; 4];
 type RoundKeys = [u64; 88];
 type State = [u64; 8];
 
+// Each AES byte position occupies one cell of block lanes: four bits for
+// scalar words or eight bits for the SIMD backend. Rotations move whole cells.
+trait PlaneWord:
+    Copy
+    + core::ops::BitXor<Output = Self>
+    + core::ops::BitAnd<Output = Self>
+    + core::ops::BitOr<Output = Self>
+    + core::ops::BitXorAssign
+{
+    fn from_four_block_word(value: u64) -> Self;
+    fn rotate_cells(self, cells: u32) -> Self;
+    fn shift_rows_twice(self) -> Self;
+}
+impl PlaneWord for u64 {
+    fn from_four_block_word(value: u64) -> Self {
+        value
+    }
+    fn rotate_cells(self, cells: u32) -> Self {
+        u64::rotate_right(self, cells * 4)
+    }
+    fn shift_rows_twice(mut self) -> Self {
+        delta_swap_1(&mut self, 8, 0x00ff000000ff0000);
+        self
+    }
+}
 /// Four secret blocks that one volatile write wipes.
 #[derive(Clone, Copy, Default)]
 pub(super) struct FourBlocks(pub(super) BatchBlocks);
@@ -116,44 +157,48 @@ fn aes128_encrypt(rkeys: &RoundKeys, blocks: &BatchBlocks) -> BatchBlocks {
 
     bitslice(&mut state.0, &blocks[0], &blocks[1], &blocks[2], &blocks[3]);
 
-    add_round_key(&mut state.0, &rkeys[..8]);
+    encrypt_state(rkeys, &mut state.0);
+
+    let output = inv_bitslice(&state.0);
+    // Not in the original: the bitsliced state holds the block values.
+    state.zeroize();
+    output
+}
+
+fn encrypt_state<W: PlaneWord>(rkeys: &[W; 88], state: &mut [W; 8]) {
+    add_round_key(state, &rkeys[..8]);
 
     let mut rk_off = 8;
     loop {
-        sub_bytes(&mut state.0);
-        mix_columns_1(&mut state.0);
-        add_round_key(&mut state.0, &rkeys[rk_off..(rk_off + 8)]);
+        sub_bytes(state);
+        mix_columns_1(state);
+        add_round_key(state, &rkeys[rk_off..(rk_off + 8)]);
         rk_off += 8;
 
         if rk_off == 80 {
             break;
         }
 
-        sub_bytes(&mut state.0);
-        mix_columns_2(&mut state.0);
-        add_round_key(&mut state.0, &rkeys[rk_off..(rk_off + 8)]);
+        sub_bytes(state);
+        mix_columns_2(state);
+        add_round_key(state, &rkeys[rk_off..(rk_off + 8)]);
         rk_off += 8;
 
-        sub_bytes(&mut state.0);
-        mix_columns_3(&mut state.0);
-        add_round_key(&mut state.0, &rkeys[rk_off..(rk_off + 8)]);
+        sub_bytes(state);
+        mix_columns_3(state);
+        add_round_key(state, &rkeys[rk_off..(rk_off + 8)]);
         rk_off += 8;
 
-        sub_bytes(&mut state.0);
-        mix_columns_0(&mut state.0);
-        add_round_key(&mut state.0, &rkeys[rk_off..(rk_off + 8)]);
+        sub_bytes(state);
+        mix_columns_0(state);
+        add_round_key(state, &rkeys[rk_off..(rk_off + 8)]);
         rk_off += 8;
     }
 
-    shift_rows_2(&mut state.0);
+    shift_rows_2(state);
 
-    sub_bytes(&mut state.0);
-    add_round_key(&mut state.0, &rkeys[80..]);
-
-    let output = inv_bitslice(&state.0);
-    // Not in the original: the bitsliced state holds the block values.
-    state.zeroize();
-    output
+    sub_bytes(state);
+    add_round_key(state, &rkeys[80..]);
 }
 
 /// Bitsliced implementation of the AES Sbox based on Boyar, Peralta and Calik.
@@ -162,7 +207,7 @@ fn aes128_encrypt(rkeys: &RoundKeys, blocks: &BatchBlocks) -> BatchBlocks {
 ///
 /// Note that the 4 bitwise NOT (^= 0xffffffffffffffff) are moved to the key schedule.
 #[inline(always)]
-fn sub_bytes(state: &mut [u64]) {
+fn sub_bytes<W: PlaneWord>(state: &mut [W]) {
     debug_assert_eq!(state.len(), 8);
 
     // Scheduled using https://github.com/Ko-/aes-armcortexm/tree/public/scheduler
@@ -354,7 +399,7 @@ macro_rules! define_mix_columns {
         $second_rotate:path
     ) => {
         #[rustfmt::skip]
-        fn $name(state: &mut State) {
+        fn $name<W: PlaneWord>(state: &mut [W; 8]) {
             let (a0, a1, a2, a3, a4, a5, a6, a7) = (
                 state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7]
             );
@@ -428,10 +473,10 @@ fn shift_rows_1(state: &mut [u64]) {
 
 /// Applies ShiftRows twice on an AES state (or key).
 #[inline]
-fn shift_rows_2(state: &mut [u64]) {
+fn shift_rows_2<W: PlaneWord>(state: &mut [W]) {
     debug_assert_eq!(state.len(), 8);
     for x in state.iter_mut() {
-        delta_swap_1(x, 8, 0x00ff000000ff0000);
+        *x = x.shift_rows_twice();
     }
 }
 
@@ -651,10 +696,10 @@ fn memshift32(buffer: &mut [u64], src_offset: usize) {
 /// XOR the round key to the internal state. The round keys are expected to be
 /// pre-computed and to be packed in the fixsliced representation.
 #[inline]
-fn add_round_key(state: &mut State, rkey: &[u64]) {
+fn add_round_key<W: PlaneWord>(state: &mut [W; 8], rkey: &[W]) {
     debug_assert_eq!(rkey.len(), 8);
     for (a, b) in state.iter_mut().zip(rkey) {
-        *a ^= b;
+        *a ^= *b;
     }
 }
 
@@ -674,41 +719,41 @@ fn ror_distance(rows: u32, cols: u32) -> u32 {
 }
 
 #[inline(always)]
-fn rotate_rows_1(x: u64) -> u64 {
-    ror(x, ror_distance(1, 0))
+fn rotate_rows_1<W: PlaneWord>(x: W) -> W {
+    x.rotate_cells(4)
 }
 
 #[inline(always)]
-fn rotate_rows_2(x: u64) -> u64 {
-    ror(x, ror_distance(2, 0))
-}
-
-#[inline(always)]
-#[rustfmt::skip]
-fn rotate_rows_and_columns_1_1(x: u64) -> u64 {
-    (ror(x, ror_distance(1, 1)) & 0x0fff0fff0fff0fff) |
-    (ror(x, ror_distance(0, 1)) & 0xf000f000f000f000)
+fn rotate_rows_2<W: PlaneWord>(x: W) -> W {
+    x.rotate_cells(8)
 }
 
 #[inline(always)]
 #[rustfmt::skip]
-fn rotate_rows_and_columns_1_2(x: u64) -> u64 {
-    (ror(x, ror_distance(1, 2)) & 0x00ff00ff00ff00ff) |
-    (ror(x, ror_distance(0, 2)) & 0xff00ff00ff00ff00)
+fn rotate_rows_and_columns_1_1<W: PlaneWord>(x: W) -> W {
+    (x.rotate_cells(5) & W::from_four_block_word(0x0fff0fff0fff0fff)) |
+    (x.rotate_cells(1) & W::from_four_block_word(0xf000f000f000f000))
 }
 
 #[inline(always)]
 #[rustfmt::skip]
-fn rotate_rows_and_columns_1_3(x: u64) -> u64 {
-    (ror(x, ror_distance(1, 3)) & 0x000f000f000f000f) |
-    (ror(x, ror_distance(0, 3)) & 0xfff0fff0fff0fff0)
+fn rotate_rows_and_columns_1_2<W: PlaneWord>(x: W) -> W {
+    (x.rotate_cells(6) & W::from_four_block_word(0x00ff00ff00ff00ff)) |
+    (x.rotate_cells(2) & W::from_four_block_word(0xff00ff00ff00ff00))
 }
 
 #[inline(always)]
 #[rustfmt::skip]
-fn rotate_rows_and_columns_2_2(x: u64) -> u64 {
-    (ror(x, ror_distance(2, 2)) & 0x00ff00ff00ff00ff) |
-    (ror(x, ror_distance(1, 2)) & 0xff00ff00ff00ff00)
+fn rotate_rows_and_columns_1_3<W: PlaneWord>(x: W) -> W {
+    (x.rotate_cells(7) & W::from_four_block_word(0x000f000f000f000f)) |
+    (x.rotate_cells(3) & W::from_four_block_word(0xfff0fff0fff0fff0))
+}
+
+#[inline(always)]
+#[rustfmt::skip]
+fn rotate_rows_and_columns_2_2<W: PlaneWord>(x: W) -> W {
+    (x.rotate_cells(10) & W::from_four_block_word(0x00ff00ff00ff00ff)) |
+    (x.rotate_cells(6) & W::from_four_block_word(0xff00ff00ff00ff00))
 }
 
 // ---- end: reduced copy of aes 0.8.4, src/soft/fixslice64.rs ----
