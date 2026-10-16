@@ -18,57 +18,77 @@ try {
   const page = await context.newPage();
   await page.goto(`${origin}/recovery-slots.html`);
   const input = page.getByLabel('Recovery code', { exact: true });
+  const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
   await expect(page.locator('.seams-recovery-code-slots .seams-otp-slot')).toHaveCount(32);
-  await page.evaluate(copyToClipboard, '0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ');
+  await expect(continueButton).toBeDisabled();
+  await page.screenshot({ path: `${artifacts}/empty.png` });
+
+  // A printed code pasted with dashes, lowercase, and the letters Crockford reads as digits.
+  await page.evaluate(copyToClipboard, 'o123–4567–89ab–cdef–ghjk–mnpq–rstv–wxyz');
   await input.focus();
   await input.press(`${modifier}+V`);
   await expect(input).toHaveValue('0123456789ABCDEFGHJKMNPQRSTVWXYZ');
   await expect(input).toHaveAttribute('inputmode', 'text');
-  await page.screenshot({ path: `${artifacts}/live-32-characters.png` });
+  await expect(page.locator('.seams-recovery-code-count')).toHaveText('32/32');
+  await expect(continueButton).toBeEnabled();
+  await page.screenshot({ path: `${artifacts}/complete.png` });
 
-  await page.goto(`${origin}/recovery-slots.html?slots=16`);
-  await expect(page.locator('.seams-recovery-code-slots .seams-otp-slot')).toHaveCount(16);
-  await page.evaluate(copyToClipboard, '4821–7396–2058–1643');
-  await input.focus();
-  await input.press(`${modifier}+V`);
-  await expect(input).toHaveValue('4821739620581643');
-  await expect(input).toHaveAttribute('inputmode', 'numeric');
   await input.press('ArrowLeft');
   await input.press('Backspace');
-  await expect(input).toHaveValue('482173962058163');
-  await input.press('4');
-  await expect(input).toHaveValue('4821739620581643');
+  await expect(input).toHaveValue('0123456789ABCDEFGHJKMNPQRSTVWXZ');
+  await expect(continueButton).toBeDisabled();
+  await expect(page.locator('.seams-otp-slot.is-caret')).toHaveCount(1);
+  await page.screenshot({ path: `${artifacts}/editing.png` });
+  await input.press('Y');
+  await expect(input).toHaveValue('0123456789ABCDEFGHJKMNPQRSTVWXYZ');
   await input.press('Tab');
+  await expect(continueButton).toBeFocused();
+  await input.focus();
+  await input.press('Enter');
+
+  const passkeyChoice = page.getByRole('button', { name: 'Create a passkey', exact: true });
+  await expect(passkeyChoice).toBeFocused();
   await expect(
-    page.getByRole('button', { name: 'Recover with Passkey', exact: true }),
-  ).toBeFocused();
+    page.getByRole('button', { name: 'Continue with Google', exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: `${artifacts}/method-choice.png` });
+  await page.keyboard.press('Escape');
+  await expect(input).toHaveValue('0123456789ABCDEFGHJKMNPQRSTVWXYZ');
+
   await page.setViewportSize({ width: 320, height: 800 });
   await input.focus();
   const groups = page.locator('.seams-recovery-code-group');
-  await expect(groups).toHaveCount(4);
+  await expect(groups).toHaveCount(8);
   const tops = await groups.evaluateAll((elements) =>
-    elements.map((element) => element.getBoundingClientRect().top),
+    elements.map((element) => Math.round(element.getBoundingClientRect().top)),
   );
-  if (Math.max(...tops) - Math.min(...tops) > 1)
-    throw new Error('Recovery groups must fit on one line');
-  await expect(page.locator('.seams-recovery-code-slots .seams-otp-slot').first()).toHaveCSS(
-    'box-shadow',
-    'none',
-  );
+  if (new Set(tops).size !== 2) throw new Error('Recovery groups must form two rows of four');
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     .toBe(true);
-  await page.screenshot({ path: `${artifacts}/preview-16-digits-mobile.png` });
+  // The menu animates its height to the wrapped copy; Continue must end inside it.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const switcher = document.querySelector('.seams-content-switcher');
+        const button = document.querySelector('[data-recovery-continue]');
+        if (!switcher || !button) return false;
+        return button.getBoundingClientRect().bottom <= switcher.getBoundingClientRect().bottom;
+      }),
+    )
+    .toBe(true);
+  await page.screenshot({ path: `${artifacts}/mobile.png` });
   await writeFile(
     `${artifacts}/result.json`,
     JSON.stringify(
       {
         passed: true,
-        previewSlots: 16,
-        liveSlots: 32,
+        slots: 32,
         formattedPaste: true,
+        crockfordReadings: true,
         caretEditing: true,
         keyboardNavigation: true,
+        methodChoice: true,
         mobile: true,
       },
       null,
@@ -76,7 +96,7 @@ try {
     ),
   );
   console.log(
-    'Passed 16-slot preview and 32-character live input: paste, caret editing, keyboard navigation, and mobile layout.',
+    'Passed the 32-character recovery input: paste, Crockford readings, caret editing, keyboard navigation, method choice, and mobile layout.',
   );
 } finally {
   await context.tracing.stop({ path: `${artifacts}/trace.zip` });

@@ -82,6 +82,10 @@ import type {
 } from '../recovery-port';
 import { normalizeLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
+import {
+  normalizeWalletRecoveryCode,
+  WALLET_RECOVERY_CODE_CHAR_LENGTH,
+} from '@shared/wallet-recovery/recoveryCodes';
 
 type HostedPasskeyMenuPrepared = HostedPasskeyRegistrationPrepared | HostedPasskeyPrepared;
 
@@ -102,6 +106,21 @@ type PresentedAuthMenuError = {
 const RECOVERY_REFUSAL_MESSAGE = 'That recovery code can’t be used. Check the code and try again.';
 const RECOVERY_CODE_CONSUMED_MESSAGE =
   'That recovery code has already been used. Use another code.';
+
+/** The device-side check before the method choice: the format only, never the code's validity. */
+function recoveryCodeFormatError(recoveryCode: string): string | null {
+  const characters = recoveryCode.replace(/[\s-]/g, '');
+  if (!characters) return 'Enter a recovery code.';
+  if (characters.length !== WALLET_RECOVERY_CODE_CHAR_LENGTH) {
+    return `Enter all ${WALLET_RECOVERY_CODE_CHAR_LENGTH} characters of the recovery code.`;
+  }
+  try {
+    normalizeWalletRecoveryCode(characters);
+    return null;
+  } catch {
+    return RECOVERY_REFUSAL_MESSAGE;
+  }
+}
 
 function cancelHostedPasskeyMenuPreparation(prepared: HostedPasskeyMenuPrepared): void {
   if (prepared.kind === 'hosted_passkey_registration_prepared_v1') {
@@ -163,7 +182,7 @@ type AuthMenuReturnState =
 type AuthMenuRecoveryState =
   | {
       readonly kind: 'recovery';
-      readonly stage: 'enter_code' | 'preparing';
+      readonly stage: 'enter_code' | 'choose_method' | 'preparing';
       readonly viewModel: AuthMenuRecoveryViewModel;
       readonly returnState: AuthMenuReturnState;
       readonly operation?: never;
@@ -536,6 +555,14 @@ type RecoveryViewModelArgs = RecoveryViewModelArgsBase &
         >['status'];
       }
     | {
+        readonly stage: 'choose_method';
+        readonly walletId?: never;
+        readonly status?: Extract<
+          AuthMenuRecoveryViewModel,
+          { readonly stage: 'choose_method' }
+        >['status'];
+      }
+    | {
         readonly stage: 'preparing';
         readonly target: WalletRecoveryTargetV1;
         readonly walletId?: never;
@@ -599,6 +626,9 @@ function recoveryViewModel(
   args: Extract<RecoveryViewModelArgs, { readonly stage?: 'enter_code' }>,
 ): Extract<AuthMenuRecoveryViewModel, { readonly stage: 'enter_code' }>;
 function recoveryViewModel(
+  args: Extract<RecoveryViewModelArgs, { readonly stage: 'choose_method' }>,
+): Extract<AuthMenuRecoveryViewModel, { readonly stage: 'choose_method' }>;
+function recoveryViewModel(
   args: Extract<RecoveryViewModelArgs, { readonly stage: 'preparing' }>,
 ): Extract<AuthMenuRecoveryViewModel, { readonly stage: 'preparing' }>;
 function recoveryViewModel(
@@ -629,7 +659,9 @@ function recoveryViewModel(args: RecoveryViewModelArgs): AuthMenuRecoveryViewMod
         ? args.target.kind === 'google_email_otp'
           ? 'Your Google account is ready to unlock your wallet.'
           : 'Your wallet is ready. Unlock it with your passkey.'
-        : 'Enter a recovery code to recover your wallet.',
+        : args.stage === 'choose_method' || args.stage === 'preparing'
+          ? 'Choose how you will sign in to this wallet from now on.'
+          : 'Enter a recovery code to recover your wallet.',
     ctaLabel:
       args.stage === 'passkey_ready'
         ? 'Create new passkey'
@@ -641,10 +673,8 @@ function recoveryViewModel(args: RecoveryViewModelArgs): AuthMenuRecoveryViewMod
               ? args.target.kind === 'google_email_otp'
                 ? 'Unlock with Google'
                 : 'Unlock with new passkey'
-              : args.stage === 'preparing'
-                ? args.target.kind === 'google_email_otp'
-                  ? 'Recover with Google'
-                  : 'Recover with Passkey'
+              : args.stage === 'preparing' || args.stage === 'choose_method'
+                ? 'Create a passkey'
                 : 'Continue',
     showProgress: args.base.showProgress,
     enabledExternalProviders: args.base.enabledExternalProviders,
@@ -657,6 +687,12 @@ function recoveryViewModel(args: RecoveryViewModelArgs): AuthMenuRecoveryViewMod
       return {
         ...common,
         stage: 'enter_code',
+        status: args.status ?? { kind: 'idle', interaction: 'actionable' },
+      };
+    case 'choose_method':
+      return {
+        ...common,
+        stage: 'choose_method',
         status: args.status ?? { kind: 'idle', interaction: 'actionable' },
       };
     case 'preparing':
@@ -709,14 +745,18 @@ function recoveryViewModel(args: RecoveryViewModelArgs): AuthMenuRecoveryViewMod
 }
 
 function recoveryWalletId(viewModel: AuthMenuRecoveryViewModel): string {
-  if (viewModel.stage === 'enter_code' || viewModel.stage === 'preparing') {
+  if (
+    viewModel.stage === 'enter_code' ||
+    viewModel.stage === 'choose_method' ||
+    viewModel.stage === 'preparing'
+  ) {
     throw new Error('recovery wallet id is unavailable before preparation');
   }
   return viewModel.walletId;
 }
 
 function recoveryTarget(viewModel: AuthMenuRecoveryViewModel): WalletRecoveryTargetV1 {
-  if (viewModel.stage === 'enter_code') {
+  if (viewModel.stage === 'enter_code' || viewModel.stage === 'choose_method') {
     throw new Error('recovery target is unavailable before preparation');
   }
   return viewModel.target;
@@ -1575,6 +1615,9 @@ export class AuthMenuSession {
       case 'recovery_code_changed':
         this.changeRecoveryCode(intent.recoveryCode);
         return;
+      case 'recovery_code_submit':
+        this.submitRecoveryCode();
+        return;
       case 'recovery_passkey_selected':
         this.prepareRecovery('passkey');
         return;
@@ -1742,6 +1785,10 @@ export class AuthMenuSession {
   private back(): void {
     if (this.stateValue.kind === 'recovery') {
       if (this.stateValue.stage === 'finalizing') return;
+      if (this.stateValue.stage === 'choose_method') {
+        this.returnToRecoveryCode();
+        return;
+      }
       this.closeRecovery();
       return;
     }
@@ -1811,21 +1858,51 @@ export class AuthMenuSession {
     this.updateElement();
   }
 
-  private prepareRecovery(targetKind: HostedRecoveryTargetKind = 'passkey'): void {
+  private submitRecoveryCode(): void {
     const state = this.stateValue;
     if (state.kind !== 'recovery' || state.stage !== 'enter_code') return;
-    const recoveryCode = state.viewModel.recoveryCode.trim();
-    if (!recoveryCode) {
+    const recoveryCodeError = recoveryCodeFormatError(state.viewModel.recoveryCode);
+    if (recoveryCodeError) {
       this.stateValue = {
         ...state,
         viewModel: {
           ...state.viewModel,
-          recoveryCodeError: 'Enter a recovery code.',
+          recoveryCodeError,
         },
       };
       this.updateElement();
       return;
     }
+    this.stateValue = {
+      ...state,
+      stage: 'choose_method',
+      viewModel: recoveryViewModel({
+        base: state.viewModel,
+        recoveryCode: state.viewModel.recoveryCode,
+        stage: 'choose_method',
+      }),
+    };
+    this.updateElement();
+  }
+
+  private returnToRecoveryCode(): void {
+    const state = this.stateValue;
+    if (state.kind !== 'recovery' || state.stage !== 'choose_method') return;
+    this.stateValue = {
+      ...state,
+      stage: 'enter_code',
+      viewModel: recoveryViewModel({
+        base: state.viewModel,
+        recoveryCode: state.viewModel.recoveryCode,
+      }),
+    };
+    this.updateElement();
+  }
+
+  private prepareRecovery(targetKind: HostedRecoveryTargetKind = 'passkey'): void {
+    const state = this.stateValue;
+    if (state.kind !== 'recovery' || state.stage !== 'choose_method') return;
+    const recoveryCode = state.viewModel.recoveryCode.trim();
     let target: WalletRecoveryTargetV1;
     try {
       target = this.recoveryPort.targetFor(targetKind);
@@ -1835,6 +1912,7 @@ export class AuthMenuSession {
         viewModel: recoveryViewModel({
           base: state.viewModel,
           recoveryCode: state.viewModel.recoveryCode,
+          stage: 'choose_method',
           status: recoveryFailureStatus({ kind: 'refused' }),
         }),
       };

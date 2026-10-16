@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { setupBasicPasskeyTest } from '../setup';
 import { prepareAuthMenuDocument, mountAuthMenu } from './auth-menu.harness';
 import type {
@@ -62,6 +62,8 @@ function loginViewModel(
 
 type RecoveryEntryViewModel = Extract<AuthMenuRecoveryViewModel, { readonly stage: 'enter_code' }>;
 
+const RECOVERY_CODE = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
 function recoveryEntryViewModel(
   overrides: Partial<{
     recoveryCode: string;
@@ -84,6 +86,43 @@ function recoveryEntryViewModel(
     recoveryCodeError: overrides.recoveryCodeError ?? null,
     status: { kind: 'idle', interaction: 'actionable' },
   };
+}
+
+function recoveryMethodChoiceViewModel(
+  enabledExternalProviders: readonly 'google'[],
+): Extract<AuthMenuRecoveryViewModel, { readonly stage: 'choose_method' }> {
+  return {
+    ...recoveryEntryViewModel({ recoveryCode: RECOVERY_CODE }),
+    subtitle: 'Choose how you will sign in to this wallet from now on.',
+    enabledExternalProviders,
+    stage: 'choose_method',
+    status: { kind: 'idle', interaction: 'actionable' },
+  };
+}
+
+async function recordIntents(page: Page): Promise<void> {
+  await page.evaluate((tagName) => {
+    const element = document.querySelector(tagName) as HTMLElement & { intents?: unknown[] };
+    element.intents = [];
+    window.__authMenu.onIntent = (intent) => {
+      element.intents?.push(intent);
+    };
+  }, AUTH_MENU_TAG);
+}
+
+async function recordedIntents(page: Page): Promise<unknown[] | undefined> {
+  return await page.evaluate(
+    (tagName) => (document.querySelector(tagName) as HTMLElement & { intents?: unknown[] }).intents,
+    AUTH_MENU_TAG,
+  );
+}
+
+async function showViewModel(page: Page, viewModel: AuthMenuViewModel): Promise<void> {
+  await page.evaluate(async (model) => {
+    window.__authMenu.model = model;
+    window.__authMenu.handle.update(window.__authMenu.model);
+    await Promise.resolve();
+  }, viewModel);
 }
 
 function recoveryFinalizingViewModel(): Extract<
@@ -326,7 +365,10 @@ test.describe('wallet-host Preact auth menu surface', () => {
       },
     );
     await expect(codeInput).toBeFocused();
-    await expect(codeInput).toHaveAttribute('aria-describedby', 'seams-recovery-code-feedback');
+    await expect(codeInput).toHaveAttribute(
+      'aria-describedby',
+      'seams-recovery-code-feedback seams-recovery-code-count',
+    );
     await expect(recoveryFeedback).toHaveCount(1);
     await expect(recoveryFeedback).toHaveText('Enter a recovery code.');
     await expect(recoveryFeedback).toHaveClass(/seams-recovery-error/);
@@ -343,7 +385,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     );
     expect(intents).toEqual([
       { kind: 'recovery_open' },
-      { kind: 'recovery_code_changed', recoveryCode: 'ABCD-EFGH' },
+      { kind: 'recovery_code_changed', recoveryCode: 'ABCDEFGH' },
       { kind: 'back' },
     ]);
 
@@ -365,6 +407,53 @@ test.describe('wallet-host Preact auth menu surface', () => {
     expect(reflow.clientWidth).toBeGreaterThanOrEqual(318);
     expect(reflow.scrollWidth).toBeLessThanOrEqual(reflow.clientWidth);
   });
+  test('takes the recovery code first, then the sign-in method recovery adds', async ({ page }) => {
+    await mountAuthMenu(page, recoveryEntryViewModel());
+    await recordIntents(page);
+
+    const codeInput = page.locator(`${AUTH_MENU_TAG} [data-recovery-code]`);
+    const continueButton = page.locator(`${AUTH_MENU_TAG} [data-recovery-continue]`);
+    await expect(
+      page.locator(`${AUTH_MENU_TAG} .seams-recovery-code-slots .seams-otp-slot`),
+    ).toHaveCount(32);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-code-count`)).toHaveText('0/32');
+    await expect(continueButton).toBeDisabled();
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-recovery-target]`)).toHaveCount(0);
+
+    // Lowercase, separators, and the letters Crockford Base32 reads as digits.
+    await codeInput.fill('o123-4567-89ab-cdef-ghjk-mnpq-rstv-wxyz');
+    await expect
+      .poll(() => recordedIntents(page))
+      .toEqual([{ kind: 'recovery_code_changed', recoveryCode: RECOVERY_CODE }]);
+    // The session owns the code: the input shows what the next view model holds.
+    await showViewModel(page, recoveryEntryViewModel({ recoveryCode: RECOVERY_CODE }));
+    await expect(codeInput).toHaveValue(RECOVERY_CODE);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-code-count`)).toHaveText('32/32');
+    await expect(continueButton).toBeEnabled();
+    await codeInput.press('Enter');
+
+    await showViewModel(page, recoveryMethodChoiceViewModel(['google']));
+    const passkeyChoice = page.locator(`${AUTH_MENU_TAG} [data-recovery-target="passkey"]`);
+    const googleChoice = page.locator(`${AUTH_MENU_TAG} [data-recovery-target="google_email_otp"]`);
+    await expect(passkeyChoice).toBeFocused();
+    await expect(passkeyChoice).toHaveText('Create a passkey');
+    await expect(googleChoice).toHaveText('Continue with Google');
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-recovery-code]`)).toHaveCount(0);
+    await passkeyChoice.click();
+    await page.keyboard.press('Escape');
+
+    expect(await recordedIntents(page)).toEqual([
+      { kind: 'recovery_code_changed', recoveryCode: RECOVERY_CODE },
+      { kind: 'recovery_code_submit' },
+      { kind: 'recovery_passkey_selected' },
+      { kind: 'back' },
+    ]);
+
+    await showViewModel(page, recoveryMethodChoiceViewModel([]));
+    await expect(passkeyChoice).toHaveCount(1);
+    await expect(googleChoice).toHaveCount(0);
+  });
+
   test('renders recovered Google sign-in as one ready message with the Google icon', async ({
     page,
   }) => {
