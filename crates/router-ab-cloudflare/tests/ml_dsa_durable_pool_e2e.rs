@@ -767,6 +767,14 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         m::refill::start_role(&refill_store, &job, 600_002)
     )
     .is_err());
+    let mut late_binding = binding(&job.key, Participant::A, 1);
+    late_binding.batch = job.batch;
+    late_binding.expires_at_ms = job.material_expires_at_ms;
+    let late_sealed = sealing::seal(Zeroizing::new(vec![7; 100_000]), &late_binding, &[1; 32]).unwrap();
+    assert!(tx(
+        &refill_store,
+        m::refill::publish_role(&refill_store, &job, late_binding, late_sealed, job.expires_at_ms)
+    ).is_err());
     assert!(!tx(&router, m::refill::check(&router, &job, job.expires_at_ms)).unwrap());
     let m::refill::Claim::Acquired { job: replacement } = tx(
         &router,
@@ -776,6 +784,15 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         panic!("Lease expiry did not release capacity")
     };
     assert_ne!(job.batch, replacement.batch);
+    let mut fresh_binding = binding(&replacement.key, Participant::A, 2);
+    fresh_binding.batch = replacement.batch;
+    fresh_binding.expires_at_ms = replacement.material_expires_at_ms;
+    let fresh_sealed = sealing::seal(Zeroizing::new(vec![8; 100_000]), &fresh_binding, &[1; 32]).unwrap();
+    tx(&refill_store, m::refill::start_role(&refill_store, &replacement, job.expires_at_ms)).unwrap();
+    tx(&refill_store, m::refill::publish_role(
+        &refill_store, &replacement, fresh_binding, fresh_sealed, job.expires_at_ms + 1
+    )).unwrap();
+
     tx(&router, m::refill::finish(&router, &job)).unwrap();
     assert!(tx(
         &router,
@@ -789,7 +806,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
-        "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
+        "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"expired_producer_publication_rejected":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,"prior_aes_suite_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,

@@ -3531,6 +3531,11 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
 - Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
 - Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.
+- Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
+- Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
+- Commit the producer's Running state before randomness generation. Retry terminal settlement without regenerating material. Abandon interrupted Running jobs.
+- Publish each role's preparation only under its exact live producer claim. Commit the producer outcome before releasing its service-wide lease.
+- Flush all buffered public table writes before publishing private registration preparation. Keep each write group within 16 frames and one atomic transaction.
 - Keep signing capacity reserved through both role settlements. New key-bound refill must wait for active signing settlement and registration to finish or expire.
 - Record public role-dispatch outcomes separately from final signing status. Distinguish candidate exhaustion, request failure, HTTP failure, response-body failure, and response-decoding failure.
 - B drains final data acknowledgments before requesting normal socket closure. A waits for peer close code 1000 within the operation deadline before returning the completed signing result.

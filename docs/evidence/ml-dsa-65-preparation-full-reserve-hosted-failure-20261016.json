@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-10-16T07:07:51.034Z",
+  "wallet": {
+    "org": "registration-e2e",
+    "project": "wallet",
+    "environment": "temporary",
+    "wallet": "wallet-287f8dfcbd37a6cd"
+  },
+  "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+  "hosted": true,
+  "initializationStallMs": 0,
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 1000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "minimum_ready_batches": 2,
+    "refill_target_batches": 4
+  },
+  "cases": [],
+  "functionalPassed": false,
+  "latencyTargetMet": false,
+  "builds": {
+    "router": "ec84ddc512ec8f4ab10c2df761f7e1d97dba9e405a61b4b5a99fcc68cb5d1544",
+    "deriver-a": "8632b899c8fd44a24ffb1a0d3977bf98777bf71a70c53f922c5b44574ffe5a35",
+    "deriver-b": "4a7ce7d5009dddc38130480b1ae901c1767d52273d3b84b380ba82b277941400"
+  },
+  "scriptSha256": "01dc9ade380f76df8594d3b137d118472caaed59f38e51dcfe0fda605c46defe",
+  "wrongCredentialRejected": true,
+  "emptyPoolRetryTime": true,
+  "error": "AssertionError [ERR_ASSERTION]: /router-ab/ml-dsa/registration/prepare: INTERNAL SERVER ERROR\n\n500 !== 200\n"
+}

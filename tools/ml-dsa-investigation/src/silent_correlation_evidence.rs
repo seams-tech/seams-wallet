@@ -144,6 +144,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     for name in [
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
         "crates/ed25519-yao/src/passive/ot.rs",
         "tools/ml-dsa-investigation/src/silent_correlation_evidence.rs",
         "tools/ml-dsa-investigation/Cargo.lock",

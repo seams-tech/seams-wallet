@@ -371,6 +371,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
         "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
         "crates/ed25519-yao/src/passive/ot.rs",

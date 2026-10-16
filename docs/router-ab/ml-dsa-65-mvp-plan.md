@@ -131,3 +131,15 @@ The complete preparation reserve takes 203.543–273.996 seconds. A prior binary
 The five-second registration target remains unmet. Consistent multi-batch signing remains unqualified.
 Next: isolate the 4.183–8.469-second inventory RPC delay from overlapping producer work. Then compare minimum admission-ready stock and bounded concurrent installation.
 Keep GPU work and public Wallet integration deferred. Qualify refill capacity and lifecycle-wide deadlines before release.
+
+## Preparation throughput checkpoint — October 16, 2026
+
+The [preparation throughput report](ml-dsa-65-preparation-throughput-report.md) records durable asynchronous producer dispatch, grouped table writes, and the equivalent AES adapter.
+All twelve hosted signatures verify in 1.34–3.55 seconds per successful online request. One operation consumes two batches.
+After initial stock depletion, the observed rates are 0.895 paired batches and 0.795 successful signatures per minute.
+Capacity waits raise the median demand time to 52.55 seconds and the maximum to 175.97 seconds.
+The pool target remains four. The service runs one producer. A larger reserve does not establish lower preparation cost.
+Canonical wallet-seed recovery and ordinary FIPS export remain intact. GPU work remains deferred.
+
+Next: profile preparation stages and compare complete matched runs. Include CPU, traffic, interrupted attempts, and stock-depleted signing throughput.
+Any producer-concurrency experiment must measure added compute and online interference. Public Wallet integration remains gated.

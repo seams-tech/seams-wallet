@@ -1,7 +1,11 @@
 //! Durable alarms dispatch fresh paired preparation outside signing requests.
+mod producer;
 use super::*;
 use ed25519_yao::ml_dsa_signing::{prepared_signing::gmw::prepare_gmw_reservation, SigningRole};
+pub(crate) use producer::handle_start;
+pub use producer::RouterAbMlDsaProducerDurableObject;
 use worker::{Context, WebSocket, WebSocketPair};
+pub(crate) const START_PATH: &str = "/router-ab/ml-dsa/prepare";
 pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
 const QUEUE: &str = "preprocessing-queue";
 
@@ -78,6 +82,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     let b: pool::Inventory = coordinator::role_call(env, "DERIVER_B", &command)
         .await
         .map_err(protocol_error)?;
+    log_inventory(&key, &a, &b);
     let stock_a = a.stock_batches();
     let stock_b = b.stock_batches();
     let paired = stock_a
@@ -118,17 +123,9 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         reconcile_and_produce(env, state, &job, only_a, only_b),
     )
     .await;
-    let _: bool = service_call(
-        env,
-        CallAuthority::Internal,
-        &AdmissionCommand::FinishRefill { job },
-    )
-    .await
-    .map_err(protocol_error)?;
+    // A lost queue reply can still mean the job started. Keep its lease until
+    // the independent producer finishes or the existing deadline expires.
     schedule_refill_alarm(state, if result.is_ok() { 1_000 } else { 5_000 }).await?;
-    if let Err(error) = &result {
-        worker::console_error!("ML-DSA refill failed: {}", error);
-    }
     result.map_err(protocol_error)?;
     Response::from_json(&true)
 }
@@ -204,15 +201,12 @@ async fn prepare(
     let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
     Ok((binding, sealed))
 }
-async fn produce_a(env: &Env, state: &State, job: &refill::Job) -> Result<()> {
+async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
     check_job(env, job).await?;
-    role_transaction(
-        state,
-        Participant::A,
-        RoleCommand::StartRefill { job: job.clone() },
-    )
-    .await
-    .map_err(storage_error)?;
+    let response = local_call(env, &RoleCommand::StartRefill { job: job.clone() }).await?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA preparation was already claimed"));
+    }
     let request = socket_request(env, PREPARE_PATH, job)?;
     let response = env
         .service("DERIVER_B")
@@ -226,20 +220,16 @@ async fn produce_a(env: &Env, state: &State, job: &refill::Job) -> Result<()> {
     let socket = response
         .websocket()
         .ok_or_else(|| invalid("ML-DSA preparation socket is absent"))?;
-    let result = produce_a_connected(env, state, job, &socket).await;
+    let result = produce_a_connected(env, job, &socket).await;
     let _ = socket.close(
         Some(if result.is_ok() { 1000 } else { 1011 }),
         Some("ML-DSA preparation ended"),
     );
     result
 }
-async fn produce_a_connected(
-    env: &Env,
-    state: &State,
-    job: &refill::Job,
-    socket: &WebSocket,
-) -> Result<()> {
-    let mut transport = transport::Duplex::new(socket, job.expires_at_ms).map_err(storage_error)?;
+async fn produce_a_connected(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<()> {
+    let mut transport =
+        transport::Duplex::for_preparation(socket, job.expires_at_ms).map_err(storage_error)?;
     let (binding, sealed) = prepare(env, job, &mut transport).await?;
     if transport
         .receive(1)
@@ -250,13 +240,30 @@ async fn produce_a_connected(
         return Err(invalid("Invalid ML-DSA preparation acknowledgement"));
     }
     check_job(env, job).await?;
-    role_transaction(state, Participant::A, RoleCommand::Put { binding, sealed })
-        .await
-        .map_err(storage_error)?;
+    let response = local_call(
+        env,
+        &RoleCommand::Put {
+            job: job.clone(),
+            binding,
+            sealed,
+        },
+    )
+    .await?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA preparation storage failed"));
+    }
     transport
         .send(&[2])
         .await
         .map_err(|_| invalid("ML-DSA paired preparation acknowledgement failed"))?;
+    transport
+        .flush()
+        .await
+        .map_err(|_| invalid("ML-DSA preparation delivery was not acknowledged"))?;
+    transport
+        .peer_closed()
+        .await
+        .map_err(|_| invalid("ML-DSA preparation peer did not close normally"))?;
     Ok(())
 }
 pub(crate) async fn handle_prepare(
@@ -300,9 +307,18 @@ pub(crate) async fn handle_prepare(
     Response::from_websocket(pair.client)
 }
 async fn produce_b(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<()> {
-    let mut transport = transport::Duplex::new(socket, job.expires_at_ms).map_err(storage_error)?;
+    let mut transport =
+        transport::Duplex::for_preparation(socket, job.expires_at_ms).map_err(storage_error)?;
     let (binding, sealed) = prepare(env, job, &mut transport).await?;
-    let response = local_call(env, &RoleCommand::Put { binding, sealed }).await?;
+    let response = local_call(
+        env,
+        &RoleCommand::Put {
+            job: job.clone(),
+            binding,
+            sealed,
+        },
+    )
+    .await?;
     if response.status_code() != 200 {
         return Err(invalid("ML-DSA peer preparation storage failed"));
     }
@@ -401,5 +417,36 @@ async fn reconcile_and_produce(
         )
         .await?;
     }
-    produce_a(env, state, job).await
+    let request = object_request(env, CallAuthority::Internal, START_PATH, job)?;
+    let mut response = env
+        .service("ML_DSA_PREPARER")
+        .map_err(storage_error)?
+        .fetch_request(request)
+        .await
+        .map_err(storage_error)?;
+    if response.status_code() != 202 {
+        return Err(invalid(
+            "ML-DSA dedicated preparation queue refused the job",
+        ));
+    }
+    if !response.json::<bool>().await.map_err(storage_error)? {
+        return Err(invalid("ML-DSA producer queue was not acknowledged"));
+    }
+    Ok(())
+}
+
+/// Public stock identities let throughput evidence account for initial and final reserves.
+pub(super) fn log_inventory(key: &KeyScope, a: &pool::Inventory, b: &pool::Inventory) {
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_inventory_v1",
+            "key": hex(&key.public_key_digest),
+            "epoch": key.epoch,
+            "ready_a": a.ready.iter().map(|id| hex(id)).collect::<Vec<_>>(),
+            "ready_b": b.ready.iter().map(|id| hex(id)).collect::<Vec<_>>(),
+            "reserved_a": a.reserved.iter().map(|id| hex(id)).collect::<Vec<_>>(),
+            "reserved_b": b.reserved.iter().map(|id| hex(id)).collect::<Vec<_>>(),
+        })
+    );
 }

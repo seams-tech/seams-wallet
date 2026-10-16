@@ -262,7 +262,7 @@ impl RegistrationTransport {
             json!({"role":self.binding.role,"frames_written":self.frames_written,"frames_read":self.frames_read,
             "read_transactions":self.read_transactions,"peak_cached_frames":self.peak_cached_frames,
             "cleanup_steps":steps+1,"cleanup_complete":true,"remaining_ciphertext_chunks":self.db.remaining_registration_table_chunks()?,"replay_checked":self.replay_checked,
-            "evaluator_negative_cases": if self.first.is_some() { vec!["before_consume", "wrong_ceremony", "wrong_key", "bounded_frame_chunks", "modified_later_frame_rolls_back_batch", "cached_order", "unserved_prefetch_replay_after_restart", "repeated_read", "retired_read", "retired_republish", "cancel_before_first_frame"] } else { vec![] }}),
+            "evaluator_negative_cases": if self.first.is_some() { vec!["invalid_later_write_rolls_back_batch", "before_consume", "wrong_ceremony", "wrong_key", "bounded_frame_chunks", "modified_later_frame_rolls_back_batch", "cached_order", "unserved_prefetch_replay_after_restart", "repeated_read", "retired_read", "retired_republish", "cancel_before_first_frame"] } else { vec![] }}),
         )
     }
 }
@@ -282,6 +282,15 @@ impl Transport for RegistrationTransport {
         ordinal: usize,
         bytes: &[u8],
     ) -> Result<(), RuntimeError> {
+        if self.first.is_none() {
+            let failed_batch = tx(&self.db, async {
+                tables::put(&self.db, &self.binding, circuit, ordinal, bytes, &self.seed, 1).await?;
+                tables::put(&self.db, &self.binding, circuit, ordinal + 2, bytes, &self.seed, 1).await
+            });
+            require(failed_batch.is_err(), "Out-of-order later write was accepted").map_err(failure)?;
+            require(self.db.remaining_registration_table_chunks().map_err(failure)? == 0,
+                "Failed write batch retained its earlier frame").map_err(failure)?;
+        }
         tx(
             &self.db,
             tables::put(

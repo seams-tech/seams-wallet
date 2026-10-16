@@ -17,7 +17,9 @@ pub(crate) use coordinator::{
     handle_activate, handle_admit, handle_complete, handle_sign, handle_status,
 };
 use executor::{handle_execute, is_execution_path, EXECUTE_PATH};
+pub use preparation::RouterAbMlDsaProducerDurableObject;
 use preparation::{handle_prepare, PREPARE_PATH};
+use std::future::Future;
 use std::{cell::RefCell, rc::Rc};
 use worker::{durable_object, DurableObject, Env, Method, Response, State, Transaction};
 
@@ -145,6 +147,7 @@ pub enum RoleCommand {
         key: KeyScope,
     },
     Put {
+        job: refill::Job,
         binding: Binding,
         sealed: Sealed,
     },
@@ -275,6 +278,29 @@ impl Store for TransactionStore {
     }
 }
 
+async fn transaction<T, F, Fut>(state: &State, work: F) -> Result<T>
+where
+    T: 'static,
+    F: FnOnce(TransactionStore) -> Fut + 'static,
+    Fut: Future<Output = Result<T>> + 'static,
+{
+    let output = Rc::new(RefCell::new(None));
+    let captured = Rc::clone(&output);
+    state
+        .storage()
+        .transaction(move |tx| async move {
+            let value = work(TransactionStore(tx)).await.map_err(protocol_error)?;
+            captured.replace(Some(value));
+            Ok(())
+        })
+        .await
+        .map_err(storage_error)?;
+    let result = output
+        .borrow_mut()
+        .take()
+        .ok_or_else(|| invalid("Registration transaction returned no result"));
+    result
+}
 #[durable_object]
 pub struct RouterAbMlDsaAdmissionDurableObject {
     state: State,
@@ -550,7 +576,9 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             }
             return Ok(());
         }
-        RoleCommand::StartRefill { job } => return preparation::check_job(env, job).await,
+        RoleCommand::StartRefill { job } | RoleCommand::Put { job, .. } => {
+            return preparation::check_job(env, job).await;
+        }
         RoleCommand::Reserve { claim, .. } => (
             &claim.request,
             Status::Preparing {
@@ -637,7 +665,6 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             return Ok(());
         }
         RoleCommand::CheckMaterial { .. }
-        | RoleCommand::Put { .. }
         | RoleCommand::Inventory { .. }
         | RoleCommand::RefillStatus { .. }
         | RoleCommand::Inspect { .. }
@@ -704,11 +731,15 @@ async fn execute_role(
             pool::install_key(store, key).await?;
             json(true)
         }
-        RoleCommand::Put { binding, sealed } => {
+        RoleCommand::Put {
+            job,
+            binding,
+            sealed,
+        } => {
             if binding.role != role {
                 return Err(invalid("ML-DSA material belongs to another role"));
             }
-            pool::put(store, binding, sealed, now).await?;
+            refill::publish_role(store, &job, binding, sealed, now).await?;
             json(true)
         }
         RoleCommand::Inventory {
@@ -842,6 +873,7 @@ async fn service_call<T: serde::de::DeserializeOwned>(
 
 pub(crate) fn is_role_path(path: &str) -> bool {
     path == ROLE_PATH
+        || path == preparation::START_PATH
         || path == PREPARE_PATH
         || is_execution_path(path)
         || path == registration::ROLE_PATH
@@ -855,6 +887,7 @@ pub(crate) async fn handle_role_request(
         registration::ROLE_PATH => registration::handle_role(request, &env).await,
         ROLE_PATH => handle_role(request, &env).await,
         PREPARE_PATH => handle_prepare(request, env, context).await,
+        preparation::START_PATH => preparation::handle_start(request, env).await,
         _ => handle_execute(request, env, context).await,
     }
 }

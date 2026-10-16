@@ -1,0 +1,23 @@
+{
+  "colocated": {
+    "router": "9f135025-421a-45d8-a5f7-b234c9aad799",
+    "a": "ed041a34-bd09-49ad-9a1f-87a6f1a01b02",
+    "b": "29bbbf5b-dcee-4cd1-a2af-343edd569426",
+    "preparer-a": "56a60d95-4a30-498d-b7de-77a6425ea9b8",
+    "preparer-b": "5064d23d-b128-46e4-a7e6-c8c470a44e8f"
+  },
+  "separated": {
+    "router": "9f135025-421a-45d8-a5f7-b234c9aad799",
+    "a": "764a679b-be9b-4aab-a0d6-fec64d3f7791",
+    "b": "29bbbf5b-dcee-4cd1-a2af-343edd569426",
+    "preparer-a": "56a60d95-4a30-498d-b7de-77a6425ea9b8",
+    "preparer-b": "5064d23d-b128-46e4-a7e6-c8c470a44e8f"
+  },
+  "queued": {
+    "router": "67f38524-09d6-4ded-b9ad-404cbf77931e",
+    "a": "d16bbeed-5ed7-4a5a-84b7-55cf1ef0d975",
+    "b": "afc914d5-4d7c-4e7e-b006-571472c2aa56",
+    "preparer-a": "e3256c7f-33ff-4e5a-b886-eb0c8b23c2c0",
+    "preparer-b": "29e8b8ce-836c-4975-b4b0-eccc70fb06fe"
+  }
+}

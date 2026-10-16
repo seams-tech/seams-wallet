@@ -1,0 +1,106 @@
+{
+  "scope": "Public-input AES permutation screen with varying full128-bit inputs, Node Wasm SIMD. Mode0 RustCrypto0.9.1, mode1 existing FourBlockAes128. Both use64-bit fixslice. No complete preparation claim.",
+  "rounds": 32768,
+  "blocksPerRound": 8,
+  "wasmSha256": "f8a3a5b26aa8a1ee64e672c5405a4ab482bf1ad234c2f973833069f4a91ff0f8",
+  "source": "use aes::{\n    cipher::{BlockCipherEncrypt, KeyInit},\n    Aes128,\n};\nuse zeroize::Zeroizing;\n#[path = \"/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/src/passive/gate_aes.rs\"]\nmod gate_aes;\n#[no_mangle]\npub extern \"C\" fn measure(mode: u32, rounds: u32, mut seed: u32) -> u32 {\n    let key = [19u8; 16];\n    let reference = Aes128::new(&key.into());\n    let candidate = gate_aes::FourBlockAes128::new(&key);\n    let mut checksum = 0u32;\n    for round in 0..rounds {\n        let mut input = Zeroizing::new([[0u8; 16]; 8]);\n        for (lane, block) in input.iter_mut().enumerate() {\n            for word in block.chunks_mut(4) {\n                seed ^= seed << 13;\n                seed ^= seed >> 17;\n                seed ^= seed << 5;\n                word.copy_from_slice(&seed.to_le_bytes());\n            }\n            core::hint::black_box((round, lane));\n        }\n        if mode == 0 {\n            let mut blocks = Zeroizing::new([aes::cipher::Block::<Aes128>::default(); 8]);\n            for (block, value) in blocks.iter_mut().zip(input.iter()) {\n                block.copy_from_slice(value);\n            }\n            reference.encrypt_blocks(&mut blocks[..]);\n            for (value, block) in input.iter_mut().zip(blocks.iter()) {\n                value.copy_from_slice(block);\n            }\n        } else {\n            for chunk in input.chunks_mut(4) {\n                let mut batch = Zeroizing::new(gate_aes::FourBlocks::default());\n                batch.0.copy_from_slice(chunk);\n                candidate.encrypt_four(&mut batch);\n                chunk.copy_from_slice(&batch.0);\n            }\n        }\n        for block in input.iter() {\n            checksum = checksum.wrapping_add(u32::from_le_bytes(block[..4].try_into().unwrap()));\n        }\n    }\n    core::hint::black_box(checksum)\n}\n",
+  "manifest": "[package]\nname = \"ml-dsa-aes-screen\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[lib]\ncrate-type = [\"cdylib\"]\n[dependencies]\naes = { version = \"=0.9.1\", features = [\"zeroize\"] }\nzeroize = \"=1.9.0\"\ncipher = { version = \"=0.5.2\", features = [\"zeroize\"] }\n[profile.release]\nopt-level = 3\nlto = true\ncodegen-units = 1\npanic = \"abort\"\n",
+  "samples": [
+    {
+      "mode": 0,
+      "repetition": 0,
+      "elapsedMs": 19.106249999999996,
+      "checksum": -501575240
+    },
+    {
+      "mode": 1,
+      "repetition": 0,
+      "elapsedMs": 12.806916999999991,
+      "checksum": -501575240
+    },
+    {
+      "mode": 1,
+      "repetition": 1,
+      "elapsedMs": 12.64791600000001,
+      "checksum": 1653282013
+    },
+    {
+      "mode": 0,
+      "repetition": 1,
+      "elapsedMs": 19.151416999999995,
+      "checksum": 1653282013
+    },
+    {
+      "mode": 0,
+      "repetition": 2,
+      "elapsedMs": 19.128667000000007,
+      "checksum": 2127851339
+    },
+    {
+      "mode": 1,
+      "repetition": 2,
+      "elapsedMs": 13.586207999999985,
+      "checksum": 2127851339
+    },
+    {
+      "mode": 1,
+      "repetition": 3,
+      "elapsedMs": 12.872500000000002,
+      "checksum": 1268493511
+    },
+    {
+      "mode": 0,
+      "repetition": 3,
+      "elapsedMs": 18.983834,
+      "checksum": 1268493511
+    },
+    {
+      "mode": 0,
+      "repetition": 4,
+      "elapsedMs": 18.907290999999987,
+      "checksum": 1601304025
+    },
+    {
+      "mode": 1,
+      "repetition": 4,
+      "elapsedMs": 12.728207999999995,
+      "checksum": 1601304025
+    },
+    {
+      "mode": 1,
+      "repetition": 5,
+      "elapsedMs": 12.91666699999999,
+      "checksum": -1180399253
+    },
+    {
+      "mode": 0,
+      "repetition": 5,
+      "elapsedMs": 19.226167000000004,
+      "checksum": -1180399253
+    },
+    {
+      "mode": 0,
+      "repetition": 6,
+      "elapsedMs": 19.183542000000017,
+      "checksum": 1304262254
+    },
+    {
+      "mode": 1,
+      "repetition": 6,
+      "elapsedMs": 12.807583000000022,
+      "checksum": 1304262254
+    },
+    {
+      "mode": 1,
+      "repetition": 7,
+      "elapsedMs": 12.714791999999989,
+      "checksum": -1727165240
+    },
+    {
+      "mode": 0,
+      "repetition": 7,
+      "elapsedMs": 19.03483399999999,
+      "checksum": -1727165240
+    }
+  ]
+}

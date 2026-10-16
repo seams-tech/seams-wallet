@@ -1,0 +1,422 @@
+{
+  "schema": "seams.ml-dsa-refill-summary.v1",
+  "scope": "Short one-wallet saturation screen. Initial stock is excluded from the post-depletion rate. Final HTTP latency and demand latency are separate. Whole-invocation CPU is reported per role without a billing claim.",
+  "deployment_versions": {
+    "router": "67f38524-09d6-4ded-b9ad-404cbf77931e",
+    "a": "d16bbeed-5ed7-4a5a-84b7-55cf1ef0d975",
+    "b": "afc914d5-4d7c-4e7e-b006-571472c2aa56",
+    "preparer-a": "e3256c7f-33ff-4e5a-b886-eb0c8b23c2c0",
+    "preparer-b": "29e8b8ce-836c-4975-b4b0-eccc70fb06fe"
+  },
+  "unmatched_publications": [],
+  "initial_observed_stock": {
+    "at_ms": 1792139647488,
+    "role": "router",
+    "key": "662245fbc69ae21693294321ef89ab1fdac0ea892d3ccb70c33d14553c23bb62",
+    "epoch": 2,
+    "ready_a": [
+      "006c694b99974e55a3935432192453fff6834073896e21657eb698a2732c3e19",
+      "a3eadbf4b0556f76fa29a5406141884ed2c8b74b06c8e10f5704273fe1e7f952",
+      "dde1d386f481d9b06f8cc78c881dc96f95bcc1b3786389cf81374a7545f8d831",
+      "8de64cc29ba88cf50b71d07c1b1d2806e61d0ceb1b9d6873e5be4932bc29a2ad"
+    ],
+    "ready_b": [
+      "006c694b99974e55a3935432192453fff6834073896e21657eb698a2732c3e19",
+      "a3eadbf4b0556f76fa29a5406141884ed2c8b74b06c8e10f5704273fe1e7f952",
+      "dde1d386f481d9b06f8cc78c881dc96f95bcc1b3786389cf81374a7545f8d831",
+      "8de64cc29ba88cf50b71d07c1b1d2806e61d0ceb1b9d6873e5be4932bc29a2ad"
+    ],
+    "reserved_a": [],
+    "reserved_b": [],
+    "log_timestamp_ms": 1792139647488
+  },
+  "final_observed_stock": {
+    "at_ms": 1792140495164,
+    "role": "a",
+    "key": "662245fbc69ae21693294321ef89ab1fdac0ea892d3ccb70c33d14553c23bb62",
+    "epoch": 2,
+    "ready_a": [
+      "12d95c706cafe8e75bb53494513ad5e0e9329b26c35762f354e46280301beeab",
+      "1ace347caeed21e719e06b528aeb1e72ebc752e0ba67ade45e80eb2e3a9cabb2",
+      "942f3637e92d06a73fd9a40d14711b499c43d523857a43861206743698924075",
+      "bfde3e462223617a17bb893caf621a6c7e7d2b8e8e565027fb179013dd517e4a"
+    ],
+    "ready_b": [
+      "12d95c706cafe8e75bb53494513ad5e0e9329b26c35762f354e46280301beeab",
+      "1ace347caeed21e719e06b528aeb1e72ebc752e0ba67ade45e80eb2e3a9cabb2",
+      "942f3637e92d06a73fd9a40d14711b499c43d523857a43861206743698924075",
+      "bfde3e462223617a17bb893caf621a6c7e7d2b8e8e565027fb179013dd517e4a"
+    ],
+    "reserved_a": [],
+    "reserved_b": [],
+    "log_timestamp_ms": 1792140495164
+  },
+  "initial_ids_including_prestarted_producers": [
+    "006c694b99974e55a3935432192453fff6834073896e21657eb698a2732c3e19",
+    "8de64cc29ba88cf50b71d07c1b1d2806e61d0ceb1b9d6873e5be4932bc29a2ad",
+    "a3eadbf4b0556f76fa29a5406141884ed2c8b74b06c8e10f5704273fe1e7f952",
+    "dde1d386f481d9b06f8cc78c881dc96f95bcc1b3786389cf81374a7545f8d831"
+  ],
+  "prestarted_producer_batch_ids": [],
+  "paired_publications": [
+    {
+      "at_ms": 1792139703021,
+      "batch": "1db9b7d07678f073c3d266edaf367db026f119868d883b91f598bbf9cfec1472",
+      "published": true,
+      "elapsed_ms": 51110,
+      "candidates": 8,
+      "log_timestamp_ms": 1792139703021
+    },
+    {
+      "at_ms": 1792139758324,
+      "batch": "ee439826e67f6c544e695113c185b287b25a4a68a45312b6d8b60bafc9a83207",
+      "published": true,
+      "elapsed_ms": 50208,
+      "candidates": 8,
+      "log_timestamp_ms": 1792139758324
+    },
+    {
+      "at_ms": 1792139807011,
+      "batch": "cd1edf46b540286aac821c42b01371d9703fd05cc2f6ef53ce503458b826429c",
+      "published": true,
+      "elapsed_ms": 43415,
+      "candidates": 8,
+      "log_timestamp_ms": 1792139807011
+    },
+    {
+      "at_ms": 1792139978380,
+      "batch": "d894b916c7f6328e3855bf35f03a85cc926683cce25f5aa9b1c47edee3f409fd",
+      "published": true,
+      "elapsed_ms": 79089,
+      "candidates": 8,
+      "log_timestamp_ms": 1792139978380
+    },
+    {
+      "at_ms": 1792140063918,
+      "batch": "9dece268d0e6e6e73b759ec5a659127668cc7439f2d1cb62a56ebe6d341161db",
+      "published": true,
+      "elapsed_ms": 80927,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140063918
+    },
+    {
+      "at_ms": 1792140121187,
+      "batch": "c819aabd24019a6903d499cdc6130a8f7380c65dcb7ac76df09c77c923c4b746",
+      "published": true,
+      "elapsed_ms": 50703,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140121187
+    },
+    {
+      "at_ms": 1792140163716,
+      "batch": "579d5a7cdf9a9d7650d67c5a958e0b82e70179558f40c12229295e3c4d46075f",
+      "published": true,
+      "elapsed_ms": 41078,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140163716
+    },
+    {
+      "at_ms": 1792140246543,
+      "batch": "db5a307332b7e7eb3c5566a4dc8823e3048a8efd8425ee22181c57d0f760466b",
+      "published": true,
+      "elapsed_ms": 77122,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140246543
+    },
+    {
+      "at_ms": 1792140304727,
+      "batch": "12d95c706cafe8e75bb53494513ad5e0e9329b26c35762f354e46280301beeab",
+      "published": true,
+      "elapsed_ms": 51935,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140304727
+    },
+    {
+      "at_ms": 1792140352969,
+      "batch": "1ace347caeed21e719e06b528aeb1e72ebc752e0ba67ade45e80eb2e3a9cabb2",
+      "published": true,
+      "elapsed_ms": 42479,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140352969
+    },
+    {
+      "at_ms": 1792140437705,
+      "batch": "942f3637e92d06a73fd9a40d14711b499c43d523857a43861206743698924075",
+      "published": true,
+      "elapsed_ms": 52903,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140437705
+    },
+    {
+      "at_ms": 1792140491611,
+      "batch": "bfde3e462223617a17bb893caf621a6c7e7d2b8e8e565027fb179013dd517e4a",
+      "published": true,
+      "elapsed_ms": 48485,
+      "candidates": 8,
+      "log_timestamp_ms": 1792140491611
+    }
+  ],
+  "new_paired_batch_ids_observed": [
+    "0ff9aae701953e030eca01ce3b32510f46e91f2b0e395f8aee6ae15ff0bfb6e5",
+    "12d95c706cafe8e75bb53494513ad5e0e9329b26c35762f354e46280301beeab",
+    "1ace347caeed21e719e06b528aeb1e72ebc752e0ba67ade45e80eb2e3a9cabb2",
+    "1db9b7d07678f073c3d266edaf367db026f119868d883b91f598bbf9cfec1472",
+    "579d5a7cdf9a9d7650d67c5a958e0b82e70179558f40c12229295e3c4d46075f",
+    "942f3637e92d06a73fd9a40d14711b499c43d523857a43861206743698924075",
+    "9dece268d0e6e6e73b759ec5a659127668cc7439f2d1cb62a56ebe6d341161db",
+    "bfde3e462223617a17bb893caf621a6c7e7d2b8e8e565027fb179013dd517e4a",
+    "c819aabd24019a6903d499cdc6130a8f7380c65dcb7ac76df09c77c923c4b746",
+    "cd1edf46b540286aac821c42b01371d9703fd05cc2f6ef53ce503458b826429c",
+    "d894b916c7f6328e3855bf35f03a85cc926683cce25f5aa9b1c47edee3f409fd",
+    "db5a307332b7e7eb3c5566a4dc8823e3048a8efd8425ee22181c57d0f760466b",
+    "ee439826e67f6c544e695113c185b287b25a4a68a45312b6d8b60bafc9a83207"
+  ],
+  "missing_publication_completion_records": [
+    "0ff9aae701953e030eca01ce3b32510f46e91f2b0e395f8aee6ae15ff0bfb6e5"
+  ],
+  "unexplained_arrival_ids": [
+    "0ff9aae701953e030eca01ce3b32510f46e91f2b0e395f8aee6ae15ff0bfb6e5"
+  ],
+  "failed_producer_completions": [],
+  "publication_limit": "A failed producer completion can follow durable publication. Inventories determine observed paired stock. Missing completion records remain explicit.",
+  "unknown_publications": [
+    {
+      "at_ms": 1792139898451,
+      "batch": "0ff9aae701953e030eca01ce3b32510f46e91f2b0e395f8aee6ae15ff0bfb6e5",
+      "published": null,
+      "elapsed_ms": null,
+      "candidates": 8,
+      "log_timestamp_ms": 1792139898451
+    }
+  ],
+  "consumption": [
+    {
+      "operation": "206b09ebc7642d574a5a8d8f20242e38bd39485cfd371837080f7d6852c87532",
+      "at_ms": 1792139649171.9705,
+      "dispatch_at_ms": 1792139649122,
+      "batches": [
+        "006c694b99974e55a3935432192453fff6834073896e21657eb698a2732c3e19"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "db570619c808c9309e6cec770982c26c5096fab83c212eb326e48e62631cc5a4",
+      "at_ms": 1792139651609.8828,
+      "dispatch_at_ms": 1792139651640,
+      "batches": [
+        "a3eadbf4b0556f76fa29a5406141884ed2c8b74b06c8e10f5704273fe1e7f952"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "288ea70e08a897822bfb51ec9d93f8ba0a919ad97ac4395237202fd05df84efd",
+      "at_ms": 1792139654078.343,
+      "dispatch_at_ms": 1792139654081,
+      "batches": [
+        "dde1d386f481d9b06f8cc78c881dc96f95bcc1b3786389cf81374a7545f8d831"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "2255014daa3c96c0d1dadb9383b1d0ce2f27dd6993f180d21f6b86222c5a99a9",
+      "at_ms": 1792139705937.4104,
+      "dispatch_at_ms": 1792139705930,
+      "batches": [
+        "8de64cc29ba88cf50b71d07c1b1d2806e61d0ceb1b9d6873e5be4932bc29a2ad"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "319b7cac24027e4b6eb85e0c52848f2acfce79ecfa6900419af140ca96ea3d8b",
+      "at_ms": 1792139761376.0815,
+      "dispatch_at_ms": 1792139761367,
+      "batches": [
+        "1db9b7d07678f073c3d266edaf367db026f119868d883b91f598bbf9cfec1472"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "fbca8390dcfa92c8b9bd9bee22901630ef3b2d4aec362f2b15de68309a570ecb",
+      "at_ms": 1792139811600.6729,
+      "dispatch_at_ms": 1792139811551,
+      "batches": [
+        "ee439826e67f6c544e695113c185b287b25a4a68a45312b6d8b60bafc9a83207"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "bd661a1ee79f92d05407305155ee840ef80c3c8b2ec0bbd26b10d1ed0f4b626c",
+      "at_ms": 1792139890627.452,
+      "dispatch_at_ms": 1792139890636,
+      "batches": [
+        "cd1edf46b540286aac821c42b01371d9703fd05cc2f6ef53ce503458b826429c",
+        "0ff9aae701953e030eca01ce3b32510f46e91f2b0e395f8aee6ae15ff0bfb6e5"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 2,
+        "evaluated_candidates": 16
+      }
+    },
+    {
+      "operation": "0738daa5a7081f78d5e568b4ba278a310b65cb7b4b982c524c7ae7a18a940db0",
+      "at_ms": 1792140067699.2317,
+      "dispatch_at_ms": 1792140067670,
+      "batches": [
+        "d894b916c7f6328e3855bf35f03a85cc926683cce25f5aa9b1c47edee3f409fd"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "01993ed2d8f2fe910823ff802bce35138183fce8f54b0873e73551cf9322fbf6",
+      "at_ms": 1792140125210.3289,
+      "dispatch_at_ms": 1792140125180,
+      "batches": [
+        "9dece268d0e6e6e73b759ec5a659127668cc7439f2d1cb62a56ebe6d341161db"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "7f2d43266f8a719fc567a9873a1b209e381d72c76dbac9c0954569c856ddd800",
+      "at_ms": 1792140165672.7778,
+      "dispatch_at_ms": 1792140165650,
+      "batches": [
+        "c819aabd24019a6903d499cdc6130a8f7380c65dcb7ac76df09c77c923c4b746"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "b1d781a1c16026592b357bfb73f75e8c606e7b8984d4cf33e6f6b6fd41891b33",
+      "at_ms": 1792140250082.5376,
+      "dispatch_at_ms": 1792140249957,
+      "batches": [
+        "579d5a7cdf9a9d7650d67c5a958e0b82e70179558f40c12229295e3c4d46075f"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "f8f4ee42cfe0e496b213d89f809cf139827b22055425ebf24bf76c5e7f94963f",
+      "at_ms": 1792140308448.1309,
+      "dispatch_at_ms": 1792140308476,
+      "batches": [
+        "db5a307332b7e7eb3c5566a4dc8823e3048a8efd8425ee22181c57d0f760466b"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    }
+  ],
+  "unique_consumed_batches": 13,
+  "unaccounted_batch_ids": [],
+  "complete_publication_accounting": false,
+  "expiry_limit": "Unaccounted stock may include expiry or retirement. No independent expiry event counter is available.",
+  "post_initial_stock": {
+    "start_ms": 1792139705937.4104,
+    "elapsed_ms": 603611.3266601562,
+    "successful_signatures": 8,
+    "observed_new_paired_batches": 9,
+    "observed_paired_batches_per_minute": 0.8946154191437654,
+    "end_ms": 1792140309548.737,
+    "includes_trailing_failed_or_unknown_requests": true,
+    "signatures_per_minute": 0.7952137059055693
+  },
+  "paired_batch_wall_ms": {
+    "count": 12,
+    "minimum": 41078,
+    "median": 50906.5,
+    "maximum": 80927,
+    "sum": 669454
+  },
+  "matched_producer_invocation_cpu_ms": {
+    "a": null,
+    "b": null,
+    "preparer-a": {
+      "count": 13,
+      "minimum": 42,
+      "median": 25360,
+      "maximum": 39929,
+      "sum": 333388
+    },
+    "preparer-b": {
+      "count": 13,
+      "minimum": 19735,
+      "median": 24329,
+      "maximum": 38760,
+      "sum": 356465
+    }
+  },
+  "producer_queue_invocation_cpu_ms": {
+    "count": 26,
+    "minimum": 1,
+    "median": 13.0,
+    "maximum": 36,
+    "sum": 338
+  },
+  "unmatched_producer_alarm_cpu_ms": {
+    "count": 1,
+    "minimum": 38140,
+    "median": 38140,
+    "maximum": 38140,
+    "sum": 38140
+  },
+  "successful_final_http_ms": {
+    "count": 12,
+    "minimum": 1336.2445829999997,
+    "median": 2609.1987915000063,
+    "maximum": 3552.914374999993,
+    "sum": 30282.600250000047
+  },
+  "successful_demand_ms_including_waits": {
+    "count": 12,
+    "minimum": 1336.2886250000001,
+    "median": 52545.788354,
+    "maximum": 175968.71054100004,
+    "sum": 650525.4785000001
+  },
+  "client_requests": 436,
+  "unavailable_requests": 212,
+  "client_functional_passed": true,
+  "client_latency_target_met": false
+}

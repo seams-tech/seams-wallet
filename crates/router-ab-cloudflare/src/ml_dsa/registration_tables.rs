@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use zeroize::Zeroizing;
 const DOMAIN: &[u8] = b"seams/ml-dsa/public-registration-table/v1";
 const KEY_DOMAIN: &[u8] = b"seams/ml-dsa/registration-table-auth-key/v1";
-const MAX_FRAME: usize = 65_544;
+pub(super) const MAX_FRAME: usize = 65_544;
 const MAX_CIRCUITS: usize = 35;
 const MAX_FRAMES: usize = 8192;
 const READ_BATCH_FRAMES: usize = 32;

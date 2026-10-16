@@ -76,8 +76,18 @@ pub(super) async fn connected(
     schedule_refill_alarm(state, cleanup_at.saturating_sub(now))
         .await
         .map_err(storage_error)?;
+    let wire = match command {
+        Command::Prepare { .. } | Command::PreparePeer { .. } => {
+            transport::Duplex::for_preparation(socket, deadline)
+        }
+        Command::Execute { .. } | Command::ExecutePeer { .. } => {
+            transport::Duplex::new(socket, deadline)
+        }
+        _ => return Err(invalid("Invalid registration execution command")),
+    }
+    .map_err(storage_error)?;
     let mut adapter = adapter::Adapter {
-        wire: transport::Duplex::new(socket, deadline).map_err(storage_error)?,
+        wire,
         state: Rc::clone(state),
         binding: binding.clone(),
         seed: seed.clone(),
@@ -87,6 +97,10 @@ pub(super) async fn connected(
         read_transactions: 0,
         peak_cached_frames: 0,
         frames: None,
+        pending_frames: Vec::new(),
+        written_frames: 0,
+        write_transactions: 0,
+        peak_pending_frames: 0,
     };
     if matches!(
         command,
@@ -95,6 +109,18 @@ pub(super) async fn connected(
         let prepared = prepare_keygen(signing_role, &schedules, &mut adapter)
             .await
             .map_err(runtime_error)?;
+        // Ready private state must never refer to buffered, uncommitted tables.
+        adapter.flush_tables().await?;
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_registration_preparation_v1",
+                "role": role,
+                "written_frames": adapter.written_frames,
+                "write_transactions": adapter.write_transactions,
+                "peak_pending_frames": adapter.peak_pending_frames,
+            })
+        );
         check(env, command).await?;
         let sealed =
             registration_preparation::seal(prepared.into_storage(job.id), &binding, &seed)?;
