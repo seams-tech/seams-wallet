@@ -2,7 +2,12 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [preparation throughput campaign](ml-dsa-65-preparation-throughput-report.md) separates refill through a durable producer queue.
+The [stage optimization campaign](ml-dsa-65-preparation-stage-optimization-report.md) shortens the measured local four-batch reserve by 29.68%.
+Its hosted preparation median is 33.441 seconds. Observed refill reaches 1.199 batches per minute after initial stock depletion.
+Twelve signatures verify, with successful online requests taking 2.041–6.503 seconds. Ten of twelve finish below five seconds.
+Candidate exhaustion and capacity waits remain included. Observed signing throughput is 0.879 signatures per minute after initial stock depletion.
+Keep wallet-seed recovery, standard FIPS export, and the four-batch cap. Private AES and hosted multi-batch overhead remain the next profiling targets.
+The earlier [preparation throughput campaign](ml-dsa-65-preparation-throughput-report.md) separates refill through a durable producer queue.
 All twelve hosted signatures verify in 1.34–3.55 seconds per successful online request, including one two-batch signature.
 After initial stock depletion, observed refill supplies 0.895 batches per minute and supports 0.795 signatures per minute.
 Demand latency, including capacity waits, reaches 175.97 seconds. Larger pools are not the solution under investigation.

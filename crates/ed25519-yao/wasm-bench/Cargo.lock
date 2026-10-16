@@ -210,6 +210,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "wide",
+ "zeroize",
 ]
 
 [[package]]

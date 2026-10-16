@@ -103,7 +103,7 @@ async function main() {
     await local.runtime.dispose();
   }
 }
-export async function startProfiles(runtime, selectTarget) {
+export async function startProfiles(runtime, selectTarget, samplingIntervalMicroseconds = 2000) {
   const inspector = await runtime.getInspectorURL();
   inspector.protocol = 'http:';
   const response = await fetch(new URL('/json/list', inspector));
@@ -116,7 +116,7 @@ export async function startProfiles(runtime, selectTarget) {
       connections.push({ socket, title: target.title });
       await once(socket, 'open');
       await command(socket, 1, 'Profiler.enable');
-      await command(socket, 2, 'Profiler.setSamplingInterval', { interval: 2000 });
+      await command(socket, 2, 'Profiler.setSamplingInterval', { interval: samplingIntervalMicroseconds });
       await command(socket, 3, 'Profiler.start');
     }
     return connections;

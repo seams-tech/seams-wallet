@@ -1,0 +1,396 @@
+{
+  "scope": "Local Node Wasm SIMD diagnostic. No complete-preparation speed claim.",
+  "wasmSha256": "1a4c599978588be42a19ec97695d8c853ca1280642083bebabede0b0abeb711a",
+  "validation": {
+    "keys": 256,
+    "blocksPerKey": 128,
+    "bytesComparedPerBlock": 16,
+    "allVariantsMatchRustCrypto": true
+  },
+  "blocksPerTiming": 262144,
+  "samples": [
+    {
+      "name": "baseline_cipher",
+      "repetition": 0,
+      "elapsedMs": 12.254209000000003,
+      "checksum": 90012229
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 0,
+      "elapsedMs": 11.569665999999984,
+      "checksum": 90012229
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 0,
+      "elapsedMs": 11.485124999999925,
+      "checksum": 90012229
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 1,
+      "elapsedMs": 11.545292000000018,
+      "checksum": 727881216
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 1,
+      "elapsedMs": 11.570875000000001,
+      "checksum": 727881216
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 1,
+      "elapsedMs": 12.194291000000021,
+      "checksum": 727881216
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 2,
+      "elapsedMs": 12.167792000000077,
+      "checksum": -1993380384
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 2,
+      "elapsedMs": 11.735041999999908,
+      "checksum": -1993380384
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 2,
+      "elapsedMs": 12.197292000000061,
+      "checksum": -1993380384
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 3,
+      "elapsedMs": 12.000459000000092,
+      "checksum": -1072068852
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 3,
+      "elapsedMs": 11.826583000000028,
+      "checksum": -1072068852
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 3,
+      "elapsedMs": 12.390040999999997,
+      "checksum": -1072068852
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 4,
+      "elapsedMs": 12.185790999999995,
+      "checksum": 1309897673
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 4,
+      "elapsedMs": 11.571125000000052,
+      "checksum": 1309897673
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 4,
+      "elapsedMs": 11.546291999999994,
+      "checksum": 1309897673
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 5,
+      "elapsedMs": 11.51649999999995,
+      "checksum": -1159670399
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 5,
+      "elapsedMs": 11.992209000000003,
+      "checksum": -1159670399
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 5,
+      "elapsedMs": 12.764749999999935,
+      "checksum": -1159670399
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 6,
+      "elapsedMs": 12.313541999999984,
+      "checksum": -740780810
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 6,
+      "elapsedMs": 11.859707999999955,
+      "checksum": -740780810
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 6,
+      "elapsedMs": 11.720249999999965,
+      "checksum": -740780810
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 7,
+      "elapsedMs": 11.564792000000011,
+      "checksum": -569497609
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 7,
+      "elapsedMs": 11.55920900000001,
+      "checksum": -569497609
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 7,
+      "elapsedMs": 12.229291999999987,
+      "checksum": -569497609
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 8,
+      "elapsedMs": 12.181166000000076,
+      "checksum": 2022203693
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 8,
+      "elapsedMs": 11.554625000000101,
+      "checksum": 2022203693
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 8,
+      "elapsedMs": 11.573375000000055,
+      "checksum": 2022203693
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 9,
+      "elapsedMs": 11.527999999999906,
+      "checksum": -783448247
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 9,
+      "elapsedMs": 11.872749999999996,
+      "checksum": -783448247
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 9,
+      "elapsedMs": 12.384833999999955,
+      "checksum": -783448247
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 10,
+      "elapsedMs": 12.395250000000033,
+      "checksum": 1818043905
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 10,
+      "elapsedMs": 11.560333000000014,
+      "checksum": 1818043905
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 10,
+      "elapsedMs": 11.517084000000068,
+      "checksum": 1818043905
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 11,
+      "elapsedMs": 11.584542000000056,
+      "checksum": 1513261657
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 11,
+      "elapsedMs": 11.551874999999995,
+      "checksum": 1513261657
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 11,
+      "elapsedMs": 12.172125000000051,
+      "checksum": 1513261657
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 12,
+      "elapsedMs": 12.1540829999999,
+      "checksum": 227011949
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 12,
+      "elapsedMs": 11.606709000000023,
+      "checksum": 227011949
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 12,
+      "elapsedMs": 11.566542000000027,
+      "checksum": 227011949
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 13,
+      "elapsedMs": 11.542042000000038,
+      "checksum": -1179262271
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 13,
+      "elapsedMs": 11.58583299999998,
+      "checksum": -1179262271
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 13,
+      "elapsedMs": 12.186042000000043,
+      "checksum": -1179262271
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 14,
+      "elapsedMs": 12.211665999999923,
+      "checksum": 1150984819
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 14,
+      "elapsedMs": 11.561250000000086,
+      "checksum": 1150984819
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 14,
+      "elapsedMs": 11.499458000000004,
+      "checksum": 1150984819
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 15,
+      "elapsedMs": 11.54195900000002,
+      "checksum": -1537244829
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 15,
+      "elapsedMs": 11.597667000000001,
+      "checksum": -1537244829
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 15,
+      "elapsedMs": 12.433624999999893,
+      "checksum": -1537244829
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 16,
+      "elapsedMs": 12.158333999999968,
+      "checksum": -144276865
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 16,
+      "elapsedMs": 11.601165999999921,
+      "checksum": -144276865
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 16,
+      "elapsedMs": 12.416958000000022,
+      "checksum": -144276865
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 17,
+      "elapsedMs": 12.233625000000075,
+      "checksum": 1977305577
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 17,
+      "elapsedMs": 11.60870900000009,
+      "checksum": 1977305577
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 17,
+      "elapsedMs": 12.186167000000069,
+      "checksum": 1977305577
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 18,
+      "elapsedMs": 12.205874999999878,
+      "checksum": -712438093
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 18,
+      "elapsedMs": 11.570416000000023,
+      "checksum": -712438093
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 18,
+      "elapsedMs": 11.531582999999955,
+      "checksum": -712438093
+    },
+    {
+      "name": "hot_inline_cipher",
+      "repetition": 19,
+      "elapsedMs": 11.572584000000006,
+      "checksum": -1996522507
+    },
+    {
+      "name": "sbox_inline_cipher",
+      "repetition": 19,
+      "elapsedMs": 11.598500000000058,
+      "checksum": -1996522507
+    },
+    {
+      "name": "baseline_cipher",
+      "repetition": 19,
+      "elapsedMs": 12.179082999999991,
+      "checksum": -1996522507
+    }
+  ],
+  "medians": {
+    "baseline_cipher": 12.20008299999995,
+    "sbox_inline_cipher": 11.59174999999999,
+    "hot_inline_cipher": 11.555542000000003
+  },
+  "referenceRevision": "7c0ed754",
+  "variantRecipe": {
+    "baseline": "Copy crates/ed25519-yao/src/passive/gate_aes.rs from referenceRevision.",
+    "sbox_inline": "Add inline(always) to sub_bytes only.",
+    "hot_inline": "Add inline(always) to sub_bytes, bitslice, and inv_bitslice."
+  },
+  "compilerFlags": "RUSTFLAGS=-C target-feature=+simd128; cargo build --locked --release --target wasm32-unknown-unknown. No wasm-opt pass in this isolated screen.",
+  "sourceSha256": {
+    "baseline": "7dfdaab51ff5af717a943b216959acda6ffb05575730c1f227bd518098e9a12b",
+    "sbox_inline": "a9a355bc0cccb73b23d30d51aaa94875620373bcbc114635696058a35c8c462c",
+    "hot_inline": "6c34cd6f426c5d370456e18fe0912f2c1758cdcfbf0a076a7b4c0aff14ad1789"
+  },
+  "sources": {
+    "src/lib.rs": "use aes::{cipher::{BlockCipherEncrypt, KeyInit}, Aes128};\nuse zeroize::Zeroizing;\nmod baseline;\nmod sbox_inline;\nmod hot_inline;\nfn fill(bytes: &mut [u8], seed: &mut u32) {\n    for word in bytes.chunks_mut(4) {\n        *seed ^= *seed << 13;\n        *seed ^= *seed >> 17;\n        *seed ^= *seed << 5;\n        word.copy_from_slice(&seed.to_le_bytes());\n    }\n}\nmacro_rules! measure_cipher {\n    ($name:ident, $module:ident) => {\n        #[no_mangle]\n        pub extern \"C\" fn $name(rounds: u32, mut seed: u32, verify: u32) -> u32 {\n            let mut key = [0u8; 16];\n            fill(&mut key, &mut seed);\n            let cipher = $module::FourBlockAes128::new(&key);\n            let reference = Aes128::new(&key.into());\n            let mut checksum = 0u32;\n            for _ in 0..rounds {\n                let mut batch = Zeroizing::new($module::FourBlocks::default());\n                for block in &mut batch.0 { fill(block, &mut seed); }\n                let mut expected = Zeroizing::new([aes::cipher::Block::<Aes128>::default(); 4]);\n                if verify != 0 {\n                    for (dst, src) in expected.iter_mut().zip(&batch.0) { dst.copy_from_slice(src); }\n                    reference.encrypt_blocks(&mut expected[..]);\n                }\n                cipher.encrypt_four(&mut batch);\n                for (block, expected) in batch.0.iter().zip(expected.iter()) {\n                    for (&byte, &reference) in block.iter().zip(expected.iter()) {\n                        if verify != 0 { assert_eq!(byte, reference); }\n                        checksum = checksum.wrapping_mul(31).wrapping_add(u32::from(byte));\n                    }\n                }\n            }\n            core::hint::black_box(checksum)\n        }\n    };\n}\nmeasure_cipher!(baseline_cipher, baseline);\nmeasure_cipher!(sbox_inline_cipher, sbox_inline);\nmeasure_cipher!(hot_inline_cipher, hot_inline);\n",
+    "Cargo.toml": "[package]\nname = \"ml-dsa-aes-screen\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[lib]\ncrate-type = [\"cdylib\"]\n[dependencies]\naes = { version = \"=0.9.1\", features = [\"zeroize\"] }\nzeroize = \"=1.9.0\"\ncipher = { version = \"=0.5.2\", features = [\"zeroize\"] }\n[profile.release]\nopt-level = 3\nlto = true\ncodegen-units = 1\npanic = \"abort\"\n",
+    "Cargo.lock": "# This file is automatically @generated by Cargo.\n# It is not intended for manual editing.\nversion = 4\n\n[[package]]\nname = \"aes\"\nversion = \"0.9.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f1fc76eaeac4c9164506c466d4ffdd8ec9d0c5bf57ee97177c4d8eceb3a0e138\"\ndependencies = [\n \"cipher\",\n \"cpubits\",\n \"cpufeatures\",\n \"zeroize\",\n]\n\n[[package]]\nname = \"block-buffer\"\nversion = \"0.12.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa\"\ndependencies = [\n \"hybrid-array\",\n \"zeroize\",\n]\n\n[[package]]\nname = \"cipher\"\nversion = \"0.5.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e8cf2a2c93cd704877c0858356ed03480ff301ee950b43f1cbe4573b088bfa6c\"\ndependencies = [\n \"block-buffer\",\n \"crypto-common\",\n \"inout\",\n \"zeroize\",\n]\n\n[[package]]\nname = \"cpubits\"\nversion = \"0.1.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"15b85f9c39137c3a891689859392b1bd49812121d0d61c9caf00d46ed5ce06ae\"\n\n[[package]]\nname = \"cpufeatures\"\nversion = \"0.3.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566\"\ndependencies = [\n \"libc\",\n]\n\n[[package]]\nname = \"crypto-common\"\nversion = \"0.2.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453\"\ndependencies = [\n \"hybrid-array\",\n]\n\n[[package]]\nname = \"hybrid-array\"\nversion = \"0.4.15\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"27f864f10dfb56725ce5ce5472bc52252c8f93a4ab86327122cebf62c5f59a17\"\ndependencies = [\n \"typenum\",\n \"zeroize\",\n]\n\n[[package]]\nname = \"inout\"\nversion = \"0.2.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7\"\ndependencies = [\n \"hybrid-array\",\n]\n\n[[package]]\nname = \"libc\"\nversion = \"0.2.190\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78\"\n\n[[package]]\nname = \"ml-dsa-aes-screen\"\nversion = \"0.1.0\"\ndependencies = [\n \"aes\",\n \"cipher\",\n \"zeroize\",\n]\n\n[[package]]\nname = \"typenum\"\nversion = \"1.20.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20\"\n\n[[package]]\nname = \"zeroize\"\nversion = \"1.9.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e\"\n"
+  },
+  "sampling": "Validate 32 rounds for each key seed 1..256 and all 3 exports. Warm 10 calls per export at 65,536 rounds. Then run 20 repetitions in alternating export order, 65,536 rounds each. Public seed equals repetition + 100. Compare all checksums per repetition. Timing checksums supplement the complete byte comparisons."
+}

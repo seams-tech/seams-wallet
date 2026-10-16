@@ -1,0 +1,384 @@
+{
+  "scope": "Local Node Wasm SIMD with public deterministic inputs. No complete preparation claim. Unsupported RNG backend is confined to this probe. Mode0 is the pre-change encoder; mode1 is the candidate. Seed0 uses the production default matrix seed.",
+  "wasmSha256": "151868d5da66f1e1caef74bdbe8eb4c11a1b4a13464505fb3136d4b88b67512d",
+  "rounds": {
+    "seeds": 32,
+    "roundsPerSeed": 512,
+    "blocksPerRound": 8,
+    "fullBytesCompared": true
+  },
+  "refills": {
+    "seeds": 32,
+    "roundsPerSeed": 512,
+    "bufferBytes": 4096,
+    "fullBytesCompared": true
+  },
+  "vectors": [
+    {
+      "size": 32,
+      "seed": 0,
+      "mode": 0,
+      "bytesCompared": 1024,
+      "sha256": "a23d3f50f2491d002aae8c0d38aadc057afdfaae376e02f47a2cd2c0b5d7ce12"
+    },
+    {
+      "size": 32,
+      "seed": 0,
+      "mode": 1,
+      "bytesCompared": 1024,
+      "sha256": "a23d3f50f2491d002aae8c0d38aadc057afdfaae376e02f47a2cd2c0b5d7ce12"
+    },
+    {
+      "size": 32,
+      "seed": 1,
+      "mode": 0,
+      "bytesCompared": 1024,
+      "sha256": "e09d8af1b51aced245da313ef63168a2f053188e141d12b5d9b508572fabbbff"
+    },
+    {
+      "size": 32,
+      "seed": 1,
+      "mode": 1,
+      "bytesCompared": 1024,
+      "sha256": "e09d8af1b51aced245da313ef63168a2f053188e141d12b5d9b508572fabbbff"
+    },
+    {
+      "size": 32,
+      "seed": 2,
+      "mode": 0,
+      "bytesCompared": 1024,
+      "sha256": "09bf536778ed9b60599318de9e2966b58f286bbd171c592b909218622937d725"
+    },
+    {
+      "size": 32,
+      "seed": 2,
+      "mode": 1,
+      "bytesCompared": 1024,
+      "sha256": "09bf536778ed9b60599318de9e2966b58f286bbd171c592b909218622937d725"
+    },
+    {
+      "size": 32,
+      "seed": 3,
+      "mode": 0,
+      "bytesCompared": 1024,
+      "sha256": "532b560ff7d297b217fb04dde00d72afb7dfae4ede01750960ea0c3c80d545c8"
+    },
+    {
+      "size": 32,
+      "seed": 3,
+      "mode": 1,
+      "bytesCompared": 1024,
+      "sha256": "532b560ff7d297b217fb04dde00d72afb7dfae4ede01750960ea0c3c80d545c8"
+    },
+    {
+      "size": 32,
+      "seed": 4,
+      "mode": 0,
+      "bytesCompared": 1024,
+      "sha256": "9dcc5ac0746353bcbc23e2c1ec78e75440656dc20abfe1db35a3c50b922f3e8e"
+    },
+    {
+      "size": 32,
+      "seed": 4,
+      "mode": 1,
+      "bytesCompared": 1024,
+      "sha256": "9dcc5ac0746353bcbc23e2c1ec78e75440656dc20abfe1db35a3c50b922f3e8e"
+    },
+    {
+      "size": 1024,
+      "seed": 0,
+      "mode": 0,
+      "bytesCompared": 32768,
+      "sha256": "a136f655cac2c651fed0aef54e3098f3a74f2156659ac92878a8b45d7f5abdd6"
+    },
+    {
+      "size": 1024,
+      "seed": 0,
+      "mode": 1,
+      "bytesCompared": 32768,
+      "sha256": "a136f655cac2c651fed0aef54e3098f3a74f2156659ac92878a8b45d7f5abdd6"
+    },
+    {
+      "size": 1024,
+      "seed": 1,
+      "mode": 0,
+      "bytesCompared": 32768,
+      "sha256": "305801cfe58e55934e6a86122cb14f00a3be94bf0a83469ba5ee03a72304d896"
+    },
+    {
+      "size": 1024,
+      "seed": 1,
+      "mode": 1,
+      "bytesCompared": 32768,
+      "sha256": "305801cfe58e55934e6a86122cb14f00a3be94bf0a83469ba5ee03a72304d896"
+    },
+    {
+      "size": 1024,
+      "seed": 2,
+      "mode": 0,
+      "bytesCompared": 32768,
+      "sha256": "e7ba69f7a1f9d41f521d51ac9400de288c420986bd05106b68ce108d93968037"
+    },
+    {
+      "size": 1024,
+      "seed": 2,
+      "mode": 1,
+      "bytesCompared": 32768,
+      "sha256": "e7ba69f7a1f9d41f521d51ac9400de288c420986bd05106b68ce108d93968037"
+    },
+    {
+      "size": 1024,
+      "seed": 3,
+      "mode": 0,
+      "bytesCompared": 32768,
+      "sha256": "1c272e15f19dcaae966623806ae92567a716711100d527177f44a88824b63cac"
+    },
+    {
+      "size": 1024,
+      "seed": 3,
+      "mode": 1,
+      "bytesCompared": 32768,
+      "sha256": "1c272e15f19dcaae966623806ae92567a716711100d527177f44a88824b63cac"
+    },
+    {
+      "size": 1024,
+      "seed": 4,
+      "mode": 0,
+      "bytesCompared": 32768,
+      "sha256": "c2d767e7104f06bd9a1f8f1effafb6aa53c5e3aee18002423ee8a435d98df569"
+    },
+    {
+      "size": 1024,
+      "seed": 4,
+      "mode": 1,
+      "bytesCompared": 32768,
+      "sha256": "c2d767e7104f06bd9a1f8f1effafb6aa53c5e3aee18002423ee8a435d98df569"
+    },
+    {
+      "size": 524288,
+      "seed": 0,
+      "mode": 0,
+      "bytesCompared": 16777216,
+      "sha256": "ed2e171a917ea21385fc77b1e0b4ce03a9bc4b1175f23b2d71dab813e149a3db"
+    },
+    {
+      "size": 524288,
+      "seed": 0,
+      "mode": 1,
+      "bytesCompared": 16777216,
+      "sha256": "ed2e171a917ea21385fc77b1e0b4ce03a9bc4b1175f23b2d71dab813e149a3db"
+    },
+    {
+      "size": 524288,
+      "seed": 1,
+      "mode": 0,
+      "bytesCompared": 16777216,
+      "sha256": "ba53dc18440d8e8be98acc54d93e86341ad3db62c1569b4eb3c0dd5531f0b282"
+    },
+    {
+      "size": 524288,
+      "seed": 1,
+      "mode": 1,
+      "bytesCompared": 16777216,
+      "sha256": "ba53dc18440d8e8be98acc54d93e86341ad3db62c1569b4eb3c0dd5531f0b282"
+    },
+    {
+      "size": 524288,
+      "seed": 2,
+      "mode": 0,
+      "bytesCompared": 16777216,
+      "sha256": "0189035b0a949187d46169fc6365bfd29d8919d26fb699eb9416ba105695dc7f"
+    },
+    {
+      "size": 524288,
+      "seed": 2,
+      "mode": 1,
+      "bytesCompared": 16777216,
+      "sha256": "0189035b0a949187d46169fc6365bfd29d8919d26fb699eb9416ba105695dc7f"
+    },
+    {
+      "size": 524288,
+      "seed": 3,
+      "mode": 0,
+      "bytesCompared": 16777216,
+      "sha256": "2adb637f9bfe89a5df03a098967584eb6ea22f6ff63c91ef788d94630452a52d"
+    },
+    {
+      "size": 524288,
+      "seed": 3,
+      "mode": 1,
+      "bytesCompared": 16777216,
+      "sha256": "2adb637f9bfe89a5df03a098967584eb6ea22f6ff63c91ef788d94630452a52d"
+    },
+    {
+      "size": 524288,
+      "seed": 4,
+      "mode": 0,
+      "bytesCompared": 16777216,
+      "sha256": "370b88e42a42716600696988ab3a4a4e84daa0c9b9d1fdf708126bda9da074be"
+    },
+    {
+      "size": 524288,
+      "seed": 4,
+      "mode": 1,
+      "bytesCompared": 16777216,
+      "sha256": "370b88e42a42716600696988ab3a4a4e84daa0c9b9d1fdf708126bda9da074be"
+    }
+  ],
+  "samples": [
+    {
+      "repetition": 0,
+      "mode": 0,
+      "elapsedMs": 45.373875,
+      "sha256": "e3e315e74283b6093c93fc01f5919a13b2bf0d4c28ac18396a819c108928200c"
+    },
+    {
+      "repetition": 0,
+      "mode": 1,
+      "elapsedMs": 33.34791700000005,
+      "sha256": "e3e315e74283b6093c93fc01f5919a13b2bf0d4c28ac18396a819c108928200c"
+    },
+    {
+      "repetition": 1,
+      "mode": 1,
+      "elapsedMs": 34.45733300000006,
+      "sha256": "4f84b80303b65ddbe2a368eae0ca3192ec122df703560f544696d25ff0c051a3"
+    },
+    {
+      "repetition": 1,
+      "mode": 0,
+      "elapsedMs": 45.21641599999998,
+      "sha256": "4f84b80303b65ddbe2a368eae0ca3192ec122df703560f544696d25ff0c051a3"
+    },
+    {
+      "repetition": 2,
+      "mode": 0,
+      "elapsedMs": 45.07299999999998,
+      "sha256": "01c06f496ac0e306d8eebc9d0e628298678fd5ac360e4a49c4057eacba7d44de"
+    },
+    {
+      "repetition": 2,
+      "mode": 1,
+      "elapsedMs": 33.550583000000074,
+      "sha256": "01c06f496ac0e306d8eebc9d0e628298678fd5ac360e4a49c4057eacba7d44de"
+    },
+    {
+      "repetition": 3,
+      "mode": 1,
+      "elapsedMs": 33.84783299999992,
+      "sha256": "7ec5762e5757ac5491c23725168b7ff088cacc64bf63438c285acc8904bb1795"
+    },
+    {
+      "repetition": 3,
+      "mode": 0,
+      "elapsedMs": 45.066417,
+      "sha256": "7ec5762e5757ac5491c23725168b7ff088cacc64bf63438c285acc8904bb1795"
+    },
+    {
+      "repetition": 4,
+      "mode": 0,
+      "elapsedMs": 46.196500000000015,
+      "sha256": "f9a1670c1bdc9652342b76179f79eae2054aba66e1893fd03bd8fa43e4ded243"
+    },
+    {
+      "repetition": 4,
+      "mode": 1,
+      "elapsedMs": 33.38266599999997,
+      "sha256": "f9a1670c1bdc9652342b76179f79eae2054aba66e1893fd03bd8fa43e4ded243"
+    },
+    {
+      "repetition": 5,
+      "mode": 1,
+      "elapsedMs": 33.864250000000084,
+      "sha256": "1b489f12d5c3456ff3e57b1903012d61fbd7172869e0f89a08ccf9a751a84a79"
+    },
+    {
+      "repetition": 5,
+      "mode": 0,
+      "elapsedMs": 45.868582999999944,
+      "sha256": "1b489f12d5c3456ff3e57b1903012d61fbd7172869e0f89a08ccf9a751a84a79"
+    },
+    {
+      "repetition": 6,
+      "mode": 0,
+      "elapsedMs": 45.42787499999986,
+      "sha256": "5578d319c702f567de3b93c0914651a0d57cbf77b37e892564b196c85fecba5e"
+    },
+    {
+      "repetition": 6,
+      "mode": 1,
+      "elapsedMs": 33.775333000000046,
+      "sha256": "5578d319c702f567de3b93c0914651a0d57cbf77b37e892564b196c85fecba5e"
+    },
+    {
+      "repetition": 7,
+      "mode": 1,
+      "elapsedMs": 33.912041000000045,
+      "sha256": "d8b1eace52880992f6a22af422898c7edaabcac3e6746e648c2fc8780557e481"
+    },
+    {
+      "repetition": 7,
+      "mode": 0,
+      "elapsedMs": 44.60533299999997,
+      "sha256": "d8b1eace52880992f6a22af422898c7edaabcac3e6746e648c2fc8780557e481"
+    },
+    {
+      "repetition": 8,
+      "mode": 0,
+      "elapsedMs": 45.099917000000005,
+      "sha256": "dcdafcc0c8f1629875b537a9b5df6d56ef851e905f3869e534387224327840be"
+    },
+    {
+      "repetition": 8,
+      "mode": 1,
+      "elapsedMs": 33.55554200000006,
+      "sha256": "dcdafcc0c8f1629875b537a9b5df6d56ef851e905f3869e534387224327840be"
+    },
+    {
+      "repetition": 9,
+      "mode": 1,
+      "elapsedMs": 33.66491599999995,
+      "sha256": "b6b1f7519d95dccffeb7f7dfa78a5325a757f2309b3e5ba844f7d9242e4c0bc0"
+    },
+    {
+      "repetition": 9,
+      "mode": 0,
+      "elapsedMs": 45.39833399999998,
+      "sha256": "b6b1f7519d95dccffeb7f7dfa78a5325a757f2309b3e5ba844f7d9242e4c0bc0"
+    },
+    {
+      "repetition": 10,
+      "mode": 0,
+      "elapsedMs": 45.13225000000011,
+      "sha256": "906a487763930adc4c46ae1ea2e1192928e400af4acb94f48f7b94e07f16a212"
+    },
+    {
+      "repetition": 10,
+      "mode": 1,
+      "elapsedMs": 33.87404199999992,
+      "sha256": "906a487763930adc4c46ae1ea2e1192928e400af4acb94f48f7b94e07f16a212"
+    },
+    {
+      "repetition": 11,
+      "mode": 1,
+      "elapsedMs": 33.96524999999997,
+      "sha256": "fe827bdcd40a472178aa6d0b7c1e2b399ac709465f78a9ec379555c8302f7a2f"
+    },
+    {
+      "repetition": 11,
+      "mode": 0,
+      "elapsedMs": 45.08791700000006,
+      "sha256": "fe827bdcd40a472178aa6d0b7c1e2b399ac709465f78a9ec379555c8302f7a2f"
+    }
+  ],
+  "baselineMedianMs": 45.17433300000005,
+  "candidateMedianMs": 33.811582999999985,
+  "sources": {
+    "src/lib.rs": "use std::cell::RefCell;\nuse cryprot_core::Block;\nmod candidate_rng;\n#[path = \"/private/tmp/ml-dsa-stages-ahtjjz95/encoder-screen/baseline-codes/src/ex_conv/fast_aes_rng.rs\"]\nmod reference_rng;\n#[path = \"/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng/public_round.rs\"]\nmod public_round;\nstruct Input { blocks: Vec<Block>, seed: Block, size: usize }\nthread_local! { static INPUT: RefCell<Input> = const { RefCell::new(Input { blocks: Vec::new(), seed: Block::ZERO, size: 0 }) }; }\nfn next(state: &mut u32) -> u32 {\n    *state ^= *state << 13;\n    *state ^= *state >> 17;\n    *state ^= *state << 5;\n    *state\n}\nfn block(state: &mut u32) -> Block {\n    let mut bytes = [0u8; 16];\n    for word in bytes.chunks_mut(4) { word.copy_from_slice(&next(state).to_le_bytes()); }\n    Block::new(bytes)\n}\n#[no_mangle]\npub extern \"C\" fn verify_rounds(seeds: u32, rounds: u32) {\n    for seed in 0..seeds {\n        let mut state = seed ^ 0x517cc1b7;\n        for _ in 0..rounds {\n            let mut inputs = [Block::ZERO; 8];\n            let mut keys = [Block::ZERO; 8];\n            for input in &mut inputs { *input = block(&mut state); }\n            for key in &mut keys { *key = block(&mut state); }\n            let mut expected = inputs;\n            aes::hazmat::cipher_round_par(bytemuck::cast_mut(&mut expected), bytemuck::cast_ref(&keys));\n            public_round::apply(&mut inputs, &keys);\n            assert_eq!(bytemuck::cast_slice::<_, u8>(&inputs), bytemuck::cast_slice::<_, u8>(&expected));\n        }\n    }\n}\n#[no_mangle]\npub extern \"C\" fn verify_refills(seeds: u32, rounds: u32) {\n    for seed in 0..seeds {\n        let mut state = seed ^ 0x617cc1b7;\n        let seed = block(&mut state);\n        let mut actual = candidate_rng::FastAesRng::new(seed);\n        let mut expected = reference_rng::FastAesRng::new(seed);\n        assert_eq!(actual.bytes(), expected.bytes());\n        for _ in 0..rounds {\n            actual.refill();\n            expected.refill();\n            assert_eq!(actual.bytes(), expected.bytes());\n        }\n    }\n}\n#[no_mangle]\npub extern \"C\" fn prepare(size: u32, seed: u32) {\n    assert!(size >= 32 && size <= 524288);\n    let mut random = seed ^ 0x717cc1b7;\n    let public_seed = if seed == 0 { cryprot_codes::ExConvCodeConfig::default().seed } else { block(&mut random) };\n    let blocks = (0..size * 2).map(|_| block(&mut random)).collect();\n    INPUT.with(|cell| *cell.borrow_mut() = Input { blocks, seed: public_seed, size: size as usize });\n}\n#[no_mangle]\npub extern \"C\" fn encode(mode: u32) {\n    INPUT.with(|cell| {\n        let mut input = cell.borrow_mut();\n        if mode == 0 {\n            let config = reference_codes::ExConvCodeConfig { seed: input.seed, ..Default::default() };\n            reference_codes::ExConvCode::new_with_conf(input.size, config).dual_encode(&mut input.blocks);\n        } else {\n            let config = cryprot_codes::ExConvCodeConfig { seed: input.seed, ..Default::default() };\n            cryprot_codes::ExConvCode::new_with_conf(input.size, config).dual_encode(&mut input.blocks);\n        }\n    });\n}\n#[no_mangle]\npub extern \"C\" fn output_ptr() -> *const u8 { INPUT.with(|cell| cell.borrow().blocks.as_ptr().cast()) }\n#[no_mangle]\npub extern \"C\" fn output_len() -> usize { INPUT.with(|cell| cell.borrow().blocks.len() * 16) }\npub fn snapshot() -> Vec<u8> { INPUT.with(|cell| bytemuck::cast_slice::<_, u8>(&cell.borrow().blocks).to_vec()) }\n",
+    "src/main.rs": "fn main() {\n    let directory = std::path::PathBuf::from(std::env::args().nth(1).expect(\"output directory\"));\n    std::fs::create_dir_all(&directory).unwrap();\n    encoder_screen::verify_rounds(32, 512);\n    encoder_screen::verify_refills(32, 512);\n    for size in [32, 1024, 524288] {\n        for seed in [0, 1, 2, 3, 4] {\n            encoder_screen::prepare(size, seed);\n            encoder_screen::encode(0);\n            let expected = encoder_screen::snapshot();\n            encoder_screen::prepare(size, seed);\n            encoder_screen::encode(1);\n            assert_eq!(expected, encoder_screen::snapshot());\n            std::fs::write(directory.join(format!(\"{size}-{seed}.bin\")), expected).unwrap();\n        }\n    }\n    println!(\"Complete AES-round, repeated-refill, and encoder buffers match.\");\n}\n",
+    "src/candidate_rng.rs": "use bytemuck::{cast_slice, cast_slice_mut};\n#[cfg(not(target_arch = \"wasm32\"))]\nuse bytemuck::{cast_mut, cast_ref};\n#[cfg(target_arch = \"wasm32\")]\n#[path = \"/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng/public_round.rs\"]\nmod public_round;\nuse cryprot_core::{Block, aes_rng::AesRng};\nuse rand::{Rng, SeedableRng};\n\n// Simple PRNG implementation for the accumulator\npub(crate) struct FastAesRng {\n    buffer: Box<[Block; 256]>,\n}\n\nimpl FastAesRng {\n    pub(crate) fn new(seed: Block) -> Self {\n        let mut buffer = Box::new([Block::ZERO; 256]);\n        let mut aes_rng = AesRng::from_seed(seed);\n        aes_rng.fill_bytes(cast_slice_mut(&mut buffer[..]));\n        Self { buffer }\n    }\n\n    pub(crate) fn bytes(&self) -> &[u8] {\n        cast_slice(&self.buffer[..])\n    }\n\n    pub(crate) fn refill(&mut self) {\n        for i in (0..256).step_by(8) {\n            let (left, right) = self.buffer.split_at_mut(i);\n            let (middle, far_right) = right.split_at_mut(8);\n\n            let b: &mut [Block; 8] = middle.try_into().expect(\"len is 8\");\n\n            let k: &[Block; 8] = if i >= 8 {\n                // Use left part when looking backwards\n                (&left[i - 8..][..]).try_into().expect(\"len is 8\")\n            } else {\n                // Use far_right for wrap-around case, taking from the end\n                (&far_right[far_right.len() - 8..][..])\n                    .try_into()\n                    .expect(\"len is 8\")\n            };\n\n            // This state generates the public code matrix. Secret coefficients\n            // never enter it. Preserve the updated-previous-group recurrence.\n            #[cfg(target_arch = \"wasm32\")]\n            public_round::apply(b, k);\n            #[cfg(not(target_arch = \"wasm32\"))]\n            aes::hazmat::cipher_round_par(cast_mut(b), cast_ref(k));\n        }\n    }\n\n    pub fn blocks(&self) -> &[Block; 256] {\n        &self.buffer\n    }\n}\n\n#[cfg(test)]\nmod tests {\n    use super::FastAesRng;\n\n    #[test]\n    fn test_fast_aes_rng() {\n        let mut rng = FastAesRng::new(348324_u128.into());\n        let old = *rng.blocks();\n        rng.refill();\n        assert_ne!(&old, rng.blocks());\n    }\n}\n",
+    "Cargo.toml": "[package]\nname = \"encoder-screen\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[lib]\ncrate-type = [\"rlib\", \"cdylib\"]\n[dependencies]\ncryprot-core = { path = \"/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/vendor/cryprot-core\" }\ncryprot-codes = { path = \"/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/crates/ed25519-yao/vendor/cryprot-codes\" }\nreference-codes = { package = \"cryprot-codes\", path = \"/private/tmp/ml-dsa-stages-ahtjjz95/encoder-screen/baseline-codes\" }\naes = \"=0.9.1\"\nbytemuck = \"1\"\nrand = \"0.10\"\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\npanic = \"abort\"\n",
+    "Cargo.lock": "# This file is automatically @generated by Cargo.\n# It is not intended for manual editing.\nversion = 4\n\n[[package]]\nname = \"aes\"\nversion = \"0.9.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f1fc76eaeac4c9164506c466d4ffdd8ec9d0c5bf57ee97177c4d8eceb3a0e138\"\ndependencies = [\n \"cipher\",\n \"cpubits\",\n \"cpufeatures\",\n]\n\n[[package]]\nname = \"arrayvec\"\nversion = \"0.7.8\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56\"\n\n[[package]]\nname = \"blake3\"\nversion = \"1.8.7\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae\"\ndependencies = [\n \"arrayvec\",\n \"cc\",\n \"cfg-if\",\n \"constant_time_eq\",\n \"cpufeatures\",\n \"digest\",\n \"serde\",\n]\n\n[[package]]\nname = \"block-buffer\"\nversion = \"0.12.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa\"\ndependencies = [\n \"hybrid-array\",\n]\n\n[[package]]\nname = \"bytemuck\"\nversion = \"1.25.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"95832e849adfb21180ccb6826a99da14e5d266ae5c2e668e1602cf234f153797\"\ndependencies = [\n \"bytemuck_derive\",\n]\n\n[[package]]\nname = \"bytemuck_derive\"\nversion = \"1.12.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"6a1f896587b6f2c069c73d2f0913e2d590c3990285cd2f0b6aa02b786b4c679c\"\ndependencies = [\n \"proc-macro2\",\n \"quote\",\n \"syn 3.0.9\",\n]\n\n[[package]]\nname = \"cc\"\nversion = \"1.8.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"6651c9ed80effdc7db0ff72512157f901af5e3549e341e24b1dd4887d836d838\"\ndependencies = [\n \"find-msvc-tools\",\n \"shlex\",\n]\n\n[[package]]\nname = \"cfg-if\"\nversion = \"1.0.5\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600\"\n\n[[package]]\nname = \"chacha20\"\nversion = \"0.10.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06\"\ndependencies = [\n \"cfg-if\",\n \"cpufeatures\",\n \"rand_core 0.10.1\",\n]\n\n[[package]]\nname = \"cipher\"\nversion = \"0.5.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e8cf2a2c93cd704877c0858356ed03480ff301ee950b43f1cbe4573b088bfa6c\"\ndependencies = [\n \"crypto-common\",\n \"inout\",\n]\n\n[[package]]\nname = \"cmov\"\nversion = \"0.5.4\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a\"\n\n[[package]]\nname = \"constant_time_eq\"\nversion = \"0.4.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b\"\n\n[[package]]\nname = \"cpubits\"\nversion = \"0.1.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"15b85f9c39137c3a891689859392b1bd49812121d0d61c9caf00d46ed5ce06ae\"\n\n[[package]]\nname = \"cpufeatures\"\nversion = \"0.3.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566\"\ndependencies = [\n \"libc\",\n]\n\n[[package]]\nname = \"cryprot-codes\"\nversion = \"0.2.5-baseline\"\ndependencies = [\n \"aes\",\n \"bytemuck\",\n \"cryprot-core\",\n \"fastdivide\",\n \"hybrid-array\",\n \"rand\",\n \"seq-macro\",\n]\n\n[[package]]\nname = \"cryprot-codes\"\nversion = \"0.2.5\"\ndependencies = [\n \"aes\",\n \"bytemuck\",\n \"cryprot-core\",\n \"fastdivide\",\n \"hybrid-array\",\n \"rand\",\n \"seq-macro\",\n]\n\n[[package]]\nname = \"cryprot-core\"\nversion = \"0.3.4\"\ndependencies = [\n \"aes\",\n \"blake3\",\n \"bytemuck\",\n \"cpufeatures\",\n \"hybrid-array\",\n \"libc\",\n \"rand\",\n \"rand_core 0.10.1\",\n \"rand_core 0.6.4\",\n \"rustc_version\",\n \"seq-macro\",\n \"serde\",\n \"subtle\",\n \"thiserror\",\n \"tracing\",\n \"wide\",\n \"zeroize\",\n]\n\n[[package]]\nname = \"crypto-common\"\nversion = \"0.2.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453\"\ndependencies = [\n \"hybrid-array\",\n]\n\n[[package]]\nname = \"ctutils\"\nversion = \"0.4.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"03bb0e1cc970d482d121d9a1744999169b69a07470b3d644a7894e53fcaf4574\"\ndependencies = [\n \"cmov\",\n]\n\n[[package]]\nname = \"digest\"\nversion = \"0.11.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2\"\ndependencies = [\n \"block-buffer\",\n \"crypto-common\",\n \"ctutils\",\n]\n\n[[package]]\nname = \"encoder-screen\"\nversion = \"0.1.0\"\ndependencies = [\n \"aes\",\n \"bytemuck\",\n \"cryprot-codes 0.2.5\",\n \"cryprot-codes 0.2.5-baseline\",\n \"cryprot-core\",\n \"rand\",\n]\n\n[[package]]\nname = \"fastdivide\"\nversion = \"0.4.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"9afc2bd4d5a73106dd53d10d73d3401c2f32730ba2c0b93ddb888a8983680471\"\n\n[[package]]\nname = \"find-msvc-tools\"\nversion = \"0.1.14\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484\"\n\n[[package]]\nname = \"getrandom\"\nversion = \"0.4.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099\"\ndependencies = [\n \"cfg-if\",\n \"libc\",\n \"r-efi\",\n \"rand_core 0.10.1\",\n]\n\n[[package]]\nname = \"hybrid-array\"\nversion = \"0.4.15\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"27f864f10dfb56725ce5ce5472bc52252c8f93a4ab86327122cebf62c5f59a17\"\ndependencies = [\n \"bytemuck\",\n \"typenum\",\n]\n\n[[package]]\nname = \"inout\"\nversion = \"0.2.2\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7\"\ndependencies = [\n \"hybrid-array\",\n]\n\n[[package]]\nname = \"libc\"\nversion = \"0.2.190\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78\"\n\n[[package]]\nname = \"once_cell\"\nversion = \"1.21.4\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50\"\n\n[[package]]\nname = \"pin-project-lite\"\nversion = \"0.2.17\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd\"\n\n[[package]]\nname = \"proc-macro2\"\nversion = \"1.0.107\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9\"\ndependencies = [\n \"unicode-ident\",\n]\n\n[[package]]\nname = \"quote\"\nversion = \"1.0.47\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001\"\ndependencies = [\n \"proc-macro2\",\n]\n\n[[package]]\nname = \"r-efi\"\nversion = \"6.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf\"\n\n[[package]]\nname = \"rand\"\nversion = \"0.10.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af\"\ndependencies = [\n \"chacha20\",\n \"getrandom\",\n \"rand_core 0.10.1\",\n]\n\n[[package]]\nname = \"rand_core\"\nversion = \"0.6.4\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c\"\n\n[[package]]\nname = \"rand_core\"\nversion = \"0.10.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69\"\n\n[[package]]\nname = \"rustc_version\"\nversion = \"0.4.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92\"\ndependencies = [\n \"semver\",\n]\n\n[[package]]\nname = \"safe_arch\"\nversion = \"1.2.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"42c6efa15875e6ecb39ca61fb0b0c1a40b84fac5a5ffe71eef7d1000c8eb3f5f\"\ndependencies = [\n \"bytemuck\",\n]\n\n[[package]]\nname = \"semver\"\nversion = \"1.0.28\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd\"\n\n[[package]]\nname = \"seq-macro\"\nversion = \"0.3.6\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"1bc711410fbe7399f390ca1c3b60ad0f53f80e95c5eb935e52268a0e2cd49acc\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.229\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba\"\ndependencies = [\n \"serde_core\",\n \"serde_derive\",\n]\n\n[[package]]\nname = \"serde_core\"\nversion = \"1.0.229\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48\"\ndependencies = [\n \"serde_derive\",\n]\n\n[[package]]\nname = \"serde_derive\"\nversion = \"1.0.229\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348\"\ndependencies = [\n \"proc-macro2\",\n \"quote\",\n \"syn 3.0.9\",\n]\n\n[[package]]\nname = \"shlex\"\nversion = \"2.0.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba\"\n\n[[package]]\nname = \"subtle\"\nversion = \"2.6.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292\"\n\n[[package]]\nname = \"syn\"\nversion = \"2.0.119\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297\"\ndependencies = [\n \"proc-macro2\",\n \"quote\",\n \"unicode-ident\",\n]\n\n[[package]]\nname = \"syn\"\nversion = \"3.0.9\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b\"\ndependencies = [\n \"proc-macro2\",\n \"quote\",\n \"unicode-ident\",\n]\n\n[[package]]\nname = \"thiserror\"\nversion = \"2.0.21\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e\"\ndependencies = [\n \"thiserror-impl\",\n]\n\n[[package]]\nname = \"thiserror-impl\"\nversion = \"2.0.21\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524\"\ndependencies = [\n \"proc-macro2\",\n \"quote\",\n \"syn 3.0.9\",\n]\n\n[[package]]\nname = \"tracing\"\nversion = \"0.1.44\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100\"\ndependencies = [\n \"pin-project-lite\",\n \"tracing-attributes\",\n \"tracing-core\",\n]\n\n[[package]]\nname = \"tracing-attributes\"\nversion = \"0.1.31\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da\"\ndependencies = [\n \"proc-macro2\",\n \"quote\",\n \"syn 2.0.119\",\n]\n\n[[package]]\nname = \"tracing-core\"\nversion = \"0.1.36\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a\"\ndependencies = [\n \"once_cell\",\n]\n\n[[package]]\nname = \"typenum\"\nversion = \"1.20.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20\"\n\n[[package]]\nname = \"unicode-ident\"\nversion = \"1.0.27\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563\"\n\n[[package]]\nname = \"wide\"\nversion = \"1.7.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"d920ac99c3c8edce110cb8d07dbb324d6d026011dce85b1e9355b70f0adacc4f\"\ndependencies = [\n \"bytemuck\",\n \"safe_arch\",\n \"serde_core\",\n]\n\n[[package]]\nname = \"zeroize\"\nversion = \"1.9.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e\"\n",
+    "run.mjs": "import assert from 'node:assert/strict';\nimport { createHash } from 'node:crypto';\nimport { readFile, writeFile } from 'node:fs/promises';\nimport { performance } from 'node:perf_hooks';\n\nconst root = '/private/tmp/ml-dsa-stages-ahtjjz95';\nconst wasm = await readFile(`${root}/encoder-screen/target/wasm32-unknown-unknown/release/encoder_screen.wasm`);\nconst { instance } = await WebAssembly.instantiate(wasm, {});\nconst api = instance.exports;\napi.verify_rounds(32, 512);\napi.verify_refills(32, 512);\nconst vectors = [];\nfor (const size of [32, 1024, 524288]) {\n  for (const seed of [0, 1, 2, 3, 4]) {\n    const expected = await readFile(`${root}/encoder-goldens/${size}-${seed}.bin`);\n    for (const mode of [0, 1]) {\n      api.prepare(size, seed);\n      api.encode(mode);\n      const output = currentOutput();\n      assert.equal(output.equals(expected), true, `Encoder mismatch: ${size}/${seed}/${mode}`);\n      vectors.push({ size, seed, mode, bytesCompared: output.length, sha256: digest(output) });\n    }\n  }\n}\nconst samples = [];\nfor (let repetition = 0; repetition < 12; repetition++) {\n  for (const mode of repetition % 2 === 0 ? [0, 1] : [1, 0]) {\n    api.prepare(524288, repetition + 100);\n    const start = performance.now();\n    api.encode(mode);\n    samples.push({ repetition, mode, elapsedMs: performance.now() - start, sha256: digest(currentOutput()) });\n  }\n}\nfor (let repetition = 0; repetition < 12; repetition++) {\n  const pair = samples.slice(repetition * 2, repetition * 2 + 2);\n  assert.equal(pair[0].sha256, pair[1].sha256);\n}\nconst baseline = median(0);\nconst candidate = median(1);\nconst sourceFiles = ['src/lib.rs', 'src/main.rs', 'src/candidate_rng.rs', 'Cargo.toml', 'Cargo.lock', 'run.mjs'];\nconst sources = {};\nfor (const file of sourceFiles) sources[file] = await readFile(`${root}/encoder-screen/${file}`, 'utf8');\nawait writeFile('/private/tmp/ml-dsa-stage-encoder-screen.json', JSON.stringify({\n  scope: 'Local Node Wasm SIMD with public deterministic inputs. No complete preparation claim. Unsupported RNG backend is confined to this probe. Mode0 is the pre-change encoder; mode1 is the candidate. Seed0 uses the production default matrix seed.',\n  wasmSha256: digest(wasm),\n  rounds: { seeds: 32, roundsPerSeed: 512, blocksPerRound: 8, fullBytesCompared: true },\n  refills: { seeds: 32, roundsPerSeed: 512, bufferBytes: 4096, fullBytesCompared: true },\n  vectors, samples, baselineMedianMs: baseline, candidateMedianMs: candidate, sources,\n}, null, 2));\nconsole.log({ baselineMedianMs: baseline, candidateMedianMs: candidate, reductionPercent: 100 * (baseline - candidate) / baseline });\nfunction currentOutput() {\n  return Buffer.from(api.memory.buffer, api.output_ptr(), api.output_len());\n}\nfunction digest(bytes) {\n  return createHash('sha256').update(bytes).digest('hex');\n}\nfunction ascending(a, b) {\n  return a - b;\n}\nfunction median(mode) {\n  const times = [];\n  for (const sample of samples) if (sample.mode === mode) times.push(sample.elapsedMs);\n  times.sort(ascending);\n  return (times[5] + times[6]) / 2;\n}\n"
+  }
+}

@@ -143,3 +143,13 @@ Canonical wallet-seed recovery and ordinary FIPS export remain intact. GPU work 
 
 Next: profile preparation stages and compare complete matched runs. Include CPU, traffic, interrupted attempts, and stock-depleted signing throughput.
 Any producer-concurrency experiment must measure added compute and online interference. Public Wallet integration remains gated.
+
+## Preparation stage optimization checkpoint — October 16, 2026
+
+The [stage optimization report](ml-dsa-65-preparation-stage-optimization-report.md) records private AES inlining, retained bulk secret erasure, and equivalent public matrix generation.
+The local four-batch reserve takes 48.097 seconds in the profiled run and 50.127 seconds in an unprofiled repeat.
+Hosted preparation has a 33.441-second median. Observed refill after initial stock reaches 1.199 batches per minute with the unchanged four-batch cap.
+Twelve signatures verify. Ten successful online requests finish below five seconds, while two reach 5.994 and 6.503 seconds.
+One failed operation exhausts twenty-four candidates. Capacity waits keep the demand median at 58.317 seconds.
+Canonical recovery and standard FIPS export remain intact. Public integration and GPU work remain deferred.
+Next: isolate remaining private AES cost, hosted multi-batch signing, and registration overhead before capacity qualification.

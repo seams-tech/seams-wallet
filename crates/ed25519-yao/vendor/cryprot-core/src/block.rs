@@ -23,6 +23,10 @@ pub mod gf128;
 #[repr(transparent)]
 pub struct Block(u8x16);
 
+// Default is all-zero bytes. Wipe each entire block through zeroize's volatile
+// whole-value write and optimization barrier, without per-byte barriers.
+impl zeroize::DefaultIsZeroes for Block {}
+
 impl Block {
     /// All bits set to 0.
     pub const ZERO: Self = Self(u8x16::ZERO);

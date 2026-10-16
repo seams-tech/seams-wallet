@@ -9,6 +9,13 @@ Two upstream dead-code suppression attributes are removed to satisfy repository 
 The scalar accumulator visits set bits in each public matrix byte with `trailing_zeros`.
 It preserves the selected coordinates and their order. No input coefficient controls
 the branches or addresses. The SIMD SSE path remains unchanged.
+On Wasm, the public matrix PRG uses an equivalent table-based AES round.
+Its seed and state are public matrix configuration. Secret coefficients never
+enter this generator. Private AES, OT, PPRF and triple hashing retain their
+constant-time implementations. The updated-previous-group recurrence is unchanged.
+The Block type implements zeroize's DefaultIsZeroes trait. Its zero Default lets
+private buffers use volatile whole-block writes and the existing optimization barrier.
+The pinned zeroize dependency is shared with the protocol crate.
 Manifests resolve workspace fields locally,
 disable publishing, and restrict CPU feature detection to its supported targets.
 The unused code-package CPU detection dependency is removed.

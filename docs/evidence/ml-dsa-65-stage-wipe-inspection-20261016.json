@@ -1,0 +1,44 @@
+{
+  "scope": "Bounded source review and final Wasm inspection of named buffers. No certification of all temporaries, registers, or abort paths. Restored function names change no non-custom section. Whole-value writes are not atomicity claims.",
+  "roles": {
+    "a": {
+      "wasm_sha256": "fba40d498801eb00f2f295ff2c576c7ed479ec6dbb670703dcdc6dee7815ba96",
+      "inspections": {
+        "blocks": {
+          "file": "ml-dsa-65-stage-wipe-a-blocks-20261016.txt.gz",
+          "disassembly_sha256": "d0e178bf2cbbd658c805ae62a6a418a708f2a143f47dbb1d33238df07f34f408"
+        },
+        "pprf": {
+          "file": "ml-dsa-65-stage-wipe-a-pprf-20261016.txt.gz",
+          "disassembly_sha256": "ab51e92b8f515f4e5c07742a6e9a25f38ea7c9c34d0a9642a0b3348ceef0dc80"
+        },
+        "triples": {
+          "file": "ml-dsa-65-stage-wipe-a-triples-20261016.txt.gz",
+          "disassembly_sha256": "77bb63a9c82ff0f273dcdb2690fa7538b75daf86632d7b1a74da9fedcda05108"
+        }
+      }
+    },
+    "b": {
+      "wasm_sha256": "48cafe00fb84b7f0f2984d9458a2bfade3b1d8da70823e1731ee096ddab3c6e9",
+      "inspections": {
+        "blocks": {
+          "file": "ml-dsa-65-stage-wipe-b-blocks-20261016.txt.gz",
+          "disassembly_sha256": "65bf5105afe78f944c62821e519a840cfdd591c2773188c42b5b49fb036dd008"
+        },
+        "pprf": {
+          "file": "ml-dsa-65-stage-wipe-b-pprf-20261016.txt.gz",
+          "disassembly_sha256": "7fa6781182b1ee323c03c4b89114aa2438c9c3c387655c3c153f94b1a8561590"
+        },
+        "triples": {
+          "file": "ml-dsa-65-stage-wipe-b-triples-20261016.txt.gz",
+          "disassembly_sha256": "80aa8fd4b599624021e26510ad224ddd0c2f03da0b000e0951994a1ccb78796e"
+        }
+      }
+    }
+  },
+  "ranges": {
+    "blocks": "16 * initialized length, including final 0\u20133 blocks; trailing read for nonempty slices",
+    "pprf": "128 bytes; trailing read",
+    "triples": "Two 256-byte buffers; one trailing read after each"
+  }
+}

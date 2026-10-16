@@ -1,4 +1,8 @@
-use bytemuck::{cast_mut, cast_ref, cast_slice, cast_slice_mut};
+use bytemuck::{cast_slice, cast_slice_mut};
+#[cfg(not(target_arch = "wasm32"))]
+use bytemuck::{cast_mut, cast_ref};
+#[cfg(target_arch = "wasm32")]
+mod public_round;
 use cryprot_core::{Block, aes_rng::AesRng};
 use rand::{Rng, SeedableRng};
 
@@ -36,6 +40,11 @@ impl FastAesRng {
                     .expect("len is 8")
             };
 
+            // This state generates the public code matrix. Secret coefficients
+            // never enter it. Preserve the updated-previous-group recurrence.
+            #[cfg(target_arch = "wasm32")]
+            public_round::apply(b, k);
+            #[cfg(not(target_arch = "wasm32"))]
             aes::hazmat::cipher_round_par(cast_mut(b), cast_ref(k));
         }
     }

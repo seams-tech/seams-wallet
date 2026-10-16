@@ -1,0 +1,488 @@
+{
+  "schema": "seams.ml-dsa-refill-summary.v1",
+  "scope": "Short one-wallet saturation screen. Initial stock is excluded from the post-depletion rate. Final HTTP latency and demand latency are separate. Whole-invocation CPU is reported per role without a billing claim.",
+  "deployment_versions": {
+    "router": "7fda5c12-77ef-404a-9953-04523603e14b",
+    "a": "2a1db7bb-d6d7-4b4a-ade8-2101bf07de66",
+    "b": "5a494b89-9904-4c0c-af63-fc34e5a103ad",
+    "preparer-a": "cd75848e-b51c-4374-9ada-05357835a8f4",
+    "preparer-b": "f579a78b-7cdf-4856-9883-83d93347d834"
+  },
+  "unmatched_publications": [],
+  "initial_observed_stock": {
+    "at_ms": 1792150078401,
+    "role": "router",
+    "key": "04b4795923f1752e5ceb6fcc6b316f06cfc0beb55276ec75034bd179d643f2c7",
+    "epoch": 2,
+    "ready_a": [
+      "a81ea33ae354b6d680b300188ca60467f8d7b6738f5710b8bd15dfc61a8d63df",
+      "4a63f3068d38540feb95a759c69d202c8f6bd58552497fcd2a341cdc79cadd93",
+      "57a51fbbba81e2ba6ff4dd78da323202e1d67baa8052d2e543098f94d020a223",
+      "92c0d9a9a9a1ae6bb7ff45201faf6c4f5a19c4cd981a14b6c25fdc94e60980e8"
+    ],
+    "ready_b": [
+      "a81ea33ae354b6d680b300188ca60467f8d7b6738f5710b8bd15dfc61a8d63df",
+      "4a63f3068d38540feb95a759c69d202c8f6bd58552497fcd2a341cdc79cadd93",
+      "57a51fbbba81e2ba6ff4dd78da323202e1d67baa8052d2e543098f94d020a223",
+      "92c0d9a9a9a1ae6bb7ff45201faf6c4f5a19c4cd981a14b6c25fdc94e60980e8"
+    ],
+    "reserved_a": [],
+    "reserved_b": [],
+    "log_timestamp_ms": 1792150078401
+  },
+  "final_observed_stock": {
+    "at_ms": 1792150939824,
+    "role": "a",
+    "key": "04b4795923f1752e5ceb6fcc6b316f06cfc0beb55276ec75034bd179d643f2c7",
+    "epoch": 2,
+    "ready_a": [
+      "41da0e4d8c80d5e9fa544fd405d63b05cf0143cd8cc6cd5ece6362514f944c96",
+      "db5f8a38dbffc5dcf06bd7b33bf3c335417981c543dada6a150f09f230f09348",
+      "044c65c55e34f8da95e5489082e062c03503097f86d12876269544120dc9a5a9",
+      "19ce8ae2886a079e0e14d1ecb4375031d65e2bce2e692aff5b646208c5ee6413"
+    ],
+    "ready_b": [
+      "41da0e4d8c80d5e9fa544fd405d63b05cf0143cd8cc6cd5ece6362514f944c96",
+      "db5f8a38dbffc5dcf06bd7b33bf3c335417981c543dada6a150f09f230f09348",
+      "044c65c55e34f8da95e5489082e062c03503097f86d12876269544120dc9a5a9",
+      "19ce8ae2886a079e0e14d1ecb4375031d65e2bce2e692aff5b646208c5ee6413"
+    ],
+    "reserved_a": [],
+    "reserved_b": [],
+    "log_timestamp_ms": 1792150939824
+  },
+  "initial_ids_including_prestarted_producers": [
+    "4a63f3068d38540feb95a759c69d202c8f6bd58552497fcd2a341cdc79cadd93",
+    "57a51fbbba81e2ba6ff4dd78da323202e1d67baa8052d2e543098f94d020a223",
+    "92c0d9a9a9a1ae6bb7ff45201faf6c4f5a19c4cd981a14b6c25fdc94e60980e8",
+    "a81ea33ae354b6d680b300188ca60467f8d7b6738f5710b8bd15dfc61a8d63df"
+  ],
+  "prestarted_producer_batch_ids": [
+    "4a63f3068d38540feb95a759c69d202c8f6bd58552497fcd2a341cdc79cadd93",
+    "57a51fbbba81e2ba6ff4dd78da323202e1d67baa8052d2e543098f94d020a223",
+    "92c0d9a9a9a1ae6bb7ff45201faf6c4f5a19c4cd981a14b6c25fdc94e60980e8"
+  ],
+  "paired_publications": [
+    {
+      "at_ms": 1792150129616,
+      "batch": "3a3feb1fae3b1c94429c75fd40e60c9ba2517c301c7c10c57735a879ba552c7a",
+      "published": true,
+      "elapsed_ms": 46869,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150129616
+    },
+    {
+      "at_ms": 1792150187055,
+      "batch": "c9362f75c2686afe6bb3fa9edbdcecaafd187580339e7d9ab246c59cf91dffec",
+      "published": true,
+      "elapsed_ms": 55598,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150187055
+    },
+    {
+      "at_ms": 1792150248109,
+      "batch": "6e112fb26d4dc2bcd90467e9ccbc50b1db8778ebd89126a9489da042454491b6",
+      "published": true,
+      "elapsed_ms": 54568,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150248109
+    },
+    {
+      "at_ms": 1792150308328,
+      "batch": "ba5796530d0d2c823d37d3bce05f2a2fea995b8e61a237f561ee93930d554f38",
+      "published": true,
+      "elapsed_ms": 50793,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150308328
+    },
+    {
+      "at_ms": 1792150340829,
+      "batch": "437eb13e17644ddbd1a7bf695739c6b27fba2bd286e2d5c781d0f65d20779fff",
+      "published": true,
+      "elapsed_ms": 29590,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150340829
+    },
+    {
+      "at_ms": 1792150371234,
+      "batch": "b453cf7a9190d329e2a4eeaaff01459550bdc8a3cec9bf528154d0ffd0e4c322",
+      "published": true,
+      "elapsed_ms": 27991,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150371234
+    },
+    {
+      "at_ms": 1792150399771,
+      "batch": "c133534ce4a8b232acedb229c02c150e7468ee0c66a350da12eb3664a043c1ce",
+      "published": true,
+      "elapsed_ms": 27062,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150399771
+    },
+    {
+      "at_ms": 1792150462709,
+      "batch": "3e381f4bdeb4c3de90edc0ae247e1a249cbeef4aef23e4afdd7f078de6ff3315",
+      "published": true,
+      "elapsed_ms": 60145,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150462709
+    },
+    {
+      "at_ms": 1792150588553,
+      "batch": "54885f5b7d881cf6c316da4a595e1d53c68035e0e71b9642bafb8a0a4e2aedcf",
+      "published": true,
+      "elapsed_ms": 32048,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150588553
+    },
+    {
+      "at_ms": 1792150645068,
+      "batch": "245ec349e9a6cff580ab3cc2b5382c9611e900d85290f2a599e073028c31bfd6",
+      "published": true,
+      "elapsed_ms": 52583,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150645068
+    },
+    {
+      "at_ms": 1792150676487,
+      "batch": "be1bd0988ebe7b3e6acf1f4cd957f8bce141b162b244e42e2e1d380d65e27ec8",
+      "published": true,
+      "elapsed_ms": 29158,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150676487
+    },
+    {
+      "at_ms": 1792150732310,
+      "batch": "c4cdbf9f46e59f35ebf5863abfada659062f998ec37f71e38ff6b5f1eacf93b2",
+      "published": true,
+      "elapsed_ms": 53628,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150732310
+    },
+    {
+      "at_ms": 1792150765758,
+      "batch": "00181d7b6845dcf96419b41f95a4c25fb952c40364cad00dd9bd5b36a42f14df",
+      "published": true,
+      "elapsed_ms": 27623,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150765758
+    },
+    {
+      "at_ms": 1792150833208,
+      "batch": "41da0e4d8c80d5e9fa544fd405d63b05cf0143cd8cc6cd5ece6362514f944c96",
+      "published": true,
+      "elapsed_ms": 61986,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150833208
+    },
+    {
+      "at_ms": 1792150864594,
+      "batch": "db5f8a38dbffc5dcf06bd7b33bf3c335417981c543dada6a150f09f230f09348",
+      "published": true,
+      "elapsed_ms": 26163,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150864594
+    },
+    {
+      "at_ms": 1792150899041,
+      "batch": "044c65c55e34f8da95e5489082e062c03503097f86d12876269544120dc9a5a9",
+      "published": true,
+      "elapsed_ms": 33017,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150899041
+    },
+    {
+      "at_ms": 1792150937128,
+      "batch": "19ce8ae2886a079e0e14d1ecb4375031d65e2bce2e692aff5b646208c5ee6413",
+      "published": true,
+      "elapsed_ms": 33441,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150937128
+    }
+  ],
+  "new_paired_batch_ids_observed": [
+    "00181d7b6845dcf96419b41f95a4c25fb952c40364cad00dd9bd5b36a42f14df",
+    "044c65c55e34f8da95e5489082e062c03503097f86d12876269544120dc9a5a9",
+    "19ce8ae2886a079e0e14d1ecb4375031d65e2bce2e692aff5b646208c5ee6413",
+    "1e18d3c80dc3bd90237cd58a5f75d11c362917e4dbf0c6e9f64759e1232bd613",
+    "245ec349e9a6cff580ab3cc2b5382c9611e900d85290f2a599e073028c31bfd6",
+    "3a3feb1fae3b1c94429c75fd40e60c9ba2517c301c7c10c57735a879ba552c7a",
+    "3e381f4bdeb4c3de90edc0ae247e1a249cbeef4aef23e4afdd7f078de6ff3315",
+    "41da0e4d8c80d5e9fa544fd405d63b05cf0143cd8cc6cd5ece6362514f944c96",
+    "437eb13e17644ddbd1a7bf695739c6b27fba2bd286e2d5c781d0f65d20779fff",
+    "54885f5b7d881cf6c316da4a595e1d53c68035e0e71b9642bafb8a0a4e2aedcf",
+    "6e112fb26d4dc2bcd90467e9ccbc50b1db8778ebd89126a9489da042454491b6",
+    "b453cf7a9190d329e2a4eeaaff01459550bdc8a3cec9bf528154d0ffd0e4c322",
+    "ba5796530d0d2c823d37d3bce05f2a2fea995b8e61a237f561ee93930d554f38",
+    "be1bd0988ebe7b3e6acf1f4cd957f8bce141b162b244e42e2e1d380d65e27ec8",
+    "c133534ce4a8b232acedb229c02c150e7468ee0c66a350da12eb3664a043c1ce",
+    "c4cdbf9f46e59f35ebf5863abfada659062f998ec37f71e38ff6b5f1eacf93b2",
+    "c9362f75c2686afe6bb3fa9edbdcecaafd187580339e7d9ab246c59cf91dffec",
+    "db5f8a38dbffc5dcf06bd7b33bf3c335417981c543dada6a150f09f230f09348"
+  ],
+  "missing_publication_completion_records": [
+    "1e18d3c80dc3bd90237cd58a5f75d11c362917e4dbf0c6e9f64759e1232bd613"
+  ],
+  "unexplained_arrival_ids": [
+    "1e18d3c80dc3bd90237cd58a5f75d11c362917e4dbf0c6e9f64759e1232bd613"
+  ],
+  "failed_producer_completions": [],
+  "publication_limit": "A failed producer completion can follow durable publication. Inventories determine observed paired stock. Missing completion records remain explicit.",
+  "unknown_publications": [
+    {
+      "at_ms": 1792150555446,
+      "batch": "1e18d3c80dc3bd90237cd58a5f75d11c362917e4dbf0c6e9f64759e1232bd613",
+      "published": null,
+      "elapsed_ms": null,
+      "candidates": 8,
+      "log_timestamp_ms": 1792150555446
+    }
+  ],
+  "consumption": [
+    {
+      "operation": "3d31f3ff8c8e9dee9a829bcf98c91e5e7ce7a6d3c055ff594f3aa804a287bd4c",
+      "at_ms": 1792150080703.2383,
+      "dispatch_at_ms": 1792150080465,
+      "batches": [
+        "a81ea33ae354b6d680b300188ca60467f8d7b6738f5710b8bd15dfc61a8d63df"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "e6febf9b06a52031cc7ebb0f3532059a0c652f6a3ec20117c22dbbb867e064cd",
+      "at_ms": 1792150087203.5623,
+      "dispatch_at_ms": 1792150086965,
+      "batches": [
+        "4a63f3068d38540feb95a759c69d202c8f6bd58552497fcd2a341cdc79cadd93",
+        "57a51fbbba81e2ba6ff4dd78da323202e1d67baa8052d2e543098f94d020a223",
+        "92c0d9a9a9a1ae6bb7ff45201faf6c4f5a19c4cd981a14b6c25fdc94e60980e8"
+      ],
+      "outcome": {
+        "status": "exhausted",
+        "consumed_batches": 3,
+        "evaluated_candidates": 24
+      }
+    },
+    {
+      "operation": "41d71017eb9995376e5e6a95ec4cc35c7cc99431b32eb7719835bede184cab23",
+      "at_ms": 1792150191483.646,
+      "dispatch_at_ms": 1792150191228,
+      "batches": [
+        "3a3feb1fae3b1c94429c75fd40e60c9ba2517c301c7c10c57735a879ba552c7a"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "831ad6d278d2907f8c07dc73f756e9a80691e9470f5d03a9aadc44d5f608560b",
+      "at_ms": 1792150255193.822,
+      "dispatch_at_ms": 1792150254941,
+      "batches": [
+        "c9362f75c2686afe6bb3fa9edbdcecaafd187580339e7d9ab246c59cf91dffec",
+        "6e112fb26d4dc2bcd90467e9ccbc50b1db8778ebd89126a9489da042454491b6"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 2,
+        "evaluated_candidates": 16
+      }
+    },
+    {
+      "operation": "5d49798367f1aa46b6b0c991ca4e5942b946d1c5d7ea3cbb82f973c8405a5fc1",
+      "at_ms": 1792150346379.4458,
+      "dispatch_at_ms": 1792150345900,
+      "batches": [
+        "ba5796530d0d2c823d37d3bce05f2a2fea995b8e61a237f561ee93930d554f38"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "377ee507393401b1b22513f1ec7d9a96d4a3a8bae081f1f93dd024a16cce7e7c",
+      "at_ms": 1792150376306.633,
+      "dispatch_at_ms": 1792150376010,
+      "batches": [
+        "437eb13e17644ddbd1a7bf695739c6b27fba2bd286e2d5c781d0f65d20779fff"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "2359a3c8f1234a2d08f2ad31ee1a311a74042bc4759625055c05be4f1d814ee7",
+      "at_ms": 1792150406775.5781,
+      "dispatch_at_ms": 1792150406577,
+      "batches": [
+        "b453cf7a9190d329e2a4eeaaff01459550bdc8a3cec9bf528154d0ffd0e4c322",
+        "c133534ce4a8b232acedb229c02c150e7468ee0c66a350da12eb3664a043c1ce"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 2,
+        "evaluated_candidates": 16
+      }
+    },
+    {
+      "operation": "1c4c5ffe424306e0eb8dd44b74e8c37dbbc4b18d98e6185a89314d7f44718a6b",
+      "at_ms": 1792150526527.2373,
+      "dispatch_at_ms": 1792150526289,
+      "batches": [
+        "3e381f4bdeb4c3de90edc0ae247e1a249cbeef4aef23e4afdd7f078de6ff3315",
+        "1e18d3c80dc3bd90237cd58a5f75d11c362917e4dbf0c6e9f64759e1232bd613"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 2,
+        "evaluated_candidates": 16
+      }
+    },
+    {
+      "operation": "e72c85e05a405280f33da721a1a7c7e2bf78a193360d6eb8df1abc082e9324ed",
+      "at_ms": 1792150649569.0647,
+      "dispatch_at_ms": 1792150649365,
+      "batches": [
+        "54885f5b7d881cf6c316da4a595e1d53c68035e0e71b9642bafb8a0a4e2aedcf"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "a8f478e9723b0b5e8d3b87e74f381a96fc50b8b67c16da2fa3669e938da4432b",
+      "at_ms": 1792150681120.2861,
+      "dispatch_at_ms": 1792150680863,
+      "batches": [
+        "245ec349e9a6cff580ab3cc2b5382c9611e900d85290f2a599e073028c31bfd6"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "5db57156fbdd3de93d20aa725704f9e8b2bdfb7a76cc6e99d571b2929cfca3dd",
+      "at_ms": 1792150736247.275,
+      "dispatch_at_ms": 1792150736020,
+      "batches": [
+        "be1bd0988ebe7b3e6acf1f4cd957f8bce141b162b244e42e2e1d380d65e27ec8"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "33479126b8443a947c672e83865c2d3924e19ce65b3147b6f7c82e3ee3359db0",
+      "at_ms": 1792150769325.5186,
+      "dispatch_at_ms": 1792150768932,
+      "batches": [
+        "c4cdbf9f46e59f35ebf5863abfada659062f998ec37f71e38ff6b5f1eacf93b2"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "c7964e913223ea6f83d22dd27177678b18ac74650314e507c408228d88976ad2",
+      "at_ms": 1792150836584.7805,
+      "dispatch_at_ms": 1792150836378,
+      "batches": [
+        "00181d7b6845dcf96419b41f95a4c25fb952c40364cad00dd9bd5b36a42f14df"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    }
+  ],
+  "unique_consumed_batches": 18,
+  "unaccounted_batch_ids": [],
+  "complete_publication_accounting": false,
+  "expiry_limit": "Unaccounted stock may include expiry or retirement. No independent expiry event counter is available.",
+  "post_initial_stock": {
+    "start_ms": 1792150087203.5623,
+    "elapsed_ms": 750482.6965332031,
+    "successful_signatures": 11,
+    "observed_new_paired_batches": 15,
+    "observed_paired_batches_per_minute": 1.1992281822851887,
+    "end_ms": 1792150837686.2588,
+    "includes_trailing_failed_or_unknown_requests": true,
+    "signatures_per_minute": 0.8794340003424717
+  },
+  "paired_batch_wall_ms": {
+    "count": 17,
+    "minimum": 26163,
+    "median": 33441,
+    "maximum": 61986,
+    "sum": 702263
+  },
+  "matched_producer_invocation_cpu_ms": {
+    "a": null,
+    "b": null,
+    "preparer-a": {
+      "count": 18,
+      "minimum": 43,
+      "median": 16175.0,
+      "maximum": 30371,
+      "sum": 344457
+    },
+    "preparer-b": {
+      "count": 18,
+      "minimum": 12432,
+      "median": 19094.0,
+      "maximum": 29731,
+      "sum": 360959
+    }
+  },
+  "producer_queue_invocation_cpu_ms": {
+    "count": 36,
+    "minimum": 1,
+    "median": 9.5,
+    "maximum": 48,
+    "sum": 499
+  },
+  "unmatched_producer_alarm_cpu_ms": {
+    "count": 1,
+    "minimum": 26363,
+    "median": 26363,
+    "maximum": 26363,
+    "sum": 26363
+  },
+  "successful_final_http_ms": {
+    "count": 12,
+    "minimum": 2040.5069999999832,
+    "median": 3126.4774159999797,
+    "maximum": 6502.746999999974,
+    "sum": 42084.53624800008
+  },
+  "successful_demand_ms_including_waits": {
+    "count": 12,
+    "minimum": 2489.128083,
+    "median": 58316.71743749995,
+    "maximum": 121939.37354200007,
+    "sum": 746254.2487090002
+  },
+  "client_requests": 491,
+  "unavailable_requests": 239,
+  "client_functional_passed": true,
+  "client_latency_target_met": false
+}

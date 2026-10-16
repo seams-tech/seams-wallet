@@ -1,0 +1,1908 @@
+{
+  "source_sha256": "bb4a75f2718969adc860f4f239bfe953e0be02e7bc70ab7ec01cd040db7731f1",
+  "selection": "Canonical cases, role storage, component checks, and authorized export; test seed omitted.",
+  "data": {
+    "cases": [
+      {
+        "canonical_key_verified": true,
+        "warmup": true,
+        "injected_rtt_ms": 0,
+        "roles": {
+          "a": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62587,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 425249,
+              "received_messages": 71,
+              "sent_bytes": 177263814,
+              "sent_messages": 2852,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 3725557666,
+            "online": {
+              "received_bytes": 8565,
+              "received_messages": 27,
+              "sent_bytes": 2522825,
+              "sent_messages": 14,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "online_ns": 1090210750,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 10264121,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 13685671,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 1,
+              "evaluator_negative_cases": [],
+              "frames_read": 0,
+              "frames_written": 0,
+              "peak_cached_frames": 0,
+              "read_transactions": 0,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": false,
+              "role": "a"
+            }
+          },
+          "b": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62554,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 177263814,
+              "received_messages": 2852,
+              "sent_bytes": 425249,
+              "sent_messages": 71,
+              "table_bytes_read": 0,
+              "table_bytes_written": 176480440,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 3725595917,
+            "online": {
+              "received_bytes": 2522825,
+              "received_messages": 14,
+              "sent_bytes": 8565,
+              "sent_messages": 27,
+              "table_bytes_read": 41701400,
+              "table_bytes_written": 0,
+              "table_frame_reads": 643
+            },
+            "online_ns": 1086313667,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 361190,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 481766,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 85,
+              "evaluator_negative_cases": [
+                "invalid_later_write_rolls_back_batch",
+                "before_consume",
+                "wrong_ceremony",
+                "wrong_key",
+                "bounded_frame_chunks",
+                "modified_later_frame_rolls_back_batch",
+                "cached_order",
+                "unserved_prefetch_replay_after_restart",
+                "repeated_read",
+                "retired_read",
+                "retired_republish",
+                "cancel_before_first_frame"
+              ],
+              "frames_read": 643,
+              "frames_written": 2711,
+              "peak_cached_frames": 32,
+              "read_transactions": 24,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": true,
+              "role": "b"
+            }
+          }
+        }
+      },
+      {
+        "canonical_key_verified": true,
+        "warmup": false,
+        "injected_rtt_ms": 0,
+        "roles": {
+          "a": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62520,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 425249,
+              "received_messages": 71,
+              "sent_bytes": 177263814,
+              "sent_messages": 2852,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 3820123334,
+            "online": {
+              "received_bytes": 8565,
+              "received_messages": 27,
+              "sent_bytes": 2522825,
+              "sent_messages": 14,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "online_ns": 1075143667,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 10264121,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 13685670,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 1,
+              "evaluator_negative_cases": [],
+              "frames_read": 0,
+              "frames_written": 0,
+              "peak_cached_frames": 0,
+              "read_transactions": 0,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": false,
+              "role": "a"
+            }
+          },
+          "b": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62496,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 177263814,
+              "received_messages": 2852,
+              "sent_bytes": 425249,
+              "sent_messages": 71,
+              "table_bytes_read": 0,
+              "table_bytes_written": 176480440,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 3820640750,
+            "online": {
+              "received_bytes": 2522825,
+              "received_messages": 14,
+              "sent_bytes": 8565,
+              "sent_messages": 27,
+              "table_bytes_read": 41701400,
+              "table_bytes_written": 0,
+              "table_frame_reads": 643
+            },
+            "online_ns": 1071829791,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 361190,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 481763,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 85,
+              "evaluator_negative_cases": [
+                "invalid_later_write_rolls_back_batch",
+                "before_consume",
+                "wrong_ceremony",
+                "wrong_key",
+                "bounded_frame_chunks",
+                "modified_later_frame_rolls_back_batch",
+                "cached_order",
+                "unserved_prefetch_replay_after_restart",
+                "repeated_read",
+                "retired_read",
+                "retired_republish",
+                "cancel_before_first_frame"
+              ],
+              "frames_read": 643,
+              "frames_written": 2711,
+              "peak_cached_frames": 32,
+              "read_transactions": 24,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": true,
+              "role": "b"
+            }
+          }
+        },
+        "authorized_recovery": {
+          "canonical_recovery_public_key_matches": true,
+          "context_hex": "7365616d732e6d6c2d6473612d617574686f72697a65642d746573742d6578706f72742e7631",
+          "expanded_private_key_bytes": 4032,
+          "message_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+          "ordinary_signature_bytes": 3309,
+          "ordinary_signature_sha256": "a99a5419f74c5e82c41a35db558d5a36849a1cf7f4d838717dfaa10312c92823",
+          "ordinary_signature_verified": true,
+          "public_key_sha256": "d854508c4b902f33e75a249daf35b187d137a229eca4005be819877d1a7f8490",
+          "recipient_wall_ns": 8607000,
+          "reconstructed_k_s1_s2_t0_match_openssl_expanded_private_key": true,
+          "scope": "Authorized disposable-test export after both role processes finish. This recipient reconstructs the canonical seed and complete private material, compares the expanded FIPS encoding with OpenSSL, and signs with the recovered ordinary key.",
+          "threshold_signature_before_export": {
+            "exact_reference_bytes_match": true,
+            "mode": "deterministic",
+            "reference_signature_sha256": "22d304d7eee51e2870a35f666f65766a91113e401c556cf10a97652f89b28b3e"
+          }
+        }
+      },
+      {
+        "canonical_key_verified": true,
+        "warmup": false,
+        "injected_rtt_ms": 0,
+        "roles": {
+          "a": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62673,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 425249,
+              "received_messages": 71,
+              "sent_bytes": 177263814,
+              "sent_messages": 2852,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 3848019542,
+            "online": {
+              "received_bytes": 8565,
+              "received_messages": 27,
+              "sent_bytes": 2522825,
+              "sent_messages": 14,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "online_ns": 1075071417,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 10264121,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 13685669,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 1,
+              "evaluator_negative_cases": [],
+              "frames_read": 0,
+              "frames_written": 0,
+              "peak_cached_frames": 0,
+              "read_transactions": 0,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": false,
+              "role": "a"
+            }
+          },
+          "b": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62551,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 177263814,
+              "received_messages": 2852,
+              "sent_bytes": 425249,
+              "sent_messages": 71,
+              "table_bytes_read": 0,
+              "table_bytes_written": 176480440,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 3846473959,
+            "online": {
+              "received_bytes": 2522825,
+              "received_messages": 14,
+              "sent_bytes": 8565,
+              "sent_messages": 27,
+              "table_bytes_read": 41701400,
+              "table_bytes_written": 0,
+              "table_frame_reads": 643
+            },
+            "online_ns": 1071809125,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 361190,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 481763,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 85,
+              "evaluator_negative_cases": [
+                "invalid_later_write_rolls_back_batch",
+                "before_consume",
+                "wrong_ceremony",
+                "wrong_key",
+                "bounded_frame_chunks",
+                "modified_later_frame_rolls_back_batch",
+                "cached_order",
+                "unserved_prefetch_replay_after_restart",
+                "repeated_read",
+                "retired_read",
+                "retired_republish",
+                "cancel_before_first_frame"
+              ],
+              "frames_read": 643,
+              "frames_written": 2711,
+              "peak_cached_frames": 32,
+              "read_transactions": 24,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": true,
+              "role": "b"
+            }
+          }
+        }
+      },
+      {
+        "canonical_key_verified": true,
+        "warmup": false,
+        "injected_rtt_ms": 0,
+        "roles": {
+          "a": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62585,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 425249,
+              "received_messages": 71,
+              "sent_bytes": 177263814,
+              "sent_messages": 2852,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 4024630958,
+            "online": {
+              "received_bytes": 8565,
+              "received_messages": 27,
+              "sent_bytes": 2522825,
+              "sent_messages": 14,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "online_ns": 1082028708,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 10264121,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 13685681,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 1,
+              "evaluator_negative_cases": [],
+              "frames_read": 0,
+              "frames_written": 0,
+              "peak_cached_frames": 0,
+              "read_transactions": 0,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": false,
+              "role": "a"
+            }
+          },
+          "b": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62621,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 177263814,
+              "received_messages": 2852,
+              "sent_bytes": 425249,
+              "sent_messages": 71,
+              "table_bytes_read": 0,
+              "table_bytes_written": 176480440,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 4024995416,
+            "online": {
+              "received_bytes": 2522825,
+              "received_messages": 14,
+              "sent_bytes": 8565,
+              "sent_messages": 27,
+              "table_bytes_read": 41701400,
+              "table_bytes_written": 0,
+              "table_frame_reads": 643
+            },
+            "online_ns": 1078835333,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 361190,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 481770,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 85,
+              "evaluator_negative_cases": [
+                "invalid_later_write_rolls_back_batch",
+                "before_consume",
+                "wrong_ceremony",
+                "wrong_key",
+                "bounded_frame_chunks",
+                "modified_later_frame_rolls_back_batch",
+                "cached_order",
+                "unserved_prefetch_replay_after_restart",
+                "repeated_read",
+                "retired_read",
+                "retired_republish",
+                "cancel_before_first_frame"
+              ],
+              "frames_read": 643,
+              "frames_written": 2711,
+              "peak_cached_frames": 32,
+              "read_transactions": 24,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": true,
+              "role": "b"
+            }
+          }
+        }
+      },
+      {
+        "canonical_key_verified": true,
+        "warmup": false,
+        "injected_rtt_ms": 5,
+        "roles": {
+          "a": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62662,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 425249,
+              "received_messages": 71,
+              "sent_bytes": 177263814,
+              "sent_messages": 2852,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 4111521792,
+            "online": {
+              "received_bytes": 8565,
+              "received_messages": 27,
+              "sent_bytes": 2522825,
+              "sent_messages": 14,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "online_ns": 1185888750,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 10264121,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 13685670,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 1,
+              "evaluator_negative_cases": [],
+              "frames_read": 0,
+              "frames_written": 0,
+              "peak_cached_frames": 0,
+              "read_transactions": 0,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": false,
+              "role": "a"
+            }
+          },
+          "b": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62683,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 177263814,
+              "received_messages": 2852,
+              "sent_bytes": 425249,
+              "sent_messages": 71,
+              "table_bytes_read": 0,
+              "table_bytes_written": 176480440,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 4112766500,
+            "online": {
+              "received_bytes": 2522825,
+              "received_messages": 14,
+              "sent_bytes": 8565,
+              "sent_messages": 27,
+              "table_bytes_read": 41701400,
+              "table_bytes_written": 0,
+              "table_frame_reads": 643
+            },
+            "online_ns": 1182714208,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 361190,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 481760,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 85,
+              "evaluator_negative_cases": [
+                "invalid_later_write_rolls_back_batch",
+                "before_consume",
+                "wrong_ceremony",
+                "wrong_key",
+                "bounded_frame_chunks",
+                "modified_later_frame_rolls_back_batch",
+                "cached_order",
+                "unserved_prefetch_replay_after_restart",
+                "repeated_read",
+                "retired_read",
+                "retired_republish",
+                "cancel_before_first_frame"
+              ],
+              "frames_read": 643,
+              "frames_written": 2711,
+              "peak_cached_frames": 32,
+              "read_transactions": 24,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": true,
+              "role": "b"
+            }
+          }
+        }
+      },
+      {
+        "canonical_key_verified": true,
+        "warmup": false,
+        "injected_rtt_ms": 20,
+        "roles": {
+          "a": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62546,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 425249,
+              "received_messages": 71,
+              "sent_bytes": 177263814,
+              "sent_messages": 2852,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 5006743625,
+            "online": {
+              "received_bytes": 8565,
+              "received_messages": 27,
+              "sent_bytes": 2522825,
+              "sent_messages": 14,
+              "table_bytes_read": 0,
+              "table_bytes_written": 0,
+              "table_frame_reads": 0
+            },
+            "online_ns": 1804748125,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 10264121,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 13685671,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 1,
+              "evaluator_negative_cases": [],
+              "frames_read": 0,
+              "frames_written": 0,
+              "peak_cached_frames": 0,
+              "read_transactions": 0,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": false,
+              "role": "a"
+            }
+          },
+          "b": {
+            "material_storage": {
+              "authenticated_roundtrip": true,
+              "fresh_encryption": true,
+              "plaintext_bytes": 17472,
+              "scope": "Encrypted disposable role file. Separate signing processes reopen it. The fixture key file and expected context share the host; no production isolation, admission, activation, or rollback protection is claimed.",
+              "sealed_record_bytes": 62509,
+              "substitution_rejections": [
+                {
+                  "case": "environment",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key-version",
+                  "rejected": true
+                },
+                {
+                  "case": "wallet",
+                  "rejected": true
+                },
+                {
+                  "case": "signing-key",
+                  "rejected": true
+                },
+                {
+                  "case": "operation",
+                  "rejected": true
+                },
+                {
+                  "case": "epoch",
+                  "rejected": true
+                },
+                {
+                  "case": "role",
+                  "rejected": true
+                },
+                {
+                  "case": "public-key",
+                  "rejected": true
+                },
+                {
+                  "case": "wrapping-key",
+                  "rejected": true
+                },
+                {
+                  "case": "ciphertext",
+                  "rejected": true
+                },
+                {
+                  "case": "encapsulated_key",
+                  "rejected": true
+                },
+                {
+                  "case": "truncated-ciphertext",
+                  "rejected": true
+                }
+              ],
+              "wrong_role_file_rejected": true
+            },
+            "offline": {
+              "received_bytes": 177263814,
+              "received_messages": 2852,
+              "sent_bytes": 425249,
+              "sent_messages": 71,
+              "table_bytes_read": 0,
+              "table_bytes_written": 176480440,
+              "table_frame_reads": 0
+            },
+            "offline_ns": 5006063959,
+            "online": {
+              "received_bytes": 2522825,
+              "received_messages": 14,
+              "sent_bytes": 8565,
+              "sent_messages": 27,
+              "table_bytes_read": 41701400,
+              "table_bytes_written": 0,
+              "table_frame_reads": 643
+            },
+            "online_ns": 1801650209,
+            "preparation_storage": {
+              "consume_replay_rejected_after_restart": true,
+              "duplicate_publish_idempotent": true,
+              "expired_reservation_rejected": true,
+              "missing_schedule_rejected": true,
+              "private_state_bytes": 361190,
+              "republish_consumed_rejected": true,
+              "scope": "Role-private keygen state sealed and consumed through SQLite. Table authentication and consumption are covered by the accompanying table_storage evidence. No Worker registration route is qualified.",
+              "sealed_bytes": 481766,
+              "sqlite_reopened_before_consume": true,
+              "truncated_and_extended_state_rejected": true,
+              "wrong_reservation_rejected": true,
+              "wrong_role_rejected": true
+            },
+            "table_storage": {
+              "cleanup_complete": true,
+              "cleanup_steps": 85,
+              "evaluator_negative_cases": [
+                "invalid_later_write_rolls_back_batch",
+                "before_consume",
+                "wrong_ceremony",
+                "wrong_key",
+                "bounded_frame_chunks",
+                "modified_later_frame_rolls_back_batch",
+                "cached_order",
+                "unserved_prefetch_replay_after_restart",
+                "repeated_read",
+                "retired_read",
+                "retired_republish",
+                "cancel_before_first_frame"
+              ],
+              "frames_read": 643,
+              "frames_written": 2711,
+              "peak_cached_frames": 32,
+              "read_transactions": 24,
+              "remaining_ciphertext_chunks": 0,
+              "replay_checked": true,
+              "role": "b"
+            }
+          }
+        }
+      }
+    ],
+    "executable_sha256": "5d3085326e34ad452187977fdabf4e58f538758af4e3c3ff6c4dddbc174b19a7",
+    "limits": [
+      "Three zero-delay measured samples follow warm-up. Delay cases inject half the declared RTT before each outgoing online message; they do not emulate a real network.",
+      "Native timings do not predict Wasm or Cloudflare latency. Tables are read from local disk, not remote object storage.",
+      "The consuming handles enforce single use in memory. No durable pool, rollback protection, peer authentication, or admission is implemented."
+    ],
+    "prepared_component_checks": {
+      "all_combined_bound_patterns": 2048,
+      "all_matched_independent_oracle": true,
+      "decomposition_boundary_values": 50,
+      "low_response_single_bad_coefficient_cases": 8
+    },
+    "prepared_signing_schedules": [
+      {
+        "a_input_bits": 11008,
+        "and_gates": 21760,
+        "b_input_bits": 5120,
+        "name": "fresh-mask",
+        "schedule_bytes": 798522,
+        "schedule_sha256": "f9c8027fbd968d55fa0418d0473e11eb511c19b2418d4ea356a79bd29c72a5ed"
+      },
+      {
+        "a_input_bits": 12800,
+        "and_gates": 50688,
+        "b_input_bits": 5888,
+        "name": "prepared-commitment",
+        "schedule_bytes": 1572922,
+        "schedule_sha256": "b579f57b089e7ed31abe7a96940ea8787502f3029972f5436f666d5b2440432e"
+      },
+      {
+        "a_input_bits": 6656,
+        "and_gates": 267584,
+        "b_input_bits": 6144,
+        "name": "commitment-hash",
+        "schedule_bytes": 9454746,
+        "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+      },
+      {
+        "a_input_bits": 5889,
+        "and_gates": 28415,
+        "b_input_bits": 5888,
+        "name": "response-check",
+        "schedule_bytes": 808252,
+        "schedule_sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506"
+      },
+      {
+        "a_input_bits": 5889,
+        "and_gates": 28415,
+        "b_input_bits": 5888,
+        "name": "low-response-check",
+        "schedule_bytes": 802876,
+        "schedule_sha256": "c25c91d486d6fc1c52dfd4ad3c81536814f6080b94990567cf2ed907d7a05695"
+      },
+      {
+        "a_input_bits": 1664,
+        "and_gates": 10,
+        "b_input_bits": 1664,
+        "name": "bounds-decision",
+        "schedule_bytes": 207,
+        "schedule_sha256": "dbe96ab2435584c3082ec4f2bddf59bbd059af039497d14cf345003786c214b1"
+      }
+    ],
+    "production_eligible": false,
+    "sampler_evidence": {
+      "cases": [
+        {
+          "a_output_sha256": "cef19f521478dd9614856a8bc664a9ef158f8604a40209c092b466c7a15bc970",
+          "all_candidates_match_reference": true,
+          "b_output_sha256": "2eceac909721f9d70f50d1237ccd1e925de8005c8d91c4b60aa531efe69a2519",
+          "metrics": {
+            "direct_label_bytes": 208640,
+            "evaluator_to_garbler_wire_bytes": 12452,
+            "execution_binding_sha256": "c514bacebf3e7153034ee585d2486ec4f7f71fa1a0085dfc0232aa06f1193e65",
+            "frame_count": 55,
+            "garbler_to_evaluator_wire_bytes": 3804104,
+            "gate_compute_wall_ns": 22408624,
+            "label_arena_allocation_bytes": 264928,
+            "maximum_control_message_bytes": 208640,
+            "maximum_table_message_bytes": 65544,
+            "ot_wire_bytes": 32960,
+            "output_translation_bytes": 1632,
+            "public_return_bytes": 68,
+            "role_wall_ns": 56650833,
+            "schedule_bytes": 3878690,
+            "setup_wall_ns": 10943417,
+            "table_bytes": 3572736,
+            "table_io_wall_ns": 22254918
+          },
+          "nonce": 0,
+          "prefix_bytes": 272,
+          "public_padding_verified": true,
+          "schedule": "sampling-two-blocks",
+          "schedule_sha256": "38dd48a74443f7393e48f274a57a65ceddf579ff51463d0fec0f4167804fb96e"
+        },
+        {
+          "a_output_sha256": "c8e397a6e393147b8990758ccd4efd42ff38e0c2a3fa11dc3f4de385f3e09aa7",
+          "all_candidates_match_reference": true,
+          "b_output_sha256": "f35c23661ff33734e909e81f0c55dae4354d71233075f3eef448cbcba0f718d0",
+          "metrics": {
+            "direct_label_bytes": 208640,
+            "evaluator_to_garbler_wire_bytes": 12452,
+            "execution_binding_sha256": "95936f4bcd68e8d9334cd72f77ee208d4f39dd761336234232eb4e244c90ded8",
+            "frame_count": 55,
+            "garbler_to_evaluator_wire_bytes": 3804104,
+            "gate_compute_wall_ns": 22347001,
+            "label_arena_allocation_bytes": 264928,
+            "maximum_control_message_bytes": 208640,
+            "maximum_table_message_bytes": 65544,
+            "ot_wire_bytes": 32960,
+            "output_translation_bytes": 1632,
+            "public_return_bytes": 68,
+            "role_wall_ns": 57394125,
+            "schedule_bytes": 3878690,
+            "setup_wall_ns": 11168375,
+            "table_bytes": 3572736,
+            "table_io_wall_ns": 22797793
+          },
+          "nonce": 10,
+          "prefix_bytes": 272,
+          "public_padding_verified": true,
+          "schedule": "sampling-two-blocks",
+          "schedule_sha256": "38dd48a74443f7393e48f274a57a65ceddf579ff51463d0fec0f4167804fb96e"
+        },
+        {
+          "a_output_sha256": "937c017702f8ccf123fc68299f80d4ed0c034f18098e86135474405bc40a5331",
+          "all_candidates_match_reference": true,
+          "b_output_sha256": "e0f5e6771e8c362cabedfef16b72ada52b38d5abb2e55b439f562a8bc957c9d0",
+          "metrics": {
+            "direct_label_bytes": 308736,
+            "evaluator_to_garbler_wire_bytes": 12486,
+            "execution_binding_sha256": "d9c9d2769f8d1e115db7753e6c1bd42197e577912954e12c57a3f45881c5c81d",
+            "frame_count": 82,
+            "garbler_to_evaluator_wire_bytes": 5699792,
+            "gate_compute_wall_ns": 34140621,
+            "label_arena_allocation_bytes": 389776,
+            "maximum_control_message_bytes": 308736,
+            "maximum_table_message_bytes": 65544,
+            "ot_wire_bytes": 32960,
+            "output_translation_bytes": 2448,
+            "public_return_bytes": 102,
+            "role_wall_ns": 80159708,
+            "schedule_bytes": 5830396,
+            "setup_wall_ns": 11729458,
+            "table_bytes": 5367296,
+            "table_io_wall_ns": 33216923
+          },
+          "nonce": 0,
+          "prefix_bytes": 408,
+          "public_padding_verified": true,
+          "schedule": "sampling-three-blocks",
+          "schedule_sha256": "24f24f2ccfce88ad3d9ba2a97609d9fa24b46864c5361a2d66de8777c9b171ff"
+        },
+        {
+          "a_output_sha256": "ea8bd53858132489a99a6fa2cab5177064cc0bff07f14fc46e87eee04e532e16",
+          "all_candidates_match_reference": true,
+          "b_output_sha256": "8eaebbe17a579835f1eba9fe44f1b0505d295dd9634c546a3d9ef3cc473b3790",
+          "metrics": {
+            "direct_label_bytes": 308736,
+            "evaluator_to_garbler_wire_bytes": 12486,
+            "execution_binding_sha256": "53b4250bac7a7247aa48f0317a6cd92aa5f9f99ccb779614276cf147933143c7",
+            "frame_count": 82,
+            "garbler_to_evaluator_wire_bytes": 5699792,
+            "gate_compute_wall_ns": 34061622,
+            "label_arena_allocation_bytes": 389776,
+            "maximum_control_message_bytes": 308736,
+            "maximum_table_message_bytes": 65544,
+            "ot_wire_bytes": 32960,
+            "output_translation_bytes": 2448,
+            "public_return_bytes": 102,
+            "role_wall_ns": 79011875,
+            "schedule_bytes": 5830396,
+            "setup_wall_ns": 11572666,
+            "table_bytes": 5367296,
+            "table_io_wall_ns": 32167665
+          },
+          "nonce": 10,
+          "prefix_bytes": 408,
+          "public_padding_verified": true,
+          "schedule": "sampling-three-blocks",
+          "schedule_sha256": "24f24f2ccfce88ad3d9ba2a97609d9fa24b46864c5361a2d66de8777c9b171ff"
+        },
+        {
+          "a_output_sha256": "84cb39eaf70e1e3a297e5c287675fd3065e60d7f00830a6217b78f7f038d6d96",
+          "all_candidates_match_reference": true,
+          "b_output_sha256": "5517c89c8b54e3aab66ce1bf663211057365f618c5425a2885c80152a2a5b2ad",
+          "metrics": {
+            "direct_label_bytes": 362464,
+            "evaluator_to_garbler_wire_bytes": 12505,
+            "execution_binding_sha256": "cfc14d0312eeb53b3f0e7ec618a99566bcbd39e9ef2fee4cd196738de91b8a34",
+            "frame_count": 106,
+            "garbler_to_evaluator_wire_bytes": 7270695,
+            "gate_compute_wall_ns": 43444083,
+            "label_arena_allocation_bytes": 465460,
+            "maximum_control_message_bytes": 362464,
+            "maximum_table_message_bytes": 65544,
+            "ot_wire_bytes": 32960,
+            "output_translation_bytes": 2887,
+            "public_return_bytes": 121,
+            "role_wall_ns": 99038417,
+            "schedule_bytes": 7486350,
+            "setup_wall_ns": 11829292,
+            "table_bytes": 6883840,
+            "table_io_wall_ns": 42898495
+          },
+          "nonce": 0,
+          "prefix_bytes": 481,
+          "public_padding_verified": true,
+          "schedule": "sampling-final-bound",
+          "schedule_sha256": "a84e145dd62436186c7b5f6200a5981aef6d8101fbf513026f1d1e8ad34d46d6"
+        },
+        {
+          "a_output_sha256": "8b9aee6d5b70ac1d04783b5f272a95c9653ede46cb93723d91f88d1f74bd377b",
+          "all_candidates_match_reference": true,
+          "b_output_sha256": "bec768b60816bc1497f4f607721343de37ff79e93320fc86d96e53a690be81fa",
+          "metrics": {
+            "direct_label_bytes": 362464,
+            "evaluator_to_garbler_wire_bytes": 12505,
+            "execution_binding_sha256": "b89fd9883a9073eee1622dd777cabd335e50985a967105ad352230149153a431",
+            "frame_count": 106,
+            "garbler_to_evaluator_wire_bytes": 7270695,
+            "gate_compute_wall_ns": 43403875,
+            "label_arena_allocation_bytes": 465460,
+            "maximum_control_message_bytes": 362464,
+            "maximum_table_message_bytes": 65544,
+            "ot_wire_bytes": 32960,
+            "output_translation_bytes": 2887,
+            "public_return_bytes": 121,
+            "role_wall_ns": 97963125,
+            "schedule_bytes": 7486350,
+            "setup_wall_ns": 11570042,
+            "table_bytes": 6883840,
+            "table_io_wall_ns": 42119832
+          },
+          "nonce": 10,
+          "prefix_bytes": 481,
+          "public_padding_verified": true,
+          "schedule": "sampling-final-bound",
+          "schedule_sha256": "a84e145dd62436186c7b5f6200a5981aef6d8101fbf513026f1d1e8ad34d46d6"
+        }
+      ],
+      "scope": "Disposable known rho-prime fixtures through real separate-role GC and OT. Every prefix, every candidate, output ownership, low-nibble order, and final bitmap padding are checked against an independent SHAKE oracle.",
+      "temporary_files_removed": true
+    },
+    "schedules": [
+      {
+        "and_gates": 37824,
+        "compile_parse_and_cache_wall_ns": 18657208,
+        "component": "seed-expansion",
+        "component_sha256": "96402f6ee7b52f991edc8ee33642c077df98460be4975a8781180d868c0a265e",
+        "evaluator_input_bits": 256,
+        "garbler_input_bits": 1024,
+        "half_gate_table_bytes": 1210368,
+        "public_output_bytes": 32,
+        "schedule_bytes": 1319583,
+        "schedule_filename": "seed.bin",
+        "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      },
+      {
+        "and_gates": 111648,
+        "compile_parse_and_cache_wall_ns": 59970333,
+        "component": "sampling-two-blocks",
+        "component_sha256": "c17b57964762001def51aa84068f5c68f88e9cbfb9a537d86158c84e1df2a93e",
+        "evaluator_input_bits": 512,
+        "garbler_input_bits": 13040,
+        "half_gate_table_bytes": 3572736,
+        "public_output_bytes": 68,
+        "schedule_bytes": 3878690,
+        "schedule_filename": "sampling-two-blocks.bin",
+        "schedule_sha256": "38dd48a74443f7393e48f274a57a65ceddf579ff51463d0fec0f4167804fb96e"
+      },
+      {
+        "and_gates": 167728,
+        "compile_parse_and_cache_wall_ns": 89124042,
+        "component": "sampling-three-blocks",
+        "component_sha256": "4e660466dcbce0266503a0ab6a0189fa26c6cc7e9877898fc93c0a4972b6ccc1",
+        "evaluator_input_bits": 512,
+        "garbler_input_bits": 19296,
+        "half_gate_table_bytes": 5367296,
+        "public_output_bytes": 102,
+        "schedule_bytes": 5830396,
+        "schedule_filename": "sampling-three-blocks.bin",
+        "schedule_sha256": "24f24f2ccfce88ad3d9ba2a97609d9fa24b46864c5361a2d66de8777c9b171ff"
+      },
+      {
+        "and_gates": 215120,
+        "compile_parse_and_cache_wall_ns": 113541375,
+        "component": "sampling-final-bound",
+        "component_sha256": "f1db4dd6e1e50b6906c14f644c5b137b2dc6014228a613f8c2d4257d16a71e21",
+        "evaluator_input_bits": 512,
+        "garbler_input_bits": 22654,
+        "half_gate_table_bytes": 6883840,
+        "public_output_bytes": 121,
+        "schedule_bytes": 7486350,
+        "schedule_filename": "sampling-final-bound.bin",
+        "schedule_sha256": "a84e145dd62436186c7b5f6200a5981aef6d8101fbf513026f1d1e8ad34d46d6"
+      },
+      {
+        "and_gates": 37056,
+        "compile_parse_and_cache_wall_ns": 18751916,
+        "component": "wallet-owner-root-to-canonical-seed",
+        "component_sha256": "d4677b999e1a4745ea508e66c2d9c4d8eed461d290bce0638cf32619e40ea71c",
+        "evaluator_input_bits": 256,
+        "garbler_input_bits": 512,
+        "half_gate_table_bytes": 1185792,
+        "public_output_bytes": 0,
+        "schedule_bytes": 1294520,
+        "schedule_filename": "wallet-seed.bin",
+        "schedule_sha256": "0750096d3ce30b04df6037467f2f506045fd5b109da392259a6e5ba4de0c4fa9"
+      }
+    ],
+    "schema": "seams.ml-dsa-prepared-keygen-native.v1",
+    "scope": "Input-independent fresh garbling and random OT, followed by wallet-derived canonical keygen. Separate native roles, role-local disk tables, and private input correction. No production storage or hosted latency claim.",
+    "signing_schedules": [
+      {
+        "and_gates": 212928,
+        "kernel": "signing-mask",
+        "schedule_bytes": 7451952,
+        "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1",
+        "table_bytes": 6813696
+      },
+      {
+        "and_gates": 37312,
+        "kernel": "signing-seed",
+        "schedule_bytes": 1315304,
+        "schedule_sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41",
+        "table_bytes": 1193984
+      },
+      {
+        "and_gates": 28160,
+        "kernel": "commitment-high",
+        "schedule_bytes": 769082,
+        "schedule_sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6",
+        "table_bytes": 901120
+      },
+      {
+        "and_gates": 267584,
+        "kernel": "commitment-hash",
+        "schedule_bytes": 9454746,
+        "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361",
+        "table_bytes": 8562688
+      },
+      {
+        "and_gates": 28415,
+        "kernel": "response-check",
+        "schedule_bytes": 808252,
+        "schedule_sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506",
+        "table_bytes": 909280
+      },
+      {
+        "and_gates": 106239,
+        "kernel": "row-check",
+        "schedule_bytes": 2973500,
+        "schedule_sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7",
+        "table_bytes": 3399648
+      },
+      {
+        "and_gates": 3077,
+        "kernel": "aggregate-check",
+        "schedule_bytes": 96695,
+        "schedule_sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b",
+        "table_bytes": 98464
+      }
+    ],
+    "sources": [
+      {
+        "path": "crates/router-ab-cloudflare/src/ml_dsa/mod.rs",
+        "sha256": "8d46e690c7f9fb8792d8c34afa98bf55a66ebadf9ffb2a4760ada086b02e0eb7"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs",
+        "sha256": "0224199e7e2c7d5763521c0c7fdaef8976ae482a9f8b4577a57d54327c824c5b"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ml_dsa/registration_preparation.rs",
+        "sha256": "6326959ce191cf6d8c3312d429bcd7092ac1320e442b0b9d8079c16f66c1d3ae"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs",
+        "sha256": "d68b6f36aeb8e408d0b591d13e03598a61e459be60f6be000f9f37d2b168ab39"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/registration_tables_evidence.rs",
+        "sha256": "815e8276df3029c3c4f2fcefc6f9756e34da89de0e4eb10660b98c9cb02ca8ae"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/keygen_storage_evidence.rs",
+        "sha256": "ef5fb6aa86263275bc45304c0b0dd0178e10eca94db9a0c248d9fe7024612a32"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared.rs",
+        "sha256": "dc453d3d587362f14f58e1c60266964463e73761b3bdb38ff04f0e5e62975df7"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/keygen.rs",
+        "sha256": "89c6a20db57b5e0feb8a1ea7717be485e8001ce07570a5aef6d082fba7163038"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "sha256": "34ebbdadfe28f85daad43ebab37bc9e8d906589e7902ae1b4753f20b9aa70fbf"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
+        "sha256": "ec8d0ec9a7185bde5af3192cf120539d8d86ce78262500b4932b28ca864df4c8"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
+        "sha256": "c0aa0cb95b741a5746a0a084b8e34ca7ce7fc3b3070ff67c4df009384653dc23"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
+        "sha256": "234e0835ff34a7e9006560a3c7d582697fc8d745ecd02b21d6b1bd27c1134ae7"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs",
+        "sha256": "8462176f8c3fe01b4e584e8c8a955adacdb90be99f525ab9448b673fc36929f7"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
+        "sha256": "407a790846cfaf26055ba9fc150fbbf4d9930540985946a4d9f049bdb6a57a69"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/nonce.rs",
+        "sha256": "6ee68ec5886917a64fea55ef3032e9f1bedd61968fb72cf0f080246b2c85b45d"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
+        "sha256": "f1bdf49cabc51ddf5d8dc622342077921e332b6b8b9761db66f9e448574607ab"
+      },
+      {
+        "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
+        "sha256": "645c1a2667002997089a26b7402e5b604752efcbb222646385237d9e8d0bdb8e"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+        "sha256": "8ef4b951f49f6a1443bfcae7766055562052326f9228fcab651d69c9ec0f4ca0"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
+        "sha256": "c5b6cd8e9b5bdd5ba2c8db76d5e28c1eff09b8a1c49135b2ebfd09f05b886cc8"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+        "sha256": "321082969b0743f111ae4b72d79720eb9146d1df183565ceb39f9f67dc31bfef"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
+        "sha256": "3e1167830f2974e7aee2b175f5710759af57ec0511870a9138aa0e7164ba8578"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ot.rs",
+        "sha256": "2ab6f5f00b53fd415b644479017bbc4b206f9127284d8208ff98ac724bb0bfa9"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
+        "sha256": "ba314a105230a475d27146f19262a011cc8301b623c11c3813b70f132d66de63"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/pool_evidence.rs",
+        "sha256": "1335d8a0f359c53bbeabc946ee5dcc91b6304f8fd97f1e7a089be3deb76811cf"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs",
+        "sha256": "c04de521b8abc223ddbd6c11d5479530cff48318cacf00daee9c91abced618bb"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/storage.rs",
+        "sha256": "69c8f8726c6f15a6ee99d8e18f9131057f59b21677f812b4a6cdd87f5e6dba30"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
+        "sha256": "9e9ad69f2e5cf429f7ef129b455289f869eee63b482b89b390ad5d0039656cd5"
+      },
+      {
+        "path": "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/pool.rs",
+        "sha256": "ed56c8d3cd5e42b54ede37393395e4c6c4ad030bcc41f1a9d21a6391c714ab5a"
+      },
+      {
+        "path": "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
+        "sha256": "ce6b80187494e78299b5554ad24c339b7f1963b6c581046c5b0c54f3ee5350ab"
+      },
+      {
+        "path": "tools/ml-dsa-investigation/src/public_sampling_evidence.rs",
+        "sha256": "0a8a9b09b8b8d57a9d67ea5af69914733fcae20e0c4648a105f2bc880e5762a2"
+      },
+      {
+        "path": "tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs",
+        "sha256": "67c5a3c1826da0d0d81f11f37207b59ff0170f513db8e62bbdb8107fe2c0e175"
+      }
+    ],
+    "temporary_files_removed": true
+  }
+}
