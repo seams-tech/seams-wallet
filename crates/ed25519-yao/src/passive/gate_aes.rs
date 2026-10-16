@@ -161,6 +161,7 @@ fn aes128_encrypt(rkeys: &RoundKeys, blocks: &BatchBlocks) -> BatchBlocks {
 /// See: <http://www.cs.yale.edu/homes/peralta/CircuitStuff/SLP_AES_113.txt>
 ///
 /// Note that the 4 bitwise NOT (^= 0xffffffffffffffff) are moved to the key schedule.
+#[inline(always)]
 fn sub_bytes(state: &mut [u64]) {
     debug_assert_eq!(state.len(), 8);
 
@@ -479,6 +480,7 @@ fn xor_columns(rkeys: &mut [u64], offset: usize, idx_xor: usize, idx_ror: u32) {
 }
 
 /// Bitslice four 128-bit input blocks input0, input1, input2, input3 into a 512-bit internal state.
+#[inline(always)]
 fn bitslice(output: &mut [u64], input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) {
     debug_assert_eq!(output.len(), 8);
     debug_assert_eq!(input0.len(), 16);
@@ -556,6 +558,7 @@ fn bitslice(output: &mut [u64], input0: &[u8], input1: &[u8], input2: &[u8], inp
 }
 
 /// Un-bitslice a 512-bit internal state into four 128-bit blocks of output.
+#[inline(always)]
 fn inv_bitslice(input: &[u64]) -> BatchBlocks {
     debug_assert_eq!(input.len(), 8);
 

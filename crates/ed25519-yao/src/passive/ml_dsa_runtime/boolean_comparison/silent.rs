@@ -6,7 +6,7 @@
 
 mod correlation_aes;
 mod pprf;
-use correlation_aes::CorrelationAes;
+use correlation_aes::{CorrelationAes, SecretBlockBatch};
 
 use super::*;
 use crate::passive::ot::MlDsaSilentBaseOtFamily as BaseBatch;
@@ -114,9 +114,7 @@ impl SecretBlocks {
 
 impl Drop for SecretBlocks {
     fn drop(&mut self) {
-        for block in &mut self.0 {
-            block.as_mut_bytes().zeroize();
-        }
+        self.0.as_mut_slice().zeroize();
     }
 }
 
@@ -284,43 +282,43 @@ fn triples(role: SigningRole, encoded: &[Block], delta: &[u8; 16]) -> Zeroizing<
             SigningRole::A => 16,
             SigningRole::B => 8,
         };
-        let mut inputs = Zeroizing::new([[0u8; 16]; 16]);
-        let mut blocks = Zeroizing::new([[0u8; 16]; 16]);
+        let mut inputs = Zeroizing::new(SecretBlockBatch::<16>::default());
+        let mut blocks = Zeroizing::new(SecretBlockBatch::<16>::default());
         for index in 0..8 {
             let input_index = match role {
                 SigningRole::A => 2 * index,
                 SigningRole::B => index,
             };
-            inputs[input_index].copy_from_slice(encoded[2 * offset + index].as_bytes());
-            inputs[input_index][0] &= 0xfe;
+            inputs.0[input_index].copy_from_slice(encoded[2 * offset + index].as_bytes());
+            inputs.0[input_index][0] &= 0xfe;
             if role == SigningRole::A {
-                inputs[input_index + 1] = inputs[input_index];
+                inputs.0[input_index + 1] = inputs.0[input_index];
                 for byte in 0..16 {
-                    inputs[input_index + 1][byte] ^= masked_delta[byte];
+                    inputs.0[input_index + 1][byte] ^= masked_delta[byte];
                 }
             }
         }
         for index in 0..count {
-            blocks[index].copy_from_slice(&inputs[index]);
+            blocks.0[index].copy_from_slice(&inputs.0[index]);
         }
-        aes.encrypt(&mut blocks[..count]);
+        aes.encrypt(&mut blocks.0[..count]);
         for index in 0..count {
             for byte in 0..16 {
-                blocks[index][byte] ^= inputs[index][byte];
+                blocks.0[index][byte] ^= inputs.0[index][byte];
             }
         }
         for index in 0..4 {
             let mut triple = Zeroizing::new([0; 3]);
             match role {
                 SigningRole::A => {
-                    triple[0] = (blocks[4 * index][0] ^ blocks[4 * index + 1][0]) & 1;
-                    triple[1] = (blocks[4 * index + 2][0] ^ blocks[4 * index + 3][0]) & 1;
-                    triple[2] = (blocks[4 * index][0] ^ blocks[4 * index + 2][0]) & 1;
+                    triple[0] = (blocks.0[4 * index][0] ^ blocks.0[4 * index + 1][0]) & 1;
+                    triple[1] = (blocks.0[4 * index + 2][0] ^ blocks.0[4 * index + 3][0]) & 1;
+                    triple[2] = (blocks.0[4 * index][0] ^ blocks.0[4 * index + 2][0]) & 1;
                 }
                 SigningRole::B => {
                     triple[0] = encoded[2 * (offset + index) + 1].as_bytes()[0] & 1;
                     triple[1] = encoded[2 * (offset + index)].as_bytes()[0] & 1;
-                    triple[2] = (blocks[2 * index][0] ^ blocks[2 * index + 1][0]) & 1;
+                    triple[2] = (blocks.0[2 * index][0] ^ blocks.0[2 * index + 1][0]) & 1;
                 }
             }
             triple[2] ^= triple[0] & triple[1];

@@ -25,6 +25,7 @@ pub struct ExConvCode {
 /// Configuration for the [`ExConvCode`].
 #[derive(Debug, Clone, Copy)]
 pub struct ExConvCodeConfig {
+    /// Public matrix seed. It must not contain or derive from private inputs.
     pub seed: Block,
     pub code_size: usize,
     pub accumulator_size: usize,

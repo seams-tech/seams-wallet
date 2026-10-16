@@ -22,6 +22,7 @@ num-traits = ["dep:num-traits"]
 tokio-rayon = ["dep:rayon", "dep:tokio"]
 
 [dependencies]
+zeroize = { version = "=1.9.0", default-features = false }
 aes = "=0.9.1"
 blake3 = { version = "1.8.5", features = ["serde", "traits-preview"] }
 bytemuck = { version = "1.25.0", features = ["derive"] }

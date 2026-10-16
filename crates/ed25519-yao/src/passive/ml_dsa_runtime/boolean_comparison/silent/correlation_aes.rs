@@ -1,6 +1,17 @@
 //! Same AES-128 permutation, using the existing four-block Wasm backend.
 use crate::passive::gate_aes::FourBlocks;
-use zeroize::Zeroizing;
+use zeroize::{DefaultIsZeroes, Zeroizing};
+
+/// Flat secret bytes erased with one volatile whole-value write and barrier.
+#[derive(Clone, Copy)]
+pub(super) struct SecretBlockBatch<const N: usize>(pub(super) [[u8; 16]; N]);
+
+impl<const N: usize> Default for SecretBlockBatch<N> {
+    fn default() -> Self {
+        Self([[0; 16]; N])
+    }
+}
+impl<const N: usize> DefaultIsZeroes for SecretBlockBatch<N> {}
 
 pub(super) struct CorrelationAes {
     #[cfg(target_arch = "wasm32")]

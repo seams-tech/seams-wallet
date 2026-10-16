@@ -1,3 +1,4 @@
+import { calibrateCpuProfiler } from './ml-dsa-cpu-profile.mjs';
 import { installMlDsaActivation } from '../helpers/mlDsaActivation.e2e.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, createPublicKey, verify } from 'node:crypto';
@@ -105,7 +106,10 @@ try {
   runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence, ...(profilePreparation ? { inspectorPort: 0 } : {}) });
   await runtime.ready;
   observations.idleTimerMs = await timerControl();
-  if (profilePreparation) profileConnections = await startProfiles(runtime, participantTarget);
+  if (profilePreparation) {
+    observations.profilerCalibration = await calibrateCpuProfiler(`${artifact}-profiler`);
+    profileConnections = await startProfiles(runtime, participantTarget, 1000);
+  }
   const denied = await raw('router', '/router-ab/ml-dsa/activate', records[0].activation, serviceAuth);
   assert.equal(denied.status, 403);
   initialRefillStarted = performance.now();
@@ -486,7 +490,7 @@ async function waitForPreprocessingStart(before) {
 }
 function waitForMarker(resolve) { setTimeout(resolve, 50); }
 
-function participantTarget(target) { return /core:user:(a|b)$/.test(target.title); }
+function participantTarget(target) { return /core:user:preparer-(a|b)$/.test(target.title); }
 
 function verifyStandardSignature(publicKey, message, context, signature) {
   assert.equal(context.length, 0, 'This NEAR transaction fixture uses an empty ML-DSA context');

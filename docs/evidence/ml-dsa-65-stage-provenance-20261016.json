@@ -1,0 +1,49 @@
+{
+  "base_revision": "7c0ed754",
+  "branch": "ml-dsa",
+  "source_sha256": {
+    "crates/ed25519-yao-cloudflare-bench/Cargo.lock": "8f158b049bd3d87e7a67667e213a1d4165de163ab321846995971ae83724b92f",
+    "crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs": "cebd06e65b95c6964ca2386ad0a14ad1b194b351d2a6079e0fe619a5375d3b60",
+    "crates/ed25519-yao/Cargo.lock": "f78ea26d9289bb2baac88502b51211c41bbaecf35cfc5e367381f1ab9ef34872",
+    "crates/ed25519-yao/src/passive/gate_aes.rs": "6c34cd6f426c5d370456e18fe0912f2c1758cdcfbf0a076a7b4c0aff14ad1789",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs": "f1bdf49cabc51ddf5d8dc622342077921e332b6b8b9761db66f9e448574607ab",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs": "c5b6cd8e9b5bdd5ba2c8db76d5e28c1eff09b8a1c49135b2ebfd09f05b886cc8",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs": "8ef4b951f49f6a1443bfcae7766055562052326f9228fcab651d69c9ec0f4ca0",
+    "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs": "645c1a2667002997089a26b7402e5b604752efcbb222646385237d9e8d0bdb8e",
+    "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng.rs": "0de3566501dda33f401946d07e2a627d6f674d5d1b447e3041a093c6fe80cebc",
+    "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng/public_round.rs": "bbfe04aa42aef1afb9a044274be0df014703c043c55ef6b2c6ef1f1e7de430e1",
+    "crates/ed25519-yao/vendor/cryprot-core/Cargo.toml": "26031447f244ab281db96881b0e610defb0bca9e174f4dc1e504ea190073a121",
+    "crates/ed25519-yao/vendor/cryprot-core/src/block.rs": "361631e1bd9e1293432c3ad9e40615b8906a6db737b6f90c2cbeff241a39c8ae",
+    "crates/ed25519-yao/wasm-bench/Cargo.lock": "9c7f9b2732aeb2fcd9542c95d8b7d0f17f80d91b9fe0814b0e4c15997f3871a8",
+    "crates/router-ab-cloudflare/Cargo.lock": "a427fd93bbfc1fea6140379874aedee5bd23f7142972e105c29a70ca9c6faba4",
+    "crates/router-ab-dev/Cargo.lock": "4646a54fd7131ea1d359c406a43683aba03e02667e1c3425db5eadc0268b5482",
+    "crates/router-ab-ed25519-yao-client/Cargo.lock": "6cb75f53b358420607ea79268c43205afec0fe88c3089186513274d2819bbb5a",
+    "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "439c424bb83de45c6648472ef7ff3c4c965f3bf754646cadda824a1e14e21383",
+    "tools/ml-dsa-investigation/Cargo.lock": "c9813ad21a22d4365f5ec16b8985cc8a17ecf8e8e271557a5783fc2ee3c70775",
+    "tools/ml-dsa-investigation/research/summarize_preparation_profile.py": "cdda2f366bf4e317c6ad99f05128536c5c6d6ce3fae45cb614d6228670e0a78d",
+    "wasm/wallet_custody_ceremony/Cargo.lock": "4bda331cc953a07754b778625d619beba76071adcde64c227a4c3b73e8ff8425"
+  },
+  "build_sha256": {
+    "crates/router-ab-cloudflare/build/router/index_bg.wasm": "c1ba79af0eb142981b51ee739ef0f0872266c38a10f64d5c9c6ea6f4590378c5",
+    "crates/router-ab-cloudflare/build/router/index.js": "c1e0d5f4ab7c53c7ecaae79de8e9f7c1e4ab620077ad168124952d0075ce88b7",
+    "crates/router-ab-cloudflare/build/router/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+    "crates/router-ab-cloudflare/build/deriver-a/index_bg.wasm": "fba40d498801eb00f2f295ff2c576c7ed479ec6dbb670703dcdc6dee7815ba96",
+    "crates/router-ab-cloudflare/build/deriver-a/index.js": "21acfa82c4534220729d46d6a96ff230e48ace18d3d32a071377838695940f0d",
+    "crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+    "crates/router-ab-cloudflare/build/deriver-b/index_bg.wasm": "48cafe00fb84b7f0f2984d9458a2bfade3b1d8da70823e1731ee096ddab3c6e9",
+    "crates/router-ab-cloudflare/build/deriver-b/index.js": "1ae7eec89e9fdea8a9b5ad8b1cc15cee4d75d3ff0f2cd7fda2a834d440f307f1",
+    "crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+  },
+  "deployment_versions": {
+    "router": "7fda5c12-77ef-404a-9953-04523603e14b",
+    "a": "2a1db7bb-d6d7-4b4a-ade8-2101bf07de66",
+    "b": "5a494b89-9904-4c0c-af63-fc34e5a103ad",
+    "preparer-a": "cd75848e-b51c-4374-9ada-05357835a8f4",
+    "preparer-b": "f579a78b-7cdf-4856-9883-83d93347d834"
+  },
+  "node": "v26.4.0",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+  "wasm_bindgen": "wasm-bindgen 0.2.126",
+  "temporary_workers_deleted": true,
+  "credentials_and_raw_tails_removed": true
+}

@@ -26,18 +26,18 @@ fn expand_level(tree: &mut SecretBlocks, depth: usize, aes: &[CorrelationAes; 2]
     for branch in 0..2 {
         for offset in (0..parent_count).step_by(8) {
             let count = (parent_count - offset).min(8);
-            let mut blocks = Zeroizing::new([[0u8; 16]; 8]);
+            let mut blocks = Zeroizing::new(SecretBlockBatch::<8>::default());
             for index in 0..count {
-                blocks[index].copy_from_slice(tree.0[parent_start + offset + index].as_bytes());
+                blocks.0[index].copy_from_slice(tree.0[parent_start + offset + index].as_bytes());
             }
-            aes[branch].encrypt(&mut blocks[..]);
+            aes[branch].encrypt(&mut blocks.0[..]);
             for index in 0..count {
                 let lane = (offset + index) % TREES;
                 let node = (offset + index) / TREES;
                 let parent = tree.0[parent_start + offset + index];
                 let child_index = child_start + (2 * node + branch) * TREES + lane;
                 tree.0[child_index] =
-                    Block::new(blocks[index].as_slice().try_into().expect("AES block")) ^ parent;
+                    Block::new(blocks.0[index].as_slice().try_into().expect("AES block")) ^ parent;
                 sums.0[branch * TREES + lane] ^= tree.0[child_index];
             }
         }
