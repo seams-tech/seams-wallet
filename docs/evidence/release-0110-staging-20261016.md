@@ -3,9 +3,10 @@
 Release 0.11.0 serves on the staging Singapore lane. 66 measured registrations
 passed, with no failure. The R155J tail target is still not met, and 66 attempts
 are too few for a p99 claim. Respond is about 400 ms slower at the median than in
-every 0.10.2 population. The added time is in the Router wallet object, before
-and after the Deriver calls; `18b09520` moved the registration orchestration
-into that object.
+every 0.10.2 population. The cause is cold callee isolates: since `18b09520`
+the Router wallet object, which is fresh for each wallet, calls the Derivers and
+the Signing Worker itself, and such calls start new isolates of these large
+Workers. A probe confirmed the mechanism and ruled out write confirmation.
 
 ## Deployment
 
@@ -33,8 +34,9 @@ and a test app built against the published 0.11.0 package.
 The 0.10.2 populations are the [acceptance run](refactor-155j-acceptance-0102.md)
 of October 15, 00:00 to 01:30 JST, and three controls of October 16
 ([record](refactor-155j-followups-20261015.md)). The controls ran at 00:30, 00:46
-and 10:14 JST; the slow Deriver A condition of that night affected the first one. No 0.10.2 population ran at the same time as 0.11.0. A tail gain against
-the controls therefore does not show an effect of 0.11.0.
+and 10:14 JST; the slow Deriver A condition of that night affected the first one.
+No 0.10.2 population ran at the same time as 0.11.0. A tail gain against the
+controls therefore does not show an effect of 0.11.0.
 
 | Population | Wallets / failed | After passkey p50 / p90 / p95 / max (ms) | Without passkey p50 / p95 / p99 (ms) | Above 4 s |
 | --- | ---: | --- | --- | ---: |
@@ -59,6 +61,13 @@ control).
 
 ## The respond regression
 
+**Cause: cold callee isolates.** Since `18b09520`, the Router wallet object
+calls Deriver A, Deriver B and the Signing Worker itself. Each wallet has a
+fresh Router wallet object, and a service-binding call from a fresh object
+almost always starts a new isolate of the callee. These callees are large
+Rust/Wasm Workers, so every registration now pays their cold starts. In 0.10.2
+the stateless Router made these calls and mostly reached warm isolates.
+
 The Router's own `Server-Timing` steps for respond, median / p90 (ms):
 
 | Population | `yao_router_execution` | `yao_router_prepare_pair` | `yao_router_role_execution` | Browser respond |
@@ -68,53 +77,101 @@ The Router's own `Server-Timing` steps for respond, median / p90 (ms):
 | Control 0.10.2, 10:14 | 758 / 1,211 | 141 / 542 | 537 / 1,041 | 1,456 / 2,076 |
 | 0.11.0 | 1,232 / 1,540 | 469 / 624 | 909 / 1,208 | 1,498 / 1,810 |
 
-The Worker tails place the time. The reference is the stateless Router
-`execute` event in both versions; its clock is real time. The Deriver events are
-the stateless Deriver B `prepare-pair` and Deriver A `execute-pair` events inside
-it.
+### Where the time goes
 
-| Median / p90 (ms) | Acceptance 0.10.2 | Control, 10:14 | Control, 00:46 | 0.11.0 |
-| --- | --- | --- | --- | --- |
-| Router start to first Deriver start | 88 / 177 | 89 / 227 | 119 / 251 | 270 / 416 |
-| Deriver A execution | 534 | 471 | 596 | 568 |
-| Deriver A answer to Router end | 93 / 262 | 98 / 297 | 99 / 337 | 298 / 403 |
-| Router execute event | 773 / 1,389 | 717 / 1,181 | 851 / 1,528 | 1,184 / 1,482 |
+The tails give real-time event timestamps. Events are linked per registration
+by the `x-seams-trace-id` header of the stateless events and by the object id
+that each stateless event logs before it calls its wallet object. Medians (ms):
 
-The Deriver work did not change. The Router adds about 180 ms before the Deriver
-calls and about 200 ms after Deriver A answers. The wallet object's
-`execute-registration` event starts 10 ms after the stateless event and ends
-10 ms before it, so both waits are inside the object.
+| Interval | Acceptance 0.10.2 | Controls 0.10.2 | 0.11.0 |
+| --- | ---: | ---: | ---: |
+| Router `execute` event | 773 | 717 to 851 | 1,184 |
+| Router start to tenant-root read (claim and parsing)¹ | 187 | 82 to 133 | 61 |
+| Tenant-root read to first Deriver start | 42 | 38 to 42 | 207 |
+| Router start to first Deriver start | 88 | 89 to 119 | 270 |
+| Deriver A object end to Router end (package delivery and finish)¹ | 168 | 170 | 256 |
 
-The start wait has two modes. Measured from the object's event, 9 of 66 runs
-started the Derivers within 13 to 23 ms, and the other 57 after 189 to 476 ms.
-Seven of the nine fast runs used 57 to 108 ms of object CPU, as the slow runs did
-(52 to 122 ms), so object CPU does not explain the wait. In the two events read
-in full, the object's clock read 13 and 15 ms when it sent the Deriver requests;
-that clock does not move during CPU work or during writes.
+¹ Linked executions only: 18 and 43 in the acceptance run, 26 and 42 in the
+controls, 28 and 64 in 0.11.0. Some executions lack a matching event in the tail.
 
-What the object does in each wait:
+The claim inside the object is faster than the two command calls of 0.10.2, as
+intended. The time is lost after it: between the tenant-root read and the first
+Deriver start (at least 134 ms in all 28 linked executions of the second run),
+and after Deriver A's object ends. The Deriver A object's own work is unchanged. A Deriver A stateless event
+ends before its object's event in 0.11.0 (its answer streams through), so the
+end of the A object, not of the A stateless event, marks the end of Deriver A.
 
-- Before the Deriver calls, `execute_in_wallet` commits the claim in a storage
-  transaction and then sends both requests. Its comment says the output gate
-  holds those requests until the claim write is confirmed.
-- After Deriver A answers, the object delivers the package to the Signing Worker
-  (`yao_router_signing_worker_delivery` 45 ms at the median, 110 ms at p90), commits the finish in a second transaction, and
-  answers. The answer waits for that confirmation.
+### The cold-start signature in the tails
 
-In 0.10.2, the same two transactions ran in two short `/router-wallet/v1/command`
-calls from the stateless Router; `router_wallet.rs` and the transaction code are
-unchanged. There, the whole interval before the Deriver calls, including the
-claim call and its confirmation, was 88 to 119 ms at the median.
+A stateless Deriver or Signing Worker event in a new isolate uses much more CPU.
 
-Inference, not proven: a write confirmation that holds outbound requests or the
-reply of a long object request takes about 200 ms longer on the hosted platform
-than one that holds the reply of a short command. A local run cannot show this:
-`workerd` confirms writes at once. The [orchestration record](registration-router-orchestration-20261016.md)
-measured only local runs and left the hosted savings unmeasured.
+| Stateless callee | Acceptance 0.10.2 | Controls 0.10.2 | 0.11.0 |
+| --- | ---: | ---: | ---: |
+| Deriver A `execute-pair`: calls with CPU ≥ 50 ms | 13% | 31% | 97% |
+| Deriver B `prepare-pair`: calls with CPU ≥ 50 ms | 14% | 30% | 89% |
+| Signing Worker `activation/packages`: CPU median | 2 ms | 3 ms | 65 ms |
+| Signing Worker: calls with CPU ≥ 50 ms | 7% | 22% | 95% |
 
-The B half of `18b09520` is not on this path. Deriver B's `prepare-pair` event
-took 200 ms (121 to 157 ms in 0.10.2) and 68 to 72 ms of CPU (7 to 24 ms), and it
-still ends before Deriver A answers.
+The high-CPU calls also start late, in both versions. Router start to Deriver A
+start, median:
+
+| Deriver A call | Acceptance 0.10.2 | Controls 0.10.2 | 0.11.0 |
+| --- | ---: | ---: | ---: |
+| CPU < 30 ms | 81 ms (174 calls) | 95 ms (65) | 27 ms (2) |
+| CPU ≥ 50 ms | 260 ms (26 calls) | 185 ms (31) | 315 ms (64) |
+
+The same split holds for Deriver B. In 0.11.0 the few warm calls start sooner
+than in 0.10.2 (27 against 81 to 95 ms), because the claim no longer needs its
+own command call. Low CPU and an early start do not match one to one: in 7 of
+the 9 executions with an early start, only one of the two Derivers started
+early, and some early starts still used 58 to 84 ms of CPU. A new isolate can
+start quickly on some machines; in most calls its start waits about 200 ms.
+
+### Probe
+
+A probe on the approved Worker names `ed25519-yao-ab-benchmark-a` and
+`ed25519-yao-ab-benchmark-b` ran from 20:41 to 20:52 JST and was then deleted;
+the API confirmed both names absent. Its front, its peer and its objects ran in
+Singapore, as on staging: the front and the peer have placement
+`aws:ap-southeast-1`, and the objects are SQLite-backed with the `apac` hint,
+fresh for each test, woken 1 s before it, with 12 KB request bodies.
+
+First it tested write confirmation, which this record named as the likely
+cause before. 30 rounds in random order, medians:
+
+| Probe test | Median (ms) |
+| --- | ---: |
+| Reply without a write / after a transaction | 6 / 10 |
+| Object start to peer arrival, without a write / after the claim-like transaction | 11 / 14 |
+| Same, after the transaction and 60 ms of CPU | 14 |
+| `storage.sync()` after the transaction | 3 |
+| Peer answer to front receipt in a 600 ms request, without / with a write before the reply | 4 / 9 |
+| 0.11.0 flow form (claim, two peers, delivery, finish in the object), total | 632 |
+| 0.10.2 flow form (claim and finish commands, peers called by the front), total | 648 |
+
+Write confirmation is fast in every position, so it is not the cause. The two
+flow forms tie because the probe's peer is tiny JavaScript, whose cold start is
+free (0 to 2 ms of CPU).
+
+Then the peer reported an isolate id and a request count:
+
+| Caller of the peer | Calls | Distinct peer isolates | First request of an isolate |
+| --- | ---: | ---: | ---: |
+| Stateless front | 40 | 2 | 2 |
+| Fresh object for each call | 40 | 39 | 39 |
+| One reused object | 40 | 2 | 2 |
+
+A placed callee does not keep a shared warm isolate for calls from fresh
+objects. The probe sources, results and tails are in the private
+`seams-monorepo/.artifacts/r155j-release-0110/gate-probe/`.
+
+### Consequence
+
+The fix is to make these calls from a stateless Worker again, as 0.10.2 did,
+or otherwise from an isolate that stays warm. Keeping the claim inside the
+object would keep its saving only if the role calls leave the object. The B half
+of `18b09520` is not on this path: Deriver B's `prepare-pair` ends before
+Deriver A's object does.
 
 ## Gateway steps
 
@@ -137,5 +194,6 @@ passkey step were one `setup_wallet_objects` of 1,193 ms, one Router execution o
 
 The raw runs, tails, serving snapshots and scripts are in the private
 `seams-monorepo/.artifacts/r155j-release-0110/` (`compare.py`,
-`execute_timeline.py`, `setup_context.py`) and use the kit in
-`.artifacts/r155h-singapore-anchor/` (`steps.py`).
+`execute_timeline.py`, `setup_context.py`, `trace_timeline.py`) and use the kit in
+`.artifacts/r155h-singapore-anchor/` (`steps.py`). `trace_timeline.py` links the
+events of one registration.

@@ -72,8 +72,9 @@ public `dev` since 0.10.2. The wallet-management protocol stays `4`.
 - **Staging.** Activated at 15:02 JST and the frontends deployed at 15:05 JST;
   private pins in `seams-monorepo` `a5dbf249`. 66 registrations passed: 2,021 ms
   after the passkey step at the median and 2,497 ms at p95. Respond is about
-  400 ms slower at the median than on 0.10.2: the Router wallet object waits
-  before and after the Deriver calls since `18b09520`
+  400 ms slower at the median than on 0.10.2: since `18b09520` the fresh Router
+  wallet object calls the Derivers and the Signing Worker, and these calls start
+  cold isolates
   ([record](evidence/release-0110-staging-20261016.md)).
 
 ## 0.10.2
