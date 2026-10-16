@@ -2,7 +2,6 @@
 
 mod execute_request;
 pub use execute_request::handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1;
-pub(crate) use execute_request::{execute_in_wallet, WalletRegistrationExecution};
 
 mod ceremony_execution;
 mod package_delivery;

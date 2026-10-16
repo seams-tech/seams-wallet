@@ -51,7 +51,7 @@ const config = defineSeamsConfig({
     {
       network: 'arc-testnet',
       chainId: 5_042_002,
-      rpcUrl: 'https://rpc.drpc.testnet.arc.network',
+      rpcUrl: 'https://rpc.testnet.arc.io',
       explorerUrl: 'https://testnet.arcscan.app',
     },
   ],

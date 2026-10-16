@@ -131,6 +131,18 @@ export function authBranchFixtures(
   return [
     ...deviceFixtures,
     {
+      name: 'recovery-choose-method',
+      model: {
+        ...recoveryDisplay,
+        kind: 'recovery',
+        mode: 'login',
+        enabledExternalProviders: ['google'],
+        stage: 'choose_method',
+        recoveryCode: '0123456789ABCDEFGHJKMNPQRSTVWXYZ',
+        status: { kind: 'idle', interaction: 'actionable' },
+      },
+    },
+    {
       name: 'recovery-preparing',
       model: {
         ...recoveryDisplay,

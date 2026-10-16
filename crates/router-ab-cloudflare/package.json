@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "worker-build:install": "cargo install -q worker-build --version 0.8.4",
+    "worker-build:install": "cargo install -q --locked worker-build --version 0.8.4",
     "build:router": "bash ./scripts/build-strict-worker.sh router",
     "build:deriver-a": "bash ./scripts/build-strict-worker.sh deriver-a",
     "build:deriver-b": "bash ./scripts/build-strict-worker.sh deriver-b",

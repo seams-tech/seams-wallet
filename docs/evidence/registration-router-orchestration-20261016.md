@@ -1,5 +1,13 @@
 # Registration orchestration and B execution claims — October 16, 2026
 
+Update, October 16: on staging, release 0.11.0's Router waits 270 ms before its
+first Deriver call (88 to 120 ms in every 0.10.2 population), and 89 to 97% of
+the Deriver calls show the cold-start CPU (13 to 39%). Respond is 422 ms slower
+than in the 0.10.2 acceptance run; same-day controls ran under other conditions.
+A probe showed that a service-binding call from a fresh object starts a new
+isolate of the callee; write confirmation is not the cause. The cost of the real
+cold starts is inferred from the tails ([record](release-0110-staging-20261016.md)).
+
 The implementation removes one Router-to-object call and one B pair-record write.
 Correctness checks pass. The local comparison shows no material latency change.
 Hosted savings remain unmeasured.

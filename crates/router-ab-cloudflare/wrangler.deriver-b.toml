@@ -4,7 +4,7 @@ compatibility_date = "2026-06-12"
 workers_dev = false
 
 [build]
-command = "cargo install -q worker-build --version 0.8.4 && bash ./scripts/build-strict-worker.sh deriver-b"
+command = "cargo install -q --locked worker-build --version 0.8.4 && bash ./scripts/build-strict-worker.sh deriver-b"
 
 [[d1_databases]]
 binding = "DERIVER_ROLE_PRIVATE_DB"

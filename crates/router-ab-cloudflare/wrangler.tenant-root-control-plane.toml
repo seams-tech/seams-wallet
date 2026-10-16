@@ -4,7 +4,7 @@ compatibility_date = "2026-06-12"
 workers_dev = false
 
 [build]
-command = "cargo install -q worker-build --version 0.8.4 && bash ./scripts/build-strict-worker.sh tenant-root-control-plane"
+command = "cargo install -q --locked worker-build --version 0.8.4 && bash ./scripts/build-strict-worker.sh tenant-root-control-plane"
 
 # The control plane reads authoritative tenant-root lifecycle state directly
 # from the Router-owned creation Durable Object. Class, namespace, migrations

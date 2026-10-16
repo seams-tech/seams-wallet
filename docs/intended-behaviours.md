@@ -999,6 +999,10 @@ Expected behaviour:
 - The hosted wallet-iframe menu accepts one unused recovery code. The server
   resolves the wallet from the code locator without an existing Passkey
   assertion, an old credential id, or a client-supplied wallet or source method.
+- The menu takes the code in its own step and checks only its format on the
+  device. The owner then chooses the sign-in method that recovery adds: a new
+  Passkey, or Google/Email OTP. That choice sends the code to preparation; a
+  refused code returns the owner to the code step with the code kept.
 - Preparation reserves the code and binds an immutable Passkey or Google/Email
   OTP target. Passkey creation and Google authentication begin from their own
   user actions; Google recovery also requires the issued Email OTP before

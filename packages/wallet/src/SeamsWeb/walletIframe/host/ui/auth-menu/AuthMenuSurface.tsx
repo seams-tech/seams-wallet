@@ -1,6 +1,10 @@
 /** @jsxImportSource preact */
 import { Component, Fragment, type ComponentChildren } from 'preact';
-import { WALLET_RECOVERY_CODE_CHAR_LENGTH } from '@shared/wallet-recovery/recoveryCodes';
+import {
+  WALLET_RECOVERY_CODE_ALPHABET,
+  WALLET_RECOVERY_CODE_CHAR_LENGTH,
+  WALLET_RECOVERY_CODE_GROUP_LENGTH,
+} from '@shared/wallet-recovery/recoveryCodes';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import {
   isAuthMenuActionReady,
@@ -54,24 +58,48 @@ function otpCodeDigits(code: string, length = 6): readonly string[] {
   return code.padEnd(length, ' ').slice(0, length).split('');
 }
 
+const RECOVERY_CODE_CHARACTERS: ReadonlySet<string> = new Set(WALLET_RECOVERY_CODE_ALPHABET);
+
+/* Crockford Base32 reads O as 0 and I or L as 1, so a misread letter still
+   enters the character the code holds. Separators and any other character
+   are dropped: no code contains them. */
 function recoveryInputCharacters(code: string): string {
-  return code.replace(/[\s\-\u2010-\u2015\u2212]/g, '').toUpperCase();
+  let characters = '';
+  for (const character of code.toUpperCase()) {
+    const read = character === 'O' ? '0' : character === 'I' || character === 'L' ? '1' : character;
+    if (RECOVERY_CODE_CHARACTERS.has(read)) characters += read;
+  }
+  return characters;
 }
 
-function recoveryCodeGroups(digits: readonly string[]): string[][] {
-  const groups: string[][] = [];
-  for (let index = 0; index < digits.length; index += 4) {
-    groups.push(digits.slice(index, index + 4));
+function renderRecoveryCodeGroups(code: string, caret: number | null): ComponentChildren[] {
+  const groups: ComponentChildren[] = [];
+  for (
+    let start = 0;
+    start < WALLET_RECOVERY_CODE_CHAR_LENGTH;
+    start += WALLET_RECOVERY_CODE_GROUP_LENGTH
+  ) {
+    const end = start + WALLET_RECOVERY_CODE_GROUP_LENGTH;
+    const slots: ComponentChildren[] = [];
+    for (let index = start; index < end; index += 1) {
+      const character = code[index] ?? '';
+      const classes = ['seams-otp-slot'];
+      if (character) classes.push('is-filled');
+      if (index === caret) classes.push('is-caret');
+      slots.push(
+        <span class={classes.join(' ')} key={index}>
+          {character}
+        </span>,
+      );
+    }
+    const active = caret !== null && caret >= start && caret < end;
+    groups.push(
+      <div class={`seams-recovery-code-group ${active ? 'is-active' : ''}`} key={start}>
+        {slots}
+      </div>,
+    );
   }
   return groups;
-}
-
-function renderRecoveryCodeGroup(digits: string[], index: number): ComponentChildren {
-  return (
-    <div class="seams-recovery-code-group" key={index}>
-      {digits.map(renderOtpCodeDigit)}
-    </div>
-  );
 }
 
 function renderOtpCodeDigit(digit: string): ComponentChildren {
@@ -93,6 +121,11 @@ function recoveryAnnouncement(viewModel: AuthMenuRecoveryViewModel): string {
   if (viewModel.stage === 'passkey_ready') return 'Recovery code accepted.';
   if (viewModel.stage === 'sign_in_ready') return 'Wallet recovered. Unlock it to continue.';
   return '';
+}
+
+function recoveryBackLabel(viewModel: AuthMenuViewModel): string {
+  if (viewModel.kind !== 'recovery') return 'Back';
+  return viewModel.stage === 'choose_method' ? 'Back to recovery code' : 'Back to unlock wallet';
 }
 
 function recoveryNavigationLocked(viewModel: AuthMenuViewModel): boolean {
@@ -305,11 +338,14 @@ type AccountMenuState = 'closed' | 'open' | 'closing';
 // Matches the account-menu-exit animation in auth-menu.css.
 const ACCOUNT_MENU_EXIT_MS = 160;
 
-export class AuthMenuSurface extends Component<
-  AuthMenuSurfaceProps,
-  { accountMenu: AccountMenuState }
-> {
-  state: { accountMenu: AccountMenuState } = { accountMenu: 'closed' };
+type AuthMenuSurfaceState = {
+  accountMenu: AccountMenuState;
+  // Where the next recovery-code character goes, while the code input has focus.
+  recoveryCaret: number | null;
+};
+
+export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSurfaceState> {
+  state: AuthMenuSurfaceState = { accountMenu: 'closed', recoveryCaret: null };
   private accountMenuExitTimer: ReturnType<typeof setTimeout> | null = null;
   // The account a click chose and the one selected before it. The list keeps
   // rendering both as they were at the click while it blinks and fades out.
@@ -406,6 +442,12 @@ export class AuthMenuSurface extends Component<
       }
       if (previous?.kind !== 'recovery' || previous.stage !== 'enter_code') {
         this.props.element.querySelector<HTMLElement>('[data-recovery-code]')?.focus();
+      }
+      return;
+    }
+    if (current.stage === 'choose_method') {
+      if (stageChanged) {
+        this.props.element.querySelector<HTMLElement>('[data-recovery-target]')?.focus();
       }
       return;
     }
@@ -655,19 +697,39 @@ export class AuthMenuSurface extends Component<
     const viewModel = this.viewModel;
     if (viewModel.kind !== 'recovery') return;
     const input = event.currentTarget;
-    const length = viewModel.recoveryCodeSlotCount ?? WALLET_RECOVERY_CODE_CHAR_LENGTH;
     const raw = input.value;
     const caret = recoveryInputCharacters(raw.slice(0, input.selectionStart ?? raw.length)).length;
-    const code = recoveryInputCharacters(raw).slice(0, length);
+    const code = recoveryInputCharacters(raw).slice(0, WALLET_RECOVERY_CODE_CHAR_LENGTH);
     if (input.value !== code) {
       input.value = code;
       input.setSelectionRange(Math.min(caret, code.length), Math.min(caret, code.length));
     }
+    this.syncRecoveryCaret(input);
     this.emitIntent({ kind: 'recovery_code_changed', recoveryCode: code });
   };
 
+  private onRecoveryCaretMove = (event: Event): void => {
+    if (event.currentTarget instanceof HTMLInputElement)
+      this.syncRecoveryCaret(event.currentTarget);
+  };
+
+  private onRecoveryCodeBlur = (): void => {
+    this.setState({ recoveryCaret: null });
+  };
+
+  private syncRecoveryCaret(input: HTMLInputElement): void {
+    const caret = Math.min(
+      input.selectionStart ?? input.value.length,
+      WALLET_RECOVERY_CODE_CHAR_LENGTH - 1,
+    );
+    // A full code has no next slot: the caret only shows while there is room.
+    const recoveryCaret = input.value.length < WALLET_RECOVERY_CODE_CHAR_LENGTH ? caret : null;
+    if (recoveryCaret !== this.state.recoveryCaret) this.setState({ recoveryCaret });
+  }
+
   private onRecoverySubmit = (event: SubmitEvent): void => {
     event.preventDefault();
+    this.emitIntent({ kind: 'recovery_code_submit' });
   };
 
   private onRecoveryPasskeySelected = (): void => {
@@ -789,7 +851,7 @@ export class AuthMenuSurface extends Component<
                   : ''
               }`}
               type="button"
-              aria-label={recovery ? 'Back to unlock wallet' : 'Back'}
+              aria-label={recoveryBackLabel(viewModel)}
               data-auth-menu-close
               disabled={recoveryNavigationLocked(viewModel)}
               onClick={this.onBackClick}
@@ -1098,9 +1160,11 @@ export class AuthMenuSurface extends Component<
 
   private renderRecovery(viewModel: AuthMenuRecoveryViewModel): ComponentChildren {
     if (viewModel.stage === 'enter_code') {
-      const codeLength = viewModel.recoveryCodeSlotCount ?? WALLET_RECOVERY_CODE_CHAR_LENGTH;
-      const code = recoveryInputCharacters(viewModel.recoveryCode).slice(0, codeLength);
-      const digits = otpCodeDigits(code, codeLength);
+      const code = recoveryInputCharacters(viewModel.recoveryCode).slice(
+        0,
+        WALLET_RECOVERY_CODE_CHAR_LENGTH,
+      );
+      const complete = code.length === WALLET_RECOVERY_CODE_CHAR_LENGTH;
       const statusMessage = viewModel.status.kind === 'recoverable' ? viewModel.status.message : '';
       const feedbackMessage = viewModel.recoveryCodeError ?? statusMessage;
       const feedbackIsError = feedbackMessage.length > 0;
@@ -1117,9 +1181,14 @@ export class AuthMenuSurface extends Component<
           </p>
           <form class="seams-recovery-form" novalidate onSubmit={this.onRecoverySubmit}>
             <div class="seams-recovery-field">
-              <label class="seams-field-label" for="seams-recovery-code">
-                Recovery code
-              </label>
+              <div class="seams-recovery-field-header">
+                <label class="seams-field-label" for="seams-recovery-code">
+                  Recovery code
+                </label>
+                <span id="seams-recovery-code-count" class="seams-recovery-code-count">
+                  {code.length}/{WALLET_RECOVERY_CODE_CHAR_LENGTH}
+                </span>
+              </div>
               <div class="seams-otp-code-field seams-recovery-code-field">
                 <input
                   id="seams-recovery-code"
@@ -1127,44 +1196,97 @@ export class AuthMenuSurface extends Component<
                   data-recovery-code
                   name="recoveryCode"
                   type="text"
-                  inputmode={codeLength === 16 ? 'numeric' : 'text'}
+                  inputmode="text"
                   autocomplete="off"
                   autocapitalize="characters"
                   autocorrect="off"
                   spellcheck={false}
                   aria-invalid={viewModel.recoveryCodeError ? 'true' : 'false'}
                   aria-describedby={
-                    viewModel.recoveryCodeError ? 'seams-recovery-code-feedback' : undefined
+                    viewModel.recoveryCodeError
+                      ? 'seams-recovery-code-feedback seams-recovery-code-count'
+                      : 'seams-recovery-code-count'
                   }
                   value={code}
                   onInput={this.onRecoveryCodeInput}
+                  onFocus={this.onRecoveryCaretMove}
+                  onKeyUp={this.onRecoveryCaretMove}
+                  onClick={this.onRecoveryCaretMove}
+                  onBlur={this.onRecoveryCodeBlur}
                 />
                 <div class="seams-otp-slots seams-recovery-code-slots" aria-hidden="true">
-                  {recoveryCodeGroups(digits).map(renderRecoveryCodeGroup)}
+                  {renderRecoveryCodeGroups(code, this.state.recoveryCaret)}
                 </div>
               </div>
             </div>
-            <div class="seams-secondary-actions">
+            <button
+              class="seams-auth-method-btn seams-auth-method-btn-primary"
+              type="submit"
+              data-auth-menu-primary
+              data-recovery-continue
+              disabled={!complete}
+            >
+              Continue
+            </button>
+          </form>
+        </>
+      );
+    }
+    if (viewModel.stage === 'choose_method' || viewModel.stage === 'preparing') {
+      const busyTarget = viewModel.stage === 'preparing' ? viewModel.target.kind : null;
+      const statusMessage =
+        viewModel.status.kind === 'recoverable'
+          ? viewModel.status.message
+          : viewModel.status.kind === 'busy'
+            ? viewModel.status.headline
+            : '';
+      const googleEnabled = viewModel.enabledExternalProviders?.includes('google') ?? false;
+      return (
+        <>
+          {this.renderHeader(viewModel)}
+          {/* The menu's live region announces this status; the copy here is visual. */}
+          <p
+            class={`seams-recovery-status ${
+              viewModel.status.kind === 'recoverable' ? 'seams-recovery-error' : ''
+            }`}
+            aria-hidden="true"
+          >
+            {statusMessage}
+          </p>
+          <div class="seams-auth-methods seams-recovery-methods">
+            <button
+              class="seams-auth-method-btn seams-auth-method-btn-primary"
+              type="button"
+              data-auth-menu-primary
+              data-recovery-target="passkey"
+              disabled={busyTarget !== null}
+              onClick={this.onRecoveryPasskeySelected}
+            >
+              {busyTarget === 'passkey' ? (
+                <span class="seams-spinner" aria-hidden="true"></span>
+              ) : (
+                fingerprintIcon()
+              )}
+              <span>Create a passkey</span>
+            </button>
+            {googleEnabled ? (
               <button
-                class="seams-link-device-btn seams-auth-method-choice-btn"
-                type="button"
-                data-recovery-target="passkey"
-                onClick={this.onRecoveryPasskeySelected}
-              >
-                <span class="seams-auth-method-choice-icon">{fingerprintIcon()}</span>
-                <span>Recover with Passkey</span>
-              </button>
-              <button
-                class="seams-link-device-btn seams-auth-method-choice-btn"
+                class="seams-auth-method-btn"
                 type="button"
                 data-recovery-target="google_email_otp"
+                disabled={busyTarget !== null}
                 onClick={this.onRecoveryGoogleSelected}
               >
-                <span class="seams-auth-method-choice-icon">{googleIcon()}</span>
-                <span>Recover with Google</span>
+                {busyTarget === 'google_email_otp' ? (
+                  <span class="seams-spinner" aria-hidden="true"></span>
+                ) : (
+                  googleIcon()
+                )}
+                <span>Continue with Google</span>
               </button>
-            </div>
-          </form>
+            ) : null}
+          </div>
+          <p class="seams-recovery-method-note">This adds a new sign-in method to your wallet.</p>
         </>
       );
     }

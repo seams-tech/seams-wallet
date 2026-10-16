@@ -262,6 +262,12 @@ Use the existing Worker/fetch entrypoints, including `router/cloudflare` and `ho
 The `router/cloudflare` name identifies the Workers API surface used by both hosts.
 No deprecated export or Node HTTP bridge replaces the removed Express entrypoint.
 
+The signing-only self-hosted router and worker factories are also removed. Both hosts use the same Worker entrypoints.
+The SDK no longer carries Express development dependencies or Express type mappings.
+Session-seal storage keeps its typed D1, in-memory, and HTTP-based provider APIs.
+The unused Node Redis TCP client, TCP adapter factories, and automatic backend selectors are removed.
+These exported API removals require a subsequent package release. Do not republish an existing version.
+
 The Node Gateway, its SQLite facade, and the VM Wallet launcher are removed.
 SQLite inspection remains only in test evidence tooling.
 The removed Node listener supplied a 1 MiB request-body cap. Configure and qualify request limits at the self-hosted HTTPS ingress.

@@ -49,6 +49,21 @@ const invalidCodeEntry: AuthMenuRecoveryViewModel = {
   status: { kind: 'busy', headline: 'Checking recovery code…' },
 };
 
+const invalidMethodChoiceTarget: AuthMenuRecoveryViewModel = {
+  ...recoveryCommon,
+  stage: 'choose_method',
+  // @ts-expect-error The method choice comes before the server binds any target.
+  target: { kind: 'google_email_otp', googleProvider: 'google' } satisfies WalletRecoveryTargetV1,
+  status: { kind: 'idle', interaction: 'actionable' },
+};
+
+// @ts-expect-error The method choice cannot carry an in-flight status.
+const invalidMethodChoice: AuthMenuRecoveryViewModel = {
+  ...recoveryCommon,
+  stage: 'choose_method',
+  status: { kind: 'busy', headline: 'Checking recovery code…' },
+};
+
 // @ts-expect-error Finalization retry must stay recoverable until retried.
 const invalidFinalization: AuthMenuRecoveryViewModel = {
   ...recoveryCommon,
@@ -128,6 +143,8 @@ const invalidResolvedLogin: AuthMenuLoginAccountResolution = {
 void preparing;
 void invalidEntryWalletIdentity;
 void invalidCodeEntry;
+void invalidMethodChoiceTarget;
+void invalidMethodChoice;
 void invalidFinalization;
 void discoverableLogin;
 void invalidPasskeyAccountOption;

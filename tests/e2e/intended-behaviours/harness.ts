@@ -8104,6 +8104,7 @@ async function fillHostedRecoveryCode(
   const frame = await hostedAuthMenuFrame(page);
   await frame.getByRole('button', { name: 'Recover wallet' }).click({ timeout: 15_000 });
   await frame.locator('[data-recovery-code]').fill(recoveryCode);
+  await frame.locator('[data-recovery-continue]').click({ timeout: 15_000 });
   await frame.locator(`[data-recovery-target="${target}"]`).click({ timeout: 30_000 });
   return frame;
 }

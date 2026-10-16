@@ -280,6 +280,7 @@ export type AuthMenuLinkDeviceViewModel = AuthMenuViewModelCommon & {
 
 export type AuthMenuRecoveryStage =
   | 'enter_code'
+  | 'choose_method'
   | 'preparing'
   | 'passkey_ready'
   | 'google_ready'
@@ -295,14 +296,20 @@ export type AuthMenuRecoveryViewModel = AuthMenuViewModelCommon & {
   readonly kind: 'recovery';
   readonly mode: 'login';
   readonly recoveryCode: string;
-  /** Preview display length; live recovery defaults to the protocol code length. */
-  readonly recoveryCodeSlotCount?: 16 | 32;
   readonly recoveryCodeError: string | null;
   readonly passkeyName?: never;
   readonly passkeyNameLabel?: never;
 } & (
     | {
         readonly stage: 'enter_code';
+        readonly walletId?: never;
+        readonly status: AuthMenuIdleStatus | AuthMenuRecoverableStatus;
+      }
+    | {
+        /* The code is well formed; the server has not seen it yet. The owner
+           picks the sign-in method recovery will install, and that click is
+           what sends the code. */
+        readonly stage: 'choose_method';
         readonly walletId?: never;
         readonly status: AuthMenuIdleStatus | AuthMenuRecoverableStatus;
       }
@@ -379,6 +386,9 @@ export type AuthMenuIntent =
   | {
       readonly kind: 'recovery_code_changed';
       readonly recoveryCode: string;
+    }
+  | {
+      readonly kind: 'recovery_code_submit';
     }
   | {
       readonly kind: 'recovery_passkey_selected';

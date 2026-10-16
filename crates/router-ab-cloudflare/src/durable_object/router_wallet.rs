@@ -25,7 +25,6 @@ use crate::{
 
 const BINDING: &str = "ROUTER_WALLET_DO";
 const COMMAND_PATH: &str = "/router-wallet/v1/command";
-const EXECUTE_PATH: &str = "/router-wallet/v1/execute-registration";
 
 enum WalletCall {
     Ordinary(RouterWalletRequestV1),
@@ -44,14 +43,13 @@ struct RouterWalletRefusalV1 {
 #[durable_object]
 pub struct RouterAbRouterWalletDurableObject {
     state: State,
-    env: Env,
     timing: super::command_timing::WalletCommandTiming,
 }
 
 impl DurableObject for RouterAbRouterWalletDurableObject {
-    fn new(state: State, env: Env) -> Self {
+    fn new(state: State, _env: Env) -> Self {
         let timing = super::command_timing::WalletCommandTiming::new(state.id().to_string());
-        Self { state, env, timing }
+        Self { state, timing }
     }
 
     async fn fetch(&self, request: Request) -> worker::Result<Response> {
@@ -68,13 +66,6 @@ impl RouterAbRouterWalletDurableObject {
         }
         if request.path() == super::custody_target::OBSERVE_PATH {
             return super::custody_target::observe_location().await;
-        }
-        if request.method() == Method::Post && request.path() == EXECUTE_PATH {
-            let execution = request
-                .json::<crate::router_coordinator::WalletRegistrationExecution>()
-                .await?;
-            return crate::router_coordinator::execute_in_wallet(&self.state, &self.env, execution)
-                .await;
         }
         if request.method() != Method::Post
             || (request.path() != COMMAND_PATH
@@ -173,41 +164,6 @@ where
             "Router wallet transaction produced no outcome".into(),
         ))
     })
-}
-
-pub(crate) async fn execute_router_wallet_command(
-    state: &State,
-    request: RouterWalletRequestV1,
-) -> RouterAbProtocolResult<RouterWalletResponseV1> {
-    transact(
-        state,
-        command_label(&request.command),
-        move |store| async move { router_wallet_serve_v1(&store, request).await },
-    )
-    .await
-}
-
-pub(crate) async fn forward_router_wallet_execution(
-    env: &Env,
-    registration: &crate::RouterWalletRegistrationV1,
-    execution: crate::router_coordinator::WalletRegistrationExecution,
-) -> worker::Result<Response> {
-    let namespace = env.durable_object(BINDING)?;
-    let name = registration
-        .owner
-        .object_name(registration.ownership_generation)
-        .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    let stub = execution
-        .wallet_route
-        .wallet_stub(&namespace, &name, "router")?;
-    let body = serde_json::to_string(&execution)?;
-    let outbound = Request::new_with_init(
-        &format!("https://router-wallet.internal{EXECUTE_PATH}"),
-        worker::RequestInit::new()
-            .with_method(Method::Post)
-            .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body))),
-    )?;
-    stub.fetch_with_request(outbound).await
 }
 
 fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {

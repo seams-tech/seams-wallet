@@ -19,7 +19,8 @@ Every deployment remains a separate, authorized step.
 
 ## 0.11.0
 
-Status: **prepared October 16, 2026; not yet published.** Minor release. It
+Status: **published October 16, 2026, 05:47 UTC, and deployed to staging.**
+Minor release. It
 runs the Wallet backend on Cloudflare Workers only and carries the work on
 public `dev` since 0.10.2. The wallet-management protocol stays `4`.
 
@@ -68,6 +69,14 @@ public `dev` since 0.10.2. The wallet-management protocol stays `4`.
   entrypoint checks). The private check and build pass against the candidate
   after three private changes for the removed Express entry, and all 13
   private deep imports of the SDK resolve.
+- **Staging.** Activated at 15:02 JST and the frontends deployed at 15:05 JST;
+  private pins in `seams-monorepo` `a5dbf249`. 66 registrations passed: 2,021 ms
+  after the passkey step at the median and 2,497 ms at p95. Respond is about
+  422 ms slower at the median than in the 0.10.2 acceptance run. Since
+  `18b09520` the fresh Router wallet object calls the Derivers and the Signing
+  Worker; these calls start new isolates, and the Router waits 270 ms before its
+  first Deriver call (88 to 120 ms on 0.10.2)
+  ([record](evidence/release-0110-staging-20261016.md)).
 
 ## 0.10.2
 

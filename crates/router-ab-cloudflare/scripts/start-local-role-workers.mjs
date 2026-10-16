@@ -22,8 +22,11 @@ const gatewayRuntimeRoot = path.join(localRoot, '.runtime', 'wallet-gateway');
 const ceremonyPrivateJwkPath = path.join(gatewayRuntimeRoot, 'ceremony-private.jwk.json');
 const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
 // Separate local stacks reuse Worker names, so each needs its own discovery registry.
+// A role that registers before a peer finds it only through the registry watcher;
+// poll it, because macOS can stop delivering FSEvents and the peer is then "not found".
 const workerEnv = {
   ...process.env,
+  CHOKIDAR_USEPOLLING: process.env.CHOKIDAR_USEPOLLING || '1',
   WRANGLER_LOG: process.env.WRANGLER_LOG || 'warn',
   WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
 };
