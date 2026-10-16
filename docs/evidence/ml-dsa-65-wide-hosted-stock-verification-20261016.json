@@ -1,0 +1,126 @@
+{
+  "deployment_versions": {
+    "router": "5bab661b-93b2-4663-a308-2e79c870985a",
+    "a": "a99bc118-263f-40c0-86c9-864188321f17",
+    "b": "b505d3ff-6191-4c86-a359-82d27640cf95",
+    "preparer-a": "7f0ebfee-f9b5-40fe-8d01-3782ab3a4e63",
+    "preparer-b": "68395162-e4ca-4c3b-b03a-9d7826d83ea4"
+  },
+  "retained_invocations": 464,
+  "terminal_operations": 13,
+  "signed_operations": 12,
+  "exhausted_operations": 1,
+  "initial_batches": 4,
+  "new_batches": 16,
+  "consumed_batches": 16,
+  "final_batches": 4,
+  "candidate_count": 128,
+  "restoration_after_client_ms": 188281.7578125,
+  "post_initial_elapsed_ms": 406956.1240234375,
+  "new_pairs_after_depletion_during_client": 12,
+  "signatures_after_depletion": 10,
+  "pairs_per_minute_after_depletion": 1.7692324982890135,
+  "signatures_per_minute_after_depletion": 1.4743604152408447,
+  "retained_exceptions": 0,
+  "retained_invocation_outcomes": {
+    "ok": 457,
+    "canceled": 7
+  },
+  "consumption": {
+    "ebaef148c0cbcbd36f307de05537b45cb5e5c571d1fba1509a5883fb462bc446": {
+      "batches": [
+        "d753eb1c091b6ecea350c910eb12e3db8433575bb0649645d2968d0e7c309ddc"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "1b5a9eb36f0d6c1ee3cb508ce95781b78b708623ac4c17ecbc5146cbabbcac76": {
+      "batches": [
+        "6a664a2d48afc6f8cc08c44241141dd3428639fffe53b54c316311ad61d5c243"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "5e9a35bf3b53ee7045456a855c440597d39c01b2cf74c4458d461d9f457693c6": {
+      "batches": [
+        "b4ef8f9e29ff32038c395a165471caa57b3e557549670a82eedbaca2fcc87129",
+        "5d0805b09d9f2f4740b373d87ad6a699dd43d98d5e6210b1233687383a235bf9"
+      ],
+      "candidates": 16,
+      "status": "exhausted"
+    },
+    "aa8416cba2db9c56a6ea511964ebf44b36a2f0bfe3c4d44f36ad43cf3560245f": {
+      "batches": [
+        "e3ca775717c8ae966046a6c561e6a1f770a3b099b7fae633956174ced4bbc6ec"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "995dc7b2eb35024426cf6b0a717bfa1c2e19bfe8123d20db40e0cfc0d86baa32": {
+      "batches": [
+        "b236fafd5f6ac3a1bd054b27005b1a8775f6982213e8b983e21c44aeb0a3ace8"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "cdc64bcaf9eba666a3cdfa88718eff119775556c8c698ce83189f038185d02bd": {
+      "batches": [
+        "b6872326acebcb6359e7fbaea26567cba88e22cbfe2cf81844a8c91f1d1e4428"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "04e53848b51ebbfbcefea84831739fc5c3d85dda1eb84caee90efa7cbed23fe2": {
+      "batches": [
+        "febbef5f25523498ea4215656c69d1ed65ed0db436b11a3dd7821438cf400949"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "b358b7cc5645a110e3f2caa384c614ad799b7f1dc967b674d0aa63f07104176f": {
+      "batches": [
+        "2c16caa753501ad198a3fe7caf2d02bb4ef504f02d3a72103c62089b8ca6347c"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "ebc40c981fe8e86f8a619da93bf4911619a9d8a80df44edcb1eb2f5590896981": {
+      "batches": [
+        "9a07d48c07d8d4f48171058d5561109acb7e1068baa17864dd5af8b948e97053",
+        "7a2899d834fe6278321fe2439b540afd5a69fc9c40dda5c9b9c0f8671133cd37"
+      ],
+      "candidates": 16,
+      "status": "signed"
+    },
+    "8fb42aa8b2545220d785f67072ee6af63e44df913d2074dab118c37f2bc18759": {
+      "batches": [
+        "f1829d09382c7a45ab9659f7756eef2df1a76de02a47b77f4e4cad3bf5302a3f"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "7e3140f341b4fd310c8d059210022f6664f5d15e1289db5c7c5b499bd58f5bb1": {
+      "batches": [
+        "f200f029fa0d270d17dbac75faaba82f35ff33576fb8a15d74acc847d54d8f95"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "d4ab89b1630f5cbd66a72498861d8b14d84b2eb8d89835db5f43494ccb31365d": {
+      "batches": [
+        "b8c284b1ed4741eb906cadf630fa49746a50819c542b6873c2c96008c88a53dc"
+      ],
+      "candidates": 8,
+      "status": "signed"
+    },
+    "8cb797ef437e8a8d88e42d328197ca253db8925d77aebd9ee85c5a5131b13b2d": {
+      "batches": [
+        "490f657a35a63f2e467d5c55447530de3f38bee399eafa7e535b583a69e8857b",
+        "eca1a9502d70036a09fb7a6c8ee0fe86ac8709bd1665ca87285cfe454fa1c6c4"
+      ],
+      "candidates": 16,
+      "status": "signed"
+    }
+  },
+  "limits": "Consumption uses the recorded ordered paired inventory and consumed-prefix count, matching coordinator reservation order. This checks observed stock and retained invocation outcomes. It does not prove global absence of events outside captured traces."
+}

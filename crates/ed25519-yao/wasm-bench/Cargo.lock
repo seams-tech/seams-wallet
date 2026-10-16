@@ -303,6 +303,7 @@ dependencies = [
  "sha2",
  "sha3",
  "subtle",
+ "wide",
  "zeroize",
 ]
 

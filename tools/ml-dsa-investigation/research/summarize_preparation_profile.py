@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Attribute calibrated producer samples using the exact compiled Wasm symbols."""
+"""Attribute calibrated preparation or signing samples using the exact compiled Wasm symbols."""
 import argparse
 import collections
 import json
@@ -15,7 +15,7 @@ def category(stack):
         return "secret_erasure"
     if "cryprot_codes[" in text:
         return "code_matrix_encoding"
-    if "::gate_aes::" in text:
+    if "::gate_aes::" in text or "::correlation_aes::CorrelationAes" in text:
         return "private_aes"
     if "curve25519_dalek[" in text:
         return "curve_arithmetic"
@@ -61,22 +61,30 @@ def main():
     parser.add_argument("campaign", type=Path)
     parser.add_argument("build_root", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--phase", choices=["preparation", "signing"], default="preparation")
     args = parser.parse_args()
     campaign = read(args.campaign)
     assert campaign["passed"] and campaign["profilerCalibration"]["passed"]
     profiles = []
-    for item in campaign["preparationProfile"]["profiles"]:
-        role = item["title"].rsplit("preparer-", 1)[1]
+    if args.phase == "preparation":
+        measurements = [{"profiles": campaign["preparationProfile"]["profiles"], "index": None}]
+    else:
+        measurements = campaign["signingProfiles"]
+    for measurement, item in [(measurement, item) for measurement in measurements for item in measurement["profiles"]]:
+        role = item["title"][-1]
+        expected = f"core:user:preparer-{role}" if args.phase == "preparation" else f"core:user:{role}"
+        assert item["title"].endswith(expected)
         assert role in ["a", "b"]
         wasm = args.build_root / f"deriver-{role}" / "index_bg.wasm"
         map_path = Path(str(wasm) + ".names.json")
         symbols = json.loads(map_path.read_text())
         assert symbols["wasmSha256"] == sha256(wasm) == campaign["workerWasmSha256"][f"deriver-{role}"]
-        profiles.append({"wasm_sha256": sha256(wasm), "symbol_map_sha256": sha256(map_path),
+        profiles.append({"measurement_index": measurement["index"], "wasm_sha256": sha256(wasm), "symbol_map_sha256": sha256(map_path),
                          **summarize(item, symbols)})
     report = {
         "schema": "seams.ml-dsa-preparation-stage-samples.v1",
-        "scope": "Local workerd producer sampling through the first four-batch reserve. Categories are disjoint by stack precedence. Inlined work can remain in preparation_loop_other. Counts are samples, not elapsed or billed CPU. Hosted attribution is unproven.",
+        "scope": "Local workerd sampling. Preparation targets producer A/B through the first four-batch reserve. Signing targets online A/B for each HTTP signing request. Categories are disjoint by stack precedence. Inlined work can remain in other categories. Counts are samples, not elapsed or billed CPU. Hosted attribution is unproven.",
+        "phase": args.phase,
         "campaign_sha256": sha256(args.campaign),
         "script_sha256": sha256(Path(__file__)),
         "calibration": campaign["profilerCalibration"],
@@ -84,7 +92,7 @@ def main():
         "profiles": profiles,
     }
     args.output.write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({item["title"]: item["categories"] for item in profiles}))
+    print(json.dumps([{ "index": item["measurement_index"], "title": item["title"], "categories": item["categories"]} for item in profiles]))
 
 
 if __name__ == "__main__":

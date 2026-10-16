@@ -1,0 +1,379 @@
+{
+  "cases": [
+    {
+      "a": {
+        "elapsed_ns": 64297833,
+        "own_share_sha256": "c72a6a461a208402a97b026215c146bb1612607139e64e4a797670faa75fcba4",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            461959,
+            63835834,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 66472333,
+        "own_share_sha256": "befdfbb86edeb191af546fc0b516aa4115a15f766b7d2165ac9e7f7814604d20",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            103416,
+            66368750,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        131168,
+        131399,
+        131057,
+        131506,
+        131436,
+        130778
+      ],
+      "warmup": true
+    },
+    {
+      "a": {
+        "elapsed_ns": 82554042,
+        "own_share_sha256": "0325597ee9c780fb8e31c0e81ad38fc904ffe703ddef6aa1ead6724a044a67e0",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            42750,
+            82511375,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 87420292,
+        "own_share_sha256": "c31c1b39aa0deec99dcba59bb5f4a33434dfde59ea5d9dc9d8a8a91d9339d406",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            41709,
+            87378667,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        130903,
+        131197,
+        131036,
+        131259,
+        131161,
+        130897
+      ],
+      "warmup": false
+    },
+    {
+      "a": {
+        "elapsed_ns": 87922417,
+        "own_share_sha256": "29c1af1e914217ebbe3073847fe45c300990a5352d9d8e00bbdbf4a44924edf6",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            133917,
+            87788542,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 94028750,
+        "own_share_sha256": "2b87e0d5409ec3cd0580b6dd4eda86d8da84f0789e34bb9b106b6adf6c69c4fd",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            367042,
+            93661792,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        131063,
+        131225,
+        131408,
+        131432,
+        131091,
+        131089
+      ],
+      "warmup": false
+    },
+    {
+      "a": {
+        "elapsed_ns": 71878500,
+        "own_share_sha256": "972240b7769164ea7e57ceccad7048647fc45bde59de5b4e52ae270235b506d1",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 53408,
+          "actual_pipe_sent_bytes": 209056,
+          "phase_wall_ns_including_peer_wait": [
+            1354500,
+            70524083,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "all_shared_ands_verified": true,
+      "all_triples_verified": true,
+      "b": {
+        "elapsed_ns": 73450083,
+        "own_share_sha256": "e9d873db55506210013b125ada260474a4c811fb7b3d264453189aaeec80d62a",
+        "status": "prepared",
+        "transport": {
+          "actual_pipe_received_bytes": 209056,
+          "actual_pipe_sent_bytes": 53408,
+          "phase_wall_ns_including_peer_wait": [
+            47542,
+            73402500,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "triples": 262144
+      },
+      "ones_per_private_component": [
+        130724,
+        130626,
+        131137,
+        130820,
+        131264,
+        130894
+      ],
+      "warmup": false
+    }
+  ],
+  "executable_sha256": "81a43468ec5c2855519f20668cd6dfd3251ad561c9b0469b00ec2c160bd1f1df",
+  "host_arch": "aarch64",
+  "host_os": "macos",
+  "mismatched_binding": {
+    "a": {
+      "elapsed_ns": 516833,
+      "status": "binding-rejected",
+      "transport": {
+        "actual_pipe_received_bytes": 64,
+        "actual_pipe_sent_bytes": 64,
+        "phase_wall_ns_including_peer_wait": [
+          516916,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "b": {
+      "elapsed_ns": 64584,
+      "status": "binding-rejected",
+      "transport": {
+        "actual_pipe_received_bytes": 64,
+        "actual_pipe_sent_bytes": 64,
+        "phase_wall_ns_including_peer_wait": [
+          64708,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "binding_rejected": true
+  },
+  "production_eligible": false,
+  "profile": {
+    "base_ot_choices": 3072,
+    "base_payload_bytes": 16,
+    "domain": 4096,
+    "encoder": "CryProt ExConv7x24",
+    "minimum_distance_ratio_for_noise_choice": 0.15,
+    "parallel_trees": 4,
+    "partitions": 256,
+    "triples": 262144
+  },
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+  "schema": "seams.ml-dsa-silent-correlations.v1",
+  "scope": "Separate native roles with fresh real IKNP and fixed-width PPRF. Disposable private correlations are reconstructed only after timing. No dealer supplies them. No complete signing or Worker performance claim.",
+  "sources": [
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
+      "sha256": "f1bdf49cabc51ddf5d8dc622342077921e332b6b8b9761db66f9e448574607ab"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+      "sha256": "8ef4b951f49f6a1443bfcae7766055562052326f9228fcab651d69c9ec0f4ca0"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
+      "sha256": "91321c80ccc05539200176db1f378d9a5097d375dfc89b37f5473bd6f5c87b35"
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "sha256": "2ab6f5f00b53fd415b644479017bbc4b206f9127284d8208ff98ac724bb0bfa9"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/silent_correlation_evidence.rs",
+      "sha256": "e76aca7d62c249779544500396d0404d13d568fce8b40abc6023b989c15b473a"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/Cargo.lock",
+      "sha256": "985aad0675bb35b161f2c490747195b0477b6e0634c1c9c2a706327df0bc3372"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/boolean_engine_evidence.rs",
+      "sha256": "928d47a6b3ec2fc7d7c1d150b16597d73776d837c5bd415c0def8e4174236a78"
+    },
+    {
+      "path": "tools/ml-dsa-investigation/src/private_execution.rs",
+      "sha256": "9d4d41bcdebb834e45128bad728d1167f2c0856660608d4d44cd9f18678b82d6"
+    },
+    {
+      "path": "crates/ed25519-yao/Cargo.toml",
+      "sha256": "55e15e2a8e6ec6a6bb71b72cb6ff0c44be9aa10dfaab9b0ed4497a8de1ba84d0"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/Cargo.toml",
+      "sha256": "26031447f244ab281db96881b0e610defb0bca9e174f4dc1e504ea190073a121"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/Cargo.toml",
+      "sha256": "38eab7d94b7cc6bdb1f7d5bc85b2162d8200b79e36538de692e2db36e38aba98"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/aes_hash.rs",
+      "sha256": "83a8b6d770609f58196c83ee98339db6fca60acf991ba929899d14cd8b4af585"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/aes_rng.rs",
+      "sha256": "479ece03e40c01b56ad7e1ccdf8a163b07bb2ce40b0449e84feb6be45febc2e8"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/alloc.rs",
+      "sha256": "f7c5b24240e553e35f9d9653fcc1efcb230899a1ad7d1e3b6643aef72255e5f9"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/block/gf128.rs",
+      "sha256": "c0962f7d3917ea6bb2ae815feaa063d2247c10445bb525b018a7f3f691b9e173"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/block.rs",
+      "sha256": "361631e1bd9e1293432c3ad9e40615b8906a6db737b6f90c2cbeff241a39c8ae"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/buf.rs",
+      "sha256": "007aa70e03ccc0f9222df19e2225b8834db2c32edc444ec3eae16b575e669c58"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/lib.rs",
+      "sha256": "4f19310f590dd25a33a28c71b4a954074a2cc3c4092e5cbcbfb2e4f7ee55a41b"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/rand_compat.rs",
+      "sha256": "baea498a26877b7674e290751283a2008b054e598e70bd51239267ecd9f546a7"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/random_oracle.rs",
+      "sha256": "5f7baf72377a3569323056d5865a9f85d0900603df78272d6f5b43aee2c365a7"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/tokio_rayon.rs",
+      "sha256": "e86de366ec6cbbeeccec4475fab8eeab07d3f07b53c1dcdd8649904ce755f496"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/transpose/avx2.rs",
+      "sha256": "80e48e3759945da5cf7f876ac102748dbc585c1ab2668eca7006938ecc3337e6"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/transpose/portable.rs",
+      "sha256": "76798582c64f36f5ab065163458680daf059673f39fdcb3ef4de8e9f69b2370a"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/transpose.rs",
+      "sha256": "2394e52997146ca83383155b8549d23ea7dc3e28f0cb061c8e812608283f94e7"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-core/src/utils.rs",
+      "sha256": "8c0cc3aca4061894f573e685fd27cbefd0176e38fd72e632b2711d2bd8f0d6fa"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/expander.rs",
+      "sha256": "7534c3d3d5011f551ff15c75217078d59ddba55e32ac55f00f7b140b76b0ba89"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/expander_modd.rs",
+      "sha256": "b3abfa1119ab50619f2c8015f406b854e036c711cac4da42a2616e4ef1f550c5"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng/public_round.rs",
+      "sha256": "bbfe04aa42aef1afb9a044274be0df014703c043c55ef6b2c6ef1f1e7de430e1"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv/fast_aes_rng.rs",
+      "sha256": "0de3566501dda33f401946d07e2a627d6f674d5d1b447e3041a093c6fe80cebc"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
+      "sha256": "645c1a2667002997089a26b7402e5b604752efcbb222646385237d9e8d0bdb8e"
+    },
+    {
+      "path": "crates/ed25519-yao/vendor/cryprot-codes/src/lib.rs",
+      "sha256": "2cbeac4cd661f53117ee495fa9871147748f441c8bc905082f69f6c96e86e635"
+    }
+  ],
+  "temporary_private_outputs_removed": true
+}

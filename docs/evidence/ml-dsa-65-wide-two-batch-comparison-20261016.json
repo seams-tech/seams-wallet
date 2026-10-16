@@ -1,0 +1,258 @@
+[
+  {
+    "operation": "ebc40c981fe8e86f8a619da93bf4911619a9d8a80df44edcb1eb2f5590896981",
+    "http_ms": 3111.9697500000475,
+    "consumed_batches": 2,
+    "participants": [
+      {
+        "role": "a",
+        "path": "/router-ab/ml-dsa/execute",
+        "event_timestamp_ms": 1792159568952,
+        "cpu_ms": 768,
+        "wall_ms": 2718,
+        "transport": [],
+        "peer_close": [
+          {
+            "operation": "ebc40c981fe8e86f8a619da93bf4911619a9d8a80df44edcb1eb2f5590896981",
+            "close_code": 1000,
+            "was_clean": true
+          }
+        ],
+        "socket_completion": [],
+        "signing": []
+      },
+      {
+        "role": "b",
+        "path": "/router-ab/ml-dsa/connect",
+        "event_timestamp_ms": 1792159568974,
+        "cpu_ms": 761,
+        "wall_ms": 2698,
+        "transport": [],
+        "peer_close": [],
+        "socket_completion": [
+          {
+            "kind": "signing",
+            "id": "ebc40c981fe8e86f8a619da93bf4911619a9d8a80df44edcb1eb2f5590896981",
+            "protocol_completed": true,
+            "close_code": 1000,
+            "close_requested": true
+          }
+        ],
+        "signing": []
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/ml-dsa/sign",
+        "event_timestamp_ms": 1792159568779,
+        "cpu_ms": 16,
+        "wall_ms": 3090,
+        "transport": [
+          {
+            "duration_ms": 39,
+            "request_bytes": 486,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 57,
+            "request_bytes": 486,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 41,
+            "request_bytes": 1259,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 47,
+            "request_bytes": 1259,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 2728,
+            "request_bytes": 1258,
+            "service": "ML-DSA admitted signing",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 48,
+            "request_bytes": 1093,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 55,
+            "request_bytes": 1093,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 38,
+            "request_bytes": 1373,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 76,
+            "request_bytes": 1373,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          }
+        ],
+        "peer_close": [],
+        "socket_completion": [],
+        "signing": [
+          {
+            "operation": "ebc40c981fe8e86f8a619da93bf4911619a9d8a80df44edcb1eb2f5590896981",
+            "outcome": {
+              "status": "signed",
+              "consumed_batches": 2,
+              "evaluated_candidates": 16
+            },
+            "log_timestamp_ms": 1792159571672
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "operation": "8cb797ef437e8a8d88e42d328197ca253db8925d77aebd9ee85c5a5131b13b2d",
+    "http_ms": 7309.893541999976,
+    "consumed_batches": 2,
+    "participants": [
+      {
+        "role": "a",
+        "path": "/router-ab/ml-dsa/execute",
+        "event_timestamp_ms": 1792159706605,
+        "cpu_ms": 1950,
+        "wall_ms": 6231,
+        "transport": [],
+        "peer_close": [
+          {
+            "operation": "8cb797ef437e8a8d88e42d328197ca253db8925d77aebd9ee85c5a5131b13b2d",
+            "close_code": 1000,
+            "was_clean": true
+          }
+        ],
+        "socket_completion": [],
+        "signing": []
+      },
+      {
+        "role": "b",
+        "path": "/router-ab/ml-dsa/connect",
+        "event_timestamp_ms": 1792159706660,
+        "cpu_ms": 1732,
+        "wall_ms": 6180,
+        "transport": [],
+        "peer_close": [],
+        "socket_completion": [
+          {
+            "kind": "signing",
+            "id": "8cb797ef437e8a8d88e42d328197ca253db8925d77aebd9ee85c5a5131b13b2d",
+            "protocol_completed": true,
+            "close_code": 1000,
+            "close_requested": true
+          }
+        ],
+        "signing": []
+      },
+      {
+        "role": "router",
+        "path": "/router-ab/ml-dsa/sign",
+        "event_timestamp_ms": 1792159705796,
+        "cpu_ms": 19,
+        "wall_ms": 7285,
+        "transport": [
+          {
+            "duration_ms": 36,
+            "request_bytes": 486,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 422,
+            "request_bytes": 486,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 51,
+            "request_bytes": 1258,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 154,
+            "request_bytes": 1258,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 6244,
+            "request_bytes": 1257,
+            "service": "ML-DSA admitted signing",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 56,
+            "request_bytes": 1097,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 62,
+            "request_bytes": 1097,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 42,
+            "request_bytes": 1374,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          },
+          {
+            "duration_ms": 98,
+            "request_bytes": 1374,
+            "service": "ML-DSA role storage",
+            "stage": "fetch_headers",
+            "status": 200
+          }
+        ],
+        "peer_close": [],
+        "socket_completion": [],
+        "signing": [
+          {
+            "operation": "8cb797ef437e8a8d88e42d328197ca253db8925d77aebd9ee85c5a5131b13b2d",
+            "outcome": {
+              "status": "signed",
+              "consumed_batches": 2,
+              "evaluated_candidates": 16
+            },
+            "log_timestamp_ms": 1792159712841
+          }
+        ]
+      }
+    ]
+  }
+]

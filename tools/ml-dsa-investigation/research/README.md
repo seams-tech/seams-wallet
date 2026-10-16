@@ -217,7 +217,7 @@ Generic preparation still runs for every benchmark request; no persistent ready 
 ## Ready pool, rollover, and refill
 
 The [pool report](../../../docs/router-ab/ml-dsa-65-ready-pool-report.md) separates registration, signing, exhaustion, and replenishment.
-Preparation optimization is deferred. The integration queue lives in the investigation plan.
+These earlier pool screens predate durable Worker integration. Current preparation work is recorded in the [private AES report](../../../docs/router-ab/ml-dsa-65-private-aes-report.md).
 The native `prepared-keygen` command above also runs drain, refill, replay, and cancellation scenarios.
 
 Build each role from `crates/ed25519-yao-cloudflare-bench`:
@@ -256,9 +256,9 @@ python3 tools/ml-dsa-investigation/research/summarize_ready_pool.py \
   --output /private/tmp/ml-dsa-ready-pool-summary.json
 ```
 
-The current source includes the later public encoder iteration change, with native and local evidence only.
-The hosted summary pins its earlier exact binaries and source hashes.
-A profiler is available for deferred optimization work:
+The hosted pool summary pins its earlier exact binaries and source hashes.
+Use the strict Worker profiling commands below for current preparation and signing.
+The earlier combined-request profiler remains available for reproducing those pool screens:
 
 ```sh
 node crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs \
@@ -267,3 +267,31 @@ node crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs \
 
 Fat-LTO trials use the same build and harness with `CARGO_PROFILE_RELEASE_LTO=fat` and `CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1`.
 The bulk-copy trial has a retained patch in the report. Neither trial is enabled in the selected source.
+
+## Private AES and complete Worker profiling
+
+Check the production eight-block Wasm AES path, the four-block path, and partial batches:
+
+```sh
+python3 tools/ml-dsa-investigation/research/run_private_aes_screen.py \
+  /private/tmp/ml-dsa-private-aes-screen.json --baseline 317aca2b
+```
+
+The harness compares every output byte against RustCrypto AES, then measures repeated encryption.
+It records hashes of the copied sources that it compiled. Its timings exclude protocol and storage work.
+
+After building the strict release Workers, profile online signing with disposable canonical-key fixtures:
+
+```sh
+node tests/e2e/ml-dsa-durable-worker.e2e.mjs \
+  /private/tmp/ml-dsa-worker-fixtures /private/tmp/ml-dsa-signing-profile.json \
+  --profile-signing --passive-preparation-observer
+python3 tools/ml-dsa-investigation/research/summarize_preparation_profile.py \
+  /private/tmp/ml-dsa-signing-profile.json crates/router-ab-cloudflare/build \
+  /private/tmp/ml-dsa-signing-profile-summary.json --phase signing
+```
+
+Use `--profile-preparation` and `--phase preparation` to measure the separate producer Workers.
+Set `ML_DSA_TEST_BUILD_ROOT` to compare an immutable saved build with the same harness.
+The pool target remains four batches. Each batch contains eight candidates.
+Profiler samples can change timing. Hosted qualification requires the registration and sustained-signing E2Es.
