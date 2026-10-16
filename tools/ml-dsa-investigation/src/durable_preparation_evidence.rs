@@ -14,7 +14,7 @@ pub(super) struct Db(Connection);
 impl Db {
     pub(super) fn remaining_registration_table_chunks(&self) -> InvestigationResult<usize> {
         Ok(self.0.query_row(
-            "SELECT COUNT(*) FROM records WHERE key LIKE 'registration-tables/%/ciphertext/%'",
+            "SELECT COUNT(*) FROM records WHERE key LIKE 'registration-tables/%/data/%'",
             [], |row| row.get(0),
         )?)
     }

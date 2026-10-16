@@ -1,0 +1,2179 @@
+{
+  "schema": "seams.ml-dsa-storage-controls.v1",
+  "base_commit": "939ff4ca",
+  "controls": {
+    "bulk": {
+      "source_sha256": "00b3d3abbcaf6cf6f534b56ccad48e941a7651073720d5516d34617a52bbe45f",
+      "data": {
+        "observedAt": "2026-10-16T03:37:17.069Z",
+        "wallet": {
+          "org": "registration-e2e",
+          "project": "wallet",
+          "environment": "temporary",
+          "wallet": "wallet-9cb2c224ec1af790"
+        },
+        "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+        "hosted": true,
+        "initializationStallMs": 0,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 60000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "minimum_ready_batches": 2,
+          "refill_target_batches": 4
+        },
+        "cases": [
+          {
+            "epoch": 1,
+            "preparationMs": 146546.738542,
+            "serverResponseMs": 7486.646000000008,
+            "registrationWithClientVerificationMs": 7487.765249999997,
+            "underFiveSeconds": false,
+            "canonicalKeyVerified": true,
+            "holderResultsAuthenticated": true,
+            "manifestVerified": true,
+            "exactReplay": true,
+            "changedReplayRejected": true,
+            "initialStockSign": {
+              "verified": true,
+              "elapsedMs": 4362.686499999982,
+              "operation": [
+                23,
+                96,
+                240,
+                151,
+                183,
+                149,
+                125,
+                125,
+                211,
+                82,
+                10,
+                197,
+                105,
+                20,
+                227,
+                87,
+                238,
+                7,
+                220,
+                165,
+                207,
+                157,
+                76,
+                176,
+                227,
+                32,
+                28,
+                246,
+                212,
+                122,
+                214,
+                102
+              ]
+            },
+            "publicKeyHex": "4f1f1cd28636cb3287ca9b9d2f087e7befab8abdff2b8a949d156f31928d3f2ce7ad512f9fac6d1c10b0e0d8b815ae1d79757b5b01686f12cf67d6e9840ae992ae503266eacf3a5dc5efe28a91b31ae0cb5a54de40dbb6b4ee038d5f7fccf9b4f259d03bac9aff05e680fd4887ea2076b16c66cc9d0ff13c9a6ad8329cd1eb31a66962b1bcde873a029148547dbda53ba9f062c9479f63e7472acb35d6b4b1b66c7b9cef644bdc3c052552b9c5b550defa1c9220cafa96fb2f95b58f496727d1548846533da30c0d5d524fae44a985df53f386d8bbd7f3a6a4c07a31e5aa74daa20679d49ec072ff10a140d5bb4ec69e4ce23469289a15bb5cc2c780ad988e42a3b83c935fb475c757ab63f800496aaa053607e2ac9fd6d18e20008dff5990a02dc36e9726cfff5b8ea1883043084da0bd2f4d347b694bd505ed519a55b678a7c62904036be74c64a2c31d0497095fcbffa2ca1b406fcd036c47054f513cd126289647a1aa1011eb2f38d53803436b2fa3ce143859375f97446a998a05a7c031672d4ab75ce8f7b41e89e8e786f2fed0754322b22d1155b7492ca9f931a0f2e70a51adeb0954b957b3f1ee7d3986c86755c48cad1c6c407b51416b4ee2cd6c8625c87befc08436f94b0fb50e456c812947d463545ae658651516c20f102bfac3ee649384e3e352c525bc6d4bd6680f95253bb53fb6e72a4a859b722ee97378b913dd85d5931ff6f9437bf6caf5153174b1720ddc6be5fb87f2ab020b15b9ba5a900128c1b90d1a365cc9ccb39c6bd3944ea285ad0b7b8784266ef94ddf3e9544001b335b920bfd3ca5df39d867d4788bc1f0a4d4899f602f22887898b6aafb1a738db2264cec5ca9d064d74d81acb9c64b96b0f4628b8d16f80054e504575f795970359c6fc6885de22e2e5260bba72e32c8fa0df196d029b359c53ea5e119d2db58fc461306d895e642345dd7b6837956c90c2725fca4abd5cd3cf14388a8abb5f3e84524a1d578e5e35767b71055f4c18c6e31e4132c05efab41e0adfb49fda7970696dbca5d8ef09d34a9c583c32e056190b30a8fbefa8901acc9e7f0dc529940a6c3998e2c527a23b6f9cb20b0470fb81767af2046e55cdd017559ada1806ed4c929443330bc72a76892960142d32e4aa8bd40bbc30723b3830b1fab82c2934cc380789251e23055fd1c7ac8a9606cb6dec6f454d1cd1d42e34e240686fc725384c1360ac62d5cc0f30f592dc767b6b9ddaadd1929fc00b5a1ccfcbcf895c1ae69b8c48c05e91b5d679090a139cc51732105c2183eaefb7c676f6fb2e37f67637854164bfe7503f4c1376b7f43c36c99ebaae2365b2dd23386bfcdc76a56b8821046e1b8989887c1f5725874ed19085a7aadb4006a3e0d5149cf5c99423e7e4dbf7610e1817a77db56939912a22ff8ec618c0af4ac3e3986885a7073e18cc9dac184a783a6b660ac96292175f7aa95160e32212e2013ef489edc82353cba354f5395818829d13f67b6f5ff26ba8fd7bdddd81806a2c96c409524f92972b71521e1a894e0d3eff2e4cf79a5612802c86152787d48cdf0f7b3e9772189d38ba992219ebeaf50d34d946c0f74403aaaf65e1f80b590ccadceed1ecb98ff1da17253a244fac081c5413058b840095de5232344fd43613c40751af96a37940963c4a98a2246630743aef7b58a923c004de8f38c3f61192b1b87b89e4cadbd57a8e7b8a69d51518026998dc41c152a79602036790d8c99da85159c5558e106293aeb051e5813f4a4a56e20d18f576015b40e0824751d692d58ea4fd3d728d0fcbaa445188e924ed4cfc89f46071d3d29670c2a1f02821d218aeb585514fe16cce21b00bb0315ad79ea2d8c3534aa35163b3f1b359e9037c4283acd7018f6ef1a9096ddf6621f5cbdd9ef6fb37ea2a7c9eb362a262bd9a469af3cb75f63efe2eb4f392d75a17c82fc4e55dafec4170e1d67f90f6abd44067616cdbd0d4927fccc76c38a47c16bde9c65e87499fe8e3b0cceeb839f3ae082686f7e5d658ccf73c1751c843bb3d17d16c628baa5bfb9dc61623e387a55de559fd68688acc6e830f8f178afe0babba1315ded81682bf375fbe85dae302560b4f67983badb450d85a49f43fac1cd9f9d615e46f2a5a10918d4b314ea685425d4dd84bc5843b08529dc44fadc58be5b3611c79ad45846ece95aee3cf6065fd757de688c758abd898a2298c2e9fba98fedbcda8e835376f85b4a50c09d99778e54112463fcaa5d8353cf55808628fb35f013096340816b5818ceb85d052fb217a3cbd67e5f467e48cbe3f16b7e22684693a844dcd958d89ed2042758ef2556c008434ad2449f4b9088e172c912afe29e9dd6b04db280a5b1c6528363ee47b61431b604e0e91ffe7ac0c4c30e038810dc0ce39113eff91312fa6c5646a45965d6413aa5ac4c2ca35a067f42a5bca8cb9f37db8dd789ca659b421b4acb0eea12a1422780f36a9b962c9b271d9b276015dfeb593fe6631770e5138a53329052d3f482c579b58b71b0a6837ed1b4ebb7d44532d9e06ed32a04a400d26be23e215b2207db69265013fb2caddf748001baad10e435241b2aff36e17e0ab49865cbf8f15d739eaf8f30ae3c643c654a1a4f60569d892b2680b6a8aae2b575ce23ff7e2a34c3fa4a307cce73a7d17f82b1ba5d6dd645e756f350d7813d6a67a2e2b460e218bbde1094fbb8318cb9fd2834109c86f23bcc8fabda29e8856692916a363c07915f76cd9f3d4f485864d9"
+          },
+          {
+            "epoch": 2,
+            "preparationMs": 115676.94391599999,
+            "serverResponseMs": 9617.100875000004,
+            "registrationWithClientVerificationMs": 9618.693041999999,
+            "underFiveSeconds": false,
+            "canonicalKeyVerified": true,
+            "holderResultsAuthenticated": true,
+            "manifestVerified": true,
+            "exactReplay": true,
+            "changedReplayRejected": true,
+            "initialStockSign": {
+              "verified": true,
+              "elapsedMs": 6783.375082999992,
+              "operation": [
+                217,
+                221,
+                43,
+                45,
+                165,
+                115,
+                142,
+                108,
+                216,
+                27,
+                193,
+                108,
+                170,
+                243,
+                173,
+                38,
+                181,
+                120,
+                246,
+                189,
+                56,
+                33,
+                247,
+                189,
+                237,
+                112,
+                194,
+                221,
+                254,
+                56,
+                13,
+                26
+              ]
+            },
+            "publicKeyHex": "4f1f1cd28636cb3287ca9b9d2f087e7befab8abdff2b8a949d156f31928d3f2ce7ad512f9fac6d1c10b0e0d8b815ae1d79757b5b01686f12cf67d6e9840ae992ae503266eacf3a5dc5efe28a91b31ae0cb5a54de40dbb6b4ee038d5f7fccf9b4f259d03bac9aff05e680fd4887ea2076b16c66cc9d0ff13c9a6ad8329cd1eb31a66962b1bcde873a029148547dbda53ba9f062c9479f63e7472acb35d6b4b1b66c7b9cef644bdc3c052552b9c5b550defa1c9220cafa96fb2f95b58f496727d1548846533da30c0d5d524fae44a985df53f386d8bbd7f3a6a4c07a31e5aa74daa20679d49ec072ff10a140d5bb4ec69e4ce23469289a15bb5cc2c780ad988e42a3b83c935fb475c757ab63f800496aaa053607e2ac9fd6d18e20008dff5990a02dc36e9726cfff5b8ea1883043084da0bd2f4d347b694bd505ed519a55b678a7c62904036be74c64a2c31d0497095fcbffa2ca1b406fcd036c47054f513cd126289647a1aa1011eb2f38d53803436b2fa3ce143859375f97446a998a05a7c031672d4ab75ce8f7b41e89e8e786f2fed0754322b22d1155b7492ca9f931a0f2e70a51adeb0954b957b3f1ee7d3986c86755c48cad1c6c407b51416b4ee2cd6c8625c87befc08436f94b0fb50e456c812947d463545ae658651516c20f102bfac3ee649384e3e352c525bc6d4bd6680f95253bb53fb6e72a4a859b722ee97378b913dd85d5931ff6f9437bf6caf5153174b1720ddc6be5fb87f2ab020b15b9ba5a900128c1b90d1a365cc9ccb39c6bd3944ea285ad0b7b8784266ef94ddf3e9544001b335b920bfd3ca5df39d867d4788bc1f0a4d4899f602f22887898b6aafb1a738db2264cec5ca9d064d74d81acb9c64b96b0f4628b8d16f80054e504575f795970359c6fc6885de22e2e5260bba72e32c8fa0df196d029b359c53ea5e119d2db58fc461306d895e642345dd7b6837956c90c2725fca4abd5cd3cf14388a8abb5f3e84524a1d578e5e35767b71055f4c18c6e31e4132c05efab41e0adfb49fda7970696dbca5d8ef09d34a9c583c32e056190b30a8fbefa8901acc9e7f0dc529940a6c3998e2c527a23b6f9cb20b0470fb81767af2046e55cdd017559ada1806ed4c929443330bc72a76892960142d32e4aa8bd40bbc30723b3830b1fab82c2934cc380789251e23055fd1c7ac8a9606cb6dec6f454d1cd1d42e34e240686fc725384c1360ac62d5cc0f30f592dc767b6b9ddaadd1929fc00b5a1ccfcbcf895c1ae69b8c48c05e91b5d679090a139cc51732105c2183eaefb7c676f6fb2e37f67637854164bfe7503f4c1376b7f43c36c99ebaae2365b2dd23386bfcdc76a56b8821046e1b8989887c1f5725874ed19085a7aadb4006a3e0d5149cf5c99423e7e4dbf7610e1817a77db56939912a22ff8ec618c0af4ac3e3986885a7073e18cc9dac184a783a6b660ac96292175f7aa95160e32212e2013ef489edc82353cba354f5395818829d13f67b6f5ff26ba8fd7bdddd81806a2c96c409524f92972b71521e1a894e0d3eff2e4cf79a5612802c86152787d48cdf0f7b3e9772189d38ba992219ebeaf50d34d946c0f74403aaaf65e1f80b590ccadceed1ecb98ff1da17253a244fac081c5413058b840095de5232344fd43613c40751af96a37940963c4a98a2246630743aef7b58a923c004de8f38c3f61192b1b87b89e4cadbd57a8e7b8a69d51518026998dc41c152a79602036790d8c99da85159c5558e106293aeb051e5813f4a4a56e20d18f576015b40e0824751d692d58ea4fd3d728d0fcbaa445188e924ed4cfc89f46071d3d29670c2a1f02821d218aeb585514fe16cce21b00bb0315ad79ea2d8c3534aa35163b3f1b359e9037c4283acd7018f6ef1a9096ddf6621f5cbdd9ef6fb37ea2a7c9eb362a262bd9a469af3cb75f63efe2eb4f392d75a17c82fc4e55dafec4170e1d67f90f6abd44067616cdbd0d4927fccc76c38a47c16bde9c65e87499fe8e3b0cceeb839f3ae082686f7e5d658ccf73c1751c843bb3d17d16c628baa5bfb9dc61623e387a55de559fd68688acc6e830f8f178afe0babba1315ded81682bf375fbe85dae302560b4f67983badb450d85a49f43fac1cd9f9d615e46f2a5a10918d4b314ea685425d4dd84bc5843b08529dc44fadc58be5b3611c79ad45846ece95aee3cf6065fd757de688c758abd898a2298c2e9fba98fedbcda8e835376f85b4a50c09d99778e54112463fcaa5d8353cf55808628fb35f013096340816b5818ceb85d052fb217a3cbd67e5f467e48cbe3f16b7e22684693a844dcd958d89ed2042758ef2556c008434ad2449f4b9088e172c912afe29e9dd6b04db280a5b1c6528363ee47b61431b604e0e91ffe7ac0c4c30e038810dc0ce39113eff91312fa6c5646a45965d6413aa5ac4c2ca35a067f42a5bca8cb9f37db8dd789ca659b421b4acb0eea12a1422780f36a9b962c9b271d9b276015dfeb593fe6631770e5138a53329052d3f482c579b58b71b0a6837ed1b4ebb7d44532d9e06ed32a04a400d26be23e215b2207db69265013fb2caddf748001baad10e435241b2aff36e17e0ab49865cbf8f15d739eaf8f30ae3c643c654a1a4f60569d892b2680b6a8aae2b575ce23ff7e2a34c3fa4a307cce73a7d17f82b1ba5d6dd645e756f350d7813d6a67a2e2b460e218bbde1094fbb8318cb9fd2834109c86f23bcc8fabda29e8856692916a363c07915f76cd9f3d4f485864d9"
+          }
+        ],
+        "functionalPassed": true,
+        "latencyTargetMet": false,
+        "builds": {
+          "router": "9507bd7a8cc4ff0bfdaaa33da3aeb6e6c7420ecb82f763848f2c74228d539e2f",
+          "deriver-a": "d76fb1e66d3027771b43f1575021a6a4315f16905122809725806e880c6511fc",
+          "deriver-b": "1e3d3dac98610d396aa4778047518d1a5171e4f659282d8a51b38de492267425"
+        },
+        "scriptSha256": "f13161397a7ce1989890999dec87ad48aab4ed74976adbeaa7a18082096b2324",
+        "wrongCredentialRejected": true,
+        "emptyPoolRetryTime": true,
+        "recoveryPreservesCanonicalKey": true,
+        "registrationChecksPassed": true
+      },
+      "traces": {
+        "source_sha256": "b14a3897f9c9634f084a2004efa9d29770906415a402284ffa13dadab2e0af27",
+        "data": {
+          "schema": "seams.ml-dsa-silent-worker-traces.v1",
+          "created_at": "2026-10-16T03:46:59.831137+00:00",
+          "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory. Signing outcomes describe role dispatch before Router verification and settlement.",
+          "records": [
+            {
+              "role": "a",
+              "worker": "ml-dsa-reg-1016-15dd34-a",
+              "version": "51bfc065-bc23-42f9-9d83-99b7078340b3",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792121995277,
+              "cpu_ms": 931,
+              "wall_ms": 2014,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": [
+                {
+                  "operation": "1760f097b7957d7dd3520ac56914e357ee07dca5cf9d4cb0e3201cf6d47ad666",
+                  "close_code": 1000,
+                  "was_clean": true
+                }
+              ]
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-reg-1016-15dd34-a",
+              "version": "51bfc065-bc23-42f9-9d83-99b7078340b3",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792122112920,
+              "cpu_ms": 578,
+              "wall_ms": 6618,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [
+                {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              ],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-reg-1016-15dd34-a",
+              "version": "51bfc065-bc23-42f9-9d83-99b7078340b3",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792122126542,
+              "cpu_ms": 1139,
+              "wall_ms": 3119,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": [
+                {
+                  "operation": "d9dd2b2da5738e6cd81bc16caaf3ad26b578f6bd3821f7bded70c2ddfe380d1a",
+                  "close_code": 1000,
+                  "was_clean": true
+                }
+              ]
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-reg-1016-15dd34-b",
+              "version": "46e88396-a134-43a2-ae4c-e1ec21a672d1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792121985359,
+              "cpu_ms": 3,
+              "wall_ms": 26,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-reg-1016-15dd34-b",
+              "version": "46e88396-a134-43a2-ae4c-e1ec21a672d1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792121999538,
+              "cpu_ms": 12,
+              "wall_ms": 844,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-reg-1016-15dd34-b",
+              "version": "46e88396-a134-43a2-ae4c-e1ec21a672d1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792122112966,
+              "cpu_ms": 3419,
+              "wall_ms": 6569,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [
+                {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 83,
+                  "peak_cached_frames": 8
+                }
+              ],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-reg-1016-15dd34-b",
+              "version": "46e88396-a134-43a2-ae4c-e1ec21a672d1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792122112961,
+              "cpu_ms": 4,
+              "wall_ms": 36,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792121985431,
+              "cpu_ms": 212,
+              "wall_ms": 7459,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 826,
+                  "request_bytes": 1867,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1719,
+                  "request_bytes": 1867,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 4961,
+                  "request_bytes": 1843,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 57,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 68,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 17,
+                  "request_bytes": 733,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 27,
+                  "request_bytes": 733,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1225,
+                  "request_bytes": 1843,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 2101,
+                  "request_bytes": 1843,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 46,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 57,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 18,
+                  "request_bytes": 733,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 27,
+                  "request_bytes": 733,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 32,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 36,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792121992918,
+              "cpu_ms": 132,
+              "wall_ms": 157,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792121993106,
+              "cpu_ms": 121,
+              "wall_ms": 146,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/sign",
+              "event_timestamp_ms": 1792121993338,
+              "cpu_ms": 136,
+              "wall_ms": 3535,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 725,
+                  "request_bytes": 487,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 943,
+                  "request_bytes": 487,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 52,
+                  "request_bytes": 1490,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 58,
+                  "request_bytes": 1490,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 2062,
+                  "request_bytes": 1488,
+                  "service": "ML-DSA admitted signing",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 102,
+                  "request_bytes": 1328,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 154,
+                  "request_bytes": 1328,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 50,
+                  "request_bytes": 1488,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 64,
+                  "request_bytes": 1488,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [
+                {
+                  "operation": "1760f097b7957d7dd3520ac56914e357ee07dca5cf9d4cb0e3201cf6d47ad666",
+                  "outcome": {
+                    "status": "signed",
+                    "consumed_batches": 1,
+                    "evaluated_candidates": 4
+                  }
+                }
+              ],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792122113327,
+              "cpu_ms": 193,
+              "wall_ms": 9580,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 82,
+                  "request_bytes": 2140,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 636,
+                  "request_bytes": 2140,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 6803,
+                  "request_bytes": 2116,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 148,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 173,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 44,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 45,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1476,
+                  "request_bytes": 2116,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1800,
+                  "request_bytes": 2116,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 44,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 404,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 24,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 37,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 55,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 70,
+                  "request_bytes": 443,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792122122943,
+              "cpu_ms": 145,
+              "wall_ms": 184,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792122123169,
+              "cpu_ms": 131,
+              "wall_ms": 166,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-reg-1016-15dd34-router",
+              "version": "52c1ba55-1f10-4d0f-a461-7689a5f424b1",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/sign",
+              "event_timestamp_ms": 1792122123538,
+              "cpu_ms": 156,
+              "wall_ms": 5916,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 1265,
+                  "request_bytes": 487,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1609,
+                  "request_bytes": 487,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 112,
+                  "request_bytes": 1506,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 131,
+                  "request_bytes": 1506,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 3148,
+                  "request_bytes": 1493,
+                  "service": "ML-DSA admitted signing",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 114,
+                  "request_bytes": 1333,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 120,
+                  "request_bytes": 1333,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 127,
+                  "request_bytes": 1497,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 129,
+                  "request_bytes": 1497,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [
+                {
+                  "operation": "d9dd2b2da5738e6cd81bc16caaf3ad26b578f6bd3821f7bded70c2ddfe380d1a",
+                  "outcome": {
+                    "status": "signed",
+                    "consumed_batches": 1,
+                    "evaluated_candidates": 4
+                  }
+                }
+              ],
+              "socket_completion": [],
+              "peer_close": []
+            }
+          ]
+        },
+        "selection": "Retain every registration/signing counter, non-ok invocation, and register/sign/execute route."
+      }
+    },
+    "batch8": {
+      "source_sha256": "152e91bfe9223edb2bcbbefc8186bff324a85bdf0c3252579fd3944b60bf1e3f",
+      "data": {
+        "observedAt": "2026-10-16T03:55:46.193Z",
+        "wallet": {
+          "org": "registration-e2e",
+          "project": "wallet",
+          "environment": "temporary",
+          "wallet": "wallet-38b95fa9fcb4d3cb"
+        },
+        "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+        "hosted": true,
+        "initializationStallMs": 0,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 60000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "minimum_ready_batches": 2,
+          "refill_target_batches": 4
+        },
+        "cases": [
+          {
+            "epoch": 1,
+            "preparationMs": 194552.8025,
+            "serverResponseMs": 8016.346791999997,
+            "registrationWithClientVerificationMs": 8019.259666999977,
+            "underFiveSeconds": false,
+            "canonicalKeyVerified": true,
+            "holderResultsAuthenticated": true,
+            "manifestVerified": true,
+            "exactReplay": true,
+            "changedReplayRejected": true,
+            "initialStockSign": {
+              "verified": true,
+              "elapsedMs": 5186.973417000001,
+              "operation": [
+                204,
+                150,
+                145,
+                15,
+                52,
+                225,
+                97,
+                235,
+                155,
+                23,
+                213,
+                248,
+                63,
+                34,
+                56,
+                46,
+                108,
+                126,
+                9,
+                69,
+                20,
+                171,
+                239,
+                89,
+                48,
+                165,
+                8,
+                253,
+                229,
+                185,
+                60,
+                160
+              ]
+            },
+            "publicKeyHex": "09e0d741134acd867014c056c7921788d7edc61e3d070baf0f83620f815929f57b2e3f18bdf0a3ffca05c3c964da039d154b4dad1e126f137dd737650b2ef1f16d6ab0729bf91302f99f9fc2db1ee66da0a96d27841bf58cbd89954c85b827e208982304cf7420defe8212c92bbc9a03cce75e57c94fd86518e71456c2721570fc8ef3769d8b78bf36e8f23ba345da5ea49aabff55c706d493699f269ce1399a4407104d3bebd8a16d7a18d969b005f7d954c8afa94c81ad5c7e31e517c1f109889e547c3dcc594b53a622579ae4839edc7e33e7ce216e2184661907d47243c4303a16a5810dbb84eeab85c73ef1b34415375c8ae2600afd1100f12648f27fb3453567f4c9050568904502e54ff42cacdf52cb8d36f34ac320f7346c1a6b2175d425acce41e435a47076d4854fdc240e789808036b5f2e3a433b82eaa83ceec3119fcc662eb114b9e0f56fc7817077b1767de9b457cfdb0ae45026a7549b4c4a41e104e1e048603dd5f0f5fa109bf417349e217d105a6447afac29cf020bc05897b02a0e608d1714984985b5b51dee0698cc52a1d9213d6db745ea278c6d1b88287f427703ef1a566572fe56884569645302167d2c064751e467c418b09f9932647f566a20299aadb835bba1e94e9d1af59658c9523a20a4e7496401344a06140d0b67320975c4cecebfe88c98d396bb7a8aa0d13713c1b5137b00b14d9efa97e8616238b416f7249f8ccd8dfab5173a4392cc1ae52133a670d992b0cbc50fb6d84835e654fafb843538aa3ebe98624d7c0518eb1d8d113e92f9a6c8090815a278b62dae190ba6730cfa80658c77c65ae9738db8f0f716ee5aea9babd16549b8b3104f55e0b406e5762538aec015c6c989163c86b54dcecedd7d1101c2deee1e15c19fbab77d0ab020d604c0fa661108d918d234edea3231b932f783433f399480aee1095c357e3f8c5811a1b3b3839db83f264202b61f4d053d8fc076c3c8eb9b79f10cb24951455b2797b4c460aed2dad15818a7a28e3e2dfed9837c75b101f0ea6f1b5a9b204e2c6ddf034ac36506c46383843fb2d1eedb98176dbc6ff41a4a2f5b080f773e696541f9663ebea62b5b2cd104adc9b06ea9c595c836deecbd54eff8109ba8d8522a2154133eafc19492b0cec53a0945ef624eb5a0d71f5b9981be9ce18b36903f7243ac7259892cd0c56c2bfc101a78388338d6f8c51cfdf43ec413cd347f996de2f59d1f0fc4eaa3b099ea1692489d89c979a53c84b5d6ffc986fca906d61df0009a0adaa9b1a5e9bbbd9ecbf6f1516eb688d082c601bb74af0d84f2931b66d4df7b27d08bc335e93c164b11dd36796693cedc914b8a2c87314a5b282d756261c3776ddf3a20339422d2343c532e888c93b8b748ebe97650d17be0b7df64918453aceb74b092e7f308bffcb18c27ccae932b3ee828b82313fe69485ab8a2bf81d4e52080805bccc4efb14555efdd3d82e54756885a06bd5d841f690cd66c978d798de0ecb1922397e81fda3992d39bc82205dcb2c43028d9c229897c4e6553d9649af02339fd3e8b6744bb6c52ba8ba903086c6806847b05cedc4a13c6d1f4773a9cbca0298d29aa1d95a2e799d9ab416034399d2db4a0274db2f90e3cbae1ebf0523b774f6b0cf77668bb4e95ed24abc24d2ea58d3947698adbbf7496f488de97c1960f5bfcfec72a7eb5caf72fc370c4611f48f255c2f798d1eb549c2d2a90c2485cf2092151b3e2ed337f8bf664c54bcc7f94b490c191b6aaa64e8cce7df5454679edce121a8569d74ed7d4b0a6488660209f91f94a24c824e9b824d997aca78eae664a89c281f24aa421f4f8c9d6d4ebd2ce5a7adc1339baab9a6da24b8e1a108f3062bc8e02c2208b6c7d22102859c08eaba3b8f38a86fabdfb74c0fb22e1b5e4f066daab2f6ef7f9396de086209471fd4392554bb41973850126acd6b1e8d1004781e4b2b837ac21880e904a887c6b0c9700532c4f3d4b9405cd596b8027046a9d35188f5fbe78d2a055b4db9d4e135ce4cca38ce4ee2adddedc67556582d960e982094fd6878a99a3644b68533b3779bee10786163395267fdc7004cb8564081e5df770b272bd8db7024e0888d8069ecc273979291a729b11f551b615b83f56cc8f41a5b3358b4362883c3922bf65d0ff94be03d0268b628ec68c3f6b0da7029db63c8251d94a3f96e0eb6318067672199d1bfe72b3c4857f446a4f4e04ccfa42329226d40abf6f5174c935615c0a1ce3c1c199de4d65e997016f83708c598d4afeb4e098d3d8d73e24357662ce8acba4c4efe1831df952149be18e783791b8463fa91f2f5c0e8570d833cd0612731a7602ec494d46c126a3da6f403d4a0769ac0af56846b155ee1017113d4f47e60c6ce92eaff63b32bae155137570b81de5e0d7e2ce7067218e72d55fb0307e0117e84de5212c7f9cb49506b16f5a8ad8303f1fd10a7e9baf73b37147cfd1f5ec91d601ffaecb0d532b6b0f0aeebc1f49779931b7576bb789b28812bc1dc625d2f68f78f24443113dc2fa7c5576b354c47d6f38cb9bd18df46f1233d387f371e6b59620e22633d81b0714667e6eb41679bb1352b04c98397d74672271c50945a7c6b787e4660d328fe9771d779befca2377b3dbf03249d8015e867280c045222da593eb718cab840e848ea6c729afc10a7f7ae77e58d4835fdf2ab554b06471720d427804c4739db43bdcf7ec03e3547fef0cadc1827027ced1687d3399aefecfa30ce4d842db"
+          },
+          {
+            "epoch": 2,
+            "preparationMs": 290116.92475,
+            "serverResponseMs": 8333.559707999986,
+            "registrationWithClientVerificationMs": 8334.046708000009,
+            "underFiveSeconds": false,
+            "canonicalKeyVerified": true,
+            "holderResultsAuthenticated": true,
+            "manifestVerified": true,
+            "exactReplay": true,
+            "changedReplayRejected": true,
+            "initialStockSign": {
+              "verified": true,
+              "elapsedMs": 6517.433208000031,
+              "operation": [
+                75,
+                40,
+                24,
+                2,
+                187,
+                3,
+                17,
+                230,
+                134,
+                38,
+                249,
+                225,
+                156,
+                120,
+                232,
+                140,
+                69,
+                136,
+                142,
+                118,
+                194,
+                254,
+                33,
+                251,
+                232,
+                218,
+                163,
+                139,
+                42,
+                182,
+                84,
+                59
+              ]
+            },
+            "publicKeyHex": "09e0d741134acd867014c056c7921788d7edc61e3d070baf0f83620f815929f57b2e3f18bdf0a3ffca05c3c964da039d154b4dad1e126f137dd737650b2ef1f16d6ab0729bf91302f99f9fc2db1ee66da0a96d27841bf58cbd89954c85b827e208982304cf7420defe8212c92bbc9a03cce75e57c94fd86518e71456c2721570fc8ef3769d8b78bf36e8f23ba345da5ea49aabff55c706d493699f269ce1399a4407104d3bebd8a16d7a18d969b005f7d954c8afa94c81ad5c7e31e517c1f109889e547c3dcc594b53a622579ae4839edc7e33e7ce216e2184661907d47243c4303a16a5810dbb84eeab85c73ef1b34415375c8ae2600afd1100f12648f27fb3453567f4c9050568904502e54ff42cacdf52cb8d36f34ac320f7346c1a6b2175d425acce41e435a47076d4854fdc240e789808036b5f2e3a433b82eaa83ceec3119fcc662eb114b9e0f56fc7817077b1767de9b457cfdb0ae45026a7549b4c4a41e104e1e048603dd5f0f5fa109bf417349e217d105a6447afac29cf020bc05897b02a0e608d1714984985b5b51dee0698cc52a1d9213d6db745ea278c6d1b88287f427703ef1a566572fe56884569645302167d2c064751e467c418b09f9932647f566a20299aadb835bba1e94e9d1af59658c9523a20a4e7496401344a06140d0b67320975c4cecebfe88c98d396bb7a8aa0d13713c1b5137b00b14d9efa97e8616238b416f7249f8ccd8dfab5173a4392cc1ae52133a670d992b0cbc50fb6d84835e654fafb843538aa3ebe98624d7c0518eb1d8d113e92f9a6c8090815a278b62dae190ba6730cfa80658c77c65ae9738db8f0f716ee5aea9babd16549b8b3104f55e0b406e5762538aec015c6c989163c86b54dcecedd7d1101c2deee1e15c19fbab77d0ab020d604c0fa661108d918d234edea3231b932f783433f399480aee1095c357e3f8c5811a1b3b3839db83f264202b61f4d053d8fc076c3c8eb9b79f10cb24951455b2797b4c460aed2dad15818a7a28e3e2dfed9837c75b101f0ea6f1b5a9b204e2c6ddf034ac36506c46383843fb2d1eedb98176dbc6ff41a4a2f5b080f773e696541f9663ebea62b5b2cd104adc9b06ea9c595c836deecbd54eff8109ba8d8522a2154133eafc19492b0cec53a0945ef624eb5a0d71f5b9981be9ce18b36903f7243ac7259892cd0c56c2bfc101a78388338d6f8c51cfdf43ec413cd347f996de2f59d1f0fc4eaa3b099ea1692489d89c979a53c84b5d6ffc986fca906d61df0009a0adaa9b1a5e9bbbd9ecbf6f1516eb688d082c601bb74af0d84f2931b66d4df7b27d08bc335e93c164b11dd36796693cedc914b8a2c87314a5b282d756261c3776ddf3a20339422d2343c532e888c93b8b748ebe97650d17be0b7df64918453aceb74b092e7f308bffcb18c27ccae932b3ee828b82313fe69485ab8a2bf81d4e52080805bccc4efb14555efdd3d82e54756885a06bd5d841f690cd66c978d798de0ecb1922397e81fda3992d39bc82205dcb2c43028d9c229897c4e6553d9649af02339fd3e8b6744bb6c52ba8ba903086c6806847b05cedc4a13c6d1f4773a9cbca0298d29aa1d95a2e799d9ab416034399d2db4a0274db2f90e3cbae1ebf0523b774f6b0cf77668bb4e95ed24abc24d2ea58d3947698adbbf7496f488de97c1960f5bfcfec72a7eb5caf72fc370c4611f48f255c2f798d1eb549c2d2a90c2485cf2092151b3e2ed337f8bf664c54bcc7f94b490c191b6aaa64e8cce7df5454679edce121a8569d74ed7d4b0a6488660209f91f94a24c824e9b824d997aca78eae664a89c281f24aa421f4f8c9d6d4ebd2ce5a7adc1339baab9a6da24b8e1a108f3062bc8e02c2208b6c7d22102859c08eaba3b8f38a86fabdfb74c0fb22e1b5e4f066daab2f6ef7f9396de086209471fd4392554bb41973850126acd6b1e8d1004781e4b2b837ac21880e904a887c6b0c9700532c4f3d4b9405cd596b8027046a9d35188f5fbe78d2a055b4db9d4e135ce4cca38ce4ee2adddedc67556582d960e982094fd6878a99a3644b68533b3779bee10786163395267fdc7004cb8564081e5df770b272bd8db7024e0888d8069ecc273979291a729b11f551b615b83f56cc8f41a5b3358b4362883c3922bf65d0ff94be03d0268b628ec68c3f6b0da7029db63c8251d94a3f96e0eb6318067672199d1bfe72b3c4857f446a4f4e04ccfa42329226d40abf6f5174c935615c0a1ce3c1c199de4d65e997016f83708c598d4afeb4e098d3d8d73e24357662ce8acba4c4efe1831df952149be18e783791b8463fa91f2f5c0e8570d833cd0612731a7602ec494d46c126a3da6f403d4a0769ac0af56846b155ee1017113d4f47e60c6ce92eaff63b32bae155137570b81de5e0d7e2ce7067218e72d55fb0307e0117e84de5212c7f9cb49506b16f5a8ad8303f1fd10a7e9baf73b37147cfd1f5ec91d601ffaecb0d532b6b0f0aeebc1f49779931b7576bb789b28812bc1dc625d2f68f78f24443113dc2fa7c5576b354c47d6f38cb9bd18df46f1233d387f371e6b59620e22633d81b0714667e6eb41679bb1352b04c98397d74672271c50945a7c6b787e4660d328fe9771d779befca2377b3dbf03249d8015e867280c045222da593eb718cab840e848ea6c729afc10a7f7ae77e58d4835fdf2ab554b06471720d427804c4739db43bdcf7ec03e3547fef0cadc1827027ced1687d3399aefecfa30ce4d842db"
+          }
+        ],
+        "functionalPassed": true,
+        "latencyTargetMet": false,
+        "builds": {
+          "router": "4387fc0470285b44679567a538f9f3ac8b8f5f87760fc28c7de221f17512cde0",
+          "deriver-a": "a80ee345a80fc8b176424a0070e6a0fb485bf842c068c8a6380128c67a215355",
+          "deriver-b": "850c4d2dc825240e994ed2bcb3483279f0cff12614858c09e5f57b496075e5ad"
+        },
+        "scriptSha256": "f13161397a7ce1989890999dec87ad48aab4ed74976adbeaa7a18082096b2324",
+        "wrongCredentialRejected": true,
+        "emptyPoolRetryTime": true,
+        "recoveryPreservesCanonicalKey": true,
+        "registrationChecksPassed": true
+      },
+      "traces": {
+        "source_sha256": "f57a6eadf2b08be69ce5a8b860486b0f79441a5e7e3183f96e9740a586c34482",
+        "data": {
+          "schema": "seams.ml-dsa-silent-worker-traces.v1",
+          "created_at": "2026-10-16T04:19:59.742144+00:00",
+          "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory. Signing outcomes describe role dispatch before Router verification and settlement.",
+          "records": [
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-4c00e4-a",
+              "version": "b2333a96-b325-4bcc-aeb4-58f322c094e8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123142345,
+              "cpu_ms": 369,
+              "wall_ms": 5477,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [
+                {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              ],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-4c00e4-a",
+              "version": "b2333a96-b325-4bcc-aeb4-58f322c094e8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792123152943,
+              "cpu_ms": 1307,
+              "wall_ms": 3278,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": [
+                {
+                  "operation": "cc96910f34e161eb9b17d5f83f22382e6c7e094514abef5930a508fde5b93ca0",
+                  "close_code": 1000,
+                  "was_clean": true
+                }
+              ]
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-4c00e4-a",
+              "version": "b2333a96-b325-4bcc-aeb4-58f322c094e8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123446455,
+              "cpu_ms": 534,
+              "wall_ms": 5190,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [
+                {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              ],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-4c00e4-a",
+              "version": "b2333a96-b325-4bcc-aeb4-58f322c094e8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792123457278,
+              "cpu_ms": 1173,
+              "wall_ms": 3979,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": [
+                {
+                  "operation": "4b281802bb0311e68626f9e19c78e88c45888e76c2fe21fbe8daa38b2ab6543b",
+                  "close_code": 1000,
+                  "was_clean": true
+                }
+              ]
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-4c00e4-a",
+              "version": "b2333a96-b325-4bcc-aeb4-58f322c094e8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "",
+              "event_timestamp_ms": 1792124046791,
+              "cpu_ms": 24956,
+              "wall_ms": 49838,
+              "outcome": "exception",
+              "exception_names": [
+                "Error",
+                "Error",
+                "Error"
+              ],
+              "exception_categories": [
+                "unclassified",
+                "unclassified",
+                "unclassified"
+              ],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 29,
+                  "request_bytes": 483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792122950566,
+              "cpu_ms": 12,
+              "wall_ms": 822,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123143371,
+              "cpu_ms": 2741,
+              "wall_ms": 4881,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [
+                {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 83,
+                  "peak_cached_frames": 8
+                }
+              ],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123142401,
+              "cpu_ms": 12,
+              "wall_ms": 34,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123159243,
+              "cpu_ms": 26,
+              "wall_ms": 990,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123446360,
+              "cpu_ms": 3069,
+              "wall_ms": 5118,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [
+                {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 83,
+                  "peak_cached_frames": 8
+                }
+              ],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792123446495,
+              "cpu_ms": 6,
+              "wall_ms": 51,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/prepare-connect",
+              "event_timestamp_ms": 1792124046875,
+              "cpu_ms": 24059,
+              "wall_ms": 49745,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [
+                {
+                  "kind": "preparation",
+                  "id": "40a4e79653e01263474e536628675e6e74e7fe89899a5ef2e819cf823959e093",
+                  "protocol_completed": false,
+                  "close_code": 1011,
+                  "close_requested": true
+                }
+              ],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/prepare-connect",
+              "event_timestamp_ms": 1792124139337,
+              "cpu_ms": 29443,
+              "wall_ms": 59578,
+              "outcome": "exception",
+              "exception_names": [
+                "Error",
+                "Error"
+              ],
+              "exception_categories": [
+                "runtime_hung_response",
+                "runtime_hung_response"
+              ],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [
+                {
+                  "kind": "preparation",
+                  "id": "d6b799f41d350b7f33bfc77996a549b08a918cd41f4d027fb72cd71ea38dbc6c",
+                  "protocol_completed": true,
+                  "close_code": 1000,
+                  "close_requested": true
+                }
+              ],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/prepare-connect",
+              "event_timestamp_ms": 1792124199100,
+              "cpu_ms": 29517,
+              "wall_ms": 59447,
+              "outcome": "exception",
+              "exception_names": [
+                "Error",
+                "Error"
+              ],
+              "exception_categories": [
+                "runtime_hung_response",
+                "runtime_hung_response"
+              ],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [
+                {
+                  "kind": "preparation",
+                  "id": "8ecf9bb5020349c2eab92fadfd4619d578f0f77dcf394c943e076ad4338485b7",
+                  "protocol_completed": true,
+                  "close_code": 1000,
+                  "close_requested": true
+                }
+              ],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/prepare-connect",
+              "event_timestamp_ms": 1792124258695,
+              "cpu_ms": 28040,
+              "wall_ms": 61008,
+              "outcome": "exception",
+              "exception_names": [
+                "Error",
+                "Error"
+              ],
+              "exception_categories": [
+                "runtime_hung_response",
+                "runtime_hung_response"
+              ],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [
+                {
+                  "kind": "preparation",
+                  "id": "6c632747108b2e2c975beb5b713c29c57759c0be49ae8f97d466ef10f2a938a4",
+                  "protocol_completed": true,
+                  "close_code": 1000,
+                  "close_requested": true
+                }
+              ],
+              "peer_close": []
+            },
+            {
+              "role": "b",
+              "worker": "ml-dsa-fast-1016-4c00e4-b",
+              "version": "b78180c4-ee54-49f2-858a-3c7ceac464a8",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/prepare-connect",
+              "event_timestamp_ms": 1792124319843,
+              "cpu_ms": 28915,
+              "wall_ms": 62149,
+              "outcome": "exception",
+              "exception_names": [
+                "Error",
+                "Error"
+              ],
+              "exception_categories": [
+                "runtime_hung_response",
+                "runtime_hung_response"
+              ],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [
+                {
+                  "kind": "preparation",
+                  "id": "a76e32a6ad2b575f59b05cfffec637ba600af00a5db32e86f1a616813dd02a50",
+                  "protocol_completed": true,
+                  "close_code": 1000,
+                  "close_requested": true
+                }
+              ],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792122947230,
+              "cpu_ms": 346,
+              "wall_ms": 1292,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792123143111,
+              "cpu_ms": 58,
+              "wall_ms": 7986,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 1159,
+                  "request_bytes": 1895,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1695,
+                  "request_bytes": 1895,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 5519,
+                  "request_bytes": 1871,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 50,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 75,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 26,
+                  "request_bytes": 734,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 32,
+                  "request_bytes": 734,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1852,
+                  "request_bytes": 1871,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1975,
+                  "request_bytes": 1871,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 42,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 57,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 29,
+                  "request_bytes": 734,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 30,
+                  "request_bytes": 734,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 36,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 38,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792123151131,
+              "cpu_ms": 6,
+              "wall_ms": 74,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792123151244,
+              "cpu_ms": 5,
+              "wall_ms": 35,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/sign",
+              "event_timestamp_ms": 1792123151368,
+              "cpu_ms": 123,
+              "wall_ms": 4525,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 742,
+                  "request_bytes": 483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 803,
+                  "request_bytes": 483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 63,
+                  "request_bytes": 1478,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 70,
+                  "request_bytes": 1478,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 3331,
+                  "request_bytes": 1472,
+                  "service": "ML-DSA admitted signing",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 59,
+                  "request_bytes": 1312,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 67,
+                  "request_bytes": 1312,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 55,
+                  "request_bytes": 1475,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 65,
+                  "request_bytes": 1475,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [
+                {
+                  "operation": "cc96910f34e161eb9b17d5f83f22382e6c7e094514abef5930a508fde5b93ca0",
+                  "outcome": {
+                    "status": "signed",
+                    "consumed_batches": 1,
+                    "evaluated_candidates": 8
+                  }
+                }
+              ],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792123446621,
+              "cpu_ms": 80,
+              "wall_ms": 8297,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 63,
+                  "request_bytes": 2153,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 721,
+                  "request_bytes": 2153,
+                  "service": "ML-DSA registration storage initialization",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 5241,
+                  "request_bytes": 2129,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 199,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 244,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 29,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 30,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 1509,
+                  "request_bytes": 2129,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 2262,
+                  "request_bytes": 2129,
+                  "service": "ML-DSA registration",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 42,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 64,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 25,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 26,
+                  "request_bytes": 726,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 53,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 56,
+                  "request_bytes": 439,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792123454954,
+              "cpu_ms": 7,
+              "wall_ms": 57,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/control",
+              "event_timestamp_ms": 1792123455049,
+              "cpu_ms": 7,
+              "wall_ms": 9,
+              "outcome": "exception",
+              "exception_names": [
+                "Error"
+              ],
+              "exception_categories": [
+                "unclassified"
+              ],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792123455056,
+              "cpu_ms": 6,
+              "wall_ms": 48,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-4c00e4-router",
+              "version": "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/sign",
+              "event_timestamp_ms": 1792123455235,
+              "cpu_ms": 162,
+              "wall_ms": 5433,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [
+                {
+                  "duration_ms": 809,
+                  "request_bytes": 483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 830,
+                  "request_bytes": 483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 68,
+                  "request_bytes": 1483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 70,
+                  "request_bytes": 1483,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 4054,
+                  "request_bytes": 1479,
+                  "service": "ML-DSA admitted signing",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 70,
+                  "request_bytes": 1319,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 70,
+                  "request_bytes": 1319,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 61,
+                  "request_bytes": 1480,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                },
+                {
+                  "duration_ms": 175,
+                  "request_bytes": 1480,
+                  "service": "ML-DSA role storage",
+                  "stage": "fetch_headers",
+                  "status": 200
+                }
+              ],
+              "registration": [],
+              "signing": [
+                {
+                  "operation": "4b281802bb0311e68626f9e19c78e88c45888e76c2fe21fbe8daa38b2ab6543b",
+                  "outcome": {
+                    "status": "signed",
+                    "consumed_batches": 1,
+                    "evaluated_candidates": 8
+                  }
+                }
+              ],
+              "socket_completion": [],
+              "peer_close": []
+            }
+          ]
+        },
+        "selection": "Retain every registration/signing counter, non-ok invocation, and register/sign/execute route."
+      }
+    },
+    "binary": {
+      "source_sha256": "aaa6c473673c6b775f32e8e065b77f4c5e7c0f28cadb2b53f9a428292d43c760",
+      "data": {
+        "observedAt": "2026-10-16T04:31:25.060Z",
+        "wallet": {
+          "org": "registration-e2e",
+          "project": "wallet",
+          "environment": "temporary",
+          "wallet": "wallet-69816563896e6cdf"
+        },
+        "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+        "hosted": true,
+        "initializationStallMs": 0,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 60000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "minimum_ready_batches": 2,
+          "refill_target_batches": 4
+        },
+        "cases": [],
+        "functionalPassed": false,
+        "latencyTargetMet": false,
+        "builds": {
+          "router": "27a9c5cf172d87335be87cb6ad47ffde36807e6fdc37116ece5bb1e3db9a39bb",
+          "deriver-a": "0cacdc2756355d4f7eccd24ea42820af2cb9d6670052be701c028582f7466445",
+          "deriver-b": "9b529792caa766b34047baf969d61daf8bd429b4ed4e79a6b15b7bd449c6059e"
+        },
+        "scriptSha256": "f13161397a7ce1989890999dec87ad48aab4ed74976adbeaa7a18082096b2324",
+        "wrongCredentialRejected": true,
+        "emptyPoolRetryTime": true,
+        "error": "TypeError: fetch failed"
+      },
+      "traces": {
+        "source_sha256": "692cf3c91365cb64101e1c566a595bd67768989c56eba4b6bf75a01abc04276f",
+        "data": {
+          "schema": "seams.ml-dsa-silent-worker-traces.v1",
+          "created_at": "2026-10-16T04:38:03.573253+00:00",
+          "scope": "Whole-invocation CPU and wall time include fixture key creation, preparation, online work, and cleanup. Request headers, complete URLs, credentials, exception messages, and unselected logs are excluded. Cloudflare can redact run_id query values; unavailable identifiers remain null. The original instances_started label counts binding-phase notifications, including chunk bindings. New traces label this binding_phases_started. Wasm linear memory is not total isolate memory. Signing outcomes describe role dispatch before Router verification and settlement.",
+          "records": [
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-d6fbdd-a",
+              "version": "45d7b931-ac41-4a13-9b27-22bf59ec698d",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792125087743,
+              "cpu_ms": 17,
+              "wall_ms": 300042,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "a",
+              "worker": "ml-dsa-fast-1016-d6fbdd-a",
+              "version": "45d7b931-ac41-4a13-9b27-22bf59ec698d",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/role",
+              "event_timestamp_ms": 1792125089493,
+              "cpu_ms": 127971,
+              "wall_ms": 299141,
+              "outcome": "exception",
+              "exception_names": [
+                "Error"
+              ],
+              "exception_categories": [
+                "unclassified"
+              ],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-d6fbdd-router",
+              "version": "a748fc87-520d-4219-8a7b-0f2eac28ebd7",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/register",
+              "event_timestamp_ms": 1792125086429,
+              "cpu_ms": 370,
+              "wall_ms": 1086,
+              "outcome": "ok",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            },
+            {
+              "role": "router",
+              "worker": "ml-dsa-fast-1016-d6fbdd-router",
+              "version": "a748fc87-520d-4219-8a7b-0f2eac28ebd7",
+              "run_id": null,
+              "run_id_available": false,
+              "operation": null,
+              "path": "/router-ab/ml-dsa/registration/prepare",
+              "event_timestamp_ms": 1792125087539,
+              "cpu_ms": 167,
+              "wall_ms": 301007,
+              "outcome": "canceled",
+              "exception_names": [],
+              "exception_categories": [],
+              "public_preparation_progress": [],
+              "transport": [],
+              "registration": [],
+              "signing": [],
+              "socket_completion": [],
+              "peer_close": []
+            }
+          ]
+        },
+        "selection": "Retain every registration/signing counter, non-ok invocation, and register/sign/execute route."
+      }
+    }
+  }
+}

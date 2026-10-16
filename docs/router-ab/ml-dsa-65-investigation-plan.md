@@ -2,10 +2,15 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [latest execution-lifecycle campaign](ml-dsa-65-execution-diagnostics-report.md) records complete hosted registration at 7.30 seconds and recovery at 9.79 seconds.
-Later signing-only requests take 9.98 and 5.75 seconds, with twelve and eight evaluated candidates. The five-second target remains unmet.
-Waiting for the peer-close event removes the observed shutdown error in those two requests. Load qualification and complete registration deadlines remain open.
-Table reads use 83 transactions for 643 frames. These timings include durable installation and signing settlement.
+The [latest storage campaign](ml-dsa-65-storage-latency-report.md) records hosted registration at 6.42 seconds and recovery at 5.73 seconds.
+Five verified one-batch signatures take 2.72–11.56 seconds. Multi-batch latency remains unqualified.
+The Worker experiment uses binary chunk I/O, cached public schedules, eight candidates, and HMAC-authenticated public tables.
+The same 643 online table frames now require 24 transactions. Private preparation and signing shares remain encrypted.
+Registration still misses five seconds. Initial-stock installation adds 1.44–1.70 seconds after a 3.84–4.32-second key-generation service call.
+Slow signing requests spend 4.18–8.47 seconds waiting for inventory RPCs. First isolate that delay from overlapping producer work.
+Then compare bounded stock installation and minimum admission-ready initial reserves.
+Full-reserve preparation takes 204–274 seconds in this campaign. This includes keygen preparation and four eight-candidate signing batches.
+These small samples include durable installation and settlement. They provide no production percentile or sustained-load guarantee.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
 It targets 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
 The [ready-pool report](ml-dsa-65-ready-pool-report.md) records an earlier prepared-protocol pool campaign. Those measurements have a narrower boundary than complete durable Worker registration.

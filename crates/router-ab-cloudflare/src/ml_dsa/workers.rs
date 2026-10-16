@@ -207,6 +207,15 @@ fn json<T: Serialize>(value: T) -> Result<serde_json::Value> {
     serde_json::to_value(value).map_err(|_| invalid("ML-DSA response encoding failed"))
 }
 struct TransactionStore(Transaction);
+struct CiphertextChunk<'a>(&'a [u8]);
+impl Serialize for CiphertextChunk<'_> {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> core::result::Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.0)
+    }
+}
 impl Store for TransactionStore {
     async fn get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
         match self.0.get(key).await {
@@ -222,6 +231,47 @@ impl Store for TransactionStore {
     }
     async fn delete(&self, key: &str) -> Result<()> {
         self.0.delete(key).await.map(|_| ()).map_err(storage_error)
+    }
+    async fn put_chunk(&self, key: &str, bytes: &[u8]) -> Result<()> {
+        self.0
+            .put(key, &CiphertextChunk(bytes))
+            .await
+            .map_err(storage_error)
+    }
+    async fn get_chunks(
+        &self,
+        keys: &[String],
+        maximum_bytes: usize,
+    ) -> Result<Vec<Option<Vec<u8>>>> {
+        use worker::wasm_bindgen::JsCast;
+        let entries = self
+            .0
+            .get_multiple(keys.to_vec())
+            .await
+            .map_err(storage_error)?;
+        let mut values = Vec::with_capacity(keys.len());
+        for key in keys {
+            let value = entries.get(&worker::wasm_bindgen::JsValue::from_str(key));
+            values.push(if value.is_undefined() {
+                None
+            } else {
+                let bytes = value
+                    .dyn_into::<worker::js_sys::Uint8Array>()
+                    .map_err(|_| invalid("Invalid ML-DSA stored ciphertext"))?;
+                if bytes.length() as usize > maximum_bytes {
+                    return Err(invalid("Oversized ML-DSA ciphertext chunk"));
+                }
+                Some(bytes.to_vec())
+            });
+        }
+        Ok(values)
+    }
+    async fn delete_many(&self, keys: &[String]) -> Result<()> {
+        self.0
+            .delete_multiple(keys.to_vec())
+            .await
+            .map(|_| ())
+            .map_err(storage_error)
     }
 }
 

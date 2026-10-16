@@ -1,0 +1,189 @@
+{
+  "schema": "seams.ml-dsa-storage-provenance.v1",
+  "base_commit": "939ff4ca",
+  "controls": {
+    "bulk": {
+      "source": {
+        "crates/router-ab-cloudflare/src/ml_dsa/mod.rs": "f7d8169548f302f57a840c6536857391468e55321bbb6f38ac5194d80682450c",
+        "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs": "c562612b30b61e325d75a51c09bf506fe2788933fff224f1d9c4d7921af03521",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "3a7a5de6833e71a98342796cac89d280e649108886f336587e8bbece0ef0ca4e"
+      },
+      "deployments": {
+        "router": {
+          "log_sha256": "45f82979b2e18ffb454e0a7786c38366a6496d29c7005716f00f68f55a4427b4",
+          "versions": [
+            "52c1ba55-1f10-4d0f-a461-7689a5f424b1"
+          ],
+          "name": "ml-dsa-reg-1016-15dd34-router"
+        },
+        "a": {
+          "log_sha256": "67f83f0f7cabab861696d76dfa3eab18fe28a80bc273f2f950b6b3f629309a9a",
+          "versions": [
+            "51bfc065-bc23-42f9-9d83-99b7078340b3"
+          ],
+          "name": "ml-dsa-reg-1016-15dd34-a"
+        },
+        "b": {
+          "log_sha256": "56dc9b2a3e5d6f29d4bfea57a91f3282ff28c4a609e530c5cc23e168f270b180",
+          "versions": [
+            "46e88396-a134-43a2-ae4c-e1ec21a672d1"
+          ],
+          "name": "ml-dsa-reg-1016-15dd34-b"
+        }
+      },
+      "temporary_workers_removed": true,
+      "local_credentials_and_raw_tails_removed": true,
+      "cleanup_log_hashes": {
+        "delete-a.log": "8eb77e04fa1661497659a281ff5c5f7cb81de17bde911b92f67ba83105c22c4c",
+        "delete-b.log": "f7fff5b96599490af8cdd93ed2317f9675551e25b7a7533ffa1204ce2bd2b547",
+        "delete-router.log": "8a4fde92c8f27ace642aa57e9fbbd08189bc069f5b97a48a2502be92a7870f93"
+      }
+    },
+    "batch8": {
+      "source": {
+        "crates/router-ab-cloudflare/src/ml_dsa/mod.rs": "f7d8169548f302f57a840c6536857391468e55321bbb6f38ac5194d80682450c",
+        "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs": "c562612b30b61e325d75a51c09bf506fe2788933fff224f1d9c4d7921af03521",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "3a7a5de6833e71a98342796cac89d280e649108886f336587e8bbece0ef0ca4e",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/schedules.rs": "539fcad28beb875e33d1d2d8e147cb79488fc7b00d8be8d646d4b774affcdfd1",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/schedules.rs": "6f8d44211fe7be28812cc0e9e9648fca642fd166fd4c4f3e18aec2b2bab80d05",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs": "39fbf5e1f1258bc4b52d2fbe4558ea09ddf43f0b3419c28bfe393c12f3f6255c",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "3e5a6d1a6dc5aa9ce62f72f13abf5386bbf6cdf9a6fe9259474b39ee5a06631e",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/signing_stock.rs": "28eb0315b1969bc986378ef311379311fde9ef95d8559e0ed3e87d503e93b34a"
+      },
+      "deployments": {
+        "router": {
+          "log_sha256": "c79ac70f905c64d08995e13bde013f7589f95c315530bf92eac44ee7580bb2b7",
+          "versions": [
+            "a688bae5-7a48-4efd-bdc7-1dc4f3b9e691"
+          ],
+          "name": "ml-dsa-fast-1016-4c00e4-router"
+        },
+        "a": {
+          "log_sha256": "02e8dcb7c82e4b78a6b980c3def1a8bb387539b2e29b3ff7ddf08b4c89a9e3ac",
+          "versions": [
+            "b2333a96-b325-4bcc-aeb4-58f322c094e8"
+          ],
+          "name": "ml-dsa-fast-1016-4c00e4-a"
+        },
+        "b": {
+          "log_sha256": "1674e4190232a2abaa490f7063163d0ccf033ad8b4fa2976c5fe1b3749224ab1",
+          "versions": [
+            "b78180c4-ee54-49f2-858a-3c7ceac464a8"
+          ],
+          "name": "ml-dsa-fast-1016-4c00e4-b"
+        }
+      },
+      "temporary_workers_removed": true,
+      "local_credentials_and_raw_tails_removed": true,
+      "cleanup_log_hashes": {
+        "delete-a.log": "dd3c71d99ef77f51468ddc41c29ad7abb36810e7fbc5bfe50a63ea5adf11926f",
+        "delete-b.log": "4104b536483ecd77144b3c69ca180c88941064373894a20b35a4e13bad35e753",
+        "delete-router.log": "f0facb2391645ea3b3ff4bc722d8855884a28a3bd9c737ec806f33133c8d66ff"
+      }
+    },
+    "binary": {
+      "source": {
+        "crates/router-ab-cloudflare/src/ml_dsa/mod.rs": "8d46e690c7f9fb8792d8c34afa98bf55a66ebadf9ffb2a4760ada086b02e0eb7",
+        "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs": "a2d7758f367c86e633a184472adb20bb60efe5954f23bbf6e7b84a8c3dc9ccd6",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "0195d1083f7199b81cea7bf579734bc125fe259752e6d363177fcafb20017491",
+        "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs": "5923be5e3d2516e81794ee4de505828a8f14bc5b7a13e98cbdd0bf911137c63d"
+      },
+      "deployments": {
+        "router": {
+          "log_sha256": "c7961c0c8a16d34d053d6ab646320bc1ee06c38e1fb8d964a370ccb14cfa1021",
+          "versions": [
+            "a748fc87-520d-4219-8a7b-0f2eac28ebd7"
+          ],
+          "name": "ml-dsa-fast-1016-d6fbdd-router"
+        },
+        "a": {
+          "log_sha256": "80789d8f214b636ad7b9437f864c81dfa004e6feafcc0e01c30d7342914dc1cf",
+          "versions": [
+            "45d7b931-ac41-4a13-9b27-22bf59ec698d"
+          ],
+          "name": "ml-dsa-fast-1016-d6fbdd-a"
+        },
+        "b": {
+          "log_sha256": "c3c59d853c61f090b16dd7db7504904e816d8856395f30c41ed73904faa7b11a",
+          "versions": [
+            "33418b81-065b-4181-9336-cce9257183a3"
+          ],
+          "name": "ml-dsa-fast-1016-d6fbdd-b"
+        }
+      },
+      "temporary_workers_removed": true,
+      "local_credentials_and_raw_tails_removed": true,
+      "cleanup_log_hashes": {
+        "delete-a.log": "f2f2700983260eb8ce1c832d917af52b112a5f27eb6ccdb43c5c0239a558531c",
+        "delete-b.log": "9be6e32f57853292644d11d17b3e7b385f18d4388cd3aaf61dba69285fbba9ad",
+        "delete-router.log": "6204036b463b57854954c21ffcb5b2a8cdd1c6764d7bb6e35e0cca5acb5805d0",
+        "delete-a-retry.log": "667260472141351ee64f060aec24887e857c30299c2cf70144f3371abd8a13c5"
+      }
+    },
+    "public_tables": {
+      "source": {
+        "crates/router-ab-cloudflare/Cargo.lock": "930ef1e6b8c1a3f1d4bdff3b8b5db23f3947ba6637afec4c759a0ba04c8ce7d1",
+        "crates/router-ab-cloudflare/Cargo.toml": "7fc32c5a587e709cf69d476a15d7876cfde6eccd9f5daa4ee293a9b1dc746e6e",
+        "crates/router-ab-cloudflare/src/ml_dsa/mod.rs": "8d46e690c7f9fb8792d8c34afa98bf55a66ebadf9ffb2a4760ada086b02e0eb7",
+        "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs": "35731eae49e084f15eb217505d1ac24e78376d555c3248d278815436762bb0f4",
+        "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs": "d68b6f36aeb8e408d0b591d13e03598a61e459be60f6be000f9f37d2b168ab39",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "0195d1083f7199b81cea7bf579734bc125fe259752e6d363177fcafb20017491",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs": "39fbf5e1f1258bc4b52d2fbe4558ea09ddf43f0b3419c28bfe393c12f3f6255c",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "3e5a6d1a6dc5aa9ce62f72f13abf5386bbf6cdf9a6fe9259474b39ee5a06631e",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/schedules.rs": "6f8d44211fe7be28812cc0e9e9648fca642fd166fd4c4f3e18aec2b2bab80d05",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/signing_stock.rs": "28eb0315b1969bc986378ef311379311fde9ef95d8559e0ed3e87d503e93b34a",
+        "crates/router-ab-cloudflare/src/ml_dsa/workers/schedules.rs": "539fcad28beb875e33d1d2d8e147cb79488fc7b00d8be8d646d4b774affcdfd1",
+        "crates/router-ab-dev/Cargo.lock": "660d050df611b28dc14012ee164e04e9e8c61a970526140e29f8d5367a045615",
+        "crates/router-ab-ed25519-yao-client/Cargo.lock": "5fc3a5a87665d2985179ec115a05e6c82470e346d6a2e754a1cc78ee6c86eec8",
+        "docs/router-ab/ml-dsa-65-investigation-plan.md": "bd6b1a2377cddb4e9627c595e1c7be578873ffd7c87741006fba2cec60feb7ba",
+        "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "8b9a431024b58126af0ea78df33920f9219a4a3438e36a44675a7460f2d49aab",
+        "tools/ml-dsa-investigation/Cargo.lock": "c962bd7468eb8d654951349e52cc7a1ffc0062fb135053510608f5cf380fbce4",
+        "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs": "c04de521b8abc223ddbd6c11d5479530cff48318cacf00daee9c91abced618bb",
+        "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs": "3dab4009ea1ea093a640d229dc191fcea92dffd399d61476b43b62b28a172660",
+        "tools/ml-dsa-investigation/src/registration_tables_evidence.rs": "299c293d2e24724158ca5c7604d0c6bba346ff0bff0a2f9d82533de5a7e13d74",
+        "wasm/wallet_custody_ceremony/Cargo.lock": "01846c7ae614ce75c885e4f7ec0c6ba646763e2036f9daeb9cc1972f0f2358f1"
+      },
+      "deployments": {
+        "router": {
+          "log_sha256": "9caa749968e840f056bc484d24781a77227a6df9bc4350596093be5263c93b62",
+          "versions": [
+            "07f28cad-34ce-4e86-b157-661f981fe42c"
+          ],
+          "name": "ml-dsa-fast-1016-0ad5e4-router"
+        },
+        "a": {
+          "log_sha256": "20a764df6fc9cd25814da9fbe411deca5f845a79cf6990e51449436f95bd0224",
+          "versions": [
+            "b6dbddef-6520-41eb-8e0e-1fd373e26f8b"
+          ],
+          "name": "ml-dsa-fast-1016-0ad5e4-a"
+        },
+        "b": {
+          "log_sha256": "83ed04b0dfaf1a900fee3b284ae61c3defcb71163e138f65fa791338ebc956c0",
+          "versions": [
+            "c47e591a-ec4e-4872-bc68-905b7c431e04"
+          ],
+          "name": "ml-dsa-fast-1016-0ad5e4-b"
+        }
+      },
+      "temporary_workers_removed": true,
+      "local_credentials_and_raw_tails_removed": true,
+      "cleanup_log_hashes": {
+        "delete-a.log": "7a344b9382bf7fa134c0f55663d3a26f94a019b4f46d971465e9535774c32870",
+        "delete-b.log": "62dc3d789eb8330951546e51816849a6c3f70f34bae56dde834fe69b5f8dc3f8",
+        "delete-router.log": "b4308a1fa8a1b758de873fc27d136ec497df25f9935dab7b3abb2b02b300563a"
+      },
+      "validation": {
+        "native_lifecycle": "passed",
+        "native_prepared_keygen": "passed",
+        "local_registration": "passed",
+        "local_durable_signing": "passed",
+        "hosted_registration_functional": "passed",
+        "hosted_combined_latency": "failed",
+        "hosted_repeat_signing_functional": "passed",
+        "hosted_repeat_signing_latency": "failed",
+        "bloat_check": "passed"
+      }
+    }
+  }
+}

@@ -353,6 +353,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         .ok_or("Missing repository root")?;
     let mut sources = Vec::new();
     for path in [
+        "crates/router-ab-cloudflare/src/ml_dsa/mod.rs",
         "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs",
         "crates/router-ab-cloudflare/src/ml_dsa/registration_preparation.rs",
         "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs",

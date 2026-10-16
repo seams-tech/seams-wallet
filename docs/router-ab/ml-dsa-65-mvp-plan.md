@@ -119,3 +119,15 @@ The deadline E2E checks late delivery, failed replay after restart, and fresh ca
 A now waits for B's normal close event after result agreement. Both final hosted requests verify without the previous runtime error.
 They take 9.98/5.75 seconds and miss the latency target. Twelve/eight evaluated candidates show why one-batch timings are insufficient.
 Next: complete lifecycle deadlines and fault injection, installation profiling, candidate-batch comparisons, and fixed-load qualification before public integration.
+
+
+## Storage and candidate-batch control — October 16, 2026
+
+The [storage report](ml-dsa-65-storage-latency-report.md) records grouped binary I/O, cached public schedules, eight-candidate batches, and authenticated public garbled tables.
+Private preparation stays encrypted. Native and Worker checks preserve canonical wallet-seed recovery and ordinary FIPS export.
+Table reads fall from 83 to 24 transactions for 643 frames.
+Hosted registration takes 6.420 seconds, and recovery takes 5.732 seconds. Five verified one-batch signatures take 2.720–11.561 seconds.
+The complete preparation reserve takes 203.543–273.996 seconds. A prior binary-only attempt times out before registration and remains in the evidence.
+The five-second registration target remains unmet. Consistent multi-batch signing remains unqualified.
+Next: isolate the 4.183–8.469-second inventory RPC delay from overlapping producer work. Then compare minimum admission-ready stock and bounded concurrent installation.
+Keep GPU work and public Wallet integration deferred. Qualify refill capacity and lifecycle-wide deadlines before release.

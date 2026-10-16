@@ -1,12 +1,14 @@
 //! Authenticated evaluator table frames. All mutations require a storage transaction.
 use super::{registration_preparation as preparation, *};
+use hmac::{Hmac, Mac};
 use std::collections::VecDeque;
 use zeroize::Zeroizing;
-const DOMAIN: &[u8] = b"seams/ml-dsa/registration-table/v2";
+const DOMAIN: &[u8] = b"seams/ml-dsa/public-registration-table/v1";
+const KEY_DOMAIN: &[u8] = b"seams/ml-dsa/registration-table-auth-key/v1";
 const MAX_FRAME: usize = 65_544;
 const MAX_CIRCUITS: usize = 35;
 const MAX_FRAMES: usize = 8192;
-const READ_BATCH_FRAMES: usize = 8;
+const READ_BATCH_FRAMES: usize = 32;
 
 /// A committed consume result. Dropping unused frames burns them permanently.
 /// This handle cannot be cloned or serialized back into reusable preparation.
@@ -61,7 +63,7 @@ enum FrameRecord {
     Ready {
         length: usize,
         digest: [u8; 32],
-        encapsulated_key: [u8; 32],
+        authentication: [u8; 32],
         chunks: usize,
     },
     Consumed,
@@ -72,6 +74,22 @@ struct FrameBinding<'a> {
     circuit: [u8; 32],
     ordinal: usize,
     length: usize,
+}
+fn authenticator(
+    seed: &[u8; 32],
+    binding: &FrameBinding<'_>,
+    bytes: &[u8],
+) -> Result<Hmac<Sha256>> {
+    let mut key = Zeroizing::new([0u8; 32]);
+    hkdf::Hkdf::<Sha256>::new(Some(KEY_DOMAIN), seed)
+        .expand(DOMAIN, key.as_mut())
+        .map_err(|_| invalid("ML-DSA table authentication key failed"))?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(key.as_ref())
+        .map_err(|_| invalid("ML-DSA table authentication key failed"))?;
+    mac.update(DOMAIN);
+    mac.update(&digest(DOMAIN, binding)?);
+    mac.update(bytes);
+    Ok(mac)
 }
 fn prefix(binding: &preparation::Binding) -> String {
     format!("registration-tables/{}", hex(&binding.reservation))
@@ -161,17 +179,19 @@ pub async fn put(
         ordinal,
         length: bytes.len(),
     };
-    let sealed = sealing::seal_bound(Zeroizing::new(bytes.to_vec()), DOMAIN, &aad, seed)?;
-    let chunks = sealed
-        .store_chunks(store, &format!("{frame}/ciphertext"))
-        .await?;
+    // Only garbled AND ciphertexts and their public frame header enter this store.
+    let authentication = authenticator(seed, &aad, bytes)?
+        .finalize()
+        .into_bytes()
+        .into();
+    let chunks = sealing::write_chunks(store, &format!("{frame}/data"), bytes).await?;
     store
         .put(
             &frame,
             &FrameRecord::Ready {
                 length: bytes.len(),
                 digest: hash,
-                encapsulated_key: sealed.encapsulated_key,
+                authentication,
                 chunks,
             },
         )
@@ -179,7 +199,7 @@ pub async fn put(
     index.circuits[position].frames += 1;
     store.put(&key, &index).await
 }
-/// Opens at most eight contiguous frames after the private preparation consume.
+/// Authenticates at most 32 contiguous frames after the private preparation consume.
 /// All frame consumes must commit before this result leaves the adapter transaction.
 pub async fn take(
     store: &impl Store,
@@ -215,7 +235,7 @@ pub async fn take(
         let name = frame_name(binding, &circuit, position);
         let Some(FrameRecord::Ready {
             length: stored_length,
-            encapsulated_key,
+            authentication,
             chunks,
             ..
         }) = store.get::<FrameRecord>(&name).await?
@@ -226,14 +246,13 @@ pub async fn take(
         if position == ordinal && length != stored_length {
             return Err(invalid("ML-DSA registration table length changed"));
         }
-        let ciphertext_length = stored_length + 16;
-        if chunks != ciphertext_length.div_ceil(sealing::CHUNK_BYTES) {
+        if chunks != stored_length.div_ceil(sealing::CHUNK_BYTES) {
             return Err(invalid("Invalid ML-DSA table chunk count"));
         }
-        let prefix = format!("{name}/ciphertext");
-        let sealed = sealing::Sealed::load_chunks(store, &prefix, chunks, encapsulated_key).await?;
-        if sealed.ciphertext.len() != ciphertext_length {
-            return Err(invalid("Invalid ML-DSA table ciphertext length"));
+        let prefix = format!("{name}/data");
+        let bytes = Zeroizing::new(sealing::read_chunks(store, &prefix, chunks).await?);
+        if bytes.len() != stored_length {
+            return Err(invalid("Invalid ML-DSA table frame length"));
         }
         let aad = FrameBinding {
             preparation: binding,
@@ -241,7 +260,9 @@ pub async fn take(
             ordinal: position,
             length: stored_length,
         };
-        let bytes = sealing::open_bound(sealed, DOMAIN, &aad, seed)?;
+        authenticator(seed, &aad, &bytes)?
+            .verify_slice(&authentication)
+            .map_err(|_| invalid("ML-DSA table authentication failed"))?;
         sealing::erase_chunks(store, &prefix, chunks).await?;
         store.put(&name, &FrameRecord::Consumed).await?;
         frames.push_back(bytes);
@@ -289,7 +310,7 @@ pub async fn retire_next(store: &impl Store, binding: &preparation::Binding) -> 
         }
         let name = frame_name(binding, &index.circuits[circuit].binding, frame);
         if let Some(FrameRecord::Ready { chunks, .. }) = store.get::<FrameRecord>(&name).await? {
-            sealing::erase_chunks(store, &format!("{name}/ciphertext"), chunks).await?;
+            sealing::erase_chunks(store, &format!("{name}/data"), chunks).await?;
         }
         store.delete(&name).await?;
         frame += 1;

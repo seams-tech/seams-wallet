@@ -3436,7 +3436,10 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Reject retired preparation ciphertext without a cipher fallback. Regenerate preparation after a storage-suite change.
 - Authenticate each registration table frame against its reservation, circuit, position, and length. Read it only after the exact ceremony consumes private preparation.
 - Consume table frames atomically. Retire unused fallbacks in bounded steps, and fence late writers even when cancellation precedes the first frame.
-- Consume at most eight contiguous frames from one circuit per table-read transaction. Release plaintext only after commit. Burn unused prefetched frames after interruption.
+- Store public garbled AND tables with a role-specific HMAC. Keep private labels, OT state, output translations, and signing material encrypted.
+- Authenticate the complete frame and its exact binding before release. Reject obsolete table records without a compatibility fallback.
+- Consume at most 32 contiguous frames from one circuit per table-read transaction. Release authenticated bytes only after commit. Burn unused prefetched frames after interruption.
+- Store preparation chunks as bounded binary values. Preserve numeric chunk order across bulk reads, and commit every write before publishing readiness.
 - Permit read-only role-storage initialization during an exact live registration claim. It must not install material, schedule refill, or delay completed key generation.
 - Bound the Router's key-generation service call by the registration claim deadline. Reject execution delivered after expiry and preserve failed replay across restart.
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
