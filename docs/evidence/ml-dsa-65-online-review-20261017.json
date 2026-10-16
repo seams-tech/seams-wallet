@@ -1,0 +1,1503 @@
+{
+  "receipts": {
+    "campaign-verification.json": [
+      {
+        "campaign": "baseline",
+        "input_sha256": "4f9c0cbb0fc7303332f871d4b701388ebcb02b9838a83f0b2aee56e4841a8f3a",
+        "traces_sha256": "f018e9f5032a789aa214838285449438a7c935b5febd27e612f5568cc1bb2179",
+        "deployment_versions": {
+          "router": "0580589c-57d2-452d-b04a-53391d02c6cb",
+          "a": "1d0f94d6-0d6b-4993-8f84-8574861e020c",
+          "b": "50e22cd1-1184-445b-9f4a-b1520905f741",
+          "preparer-a": "85699784-ed8b-463e-81bc-bcb35d880065",
+          "preparer-b": "c1797e85-6ef2-46b8-995b-653389fe0ce5"
+        },
+        "client_requests": 206,
+        "client_statuses": {
+          "('existing', 'succeeded')": 12,
+          "('unavailable', None)": 97,
+          "('existing', 'declined')": 97
+        },
+        "successful_signatures": 12,
+        "successful_under_five_seconds": 11,
+        "successful_http_median_ms": 1921.874582999997,
+        "successful_http_maximum_ms": 5948.926292,
+        "first_observed_ready_pairs": 4,
+        "initial_pairs_including_prestarted_work": 4,
+        "prestarted_initial_pairs_not_ready_at_first_observation": [],
+        "observed_new_pairs": 14,
+        "consumed_pairs": 14,
+        "final_ready_pairs": 4,
+        "candidates_evaluated": 112,
+        "missing_successful_publication_records": [],
+        "unknown_publication_ids": [],
+        "observed_stock_balances": true,
+        "publication_records_complete": true,
+        "final_restoration_after_client_ms": 81792.27978515625,
+        "successful_trace_coverage": {
+          "{'a': 1, 'b': 1}": 11,
+          "{'a': 0, 'b': 0}": 1
+        },
+        "cache_groups": [
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 4,
+            "cpu_median_ms": 400.0,
+            "cpu_range_ms": [
+              344,
+              412
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 4
+            }
+          },
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 5,
+            "cpu_median_ms": 645,
+            "cpu_range_ms": [
+              587,
+              1001
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 5
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 2,
+            "cpu_median_ms": 1278.5,
+            "cpu_range_ms": [
+              944,
+              1613
+            ],
+            "build_hit_counts": {
+              "(5, 5)": 2
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 4,
+            "cpu_median_ms": 400.0,
+            "cpu_range_ms": [
+              390,
+              412
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 4
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 5,
+            "cpu_median_ms": 658,
+            "cpu_range_ms": [
+              620,
+              677
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 5
+            }
+          },
+          {
+            "role": "b",
+            "batches": 2,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 2,
+            "cpu_median_ms": 1226.0,
+            "cpu_range_ms": [
+              892,
+              1560
+            ],
+            "build_hit_counts": {
+              "(5, 5)": 2
+            }
+          }
+        ],
+        "one_batch_event_groups": {
+          "a": {
+            "{'pending_events': 709, 'ready_events': 0, 'acknowledgments_sent': 353, 'acknowledgments_received': 355}": 9
+          },
+          "b": {
+            "{'pending_events': 707, 'ready_events': 1, 'acknowledgments_sent': 355, 'acknowledgments_received': 353}": 9
+          }
+        },
+        "non_ok_outcomes_all_selected_versions": {
+          "canceled": 8
+        },
+        "exception_categories_all_selected_versions": {},
+        "consumed_ids": [
+          "189e7929f29260de247228041baaf0ddffdee037066641deb30c4c7a1d3dc54d",
+          "25082ce8f1ca9f7356d30add14fa029edf9c02f21eaed40f19e940a878240bcb",
+          "27b0529e490e1f482be362dcfb10f03ea3e2da05cb6b7db5a0c26049294d125c",
+          "49399f79683a26f42465be461334eb1badb645f32a97578a71b1cb8f7775c48f",
+          "64a27571d17dfbb56a196fa540243ddf00f8630605dfa5cdd292da217142dd1a",
+          "690f9a68aa9dd028e926532bf498918375ffdcd240b4b11b94d2b3555cda764a",
+          "697229b117bde1ce903b5fe3b12cf5f587cf1cf8fb80e1b7ffb2e72467920044",
+          "6c26b8dd8ebc00213c5dd1b88d2803c0f6201bdb4ec06f2c02de7b6826823102",
+          "971762ae5d4b248b8d93c84cd9aebcd51d862490448b5d2f6ed03359cd24d975",
+          "a080254c33ec09484060cdd2a49c6ba9151eab96df39dc8366ab9a3cad2bea4a",
+          "a8ea47e9234d7273f69423dd819052c7e658c820b7a80b2d4721517f0d14f4ac",
+          "bbe0b822a53dbee5a3a19b86bf654884c09a87e90d1ae9331628555ff4241fdd",
+          "be8b69373498044f55473a44d44bfa1d8cd73e4d1c18ea47a1ab828b5b0c346f",
+          "e24e603b53ea532ca7c2c743d84869bb0ed11893caa30070529bd180534fdd61"
+        ],
+        "limits": [
+          "Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.",
+          "Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.",
+          "Event measurements distinguish pending events from ready events. They are not CPU durations.",
+          "Version-filtered non-ok outcomes can occur before or after the client interval."
+        ]
+      },
+      {
+        "campaign": "candidate",
+        "input_sha256": "53aaf8f024852848b4b8e522066b6b5a9d2e63d08f22335b8c1b3fc9bcd9fa72",
+        "traces_sha256": "f018e9f5032a789aa214838285449438a7c935b5febd27e612f5568cc1bb2179",
+        "deployment_versions": {
+          "router": "6f8dd8f0-c8f7-499e-9c82-271be7244b07",
+          "a": "0e8b161c-ccfc-4416-a7c3-2d1fc44832fd",
+          "b": "5b9f6ac9-5ac6-4157-8289-32f2d52b9f7f",
+          "preparer-a": "4f478671-8235-44b5-b0c9-21f12afd4f4a",
+          "preparer-b": "27cb4023-8cdf-4a68-aad2-7ed29376f5c0"
+        },
+        "client_requests": 487,
+        "client_statuses": {
+          "('existing', 'succeeded')": 24,
+          "('unavailable', None)": 231,
+          "('existing', 'declined')": 231,
+          "('existing', 'failed')": 1
+        },
+        "successful_signatures": 24,
+        "successful_under_five_seconds": 23,
+        "successful_http_median_ms": 1879.0558125000243,
+        "successful_http_maximum_ms": 5390.312250000017,
+        "first_observed_ready_pairs": 3,
+        "initial_pairs_including_prestarted_work": 4,
+        "prestarted_initial_pairs_not_ready_at_first_observation": [
+          "9a9bbc46df478a18012b6b76de4453a4ae88ac366a6a6d3937272f49d404305f"
+        ],
+        "observed_new_pairs": 28,
+        "consumed_pairs": 28,
+        "final_ready_pairs": 4,
+        "candidates_evaluated": 224,
+        "missing_successful_publication_records": [
+          "043f31d09f18e8c52a245ea78ce54b98e96a46c1f7924edbd5551bfbf62724dc",
+          "bd955a06254346bc720f4b99a29b3543549f7b4ec7e548024a5aa21dedfdf824"
+        ],
+        "unknown_publication_ids": [
+          "043f31d09f18e8c52a245ea78ce54b98e96a46c1f7924edbd5551bfbf62724dc",
+          "bd955a06254346bc720f4b99a29b3543549f7b4ec7e548024a5aa21dedfdf824"
+        ],
+        "observed_stock_balances": true,
+        "publication_records_complete": false,
+        "final_restoration_after_client_ms": 96820.69287109375,
+        "successful_trace_coverage": {
+          "{'a': 1, 'b': 1}": 10,
+          "{'a': 1, 'b': 0}": 14
+        },
+        "cache_groups": [
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 11,
+            "cpu_median_ms": 240,
+            "cpu_range_ms": [
+              197,
+              485
+            ],
+            "build_hit_counts": {
+              "(0, 5)": 11
+            }
+          },
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 11,
+            "cpu_median_ms": 732,
+            "cpu_range_ms": [
+              502,
+              1115
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 11
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 2,
+            "cpu_median_ms": 616.5,
+            "cpu_range_ms": [
+              398,
+              835
+            ],
+            "build_hit_counts": {
+              "(0, 10)": 2
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 1,
+            "cpu_median_ms": 1368,
+            "cpu_range_ms": [
+              1368,
+              1368
+            ],
+            "build_hit_counts": {
+              "(5, 5)": 1
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 2,
+            "cpu_median_ms": 380.0,
+            "cpu_range_ms": [
+              333,
+              427
+            ],
+            "build_hit_counts": {
+              "(0, 5)": 2
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 7,
+            "cpu_median_ms": 739,
+            "cpu_range_ms": [
+              449,
+              1009
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 7
+            }
+          },
+          {
+            "role": "b",
+            "batches": 2,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 2,
+            "cpu_median_ms": 590.0,
+            "cpu_range_ms": [
+              374,
+              806
+            ],
+            "build_hit_counts": {
+              "(0, 10)": 2
+            }
+          }
+        ],
+        "one_batch_event_groups": {
+          "a": {
+            "{'pending_events': 354, 'ready_events': 0, 'acknowledgments_sent': 1, 'acknowledgments_received': 0}": 22
+          },
+          "b": {
+            "{'pending_events': 356, 'ready_events': 0, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 8,
+            "{'pending_events': 355, 'ready_events': 1, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 1
+          }
+        },
+        "non_ok_outcomes_all_selected_versions": {
+          "canceled": 5,
+          "exception": 3
+        },
+        "exception_categories_all_selected_versions": {
+          "runtime_code_update_reset": 2
+        },
+        "consumed_ids": [
+          "01c72143860e58fe84fdef469ff383571a8f21e9354679ad8cbd6cb71963e03e",
+          "043f31d09f18e8c52a245ea78ce54b98e96a46c1f7924edbd5551bfbf62724dc",
+          "04ce7aa0b7fe388dd39d5462ee5bec07a4fc245cff4a1de0b946829a05522baf",
+          "143064188994a05cf354122d0c97c2de8790183661a38b17320ca2a1b004b327",
+          "1b3b58c539acd810f24d3989f227d906c1f4fccac9137fc02809e3f434371685",
+          "1da51bdd7d6b33a491a601ee3070918398830344ae6b2c33ad3f5de6f708734e",
+          "1f771e31ff6395fbb0867b3c6467fc543e679d9e6c8f3dc3408d891ccb45e8ac",
+          "303b80e75f0f4565ae19e5b684f7d82059b540c7d9e0d9f85fba8a13e1a01dd1",
+          "33da49226f835ae7de2670ea534a54827281ca50f0a72ae778cdbbaeffdc7ce5",
+          "4543339725b3622396345cf2a01c0443e4db1da583a19da7dc9237419b2611e4",
+          "48bbf890d7ed93c54bb76225e87bd2cdc3403064b856aed984f0006ba204e357",
+          "55b3b72c819607d286bbe867ba6b852d22ea91f66c6a851251e5823f0eb75c56",
+          "58b29132cd233c28b9e5be749648529ceac50b4715a021c9b8a7ace71f010b09",
+          "5e01055fc1417bd90a01bedc77aada1a7221c26a37bccf15aec3fc4286650d6e",
+          "6596e4708afab3ad49ab970edc4ddabc50c74b5bc145f3015449a781ddd08f01",
+          "6f2200d4ed254733b3b7f7c66988e36cfef2f4cf0afa4949c62336f3f6f9aaa6",
+          "80082a3d04b829da0007d5cbbe186e232bb6c4688c6dd48b56d0b530afb9aa82",
+          "8d9407fbde68d4d63c942e7fb4d32f62f0e14ed10308b81af366a082558231f4",
+          "9a9bbc46df478a18012b6b76de4453a4ae88ac366a6a6d3937272f49d404305f",
+          "a03db7a5239ec96c61427f7204b42219e9cc4a2e8e8f40a98d1f5c73f4bc69b1",
+          "a29a512ca788ff71b2d031721a987f097c92bc6ded0f6cf9f673cf1929c3085d",
+          "a3fe5374085946e23473f30255ef44f1dbf2172829fbe6d109d937f62b5b0409",
+          "a41c90ec95e8ed23bd93a7599ef26890962bf89ece9fca51d1dc77fdc49a36ff",
+          "a5b5b0cf95a05f6fd64f460ea5ab1df7ff75942ceafda2cab7f17a1d73a5b645",
+          "bd955a06254346bc720f4b99a29b3543549f7b4ec7e548024a5aa21dedfdf824",
+          "d18a4290de9e80eb222b277ed27ecceb1c0fdc24e5bccaf739a0bec970360332",
+          "eac1b1f7c47bd9885fdf355fb17c7a3b7d13e82f4ab8cce00bbb53c93f65eb40",
+          "f88abf99516ef32a7145ae282e2558386f835a5a05c4d159d99b97e52f719768"
+        ],
+        "limits": [
+          "Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.",
+          "Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.",
+          "Event measurements distinguish pending events from ready events. They are not CPU durations.",
+          "Version-filtered non-ok outcomes can occur before or after the client interval."
+        ]
+      }
+    ],
+    "final-campaign-verification.json": [
+      {
+        "campaign": "baseline",
+        "input_sha256": "4f9c0cbb0fc7303332f871d4b701388ebcb02b9838a83f0b2aee56e4841a8f3a",
+        "traces_sha256": "b983b16264d73468882695e45d545eeed5766931473469df85f62103de887945",
+        "deployment_versions": {
+          "router": "0580589c-57d2-452d-b04a-53391d02c6cb",
+          "a": "1d0f94d6-0d6b-4993-8f84-8574861e020c",
+          "b": "50e22cd1-1184-445b-9f4a-b1520905f741",
+          "preparer-a": "85699784-ed8b-463e-81bc-bcb35d880065",
+          "preparer-b": "c1797e85-6ef2-46b8-995b-653389fe0ce5"
+        },
+        "client_requests": 206,
+        "client_statuses": {
+          "('existing', 'succeeded')": 12,
+          "('unavailable', None)": 97,
+          "('existing', 'declined')": 97
+        },
+        "successful_signatures": 12,
+        "successful_under_five_seconds": 11,
+        "successful_http_median_ms": 1921.874582999997,
+        "successful_http_maximum_ms": 5948.926292,
+        "first_observed_ready_pairs": 4,
+        "initial_pairs_including_prestarted_work": 4,
+        "prestarted_initial_pairs_not_ready_at_first_observation": [],
+        "observed_new_pairs": 14,
+        "consumed_pairs": 14,
+        "final_ready_pairs": 4,
+        "candidates_evaluated": 112,
+        "missing_successful_publication_records": [],
+        "unknown_publication_ids": [],
+        "observed_stock_balances": true,
+        "publication_records_complete": true,
+        "final_restoration_after_client_ms": 81792.27978515625,
+        "successful_trace_coverage": {
+          "{'a': 1, 'b': 1}": 11,
+          "{'a': 0, 'b': 0}": 1
+        },
+        "cache_groups": [
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 4,
+            "cpu_median_ms": 400.0,
+            "cpu_range_ms": [
+              344,
+              412
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 4
+            }
+          },
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 5,
+            "cpu_median_ms": 645,
+            "cpu_range_ms": [
+              587,
+              1001
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 5
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 2,
+            "cpu_median_ms": 1278.5,
+            "cpu_range_ms": [
+              944,
+              1613
+            ],
+            "build_hit_counts": {
+              "(5, 5)": 2
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 4,
+            "cpu_median_ms": 400.0,
+            "cpu_range_ms": [
+              390,
+              412
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 4
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 5,
+            "cpu_median_ms": 658,
+            "cpu_range_ms": [
+              620,
+              677
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 5
+            }
+          },
+          {
+            "role": "b",
+            "batches": 2,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 2,
+            "cpu_median_ms": 1226.0,
+            "cpu_range_ms": [
+              892,
+              1560
+            ],
+            "build_hit_counts": {
+              "(5, 5)": 2
+            }
+          }
+        ],
+        "one_batch_event_groups": {
+          "a": {
+            "{'pending_events': 709, 'ready_events': 0, 'acknowledgments_sent': 353, 'acknowledgments_received': 355}": 9
+          },
+          "b": {
+            "{'pending_events': 707, 'ready_events': 1, 'acknowledgments_sent': 355, 'acknowledgments_received': 353}": 9
+          }
+        },
+        "non_ok_outcomes_all_selected_versions": {
+          "canceled": 8
+        },
+        "exception_categories_all_selected_versions": {},
+        "consumed_ids": [
+          "189e7929f29260de247228041baaf0ddffdee037066641deb30c4c7a1d3dc54d",
+          "25082ce8f1ca9f7356d30add14fa029edf9c02f21eaed40f19e940a878240bcb",
+          "27b0529e490e1f482be362dcfb10f03ea3e2da05cb6b7db5a0c26049294d125c",
+          "49399f79683a26f42465be461334eb1badb645f32a97578a71b1cb8f7775c48f",
+          "64a27571d17dfbb56a196fa540243ddf00f8630605dfa5cdd292da217142dd1a",
+          "690f9a68aa9dd028e926532bf498918375ffdcd240b4b11b94d2b3555cda764a",
+          "697229b117bde1ce903b5fe3b12cf5f587cf1cf8fb80e1b7ffb2e72467920044",
+          "6c26b8dd8ebc00213c5dd1b88d2803c0f6201bdb4ec06f2c02de7b6826823102",
+          "971762ae5d4b248b8d93c84cd9aebcd51d862490448b5d2f6ed03359cd24d975",
+          "a080254c33ec09484060cdd2a49c6ba9151eab96df39dc8366ab9a3cad2bea4a",
+          "a8ea47e9234d7273f69423dd819052c7e658c820b7a80b2d4721517f0d14f4ac",
+          "bbe0b822a53dbee5a3a19b86bf654884c09a87e90d1ae9331628555ff4241fdd",
+          "be8b69373498044f55473a44d44bfa1d8cd73e4d1c18ea47a1ab828b5b0c346f",
+          "e24e603b53ea532ca7c2c743d84869bb0ed11893caa30070529bd180534fdd61"
+        ],
+        "limits": [
+          "Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.",
+          "Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.",
+          "Event measurements distinguish pending events from ready events. They are not CPU durations.",
+          "Version-filtered non-ok outcomes can occur before or after the client interval."
+        ]
+      },
+      {
+        "campaign": "candidate",
+        "input_sha256": "53aaf8f024852848b4b8e522066b6b5a9d2e63d08f22335b8c1b3fc9bcd9fa72",
+        "traces_sha256": "b983b16264d73468882695e45d545eeed5766931473469df85f62103de887945",
+        "deployment_versions": {
+          "router": "6f8dd8f0-c8f7-499e-9c82-271be7244b07",
+          "a": "0e8b161c-ccfc-4416-a7c3-2d1fc44832fd",
+          "b": "5b9f6ac9-5ac6-4157-8289-32f2d52b9f7f",
+          "preparer-a": "4f478671-8235-44b5-b0c9-21f12afd4f4a",
+          "preparer-b": "27cb4023-8cdf-4a68-aad2-7ed29376f5c0"
+        },
+        "client_requests": 487,
+        "client_statuses": {
+          "('existing', 'succeeded')": 24,
+          "('unavailable', None)": 231,
+          "('existing', 'declined')": 231,
+          "('existing', 'failed')": 1
+        },
+        "successful_signatures": 24,
+        "successful_under_five_seconds": 23,
+        "successful_http_median_ms": 1879.0558125000243,
+        "successful_http_maximum_ms": 5390.312250000017,
+        "first_observed_ready_pairs": 3,
+        "initial_pairs_including_prestarted_work": 4,
+        "prestarted_initial_pairs_not_ready_at_first_observation": [
+          "9a9bbc46df478a18012b6b76de4453a4ae88ac366a6a6d3937272f49d404305f"
+        ],
+        "observed_new_pairs": 28,
+        "consumed_pairs": 28,
+        "final_ready_pairs": 4,
+        "candidates_evaluated": 224,
+        "missing_successful_publication_records": [
+          "043f31d09f18e8c52a245ea78ce54b98e96a46c1f7924edbd5551bfbf62724dc",
+          "bd955a06254346bc720f4b99a29b3543549f7b4ec7e548024a5aa21dedfdf824"
+        ],
+        "unknown_publication_ids": [
+          "043f31d09f18e8c52a245ea78ce54b98e96a46c1f7924edbd5551bfbf62724dc",
+          "bd955a06254346bc720f4b99a29b3543549f7b4ec7e548024a5aa21dedfdf824"
+        ],
+        "observed_stock_balances": true,
+        "publication_records_complete": false,
+        "final_restoration_after_client_ms": 96820.69287109375,
+        "successful_trace_coverage": {
+          "{'a': 1, 'b': 1}": 10,
+          "{'a': 1, 'b': 0}": 14
+        },
+        "cache_groups": [
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 11,
+            "cpu_median_ms": 240,
+            "cpu_range_ms": [
+              197,
+              485
+            ],
+            "build_hit_counts": {
+              "(0, 5)": 11
+            }
+          },
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 11,
+            "cpu_median_ms": 732,
+            "cpu_range_ms": [
+              502,
+              1115
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 11
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 2,
+            "cpu_median_ms": 616.5,
+            "cpu_range_ms": [
+              398,
+              835
+            ],
+            "build_hit_counts": {
+              "(0, 10)": 2
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 1,
+            "cpu_median_ms": 1368,
+            "cpu_range_ms": [
+              1368,
+              1368
+            ],
+            "build_hit_counts": {
+              "(5, 5)": 1
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 2,
+            "cpu_median_ms": 380.0,
+            "cpu_range_ms": [
+              333,
+              427
+            ],
+            "build_hit_counts": {
+              "(0, 5)": 2
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 7,
+            "cpu_median_ms": 739,
+            "cpu_range_ms": [
+              449,
+              1009
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 7
+            }
+          },
+          {
+            "role": "b",
+            "batches": 2,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 2,
+            "cpu_median_ms": 590.0,
+            "cpu_range_ms": [
+              374,
+              806
+            ],
+            "build_hit_counts": {
+              "(0, 10)": 2
+            }
+          }
+        ],
+        "one_batch_event_groups": {
+          "a": {
+            "{'pending_events': 354, 'ready_events': 0, 'acknowledgments_sent': 1, 'acknowledgments_received': 0}": 22
+          },
+          "b": {
+            "{'pending_events': 356, 'ready_events': 0, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 8,
+            "{'pending_events': 355, 'ready_events': 1, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 1
+          }
+        },
+        "non_ok_outcomes_all_selected_versions": {
+          "canceled": 5,
+          "exception": 3
+        },
+        "exception_categories_all_selected_versions": {
+          "runtime_code_update_reset": 2
+        },
+        "consumed_ids": [
+          "01c72143860e58fe84fdef469ff383571a8f21e9354679ad8cbd6cb71963e03e",
+          "043f31d09f18e8c52a245ea78ce54b98e96a46c1f7924edbd5551bfbf62724dc",
+          "04ce7aa0b7fe388dd39d5462ee5bec07a4fc245cff4a1de0b946829a05522baf",
+          "143064188994a05cf354122d0c97c2de8790183661a38b17320ca2a1b004b327",
+          "1b3b58c539acd810f24d3989f227d906c1f4fccac9137fc02809e3f434371685",
+          "1da51bdd7d6b33a491a601ee3070918398830344ae6b2c33ad3f5de6f708734e",
+          "1f771e31ff6395fbb0867b3c6467fc543e679d9e6c8f3dc3408d891ccb45e8ac",
+          "303b80e75f0f4565ae19e5b684f7d82059b540c7d9e0d9f85fba8a13e1a01dd1",
+          "33da49226f835ae7de2670ea534a54827281ca50f0a72ae778cdbbaeffdc7ce5",
+          "4543339725b3622396345cf2a01c0443e4db1da583a19da7dc9237419b2611e4",
+          "48bbf890d7ed93c54bb76225e87bd2cdc3403064b856aed984f0006ba204e357",
+          "55b3b72c819607d286bbe867ba6b852d22ea91f66c6a851251e5823f0eb75c56",
+          "58b29132cd233c28b9e5be749648529ceac50b4715a021c9b8a7ace71f010b09",
+          "5e01055fc1417bd90a01bedc77aada1a7221c26a37bccf15aec3fc4286650d6e",
+          "6596e4708afab3ad49ab970edc4ddabc50c74b5bc145f3015449a781ddd08f01",
+          "6f2200d4ed254733b3b7f7c66988e36cfef2f4cf0afa4949c62336f3f6f9aaa6",
+          "80082a3d04b829da0007d5cbbe186e232bb6c4688c6dd48b56d0b530afb9aa82",
+          "8d9407fbde68d4d63c942e7fb4d32f62f0e14ed10308b81af366a082558231f4",
+          "9a9bbc46df478a18012b6b76de4453a4ae88ac366a6a6d3937272f49d404305f",
+          "a03db7a5239ec96c61427f7204b42219e9cc4a2e8e8f40a98d1f5c73f4bc69b1",
+          "a29a512ca788ff71b2d031721a987f097c92bc6ded0f6cf9f673cf1929c3085d",
+          "a3fe5374085946e23473f30255ef44f1dbf2172829fbe6d109d937f62b5b0409",
+          "a41c90ec95e8ed23bd93a7599ef26890962bf89ece9fca51d1dc77fdc49a36ff",
+          "a5b5b0cf95a05f6fd64f460ea5ab1df7ff75942ceafda2cab7f17a1d73a5b645",
+          "bd955a06254346bc720f4b99a29b3543549f7b4ec7e548024a5aa21dedfdf824",
+          "d18a4290de9e80eb222b277ed27ecceb1c0fdc24e5bccaf739a0bec970360332",
+          "eac1b1f7c47bd9885fdf355fb17c7a3b7d13e82f4ab8cce00bbb53c93f65eb40",
+          "f88abf99516ef32a7145ae282e2558386f835a5a05c4d159d99b97e52f719768"
+        ],
+        "limits": [
+          "Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.",
+          "Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.",
+          "Event measurements distinguish pending events from ready events. They are not CPU durations.",
+          "Version-filtered non-ok outcomes can occur before or after the client interval."
+        ]
+      },
+      {
+        "campaign": "storage",
+        "input_sha256": "9d7771fada5ef42d5376896480c9e28f20ebc7da9dcd56a042f9211e25def8b4",
+        "traces_sha256": "b983b16264d73468882695e45d545eeed5766931473469df85f62103de887945",
+        "deployment_versions": {
+          "router": "33e22b32-fec3-4bc4-8e7f-66b1838d5f0f",
+          "a": "04f85d8b-1f0a-47dc-8e0a-4d114b99f0dc",
+          "b": "1b0ede00-fccd-4d48-9d28-bc656c994fd0",
+          "preparer-a": "4e6457ac-3134-4ecc-9065-3722f8b74344",
+          "preparer-b": "eac00045-fe38-4cae-bfa0-5a6c258be7cd"
+        },
+        "client_requests": 440,
+        "client_statuses": {
+          "('existing', 'succeeded')": 24,
+          "('unavailable', None)": 208,
+          "('existing', 'declined')": 208
+        },
+        "successful_signatures": 24,
+        "successful_under_five_seconds": 24,
+        "successful_http_median_ms": 1519.8070420000004,
+        "successful_http_maximum_ms": 3497.383166,
+        "first_observed_ready_pairs": 4,
+        "initial_pairs_including_prestarted_work": 4,
+        "prestarted_initial_pairs_not_ready_at_first_observation": [],
+        "observed_new_pairs": 25,
+        "consumed_pairs": 25,
+        "final_ready_pairs": 4,
+        "candidates_evaluated": 200,
+        "missing_successful_publication_records": [
+          "2cd9a9545205ad92e73ecaf66c5e604089eb21a6c822cc1ef3d7da931bbaef21",
+          "aedc3023d496bd2e8b32259790a96527a6c7c22529638789b5642f554045e812"
+        ],
+        "unknown_publication_ids": [
+          "2cd9a9545205ad92e73ecaf66c5e604089eb21a6c822cc1ef3d7da931bbaef21",
+          "aedc3023d496bd2e8b32259790a96527a6c7c22529638789b5642f554045e812"
+        ],
+        "observed_stock_balances": true,
+        "publication_records_complete": false,
+        "final_restoration_after_client_ms": 101657.95385742188,
+        "successful_trace_coverage": {
+          "{'a': 1, 'b': 1}": 21,
+          "{'a': 0, 'b': 0}": 3
+        },
+        "cache_groups": [
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 11,
+            "cpu_median_ms": 194,
+            "cpu_range_ms": [
+              167,
+              438
+            ],
+            "build_hit_counts": {
+              "(0, 5)": 11
+            }
+          },
+          {
+            "role": "a",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 9,
+            "cpu_median_ms": 494,
+            "cpu_range_ms": [
+              464,
+              811
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 9
+            }
+          },
+          {
+            "role": "a",
+            "batches": 2,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 1,
+            "cpu_median_ms": 347,
+            "cpu_range_ms": [
+              347,
+              347
+            ],
+            "build_hit_counts": {
+              "(0, 10)": 1
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 11,
+            "cpu_median_ms": 259,
+            "cpu_range_ms": [
+              153,
+              410
+            ],
+            "build_hit_counts": {
+              "(0, 5)": 11
+            }
+          },
+          {
+            "role": "b",
+            "batches": 1,
+            "first_call": true,
+            "schedule_cache_hit": false,
+            "count": 9,
+            "cpu_median_ms": 655,
+            "cpu_range_ms": [
+              426,
+              751
+            ],
+            "build_hit_counts": {
+              "(5, 0)": 9
+            }
+          },
+          {
+            "role": "b",
+            "batches": 2,
+            "first_call": false,
+            "schedule_cache_hit": true,
+            "count": 1,
+            "cpu_median_ms": 326,
+            "cpu_range_ms": [
+              326,
+              326
+            ],
+            "build_hit_counts": {
+              "(0, 10)": 1
+            }
+          }
+        ],
+        "one_batch_event_groups": {
+          "a": {
+            "{'pending_events': 354, 'ready_events': 0, 'acknowledgments_sent': 1, 'acknowledgments_received': 0}": 19,
+            "{'pending_events': 355, 'ready_events': 0, 'acknowledgments_sent': 1, 'acknowledgments_received': 0}": 1
+          },
+          "b": {
+            "{'pending_events': 356, 'ready_events': 0, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 16,
+            "{'pending_events': 355, 'ready_events': 1, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 3,
+            "{'pending_events': 357, 'ready_events': 0, 'acknowledgments_sent': 0, 'acknowledgments_received': 1}": 1
+          }
+        },
+        "non_ok_outcomes_all_selected_versions": {
+          "canceled": 6,
+          "exception": 2
+        },
+        "exception_categories_all_selected_versions": {
+          "runtime_code_update_reset": 2
+        },
+        "consumed_ids": [
+          "10df8df6cda79d500afcdd2b9a3e87c445e7629e593d6008ccf8331382b3c29f",
+          "1cd07612320a2115455a2391a4d57a472b4ba8eb27d10c6dcd680c579182d68e",
+          "1e74f9ede0d44e2335b6a5fe88fa498b0e36652d0ad0e72b60444a12d302afa4",
+          "1eaf5ebf7315f0ad143968a2a4fe9101b27fc4963ccaed54e84d0e2ae3938065",
+          "25ca30dad4333290f50a2a04bb7eda74bbde4e3d157168de91dbc577a7ec513a",
+          "27ab4af50981baa8610145b2a62d856bf53022cd8edbef45bdc7008ee7d4261d",
+          "2cd9a9545205ad92e73ecaf66c5e604089eb21a6c822cc1ef3d7da931bbaef21",
+          "3576731ae27f7bc81c83bec8e204dfd919aeab36c837b4cd6c8ecc1f7e3c12c0",
+          "3eb6abc065110911be78bd6487a0e9c50e0967d517635496e2242bf9fead4269",
+          "61ef6ced0acfa9a9ce4c84537704667868fb309a6b2f9e50cd453efcf5c07953",
+          "681b562f91159e726926a43609a8bb4e25e2a288b3f0bd5020dd175fd848e6a5",
+          "6d513733febc15b46ad987d9b064f3cd1dffb500730b275093643afc781e8877",
+          "785fa3c2c6aacac5ade49d9b304eab5b45a22acda187f41e4abfddd40575200e",
+          "79a4550ac9e37be1ea01df0e33b3ce23bacf040b7508b78f3a95046010af70f6",
+          "7de99f3615bbb9e99c07220a140498c903e708601718f173c5c711717fbb425b",
+          "8fa7b6b2dc9fbd33205495185be421bd82ddd21df944ddd849485a4785135eca",
+          "916b8c69330071218b0cc3d3942cd40a6d761874acc34f57da86283a47e4aa04",
+          "98db17587675653b31547f21c485de9fec36489227d144aacfef30c0253d6575",
+          "aedc3023d496bd2e8b32259790a96527a6c7c22529638789b5642f554045e812",
+          "c4962ac15a06bb13da130808b63e9db247d9b54370a04e21e95562ac28dba12c",
+          "c8021c9fe77c9909edb26d6d88b5d7b356f3eb592061ba88df608add6517e909",
+          "c986e1b5dc54fe67f50f0a8a90897748da27bec1f5751c2333dff350d8e3c4b6",
+          "dab7449e73089bb8c22eb6d5e36a3e18319854f330816ceb76fd1cfd386228e7",
+          "de27f0967819245c6f1e79ef7343a9413bfe3691b3bba568829a746673087e42",
+          "e92a406a0672039a3cfd5ead58de75b59419e882ea29e2ce863ec8c4c7637017"
+        ],
+        "limits": [
+          "Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.",
+          "Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.",
+          "Event measurements distinguish pending events from ready events. They are not CPU durations.",
+          "Version-filtered non-ok outcomes can occur before or after the client interval."
+        ]
+      }
+    ],
+    "final-storage-review.json": {
+      "result": "Final observed stock balances. Publication completion records remain incomplete.",
+      "storage_client_sha256": "9d7771fada5ef42d5376896480c9e28f20ebc7da9dcd56a042f9211e25def8b4",
+      "all_traces_sha256": "b983b16264d73468882695e45d545eeed5766931473469df85f62103de887945",
+      "storage_summary_sha256": "c9db69876fc6524ba91754f03ef6bae5fb37759b6e1e6baf95f4ca3ad7ebb298",
+      "storage_online_summary_sha256": "e5fb035e0c852763341cc4b16e17f3b7e843ef5c25e4ab81ba85aabaf070d45f",
+      "summary_recomputations_byte_identical": true,
+      "initial_ready_pairs": 4,
+      "observed_new_pairs": 25,
+      "consumed_pairs": 25,
+      "final_ready_pairs": 4,
+      "final_reserved_a": 0,
+      "final_reserved_b": 0,
+      "evaluated_candidates": 200,
+      "final_stock_timestamp_ms": 1792173234083,
+      "restoration_after_client_ms": 101657.95385742188,
+      "missing_successful_publication_records": [
+        "2cd9a9545205ad92e73ecaf66c5e604089eb21a6c822cc1ef3d7da931bbaef21",
+        "aedc3023d496bd2e8b32259790a96527a6c7c22529638789b5642f554045e812"
+      ],
+      "successful_publication_duration_samples": {
+        "count": 23,
+        "minimum_ms": 16285,
+        "median_ms": 27849,
+        "maximum_ms": 50012
+      },
+      "cross_campaign_consumed_pairs": 67,
+      "cross_campaign_reused_consumed_pairs": 0,
+      "successful_demand_maximum_ms": 91010.71716600002,
+      "complete_demands_under_five_seconds": 3,
+      "all_storage_signatures_reverified": 24,
+      "storage_negative_controls_reverified": 48,
+      "report_review": "No new blocker. Add the pending final stock paragraph with two missing successful publication records, restoration time, and preparation-duration sample count.",
+      "limits": [
+        "Observed arrivals and consumed-prefix inventory evidence support stock balance. They do not supply missing publication completion events.",
+        "Three storage successes lack both participant traces. CPU comparisons describe captured invocations only.",
+        "24 successful prepared HTTP requests below five seconds do not establish production percentiles or capacity-inclusive latency.",
+        "Preparation duration statistics cover only 23 recorded successful completions."
+      ]
+    },
+    "report-review.json": {
+      "result": "All 36 retained successful signatures verify. Both stock ledgers balance as observed. Candidate publication completion remains incomplete.",
+      "summary_checks": [
+        {
+          "file": "baseline-summary.json",
+          "sha256": "f29de89b019f3444833cc53ebcd55a7b8c22b848dca37cde77ee8f681fc3c9ae",
+          "byte_identical_recomputation": true
+        },
+        {
+          "file": "baseline-online-summary.json",
+          "sha256": "d63e64352eb7668b01f19769388d7dbb39d315182218c1c8f0a190cc803daa1e",
+          "byte_identical_recomputation": true
+        },
+        {
+          "file": "candidate-summary.json",
+          "sha256": "7751d26f36f38ae9e8efb9d0a9a57a2204c1765caab5bb9bec069c9d9ae0408b",
+          "byte_identical_recomputation": true
+        },
+        {
+          "file": "candidate-online-summary.json",
+          "sha256": "78c20517753d061df4874ae042d3dd03bfd43bc85fc4c1a4b7da82c444f3798c",
+          "byte_identical_recomputation": true
+        }
+      ],
+      "sanitizer_boundary_checks": {
+        "absent_module_instance_rejected": true,
+        "invalid_log_timestamp_rejected": true,
+        "nullable_identity_accepted": true
+      },
+      "report_findings": [
+        {
+          "location": "Slow candidate Router-call table",
+          "finding": "A/B column assignment is unsupported. The records omit destination roles and concurrent completion order can differ from role order. Keep each action pair unordered."
+        },
+        {
+          "location": "Initial stock conditions",
+          "finding": "Baseline first inventory observes 4 ready pairs. Candidate first inventory observes 3 ready pairs plus 1 prestarted producer counted in initial stock. Its fourth initial pair completes about 28.3 seconds after client start."
+        },
+        {
+          "location": "Socket event comparison",
+          "finding": "709/707 and 354/~356 refer to pending-event counts. Baseline B additionally has 1 ready event. State pending events explicitly."
+        },
+        {
+          "location": "Missingness and runtime outcomes",
+          "finding": "Candidate includes 2 runtime_code_update_reset exceptions and 1 unclassified producer exception. Preserve these facts beside the two missing successful publication records."
+        }
+      ],
+      "limits": [
+        "Verification covers retained public artifacts. It cannot establish complete trace capture.",
+        "Candidate participant B traces are absent for 14 successes. Both baseline participant traces are absent for 1 success.",
+        "Stock ownership uses recorded paired inventory order and consumed-prefix counts. No consumed identity repeats within or across these campaigns.",
+        "Two candidate arrivals are observed in paired inventories but lack successful producer completion records. Their publication outcomes remain unknown.",
+        "Cache and CPU statistics describe captured exact-version invocations. Sequential controls and incomplete capture prevent a causal percentage or production percentile claim.",
+        "The final storage campaign was not part of this review."
+      ]
+    },
+    "signature-verification.json": [
+      {
+        "campaign": "baseline",
+        "sha256": "4f9c0cbb0fc7303332f871d4b701388ebcb02b9838a83f0b2aee56e4841a8f3a",
+        "node": "v26.4.0",
+        "openssl": "3.6.3",
+        "context": "Empty, per retained runner",
+        "results": [
+          {
+            "operation": "fead6bc31c17543672aaedbcd156e2b9e02669fe5a551213ccf5d1e7bbdf7555",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "57ff83abe62be55b2b2bf42819c657ee54fcce2e204479fee4345359c0cbf108",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "5f1bda4b77a3e7ad06b9afdf1ad9a5fecd10e21dcab8b9389e747ee535f9b14e",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "d55a581154b5fd09b77cf115fb2bc612ae79061886d32e396a1f6916cca8d3f7",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "0883d0bf7c742242430731c1f206c50cb4bb8cb1539a23594abd3889f4c28b5d",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "5c4e651de887a777cecc147caeb3bc819c51b2541b09269fa0e28c3d6b3f7848",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "73cc0e8e22c964803e6fb4e60697be35df8b93327377d83d0a925a6888c707d2",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "777616f5c3a357a13529fd6f944d4a596364e03f239d5aa6525430ffc1244e81",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "2f92a727e62ee7595af735a510188f537593dd114e81b27a1bc8990eeeabfb61",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "65815233932c7065b1d1ce439c8902466657b0df93d523c06f2c6da9d61078bd",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "8cf9590b76fbf4efb147ea5b91fdd24c0c0f1b1bda9d590f38cdd3222a3ea549",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "1725063a21efb027af3d65416204300e0c7bfbba74ba56f4d5085f08f87202ab",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          }
+        ]
+      },
+      {
+        "campaign": "candidate",
+        "sha256": "53aaf8f024852848b4b8e522066b6b5a9d2e63d08f22335b8c1b3fc9bcd9fa72",
+        "node": "v26.4.0",
+        "openssl": "3.6.3",
+        "context": "Empty, per retained runner",
+        "results": [
+          {
+            "operation": "8a889b6153032b5a406815990f4c3b24d97b2b1b6c0708b065d98e5d23378d65",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "fcc0b432c4d1f33a538103cfda62919528f5d1d664f16861141786e41fdd4cd7",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "5677049fe5d3a1976f90816343e696f440d51627a9c26b4ecd48f110550313e6",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "1808a3d48430cd654d1d12523b9d60a9b1172b56fa9919a60ae965a8c552fede",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "e2f695af9dacf3a1fb79f72dfc67e408523e7c051b4f80c44c6a6d7050040e1b",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "c65ac43237cb1d535c2de754bdc1020da8d0f02a74daa9eb57088a6a2fd09087",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "e59a4cad7b1245d7952744629e131ec7468c96f9eac5ddcca4641c27f2b42934",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "88baf4cd02eab8a7757acec2e6fd70f1db457d042ac986f5aa6c58e75fb4e2b9",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "478bf06026c5146c8798eba3c080aa5352f527cf6d124383f899d13ebf9f5fa6",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "45951fe0cc0642951db0e21c6cd5048909f3c04d9ecfed319a6b97310a535e1c",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "8e2c4254f94a79a8d1620d676057434e4222de816c1d2c3978c05e7ac293d8d4",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "ccf84212bb121b807b32d3350995631641e0e58eba97d53148c96f4920d2992f",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "f461813125bbb3803ee2eef5cfa872d7b1b90549e61245ab1b14af3793813409",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "34f5dfb5302ee257e29e02bd93836d30d1e7591a379817c2ff4f31f4c8905b44",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "34772d8e0f42545c82b0fb867e86326f8ecaa6b6ebb348f87a81fb75d283d1c0",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "d3a5ee93510d035b48c8defa2c77078b8be5d0ba07f05dd3c5fddf895cce6b0e",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "a161933e9c8213c08a478332eb8a78ef4f71f2d19cdef12f78c04d02260bfdcd",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "2194f890b3cccee4450ea8cf965ed1824e3861ad5b2f66451250da34e395e4f1",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "507f3953ce81329f42645ac1430944c05d3644a3764d7f22fd9284425da08440",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "52071786ff0d607ca28a28699f1245d6cea4068db05f2cd0306572019bd2b03e",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "ab2d8d6e8c8ac0b1df75135ece3a2e05a624747a3686ebb66291476364fe320b",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "bbcbf43d433b313d66ab3eb02dc6abd9bb1b28e035461ee44e704eebf5033d31",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "4e28d643ca4617d9b82959887f130a1c6760a3487033076c9526718dac559326",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "c9e8baf142e933766c7e52781d868c1f5793d3e51dfb40d85ec291722ccdfc7a",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          }
+        ]
+      }
+    ],
+    "storage-online-verification.json": {
+      "campaign": "storage",
+      "client_sha256": "9d7771fada5ef42d5376896480c9e28f20ebc7da9dcd56a042f9211e25def8b4",
+      "traces_sha256": "dd3c50c684c159039cedca3008e0b9e2320ba55acc1cc34804fa0056bce438c9",
+      "deployment_versions": {
+        "router": "33e22b32-fec3-4bc4-8e7f-66b1838d5f0f",
+        "a": "04f85d8b-1f0a-47dc-8e0a-4d114b99f0dc",
+        "b": "1b0ede00-fccd-4d48-9d28-bc656c994fd0",
+        "preparer-a": "4e6457ac-3134-4ecc-9065-3722f8b74344",
+        "preparer-b": "eac00045-fe38-4cae-bfa0-5a6c258be7cd"
+      },
+      "online_summary_sha256": "e5fb035e0c852763341cc4b16e17f3b7e843ef5c25e4ab81ba85aabaf070d45f",
+      "online_summary_byte_identical_recomputation": true,
+      "successful_signatures": 24,
+      "successful_under_five_seconds": 24,
+      "http_median_ms": 1519.8070420000004,
+      "http_maximum_ms": 3497.383166,
+      "two_batch_successes": [
+        {
+          "operation": "6c22c8653af457647010e765144ca183e73ef0a0744061166939f0153e94bea0",
+          "http_ms": 1780.501416999963,
+          "consumed_batches": 2,
+          "role_counts": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "missing_successful_participant_traces": [
+        {
+          "operation": "52a7f4a0a225afe194c072d46522786c6e07b72c5c01239e4f80565b3ee48d34",
+          "http_ms": 1371.6765420000002,
+          "consumed_batches": 1,
+          "role_counts": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "operation": "548e0bd611b9ae4a8958e991a04e2801c4f8151a89232d9f55b3fb20619e8a50",
+          "http_ms": 1658.0317919999943,
+          "consumed_batches": 1,
+          "role_counts": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "operation": "39ad4e601a77bc63edad8fd602c009e11d0435fda6f1b839889ec5b610e0b8b0",
+          "http_ms": 1073.438124999986,
+          "consumed_batches": 1,
+          "role_counts": {
+            "a": 0,
+            "b": 0
+          }
+        }
+      ],
+      "request_states": {
+        "('existing', 'succeeded')": 24,
+        "('unavailable', None)": 208,
+        "('existing', 'declined')": 208
+      },
+      "non_ok_outcomes_all_selected_versions": {
+        "canceled": 6,
+        "exception": 2
+      },
+      "exception_categories_all_selected_versions": {
+        "runtime_code_update_reset": 2
+      },
+      "limits": [
+        "Stock restoration remains in progress. This receipt does not verify final stock.",
+        "Three successes lack both participant traces. Router outcome and client signature evidence remain available.",
+        "24 requests do not establish production percentiles or an empty-pool latency guarantee."
+      ]
+    },
+    "storage-signature-verification.json": [
+      {
+        "campaign": "storage",
+        "sha256": "9d7771fada5ef42d5376896480c9e28f20ebc7da9dcd56a042f9211e25def8b4",
+        "node": "v26.4.0",
+        "openssl": "3.6.3",
+        "context": "Empty, per retained runner",
+        "results": [
+          {
+            "operation": "881a6fc935db06b8072dbb2eeb0e84350990428659f73f78fa0dca733af47276",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "5b729bc1548b02cf40fe130ad143173304e851738ee9a3f0864c98889b6c1963",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "52a7f4a0a225afe194c072d46522786c6e07b72c5c01239e4f80565b3ee48d34",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "556aaa8503bf1466b0ae9787a2c4bf96ce771b9a4e91f1682330ae733b7bf69a",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "548e0bd611b9ae4a8958e991a04e2801c4f8151a89232d9f55b3fb20619e8a50",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "8100fd7ca5f92df457f8bf9c672b53d6358000dd5053b7c6e74692b0e1b148c5",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "ef48baea09d62d640dde266ec9218d72ca604cbfb63f92486d4130049d4e3d50",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "0fe9c814174bcc9e64518c0ca9bbf3b0494c98155e7058f8778439831bb3b0b0",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "54214fe8da2a897ce3e2f03ebf9a20eb048fe5ab639be50defc946628a827454",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "8e694a2ed4371bb8eecd564f467d7220fa4246e3b9555275b52192a088d9460c",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "9c78170d3fde3b9450ad24f32b648317baec133c70db6b03544d413629421d44",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "5ddd5d6d21c1879ae0edff5f04e7a0018b57248ee7e726d12765d9966a3c6a1f",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "39ad4e601a77bc63edad8fd602c009e11d0435fda6f1b839889ec5b610e0b8b0",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "0b4fdc86d78222304609fac853d6df9bf3f5024a94fd4828034cab369f67846e",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "9cb7e0808f9f9031fb5106c5857d01753a9a95f43f752b098fa97992e2edce31",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "8b30b965022025a09786eb89caaf262f67580c047832bd5292bc0a3219157ae1",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "eee70bc8e0125abf3d398d4c752b084f676a3f7f416561d003cd248727092353",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "3bb65fe43511eb7959835f62e3c9d2cc561b9474d03a0bdb7c8112a7d84de0d8",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "6c78c196a90e7ab292500ac49263be17383ed6d8485f346e1016eba64a8b2c24",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "e4274a53c5969be16b25e424e1779df6644b9f018abb38223294c461963ed453",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "9b543c48f91f820558f30549eaba9a75b0b285a3a2db56831732cbb69f712575",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "6694bd1a1cbaf275cc1d1eba2904b814a96321f276daf8ade88ced37aa89954b",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "6c22c8653af457647010e765144ca183e73ef0a0744061166939f0153e94bea0",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          },
+          {
+            "operation": "5d6359b11c3dde29d92518ad07e38ef23c10be379188427136432a0adab0e21d",
+            "verified": true,
+            "alteredMessageRejected": true,
+            "alteredSignatureRejected": true
+          }
+        ]
+      }
+    ]
+  },
+  "files": {
+    "review/verify_campaigns.py": "#!/usr/bin/env python3\n\"\"\"Independent checks over public client and exact-version invocation artifacts.\"\"\"\nimport collections\nimport datetime\nimport hashlib\nimport json\nfrom pathlib import Path\nimport statistics\n\nDIRECTORY = Path(__file__).resolve().parent.parent\nOUT = Path(__file__).resolve().parent\n\ndef read(path):\n    return json.loads(path.read_text())\n\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\ndef paired(snapshot):\n    return [batch for batch in snapshot['ready_a'] if batch in snapshot['ready_b']]\n\ndef reserved(snapshot):\n    return [batch for batch in snapshot['reserved_a'] if batch in snapshot['reserved_b']]\n\ndef observed(record, event):\n    return event.get('log_timestamp_ms') or record['event_timestamp_ms']\n\ndef verify_campaign(name, all_records):\n    path = DIRECTORY / f'{name}-sustained-hosted.json'\n    client = read(path)\n    versions = read(DIRECTORY / 'hosted' / f'{name}-versions.json')\n    records = [record for record in all_records if versions.get(record['role']) == record['version']]\n    start = datetime.datetime.fromisoformat(client['observedAt'].replace('Z', '+00:00')).timestamp() * 1000\n    end = start + client['elapsedMs']\n    key = hashlib.sha256(bytes.fromhex(client['publicKeyHex'])).hexdigest()\n    snapshots = []\n    for record in records:\n        for snapshot in record['inventories']:\n            at = observed(record, snapshot)\n            if snapshot['key'] == key and snapshot['epoch'] == client['key']['epoch'] and at >= start:\n                snapshots.append((at, snapshot))\n    snapshots.sort(key=lambda row: row[0])\n    initial_at, first = snapshots[0]\n    final_at, last = next((at, value) for at, value in snapshots if at >= end and len(paired(value)) == 4 and not reserved(value))\n    snapshots = [(at, value) for at, value in snapshots if at <= final_at]\n    pair_ids = set()\n    for _, snapshot in snapshots:\n        pair_ids.update(paired(snapshot) + reserved(snapshot))\n    initial_ready = set(paired(first))\n    initial = set(paired(first) + reserved(first))\n    for record in records:\n        job = record['refill_job']\n        if job and job['key'] == key and job['epoch'] == client['key']['epoch'] and record['event_timestamp_ms'] < start and job['batch'] in pair_ids:\n            initial.add(job['batch'])\n    terminal = {bytes(row['operation']).hex(): row for row in client['requests'] if row.get('state') in ['succeeded', 'failed']}\n    consumption = {}\n    for record in records:\n        for event in record['signing']:\n            operation = event['operation']\n            if operation not in terminal:\n                continue\n            assert operation not in consumption\n            assert len(record['inventories']) == 1\n            outcome = event['outcome']\n            count = outcome['consumed_batches']\n            batches = paired(record['inventories'][0])[:count]\n            assert count == len(batches)\n            assert outcome['evaluated_candidates'] == count * 8\n            assert outcome['status'] == ('signed' if terminal[operation]['state'] == 'succeeded' else 'exhausted')\n            consumption[operation] = {'batches': batches, 'outcome': outcome}\n    assert set(terminal) == set(consumption)\n    consumed_list = [batch for value in consumption.values() for batch in value['batches']]\n    consumed = set(consumed_list)\n    assert len(consumed) == len(consumed_list)\n    final = set(paired(last) + reserved(last))\n    assert not final.intersection(consumed)\n    new_pairs = pair_ids - initial\n    assert initial | new_pairs == consumed | final\n    successful_publications = set()\n    unknown_publications = set()\n    for record in records:\n        for event in record['refill']:\n            at = observed(record, event)\n            if start <= at <= final_at and event['batch'] in pair_ids:\n                if event['published'] is True:\n                    successful_publications.add(event['batch'])\n                elif event['published'] is None:\n                    unknown_publications.add(event['batch'])\n    missing_publications = new_pairs - successful_publications\n    successful = [row for row in terminal.values() if row['state'] == 'succeeded']\n    coverage = {}\n    cache_groups = collections.defaultdict(list)\n    event_groups = collections.defaultdict(list)\n    for operation, request in terminal.items():\n        role_counts = collections.Counter()\n        for record in records:\n            for trace in record.get('signing_traces', []):\n                if trace['operation'] != operation:\n                    continue\n                assert trace['role'] == record['role']\n                role_counts[trace['role']] += 1\n                restored = [stage['value'] for stage in trace['batches'] if stage['value']['stage'] == 'restored']\n                if trace['completed'] and record['outcome'] == 'ok':\n                    group = (trace['role'], len(restored), trace['signing_call'] == 0, trace['schedule_cache_hit'])\n                    cache_groups[group].append({'cpu_ms': record['cpu_ms'], 'builds': restored[-1]['topology_builds'], 'hits': restored[-1]['topology_hits'], 'module': trace['module_instance']})\n                    if len(restored) == 1:\n                        event_groups[trace['role']].append({field: trace['transport'][field] for field in ['pending_events', 'ready_events', 'acknowledgments_sent', 'acknowledgments_received']})\n        if request['state'] == 'succeeded':\n            coverage[operation] = {role: role_counts[role] for role in ['a', 'b']}\n    group_rows = []\n    for group, rows in sorted(cache_groups.items()):\n        cpu = [row['cpu_ms'] for row in rows]\n        group_rows.append({'role':group[0], 'batches':group[1], 'first_call':group[2], 'schedule_cache_hit':group[3], 'count':len(rows), 'cpu_median_ms':statistics.median(cpu), 'cpu_range_ms':[min(cpu),max(cpu)], 'build_hit_counts':dict(collections.Counter(str((row['builds'],row['hits'])) for row in rows))})\n    receipt = {\n        'campaign': name,\n        'input_sha256': sha(path),\n        'traces_sha256': sha(DIRECTORY / 'all-hosted-traces.json'),\n        'deployment_versions': versions,\n        'client_requests': len(client['requests']),\n        'client_statuses': dict(collections.Counter(str((row.get('status'),row.get('state'))) for row in client['requests'])),\n        'successful_signatures': len(successful),\n        'successful_under_five_seconds': sum(row['elapsedMs'] < 5000 for row in successful),\n        'successful_http_median_ms': statistics.median(row['elapsedMs'] for row in successful),\n        'successful_http_maximum_ms': max(row['elapsedMs'] for row in successful),\n        'first_observed_ready_pairs': len(initial_ready),\n        'initial_pairs_including_prestarted_work': len(initial),\n        'prestarted_initial_pairs_not_ready_at_first_observation': sorted(initial - initial_ready),\n        'observed_new_pairs': len(new_pairs),\n        'consumed_pairs': len(consumed),\n        'final_ready_pairs': len(final),\n        'candidates_evaluated': sum(row['outcome']['evaluated_candidates'] for row in consumption.values()),\n        'missing_successful_publication_records': sorted(missing_publications),\n        'unknown_publication_ids': sorted(unknown_publications),\n        'observed_stock_balances': True,\n        'publication_records_complete': not missing_publications,\n        'final_restoration_after_client_ms': final_at - end,\n        'successful_trace_coverage': dict(collections.Counter(str(row) for row in coverage.values())),\n        'cache_groups': group_rows,\n        'one_batch_event_groups': {role:dict(collections.Counter(str(value) for value in rows)) for role,rows in event_groups.items()},\n        'non_ok_outcomes_all_selected_versions': dict(collections.Counter(row['outcome'] for row in records if row['outcome'] != 'ok')),\n        'exception_categories_all_selected_versions': dict(collections.Counter(category for row in records for category in row['exception_categories'])),\n        'consumed_ids': sorted(consumed),\n        'limits': ['Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.', 'Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.', 'Event measurements distinguish pending events from ready events. They are not CPU durations.', 'Version-filtered non-ok outcomes can occur before or after the client interval.']\n    }\n    return receipt\n\nrecords = read(DIRECTORY / 'all-hosted-traces.json')['records']\nreceipts = [verify_campaign(name, records) for name in ['baseline','candidate']]\nassert not set(receipts[0]['consumed_ids']).intersection(receipts[1]['consumed_ids'])\n(OUT / 'campaign-verification.json').write_text(json.dumps(receipts,indent=2)+'\\n')\nfor receipt in receipts:\n    print(json.dumps({key:value for key,value in receipt.items() if key in ['campaign','successful_signatures','first_observed_ready_pairs','initial_pairs_including_prestarted_work','observed_new_pairs','consumed_pairs','final_ready_pairs','candidates_evaluated','publication_records_complete','final_restoration_after_client_ms','successful_trace_coverage']}))\n",
+    "review/verify_final_campaigns.py": "#!/usr/bin/env python3\n\"\"\"Independent checks over public client and exact-version invocation artifacts.\"\"\"\nimport collections\nimport datetime\nimport hashlib\nimport json\nfrom pathlib import Path\nimport statistics\n\nDIRECTORY = Path(__file__).resolve().parent.parent\nOUT = Path(__file__).resolve().parent\n\ndef read(path):\n    return json.loads(path.read_text())\n\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\ndef paired(snapshot):\n    return [batch for batch in snapshot['ready_a'] if batch in snapshot['ready_b']]\n\ndef reserved(snapshot):\n    return [batch for batch in snapshot['reserved_a'] if batch in snapshot['reserved_b']]\n\ndef observed(record, event):\n    return event.get('log_timestamp_ms') or record['event_timestamp_ms']\n\ndef verify_campaign(name, all_records):\n    path = DIRECTORY / f'{name}-sustained-hosted.json'\n    client = read(path)\n    versions = read(DIRECTORY / 'hosted' / f'{name}-versions.json')\n    records = [record for record in all_records if versions.get(record['role']) == record['version']]\n    start = datetime.datetime.fromisoformat(client['observedAt'].replace('Z', '+00:00')).timestamp() * 1000\n    end = start + client['elapsedMs']\n    key = hashlib.sha256(bytes.fromhex(client['publicKeyHex'])).hexdigest()\n    snapshots = []\n    for record in records:\n        for snapshot in record['inventories']:\n            at = observed(record, snapshot)\n            if snapshot['key'] == key and snapshot['epoch'] == client['key']['epoch'] and at >= start:\n                snapshots.append((at, snapshot))\n    snapshots.sort(key=lambda row: row[0])\n    initial_at, first = snapshots[0]\n    final_at, last = next((at, value) for at, value in snapshots if at >= end and len(paired(value)) == 4 and not reserved(value))\n    snapshots = [(at, value) for at, value in snapshots if at <= final_at]\n    pair_ids = set()\n    for _, snapshot in snapshots:\n        pair_ids.update(paired(snapshot) + reserved(snapshot))\n    initial_ready = set(paired(first))\n    initial = set(paired(first) + reserved(first))\n    for record in records:\n        job = record['refill_job']\n        if job and job['key'] == key and job['epoch'] == client['key']['epoch'] and record['event_timestamp_ms'] < start and job['batch'] in pair_ids:\n            initial.add(job['batch'])\n    terminal = {bytes(row['operation']).hex(): row for row in client['requests'] if row.get('state') in ['succeeded', 'failed']}\n    consumption = {}\n    for record in records:\n        for event in record['signing']:\n            operation = event['operation']\n            if operation not in terminal:\n                continue\n            assert operation not in consumption\n            assert len(record['inventories']) == 1\n            outcome = event['outcome']\n            count = outcome['consumed_batches']\n            batches = paired(record['inventories'][0])[:count]\n            assert count == len(batches)\n            assert outcome['evaluated_candidates'] == count * 8\n            assert outcome['status'] == ('signed' if terminal[operation]['state'] == 'succeeded' else 'exhausted')\n            consumption[operation] = {'batches': batches, 'outcome': outcome}\n    assert set(terminal) == set(consumption)\n    consumed_list = [batch for value in consumption.values() for batch in value['batches']]\n    consumed = set(consumed_list)\n    assert len(consumed) == len(consumed_list)\n    final = set(paired(last) + reserved(last))\n    assert not final.intersection(consumed)\n    new_pairs = pair_ids - initial\n    assert initial | new_pairs == consumed | final\n    successful_publications = set()\n    unknown_publications = set()\n    for record in records:\n        for event in record['refill']:\n            at = observed(record, event)\n            if start <= at <= final_at and event['batch'] in pair_ids:\n                if event['published'] is True:\n                    successful_publications.add(event['batch'])\n                elif event['published'] is None:\n                    unknown_publications.add(event['batch'])\n    missing_publications = new_pairs - successful_publications\n    successful = [row for row in terminal.values() if row['state'] == 'succeeded']\n    coverage = {}\n    cache_groups = collections.defaultdict(list)\n    event_groups = collections.defaultdict(list)\n    for operation, request in terminal.items():\n        role_counts = collections.Counter()\n        for record in records:\n            for trace in record.get('signing_traces', []):\n                if trace['operation'] != operation:\n                    continue\n                assert trace['role'] == record['role']\n                role_counts[trace['role']] += 1\n                restored = [stage['value'] for stage in trace['batches'] if stage['value']['stage'] == 'restored']\n                if trace['completed'] and record['outcome'] == 'ok':\n                    group = (trace['role'], len(restored), trace['signing_call'] == 0, trace['schedule_cache_hit'])\n                    cache_groups[group].append({'cpu_ms': record['cpu_ms'], 'builds': restored[-1]['topology_builds'], 'hits': restored[-1]['topology_hits'], 'module': trace['module_instance']})\n                    if len(restored) == 1:\n                        event_groups[trace['role']].append({field: trace['transport'][field] for field in ['pending_events', 'ready_events', 'acknowledgments_sent', 'acknowledgments_received']})\n        if request['state'] == 'succeeded':\n            coverage[operation] = {role: role_counts[role] for role in ['a', 'b']}\n    group_rows = []\n    for group, rows in sorted(cache_groups.items()):\n        cpu = [row['cpu_ms'] for row in rows]\n        group_rows.append({'role':group[0], 'batches':group[1], 'first_call':group[2], 'schedule_cache_hit':group[3], 'count':len(rows), 'cpu_median_ms':statistics.median(cpu), 'cpu_range_ms':[min(cpu),max(cpu)], 'build_hit_counts':dict(collections.Counter(str((row['builds'],row['hits'])) for row in rows))})\n    receipt = {\n        'campaign': name,\n        'input_sha256': sha(path),\n        'traces_sha256': sha(DIRECTORY / 'all-hosted-traces.json'),\n        'deployment_versions': versions,\n        'client_requests': len(client['requests']),\n        'client_statuses': dict(collections.Counter(str((row.get('status'),row.get('state'))) for row in client['requests'])),\n        'successful_signatures': len(successful),\n        'successful_under_five_seconds': sum(row['elapsedMs'] < 5000 for row in successful),\n        'successful_http_median_ms': statistics.median(row['elapsedMs'] for row in successful),\n        'successful_http_maximum_ms': max(row['elapsedMs'] for row in successful),\n        'first_observed_ready_pairs': len(initial_ready),\n        'initial_pairs_including_prestarted_work': len(initial),\n        'prestarted_initial_pairs_not_ready_at_first_observation': sorted(initial - initial_ready),\n        'observed_new_pairs': len(new_pairs),\n        'consumed_pairs': len(consumed),\n        'final_ready_pairs': len(final),\n        'candidates_evaluated': sum(row['outcome']['evaluated_candidates'] for row in consumption.values()),\n        'missing_successful_publication_records': sorted(missing_publications),\n        'unknown_publication_ids': sorted(unknown_publications),\n        'observed_stock_balances': True,\n        'publication_records_complete': not missing_publications,\n        'final_restoration_after_client_ms': final_at - end,\n        'successful_trace_coverage': dict(collections.Counter(str(row) for row in coverage.values())),\n        'cache_groups': group_rows,\n        'one_batch_event_groups': {role:dict(collections.Counter(str(value) for value in rows)) for role,rows in event_groups.items()},\n        'non_ok_outcomes_all_selected_versions': dict(collections.Counter(row['outcome'] for row in records if row['outcome'] != 'ok')),\n        'exception_categories_all_selected_versions': dict(collections.Counter(category for row in records for category in row['exception_categories'])),\n        'consumed_ids': sorted(consumed),\n        'limits': ['Stock uses paired inventory observations and ordered consumed-prefix counts. Missing producer completions remain unknown.', 'Cache groups combine captured exact-version invocations. Missing traces may bias CPU comparisons.', 'Event measurements distinguish pending events from ready events. They are not CPU durations.', 'Version-filtered non-ok outcomes can occur before or after the client interval.']\n    }\n    return receipt\n\nrecords = read(DIRECTORY / 'all-hosted-traces.json')['records']\nreceipts = [verify_campaign(name, records) for name in ['baseline','candidate','storage']]\nall_consumed = set()\nfor receipt in receipts:\n    consumed = set(receipt['consumed_ids'])\n    assert not all_consumed.intersection(consumed)\n    all_consumed.update(consumed)\n(OUT / 'final-campaign-verification.json').write_text(json.dumps(receipts,indent=2)+'\\n')\nfor receipt in receipts:\n    print(json.dumps({key:value for key,value in receipt.items() if key in ['campaign','successful_signatures','first_observed_ready_pairs','initial_pairs_including_prestarted_work','observed_new_pairs','consumed_pairs','final_ready_pairs','candidates_evaluated','publication_records_complete','final_restoration_after_client_ms','successful_trace_coverage']}))\n",
+    "review/verify_signatures.mjs": "import assert from 'node:assert/strict';\nimport { createHash, createPublicKey, verify } from 'node:crypto';\nimport { readFile, writeFile } from 'node:fs/promises';\nimport { resolve } from 'node:path';\nconst directory = resolve(import.meta.dirname, '..');\nconst receipts = [];\nfor (const name of ['baseline', 'candidate']) {\n  const raw = await readFile(resolve(directory, `${name}-sustained-hosted.json`));\n  const campaign = JSON.parse(raw);\n  const publicKey = Buffer.from(campaign.publicKeyHex, 'hex');\n  assert.equal(publicKey.length, 1952);\n  const key = createPublicKey({key: Buffer.concat([Buffer.from('308207b2300b0609608648016503040312038207a100','hex'),publicKey]), format:'der', type:'spki'});\n  assert.equal(key.asymmetricKeyType, 'ml-dsa-65');\n  const results = [];\n  for (const row of campaign.requests) {\n    if (row.state !== 'succeeded') continue;\n    const message = Buffer.from(row.messageHex, 'hex');\n    const signature = Buffer.from(row.signatureHex, 'hex');\n    assert.equal(message.length,32);\n    assert.equal(signature.length,3309);\n    assert.equal(verify(null,message,key,signature),true);\n    const changedMessage = Buffer.from(message);\n    changedMessage[0] ^= 1;\n    assert.equal(verify(null,changedMessage,key,signature),false);\n    const changedSignature = Buffer.from(signature);\n    changedSignature[0] ^= 1;\n    assert.equal(verify(null,message,key,changedSignature),false);\n    results.push({operation:Buffer.from(row.operation).toString('hex'),verified:true,alteredMessageRejected:true,alteredSignatureRejected:true});\n  }\n  assert.equal(results.length,name==='baseline'?12:24);\n  receipts.push({campaign:name,sha256:createHash('sha256').update(raw).digest('hex'),node:process.version,openssl:process.versions.openssl,context:'Empty, per retained runner',results});\n}\nawait writeFile(resolve(import.meta.dirname,'signature-verification.json'),JSON.stringify(receipts,null,2)+'\\n');\nconsole.log(JSON.stringify(receipts.map(row=>({campaign:row.campaign,verified:row.results.length,negativeChecks:row.results.length*2}))));\n",
+    "review/verify_storage_signatures.mjs": "import assert from 'node:assert/strict';\nimport { createHash, createPublicKey, verify } from 'node:crypto';\nimport { readFile, writeFile } from 'node:fs/promises';\nimport { resolve } from 'node:path';\nconst directory = resolve(import.meta.dirname, '..');\nconst receipts = [];\nfor (const name of ['storage']) {\n  const raw = await readFile(resolve(directory, `${name}-sustained-hosted.json`));\n  const campaign = JSON.parse(raw);\n  const publicKey = Buffer.from(campaign.publicKeyHex, 'hex');\n  assert.equal(publicKey.length, 1952);\n  const key = createPublicKey({key: Buffer.concat([Buffer.from('308207b2300b0609608648016503040312038207a100','hex'),publicKey]), format:'der', type:'spki'});\n  assert.equal(key.asymmetricKeyType, 'ml-dsa-65');\n  const results = [];\n  for (const row of campaign.requests) {\n    if (row.state !== 'succeeded') continue;\n    const message = Buffer.from(row.messageHex, 'hex');\n    const signature = Buffer.from(row.signatureHex, 'hex');\n    assert.equal(message.length,32);\n    assert.equal(signature.length,3309);\n    assert.equal(verify(null,message,key,signature),true);\n    const changedMessage = Buffer.from(message);\n    changedMessage[0] ^= 1;\n    assert.equal(verify(null,changedMessage,key,signature),false);\n    const changedSignature = Buffer.from(signature);\n    changedSignature[0] ^= 1;\n    assert.equal(verify(null,message,key,changedSignature),false);\n    results.push({operation:Buffer.from(row.operation).toString('hex'),verified:true,alteredMessageRejected:true,alteredSignatureRejected:true});\n  }\n  assert.equal(results.length,24);\n  receipts.push({campaign:name,sha256:createHash('sha256').update(raw).digest('hex'),node:process.version,openssl:process.versions.openssl,context:'Empty, per retained runner',results});\n}\nawait writeFile(resolve(import.meta.dirname,'storage-signature-verification.json'),JSON.stringify(receipts,null,2)+'\\n');\nconsole.log(JSON.stringify(receipts.map(row=>({campaign:row.campaign,verified:row.results.length,negativeChecks:row.results.length*2}))));\n"
+  }
+}

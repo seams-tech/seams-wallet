@@ -1,9 +1,27 @@
 //! Pinned public circuits. No benchmark key, root share, or nonce enters this module.
 use super::*;
+use ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies;
 use ed25519_yao::ml_dsa_runtime::TrustedMlDsaSchedule;
 use std::sync::OnceLock;
 
 static SCHEDULES: OnceLock<Result<Vec<TrustedMlDsaSchedule<'static>>>> = OnceLock::new();
+thread_local! {
+    static TOPOLOGIES: RefCell<PublicTopologies> = RefCell::new(PublicTopologies::default());
+}
+
+fn fork_topologies(cache: &RefCell<PublicTopologies>) -> PublicTopologies {
+    cache.borrow().fork()
+}
+pub(super) fn public_topologies() -> PublicTopologies {
+    TOPOLOGIES.with(fork_topologies)
+}
+pub(super) fn retain_public_topologies(topologies: &PublicTopologies) {
+    TOPOLOGIES.replace(topologies.fork());
+}
+
+pub(super) fn is_loaded() -> bool {
+    SCHEDULES.get().is_some()
+}
 
 pub(super) fn load() -> Result<&'static [TrustedMlDsaSchedule<'static>]> {
     match SCHEDULES.get_or_init(validate) {

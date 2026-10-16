@@ -18,11 +18,40 @@ use zeroize::Zeroizing;
 #[allow(async_fn_in_trait)]
 pub trait Host {
     fn now_ms(&self) -> Result<u64>;
+    fn note_stage(&self, _: ExecutionStage) {}
+    fn public_topologies(&self) -> PublicTopologies {
+        PublicTopologies::default()
+    }
+    fn retain_public_topologies(&self, _: &PublicTopologies) {}
     async fn take(
         &self,
         permit: &Permit,
         batch: [u8; 32],
     ) -> Result<(sealing::Binding, sealing::Sealed)>;
+}
+
+/// Public execution milestones. Clock readings can include CPU and I/O work.
+#[derive(Clone, Copy, Serialize)]
+#[serde(tag = "stage", rename_all = "snake_case")]
+pub enum ExecutionStage {
+    Bound,
+    Taking {
+        batch: usize,
+    },
+    Taken {
+        batch: usize,
+    },
+    Restored {
+        batch: usize,
+        topology_builds: usize,
+        topology_hits: usize,
+    },
+    Activated {
+        batch: usize,
+    },
+    Checked {
+        batch: usize,
+    },
 }
 
 /// Public inputs received with the exact Router permit.
@@ -109,12 +138,15 @@ pub async fn run<T: Transport + BooleanTransport>(
         &(&request.permit, candidates),
     )?;
     agree(role, &binding, transport).await?;
+    host.note_stage(ExecutionStage::Bound);
     let epoch = digest(b"seams/ml-dsa/material-epoch/v1", key)?;
-    let mut topologies = PublicTopologies::default();
+    let mut topologies = host.public_topologies();
     let mut evaluated_candidates = 0;
     for (index, batch) in request.permit.batches.iter().enumerate() {
         request.validate(host.now_ms()?)?;
+        host.note_stage(ExecutionStage::Taking { batch: index });
         let (stored, sealed) = host.take(&request.permit, *batch).await?;
+        host.note_stage(ExecutionStage::Taken { batch: index });
         if stored.key != *key
             || stored.role != secrets.role
             || stored.batch != *batch
@@ -133,12 +165,20 @@ pub async fn run<T: Transport + BooleanTransport>(
             bytes,
         )
         .map_err(protocol_failure)?;
+        host.retain_public_topologies(&topologies);
+        let (topology_builds, topology_hits) = topologies.cache_statistics();
+        host.note_stage(ExecutionStage::Restored {
+            batch: index,
+            topology_builds,
+            topology_hits,
+        });
         request.validate(host.now_ms()?)?;
         let own = OwnSigningShare::parse(&secrets.material).map_err(protocol_failure)?;
         let signer = reservation
             .activate(own, public_key, epoch, transport)
             .await
             .map_err(protocol_failure)?;
+        host.note_stage(ExecutionStage::Activated { batch: index });
         let result = signer
             .sign(
                 &request.message,
@@ -148,6 +188,7 @@ pub async fn run<T: Transport + BooleanTransport>(
             )
             .await
             .map_err(protocol_failure)?;
+        host.note_stage(ExecutionStage::Checked { batch: index });
         request.validate(host.now_ms()?)?;
         evaluated_candidates += usize::from(candidates);
         if let GmwBatchResult::Signed(value) = result {

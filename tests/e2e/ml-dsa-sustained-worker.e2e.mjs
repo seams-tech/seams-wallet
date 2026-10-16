@@ -7,6 +7,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 const registration = JSON.parse(await readFile(process.argv[2], 'utf8'));
 const fixture = JSON.parse(await readFile(process.argv[3], 'utf8'));
 const artifact = process.argv[4];
+const successTarget = Number(process.env.ML_DSA_TEST_SUCCESS_TARGET ?? 12);
+assert.ok(Number.isSafeInteger(successTarget) && successTarget >= 12 && successTarget <= 48);
 const origin = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
 const credential = (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim();
 assert.equal(registration.hosted, true);
@@ -33,6 +35,7 @@ const report = {
   observedAt: new Date().toISOString(),
   scope: 'One-wallet saturation at a one-second test cooldown, one active operation, and four ready batches. Every request is retained. Includes empty-pool retries. Production default cooldown remains 60 seconds. Public login and NEAR submission are excluded.',
   policy: registration.policy,
+  successTarget,
   key,
   registrationSha256: hash(await readFile(process.argv[2])),
   scriptSha256: hash(await readFile(import.meta.filename)),
@@ -47,7 +50,7 @@ let operation = newOperation();
 let demandStarted = performance.now();
 const operationStarts = new Map();
 try {
-  while (successful < 12 && performance.now() - started < 900000) {
+  while (successful < successTarget && performance.now() - started < 900000) {
     const operationId = Buffer.from(operation.request.operation).toString('hex');
     if (!operationStarts.has(operationId)) operationStarts.set(operationId, performance.now());
     const entry = { operation: operation.request.operation, demand: successful + 1, startMs: performance.now() - started };
@@ -97,7 +100,7 @@ try {
     await delay(1100);
     if (entry.verified) demandStarted = performance.now();
   }
-  report.functionalPassed = successful === 12;
+  report.functionalPassed = successful === successTarget;
   report.latencyTargetMet = report.functionalPassed && report.requests.every(underTarget);
   if (!report.functionalPassed) process.exitCode = 1;
 } catch (error) {

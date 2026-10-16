@@ -183,6 +183,10 @@ pub(super) async fn role_call<T: serde::de::DeserializeOwned>(
         RoleCommand::InitializeRegistrationStorage { .. } => {
             "ML-DSA registration storage initialization"
         }
+        RoleCommand::Inventory { .. } => "ML-DSA inventory",
+        RoleCommand::Reserve { .. } => "ML-DSA reservation",
+        RoleCommand::Fence { .. } => "ML-DSA settlement fence",
+        RoleCommand::Release { .. } => "ML-DSA settlement release",
         _ => "ML-DSA role storage",
     };
     let mut response = crate::router_coordinator::post_role_request(

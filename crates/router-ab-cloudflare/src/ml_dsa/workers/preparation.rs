@@ -19,11 +19,15 @@ pub(super) fn refill_key(command: &RoleCommand) -> Option<&KeyScope> {
 }
 pub(super) async fn enqueue(store: &impl Store, key: &KeyScope) -> Result<()> {
     let mut queue: Vec<KeyScope> = store.get(QUEUE).await?.unwrap_or_default();
+    let previous = queue.clone();
     queue.retain(|current| current.key_id != key.key_id || current == key);
     if !queue.contains(key) {
         queue.push(key.clone());
     }
-    store.put(QUEUE, &queue).await
+    if queue != previous {
+        store.put(QUEUE, &queue).await?;
+    }
+    Ok(())
 }
 pub(super) async fn check_job(env: &Env, job: &refill::Job) -> Result<()> {
     let current: bool = service_call(

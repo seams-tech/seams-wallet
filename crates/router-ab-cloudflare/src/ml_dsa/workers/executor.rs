@@ -7,14 +7,31 @@ pub(crate) const EXECUTE_PATH: &str = "/router-ab/ml-dsa/execute";
 const SOCKET_PATH: &str = "/router-ab/ml-dsa/connect";
 pub(super) const CANDIDATES: u16 = 8;
 
-struct WorkerHost<'a>(&'a Env);
+struct WorkerHost<'a> {
+    env: &'a Env,
+    trace: &'a signing_trace::SigningTrace,
+}
 impl Host for WorkerHost<'_> {
     fn now_ms(&self) -> Result<u64> {
         crate::cloudflare_now_unix_ms_v1()
     }
+    fn note_stage(&self, stage: execution::ExecutionStage) {
+        self.trace.batch(stage);
+    }
+    fn public_topologies(
+        &self,
+    ) -> ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies {
+        schedules::public_topologies()
+    }
+    fn retain_public_topologies(
+        &self,
+        topologies: &ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies,
+    ) {
+        schedules::retain_public_topologies(topologies);
+    }
     async fn take(&self, permit: &Permit, batch: [u8; 32]) -> Result<(Binding, Sealed)> {
         let mut response = local_call(
-            self.0,
+            self.env,
             &RoleCommand::Take {
                 permit: permit.clone(),
                 batch,
@@ -76,7 +93,10 @@ async fn execute(
     input: &Request,
     socket: &WebSocket,
 ) -> Result<(Vec<u8>, execution::Outcome)> {
+    let role = configured_role(env).map_err(storage_error)?;
+    let mut trace = signing_trace::SigningTrace::new(input.permit.request.operation, role);
     require_permit(env, input).await?;
+    trace.mark("permit_checked");
     let mut response = local_call(
         env,
         &RoleCommand::LoadMaterial {
@@ -88,18 +108,20 @@ async fn execute(
         return Err(invalid("ML-DSA key material is unavailable"));
     }
     let record: material::Record = response.json().await.map_err(storage_error)?;
+    trace.mark("material_loaded");
     if record.activation.key != input.permit.request.key {
         return Err(invalid("ML-DSA role key changed"));
     }
-    let role = configured_role(env).map_err(storage_error)?;
     let (version, wrapping_seed) = wrapping_key(env)?;
     let material = record.open(role, &version, &wrapping_seed)?;
+    trace.mark("material_opened");
     let public_key = record
         .public_key
         .as_slice()
         .try_into()
         .map_err(|_| invalid("Invalid ML-DSA public key"))?;
     let schedules = schedules::load()?;
+    trace.mark("schedules_loaded");
     let mut transport =
         transport::Duplex::new(socket, input.permit.expires_at_ms).map_err(storage_error)?;
     let outcome = execution::run(
@@ -113,10 +135,13 @@ async fn execute(
         },
         CANDIDATES,
         &schedules,
-        &WorkerHost(env),
+        &WorkerHost { env, trace: &trace },
         &mut transport,
     )
-    .await?;
+    .await;
+    trace.transport(transport.metrics());
+    let outcome = outcome?;
+    trace.mark("protocol_completed");
     // Both roles acknowledge the complete public result before A reports success.
     let digest = digest(b"seams/ml-dsa/execution-result/v1", &outcome)?;
     let peer = match role {
@@ -165,6 +190,7 @@ async fn execute(
             })
         );
     }
+    trace.finish(transport.metrics());
     Ok((record.public_key, outcome))
 }
 

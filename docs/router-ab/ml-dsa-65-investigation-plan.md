@@ -1,7 +1,16 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: feasibility and integration work active; production release remains gated, 2026-10-16.
+Status: feasibility and integration work active; production release remains gated, 2026-10-17.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
+The [online profiling campaign](ml-dsa-65-online-profile-report.md) qualifies 24 of 24 prepared hosted signing requests below five seconds.
+Successful requests take 0.989–3.497 seconds, with a 1.520-second median. One two-batch signature takes 1.781 seconds.
+The pool remains four batches with eight candidates each. Canonical wallet-seed recovery and standard FIPS export remain unchanged.
+Public layout reuse, direct packed loads, cumulative acknowledgments, and deletion of redundant storage writes reduce online work.
+Complete demand latency still reaches 91.011 seconds when stock is unavailable. Sustained capacity remains a release gate.
+The screen establishes observed prepared latency for one wallet. Repeated tail-latency and multi-wallet capacity qualification remain open.
+GPU work remains deferred. Next, investigate observed producer resets and qualify capacity without increasing the pool cap.
+
+Earlier dated campaigns follow.
 The [private AES campaign](ml-dsa-65-private-aes-report.md) implements eight-block Wasm SIMD with unchanged protocol and pool dimensions.
 The isolated AES kernel takes 16.88% less time. A matching local reserve control measures 45.229 seconds against the earlier 48.097 seconds.
 All twelve hosted signatures verify. Eleven finish below five seconds, with online latency of 2.562–7.310 seconds and a 3.179-second median.
@@ -9,7 +18,7 @@ Two successful two-batch requests take 3.112 and 7.310 seconds. One operation ex
 Preparation has a 28.001-second median. After stock depletion, observed throughput is 1.769 batches and 1.474 successful signatures per minute.
 Complete demand latency still reaches 79.613 seconds. Four-batch restoration adds 188.282 seconds after the load test.
 Hosted creation and recovery take 7.189 and 5.250 seconds online. Both preserve the canonical key and FIPS export semantics.
-Next, isolate hosted CPU variation, public-cache reuse, storage waits, and protocol waits. Keep the same pool cap and public integration gate.
+That campaign motivated the online profiling work above. The pool cap and public integration gate remain unchanged.
 The earlier [stage optimization campaign](ml-dsa-65-preparation-stage-optimization-report.md) shortens the measured local four-batch reserve by 29.68%.
 Its hosted preparation median is 33.441 seconds. Observed refill reaches 1.199 batches per minute after initial stock depletion.
 Twelve signatures verify, with successful online requests taking 2.041–6.503 seconds. Ten of twelve finish below five seconds.
