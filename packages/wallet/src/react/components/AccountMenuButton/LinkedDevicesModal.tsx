@@ -8,6 +8,7 @@ import type {
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
 import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
+import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import { LaptopIcon } from './icons/LaptopIcon';
 import { LockIcon } from './icons/LockIcon';
 import { MailIcon } from './icons/MailIcon';
@@ -481,32 +482,14 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
               const showRemoveButton = hasRemovableSibling && !isSelectedMethod && !confirming;
               if (presentation === 'embedded' && !selectedDevice) {
                 return (
-                  <li key={cardId} className="seams-account-method-list-item">
-                    <button
-                      type="button"
-                      className="seams-account-method-button"
-                      onClick={setSelectedDeviceId.bind(null, cardId)}
-                    >
-                      <span className="seams-account-avatar">
-                        {credentialIcon(viewCredential(view))}
-                      </span>
-                      <div>
-                        <strong>{title}</strong>
-                        <small>
-                          {deviceMetaLine(view, deviceNumber, titleCollides, Date.now())}
-                        </small>
-                      </div>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        aria-hidden="true"
-                      >
-                        <path d="m9 6 6 6-6 6" />
-                      </svg>
-                    </button>
-                  </li>
+                  <AuthenticationMethodRow
+                    key={cardId}
+                    kind={viewCredential(view).kind}
+                    icon={credentialIcon(viewCredential(view))}
+                    title={title}
+                    description={deviceMetaLine(view, deviceNumber, titleCollides, Date.now())}
+                    onSelect={setSelectedDeviceId.bind(null, cardId)}
+                  />
                 );
               }
               return (

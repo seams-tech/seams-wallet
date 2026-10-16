@@ -6,6 +6,8 @@ type AuthenticationMethodRowProps = {
   kind: 'passkey' | 'email_otp';
   title: string;
   description: string;
+  /** Replaces the method's default icon, as for a linked device. */
+  icon?: React.ReactNode;
   action?: React.ReactNode;
   onSelect?: () => void;
   children?: React.ReactNode;
@@ -15,6 +17,7 @@ export function AuthenticationMethodRow({
   kind,
   title,
   description,
+  icon,
   action,
   onSelect,
   children,
@@ -24,11 +27,12 @@ export function AuthenticationMethodRow({
       <li className="seams-account-method-list-item">
         <button type="button" className="seams-account-method-button" onClick={onSelect}>
           <span className="seams-account-avatar">
-            {kind === 'passkey' ? (
-              <TouchIcon width={20} height={20} strokeWidth={1.5} />
-            ) : (
-              <MailIcon size={20} strokeWidth={1.5} />
-            )}
+            {icon ??
+              (kind === 'passkey' ? (
+                <TouchIcon width={20} height={20} strokeWidth={1.5} />
+              ) : (
+                <MailIcon size={20} strokeWidth={1.5} />
+              ))}
           </span>
           <div>
             <strong>{title}</strong>

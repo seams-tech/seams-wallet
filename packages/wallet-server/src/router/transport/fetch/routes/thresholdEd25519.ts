@@ -1489,6 +1489,20 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
   });
 }
 
+async function timeEd25519SigningStage<T>(
+  timing: Ed25519SigningGatewayTiming,
+  stage: Exclude<keyof Ed25519SigningGatewayTiming, 'total'>,
+  pending: Promise<T>,
+): Promise<T> {
+  // Worker clocks move only at I/O, so the call's synchronous start adds nothing.
+  const startedAt = performance.now();
+  try {
+    return await pending;
+  } finally {
+    timing[stage] = performance.now() - startedAt;
+  }
+}
+
 async function executeRouterAbEd25519NormalSigningRoute(
   input: {
     ctx: FetchRouterApiContext;
@@ -1497,8 +1511,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
   },
   timing: Ed25519SigningGatewayTiming,
 ): Promise<Response> {
-  const authorizeStartedAt = performance.now();
-  const authorization = await authorizeRouterAbEd25519NormalSigningRoute({
+  const authorization = await timeEd25519SigningStage(timing, 'authorize', authorizeRouterAbEd25519NormalSigningRoute({
     body: input.body,
     rawBody: input.body,
     headers: Object.fromEntries(input.ctx.request.headers.entries()),
@@ -1511,8 +1524,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
         input.ctx.service.walletRegistration,
       ),
     phase: input.phase,
-  });
-  timing.authorize = performance.now() - authorizeStartedAt;
+  }));
   if (!authorization.ok) {
     return json(authorization.result.body, { status: authorization.result.status });
   }
@@ -1526,8 +1538,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
         operation: authorization.operation,
       });
       if (execution.kind !== 'execute') return execution.response;
-      const proxyStartedAt = performance.now();
-      const upstream = await proxyEd25519OwnerLaneExecution({
+      const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
         ctx: input.ctx,
         authorization,
         authorizedOperation: execution.operation,
@@ -1542,8 +1553,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
             ),
           }),
         },
-      });
-      timing.proxy = performance.now() - proxyStartedAt;
+      }));
       const upstreamBodyText = await upstream
         .clone()
         .text()
@@ -1563,14 +1573,12 @@ async function executeRouterAbEd25519NormalSigningRoute(
         return upstream;
       }
       if (!upstream.ok || !isPlainObject(upstreamBody)) {
-        const completeStartedAt = performance.now();
-        const completed = await completeEd25519Operation({
+        const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
           ctx: input.ctx,
           operation: execution.operation,
           result: upstream.status < 500 ? 'failed_before_side_effect' : 'failed_after_side_effect',
           response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-        });
-        timing.complete = performance.now() - completeStartedAt;
+        }));
         return requireCompletedEd25519OperationResponse(completed);
       }
       const headers = new Headers(upstream.headers);
@@ -1594,18 +1602,15 @@ async function executeRouterAbEd25519NormalSigningRoute(
     if (authorization.phase !== 'finalize') {
       throw new Error('Operation step-up finalize authorization phase changed');
     }
-    const admitStartedAt = performance.now();
-    const validatedAuthorization = await validateEd25519VerifiedStepUpAuthorizedOperation({
+    const validatedAuthorization = await timeEd25519SigningStage(timing, 'admit', validateEd25519VerifiedStepUpAuthorizedOperation({
       ctx: input.ctx,
       body: input.body,
       authorization,
-    });
-    timing.admit = performance.now() - admitStartedAt;
+    }));
     if (!validatedAuthorization.ok) return validatedAuthorization.response;
     const replay = replayCompletedEd25519Operation(validatedAuthorization.operation);
     if (replay) return replay;
-    const proxyStartedAt = performance.now();
-    const upstream = await proxyEd25519OwnerLaneExecution({
+    const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
       ctx: input.ctx,
       authorization,
       authorizedOperation: validatedAuthorization.operation,
@@ -1620,8 +1625,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
           ),
         }),
       },
-    });
-    timing.proxy = performance.now() - proxyStartedAt;
+    }));
     const upstreamBodyText = await upstream
       .clone()
       .text()
@@ -1634,8 +1638,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
     ) {
       return upstream;
     }
-    const completeStartedAt = performance.now();
-    const completed = await completeEd25519Operation({
+    const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
       ctx: input.ctx,
       operation: validatedAuthorization.operation,
       result: upstream.ok
@@ -1644,18 +1647,15 @@ async function executeRouterAbEd25519NormalSigningRoute(
           ? 'failed_before_side_effect'
           : 'failed_after_side_effect',
       response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-    });
-    timing.complete = performance.now() - completeStartedAt;
+    }));
     return requireCompletedEd25519OperationResponse(completed);
   }
   if (input.phase === 'prepare') {
-    const admitStartedAt = performance.now();
-    const authorized = await authorizeEd25519ReusableWalletSessionOperation({
+    const authorized = await timeEd25519SigningStage(timing, 'admit', authorizeEd25519ReusableWalletSessionOperation({
       ctx: input.ctx,
       body: input.body,
       authorization,
-    });
-    timing.admit = performance.now() - admitStartedAt;
+    }));
     if (!authorized.ok) return authorized.response;
     const execution = decideEd25519NormalSigningExecution({
       phase: 'prepare',
@@ -1695,8 +1695,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
         { status: 403 },
       );
     }
-    const proxyStartedAt = performance.now();
-    const upstream = await proxyEd25519OwnerLaneExecution({
+    const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
       ctx: input.ctx,
       authorization,
       authorizedOperation: execution.operation,
@@ -1710,8 +1709,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
           ),
         }),
       },
-    });
-    timing.proxy = performance.now() - proxyStartedAt;
+    }));
     const upstreamBodyText = await upstream
       .clone()
       .text()
@@ -1731,14 +1729,12 @@ async function executeRouterAbEd25519NormalSigningRoute(
       return upstream;
     }
     if (!upstream.ok || !isPlainObject(upstreamBody)) {
-      const completeStartedAt = performance.now();
-      const completed = await completeEd25519Operation({
+      const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
         ctx: input.ctx,
         operation: execution.operation,
         result: upstream.status < 500 ? 'failed_before_side_effect' : 'failed_after_side_effect',
         response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-      });
-      timing.complete = performance.now() - completeStartedAt;
+      }));
       return requireCompletedEd25519OperationResponse(completed);
     }
     const headers = new Headers(upstream.headers);
@@ -1757,21 +1753,18 @@ async function executeRouterAbEd25519NormalSigningRoute(
       },
     );
   }
-  const admitStartedAt = performance.now();
-  const validatedAuthorization = await validateEd25519ReusableAuthorizedOperation({
+  const validatedAuthorization = await timeEd25519SigningStage(timing, 'admit', validateEd25519ReusableAuthorizedOperation({
     ctx: input.ctx,
     body: input.body,
     authorization,
-  });
-  timing.admit = performance.now() - admitStartedAt;
+  }));
   if (!validatedAuthorization.ok) return validatedAuthorization.response;
   const replay = replayCompletedEd25519Operation(validatedAuthorization.operation);
   if (replay) return replay;
   if (!validatedAuthorization.ownerScope) {
     throw new Error('Pinned owner Wallet Session scope is unavailable');
   }
-  const proxyStartedAt = performance.now();
-  const upstream = await proxyEd25519OwnerLaneExecution({
+  const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
     ctx: input.ctx,
     authorization,
     authorizedOperation: validatedAuthorization.operation,
@@ -1785,8 +1778,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
         ),
       }),
     },
-  });
-  timing.proxy = performance.now() - proxyStartedAt;
+  }));
   const upstreamBodyText = await upstream
     .clone()
     .text()
@@ -1799,8 +1791,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
   ) {
     return upstream;
   }
-  const completeStartedAt = performance.now();
-  const completed = await completeEd25519Operation({
+  const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
     ctx: input.ctx,
     operation: validatedAuthorization.operation,
     result: upstream.ok
@@ -1809,8 +1800,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
         ? 'failed_before_side_effect'
         : 'failed_after_side_effect',
     response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-  });
-  timing.complete = performance.now() - completeStartedAt;
+  }));
   return requireCompletedEd25519OperationResponse(completed);
 }
 

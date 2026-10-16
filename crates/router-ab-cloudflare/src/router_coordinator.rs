@@ -253,27 +253,14 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
-    if request.method() != Method::Post {
-        return Response::error(
-            "Router source-preserving Yao execute route requires POST",
-            405,
-        );
-    }
-    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
-        return crate::cloudflare_private_service_auth_error_response_v1(error);
-    }
-    let wallet_route = match crate::WalletObjectRoute::from_gateway_request(&request) {
-        Ok(home) => home,
-        Err(error) => return protocol_error_response(error),
-    };
-    let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
-    let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
-        Ok(trace_id) => trace_id,
-        Err(error) => return protocol_error_response(error),
-    };
-    let replay = match parse_router_replay_header(&request) {
-        Ok(replay) => replay,
-        Err(error) => return protocol_error_response(error),
+    let RouterExecuteRequestHeadV1 {
+        wallet_route,
+        parse_started_at_ms,
+        trace_id,
+        replay,
+    } = match read_router_execute_request_head_v1(&request, env, "Router source-preserving Yao execute route requires POST") {
+        Ok(head) => head,
+        Err(response) => return response,
     };
     let source_request = match request
         .json::<CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1>()
@@ -2046,6 +2033,41 @@ fn resolve_role_call_error(
             reason,
         )),
     }
+}
+
+/// What every Gateway-to-Router execute route reads before its body.
+struct RouterExecuteRequestHeadV1 {
+    wallet_route: crate::WalletObjectRoute,
+    parse_started_at_ms: u64,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+    replay: bool,
+}
+
+/// Checks the method and the Gateway's authentication, then reads the
+/// request's wallet route, trace and replay marker. A failure is the answer.
+fn read_router_execute_request_head_v1(
+    request: &Request,
+    env: &Env,
+    method_error: &str,
+) -> Result<RouterExecuteRequestHeadV1, worker::Result<Response>> {
+    if request.method() != Method::Post {
+        return Err(Response::error(method_error, 405));
+    }
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(request, env) {
+        return Err(crate::cloudflare_private_service_auth_error_response_v1(error));
+    }
+    let wallet_route =
+        crate::WalletObjectRoute::from_gateway_request(request).map_err(protocol_error_response)?;
+    let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
+    let trace_id =
+        parse_cloudflare_trace_id_from_request_v1(request).map_err(protocol_error_response)?;
+    let replay = parse_router_replay_header(request).map_err(protocol_error_response)?;
+    Ok(RouterExecuteRequestHeadV1 {
+        wallet_route,
+        parse_started_at_ms,
+        trace_id,
+        replay,
+    })
 }
 
 fn parse_router_replay_header(request: &Request) -> RouterAbProtocolResult<bool> {

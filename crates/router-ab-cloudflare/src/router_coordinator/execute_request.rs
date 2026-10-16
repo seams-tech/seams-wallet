@@ -10,24 +10,14 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
-    if request.method() != Method::Post {
-        return Response::error("Router Yao execute route requires POST", 405);
-    }
-    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
-        return crate::cloudflare_private_service_auth_error_response_v1(error);
-    }
-    let wallet_route = match crate::WalletObjectRoute::from_gateway_request(&request) {
-        Ok(home) => home,
-        Err(error) => return protocol_error_response(error),
-    };
-    let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
-    let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
-        Ok(trace_id) => trace_id,
-        Err(error) => return protocol_error_response(error),
-    };
-    let replay = match parse_router_replay_header(&request) {
-        Ok(replay) => replay,
-        Err(error) => return protocol_error_response(error),
+    let RouterExecuteRequestHeadV1 {
+        wallet_route,
+        parse_started_at_ms,
+        trace_id,
+        replay,
+    } = match read_router_execute_request_head_v1(&request, env, "Router Yao execute route requires POST") {
+        Ok(head) => head,
+        Err(response) => return response,
     };
     #[cfg(feature = "local-intended-router-burn")]
     let burn = matches!(
