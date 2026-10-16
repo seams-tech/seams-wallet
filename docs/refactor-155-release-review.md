@@ -17,6 +17,24 @@ Every deployment remains a separate, authorized step.
   type-check against the published release. Two apps, one type fixture and one
   relayer test still need the adoption work that the private commit lists.
 
+## 0.12.0
+
+Status: **published October 16, 2026, 17:50 UTC, and deployed to staging.** Minor
+release, prepared in `7ea1432d`; it removes the self-hosted signing router and worker
+factories and the Node Redis TCP session-seal adapters (`b69a0ef5`). It also carries:
+
+- **Router dispatch** (`d8824ade`): the stateless Router calls the Derivers and the
+  Signing Worker again. On staging the cold-start share fell from 89 to 97% to 8 to 24%,
+  and the Router starts the first Deriver 64 ms after its own start instead of 270 ms
+  ([record](evidence/release-0120-staging-20261017.md)).
+- **Hosted menu**: the recovery code comes before the sign-in method (`338db7c8`).
+- **Arc testnet RPC**: the test app follows Arc's move to `rpc.testnet.arc.io`
+  (`d400602f`); the SDK default still names the old host.
+- **Validation**: CI on the merged head passed its six checks. Locally, in a tree at
+  `ba870c54`, the CI Rust steps, `pnpm build`, all 134 release and both dev-only intended
+  cases passed, the Arc cases with the test app on the new host. The private check, build
+  and seams-site build pass on the published packages (`seams-monorepo` `5c5ab046`).
+
 ## 0.11.0
 
 Status: **published October 16, 2026, 05:47 UTC, and deployed to staging.**
