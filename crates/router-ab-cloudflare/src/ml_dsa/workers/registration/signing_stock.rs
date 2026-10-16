@@ -23,9 +23,16 @@ pub(super) async fn prepare(
     let mut topologies = Default::default();
     for ordinal in 0..job.signing_batches {
         let id = core::signing_batch_id(job, ordinal)?;
-        let prepared = prepare_gmw_reservation(role, id, 4, &schedules, &mut topologies, wire)
-            .await
-            .map_err(runtime_error)?;
+        let prepared = prepare_gmw_reservation(
+            role,
+            id,
+            executor::CANDIDATES,
+            &schedules,
+            &mut topologies,
+            wire,
+        )
+        .await
+        .map_err(runtime_error)?;
         let sealed = sealing::seal_bound(
             prepared.into_storage(),
             DOMAIN,

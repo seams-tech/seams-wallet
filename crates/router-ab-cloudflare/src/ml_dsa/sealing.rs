@@ -128,16 +128,11 @@ fn decode_ciphertext<'de, D: serde::Deserializer<'de>>(
 }
 
 pub(super) const CHUNK_BYTES: usize = 48 * 1024;
+const CHUNKS_PER_IO: usize = 16;
 impl Sealed {
     pub(crate) async fn store_chunks(&self, store: &impl Store, prefix: &str) -> Result<usize> {
-        use base64::{engine::general_purpose::STANDARD, Engine};
         self.validate()?;
-        for (ordinal, bytes) in self.ciphertext.chunks(CHUNK_BYTES).enumerate() {
-            store
-                .put(&format!("{prefix}/{ordinal}"), &STANDARD.encode(bytes))
-                .await?;
-        }
-        Ok(self.ciphertext.len().div_ceil(CHUNK_BYTES))
+        write_chunks(store, prefix, &self.ciphertext).await
     }
     pub(crate) async fn load_chunks(
         store: &impl Store,
@@ -145,38 +140,77 @@ impl Sealed {
         chunks: usize,
         encapsulated_key: [u8; 32],
     ) -> Result<Self> {
-        use base64::{engine::general_purpose::STANDARD, Engine};
-        if chunks == 0 || chunks > (16usize * 1024 * 1024 + 16).div_ceil(CHUNK_BYTES) {
-            return Err(invalid("Invalid ML-DSA chunk count"));
-        }
-        let mut ciphertext = Vec::new();
-        for ordinal in 0..chunks {
-            let encoded = store
-                .get::<String>(&format!("{prefix}/{ordinal}"))
-                .await?
-                .ok_or_else(|| invalid("Missing ML-DSA ciphertext chunk"))?;
-            if encoded.len() > CHUNK_BYTES.div_ceil(3) * 4 {
-                return Err(invalid("Oversized ML-DSA encoded ciphertext chunk"));
-            }
-            let bytes = STANDARD
-                .decode(encoded)
-                .map_err(|_| invalid("Invalid ML-DSA ciphertext chunk"))?;
-            if bytes.len() > CHUNK_BYTES {
-                return Err(invalid("Oversized ML-DSA ciphertext chunk"));
-            }
-            ciphertext.extend_from_slice(&bytes);
-        }
         let sealed = Self {
             encapsulated_key,
-            ciphertext,
+            ciphertext: read_chunks(store, prefix, chunks).await?,
         };
         sealed.validate()?;
         Ok(sealed)
     }
 }
+/// Bounded binary storage shared by encrypted private state and public table frames.
+pub(super) async fn write_chunks(store: &impl Store, prefix: &str, bytes: &[u8]) -> Result<usize> {
+    if bytes.is_empty() || bytes.len() > 16 * 1024 * 1024 + 16 {
+        return Err(invalid("Invalid ML-DSA stored byte length"));
+    }
+    for (group, bytes) in bytes.chunks(CHUNK_BYTES * CHUNKS_PER_IO).enumerate() {
+        let mut values = Vec::new();
+        for (offset, chunk) in bytes.chunks(CHUNK_BYTES).enumerate() {
+            values.push((
+                format!("{prefix}/{}", group * CHUNKS_PER_IO + offset),
+                chunk,
+            ));
+        }
+        let mut writes = Vec::with_capacity(values.len());
+        for (key, value) in &values {
+            writes.push(store.put_chunk(key, value));
+        }
+        // Every write completes before the surrounding transaction can commit.
+        for result in futures::future::join_all(writes).await {
+            result?;
+        }
+    }
+    Ok(bytes.len().div_ceil(CHUNK_BYTES))
+}
+pub(super) async fn read_chunks(
+    store: &impl Store,
+    prefix: &str,
+    chunks: usize,
+) -> Result<Vec<u8>> {
+    if chunks == 0 || chunks > (16usize * 1024 * 1024 + 16).div_ceil(CHUNK_BYTES) {
+        return Err(invalid("Invalid ML-DSA chunk count"));
+    }
+    let mut bytes = Vec::new();
+    for first in (0..chunks).step_by(CHUNKS_PER_IO) {
+        let keys = chunk_keys(prefix, first, chunks.min(first + CHUNKS_PER_IO));
+        let values = store.get_chunks(&keys, CHUNK_BYTES).await?;
+        if values.len() != keys.len() {
+            return Err(invalid("Invalid ML-DSA chunk response length"));
+        }
+        for value in values {
+            let chunk = value.ok_or_else(|| invalid("Missing ML-DSA stored chunk"))?;
+            if chunk.len() > CHUNK_BYTES || bytes.len() + chunk.len() > 16 * 1024 * 1024 + 16 {
+                return Err(invalid("Oversized ML-DSA stored chunks"));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+    }
+    Ok(bytes)
+}
 pub(crate) async fn erase_chunks(store: &impl Store, prefix: &str, chunks: usize) -> Result<()> {
-    for ordinal in 0..chunks {
-        store.delete(&format!("{prefix}/{ordinal}")).await?;
+    for first in (0..chunks).step_by(CHUNKS_PER_IO) {
+        store
+            .delete_many(&chunk_keys(
+                prefix,
+                first,
+                chunks.min(first + CHUNKS_PER_IO),
+            ))
+            .await?;
     }
     Ok(())
+}
+fn chunk_keys(prefix: &str, first: usize, end: usize) -> Vec<String> {
+    (first..end)
+        .map(|ordinal| format!("{prefix}/{ordinal}"))
+        .collect()
 }

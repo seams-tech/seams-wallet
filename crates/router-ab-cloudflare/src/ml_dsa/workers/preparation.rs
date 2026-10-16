@@ -185,7 +185,7 @@ async fn prepare(
     let prepared = prepare_gmw_reservation(
         role,
         job.batch,
-        4,
+        executor::CANDIDATES,
         &schedules,
         &mut Default::default(),
         transport,

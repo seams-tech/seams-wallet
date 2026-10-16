@@ -1,7 +1,18 @@
 //! Pinned public circuits. No benchmark key, root share, or nonce enters this module.
 use super::*;
 use ed25519_yao::ml_dsa_runtime::TrustedMlDsaSchedule;
-pub(super) fn load() -> Result<Vec<TrustedMlDsaSchedule<'static>>> {
+use std::sync::OnceLock;
+
+static SCHEDULES: OnceLock<Result<Vec<TrustedMlDsaSchedule<'static>>>> = OnceLock::new();
+
+pub(super) fn load() -> Result<&'static [TrustedMlDsaSchedule<'static>]> {
+    match SCHEDULES.get_or_init(validate) {
+        Ok(schedules) => Ok(schedules),
+        Err(error) => Err(error.clone()),
+    }
+}
+
+fn validate() -> Result<Vec<TrustedMlDsaSchedule<'static>>> {
     let mut schedules = Vec::new();
     schedules.push(
         TrustedMlDsaSchedule::parse(

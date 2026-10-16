@@ -5,7 +5,7 @@ use worker::{Context, WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
 pub(crate) const EXECUTE_PATH: &str = "/router-ab/ml-dsa/execute";
 const SOCKET_PATH: &str = "/router-ab/ml-dsa/connect";
-const CANDIDATES: u16 = 4;
+pub(super) const CANDIDATES: u16 = 8;
 
 struct WorkerHost<'a>(&'a Env);
 impl Host for WorkerHost<'_> {

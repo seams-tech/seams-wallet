@@ -4,11 +4,11 @@ pub mod admission;
 pub mod execution;
 pub mod material;
 pub mod policy;
+pub mod pool;
 pub mod refill;
 pub mod registration;
 pub mod registration_preparation;
 pub mod registration_tables;
-pub mod pool;
 pub mod sealing;
 #[cfg(feature = "workers-rs")]
 pub mod workers;
@@ -92,6 +92,34 @@ pub trait Store {
     async fn get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>>;
     async fn put<T: Serialize>(&self, key: &str, value: &T) -> Result<()>;
     async fn delete(&self, key: &str) -> Result<()>;
+    async fn put_chunk(&self, key: &str, bytes: &[u8]) -> Result<()> {
+        self.put(key, &bytes).await
+    }
+    /// Results retain request order, including missing entries.
+    async fn get_chunks(
+        &self,
+        keys: &[String],
+        maximum_bytes: usize,
+    ) -> Result<Vec<Option<Vec<u8>>>> {
+        let mut values = Vec::with_capacity(keys.len());
+        for key in keys {
+            let value: Option<Vec<u8>> = self.get(key).await?;
+            if value
+                .as_ref()
+                .is_some_and(|bytes| bytes.len() > maximum_bytes)
+            {
+                return Err(invalid("Oversized ML-DSA ciphertext chunk"));
+            }
+            values.push(value);
+        }
+        Ok(values)
+    }
+    async fn delete_many(&self, keys: &[String]) -> Result<()> {
+        for key in keys {
+            self.delete(key).await?;
+        }
+        Ok(())
+    }
 }
 pub fn digest(domain: &[u8], value: &impl Serialize) -> Result<[u8; 32]> {
     let mut hash = Sha256::new();

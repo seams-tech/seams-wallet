@@ -160,14 +160,13 @@ impl RegistrationTransport {
         )?;
         tx(&self.db, self.db.put(&record_name, &record))?;
         let name = format!(
-            "registration-tables/{}/{}/1/ciphertext/0",
+            "registration-tables/{}/{}/1/data/0",
             hex::encode(self.binding.reservation),
             hex::encode(circuit)
         );
-        let encoded: String = run_ready(self.db.get(&name))??.ok_or("Missing table ciphertext")?;
-        let mut changed = encoded.clone().into_bytes();
-        changed[0] = if changed[0] == b'A' { b'B' } else { b'A' };
-        let changed = String::from_utf8(changed)?;
+        let encoded: Vec<u8> = run_ready(self.db.get(&name))??.ok_or("Missing table ciphertext")?;
+        let mut changed = encoded.clone();
+        changed[8] ^= 1;
         tx(&self.db, self.db.put(&name, &changed))?;
         require(
             tx(

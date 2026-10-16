@@ -113,6 +113,11 @@ try {
   const refillStarted = performance.now();
   observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
   await waitReady(4);
+  const storedPools = await passiveInventories();
+  observations.maximumPreparedChunkCounts = storedPools.map(maximumChunks);
+  for (const chunks of observations.maximumPreparedChunkCounts) {
+    assert.ok(chunks > 16, 'Signing did not exercise multiple ciphertext I/O groups');
+  }
   observations.initialFourBatchRefillMs = performance.now() - refillStarted;
   observations.activationToFourBatchReserveMs = performance.now() - initialRefillStarted;
   if (passivePreparationObserver) await verifyPassiveInventory();
@@ -452,19 +457,22 @@ async function passiveInventory(role) {
   try {
     const rows = database.prepare("SELECT value FROM _cf_KV WHERE key LIKE 'batch/%'").all();
     const ready = [];
+    let maximumChunks = 0;
     for (const row of rows) {
       const record = deserialize(row.value);
       if (record.state.state === 'ready'
         && isDeepStrictEqual(record.binding.key, records[0].activation.key)
         && record.binding.expires_at_ms >= Date.now() + policy.operation_timeout_ms) {
         ready.push(record.binding.batch);
+        maximumChunks = Math.max(maximumChunks, record.chunks);
       }
     }
-    return { ready };
+    return { ready, maximumChunks };
   } finally {
     database.close();
   }
 }
+function maximumChunks(value) { return value.maximumChunks; }
 async function verifyPassiveInventory() {
   const passive = await passiveInventories();
   const active = await inventories();
