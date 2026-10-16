@@ -46,6 +46,7 @@ export default { fetch };
 `;
 
 const root = resolve(import.meta.dirname, '../..');
+const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
@@ -60,8 +61,10 @@ const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   : randomBytes(32).toString('hex');
 const serviceAuth = randomBytes(32).toString('hex');
 const persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-registration-e2e-'));
+const cooldownMs = Number(process.env.ML_DSA_TEST_COOLDOWN_MS ?? 60000);
+assert.ok(Number.isSafeInteger(cooldownMs) && cooldownMs >= 1000 && cooldownMs <= 300000);
 const policy = {
-  wallet_cooldown: { mode: 'enabled', interval_ms: 60000 },
+  wallet_cooldown: { mode: 'enabled', interval_ms: cooldownMs },
   max_active_operations: 1,
   operation_timeout_ms: 30000,
   minimum_ready_batches: 2,
@@ -134,6 +137,7 @@ try {
     const prepareStarted = performance.now();
     let ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
     assert.equal(ready.ready, true);
+    assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
     let preparationMs = performance.now() - prepareStarted;
     if (epoch === 1 && stallExecution) {
       observations.executionDeadline = await checkExecutionDeadline(payload.request);
@@ -153,6 +157,7 @@ try {
       const refillStarted = performance.now();
       ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
       assert.equal(ready.ready, true);
+    assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
       preparationMs = performance.now() - refillStarted;
       assert.notDeepEqual(ready.job.id, consumedJob);
       observations.executionDeadline.freshPreparation = true;
@@ -188,6 +193,7 @@ try {
     const measurement = {
       epoch,
       preparationMs,
+      initialSigningBatches: ready.job.signing_batches,
       serverResponseMs,
       registrationWithClientVerificationMs,
       underFiveSeconds: registrationWithClientVerificationMs < 5000,
@@ -283,8 +289,8 @@ function base(name, build, extra) {
   return {
     name,
     modules: true,
-    scriptPath: join(root, 'crates/router-ab-cloudflare/build', build, 'worker/shim.mjs'),
-    modulesRoot: root,
+    scriptPath: join(buildRoot, build, 'worker/shim.mjs'),
+    modulesRoot: buildRoot,
     modulesRules: [
       { type: 'ESModule', include: ['**/*.js', '**/*.mjs'] },
       { type: 'CompiledWasm', include: ['**/*.wasm'] },
@@ -313,6 +319,8 @@ function workers() {
     },
     role('a', 0),
     role('b', 1),
+    preparerWorker('a', 0),
+    preparerWorker('b', 1),
     ...(stallInitialization ? [registrationFaultWorker('a'), registrationFaultWorker('b')] : []),
     ...(executionFaultArmed ? [registrationFaultWorker('a')] : []),
   ];
@@ -336,8 +344,23 @@ function role(name, index) {
         scriptName: 'router',
       },
     },
-    serviceBindings: { DERIVER_B: 'b' },
+    serviceBindings: { DERIVER_B: 'b', ML_DSA_PREPARER: 'preparer-a' },
   };
+}
+function preparerWorker(participant, index) {
+  const worker = role(participant, index);
+  worker.name = `preparer-${participant}`;
+  worker.durableObjects.ML_DSA_POOL_DO = {
+    className: 'RouterAbMlDsaPoolDurableObject', scriptName: participant,
+  };
+  if (participant === 'a') {
+    worker.durableObjects.ML_DSA_PRODUCER_DO = {
+      className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
+    };
+  }
+  delete worker.durableObjects.ML_DSA_REGISTRATION_DO;
+  worker.serviceBindings = { DERIVER_B: 'preparer-b' };
+  return worker;
 }
 async function raw(path, input, credential) {
   const init = {
@@ -408,7 +431,7 @@ function caseSummary(value) {
 }
 async function buildHash(name) {
   const bytes = await readFile(
-    join(root, 'crates/router-ab-cloudflare/build', name, 'index_bg.wasm'),
+    join(buildRoot, name, 'index_bg.wasm'),
   );
   return [name, createHash('sha256').update(bytes).digest('hex')];
 }

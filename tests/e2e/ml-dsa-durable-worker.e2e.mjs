@@ -18,6 +18,7 @@ import { startProfiles, stopProfiles, closeProfiles } from '../../crates/ed25519
 const fixtures = resolve(process.argv[2] ?? '/private/tmp/ml-dsa-worker-fixtures');
 const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.json');
 const root = resolve(import.meta.dirname, '../..');
+const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
 const options = new Set(process.argv.slice(4));
 for (const option of options) assert.ok(['--profile-preparation', '--passive-preparation-observer'].includes(option), 'Unknown measurement option');
 const profilePreparation = options.has('--profile-preparation');
@@ -175,6 +176,23 @@ try {
       await waitForPreprocessingStart(initialStarts);
       observations.firstConsumptionRefillStartedMs = performance.now() - started;
       assert.ok(observations.firstConsumptionRefillStartedMs < 3000, 'Consumption did not advance the maintenance alarm');
+      const jobs = await rolePreprocessingJobs('a');
+      jobs.sort(newestJobFirst);
+      const job = jobs[0];
+      assert.equal(await producerState(job), 'running');
+      const inventoryStarted = performance.now();
+      await inventories();
+      observations.inventoryDuringPreparationMs = performance.now() - inventoryStarted;
+      assert.ok(observations.inventoryDuringPreparationMs < 2000, 'Producer work blocked pool inventory');
+      assert.equal(await producerState(job), 'running');
+      observations.inventoryOverlappedRunningProducer = true;
+      const retry = await raw('preparer-a', '/router-ab/ml-dsa/prepare', job, serviceAuth);
+      assert.equal(retry.status, 202, 'A duplicate producer receipt was rejected');
+      const changedJob = structuredClone(job);
+      changedJob.expires_at_ms += 1;
+      const changed = await raw('preparer-a', '/router-ab/ml-dsa/prepare', changedJob, serviceAuth);
+      assert.notEqual(changed.status, 202, 'A changed producer claim was accepted');
+      observations.producerQueueRetryAndBindingChecks = true;
     }
     const inventory = await inventories();
     observations.postSignInventories.push(inventory);
@@ -272,8 +290,8 @@ function base(name, build, extraBindings) {
   return {
     name,
     modules: true,
-    scriptPath: join(root, 'crates/router-ab-cloudflare/build', build, 'worker/shim.mjs'),
-    modulesRoot: root,
+    scriptPath: join(buildRoot, build, 'worker/shim.mjs'),
+    modulesRoot: buildRoot,
     modulesRules: [
       { type: 'ESModule', include: ['**/*.js', '**/*.mjs'] },
       { type: 'CompiledWasm', include: ['**/*.wasm'] },
@@ -295,6 +313,8 @@ function workers() {
     },
     roleWorker('a', 0),
     roleWorker('b', 1),
+    preparerWorker('a', 0),
+    preparerWorker('b', 1),
     {
       name: 'timer-control',
       modules: true,
@@ -325,8 +345,23 @@ function roleWorker(role, index) {
         className: 'RouterAbMlDsaAdmissionDurableObject', scriptName: 'router',
       },
     },
-    serviceBindings: { DERIVER_B: 'b' },
+    serviceBindings: { DERIVER_B: 'b', ML_DSA_PREPARER: 'preparer-a' },
   };
+}
+function preparerWorker(role, index) {
+  const worker = roleWorker(role, index);
+  worker.name = `preparer-${role}`;
+  worker.durableObjects.ML_DSA_POOL_DO = {
+    className: 'RouterAbMlDsaPoolDurableObject', scriptName: role,
+  };
+  if (role === 'a') {
+    worker.durableObjects.ML_DSA_PRODUCER_DO = {
+      className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
+    };
+  }
+  delete worker.durableObjects.ML_DSA_REGISTRATION_DO;
+  worker.serviceBindings = { DERIVER_B: 'preparer-b' };
+  return worker;
 }
 async function raw(worker, path, input, credential) {
   const fetcher = await runtime.getWorker(worker);
@@ -388,7 +423,7 @@ function waitOneSecond(resolve) {
 }
 
 async function wasmDigest(role) {
-  const bytes = await readFile(join(root, 'crates/router-ab-cloudflare/build', role, 'index_bg.wasm'));
+  const bytes = await readFile(join(buildRoot, role, 'index_bg.wasm'));
   return [role, createHash('sha256').update(bytes).digest('hex')];
 }
 
@@ -407,16 +442,38 @@ async function preprocessingStarts() {
   return Promise.all(['a', 'b'].map(rolePreprocessingStarts));
 }
 async function rolePreprocessingStarts(role) {
+  return (await rolePreprocessingJobs(role)).length;
+}
+async function rolePreprocessingJobs(role) {
   const directory = join(persistence, `${role}-RouterAbMlDsaPoolDurableObject`);
   const files = (await readdir(directory)).filter(walletDatabase);
   assert.equal(files.length, 1);
   const database = new DatabaseSync(join(directory, files[0]), { readOnly: true });
   try {
-    return database.prepare("SELECT count(*) AS count FROM _cf_KV WHERE key LIKE 'preprocessing/%'").get().count;
+    return database.prepare("SELECT value FROM _cf_KV WHERE key LIKE 'preprocessing/%'").all().map(storedPreparationJob);
   } finally {
     database.close();
   }
 }
+async function producerState(job) {
+  const directory = join(persistence, 'preparer-a-RouterAbMlDsaProducerDurableObject');
+  const files = (await readdir(directory)).filter(walletDatabase);
+  for (const file of files) {
+    const database = new DatabaseSync(join(directory, file), { readOnly: true });
+    try {
+      const row = database.prepare("SELECT value FROM _cf_KV WHERE key = 'producer-job'").get();
+      if (row) {
+        const state = deserialize(row.value);
+        if (JSON.stringify(state.job.batch) === JSON.stringify(job.batch)) return state.state;
+      }
+    } finally {
+      database.close();
+    }
+  }
+  throw new Error('Producer state is missing');
+}
+function storedPreparationJob(row) { return deserialize(row.value); }
+function newestJobFirst(a, b) { return b.expires_at_ms - a.expires_at_ms; }
 function walletDatabase(name) { return name.endsWith('.sqlite') && name !== 'metadata.sqlite'; }
 async function waitForPreprocessingStart(before) {
   const deadline = performance.now() + 10000;
@@ -482,6 +539,8 @@ async function verifyPassiveInventory() {
   observations.passiveInventoryMatchesWorker = true;
 }
 async function fileDigest(path) {
-  const bytes = await readFile(join(root, path));
+  const buildPrefix = 'crates/router-ab-cloudflare/build/';
+  const location = path.startsWith(buildPrefix) ? join(buildRoot, path.slice(buildPrefix.length)) : join(root, path);
+  const bytes = await readFile(location);
   return [path, createHash('sha256').update(bytes).digest('hex')];
 }

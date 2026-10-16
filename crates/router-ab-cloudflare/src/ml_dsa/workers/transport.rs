@@ -8,6 +8,12 @@ use std::{collections::VecDeque, time::Duration};
 use worker::{EventStream, WebSocket, WebsocketEvent};
 const WINDOW: u32 = 8;
 const MAX_BYTES: usize = ed25519_yao::ml_dsa_runtime::MAX_MESSAGE_BYTES;
+const PREPARATION_BOUNDARIES: u8 = 8;
+
+enum Scheduling {
+    Online,
+    Preparation { remaining: u8 },
+}
 
 pub(super) struct Duplex<'a> {
     socket: &'a WebSocket,
@@ -17,9 +23,26 @@ pub(super) struct Duplex<'a> {
     acknowledged: u32,
     received: u32,
     pending: VecDeque<Vec<u8>>,
+    scheduling: Scheduling,
 }
 impl<'a> Duplex<'a> {
     pub(super) fn new(socket: &'a WebSocket, deadline: u64) -> worker::Result<Self> {
+        Self::with_scheduling(socket, deadline, Scheduling::Online)
+    }
+    pub(super) fn for_preparation(socket: &'a WebSocket, deadline: u64) -> worker::Result<Self> {
+        Self::with_scheduling(
+            socket,
+            deadline,
+            Scheduling::Preparation {
+                remaining: PREPARATION_BOUNDARIES,
+            },
+        )
+    }
+    fn with_scheduling(
+        socket: &'a WebSocket,
+        deadline: u64,
+        scheduling: Scheduling,
+    ) -> worker::Result<Self> {
         socket
             .as_ref()
             .set_binary_type(worker::web_sys::BinaryType::Arraybuffer);
@@ -33,7 +56,29 @@ impl<'a> Duplex<'a> {
             acknowledged: 0,
             received: 0,
             pending: VecDeque::new(),
+            scheduling,
         })
+    }
+    async fn cooperate(&mut self) -> core::result::Result<(), RuntimeError> {
+        let yield_now = match &mut self.scheduling {
+            Scheduling::Online => false,
+            Scheduling::Preparation { remaining } => {
+                *remaining -= 1;
+                if *remaining == 0 {
+                    *remaining = PREPARATION_BOUNDARIES;
+                    true
+                } else {
+                    false
+                }
+            }
+        };
+        if yield_now {
+            // Promise-ready socket reads can monopolize the event loop. A timer
+            // yields at a fixed public frame count, independent of secret values.
+            worker::Delay::from(Duration::ZERO).await;
+            self.remaining()?;
+        }
+        Ok(())
     }
     fn remaining(&self) -> core::result::Result<u64, RuntimeError> {
         let now = crate::cloudflare_now_unix_ms_v1().map_err(transport_error)?;
@@ -44,6 +89,7 @@ impl<'a> Duplex<'a> {
     }
     pub(super) async fn send(&mut self, bytes: &[u8]) -> core::result::Result<(), RuntimeError> {
         self.remaining()?;
+        self.cooperate().await?;
         if bytes.len() > MAX_BYTES {
             return Err(RuntimeError::MessageLength);
         }
@@ -69,6 +115,7 @@ impl<'a> Duplex<'a> {
         length: usize,
     ) -> core::result::Result<Vec<u8>, RuntimeError> {
         self.remaining()?;
+        self.cooperate().await?;
         if length > MAX_BYTES {
             return Err(RuntimeError::MessageLength);
         }

@@ -13,7 +13,6 @@ use ed25519_yao::ml_dsa_runtime::{
     TrustedMlDsaSchedule,
 };
 use ed25519_yao::ml_dsa_signing::SigningRole;
-use std::future::Future;
 use worker::{WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
 pub const PREPARE_PATH: &str = "/router-ab/ml-dsa/registration/prepare";
@@ -43,29 +42,6 @@ impl Command {
 }
 fn runtime_error(_: impl std::fmt::Display) -> RouterAbProtocolError {
     invalid("ML-DSA registration execution failed")
-}
-async fn transaction<T, F, Fut>(state: &State, work: F) -> Result<T>
-where
-    T: 'static,
-    F: FnOnce(TransactionStore) -> Fut + 'static,
-    Fut: Future<Output = Result<T>> + 'static,
-{
-    let output = Rc::new(RefCell::new(None));
-    let captured = Rc::clone(&output);
-    state
-        .storage()
-        .transaction(move |tx| async move {
-            let value = work(TransactionStore(tx)).await.map_err(protocol_error)?;
-            captured.replace(Some(value));
-            Ok(())
-        })
-        .await
-        .map_err(storage_error)?;
-    let result = output
-        .borrow_mut()
-        .take()
-        .ok_or_else(|| invalid("Registration transaction returned no result"));
-    result
 }
 async fn check(env: &Env, command: &Command) -> Result<()> {
     let command = match command {
@@ -158,7 +134,12 @@ pub(crate) async fn handle_prepare(
             signing_schedule: execution::schedule_digest(
                 &super::schedules::load().map_err(protocol_error)?,
             ),
-            signing_batches: policy(env).map_err(protocol_error)?.refill_target_batches(),
+            // Registration needs admissible stock. The durable refill loop builds
+            // the remaining reserve after activation. The generic format requires two.
+            signing_batches: policy(env)
+                .map_err(protocol_error)?
+                .minimum_ready_batches()
+                .max(2),
         },
     )
     .await

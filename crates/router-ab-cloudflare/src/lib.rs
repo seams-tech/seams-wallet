@@ -12,7 +12,10 @@ pub use ecdsa_signing_fetch::*;
 /// Durable ML-DSA preparation and admission boundaries.
 pub mod ml_dsa;
 #[cfg(feature = "workers-rs")]
-pub use ml_dsa::workers::{RouterAbMlDsaAdmissionDurableObject, RouterAbMlDsaPoolDurableObject};
+pub use ml_dsa::workers::{
+    RouterAbMlDsaAdmissionDurableObject, RouterAbMlDsaPoolDurableObject,
+    RouterAbMlDsaProducerDurableObject,
+};
 #[cfg(feature = "workers-rs")]
 pub use ml_dsa::workers::registration::RouterAbMlDsaRegistrationDurableObject;
 mod auth;

@@ -1,0 +1,305 @@
+{
+  "schema": "seams.ml-dsa-refill-summary.v1",
+  "scope": "Short one-wallet saturation screen. Initial stock is excluded from the post-depletion rate. Final HTTP latency and demand latency are separate. Whole-invocation CPU is reported per role without a billing claim.",
+  "deployment_versions": {
+    "router": "9f135025-421a-45d8-a5f7-b234c9aad799",
+    "a": "ed041a34-bd09-49ad-9a1f-87a6f1a01b02",
+    "b": "29bbbf5b-dcee-4cd1-a2af-343edd569426",
+    "preparer-a": "56a60d95-4a30-498d-b7de-77a6425ea9b8",
+    "preparer-b": "5064d23d-b128-46e4-a7e6-c8c470a44e8f"
+  },
+  "unmatched_publications": [],
+  "initial_observed_stock": {
+    "at_ms": 1792136120085,
+    "role": "router",
+    "key": "662245fbc69ae21693294321ef89ab1fdac0ea892d3ccb70c33d14553c23bb62",
+    "epoch": 2,
+    "ready_a": [
+      "502361bddb6062ee69940b1c0f360373c383cb52bd10cd9ece968de7adac7d8e",
+      "322ab95a1b7a7a7f9531fb4f695792d4d722422ab05410e4406df990b883c347",
+      "bd3d4fc221c8ced146ac1190ff8dc28a23db21fb972f9d7957c15e77423b3ed4"
+    ],
+    "ready_b": [
+      "502361bddb6062ee69940b1c0f360373c383cb52bd10cd9ece968de7adac7d8e",
+      "322ab95a1b7a7a7f9531fb4f695792d4d722422ab05410e4406df990b883c347",
+      "bd3d4fc221c8ced146ac1190ff8dc28a23db21fb972f9d7957c15e77423b3ed4"
+    ],
+    "reserved_a": [],
+    "reserved_b": [],
+    "log_timestamp_ms": 1792136120085
+  },
+  "final_observed_stock": {
+    "at_ms": 1792136575997,
+    "role": "a",
+    "key": "662245fbc69ae21693294321ef89ab1fdac0ea892d3ccb70c33d14553c23bb62",
+    "epoch": 2,
+    "ready_a": [
+      "186d34db91dc23960b6ecda3ccaa10733e3796b335a16dc43c6ef39b08a13a0c",
+      "76c8ef4c2b2578c73a9377cc95d1a12c42474e3fb79fe30ae5a229ca717ee309",
+      "30ac3c51b0a11ea56a8eeda4ef6e8ee5144ea461f8b0725729edc49123897d71",
+      "aa7315e9385e362efa9b2b5e16bca06b1d3015b629fee3bbb3454f47ec3d779d"
+    ],
+    "ready_b": [
+      "186d34db91dc23960b6ecda3ccaa10733e3796b335a16dc43c6ef39b08a13a0c",
+      "76c8ef4c2b2578c73a9377cc95d1a12c42474e3fb79fe30ae5a229ca717ee309",
+      "30ac3c51b0a11ea56a8eeda4ef6e8ee5144ea461f8b0725729edc49123897d71",
+      "aa7315e9385e362efa9b2b5e16bca06b1d3015b629fee3bbb3454f47ec3d779d"
+    ],
+    "reserved_a": [],
+    "reserved_b": [],
+    "log_timestamp_ms": 1792136575997
+  },
+  "initial_ids_including_prestarted_producers": [
+    "322ab95a1b7a7a7f9531fb4f695792d4d722422ab05410e4406df990b883c347",
+    "4e34d74c0dc366df2f92d1e649b0e330c1e500eb2e6ac200223bbcafc41ea35b",
+    "502361bddb6062ee69940b1c0f360373c383cb52bd10cd9ece968de7adac7d8e",
+    "bd3d4fc221c8ced146ac1190ff8dc28a23db21fb972f9d7957c15e77423b3ed4"
+  ],
+  "prestarted_producer_batch_ids": [
+    "322ab95a1b7a7a7f9531fb4f695792d4d722422ab05410e4406df990b883c347",
+    "4e34d74c0dc366df2f92d1e649b0e330c1e500eb2e6ac200223bbcafc41ea35b",
+    "bd3d4fc221c8ced146ac1190ff8dc28a23db21fb972f9d7957c15e77423b3ed4"
+  ],
+  "paired_publications": [
+    {
+      "at_ms": 1792136149684,
+      "batch": "4e34d74c0dc366df2f92d1e649b0e330c1e500eb2e6ac200223bbcafc41ea35b",
+      "published": true,
+      "elapsed_ms": 56081,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136149684
+    },
+    {
+      "at_ms": 1792136240064,
+      "batch": "5edb4cec802db84fabcc583b6fd2047958316f02fd22acdac0ac282befcc4051",
+      "published": true,
+      "elapsed_ms": 45651,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136240064
+    },
+    {
+      "at_ms": 1792136327869,
+      "batch": "8ec44600fc54035793c8a8b2bd335d16b9f9c542e3a1ff9b0a8bce67684ff935",
+      "published": true,
+      "elapsed_ms": 43481,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136327869
+    },
+    {
+      "at_ms": 1792136380369,
+      "batch": "b51747df445d2835c470eaea20ba92ca9392fd76c261fed4442ba23bef2ed19d",
+      "published": true,
+      "elapsed_ms": 52307,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136380369
+    },
+    {
+      "at_ms": 1792136427391,
+      "batch": "186d34db91dc23960b6ecda3ccaa10733e3796b335a16dc43c6ef39b08a13a0c",
+      "published": true,
+      "elapsed_ms": 46845,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136427391
+    },
+    {
+      "at_ms": 1792136473457,
+      "batch": "76c8ef4c2b2578c73a9377cc95d1a12c42474e3fb79fe30ae5a229ca717ee309",
+      "published": true,
+      "elapsed_ms": 45847,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136473457
+    },
+    {
+      "at_ms": 1792136523823,
+      "batch": "30ac3c51b0a11ea56a8eeda4ef6e8ee5144ea461f8b0725729edc49123897d71",
+      "published": true,
+      "elapsed_ms": 50192,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136523823
+    },
+    {
+      "at_ms": 1792136575237,
+      "batch": "aa7315e9385e362efa9b2b5e16bca06b1d3015b629fee3bbb3454f47ec3d779d",
+      "published": true,
+      "elapsed_ms": 51292,
+      "candidates": 8,
+      "log_timestamp_ms": 1792136575237
+    }
+  ],
+  "new_paired_batch_ids_observed": [
+    "186d34db91dc23960b6ecda3ccaa10733e3796b335a16dc43c6ef39b08a13a0c",
+    "273a99e657f786f3fe6ded24e239bb4ed2897f6fdc64582835a59dcebff323a5",
+    "30ac3c51b0a11ea56a8eeda4ef6e8ee5144ea461f8b0725729edc49123897d71",
+    "5edb4cec802db84fabcc583b6fd2047958316f02fd22acdac0ac282befcc4051",
+    "76c8ef4c2b2578c73a9377cc95d1a12c42474e3fb79fe30ae5a229ca717ee309",
+    "77d6587af2d66305d352f207645b2f38fc773118d778e1f9bfef229871afefd2",
+    "8ec44600fc54035793c8a8b2bd335d16b9f9c542e3a1ff9b0a8bce67684ff935",
+    "aa7315e9385e362efa9b2b5e16bca06b1d3015b629fee3bbb3454f47ec3d779d",
+    "b51747df445d2835c470eaea20ba92ca9392fd76c261fed4442ba23bef2ed19d"
+  ],
+  "missing_publication_completion_records": [
+    "273a99e657f786f3fe6ded24e239bb4ed2897f6fdc64582835a59dcebff323a5",
+    "77d6587af2d66305d352f207645b2f38fc773118d778e1f9bfef229871afefd2"
+  ],
+  "unexplained_arrival_ids": [
+    "273a99e657f786f3fe6ded24e239bb4ed2897f6fdc64582835a59dcebff323a5",
+    "77d6587af2d66305d352f207645b2f38fc773118d778e1f9bfef229871afefd2"
+  ],
+  "failed_producer_completions": [],
+  "publication_limit": "A failed producer completion can follow durable publication. Inventories determine observed paired stock. Missing completion records remain explicit.",
+  "unknown_publications": [],
+  "consumption": [
+    {
+      "operation": "4a1a69fa6315beff8220a83ac306845bfa41972d7b8378e088e75be7a79a2434",
+      "at_ms": 1792136130540.554,
+      "dispatch_at_ms": 1792136128078,
+      "batches": [
+        "502361bddb6062ee69940b1c0f360373c383cb52bd10cd9ece968de7adac7d8e"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "1dca5715c11f92e4af677145683a9c41b47178b5c62ebbba07c52dd7c648f396",
+      "at_ms": 1792136141025.147,
+      "dispatch_at_ms": 1792136139001,
+      "batches": [
+        "322ab95a1b7a7a7f9531fb4f695792d4d722422ab05410e4406df990b883c347"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "baa3cf18d90da5419adcbd3b373e705aefc3d6dd37dda1eb32184ac9e443609b",
+      "at_ms": 1792136159277.4995,
+      "dispatch_at_ms": 1792136157597,
+      "batches": [
+        "bd3d4fc221c8ced146ac1190ff8dc28a23db21fb972f9d7957c15e77423b3ed4"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "bb99650d5751f77a2ac50130ce9aca52f03374368db3e382888389c509e09ac7",
+      "at_ms": 1792136205111.4473,
+      "dispatch_at_ms": 1792136203140,
+      "batches": [
+        "4e34d74c0dc366df2f92d1e649b0e330c1e500eb2e6ac200223bbcafc41ea35b"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "ca52560c790604d53d47928b996b63526d1f59106092506bdeb78a4cb62b7a02",
+      "at_ms": 1792136248400.0002,
+      "dispatch_at_ms": 1792136246848,
+      "batches": [
+        "77d6587af2d66305d352f207645b2f38fc773118d778e1f9bfef229871afefd2"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 1,
+        "evaluated_candidates": 8
+      }
+    },
+    {
+      "operation": "76148188c97ef9db955decaf710f8364ae5680b4b1aee43efcf08d883a54440f",
+      "at_ms": 1792136296854.6812,
+      "dispatch_at_ms": 1792136295523,
+      "batches": [
+        "5edb4cec802db84fabcc583b6fd2047958316f02fd22acdac0ac282befcc4051",
+        "273a99e657f786f3fe6ded24e239bb4ed2897f6fdc64582835a59dcebff323a5"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 2,
+        "evaluated_candidates": 16
+      }
+    },
+    {
+      "operation": "ee38ab3502ec29df3aae78ddd9fe17d32ecf6e1099685c68f9aa40cc0c09a6ce",
+      "at_ms": 1792136393498.3406,
+      "dispatch_at_ms": 1792136392472,
+      "batches": [
+        "8ec44600fc54035793c8a8b2bd335d16b9f9c542e3a1ff9b0a8bce67684ff935",
+        "b51747df445d2835c470eaea20ba92ca9392fd76c261fed4442ba23bef2ed19d"
+      ],
+      "outcome": {
+        "status": "signed",
+        "consumed_batches": 2,
+        "evaluated_candidates": 16
+      }
+    }
+  ],
+  "unique_consumed_batches": 9,
+  "unaccounted_batch_ids": [],
+  "complete_publication_accounting": false,
+  "expiry_limit": "Unaccounted stock may include expiry or retirement. No independent expiry event counter is available.",
+  "post_initial_stock": {
+    "start_ms": 1792136205111.4473,
+    "elapsed_ms": 262076.4755859375,
+    "successful_signatures": 3,
+    "observed_new_paired_batches": 5,
+    "observed_paired_batches_per_minute": 1.1447040385035512,
+    "end_ms": 1792136467187.9229,
+    "includes_trailing_failed_or_unknown_requests": true,
+    "signatures_per_minute": 0.6868224231021307
+  },
+  "paired_batch_wall_ms": {
+    "count": 8,
+    "minimum": 43481,
+    "median": 48518.5,
+    "maximum": 56081,
+    "sum": 391696
+  },
+  "matched_producer_invocation_cpu_ms": {
+    "a": {
+      "count": 7,
+      "minimum": 21780,
+      "median": 22128,
+      "maximum": 25857,
+      "sum": 161280
+    },
+    "b": {
+      "count": 9,
+      "minimum": 20657,
+      "median": 21885,
+      "maximum": 24817,
+      "sum": 198643
+    },
+    "preparer-a": null,
+    "preparer-b": null
+  },
+  "producer_queue_invocation_cpu_ms": null,
+  "unmatched_producer_alarm_cpu_ms": null,
+  "successful_final_http_ms": {
+    "count": 7,
+    "minimum": 7433.573541999998,
+    "median": 9382.963791,
+    "maximum": 12761.416625,
+    "sum": 69981.01545799995
+  },
+  "successful_demand_ms_including_waits": {
+    "count": 7,
+    "minimum": 9383.125375,
+    "median": 42187.137667,
+    "maximum": 95541.55804100001,
+    "sum": 269105.367332
+  },
+  "client_requests": 112,
+  "unavailable_requests": 52,
+  "client_functional_passed": false,
+  "client_latency_target_met": false
+}

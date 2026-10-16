@@ -2,13 +2,18 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-16.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [latest storage campaign](ml-dsa-65-storage-latency-report.md) records hosted registration at 6.42 seconds and recovery at 5.73 seconds.
+The [preparation throughput campaign](ml-dsa-65-preparation-throughput-report.md) separates refill through a durable producer queue.
+All twelve hosted signatures verify in 1.34–3.55 seconds per successful online request, including one two-batch signature.
+After initial stock depletion, observed refill supplies 0.895 batches per minute and supports 0.795 signatures per minute.
+Demand latency, including capacity waits, reaches 175.97 seconds. Larger pools are not the solution under investigation.
+Minimum two-batch preparation still takes 151–190 seconds for hosted creation and recovery. Online registration takes 4.975 and 6.040 seconds.
+Keep standard FIPS export and wallet-seed recovery. Next, profile complete preparation cost and compare matched runs before public integration.
+The earlier [storage campaign](ml-dsa-65-storage-latency-report.md) records hosted registration at 6.42 seconds and recovery at 5.73 seconds.
 Five verified one-batch signatures take 2.72–11.56 seconds. Multi-batch latency remains unqualified.
 The Worker experiment uses binary chunk I/O, cached public schedules, eight candidates, and HMAC-authenticated public tables.
 The same 643 online table frames now require 24 transactions. Private preparation and signing shares remain encrypted.
 Registration still misses five seconds. Initial-stock installation adds 1.44–1.70 seconds after a 3.84–4.32-second key-generation service call.
-Slow signing requests spend 4.18–8.47 seconds waiting for inventory RPCs. First isolate that delay from overlapping producer work.
-Then compare bounded stock installation and minimum admission-ready initial reserves.
+That earlier campaign spent 4.18–8.47 seconds waiting for inventory RPCs. The preparation throughput campaign tests asynchronous dispatch and minimum initial reserves.
 Full-reserve preparation takes 204–274 seconds in this campaign. This includes keygen preparation and four eight-candidate signing batches.
 These small samples include durable installation and settlement. They provide no production percentile or sustained-load guarantee.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
@@ -32,7 +37,8 @@ The comparison plan defines fresh measurement boundaries. GPU optimization remai
 Hosted refill currently measures 19.26–22.24 seconds per four-candidate batch and 203.22 seconds for ten sequential batches.
 One batch does not guarantee one signature. A larger server or GPU remains a future option, with no current deployment change.
 Preprocessing stays on Workers. Integration must expose empty pools and include replenishment in capacity and cost measurements.
-Durable one-use state, Router admission, concurrent operation handling, and the public Wallet signing route remain open.
+Durable one-use state, Router admission, and automatic refill now have experimental E2E coverage.
+Public Wallet integration, broader concurrency, and production capacity qualification remain open.
 Earlier dated checkpoints below retain their original measurements.
 Starting source and research review: 2026-10-05.
 

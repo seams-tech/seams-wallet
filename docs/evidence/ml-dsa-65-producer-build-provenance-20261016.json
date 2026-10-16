@@ -1,0 +1,42 @@
+{
+  "schema": "seams.ml-dsa-preparation-build-provenance.v1",
+  "revision": "680010d69a0a87d626d98fe09dc37114bedb44b9",
+  "branch": "ml-dsa",
+  "sourceSha256": {
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs": "c5a20eb90fda71662392849b7b9ed0ef990b74cb6687adf303cef20a40d052b2",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs": "fea14718d0e355d8e87dd6aa39799ecaf251958e234cfa65888c082032623a9b",
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs": "fca8dc1a3c1c710cd1494c09f4e2ed4e26e97dc5a572b14036b4b3fd6e4459f0",
+    "crates/router-ab-cloudflare/src/lib.rs": "2d3ce911b80afa291c7450b6cfb76a42457aac31af0a1996d5d45ef445614841",
+    "crates/router-ab-cloudflare/src/ml_dsa/refill.rs": "4e0e2a6f9cd716f6883bc4d24f7a16c90f239399679e995f92ddbc4f239f6713",
+    "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs": "0224199e7e2c7d5763521c0c7fdaef8976ae482a9f8b4577a57d54327c824c5b",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "b030cb3cf05c2567abc56c585a1a70829b93f776e8e29789e0559decbe57bc98",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/coordinator.rs": "663e9658713891584bb127b64271fd75648db6e7e15da0841c1999ef639424c3",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "774adbae4526e07ddd084e35c0388621afcf2a2a9eeaee3d2576a0e1e44be377",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs": "e50cf54c1663a4f1333353ca5ac3d0b6668083f110d5a07dc3eacb43b9c7543f",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/registration.rs": "c7e1159140f56b29789e4b8ff765b8121413ad70df36b24d8eb8dc1809aa6938",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/adapter.rs": "0285eb84b0e263e0174733ed94b3e081cc8902b06e0ce2ee0a95073fb0fe89a3",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/engine.rs": "d18d026b16e041588464deaa76028a10c300ca448570f6ed1dd271ccb1fa11e6",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/transport.rs": "43751805f91658d164582c6704354d6a0f1a2ea0f3cedb9cef48439faea5a67e",
+    "crates/router-ab-cloudflare/tests/ml_dsa_durable_pool_e2e.rs": "bbb5af02536caceef5268e0d800b1c96adb2aa0a32d3d4c4e6eb5a62ba7aa3ad",
+    "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "9acc3abb63ce8510a1489b72ca951cc853b9bf41765f458e027dfbb2f835ad45",
+    "tests/e2e/ml-dsa-registration-worker.e2e.mjs": "4e68ea1fd9b6b16536763b07616aa8b5f6f9109633889e5b4e3d2ff019426508",
+    "tests/e2e/ml-dsa-sustained-worker.e2e.mjs": "127f0d48c50b89aba843ba8b9ac50f0b72c6a8d270370a65306618c537507092",
+    "tools/ml-dsa-investigation/research/collect_worker_traces.py": "05205f861d1f53829d7d4e7e00710bc38dbd93869dff5c9c3645be7e951d8a8a",
+    "tools/ml-dsa-investigation/research/summarize_refill.py": "30ceb2d73899ef9a4eaae1773edf51b21073fa1fc356d16a4db5ca00ff7f4e70",
+    "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs": "234e0835ff34a7e9006560a3c7d582697fc8d745ecd02b21d6b1bd27c1134ae7",
+    "tools/ml-dsa-investigation/src/registration_tables_evidence.rs": "815e8276df3029c3c4f2fcefc6f9756e34da89de0e4eb10660b98c9cb02ca8ae",
+    "tools/ml-dsa-investigation/src/silent_correlation_evidence.rs": "e76aca7d62c249779544500396d0404d13d568fce8b40abc6023b989c15b473a"
+  },
+  "buildSha256": {
+    "crates/router-ab-cloudflare/build/router/index_bg.wasm": "3d79b3fa2d3988608957a9b7d4b893da8d6bac61d1c754994cd66c9364c0d23c",
+    "crates/router-ab-cloudflare/build/router/index.js": "c1e0d5f4ab7c53c7ecaae79de8e9f7c1e4ab620077ad168124952d0075ce88b7",
+    "crates/router-ab-cloudflare/build/router/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+    "crates/router-ab-cloudflare/build/deriver-a/index_bg.wasm": "f730b888bd7bb73aadbb4a45d9885383b3efa94eba2cabf753cbdf4df11259bf",
+    "crates/router-ab-cloudflare/build/deriver-a/index.js": "21acfa82c4534220729d46d6a96ff230e48ace18d3d32a071377838695940f0d",
+    "crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+    "crates/router-ab-cloudflare/build/deriver-b/index_bg.wasm": "f8a28454c059622d4139fac70ac36ce276eebea5589b4f2af7a69117f7ae6d70",
+    "crates/router-ab-cloudflare/build/deriver-b/index.js": "1ae7eec89e9fdea8a9b5ad8b1cc15cee4d75d3ff0f2cd7fda2a834d440f307f1",
+    "crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+  },
+  "node": "v26.4.0"
+}

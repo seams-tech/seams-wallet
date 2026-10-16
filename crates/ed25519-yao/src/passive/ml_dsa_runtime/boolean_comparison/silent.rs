@@ -4,15 +4,12 @@
 //! expansion follows CryProt/libOTe, with fixed dimensions and oblivious
 //! receiver recovery. Every call uses real fresh 128-bit base correlations.
 
+mod correlation_aes;
 mod pprf;
+use correlation_aes::CorrelationAes;
 
 use super::*;
 use crate::passive::ot::MlDsaSilentBaseOtFamily as BaseBatch;
-use aes::{
-    cipher::{BlockCipherEncrypt, KeyInit},
-    Aes128,
-};
-use aes09 as aes;
 use cryprot_codes::ExConvCode;
 use cryprot_core::Block;
 
@@ -264,17 +261,13 @@ async fn receiver_base(
     Ok(Zeroizing::new(selected.as_slice().to_vec()))
 }
 
-fn hash_cipher() -> Aes128 {
-    Aes128::new(
-        &193502124791825095790518994062991136444_u128
-            .to_le_bytes()
-            .into(),
-    )
+fn hash_cipher() -> CorrelationAes {
+    CorrelationAes::new(&193502124791825095790518994062991136444_u128.to_le_bytes())
 }
 
-fn hash(aes: &Aes128, input: &[u8; 16]) -> Zeroizing<[u8; 16]> {
+fn hash(aes: &CorrelationAes, input: &[u8; 16]) -> Zeroizing<[u8; 16]> {
     let mut output = Zeroizing::new(*input);
-    aes.encrypt_block(output.as_mut_slice().try_into().expect("AES block"));
+    aes.encrypt(core::slice::from_mut(&mut *output));
     for (out, input) in output.iter_mut().zip(input) {
         *out ^= input;
     }
@@ -292,7 +285,7 @@ fn triples(role: SigningRole, encoded: &[Block], delta: &[u8; 16]) -> Zeroizing<
             SigningRole::B => 8,
         };
         let mut inputs = Zeroizing::new([[0u8; 16]; 16]);
-        let mut blocks = Zeroizing::new([aes::cipher::Block::<Aes128>::default(); 16]);
+        let mut blocks = Zeroizing::new([[0u8; 16]; 16]);
         for index in 0..8 {
             let input_index = match role {
                 SigningRole::A => 2 * index,
@@ -310,7 +303,7 @@ fn triples(role: SigningRole, encoded: &[Block], delta: &[u8; 16]) -> Zeroizing<
         for index in 0..count {
             blocks[index].copy_from_slice(&inputs[index]);
         }
-        aes.encrypt_blocks(&mut blocks[..count]);
+        aes.encrypt(&mut blocks[..count]);
         for index in 0..count {
             for byte in 0..16 {
                 blocks[index][byte] ^= inputs[index][byte];

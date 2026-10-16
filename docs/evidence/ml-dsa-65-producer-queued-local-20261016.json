@@ -1,0 +1,1242 @@
+{
+  "scope": "Local workerd, real strict Worker bundles, synthetic canonical wallet key, typed Gateway owner admission, and durable signing. Verified factor inputs, claimed-operation persistence, and custody activation are injected. HTTP login, public session routes, and hosted latency remain outside this test.",
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 1000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "minimum_ready_batches": 2,
+    "refill_target_batches": 4
+  },
+  "profilePreparation": false,
+  "passivePreparationObserver": false,
+  "initialReserveMilestones": [
+    {
+      "paired": 0,
+      "elapsedMs": 163.0570829999997
+    },
+    {
+      "paired": 1,
+      "elapsedMs": 18069.809333
+    },
+    {
+      "paired": 2,
+      "elapsedMs": 35127.338
+    },
+    {
+      "paired": 3,
+      "elapsedMs": 52177.818292
+    },
+    {
+      "paired": 4,
+      "elapsedMs": 68935.593708
+    }
+  ],
+  "preparationReads": [
+    {
+      "startMs": 158.5309169999996,
+      "finishMs": 163.0492079999999
+    },
+    {
+      "startMs": 1165.6665829999997,
+      "finishMs": 1300.135292
+    },
+    {
+      "startMs": 2300.763833,
+      "finishMs": 2371.3115
+    },
+    {
+      "startMs": 3373.6026249999995,
+      "finishMs": 3416.3814999999995
+    },
+    {
+      "startMs": 4418.785167,
+      "finishMs": 4480.233125
+    },
+    {
+      "startMs": 5481.976417,
+      "finishMs": 5518.720208
+    },
+    {
+      "startMs": 6519.281333,
+      "finishMs": 6573.565417000001
+    },
+    {
+      "startMs": 7575.406249999999,
+      "finishMs": 7626.782708
+    },
+    {
+      "startMs": 8628.990624999999,
+      "finishMs": 8667.351292
+    },
+    {
+      "startMs": 9669.143250000001,
+      "finishMs": 9707.829333000001
+    },
+    {
+      "startMs": 10710.313583,
+      "finishMs": 10749.855917
+    },
+    {
+      "startMs": 11752.011750000001,
+      "finishMs": 11798.084667
+    },
+    {
+      "startMs": 12799.247041999999,
+      "finishMs": 12852.987042
+    },
+    {
+      "startMs": 13855.601333000002,
+      "finishMs": 13905.453250000002
+    },
+    {
+      "startMs": 14907.757083,
+      "finishMs": 14955.290083
+    },
+    {
+      "startMs": 15955.930792,
+      "finishMs": 16006.321833000002
+    },
+    {
+      "startMs": 17008.083333000002,
+      "finishMs": 17048.795083
+    },
+    {
+      "startMs": 18051.8085,
+      "finishMs": 18069.646375
+    },
+    {
+      "startMs": 19072.276417,
+      "finishMs": 19172.746542
+    },
+    {
+      "startMs": 20175.446375,
+      "finishMs": 20216.296292
+    },
+    {
+      "startMs": 21217.972625000002,
+      "finishMs": 21295.338667
+    },
+    {
+      "startMs": 22297.172292,
+      "finishMs": 22347.165667
+    },
+    {
+      "startMs": 23349.285875,
+      "finishMs": 23394.632292000002
+    },
+    {
+      "startMs": 24396.471208,
+      "finishMs": 24442.591333
+    },
+    {
+      "startMs": 25444.256542,
+      "finishMs": 25497.757458
+    },
+    {
+      "startMs": 26500.784958,
+      "finishMs": 26546.981
+    },
+    {
+      "startMs": 27548.936208,
+      "finishMs": 27590.45925
+    },
+    {
+      "startMs": 28592.232042,
+      "finishMs": 28630.773667
+    },
+    {
+      "startMs": 29632.7365,
+      "finishMs": 29701.800458
+    },
+    {
+      "startMs": 30704.230750000002,
+      "finishMs": 30749.459792
+    },
+    {
+      "startMs": 31751.396542000002,
+      "finishMs": 31794.159125
+    },
+    {
+      "startMs": 32796.443958,
+      "finishMs": 32849.134625
+    },
+    {
+      "startMs": 33851.098167000004,
+      "finishMs": 34101.941583
+    },
+    {
+      "startMs": 35104.37175,
+      "finishMs": 35127.322542
+    },
+    {
+      "startMs": 36129.412333,
+      "finishMs": 36219.584708
+    },
+    {
+      "startMs": 37221.609125,
+      "finishMs": 37237.124667000004
+    },
+    {
+      "startMs": 38238.812042,
+      "finishMs": 38298.106708
+    },
+    {
+      "startMs": 39299.980167,
+      "finishMs": 39369.612417000004
+    },
+    {
+      "startMs": 40369.243125,
+      "finishMs": 40406.264333
+    },
+    {
+      "startMs": 41408.284292000004,
+      "finishMs": 41446.37175
+    },
+    {
+      "startMs": 42448.169083,
+      "finishMs": 42513.973
+    },
+    {
+      "startMs": 43515.128958,
+      "finishMs": 43573.088083
+    },
+    {
+      "startMs": 44575.136583,
+      "finishMs": 44645.741833
+    },
+    {
+      "startMs": 45648.022417,
+      "finishMs": 45700.004125
+    },
+    {
+      "startMs": 46701.882,
+      "finishMs": 46759.28
+    },
+    {
+      "startMs": 47760.900792,
+      "finishMs": 47814.605667
+    },
+    {
+      "startMs": 48816.716125,
+      "finishMs": 48858.349500000004
+    },
+    {
+      "startMs": 49859.870167,
+      "finishMs": 49907.817792
+    },
+    {
+      "startMs": 50910.427,
+      "finishMs": 51159.730167
+    },
+    {
+      "startMs": 52161.473042,
+      "finishMs": 52177.802
+    },
+    {
+      "startMs": 53180.434125,
+      "finishMs": 53267.286917
+    },
+    {
+      "startMs": 54269.2355,
+      "finishMs": 54307.881625
+    },
+    {
+      "startMs": 55310.795792,
+      "finishMs": 55373.477708
+    },
+    {
+      "startMs": 56374.95475,
+      "finishMs": 56393.701375000004
+    },
+    {
+      "startMs": 57394.969458,
+      "finishMs": 57404.979292
+    },
+    {
+      "startMs": 58407.135,
+      "finishMs": 58456.564583
+    },
+    {
+      "startMs": 59458.284958000004,
+      "finishMs": 59513.744583
+    },
+    {
+      "startMs": 60516.178583,
+      "finishMs": 60555.618417
+    },
+    {
+      "startMs": 61557.311917,
+      "finishMs": 61595.006375
+    },
+    {
+      "startMs": 62597.4785,
+      "finishMs": 62638.873958000004
+    },
+    {
+      "startMs": 63641.616624999995,
+      "finishMs": 63703.131542
+    },
+    {
+      "startMs": 64705.775542,
+      "finishMs": 64767.712499999994
+    },
+    {
+      "startMs": 65769.467667,
+      "finishMs": 65814.081792
+    },
+    {
+      "startMs": 66816.064875,
+      "finishMs": 66872.107625
+    },
+    {
+      "startMs": 67874.2345,
+      "finishMs": 67915.618333
+    },
+    {
+      "startMs": 68917.702667,
+      "finishMs": 68935.568208
+    }
+  ],
+  "postSignInventories": [
+    [
+      {
+        "ready": [
+          [
+            241,
+            163,
+            141,
+            135,
+            237,
+            120,
+            187,
+            1,
+            131,
+            17,
+            88,
+            179,
+            135,
+            49,
+            37,
+            253,
+            148,
+            182,
+            221,
+            219,
+            224,
+            151,
+            230,
+            104,
+            240,
+            24,
+            14,
+            105,
+            78,
+            250,
+            200,
+            241
+          ],
+          [
+            199,
+            209,
+            208,
+            85,
+            46,
+            204,
+            10,
+            189,
+            238,
+            68,
+            198,
+            17,
+            246,
+            4,
+            112,
+            239,
+            189,
+            253,
+            130,
+            224,
+            147,
+            124,
+            50,
+            192,
+            67,
+            167,
+            37,
+            254,
+            8,
+            37,
+            126,
+            41
+          ],
+          [
+            173,
+            209,
+            112,
+            106,
+            103,
+            244,
+            90,
+            25,
+            57,
+            147,
+            247,
+            255,
+            12,
+            59,
+            187,
+            83,
+            85,
+            157,
+            171,
+            163,
+            38,
+            176,
+            248,
+            187,
+            94,
+            32,
+            40,
+            40,
+            64,
+            79,
+            110,
+            125
+          ]
+        ],
+        "refill_due": true,
+        "reserved": [],
+        "retry_at_ms": 1792139446423
+      },
+      {
+        "ready": [
+          [
+            241,
+            163,
+            141,
+            135,
+            237,
+            120,
+            187,
+            1,
+            131,
+            17,
+            88,
+            179,
+            135,
+            49,
+            37,
+            253,
+            148,
+            182,
+            221,
+            219,
+            224,
+            151,
+            230,
+            104,
+            240,
+            24,
+            14,
+            105,
+            78,
+            250,
+            200,
+            241
+          ],
+          [
+            199,
+            209,
+            208,
+            85,
+            46,
+            204,
+            10,
+            189,
+            238,
+            68,
+            198,
+            17,
+            246,
+            4,
+            112,
+            239,
+            189,
+            253,
+            130,
+            224,
+            147,
+            124,
+            50,
+            192,
+            67,
+            167,
+            37,
+            254,
+            8,
+            37,
+            126,
+            41
+          ],
+          [
+            173,
+            209,
+            112,
+            106,
+            103,
+            244,
+            90,
+            25,
+            57,
+            147,
+            247,
+            255,
+            12,
+            59,
+            187,
+            83,
+            85,
+            157,
+            171,
+            163,
+            38,
+            176,
+            248,
+            187,
+            94,
+            32,
+            40,
+            40,
+            64,
+            79,
+            110,
+            125
+          ]
+        ],
+        "refill_due": true,
+        "reserved": [],
+        "retry_at_ms": 1792139446409
+      }
+    ],
+    [
+      {
+        "ready": [
+          [
+            173,
+            209,
+            112,
+            106,
+            103,
+            244,
+            90,
+            25,
+            57,
+            147,
+            247,
+            255,
+            12,
+            59,
+            187,
+            83,
+            85,
+            157,
+            171,
+            163,
+            38,
+            176,
+            248,
+            187,
+            94,
+            32,
+            40,
+            40,
+            64,
+            79,
+            110,
+            125
+          ],
+          [
+            45,
+            244,
+            182,
+            48,
+            96,
+            252,
+            108,
+            43,
+            157,
+            114,
+            82,
+            103,
+            22,
+            194,
+            217,
+            204,
+            108,
+            203,
+            45,
+            219,
+            226,
+            207,
+            119,
+            3,
+            65,
+            134,
+            209,
+            28,
+            71,
+            243,
+            209,
+            98
+          ]
+        ],
+        "refill_due": true,
+        "reserved": [],
+        "retry_at_ms": 1792139464057
+      },
+      {
+        "ready": [
+          [
+            173,
+            209,
+            112,
+            106,
+            103,
+            244,
+            90,
+            25,
+            57,
+            147,
+            247,
+            255,
+            12,
+            59,
+            187,
+            83,
+            85,
+            157,
+            171,
+            163,
+            38,
+            176,
+            248,
+            187,
+            94,
+            32,
+            40,
+            40,
+            64,
+            79,
+            110,
+            125
+          ],
+          [
+            45,
+            244,
+            182,
+            48,
+            96,
+            252,
+            108,
+            43,
+            157,
+            114,
+            82,
+            103,
+            22,
+            194,
+            217,
+            204,
+            108,
+            203,
+            45,
+            219,
+            226,
+            207,
+            119,
+            3,
+            65,
+            134,
+            209,
+            28,
+            71,
+            243,
+            209,
+            98
+          ]
+        ],
+        "refill_due": true,
+        "reserved": [],
+        "retry_at_ms": 1792139464042
+      }
+    ],
+    [
+      {
+        "ready": [
+          [
+            94,
+            204,
+            92,
+            56,
+            119,
+            107,
+            16,
+            69,
+            50,
+            10,
+            146,
+            231,
+            92,
+            64,
+            248,
+            1,
+            123,
+            6,
+            26,
+            166,
+            20,
+            71,
+            134,
+            159,
+            111,
+            146,
+            45,
+            138,
+            191,
+            100,
+            224,
+            103
+          ],
+          [
+            209,
+            70,
+            110,
+            62,
+            194,
+            207,
+            163,
+            186,
+            65,
+            222,
+            98,
+            171,
+            137,
+            34,
+            146,
+            74,
+            167,
+            17,
+            190,
+            5,
+            7,
+            80,
+            163,
+            9,
+            197,
+            77,
+            96,
+            201,
+            124,
+            160,
+            91,
+            82
+          ]
+        ],
+        "refill_due": true,
+        "reserved": [],
+        "retry_at_ms": 1792139498493
+      },
+      {
+        "ready": [
+          [
+            94,
+            204,
+            92,
+            56,
+            119,
+            107,
+            16,
+            69,
+            50,
+            10,
+            146,
+            231,
+            92,
+            64,
+            248,
+            1,
+            123,
+            6,
+            26,
+            166,
+            20,
+            71,
+            134,
+            159,
+            111,
+            146,
+            45,
+            138,
+            191,
+            100,
+            224,
+            103
+          ],
+          [
+            209,
+            70,
+            110,
+            62,
+            194,
+            207,
+            163,
+            186,
+            65,
+            222,
+            98,
+            171,
+            137,
+            34,
+            146,
+            74,
+            167,
+            17,
+            190,
+            5,
+            7,
+            80,
+            163,
+            9,
+            197,
+            77,
+            96,
+            201,
+            124,
+            160,
+            91,
+            82
+          ]
+        ],
+        "refill_due": true,
+        "reserved": [],
+        "retry_at_ms": 1792139498486
+      }
+    ]
+  ],
+  "signatures": [
+    {
+      "elapsedMs": 339.31379200000083,
+      "underFiveSeconds": true,
+      "duplicateReturnedSameSignature": true,
+      "changedRequestRejected": true,
+      "messageHex": "dc221b78ef2c2f2dad120ece696bfd34d545fba8b3a5033b0b7308fb7105896e",
+      "contextHex": "",
+      "signatureHex": "bf5ff00fcbaef85f93c022dc291e424e6c7e38c0c2437585750b3c5da850cefb6db87cd09b05d68544778f1109bd4efef0a17a6e21abf81c4e5aaedf7b9e7fd290410388f54fc02fcd4e3d001dbe0abee9b9402e5984730a40bc20e38d7f90fc9f3bebe2641ed961143d71ee63c8eb36d2c96bb2caaf573205cc1895d45b1382fa21dd18ce194b380a7ab70c9f28478d945c496c92d017cdee28033567283bd46a190e85b2ee4dc4ad81a657cf33cd67d52b8b3a0e3988e8f2616733c044c8f3d72713f8926c1a06f158d13acac774e6fa242c1cc727759ce190cd7faed0cb7205e16d5db384a9a458742941c4551a0d58b30fea2fcd1cc53b22cc6089dbe6c4339c190e51b64d13f95ccef14ab9ba4b8304ab9034d934482590bc3e76a381555a90c876251341e99c86a13b59589145fffdfc3308784ca22b8eec17f78637f128f021fe3f7d04f8d5ddd2b3bb05826718ce514a3af8a4d40be0e6fc9f3a3f34cc797de767d0a93a67fe8b8f5579c79016041bae54e3666078f7d6ddd3d00cb188529daa3b738f75a22b9b88a7d6bce6d97d8a552986262b1b8742a65b3b3436c3cadc48d0569045f94341eac7525ec332157b535153ae004183b9ee3f0f9f6ec376204e8f4def4cd0702fde60d2deca50ac00eca15a884a2bd529052470d40020a4987b622fd4dfd3956f12416a7695c46b80eed6f6ea8bccd5bf9c5212cba7e064f07396077a86084df994cc54d9e239ce4222ae14b9ae65bf3dcb4ccb0f8d220f9b9a33da9b9ee8305148b0fc9c5f660f4fd539a34efdcb3b4f7c93f00659312040127f954082b141f4d57dfb0eca36efd1433230d212fc2bf27ff7563ef934c56b8d59999aff7e18b2e341082c006076fd750c58758f0215519cf4cbaf21779c6695af1b5f244bd826883a643d4b1e11d046ab16010c112a0ae4531c299fc91938b68f680b0e876ad05126ff1504d52570bfea21c85dc7d791aae4a79f11420ec70d3ad6ae1d407c2569086134e0e81b65ed98af01c209052573c6a2bb849c32119104590e42d877a2f94a48cbb658abd94d90a728fe477cfc95c3e8dedad6360cf12d196ed4c1a146d3147e38edcfe201cc981a99c4cd484fd55a639e5a271e5b3a64b0b24a8f0950b5349d916eeddfe80999168bf8a926ad0a50f50e4c721b32ab09329da012235c974b740c5cf1fe377d7c2f92368d802c1ce8125b7c2cbdf52abe9950b279ef67814c3fe6e56d07906ab4be7551dfb58c0095f70348a949c1d0154df85e868df30beb89180d3a6750a73f817ebc7629a910082f4c1f884b727a2e32e2abdc48af64bc0c1ffb051ab0884ac6c7f77ce2eefed65c081d16b0d3516c5a9ff0cb13c0e728fc7ddb178ca1cb29e1160566f2d30a0b2b4d80ede0aa5bd74d1048cb1a0e521e00c5012db6c8a6305086cc3a8ecfc11bd331fd2f3d3a3ca991f97206cb31caf69382ce512c6c1d97cfb2ab1d87064029c52524bf0da24363c8a197d05ab7ef8f312285dc44211db18c50124ceb5f1f1bc2c5c33d291a85cea1a919318e327e4e6cdd6ddc26e29cc701a2062f78bf6e297c1df75fdf5de27692efb68d1dbb9f8ea319e5a634db4e46748bdaba721e635698fda1cfa6731940b6e069417d2c31ffe2d7b73e8df04b741ec5cad91e2af1377def0bcd202e6f3425fa4af673c9a91136088e7940dbd551022a9ee958b512379ac4fae114d08ad0fd78f532c7d4f07e55950cee9cc1e881764ef5d92cc30b3eae227d550b9e4374b02d430e8598c3eb6051d24ee648d4407c43b39c8fa08b1f969ef8e7785d551926f6259f36d70fcf497988cf5d5df7db16b582cb2875415e6e4b22e1f44d51c06fe4b6456e2b6fd3fe34117e4f5f02af0bd01e8f8b0c647f22b5f73ed5d1b8506a4095ac1ef5b3f0e1a45faa1ff5e9f43226703d7246d1a60534202695e7d6a55596dd7b90b87d6632235cd3afa4709c1a35d281e0cfa263a849c6af9dbde233f449b5bfea4b1df6619c76a9022f85bebe1b6a9e2bba6e4d6aca98c2c82380fcfc6d684f36636208eaef395d6861154749c016066c1a3f69f7af7b4c3a0c9973b2fbab6a22407e3ac7810dbfefbb7b17656262891c971bbb84e7c732e817d567f99f7baa41fd3f30ec3c0c4fa6ad9c0c78cc1db273af6bcbf8a2b3629a42be2f11fac1f4b79967492bb356ea1b88691179fb5b30a483b19a4a1b8ae39b62d461b80e122cc79ddf130a580a3df7da1c3758486c6008b50d4e1d4ab7c4768deb928ca35bd4726091e921f499c718622b0a973c7779f2a1ef3bf221473acb13ed594b58544a8369a7098e95dcc71ad914b4392edd688d3d7fde98857750692d2887b3a426b952503b4ec9b3d09c5b5827e41f14106e28207e2578839475019fb47f7d2fc4f88d9b6ce0017477063624f0e44481c3cd811542f50e880b1baa529044b5e32b125d64e8912b9dfe6fc425e6a5d10aa92335032d59a131fc56fd8c74ace79215646ed3b8ad995b4b3b15f2d391fb6dc1510d8db56324fe0ae5bc52030bbb677928c147d287b12360c9b61b2de5ab43b2c91d9d9268793ed116800824df4f492e9ec4f7591afd2eaccba9015a4dcd8506ca022fcb0b7040385f3bc0ded5372f37ecdf2f18f5d7cc7299e31e5eedfb8e69883eeb837ceff868573b96d980abda65cff1d87b5c9f0349409a799d95348687b90e5a1d0e87fc8623107e29f3c86d57d3d8d75371a6d4d1a12f9b1db8a1032de50d53361293e2a97e4ce6a515de68491afe314e693e5409b14c7ce8343269cea524e80c13c167381718f54e7c4867a0e78021d3f601e25754f1b0e10bc060df1c925a7d276dff6a9a15511c2c384bce772dc7c91815128cf210144e04368f31ef12b9c33abdc19ac9402ef55df12201ff5dfd925cf7b6cf7066b3a9499da33a67b1972c7ea90816f1026929bcaa43ff48412d8cc4f3dcdf8c72a038ae389884864538da8f147987ca203fc41cd53ba75b69be2f263119ca6001a4ed7c20439435e39f2df9511a9e7a9caaac7c03fdbab2cb764f65abc44f289819baf77356ce4b817dadb07f372aeedb359fd4b8fafc03549ddc218ea45b7334a14a6929716ccf8718993061d2fbe38a26ea66aed6c531b1d436d3c88ef295c471916777b05d338213d5df3ec0f60ffabc14b2204b43fe573a73059983fd48a2065baaf8e1a261f6aa07301cdeed10b2ecdbf2be5cd839f3852302b89ac52f7e46e06293ca8c92d05098dad2272f9b6beec9f49bca0afa63c0134d2ff8ee5c33646045533b7e0e0b7e024f9fef057087ca44ad4cf0f554216f1e83df3dcf5bd34fa36e302b3e806189bc34fc6760735823a5209c181e603ed960663ab46afdcaf1e58ab94aa22ccc41dbbbc19dca9687f31a2624064057a50ce09801a7462b630b07f6ef63f4578a8e0ea78e58dbe30d0f0a2ee2f27fbe141f9851dd8866056f445fd86ef7e9a0c818582c773d47ae3a9357dab764ebcb349cdb7d096e3314d8779aea9b2c182ac6deb2cd18c90c3251b488a2ffe3373db464652653ed2777e0c74d0ad53b5a1844aaee47394726a7ba15ffce73991b652f4cb7409e4c44b60a27f43ada8624dec5f72079151d31cdbd360a9f287c8ac2cfe94806c87df8ea45866e293ecd6cd4478775c4da500b9cdc06ee1cf39de7a88cff88f6fd49099f3df302bf4fdc8139e38e68ff63c88a1159269a15341282545ef36ef7608df048af57552b7ad130816e2aa7b920d01922ff552d54f3e76262fbafca03ae541e629abb160c04914108a703d1102dd20360f3b94c74782ac302034e6c1bde1bff008b16e0e613605aac52690ee05f3fa14636f8059f8db38c3656b7fe7b77d1c0e89ac392e20c3c18d5bdce387899ee876a2d0a3a7bc16d416bd4497060545b3fdad3c4f6b283dbaba7921e56800fc46e6504e8ed926a9cb024fc898595a89871b011c8d0c8f42bc1fffbce8b426f2da5c27282978b68d4a6220c5ce4927255dbefa3cf30ff92682076e6999079ee343991d6256960d882e74acb4f57b09e7c26f8d252666317a63d0df511360d97db94dcf79fdc1940898f6b04f9ec6bb78dab23966fe7f53be64b54e495f0141a8b12a0ad0c830ab71663ad9f68b622638d064bcb66c461ce9404b978acb094f84c0ed64f5743f18c102fa56c15faf42e1982ad74ba9341a1506634d2ae2c6059b4ea8a6bbae9d358a35860a5c93ef5760c01696077f88f2562458476a78b3ea39c5639f1cd747c49fb64317151413a15b51803682806def5f18ac5fb43e30abfd0b6c3b6a5e30ffd009657460a7fcf07c49525515c86d5e367b1b16a43522f35a3e6025a7080852f0c82388bf9296c636ea6255bd4c35353a1326d66369eb6e5c1accb3f158e3717daa7340ad8c640925559a2cf12c97df88bba85bb712c8ec771ffc26e72ea68d4b3870836ce704cc486d29191b29c9ee700750bd566cf76d2a9af033cc8b5f5ffa8341866d0915ab67b0216a26a3e47be40140677d9392135af017b87e04c0b651990d67fe8f374a689a2484e8d15bf7015e425d94390ad7d2735c89bac42eab2231c830e314913f5994a06375865808f3545464d626888d53993d61d3c3fbac44260718899a0a9cbccd9f44558788aaab2e1e20000000000000000000000000000060e11162129"
+    },
+    {
+      "elapsedMs": 388.4204170000012,
+      "underFiveSeconds": true,
+      "duplicateReturnedSameSignature": true,
+      "changedRequestRejected": true,
+      "messageHex": "83a0605e017721992b63cadcbcdc60698469e38ce26dedfcc26c93e13140b19e",
+      "contextHex": "",
+      "signatureHex": "9dbb4bbf44b84a54f126d19ea128392651983fb08912fc4da92f2efe61d4c5553c34073ddc5befed7fbfb041984f2a3bc7ec2eb29d7c77e1cb0f2118d2e16c4d4ea24e727282559b5dacb6a6bdd62805d0fb828df80177a02b3503438e6e0b05895996056478fb41f8f3458126944db175baccc6e3eb06469f85b47bb9d63119541023d427d553f7c80ccbec90523a9d925c514d9dc83302fc2be18840eec1dab59109521b08e7f387e47cae23f48f842e79f49a95ce3bbeb0dd0b03f1f36700f81dab89009c810e8447174d3a735e8405f452be6c64291dedd32b9ebc57e06bac34dbb464635e515814dbbfb770bb8188de15f269606d0162f64ce21bc02521bfb1cd057c19e2fb6d6c1c9154418ffcb88188f88dd006957a04acf8d0bf4a29d84620c583e506a19ff748c35a1001ceca06ca40c626a7efe6393cf63dd163ba78bb890aff5208f405d88e2341e3f62972109cb97abe5243bb8d451e869c7cdb331d17789cb31c03c29e064f61444925f410d0757525ce7b23dca788453eaa04e5a076c35de6bbab787535f4cfa9e6af11a58f998e19aa7d92842927c670b3c7ec092749ed32e9dbe2832da881b5b6ac65d6b673f84a3b3bbdc733e9ab4f3abb9a08e76d4fb1e064e86e8c19dcb026b029508d0816e19369fcba8e4e82c49f8da6c2a26d0ac0bfe176debb79751b365982b13a318278ea1af30a4639aa0c64cb9c161aea19e2d32714e1dc690a206bcfd6be474520ab4bbf343549faf08bec2b39e774b1dec0c78acfb0f2d7f74beaf1cfb7f0752df4fc8b42e73aa4064ef97d1fc17d9d32f518307d9e03ffc0340d1e91d76660ef8c51d0ee185a4494a268959d0731186f020e62cfc71e2b0156e7ce8ae3de7d208b1a5c8cd687ff57d739c72890de06d53e1954e74bcf1fd62368b885d9158a0b03327183fb01520b2a267668122d84f9f6ba3b8fab25d5bb7f5ac3639abd5f883865401848e863f22999313eed0045cfbc04649b896760bfc932e22465892776784ab2d6b977a0aea87a7ce4c845acbd7632d4f828733f3742cd4ed12a75dd60ba82c7904448fafddec5aee85b9e1c9b69c926ef3ac082b84f29cb0aa7257fedc2451e3de9f7fc32354bbceb85f10864b5eabf75dd11f2e9af1dd436d26b7248359c9322134bc446aa1b20cd2f0296422e6578bf34390157b87d1b84ae017f56f95dd4204bf01e1f65ba1338af059fa1fa928ee376e17199f0daaaf457254e3d469c5b03e69c78d9172990ff00da7a9232d650b2fb84f94de137943c207da1edd76d243c1207f5c85f314683c2e29c8da92abd27c7d715c6f7ec6a382050116ea134d74e2d617ff12c6cfa78ecdfb8656fdc459c5dd9ff23e8f9dfa74800c0f0107916d5d97e60690e253bbfc1dd7eef50bb8c73a59d499d0f91890c519503415074f84c622808a279d68852b42ebd7017fdf3e2d4de3d82661ff379732b89845c08d0c1093fbc5a498a355a225c7d436e9337d3caf6f9eb7ac394b4a497358e022b2567196978f02230005380f3c9e8d00587372259dfb23c671c3321e82bf87aa25dc233c9dbecec8c67fd4d71c4987d3920a6149a78a69e2a84a5d7277e6c31d3ae4500289bb806f3e3ab10df3cc0f9d9e3043300017fb0eca50f21a4fd64771edfeffc17b78c05bea6ccf417ba32ed3e07959bc1246afe1fe02faff68a84ac9b95e9f2620e01d8a37e055e9be9762359ff278ee2d2cf58b5f0c3dcfe03e772386312243566acc0fd55c9cc3b6d0f7a37d02cf101ea847f667af945e52664a623a4c4f7771022bf52e3fa76e53e972c5ebc40c7e75ba1083ce36c078164cf27f4f6162ceff92cd7810925b00b897c6bb378b2a1f6c03fcd2c12693374f7e3c7b471ddb15bf351c63a5186faef936a419190bb622844511dc5c70178dd43f94b29fa5e278000c01cfdc263b7941c4a2203c7fd0f0cedd9a79ac0e850c35a6e4c0e657ec14660b11168622240c1f0496f2c45720504782a136ace1cc8ec8b2e5ef426efa5793797b005d0c0f3872e268c01da3304d15d332505817b96fa3a925f8313e4475b873c1f88714a629e4fe4d879e5d3af5cc5aee6ab5a9a281ac71c7d0c8a1cb9fe869767547d458b734d080cd5987247e7e52431ab7fc60328085b06f246912dbe14a4470015eea9832f1df0a051d9a6df03c0b9786877a8953ce3619f639abd05277dd9778cb2131fce856d35761ecac378a7b964bb22c253f308f75801a92851e307beb20a08e7929a56ebe20bb9b45fc5896e42ea5b72a7659ef3aeac1e96a43cd8e2d881e735fa0a17acc75b4d551884cff8884cff51d560ce763210d699116dca0a43a03cd20993783e32c07046a1dc92b71301ea15c0baa47ccdb6130a5cb4c9dfa563c73bd12944a6a8d44d71927b0748ce7aba6bedf771f15ebf1fedb48d867bfef88c47da549469412bf4b5251a4ce80bc4d192ac4450cc8f4cc0fdf932d6f38c9bd5df94699cd8cf431723b0df57d1b813c4a80ab9d51f515baeb165a39c7fe47505f1d803c7e3e71fe37547e70250c2bd333592ed3737424906c240d67dcc3c6aa7f4cd76854bc495ede71b7431fd1e23ac29ab04797bd44dfed22ea706cef62ede6681c066ee5e60056534b479231d648e334c2fa0d94d5a331dd73783f0bb7434be5163a19678384477f81001260b742420b698477b6f64276b42f9a8330a48c44fa7728ae0b737c26e6ac54123537cc0fe3e4c60e0837392855b7254802aaf9500957636c52f0532cb10efefc08a25d60777beb7ce128295f14e45065fef1e8cb7a8f37a8f5466d29a9db86953842d284bc2923d7a5c585824efb723d558398972e64ef17233e5fc3d8577dd8198f39f125ebc3c911ec57dfbf58078bbfd252bc63a0914bc67be528e9d57f5e1d87b592acceaeb180104ec525e74de63b4e855689b0e60ce25369522f31839f462327eb727ff2b1c36e04ed87a1c589f7832aafc46144ae4b16ba0229852ef0942a7b9c8e46bad42cabb4ebfa51ad254c45b3fde0c41fa9952794641570a98fdccd0856535d05fff88b41b49f40e99a1675b8a95e44dc354262cd9fa3b268228f63fd418b4eb47ac79b5c1ce4419e088a3c18f7325608e6a4ae440f10563e3855ea207b2dd0cef71066dc1f1b4a3f1ac910a2a60c050e00d27bc5329ba8fee3c0e32074cbd73d2974ae938504b82946d3744649b00ab3479bc2ca39c513ff216f913f46c2456df2dce2d6deac97c487fc3faf3a13f396290c6dc931ca578e4e075870ab482d8e3136c39e91b169c5961fd4d59a819f581bf3b39109c5d79beba2f59a40edf941b53e8b13c2dc579c0b9c8a411ddfeedec3224447c553fb42f0981b7fdf5ed07c0e5d781fa57674c9ff9189959ae9a819fa566d71cc2cb0d398eddf1b97769546c9eaa812cc8ce1753a9157da3fed36befdca94f6a6ed4880b61930ce08f9df319515f3bd3cfc1ce7e0dab62311139fdc71f8b8d647111193043f36d6c64b4b3b47fa868967635086a511906a83f6c809735d342be01785162391515f8c6aa98090b3bee7b59b5398f358b7bf19be3ed55774bc89eb4073109139005979e13ab3979e4f78830c2bea51db6467dfe00a66ebe992c999463c0b6542c85ddbf03e8dc2c49dc25821129b332ed43a23829654071add36be1b8d14de534ab0ac25f671e0fdd2e2ce6a56baf2f5c068006e50bd2185363e03fd32a9bc571013a97f8d2159b0aef7bb631f114b0f2b503144d3f93fee5ef3ee183538990bc9bf017f4e090e48c999a3d86cde1befb5668c4550f167276977ddab4050c646f964e3dd79075391f1fd6ec579219cd2534665fd49a830369952426876c45f136dfba57d4aec5cb1584ef7c9f8068cd159a1a0222af7e7ae5cb3f511df7310f604178a3054c5807b64ddcab21efb07995fb9c05db72623cb0a3a17677e333186f33d46be764947360203ce605edc062eaa8108127228c8e0d0add17fb10335a79f96b6f1a4dcf8dbfeaae253025a35755867848fc676682195b10c0d80a3f2e4821a877b392bdae5ad82f36acec008600c20a99f0f85921c53754fb01beb3f6187ef3ed797f7529a1e3bada2ee50dc98863717cd3cd0691b50ce4594349c6336ce010e58d80ff4b3182661e868b3aa1fbe03add8f4fd6622f95b428e8cb2b9fc6d9a708ea4a2ff657d1abcb106150b00b1d469097bd6654950d71e4b41972e9d808e7c9db45a41bd6fcb96c16a28bd217085aafad53aac24e1085f23f011f3944cd3e00a44ac97a79e72256b3b8eab1835fe9be7d41044a9f18aa52c0325687a44f760b7e9dad96c38d2f5d98706b4bd7e53d44295882a8a301c65db67eb1a2995e77e144e7b44bfbcaad9b3c12dec66e82d550885372306c1d69abd9542911bf1b7add0422a9a2daeaf2bda085c01d8615cd1661976eec8caa76bfa2abba1b64b065b5f8ccc4d5290ebeaeafbaf9f6eb57eadc55bb0b2bbdb38b23f72ad03ba4b15e549f69d589fd8c3b21332d6753bccba88990af93840cd6d0fab3f5b51819dec31793dd968270309d72a47004d2a6f1426213d21eaf8272f2813b20ff8a660730668596f0224f5f6b7c9fb0b6c1fe1a3e4d9bab1697dee8fc1a3bacbc036ba1b0e0e90000000000000000000000000000000000000000050f14191d23"
+    },
+    {
+      "elapsedMs": 363.57941600000777,
+      "underFiveSeconds": true,
+      "duplicateReturnedSameSignature": true,
+      "changedRequestRejected": true,
+      "messageHex": "5d6ea1d2c2dac0c38377a27da3439776cf463e04bf7481752a5fe06f6e2abf1a",
+      "contextHex": "",
+      "signatureHex": "a0b6315ab4f7955a1c2ee19b717a9a8b10462deeb87494b337be038b3d330c5ccbef640179931d750420711bfbbb9c6c1681141cd8891ded8c993c4a6d85e92547f43172ddb284766f198b342f0bd82f0d5dbe84f0e66910adb53ab819a3dcab80b6ee04f189900f131603dc8512afa376be3b86575260e53385ab0f441f81a8ec92f4a2e21f3d2b8323b3296b8897ec6f9cfa56d606d10aea6d9eb1e6b93717a5abf1db5b85f3d08c1360eb4560c6717b03fbccf9be4a1585494d02f15f33186b1f01689baab70f3bfa0ce1f51c5b137d9095fcce8259b04792930fd69314a8abefaae5d779aabe2254a5f727bf53f7156d23634d69257fbf01eb4fdacd71b7ca58d4c5e55fa6d9993efeae01e626bbe61e5670856d7eac3d32107b6ca985c9615b7ab9f7d8914c3c48841ffaa841cdfc289c23be7eaad5e056426ae8fb87d256993686af0f8c46f43aa3ada5867277c3a810c1b2c6243af9f49346b23b8117effe843a728928e13c9607fe18ba81f432b1535460cca2fe5a1fa416181d8290a05fe64bb2649a860a05b7d9fce20cce0322c9e95c1048ba355431768ee2ddd3931be6cfc624b5baae643a9ef012a00a7d8638a247b624f7c56ad579ef7ceb7b99bfe60f3be02741da2c10d88aee50dc88842bc16698da6760cc6e628098ffa19b1eba83c63947103cb4c0c59afc142142a4fcbc0f977e0049c80b2ffa928c549a6bc7fc68c110fcc1069a178daea472e4f05d48d9896620a2aee9b8c552df708447b8dc220b9289756817c8ba495fcd33e3625417eb08e076bfa049948a7224fb3dbc13e5f8a34636c81508e61d138636c41dcc917888daba12c9665c4ec588db6574d31726e83847b7bd2f790371ab89fcca849272a9ff27dbc6d6b42d23756103761b0710b53dc2d90bd0914f8b5ea36d3cd246682ec4655cfcfe39fd270f186b4782a09e5b4440c9c7f3e9a7c2020ad5bc1c8f4c30e12d43678c11fd3e62bfaaf218f787c422d65fb33fd74bd781cf0d859f1870c3cef24d9c3f55c4c1c9e06030ecf4203cd6a4f4d012b2aee177979072f5bede123e6f735857ac0e97137b597845e68daabfffb7ae93fa5dfca622c8eeda81b30404f6ec1c4a8d72253d0b3dd2f212d416ae2ac6b857796dd317da265fdd4ba5fa49209a9b661e73526803ff8fc795df433eca65f9b5949fad14ba43ef46ff195fd7ec2dd5af63edc8935838a5daf95ef62cfe8faa39046aa9ae48e84874b20c311059300e9472754c871682bb8d26ca92293d452cdc44d7ce02c47dbf9ced59e5bb51cd621f96250d7e90a01e92f444e5a8bcfbf26612572bd9e2c309e8fbeeb41fc5505f608312b8abd858e83d8b429e51b6f8b22ce51a005386ecd774cedad494d3c238de44aee8d4633198c62afde856fd6395bcebf06d18d638f0c3429ed2229059c836ddb15443feb9840eea38791d3ee0263a8a0811dab08064f2f692e92872d96e6219ce20fb713a6c82bf393d475413575ba730549ff6826ed60cca1ca1073221ae6177c17a028c45c27497401711c9393a9dd3c664e6b23434d0c4ec38e8f3467b274f9ac5212b9b2692371860494fa301f2e6454bcfc151a87629266122db5bf9369d93dc64669fdb4aa70b54784d9591c03c2cc75c34d598c1411dd48053aa68da062f39f8dde5bcc47189a944e7d53fed010848da699eb3409bd0220d11aa852375905aa0a4ba9f4fc395d77511d95626d406c3756bb605125d2d1a0e23627ddb782fdb51f1ab3c278de89fe2725abf08c78a12a7784b299a06936d1a3a3e8f3904899c5e36d799367ebae24244ad0bf6d0a739f96aa96dd1c9d08b494bdd5ba31178da401168a3336519b798d2dc066c72109469fcf6fae329c27a28cc8d63537f397821028d9788c1da0c52d6b0e96d90f3ea37407bc233c43dbc88acff32e721e810c419aa9b50dae65adac254751c05eaeb4678001e0dba6aee41131918850fcd9fd85249e6642d0bf5dfb7857fc2194029b1ad4cc70ada893813d3f443924189bef8f247104960af0d190bdd41f9b54ab515716fbf123375a9b803e8b8a72b12a4328c7507890c556aca0fc0c103bf35e2fe24053eb0557872a96b36a94f1675268ed63bfd7dfb702add49c91875e50a507f47bf58e68423fd33304225d49808fda9cd06eac7807168eb336916ebfb154db96e5c1f112dea18fa0b83e54d8af43ef29adc89cb016040b1796b603b39d435fbba2dd2eff9e08d477254aec5178d7e20277c16e5195a3de373a5c2f6796530fc6e45558a4d6dd50278b5a94e7e5e369ac7a7185d346d5ff98a35e200cfda0467ce47ab94468fdfcae868dd70199a6b075d424cf6ff95c2ccc79c1b910101fc73c7a375b14d76cbcfcab16cfe33ad0bde1582311b63058c799a8dba2bff5360b02926e72676de12511d976d57f3210fad2798f56ad95e27e45ba92ed9835770cc52562ac36cd87fc4b4fcb7470235b5aff867d6550854bd3a45859e471f1216a8a33c0f1e4618112f00f81e13ccf69b9d1d76cd989d3ff9ab1c89aded9c9a6da08be0d604006561beffdcec7b5032cd479c10fed31405c1c29b312045fe67eb1549d2114ad99b6cbf864957e6b8a572803ddf33dedd67c72fe8e595837f668d630821c378a7c3015eea4ca8db3d51eb272614a26458f7cb28fa538a760f5d0b76480f6fe1073fea45e58417d2c8d5bb67c4173b3e876b548bb9707a612d2aa4938c376920fe5c8628c39b39ecef0511036eeb3033c53f69cb69dc4f39cc5d22fb862d66fa280f2f6d8d8334e83c4be3b55e6026eb531ee97adf82e7b4df715ee7434d0c280a2fdac531ab2a065505fcf5495c8183834281d5b307cabe468c6eac05709da74e7c20165985d4ca139de27f3fab54cb98a3f0cb7072997ffa056d5f2237e0d4f5260dd909d6361547ac7db1a4f4bef88bc866e5db65306f103f5d06bf98f176b86e391041555a1b1ec67d98220bc10474a8f9608eed6ddfcc7759b3d5461a6a72439d7538f144e356c00ca7cebd4821d382f222815782f77460abe994446149636ff7f973143f4e50b31b501c3cfc757f24201019ffaef7917a341e8b26d808d76a30ed11145bfa953ad9672e29bbb8c5b2984f1c22e7c0828b9eda080f06c976d47bae00440a0e817fa59a5744a5a6d0008b1f5e9b7e02914e3d00b245f534e00a1e1a4a9e5996999d1f5eb74e8e6aa9ff54436d8d17fab27cb6bd588b3c0e634786685d5e141f09191afc7b151225ae0c822684407baf6c8621b0fc185d1e914b21e06c2cbaf921847486252ef67d67a6da6690e2adbf15583802ed9e78691c1528710e47160906d7719251b4ea409d585f6527cd868ae8077b26e8a4ad36cfedb05ca355a2a8e14eecacdc7376c7d93e175d4c3dc4f219d5a0ee4fb80711b56cd78133d5a8ad34a6c8999c114eb54bbd27fa4f4c82499e7f908f2c7e5311229ff98354dfbe999e05709ed8f67fd4d5c25ae7b86c6d69ad38e693101e4b57da6b1a7827aa0cf1a7cc44c0490b14339dcd91ee431a9d62b3bc45d0cbcb80900cbfb174ad97a0920e817275414a0dd2b98a6280359442c925a2aa224953d60ff2ff77ffe958bdec3b77876504fe6cb517e438930f444196f18929cf5cb342fcda22e2f8998fc6921d1a41818d8fa9b1e729638926062d938af4da725e44c27e3c98fd4416aff8dd9c64650b5de2096bfe79699aff9d8d449ae0f4daf4559d1d4ab984f5a651bcd58bebd64c2c03e5f663c6da3d130cc2686991a1b805181f3a8d7f744828107fe47439370c2e226f38ac76ad75e9e5b83f1ffc3476b8ca604774503387a87696579de3eddfd7f5a1abba94da5080548b9175c55ddd8c1131e594948007a53a957db60abcf03f95bc3b5ca62a43629618f37abec51cf4d1fd6dbdef2cc564bfe7494384053e59a108eca1a87bbea79e7bec9cc9ecaabfbbc96fa99eec303c5ff443415419bac55bbbeeb1871749dbd3a32420d3921e8bc63cf11f6bd5486e1eaa33276a8de247167d325ebb213414ee93e71729b0401b3949bdcefbbca3ba20fbfbc131c5b9dc8ebee0cdc2869e665050c1c5479d5b00e9ad9d4d28da55b73e54fd4f909099b0d32acf80d142e4a9cf09d93405af36797659612f6662c7e7dd9791ed75ff59b0437ba7c1d0028935c4874a4c71c95a1fddea300c3ed7ba1022455b234876a965aad140cdb7d6f7a67e0c30f7009a940f143f946cdc05a7bf10d44885ed751bcf8c425337a7da7b33431cc0b0825fe377d3c573a7e8fcf162e77138f377d358a1199a5fae439ec6f3a8f3e6cbaea2a76e2119ddfe00b09af68625752002f4192f5c32dc528eb4675e685aa274879c2e88f0abc0923983e1a605c04436100a2949cb8d5ed79740cc7e78177f19def8625d767d18a3b2dd372c2bfa36aab3ec337de8db34440389a25675fc23734db847f30b36fb3d7e558da15e708f7150486a92adcbd4337431083b645dbb13b914814d94558d77dcd0198d80fd31f4ee55b0145305034b79f81c6119720ec1b7471866cb022a2805cd5cbbd7c89f2f45c344fe2dd2243ecb0cbb1279b1cbfe1e88091926315073dde707101f3f546a8396bcd7d8e2417789a8d4111752545863b22e3942778697aac1d4effb185d6f9ab1d0000000000000081419202b31"
+    }
+  ],
+  "failedOperations": [],
+  "publicKeyHex": "32f3b216618a1f3e8b61b7a949f5dfa5df14a0ac269f04e9d9674f5baadce73437793e7bb32d2fe2d29d724d6c3c638b6926fc1188a8b91204b11c267573eff622d925ba8012710e69263f1a111e486d0c73aa0f49a62057a9cfaa9844ff3b56464b9cb70349f1383e32ed9aae7d5526c8dd67418e5cebc3022bb2fd0db43f08bc39113dd98a6b99e974a7fdd0e918c8d1dd30e16f7ca16a3c457632734fc290d2bbe29363e083671a1d7bbaf2fa1c51c7d63b4235f9592080c74894bce1d8862c3584b7549818ec5a2e5b2d2255c9e20a4b6e8394d50c7aa4ab5d7022ce5309b24d5d3e1db8e60dba6ae03504b2bb1309833f92b4944cb5859969eb8080959b54770db0bf0cec0758d48806c847b3308f18f7d8cdbc42f053e2c6e9851b82a5cad9a03404597d14f16eca5bcf4727b1830c7995e0fd86c077b2f81fa7a7322a1a4bb0a3c4a3bc29f63e410c335f7e8d2d67455c7b9be9c8556568275fca1e3d0459cc83f603b9bdca7aef9968934838f82e7bc5892836b7d4de2275fd99b34b2d4b924324f2521e30639fcb6bd06d043e7d9f0105d43a9efc731b696818232237cb605839e6026b106d35029d671516fdb38969ace0a419fd1a506e95235eb6951dc916f699c3f80b55ef40fa9bd379c3690a51691dd413c462c1eb50c0a859a4b189f641cdbf60d8ea7059500b9f7bc14a929504a317cd28601694aea6f251362bb4dd3b37dd663046729697f0ceb8fcb2dd7bda89aad1ef3d2c2835dce3350b341d1cb5a0ab6a2807443ce6ce383c1ae10658c58c785f95bd6257ff201b74d08771570125767d8c8b6e6a8d1d5eec9ff845166d56f733c9607f31606d75edc95d7aaa395b1f0606fad5ac26f4e1ab694e3ff64f438bbaf064379e1baa315f0f1458b717832dfa04ed45702ce679eade9ad649aa01e524a60aedacb822319231347358d365a218436fbf78fa6eef58e74cd5fa85053d8fabc0d206a87a2809fd1e5a4e943cd60a82dcb331319b41ef6e37bda78dbd9eb3bb980b3168b6db5af2d2c46673584ad8387782850397cd7c7ef593ddf94b433619c362d50d085fae58791014c3d115403742b417878ccf350f3127d3b07eb9226e97df2cfb0664ffa9def7cdf06d03f652a2cf42c9b134f50a243a83d99830cf81fed65858d0ab280cbc4832f49e8cdc492bbeb6452005bb4e922ebebbac2f11a29087b265c02ae5e49fa45828474fcaa4de50c936da7e1e38e7b16ad37d9b9b5dbff07da8e2b63b8fafc2cd067dd84b488cadc172d6de3b2019cd527af68dbb1925703bf2d0502288873c280a3ba510c164f34100416ef0d345761194f20074aee7bfc3aec2f268d3a4b37cda6e10a8f1b736a6b812a630bc0f61c748510b25684433972e02f48f3af19a2fbced8e54e0ec6bdb22728af3865ee5cdd0e0024cf3609724e8f2251f06f76b2f22ce974751f1dd5d90be8d009ea7a541dc2a111c75cf47fec1a20d0a9e0b497c3ebf049283a66143aca4fdfa27d7659f751f0e68c7cb88df0e6920190dacaaf4f049dedd26798a7a4b2986212b93b906e606b5ac3478e2876c4f3c48678796205b250dfdac844e2b755d90ac0e983133aa2532692566808701e37c91bc492cda65a80be3908aee7afad4b169b850024daddc2d656cb5cad19acb31f948fdf1000bb92e6dfaf6aab721cec38f65e0dab463096266e25c248737f9913a3c202fbd578a3dc16ba25160d492a13880d8006a013a3e59fb3d56c681974cc65371eb30c6300fba7ef26830af9e7e142ca1d17943acf8d7af01640ad9917d72918df7f66579b292e367dbae1ef28bb2ba7be813e9f5ab0aab9fe7397c0f5ddb145bd433de3f996492b61c792c54dfbb7e9daf65733518f6e6e2227912a68002d3cc87c8cff3f1d9aed669be2c8e24c2ec3086e81dd107928030e813d4c9d71ad9899a605e887da24a7dea9901e5eda00f3f57852c7304c614bf11bf72e8dee71478db1bb47f1051e0b4da494227f31f3fd658bd0d7e3179fa87fd4538e7c204fbc5f514c3523dfda250a195ba45ae78932ab551c6f08ef8cae5001cb4b03486b944dd1d106cba339c82241e35816ec0f15705de74178446de783f17c537cd4e38551041561b96e8894f4ec7d712dfb5fc37635e7017946670b672d0c7f0b54b98771ce2a67d9d73b3e09185a1fce5ba79e1a158913d97c1dbc69e3b90ce01acf46267015b4959764fbf0225125be7d463d8eefe6fd572867cf99bc62c327c4373ab76b4c027b8aca7b78aec1c712cd353cca2fc7613a70603b2be95c951b8118d0b6b59eadffd93dcab3ca4769d092eb7c12bdfb1382595c4dd952a52e8078aebb350a2b3c4848ec8410fa0ba305fd71fccb3f0c879196461ab3b1f879ee3aeda11a4af6fd623128f75f070a8c8af5ecf280e36941d745a2b7d4464ad1acf31ad5803c271706d314e6e991efb1abf3ae763996b0c1e43cfe96eddcbe0716129d4217ea1ae710a6af144a0f7efeca8cde1592685190181f15a2729a0ba7a7c9ec0782ef7fb78b427bf27679a18136aa1a27e78bff67cdca6fc11071242042d6e39fd0f27af9f789464477733564f6ae257bf70d1d3f1c23a4066d0ce842af324bdd405c5ac6d196a4b85a3e70702c161fab7f8db03a7ef1d088d142a7e135fc134ecb06c77a220fe50ff3a4a549fb9b45b1917aa758003f304832fe3c8dad7b52637715fc638b56d555539c0a4bc90f1d4c3d9113426d931b3b77deb743702c2",
+  "provenance": {
+    "revision": "680010d69a0a87d626d98fe09dc37114bedb44b9",
+    "node": "v26.4.0",
+    "openssl": "3.6.3",
+    "miniflare": "4.20260710.0",
+    "sourceSha256": {
+      "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "9acc3abb63ce8510a1489b72ca951cc853b9bf41765f458e027dfbb2f835ad45",
+      "tests/helpers/mlDsaOwnerAdmission.fixtures.ts": "fcb8113f99eac38b80d789c8b44251a99bb4e91bcd4a26416478cbb120f3d517",
+      "crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs": "791e9f1ab1e6f40da766cd50c308b193cdf564e5a2f2e4f526d9695082de9d24",
+      "crates/router-ab-cloudflare/Cargo.lock": "930ef1e6b8c1a3f1d4bdff3b8b5db23f3947ba6637afec4c759a0ba04c8ce7d1",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "774adbae4526e07ddd084e35c0388621afcf2a2a9eeaee3d2576a0e1e44be377"
+    },
+    "workerJsSha256": {
+      "crates/router-ab-cloudflare/build/router/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+      "crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+      "crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+      "crates/router-ab-cloudflare/build/router/index.js": "c1e0d5f4ab7c53c7ecaae79de8e9f7c1e4ab620077ad168124952d0075ce88b7",
+      "crates/router-ab-cloudflare/build/deriver-a/index.js": "21acfa82c4534220729d46d6a96ff230e48ace18d3d32a071377838695940f0d",
+      "crates/router-ab-cloudflare/build/deriver-b/index.js": "1ae7eec89e9fdea8a9b5ad8b1cc15cee4d75d3ff0f2cd7fda2a834d440f307f1"
+    }
+  },
+  "workerWasmSha256": {
+    "router": "3d79b3fa2d3988608957a9b7d4b893da8d6bac61d1c754994cd66c9364c0d23c",
+    "deriver-a": "f730b888bd7bb73aadbb4a45d9885383b3efa94eba2cabf753cbdf4df11259bf",
+    "deriver-b": "f8a28454c059622d4139fac70ac36ce276eebea5589b4f2af7a69117f7ae6d70"
+  },
+  "idleTimerMs": 1018.8838330000001,
+  "activation": {
+    "zeroInstallationsBlocked": true,
+    "oneInstallationBlocked": true,
+    "duplicateInstallationAccepted": true,
+    "wrongRoleRejected": true,
+    "twoInstallationsActivated": true,
+    "activationRetryIdempotent": true
+  },
+  "wrongAuthorityRejected": true,
+  "activationAndInstallationMs": 158.43870799999968,
+  "maximumPreparedChunkCounts": [
+    56,
+    56
+  ],
+  "initialFourBatchRefillMs": 68780.687167,
+  "activationToFourBatchReserveMs": 68939.1285,
+  "ownerAdmission": {
+    "refusedChanges": [
+      "orgId",
+      "projectId",
+      "envId",
+      "ownershipGeneration",
+      "materialEpoch",
+      "walletKeyVersion",
+      "mlDsaSigningKeyId",
+      "registeredPublicKeyB64u",
+      "keyManifestDigestB64u",
+      "inactiveKey",
+      "origin",
+      "transactionHash",
+      "expiredEvidence",
+      "wrongAlgorithm",
+      "exportIsNotSigning",
+      "proofOperationId"
+    ],
+    "claimAliasPreservesOperationId": true
+  },
+  "firstConsumptionRefillStartedMs": 1041.128749999989,
+  "inventoryDuringPreparationMs": 49.96933400000853,
+  "inventoryOverlappedRunningProducer": true,
+  "producerQueueRetryAndBindingChecks": true,
+  "automaticRefillAfterSigning": true,
+  "duplicateSurvivesWorkerRestart": true,
+  "stalledPermitRemainingMs": 979,
+  "stalledReservationStates": [
+    [
+      "reserved",
+      "reserved",
+      "reserved",
+      "reserved"
+    ],
+    [
+      "reserved",
+      "reserved",
+      "reserved",
+      "reserved"
+    ]
+  ],
+  "reservedInventory": [
+    {
+      "ready": [],
+      "refill_due": false,
+      "reserved": [
+        [
+          94,
+          204,
+          92,
+          56,
+          119,
+          107,
+          16,
+          69,
+          50,
+          10,
+          146,
+          231,
+          92,
+          64,
+          248,
+          1,
+          123,
+          6,
+          26,
+          166,
+          20,
+          71,
+          134,
+          159,
+          111,
+          146,
+          45,
+          138,
+          191,
+          100,
+          224,
+          103
+        ],
+        [
+          209,
+          70,
+          110,
+          62,
+          194,
+          207,
+          163,
+          186,
+          65,
+          222,
+          98,
+          171,
+          137,
+          34,
+          146,
+          74,
+          167,
+          17,
+          190,
+          5,
+          7,
+          80,
+          163,
+          9,
+          197,
+          77,
+          96,
+          201,
+          124,
+          160,
+          91,
+          82
+        ],
+        [
+          166,
+          120,
+          111,
+          149,
+          39,
+          239,
+          109,
+          53,
+          109,
+          80,
+          46,
+          80,
+          147,
+          203,
+          178,
+          195,
+          146,
+          0,
+          235,
+          194,
+          78,
+          39,
+          58,
+          35,
+          68,
+          65,
+          130,
+          164,
+          191,
+          6,
+          3,
+          102
+        ],
+        [
+          153,
+          138,
+          48,
+          26,
+          125,
+          25,
+          252,
+          30,
+          243,
+          155,
+          209,
+          249,
+          157,
+          203,
+          240,
+          220,
+          187,
+          115,
+          171,
+          200,
+          179,
+          56,
+          52,
+          90,
+          158,
+          79,
+          141,
+          0,
+          69,
+          4,
+          135,
+          8
+        ]
+      ],
+      "retry_at_ms": 1792139516024
+    },
+    {
+      "ready": [],
+      "refill_due": false,
+      "reserved": [
+        [
+          94,
+          204,
+          92,
+          56,
+          119,
+          107,
+          16,
+          69,
+          50,
+          10,
+          146,
+          231,
+          92,
+          64,
+          248,
+          1,
+          123,
+          6,
+          26,
+          166,
+          20,
+          71,
+          134,
+          159,
+          111,
+          146,
+          45,
+          138,
+          191,
+          100,
+          224,
+          103
+        ],
+        [
+          209,
+          70,
+          110,
+          62,
+          194,
+          207,
+          163,
+          186,
+          65,
+          222,
+          98,
+          171,
+          137,
+          34,
+          146,
+          74,
+          167,
+          17,
+          190,
+          5,
+          7,
+          80,
+          163,
+          9,
+          197,
+          77,
+          96,
+          201,
+          124,
+          160,
+          91,
+          82
+        ],
+        [
+          166,
+          120,
+          111,
+          149,
+          39,
+          239,
+          109,
+          53,
+          109,
+          80,
+          46,
+          80,
+          147,
+          203,
+          178,
+          195,
+          146,
+          0,
+          235,
+          194,
+          78,
+          39,
+          58,
+          35,
+          68,
+          65,
+          130,
+          164,
+          191,
+          6,
+          3,
+          102
+        ],
+        [
+          153,
+          138,
+          48,
+          26,
+          125,
+          25,
+          252,
+          30,
+          243,
+          155,
+          209,
+          249,
+          157,
+          203,
+          240,
+          220,
+          187,
+          115,
+          171,
+          200,
+          179,
+          56,
+          52,
+          90,
+          158,
+          79,
+          141,
+          0,
+          69,
+          4,
+          135,
+          8
+        ]
+      ],
+      "retry_at_ms": 1792139516030
+    }
+  ],
+  "stalledHandshakeMs": 12.126332999992883,
+  "stalledPeerCloseCode": 1011,
+  "stalledPeerClosedMs": 988.4338329999882,
+  "stalledSocketWaitMs": 976.3074999999953,
+  "concurrentTimerMs": 1006.5592499999912,
+  "stalledOperationExpiredWithoutSignature": true,
+  "standardSignaturesVerifiedByRouter": 3,
+  "standardSignaturesVerifiedByOpenSsl": 3,
+  "passed": true
+}

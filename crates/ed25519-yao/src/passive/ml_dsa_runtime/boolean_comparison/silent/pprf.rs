@@ -7,18 +7,10 @@ use subtle::{Choice, ConstantTimeEq};
 
 const MESSAGE_BLOCKS: usize = 2 * (DEPTH - 1) * TREES + 4 * TREES;
 
-fn ciphers() -> [Aes128; 2] {
+fn ciphers() -> [CorrelationAes; 2] {
     [
-        Aes128::new(
-            &91389970179024809574621370423327856399_u128
-                .to_le_bytes()
-                .into(),
-        ),
-        Aes128::new(
-            &297966570818470707816499469807199042980_u128
-                .to_le_bytes()
-                .into(),
-        ),
+        CorrelationAes::new(&91389970179024809574621370423327856399_u128.to_le_bytes()),
+        CorrelationAes::new(&297966570818470707816499469807199042980_u128.to_le_bytes()),
     ]
 }
 
@@ -26,7 +18,7 @@ fn mask(choice: Choice) -> Block {
     Block::splat(0u8.wrapping_sub(choice.unwrap_u8()))
 }
 
-fn expand_level(tree: &mut SecretBlocks, depth: usize, aes: &[Aes128; 2]) -> SecretBlocks {
+fn expand_level(tree: &mut SecretBlocks, depth: usize, aes: &[CorrelationAes; 2]) -> SecretBlocks {
     let parent_start = ((1 << depth) - 1) * TREES;
     let child_start = ((1 << (depth + 1)) - 1) * TREES;
     let mut sums = SecretBlocks::zeroed(2 * TREES);
@@ -34,11 +26,11 @@ fn expand_level(tree: &mut SecretBlocks, depth: usize, aes: &[Aes128; 2]) -> Sec
     for branch in 0..2 {
         for offset in (0..parent_count).step_by(8) {
             let count = (parent_count - offset).min(8);
-            let mut blocks = Zeroizing::new([aes::cipher::Block::<Aes128>::default(); 8]);
+            let mut blocks = Zeroizing::new([[0u8; 16]; 8]);
             for index in 0..count {
                 blocks[index].copy_from_slice(tree.0[parent_start + offset + index].as_bytes());
             }
-            aes[branch].encrypt_blocks(&mut blocks[..]);
+            aes[branch].encrypt(&mut blocks[..]);
             for index in 0..count {
                 let lane = (offset + index) % TREES;
                 let node = (offset + index) / TREES;

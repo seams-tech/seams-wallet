@@ -68,10 +68,31 @@ pub async fn finish(store: &impl Store, job: &Job) -> Result<()> {
 pub async fn start_role(store: &impl Store, job: &Job, now: u64) -> Result<()> {
     pool::check_key(store, &job.key).await?;
     let name = format!("preprocessing/{}", hex(&job.batch));
-    if now >= job.expires_at_ms || store.get::<bool>(&name).await?.is_some() {
+    if now >= job.expires_at_ms || store.get::<Job>(&name).await?.is_some() {
         return Err(invalid(
             "ML-DSA preprocessing is expired or already started",
         ));
     }
-    store.put(&name, &true).await
+    store.put(&name, job).await
+}
+
+/// Publishes under the exact role-local start marker and unexpired producer lease.
+/// The caller must also authenticate the job against Router admission.
+pub async fn publish_role(
+    store: &impl Store,
+    job: &Job,
+    binding: sealing::Binding,
+    sealed: sealing::Sealed,
+    now: u64,
+) -> Result<()> {
+    let name = format!("preprocessing/{}", hex(&job.batch));
+    if now >= job.expires_at_ms
+        || binding.key != job.key
+        || binding.batch != job.batch
+        || binding.expires_at_ms != job.material_expires_at_ms
+        || store.get::<Job>(&name).await?.as_ref() != Some(job)
+    {
+        return Err(invalid("ML-DSA publication lacks a live producer claim"));
+    }
+    pool::put(store, binding, sealed, now).await
 }

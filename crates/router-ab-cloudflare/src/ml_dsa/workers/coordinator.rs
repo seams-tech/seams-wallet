@@ -96,6 +96,7 @@ async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<(Vec<
         role_call::<pool::Inventory>(env, "DERIVER_B", &query)
     );
     let (a, b) = (a?, b?);
+    preparation::log_inventory(&claim.request.key, &a, &b);
     let only_a: Vec<_> = a
         .ready
         .iter()
