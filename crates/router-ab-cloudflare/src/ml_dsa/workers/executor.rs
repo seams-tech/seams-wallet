@@ -5,7 +5,6 @@ use worker::{Context, WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
 pub(crate) const EXECUTE_PATH: &str = "/router-ab/ml-dsa/execute";
 const SOCKET_PATH: &str = "/router-ab/ml-dsa/connect";
-pub(super) const CANDIDATES: u16 = 8;
 
 struct WorkerHost<'a> {
     env: &'a Env,
@@ -71,6 +70,12 @@ pub(super) fn wrapping_key(env: &Env) -> Result<(Identifier, Zeroizing<[u8; 32]>
 }
 async fn require_permit(env: &Env, input: &Request) -> Result<()> {
     input.validate(crate::cloudflare_now_unix_ms_v1()?)?;
+    check_signing_scope(env, &input.permit.request.key)?;
+    if input.permit.batches.len() > policy(env)?.refill_target_batches() {
+        return Err(invalid(
+            "ML-DSA permit exceeds configured candidate capacity",
+        ));
+    }
     let status: Option<Status> = service_call(
         env,
         CallAuthority::Internal,
@@ -133,7 +138,7 @@ async fn execute(
             wrapping_seed,
             wrapping_key_version: version,
         },
-        CANDIDATES,
+        policy(env)?.candidate_group_size(),
         &schedules,
         &WorkerHost { env, trace: &trace },
         &mut transport,

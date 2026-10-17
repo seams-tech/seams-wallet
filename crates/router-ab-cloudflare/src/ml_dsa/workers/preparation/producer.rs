@@ -166,7 +166,8 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
             "{}",
             serde_json::json!({
                 "event": "ml_dsa_refill_completed_v1", "batch": hex(&terminal.job().batch),
-                "published": published, "elapsed_ms": elapsed, "candidates": executor::CANDIDATES,
+                "published": published, "elapsed_ms": elapsed,
+                "candidates": policy(&self.env).map_err(protocol_error)?.candidate_group_size(),
             })
         );
         self.settle(&terminal).await

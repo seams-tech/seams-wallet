@@ -1,0 +1,153 @@
+{
+  "schema": "seams.ml-dsa-candidate-groups-validation.v1",
+  "scope": "Frozen public evidence, exact generated-credential scan, and cleanup. Functional checks and performance-target outcomes remain separate.",
+  "bundles": [
+    {
+      "path": "docs/evidence/ml-dsa-65-candidate-groups-hosted-20261017.json.gz",
+      "files": 37,
+      "bytes": 1125293,
+      "sha256": "23c3302c481d054b99944091da9a79570a10fee68d684cef01c8ad5d47451a5e"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-candidate-groups-local-20261017.json.gz",
+      "files": 9,
+      "bytes": 310739,
+      "sha256": "c5be0b569c87a29cefb8c39b42ff6861dd717aa8bc7f73a73e986feabbd5ddd3"
+    },
+    {
+      "path": "docs/evidence/ml-dsa-65-candidate-groups-provenance-20261017.json.gz",
+      "files": 44,
+      "bytes": 87194,
+      "sha256": "f9a204c3eddd9b6e2fe948a09bd97e11f9c20d97760a07be7affb4010600359d"
+    }
+  ],
+  "credential_scan": {
+    "scope": "Exact generated benchmark credentials and role wrapping keys, including embedded hexadecimal key bytes and common encodings, against every retained UTF-8 evidence file after decompression. This is an exact-secret scan, not a general proof of absence of private data.",
+    "secret_source_count": 42,
+    "encoding_pattern_count": 149,
+    "scanned": [
+      {
+        "path": "docs/evidence/ml-dsa-65-candidate-groups-hosted-20261017.json.gz",
+        "sha256": "23c3302c481d054b99944091da9a79570a10fee68d684cef01c8ad5d47451a5e",
+        "files": 37
+      },
+      {
+        "path": "docs/evidence/ml-dsa-65-candidate-groups-local-20261017.json.gz",
+        "sha256": "c5be0b569c87a29cefb8c39b42ff6861dd717aa8bc7f73a73e986feabbd5ddd3",
+        "files": 9
+      },
+      {
+        "path": "docs/evidence/ml-dsa-65-candidate-groups-provenance-20261017.json.gz",
+        "sha256": "f9a204c3eddd9b6e2fe948a09bd97e11f9c20d97760a07be7affb4010600359d",
+        "files": 44
+      }
+    ],
+    "matches": [],
+    "passed": true
+  },
+  "local_checks": {
+    "local-durable-8": {
+      "passed": true,
+      "signature_count": 3
+    },
+    "local-registration-4": {
+      "functionalPassed": true,
+      "registrationChecksPassed": true,
+      "recoveryPreservesCanonicalKey": true,
+      "canonical_cases": 2
+    },
+    "local-registration-2": {
+      "functionalPassed": true,
+      "registrationChecksPassed": true,
+      "recoveryPreservesCanonicalKey": true,
+      "canonical_cases": 2
+    }
+  },
+  "workers_deleted": 15,
+  "owned_tails_stopped": 15,
+  "private_cleanup": {
+    "completed_at": "2026-10-17T09:11:28.616381+00:00",
+    "removed_files": [
+      "fixtures/a-kek",
+      "fixtures/a.json",
+      "fixtures/b-kek",
+      "fixtures/b.json",
+      "group-2/hosted/a-raw.jsonl",
+      "group-2/hosted/a-secrets.json",
+      "group-2/hosted/b-raw.jsonl",
+      "group-2/hosted/b-secrets.json",
+      "group-2/hosted/gateway-token",
+      "group-2/hosted/preparer-a-raw.jsonl",
+      "group-2/hosted/preparer-a-secrets.json",
+      "group-2/hosted/preparer-b-raw.jsonl",
+      "group-2/hosted/preparer-b-secrets.json",
+      "group-2/hosted/router-raw.jsonl",
+      "group-2/hosted/router-secrets.json",
+      "group-2/keys/a-kek",
+      "group-2/keys/b-kek",
+      "group-2/wallet-1/a-kek",
+      "group-2/wallet-1/b-kek",
+      "group-2/wallet-2/a-kek",
+      "group-2/wallet-2/b-kek",
+      "group-4/hosted/a-raw.jsonl",
+      "group-4/hosted/a-secrets.json",
+      "group-4/hosted/b-raw.jsonl",
+      "group-4/hosted/b-secrets.json",
+      "group-4/hosted/gateway-token",
+      "group-4/hosted/preparer-a-raw.jsonl",
+      "group-4/hosted/preparer-a-secrets.json",
+      "group-4/hosted/preparer-b-raw.jsonl",
+      "group-4/hosted/preparer-b-secrets.json",
+      "group-4/hosted/router-raw.jsonl",
+      "group-4/hosted/router-secrets.json",
+      "group-4/keys/a-kek",
+      "group-4/keys/b-kek",
+      "group-4/wallet-1/a-kek",
+      "group-4/wallet-1/b-kek",
+      "group-4/wallet-2/a-kek",
+      "group-4/wallet-2/b-kek",
+      "group-8/hosted/a-raw.jsonl",
+      "group-8/hosted/a-secrets.json",
+      "group-8/hosted/b-raw.jsonl",
+      "group-8/hosted/b-secrets.json",
+      "group-8/hosted/gateway-token",
+      "group-8/hosted/preparer-a-raw.jsonl",
+      "group-8/hosted/preparer-a-secrets.json",
+      "group-8/hosted/preparer-b-raw.jsonl",
+      "group-8/hosted/preparer-b-secrets.json",
+      "group-8/hosted/router-raw.jsonl",
+      "group-8/hosted/router-secrets.json",
+      "group-8/keys/a-kek",
+      "group-8/keys/b-kek",
+      "group-8/wallet-1/a-kek",
+      "group-8/wallet-1/b-kek",
+      "group-8/wallet-2/a-kek",
+      "group-8/wallet-2/b-kek",
+      "local-keys-2/a-kek",
+      "local-keys-2/b-kek",
+      "local-keys-4/a-kek",
+      "local-keys-4/b-kek"
+    ],
+    "removed_count": 59,
+    "all_selected_private_files_removed": true
+  },
+  "validation": {
+    "native_lifecycle_e2e": "passed",
+    "native_canonical_key_cases": 6,
+    "frozen_worker_release_builds": [
+      "router",
+      "deriver-a",
+      "deriver-b"
+    ],
+    "javascript_syntax": "passed",
+    "git_diff_whitespace": "passed",
+    "bloat_check": {
+      "result": "inherited_failure_unchanged",
+      "rust_duplicate_lines": 13984,
+      "rust_baseline": 13754,
+      "typescript_duplicate_lines": 10238,
+      "typescript_baseline": 10216,
+      "baseline_changed": false
+    }
+  }
+}

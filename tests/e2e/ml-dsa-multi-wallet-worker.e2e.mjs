@@ -12,9 +12,6 @@ assert.ok(Number.isSafeInteger(intervalMs) && intervalMs >= 0 && intervalMs <= 3
 assert.ok(paths.length >= 2 && paths.length <= 8);
 const origin = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
 const credential = (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim();
-const fixture = JSON.parse(await readFile(process.env.ML_DSA_TEST_PUBLIC_FIXTURE, 'utf8'));
-const scheduleDigest = fixture.activation.key.schedule_digest;
-assert.ok(Array.isArray(scheduleDigest) && scheduleDigest.length === 32 && scheduleDigest.every(validByte));
 const registrations = await Promise.all(paths.map(readRegistration));
 const wallets = registrations.map(makeWallet);
 assert.equal(new Set(wallets.map(walletIdentity)).size, wallets.length);
@@ -23,7 +20,7 @@ const started = performance.now();
 const deadline = started + durationMs;
 const report = {
   observedAt: new Date().toISOString(),
-  scope: 'Concurrent independent wallets, one outstanding demand per wallet, real hosted Router and separate participant Workers. Four batches per wallet and eight candidates per batch. All starting stock must be excluded from sustained throughput. Login, UI, NEAR submission, and finality are excluded.',
+  scope: 'Concurrent independent wallets, one outstanding demand per wallet, real hosted Router and separate participant Workers. Thirty-two prepared candidates per wallet in independently consumed groups. All starting stock must be excluded from sustained throughput. Login, UI, NEAR submission, and finality are excluded.',
   policy: registrations[0].policy,
   requestedDurationMs: durationMs,
   intervalMs,
@@ -32,6 +29,7 @@ const report = {
   wallets: wallets.map(publicWallet),
   requests: [],
   demands: [],
+  duplicateRequests: [],
   errors: [],
 };
 try {
@@ -53,8 +51,10 @@ async function readRegistration(path) {
   const registration = JSON.parse(await readFile(path, 'utf8'));
   assert.equal(registration.hosted, true);
   assert.equal(registration.registrationChecksPassed, true);
-  assert.equal(registration.policy.refill_target_batches, 4);
-  assert.equal(registration.policy.minimum_ready_batches, 2);
+  const size = registration.policy.candidate_group_size;
+  assert.ok([2, 4, 8].includes(size));
+  assert.equal(registration.policy.refill_target_batches * size, 32);
+  assert.equal(registration.policy.minimum_ready_batches * size, 16);
   assert.equal(registration.cases.at(-1).canonicalKeyVerified, true);
   return registration;
 }
@@ -63,6 +63,11 @@ function makeWallet(registration, index) {
   const recovered = registration.cases.at(-1);
   const publicKey = Buffer.from(recovered.publicKeyHex, 'hex');
   assert.equal(publicKey.length, 1952);
+  assert.deepEqual(recovered.key.wallet, registration.wallet);
+  assert.deepEqual(recovered.key.public_key_digest, digest(publicKey));
+  assert.equal(recovered.key.epoch, recovered.epoch);
+  const scheduleDigest = recovered.key.schedule_digest;
+  assert.ok(Array.isArray(scheduleDigest) && scheduleDigest.length === 32 && scheduleDigest.every(validByte));
   return {
     index,
     key: {
@@ -113,12 +118,7 @@ async function runDemand(wallet, demand) {
     const timer = performance.now();
     let result;
     try {
-      const response = await fetch(new URL('/router-ab/ml-dsa/sign', origin), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-router-ab-internal-service-auth': credential },
-        body: JSON.stringify(operation),
-        signal: AbortSignal.timeout(45000),
-      });
+      const response = await postOperation(operation);
       entry.httpStatus = response.status;
       assert.equal(response.status, 200);
       result = await response.json();
@@ -146,6 +146,7 @@ async function runDemand(wallet, demand) {
         entry.signatureHex = signature.toString('hex');
         entry.messageHex = Buffer.from(operation.message).toString('hex');
         wallet.successes += 1;
+        if (wallet.successes === 1) await verifyDuplicate(wallet, operation, signature);
         demand.state = 'succeeded';
         demand.elapsedMs = entry.demandElapsedMs;
         return;
@@ -165,6 +166,32 @@ async function runDemand(wallet, demand) {
   }
   demand.state = 'censored_at_end_of_window';
   demand.elapsedMs = performance.now() - started - demand.startMs;
+}
+
+function postOperation(operation) {
+  return fetch(new URL('/router-ab/ml-dsa/sign', origin), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-router-ab-internal-service-auth': credential },
+    body: JSON.stringify(operation),
+    signal: AbortSignal.timeout(45000),
+  });
+}
+
+async function verifyDuplicate(wallet, operation, signature) {
+  const measurement = { wallet: wallet.index, operation: operation.request.operation, startMs: performance.now() - started };
+  report.duplicateRequests.push(measurement);
+  const timer = performance.now();
+  const response = await postOperation(operation);
+  measurement.httpStatus = response.status;
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  measurement.elapsedMs = performance.now() - timer;
+  measurement.status = result.status;
+  measurement.state = result.operation?.state;
+  assert.equal(result.status, 'existing');
+  assert.equal(result.operation.state, 'succeeded');
+  assert.deepEqual(Buffer.from(result.operation.signature), signature);
+  measurement.sameSignature = true;
 }
 
 async function retryPause(retryAtMs) {

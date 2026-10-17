@@ -186,7 +186,8 @@ Authentication, public login, network-to-user variation, and NEAR submission are
 Use the existing registration and durable Worker E2E runners with fresh disposable role keys.
 `ML_DSA_TEST_COOLDOWN_MS=1000` selects the hosted saturation policy in the registration runner.
 `ML_DSA_TEST_BUILD_ROOT` can pin an immutable snapshot of compiled bundles for a control.
-Run `tests/e2e/ml-dsa-sustained-worker.e2e.mjs` with the successful registration artifact, a native role fixture, and an output artifact path.
+Run `tests/e2e/ml-dsa-sustained-worker.e2e.mjs` with the successful registration artifact and an output artifact path.
+The current runner reads the verified key scope from registration and requires no native role fixture.
 Supply the private Router URL and a benchmark-token file through the existing environment variables.
 
 Collect all five Worker tails with `collect_worker_traces.py`, including `--preparer-a` and `--preparer-b`.

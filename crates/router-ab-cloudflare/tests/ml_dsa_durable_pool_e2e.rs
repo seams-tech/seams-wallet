@@ -373,7 +373,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             ..
         }
     ));
-    let configured=Policy::parse(r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":300000},"max_active_operations":1,"operation_timeout_ms":30000,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
+    let configured=Policy::parse(r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":300000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":8,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
     let next = claim(&router, &configured, request(&key, 5), 61_006);
     let long = match tx(
         &router,
@@ -400,7 +400,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             retry_at_ms: 361_007
         }
     ));
-    let disabled=Policy::parse(r#"{"wallet_cooldown":{"mode":"disabled"},"max_active_operations":1,"operation_timeout_ms":30000,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
+    let disabled=Policy::parse(r#"{"wallet_cooldown":{"mode":"disabled"},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":8,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
     assert!(matches!(
         tx(
             &router,
@@ -994,7 +994,11 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     let input = registration_request("registration-wallet", 1);
     let scope = registration::scope(&input.wallet).unwrap();
     assert!(matches!(
-        tx(&db, registration::claim(&db, input.clone(), [7; 32], 100)).unwrap(),
+        tx(
+            &db,
+            registration::claim(&db, input.clone(), [7; 32], [8; 32], 4, 100)
+        )
+        .unwrap(),
         registration::Decision::Unavailable { .. }
     ));
     let job = tx(
@@ -1009,25 +1013,53 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     .is_err());
     tx(&db, registration::ready(&db, &job, Participant::A, 102)).unwrap();
     assert!(matches!(
-        tx(&db, registration::claim(&db, input.clone(), [7; 32], 103)).unwrap(),
+        tx(
+            &db,
+            registration::claim(&db, input.clone(), [7; 32], [8; 32], 4, 103)
+        )
+        .unwrap(),
         registration::Decision::Unavailable { .. }
     ));
     tx(&db, registration::ready(&db, &job, Participant::B, 104)).unwrap();
     drop(db);
     let db = Db::open(&path);
-    let claim = match tx(&db, registration::claim(&db, input.clone(), [7; 32], 105)).unwrap() {
+    for (layout, groups) in [([9; 32], 4), ([8; 32], 8)] {
+        assert!(matches!(
+            tx(
+                &db,
+                registration::claim(&db, input.clone(), [7; 32], layout, groups, 105)
+            )
+            .unwrap(),
+            registration::Decision::Unavailable { .. }
+        ));
+    }
+    let claim = match tx(
+        &db,
+        registration::claim(&db, input.clone(), [7; 32], [8; 32], 4, 105),
+    )
+    .unwrap()
+    {
         registration::Decision::Admitted { claim } => claim,
         _ => panic!("Ready registration was not admitted"),
     };
+    assert_eq!(claim.job, job);
     assert!(matches!(
-        tx(&db, registration::claim(&db, input.clone(), [7; 32], 106)).unwrap(),
+        tx(
+            &db,
+            registration::claim(&db, input.clone(), [7; 32], [8; 32], 4, 106)
+        )
+        .unwrap(),
         registration::Decision::Existing {
             operation: registration::Operation::Running { .. }
         }
     ));
     let mut changed = input.clone();
     changed.epoch = 2;
-    assert!(tx(&db, registration::claim(&db, changed, [7; 32], 106)).is_err());
+    assert!(tx(
+        &db,
+        registration::claim(&db, changed, [7; 32], [8; 32], 4, 106)
+    )
+    .is_err());
     assert!(!tx(&db, registration::check_job(&db, &job, 106)).unwrap());
     let refill_key = key("registration-refill");
     activate(&db, &refill_key);
@@ -1044,13 +1076,17 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     tx(&db, registration::ready(&db, &next, Participant::B, 108)).unwrap();
     let other = registration_request("registration-other", 2);
     assert!(matches!(
-        tx(&db, registration::claim(&db, other.clone(), [7; 32], 109)).unwrap(),
+        tx(
+            &db,
+            registration::claim(&db, other.clone(), [7; 32], [8; 32], 4, 109)
+        )
+        .unwrap(),
         registration::Decision::Unavailable { .. }
     ));
     assert!(matches!(
         tx(
             &db,
-            registration::claim(&db, input, [7; 32], claim.deadline)
+            registration::claim(&db, input, [7; 32], [8; 32], 4, claim.deadline)
         )
         .unwrap(),
         registration::Decision::Existing {
@@ -1061,7 +1097,7 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     assert!(matches!(
         tx(
             &db,
-            registration::claim(&db, other, [7; 32], claim.deadline)
+            registration::claim(&db, other, [7; 32], [8; 32], 4, claim.deadline)
         )
         .unwrap(),
         registration::Decision::Admitted { .. }

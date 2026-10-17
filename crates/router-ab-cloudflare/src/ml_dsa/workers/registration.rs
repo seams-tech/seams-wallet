@@ -131,9 +131,7 @@ pub(crate) async fn handle_prepare(
         &AdmissionCommand::PrepareRegistration {
             scope: core::scope(&input.wallet).map_err(protocol_error)?,
             schedule: execution::schedule_digest(&schedules::load().map_err(protocol_error)?),
-            signing_schedule: execution::schedule_digest(
-                &super::schedules::load().map_err(protocol_error)?,
-            ),
+            signing_schedule: signing_schedule_digest(env).map_err(protocol_error)?,
             // Registration needs admissible stock. The durable refill loop builds
             // the remaining reserve after activation. The generic format requires two.
             signing_batches: policy(env)

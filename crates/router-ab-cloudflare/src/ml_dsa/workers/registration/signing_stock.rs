@@ -16,23 +16,18 @@ pub(super) async fn prepare(
     wire: &mut impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport,
 ) -> Result<()> {
     let schedules = super::super::schedules::load()?;
-    if execution::schedule_digest(&schedules) != job.signing_schedule {
+    if signing_schedule_digest(env)? != job.signing_schedule {
         return Err(invalid("Registration signing schedule changed"));
     }
     let participant = configured_role(env).map_err(storage_error)?;
+    let candidates = policy(env)?.candidate_group_size();
     let mut topologies = Default::default();
     for ordinal in 0..job.signing_batches {
         let id = core::signing_batch_id(job, ordinal)?;
-        let prepared = prepare_gmw_reservation(
-            role,
-            id,
-            executor::CANDIDATES,
-            &schedules,
-            &mut topologies,
-            wire,
-        )
-        .await
-        .map_err(runtime_error)?;
+        let prepared =
+            prepare_gmw_reservation(role, id, candidates, &schedules, &mut topologies, wire)
+                .await
+                .map_err(runtime_error)?;
         let sealed = sealing::seal_bound(
             prepared.into_storage(),
             DOMAIN,
@@ -62,6 +57,12 @@ pub(super) async fn install(
     claim: &core::Claim,
     key: &KeyScope,
 ) -> Result<()> {
+    check_signing_scope(env, key)?;
+    if key.schedule_digest != claim.job.signing_schedule {
+        return Err(invalid(
+            "Registration stock belongs to another signing layout",
+        ));
+    }
     let participant = configured_role(env).map_err(storage_error)?;
     let (version, seed) = executor::wrapping_key(env)?;
     for ordinal in 0..claim.job.signing_batches {

@@ -203,6 +203,8 @@ pub async fn claim(
     store: &impl Store,
     request: Request,
     schedule: [u8; 32],
+    signing_schedule: [u8; 32],
+    signing_batches: usize,
     now: u64,
 ) -> Result<Decision> {
     if request.operation == [0; 32] || request.epoch == 0 {
@@ -252,6 +254,8 @@ pub async fn claim(
         if let Some(Stock::Ready { job }) = store.get(&job_key(id)).await? {
             if job.scope == pool_scope
                 && job.schedule == schedule
+                && job.signing_schedule == signing_schedule
+                && job.signing_batches == signing_batches
                 && job.expires_at > now.saturating_add(30_000)
             {
                 let claim = Claim {

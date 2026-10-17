@@ -43,6 +43,7 @@ const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: 1000 },
   max_active_operations: 1,
   operation_timeout_ms: 30000,
+  candidate_group_size: 8,
   minimum_ready_batches: 2,
   refill_target_batches: 4,
 };
@@ -56,13 +57,21 @@ const publicationBarrierScript = `
 function holdPublication(resolve) { setTimeout(resolve, 60000); }
 export class PublicationBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
+  async hold(stage, job) {
+    await this.state.storage.delete('hold_stage');
+    await this.state.storage.put('held', { stage, job });
+    await new Promise(holdPublication);
+  }
   async fetch(request) {
-    if (new URL(request.url).pathname === '/arm') {
-      await this.state.storage.put('armed', true);
-      await this.state.storage.put('fail_inspection', true);
+    const path = new URL(request.url).pathname;
+    if (path === '/arm-before' || path === '/arm-after') {
+      const stage = path === '/arm-before' ? 'before' : 'after';
+      await this.state.storage.put('hold_stage', stage);
+      await this.state.storage.delete('held');
+      await this.state.storage.put('fail_inspection', stage === 'after');
       return new Response('Armed');
     }
-    if (new URL(request.url).pathname === '/state') {
+    if (path === '/state') {
       return Response.json({ held: await this.state.storage.get('held') ?? null,
         inspectionFailures: await this.state.storage.get('inspection_failures') ?? 0 });
     }
@@ -72,11 +81,13 @@ export class PublicationBarrier {
       await this.state.storage.put('inspection_failures', 1);
       return new Response('Injected inventory failure', {status:503});
     }
+    const stage = await this.state.storage.get('hold_stage');
+    if (command.command === 'put' && stage === 'before') {
+      await this.hold(stage, command.job);
+    }
     const response = await this.env.ROLE.fetch(request);
-    if (command.command === 'put' && response.status === 200 && await this.state.storage.get('armed')) {
-      await this.state.storage.put('armed', false);
-      await this.state.storage.put('held', { batch: command.job.batch });
-      await new Promise(holdPublication);
+    if (command.command === 'put' && response.status === 200 && stage === 'after') {
+      await this.hold(stage, command.job);
     }
     return response;
   }
@@ -259,7 +270,7 @@ try {
     lastSuccessful = { input, result, prepared };
     if (observations.signatures.length === 1) {
       const barrier = await publicationBarrier();
-      assert.equal((await barrier.fetch('https://fault.internal/arm')).status, 200);
+      assert.equal((await barrier.fetch('https://fault.internal/arm-after')).status, 200);
       await waitForPreprocessingStart(initialStarts);
       observations.firstConsumptionRefillStartedMs = performance.now() - started;
       assert.ok(observations.firstConsumptionRefillStartedMs < 3000, 'Consumption did not advance the maintenance alarm');
@@ -281,13 +292,14 @@ try {
       assert.notEqual(changed.status, 202, 'A changed producer claim was accepted');
       observations.producerQueueRetryAndBindingChecks = true;
       const held = await waitForHeldPublication(barrier);
-      assert.deepEqual(held.batch, job.batch);
+      assert.equal(held.stage, 'after');
+      assert.deepEqual(held.job, job);
       const published = await inventories();
       for (const role of published) {
-        assert.ok(role.ready.map(batchId).includes(batchId(held.batch)), 'The reset fixture lacks paired publication');
+        assert.ok(role.ready.map(batchId).includes(batchId(job.batch)), 'The reset fixture lacks paired publication');
       }
       observations.interruptedProducer = {
-        batch: held.batch,
+        batch: job.batch,
         beforeResetState: await producerState(job),
         remainingLeaseMs: job.expires_at_ms - Date.now(),
       };
@@ -340,6 +352,17 @@ try {
   };
   const admitted = await post('router', '/router-ab/ml-dsa/admit', stalled, gatewayAuth);
   assert.equal(admitted.status, 'admitted');
+  const changedLayout = structuredClone(admitted.permit);
+  changedLayout.request.key.schedule_digest[0] ^= 1;
+  const wrongLayout = await raw('b', '/router-ab/ml-dsa/role', {
+    command: 'take', permit: changedLayout, batch: admitted.permit.batches[0],
+  }, serviceAuth);
+  assert.notEqual(wrongLayout.status, 200);
+  const untouched = await post('b', '/router-ab/ml-dsa/role', {
+    command: 'inspect', key: stalled.key, batches: admitted.permit.batches,
+  });
+  assert.ok(untouched.every(isReserved), 'Layout refusal consumed a reserved group');
+  observations.changedSigningLayoutRejectedBeforeConsumption = true;
   observations.stalledPermitRemainingMs = admitted.permit.expires_at_ms - Date.now();
   observations.stalledReservationStates = await Promise.all([
     post('a', '/router-ab/ml-dsa/role', { command: 'inspect', key: stalled.key, batches: admitted.permit.batches }),
@@ -554,6 +577,9 @@ async function waitReady(count) {
 function batchId(id) {
   return Buffer.from(id).toString('hex');
 }
+function isReserved(value) {
+  return value === 'reserved';
+}
 
 async function publicationBarrier() {
   const namespace = await runtime.getDurableObjectNamespace('BARRIER', 'publication-barrier');
@@ -608,16 +634,18 @@ async function waitForLeaseRelease(job) {
 }
 
 async function checkPrepublicationFallback() {
-  const before = await preprocessingStarts();
+  const barrier = await publicationBarrier();
+  assert.equal((await barrier.fetch('https://fault.internal/arm-before')).status, 200);
   await inventories();
-  await waitForPreprocessingStart(before);
-  const jobs = await rolePreprocessingJobs('a');
-  jobs.sort(newestJobFirst);
-  const job = jobs[0];
-  for (const role of ['a', 'b']) {
-    const states = await post(role, '/router-ab/ml-dsa/role', { command: 'inspect', key: job.key, batches: [job.batch] });
-    assert.deepEqual(states, ['missing']);
-  }
+  const held = await waitForHeldPublication(barrier);
+  assert.equal(held.stage, 'before');
+  const job = held.job;
+  const inspection = { command: 'inspect', key: job.key, batches: [job.batch] };
+  const beforeReset = { a: await post('a', '/router-ab/ml-dsa/role', inspection),
+    b: await post('b', '/router-ab/ml-dsa/role', inspection) };
+  assert.deepEqual(beforeReset.a, ['missing']);
+  assert.deepEqual(beforeReset.b, ['ready']);
+  assert.equal(await producerState(job), 'running');
   const started = performance.now();
   await runtime.dispose();
   runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
@@ -639,7 +667,7 @@ async function checkPrepublicationFallback() {
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
   const late = await raw('preparer-a', '/router-ab/ml-dsa/prepare', job, serviceAuth);
   assert.notEqual(late.status, 202);
-  return { batch: job.batch, freshBatch: fresh.batch, retainedLeaseMs, elapsedMs: performance.now() - started,
+  return { batch: job.batch, freshBatch: fresh.batch, beforeReset, retainedLeaseMs, elapsedMs: performance.now() - started,
     unknownPublicationRetainedLease: true, deadlineFallback: true, staleSettlementPreservedNewLease: true, expiredProducerRetryRejected: true };
 }
 

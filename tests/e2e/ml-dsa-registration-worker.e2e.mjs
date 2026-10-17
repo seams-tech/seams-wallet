@@ -63,18 +63,21 @@ const serviceAuth = randomBytes(32).toString('hex');
 const persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-registration-e2e-'));
 const cooldownMs = Number(process.env.ML_DSA_TEST_COOLDOWN_MS ?? 60000);
 assert.ok(Number.isSafeInteger(cooldownMs) && cooldownMs >= 1000 && cooldownMs <= 300000);
+const candidateGroupSize = Number(process.env.ML_DSA_TEST_CANDIDATE_GROUP_SIZE ?? 8);
+assert.ok([2, 4, 8].includes(candidateGroupSize));
 const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: cooldownMs },
   max_active_operations: 1,
   operation_timeout_ms: 30000,
-  minimum_ready_batches: 2,
-  refill_target_batches: 4,
+  candidate_group_size: candidateGroupSize,
+  minimum_ready_batches: 16 / candidateGroupSize,
+  refill_target_batches: 32 / candidateGroupSize,
 };
 const wallet = {
   org: 'registration-e2e',
   project: 'wallet',
   environment: 'temporary',
-  wallet: `wallet-${randomBytes(8).toString('hex')}`,
+  wallet: process.env.ML_DSA_TEST_WALLET_ID ?? `wallet-${randomBytes(8).toString('hex')}`,
 };
 const children = [];
 const observations = {
@@ -157,7 +160,7 @@ try {
       const refillStarted = performance.now();
       ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
       assert.equal(ready.ready, true);
-    assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
+      assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
       preparationMs = performance.now() - refillStarted;
       assert.notDeepEqual(ready.job.id, consumedJob);
       observations.executionDeadline.freshPreparation = true;
@@ -192,6 +195,7 @@ try {
     if (previous) assert.deepEqual(result.a.public_key, previous.a.public_key);
     const measurement = {
       epoch,
+      key: result.a.activation.key,
       preparationMs,
       initialSigningBatches: ready.job.signing_batches,
       serverResponseMs,
