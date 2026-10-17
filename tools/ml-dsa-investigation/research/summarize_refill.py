@@ -35,7 +35,7 @@ def main():
         traces = json.load(source)["records"]
     with open(args.versions) as source:
         versions = json.load(source)
-    report = summarize(client, traces, versions)
+    report = summarize(client, traces, versions, client["policy"]["refill_target_batches"])
     with open(args.output, "w") as output:
         json.dump(report, output, indent=2)
         output.write("\n")
@@ -44,7 +44,7 @@ def main():
                       "post_initial_stock": report["post_initial_stock"]}))
 
 
-def summarize(client, traces, versions):
+def summarize(client, traces, versions, target_groups):
     traces = [record for record in traces if record["version"] == versions.get(record["role"])]
     start = datetime.datetime.fromisoformat(client["observedAt"].replace("Z", "+00:00")).timestamp() * 1000
     end = start + client["elapsedMs"]
@@ -67,7 +67,7 @@ def summarize(client, traces, versions):
     assert inventories, "No stock observations captured"
     initial = inventories[0]
     final_candidates = [item for item in inventories if item["at_ms"] >= end]
-    full = [item for item in final_candidates if len(paired(item)) == 4 and not paired(item, "reserved")]
+    full = [item for item in final_candidates if len(paired(item)) == target_groups and not paired(item, "reserved")]
     if full:
         final = full[0]
     elif final_candidates:

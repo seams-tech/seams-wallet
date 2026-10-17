@@ -203,6 +203,18 @@ pub fn policy(env: &Env) -> Result<Policy> {
         Err(_) => Ok(Policy::default()),
     }
 }
+fn signing_schedule_digest(env: &Env) -> Result<[u8; 32]> {
+    Ok(execution::signing_schedule_digest(
+        &schedules::load()?,
+        policy(env)?.candidate_group_size(),
+    ))
+}
+fn check_signing_scope(env: &Env, key: &KeyScope) -> Result<()> {
+    if key.schedule_digest != signing_schedule_digest(env)? {
+        return Err(invalid("ML-DSA signing group or circuit schedule changed"));
+    }
+    Ok(())
+}
 fn protocol_error(error: RouterAbProtocolError) -> worker::Error {
     worker::Error::RustError(error.to_string())
 }
@@ -406,9 +418,20 @@ async fn execute_admission(
         AdmissionCommand::CheckRegistrationJob { job } => {
             json(super::registration::check_job(store, &job, now).await?)
         }
-        AdmissionCommand::ClaimRegistration { request, schedule } => {
-            json(super::registration::claim(store, request, schedule, now).await?)
-        }
+        AdmissionCommand::ClaimRegistration { request, schedule } => json(
+            super::registration::claim(
+                store,
+                request,
+                schedule,
+                execution::signing_schedule_digest(
+                    &schedules::load()?,
+                    policy.candidate_group_size(),
+                ),
+                policy.minimum_ready_batches().max(2),
+                now,
+            )
+            .await?,
+        ),
         AdmissionCommand::CheckRegistrationClaim { claim } => {
             json(super::registration::check_claim(store, &claim, now).await?)
         }
@@ -563,6 +586,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             binding,
             ..
         } => {
+            check_signing_scope(env, &binding.key)?;
             let allowed: bool = service_call(
                 env,
                 CallAuthority::Internal,
@@ -588,12 +612,19 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
         RoleCommand::StartRefill { job } | RoleCommand::Put { job, .. } => {
             return preparation::check_job(env, job).await;
         }
-        RoleCommand::Reserve { claim, .. } => (
-            &claim.request,
-            Status::Preparing {
-                claim: claim.clone(),
-            },
-        ),
+        RoleCommand::Reserve { claim, batches } => {
+            if batches.len() > policy(env)?.refill_target_batches() {
+                return Err(invalid(
+                    "ML-DSA reservation exceeds configured candidate capacity",
+                ));
+            }
+            (
+                &claim.request,
+                Status::Preparing {
+                    claim: claim.clone(),
+                },
+            )
+        }
         RoleCommand::Take { permit, .. } | RoleCommand::LoadMaterial { permit } => (
             &permit.request,
             Status::Running {
@@ -679,6 +710,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
         | RoleCommand::Inspect { .. }
         | RoleCommand::RetireUnpaired { .. } => return Ok(()),
     };
+    check_signing_scope(env, &request.key)?;
     let actual: Option<Status> = service_call(
         env,
         CallAuthority::Internal,

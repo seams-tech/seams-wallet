@@ -5,15 +5,17 @@ import { performance } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const registration = JSON.parse(await readFile(process.argv[2], 'utf8'));
-const fixture = JSON.parse(await readFile(process.argv[3], 'utf8'));
-const artifact = process.argv[4];
+const artifact = process.argv[3];
 const successTarget = Number(process.env.ML_DSA_TEST_SUCCESS_TARGET ?? 12);
 assert.ok(Number.isSafeInteger(successTarget) && successTarget >= 12 && successTarget <= 48);
 const origin = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
 const credential = (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim();
 assert.equal(registration.hosted, true);
 assert.equal(registration.registrationChecksPassed, true);
-assert.equal(registration.policy.refill_target_batches, 4);
+const candidateGroupSize = registration.policy.candidate_group_size;
+assert.ok([2, 4, 8].includes(candidateGroupSize));
+assert.equal(registration.policy.refill_target_batches * candidateGroupSize, 32);
+assert.equal(registration.policy.minimum_ready_batches * candidateGroupSize, 16);
 assert.equal(registration.policy.wallet_cooldown.interval_ms, 1000);
 const recovered = registration.cases.at(-1);
 assert.equal(recovered.canonicalKeyVerified, true);
@@ -23,17 +25,20 @@ const verifier = createPublicKey({
   format: 'der',
   type: 'spki',
 });
+assert.deepEqual(recovered.key.wallet, registration.wallet);
+assert.deepEqual(recovered.key.public_key_digest, digest(publicKey));
+assert.equal(recovered.key.epoch, recovered.epoch);
 const key = {
   wallet: registration.wallet,
   key_id: 'near',
   epoch: recovered.epoch,
   public_key_digest: digest(publicKey),
-  schedule_digest: fixture.activation.key.schedule_digest,
+  schedule_digest: recovered.key.schedule_digest,
 };
 const report = {
   schema: 'seams.ml-dsa-sustained-worker.v1',
   observedAt: new Date().toISOString(),
-  scope: 'One-wallet saturation at a one-second test cooldown, one active operation, and four ready batches. Every request is retained. Includes empty-pool retries. Production default cooldown remains 60 seconds. Public login and NEAR submission are excluded.',
+  scope: 'One-wallet saturation at a one-second test cooldown, one active operation, and thirty-two prepared candidates in independently consumed groups. Every request is retained. Includes empty-pool retries. Production default cooldown remains 60 seconds. Public login and NEAR submission are excluded.',
   policy: registration.policy,
   successTarget,
   key,

@@ -101,7 +101,7 @@ pub(super) fn run(
         key_id: identifier("near")?,
         epoch: 1,
         public_key_digest: Sha256::digest(public_key).into(),
-        schedule_digest: execution::schedule_digest(schedules),
+        schedule_digest: execution::signing_schedule_digest(schedules, 4),
     };
     let activation = admission::KeyActivation {
         key: key.clone(),
@@ -151,6 +151,7 @@ pub(super) fn run(
         &version,
         material,
         &seed,
+        execution::signing_schedule_digest(schedules, 8),
     )?;
     sync(role, transport)?;
     if role == SigningRole::A {
@@ -186,6 +187,9 @@ pub(super) fn run(
     transport.phase(Phase::Online);
     let started = Instant::now();
     let mut operations = Vec::new();
+    let policy = Policy::parse(
+        r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":60000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":4,"minimum_ready_batches":1,"refill_target_batches":10}"#,
+    )?;
     for ordinal in 0u8..10 {
         let db = Db::open(&pool_path)?;
         let now = 2_000 + u64::from(ordinal) * 60_000;
@@ -204,7 +208,7 @@ pub(super) fn run(
                 matches!(
                     tx(
                         &router,
-                        admission::begin(&router, &Policy::default(), request.clone(), now)
+                        admission::begin(&router, &policy, request.clone(), now)
                     )?,
                     Decision::Claimed { .. }
                 ),
@@ -222,10 +226,6 @@ pub(super) fn run(
             pool::reserve(&db, &request, &inventory.ready, claim.expires_at_ms, now),
         )?;
         sync(role, transport)?;
-        // The last operation can have one batch, so explicitly configure that admission threshold.
-        let policy = Policy::parse(
-            r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":60000},"max_active_operations":1,"operation_timeout_ms":30000,"minimum_ready_batches":1,"refill_target_batches":10}"#,
-        )?;
         if role == SigningRole::A {
             require(
                 matches!(
@@ -361,6 +361,7 @@ fn persist_material(
     version: &Identifier,
     material: Zeroizing<Vec<u8>>,
     seed: &[u8; 32],
+    worker_schedule_digest: [u8; 32],
 ) -> InvestigationResult<()> {
     use signer_core::ml_dsa_custody::{
         MlDsaCeremonyBindingV1, MlDsaRoleV1,
@@ -387,7 +388,7 @@ fn persist_material(
         public_key,
     )?;
     let sealed = seal_ml_dsa_role_material_v1(&material, &binding, seed)?;
-    let record = m::material::Record {
+    let mut record = m::material::Record {
         activation,
         role,
         public_key: public_key.to_vec(),
@@ -395,6 +396,9 @@ fn persist_material(
         sealed,
     };
     if let Ok(output) = std::env::var("ML_DSA_WORKER_FIXTURE_DIRECTORY") {
+        // The standalone Worker fixture uses eight-candidate groups.
+        let native_schedule = record.activation.key.schedule_digest;
+        record.activation.key.schedule_digest = worker_schedule_digest;
         std::fs::write(
             Path::new(&output).join(if role == Participant::A {
                 "a.json"
@@ -403,6 +407,7 @@ fn persist_material(
             }),
             serde_json::to_vec_pretty(&record)?,
         )?;
+        record.activation.key.schedule_digest = native_schedule;
     }
     tx(db, m::material::put(db, record))?;
     Ok(())

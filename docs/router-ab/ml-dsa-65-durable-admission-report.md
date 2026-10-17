@@ -16,6 +16,7 @@ Set deployment-owned `ML_DSA_ADMISSION_POLICY` JSON to configure it:
   "wallet_cooldown": { "mode": "enabled", "interval_ms": 60000 },
   "max_active_operations": 1,
   "operation_timeout_ms": 30000,
+  "candidate_group_size": 8,
   "minimum_ready_batches": 2,
   "refill_target_batches": 10
 }
@@ -26,6 +27,8 @@ Set `interval_ms` to `300000` for five minutes.
 Use `"wallet_cooldown": { "mode": "disabled" }` to disable only the wallet cooldown.
 Capacity, replay, epoch, and single-use checks remain active.
 Requests cannot override this deployment policy.
+The configuration example includes the current required group-size field.
+The [candidate-group report](ml-dsa-65-candidate-groups-report.md) describes its binding to activated keys and prepared material.
 
 The wallet identity includes organization, project, environment, and wallet.
 The cooldown covers all ML-DSA key slots for that identity and survives restart and recovery.

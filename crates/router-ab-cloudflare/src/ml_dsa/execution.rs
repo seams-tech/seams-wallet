@@ -121,7 +121,7 @@ pub async fn run<T: Transport + BooleanTransport>(
     request.validate(host.now_ms()?)?;
     let key = &request.permit.request.key;
     if <[u8; 32]>::from(Sha256::digest(public_key)) != key.public_key_digest
-        || schedule_digest(schedules) != key.schedule_digest
+        || signing_schedule_digest(schedules, candidates) != key.schedule_digest
         || candidates == 0
         || candidates > 32
     {
@@ -210,6 +210,17 @@ pub fn schedule_digest(schedules: &[TrustedMlDsaSchedule<'_>]) -> [u8; 32] {
     for schedule in schedules {
         hash.update(schedule.schedule_digest());
     }
+    hash.finalize().into()
+}
+/// Pins the circuit set and independently consumed group width to durable key scope.
+pub fn signing_schedule_digest(
+    schedules: &[TrustedMlDsaSchedule<'_>],
+    candidates: u16,
+) -> [u8; 32] {
+    let mut hash = Sha256::new();
+    hash.update(b"seams/ml-dsa/signing-layout/v1");
+    hash.update(schedule_digest(schedules));
+    hash.update(candidates.to_le_bytes());
     hash.finalize().into()
 }
 async fn agree(

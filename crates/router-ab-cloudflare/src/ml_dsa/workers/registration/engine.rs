@@ -50,6 +50,11 @@ pub(super) async fn connected(
     if execution::schedule_digest(&schedules) != job.schedule {
         return Err(invalid("Registration circuit schedule changed"));
     }
+    if signing_schedule_digest(env)? != job.signing_schedule
+        || job.signing_batches != policy(env)?.minimum_ready_batches().max(2)
+    {
+        return Err(invalid("Registration signing group configuration changed"));
+    }
     let (version, seed) = executor::wrapping_key(env)?;
     let binding = registration_preparation::Binding {
         pool_scope: job.scope,
@@ -222,7 +227,7 @@ pub(super) async fn connected(
             key_id: claim.request.key_id.clone(),
             epoch: claim.request.epoch,
             public_key_digest,
-            schedule_digest: execution::schedule_digest(&super::super::schedules::load()?),
+            schedule_digest: claim.job.signing_schedule,
         },
         ceremony_id: ceremony,
         manifest_digest,

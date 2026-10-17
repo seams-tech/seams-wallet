@@ -81,7 +81,7 @@ def summarize_all(client, records, versions):
         scope = (key, wallet["key"]["epoch"])
         operations = {operation_id(request) for request in own["requests"]}
         rows = scoped_records(records, scope, operations, scopes)
-        summary = summarize(own, rows, versions)
+        summary = summarize(own, rows, versions, client["policy"]["refill_target_batches"])
         summary["wallet_index"] = wallet["index"]
         summaries.append(summary)
         for outcome in summary["consumption"]:

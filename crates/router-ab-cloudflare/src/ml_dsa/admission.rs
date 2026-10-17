@@ -299,7 +299,7 @@ pub async fn admit(
         return Err(invalid("ML-DSA admission claim expired or changed"));
     }
     if batches.len() < policy.minimum_ready_batches
-        || batches.len() > 20
+        || batches.len() > policy.refill_target_batches
         || batches
             .iter()
             .enumerate()

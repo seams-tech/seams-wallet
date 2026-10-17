@@ -2,7 +2,18 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-17.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [multi-wallet capacity campaign](ml-dsa-65-capacity-report.md) adds fair refill turns and early recovery after confirmed paired publication.
+The [candidate-group experiment](ml-dsa-65-candidate-groups-report.md) compares independently consumed groups of 2, 4, and 8 candidates on Workers.
+It keeps thirty-two prepared candidates per wallet and a sixteen-candidate admission minimum.
+The targets are 5–10 seconds of preparation per successful signature and online signing below five seconds.
+Full reserve restoration, rejected groups, empty-pool waits, and missing trace records remain part of the comparison.
+The completed screen verifies 20, 24, and 17 load-test signatures for sizes 8, 4, and 2.
+Captured producer time per successful signature is 32.841, 24.840, and 35.449 seconds. Each profile lacks one final preparation completion record.
+Successful signing ranges are 1.149–4.301, 1.063–3.681, and 4.192–25.207 seconds.
+Four- and two-candidate profiles each exhaust one admitted operation. Those demands remain unfinished at cutoff.
+All profiles preserve canonical recovery and the thirty-two-candidate cap. No profile demonstrates both performance targets.
+The default stays at eight candidates. Next, qualify four candidates under matched deployment conditions and profile setup, storage, and protocol waits.
+
+The earlier [multi-wallet capacity campaign](ml-dsa-65-capacity-report.md) adds fair refill turns and early recovery after confirmed paired publication.
 All 25 verified hosted signatures take 1.012–2.531 seconds, with a 1.159-second median. The two wallets complete 12 and 13 signatures.
 Complete successful demand still reaches 87.359 seconds, compared with 430.454 seconds in the matching two-wallet baseline.
 After both initial reserves are consumed, observed aggregate refill and signing reach 1.895 batches and signatures per minute.
@@ -10,7 +21,7 @@ The pool remains four batches per wallet with eight candidates each. Wallet-seed
 All twenty observed producer grants alternate between the two keys. Queue fairness requires accepted, renewing demand.
 The candidate's material identities balance. Two producer completion records remain missing, and baseline consumption capture is incomplete.
 Prepared-request latency passes this screen. Empty-pool latency, broader multi-wallet capacity, and production percentiles remain release gates.
-GPU work remains deferred. Next, qualify paced load and repeated multi-batch requests at the same pool cap.
+GPU work remains deferred. Paced load and repeated multi-batch requests remain qualification tasks.
 
 The earlier [online profiling campaign](ml-dsa-65-online-profile-report.md) qualifies 24 of 24 prepared hosted signing requests below five seconds.
 Successful requests take 0.989–3.497 seconds, with a 1.520-second median. One two-batch signature takes 1.781 seconds.
@@ -45,7 +56,7 @@ That earlier campaign spent 4.18–8.47 seconds waiting for inventory RPCs. The 
 Full-reserve preparation takes 204–274 seconds in this campaign. This includes keygen preparation and four eight-candidate signing batches.
 These small samples include durable installation and settlement. They provide no production percentile or sustained-load guarantee.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
-It targets 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
+That earlier plan targeted 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
 The [ready-pool report](ml-dsa-65-ready-pool-report.md) records an earlier prepared-protocol pool campaign. Those measurements have a narrower boundary than complete durable Worker registration.
 Prepared registration takes 1.978–2.676 seconds across four sessions.
 Twenty-three successful signing requests take 0.214–1.321 seconds, including eleven automatic rollovers.
@@ -60,9 +71,9 @@ The [generic-preparation report](ml-dsa-65-generic-preparation-report.md) record
 Canonical wallet-seed recovery and standard FIPS seed/key export continue to pass native E2E checks.
 The [prepared-signing review](ml-dsa-65-prepared-signing-review.md) records the passive disclosure boundary and direct-random-nonce distinction from FIPS hedged signing.
 
-The user now requests focused preparation investigation toward 10–20 seconds, with online signing allowed up to two seconds.
-The comparison plan defines fresh measurement boundaries. GPU optimization remains deferred.
-Hosted refill currently measures 19.26–22.24 seconds per four-candidate batch and 203.22 seconds for ten sequential batches.
+The current preparation target is 5–10 seconds per successful signature, with online signing below five seconds.
+The candidate-group experiment defines the current measurement boundaries. GPU optimization remains deferred.
+An earlier hosted refill campaign measured 19.26–22.24 seconds per four-candidate batch and 203.22 seconds for ten sequential batches.
 One batch does not guarantee one signature. A larger server or GPU remains a future option, with no current deployment change.
 Preprocessing stays on Workers. Integration must expose empty pools and include replenishment in capacity and cost measurements.
 Durable one-use state, Router admission, and automatic refill now have experimental E2E coverage.
@@ -953,6 +964,7 @@ An absent value uses the defaults below. A malformed value fails closed.
   "wallet_cooldown": { "mode": "enabled", "interval_ms": 60000 },
   "max_active_operations": 1,
   "operation_timeout_ms": 30000,
+  "candidate_group_size": 8,
   "minimum_ready_batches": 2,
   "refill_target_batches": 10
 }
@@ -963,6 +975,10 @@ Use `"wallet_cooldown": { "mode": "disabled" }` to disable only the wallet coold
 Service capacity, request binding, epoch checks, and permanent consumption records remain mandatory.
 The initial service-wide limit is conservative. Raise it only after deployed memory and concurrent-load measurements.
 A batch contains candidates, so the minimum-ready threshold does not guarantee successful signing.
+`candidate_group_size` accepts 2, 4, or 8 candidates per independently consumed batch.
+The signing-layout digest binds this size to the activated key and all prepared material.
+Keep the setting fixed for each activated key. Re-establishment requires fresh preparation and an advanced epoch.
+For the fixed 32-candidate experiment, use minimum/target batch counts of 8/16, 4/8, or 2/4 for sizes 2, 4, or 8.
 
 The supported limit is per admitted operation. Internal rejection attempts remain inside that operation and its expiry.
 A storage snapshot rollback is outside an in-database tombstone guarantee. Restore procedures must advance epochs and discard prepared material.

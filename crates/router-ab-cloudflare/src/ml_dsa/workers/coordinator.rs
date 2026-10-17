@@ -29,6 +29,7 @@ async fn admit(
     headers: &worker::Headers,
     input: super::super::SigningRequest,
 ) -> Result<Decision> {
+    check_signing_scope(env, &input.key)?;
     let policy = policy(env)?;
     let decision: Decision = service_call(
         env,

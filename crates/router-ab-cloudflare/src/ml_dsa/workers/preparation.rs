@@ -30,6 +30,7 @@ pub(super) async fn enqueue(store: &impl Store, key: &KeyScope) -> Result<()> {
     Ok(())
 }
 pub(super) async fn check_job(env: &Env, job: &refill::Job) -> Result<()> {
+    check_signing_scope(env, &job.key)?;
     let current: bool = service_call(
         env,
         CallAuthority::Internal,
@@ -199,14 +200,14 @@ async fn prepare(
         Participant::B => SigningRole::B,
     };
     let schedules = schedules::load()?;
-    if execution::schedule_digest(&schedules) != job.key.schedule_digest {
+    if signing_schedule_digest(env)? != job.key.schedule_digest {
         return Err(invalid("ML-DSA preprocessing schedule changed"));
     }
     let mut topologies = schedules::public_topologies();
     let prepared = prepare_gmw_reservation(
         role,
         job.batch,
-        executor::CANDIDATES,
+        policy(env)?.candidate_group_size(),
         &schedules,
         &mut topologies,
         transport,
