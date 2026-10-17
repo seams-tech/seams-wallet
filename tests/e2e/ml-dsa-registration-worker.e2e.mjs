@@ -63,7 +63,7 @@ const serviceAuth = randomBytes(32).toString('hex');
 const persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-registration-e2e-'));
 const cooldownMs = Number(process.env.ML_DSA_TEST_COOLDOWN_MS ?? 60000);
 assert.ok(Number.isSafeInteger(cooldownMs) && cooldownMs >= 1000 && cooldownMs <= 300000);
-const candidateGroupSize = Number(process.env.ML_DSA_TEST_CANDIDATE_GROUP_SIZE ?? 8);
+const candidateGroupSize = Number(process.env.ML_DSA_TEST_CANDIDATE_GROUP_SIZE ?? 4);
 assert.ok([2, 4, 8].includes(candidateGroupSize));
 const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: cooldownMs },
