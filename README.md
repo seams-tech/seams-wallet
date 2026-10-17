@@ -5,8 +5,8 @@ implementation crates, documentation, examples, and recovery CLI.
 
 Published packages:
 
-- `@seams/wallet@0.13.0`
-- `@seams/wallet-server@0.13.0`
+- `@seams/wallet@0.13.1`
+- `@seams/wallet-server@0.13.1`
 - `@seams/wallet-cli@0.10.1` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
