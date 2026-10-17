@@ -76,7 +76,7 @@ const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
   },
   {
     network: 'arc-testnet',
-    rpcUrl: 'https://rpc.testnet.arc.network',
+    rpcUrl: 'https://rpc.testnet.arc.io',
     explorerUrl: 'https://testnet.arcscan.app',
     chainId: 5042002,
   },
