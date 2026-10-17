@@ -42,7 +42,7 @@ test('fresh verified authority resumes an expired grant without changing the adm
         request: bearer(credential),
         body: fixture.admission,
       }),
-    ).toEqual({ ok: true });
+    ).toEqual({ ok: true, ownershipGeneration: fixture.ownershipGeneration });
     expect(
       await fixture.adapter.authorize({
         kind: 'admit',
@@ -96,7 +96,7 @@ test('fresh authority cannot replace the original wallet, key or activation atte
       request: bearer(original.credential),
       body: original.admission,
     }),
-  ).toEqual({ ok: true });
+  ).toEqual({ ok: true, ownershipGeneration: original.ownershipGeneration });
 });
 
 test('respond retry retains the first random activation after its authorization committed', async () => {
@@ -114,6 +114,7 @@ test('respond retry retains the first random activation after its authorization 
   if (!candidate.ok) throw new Error(candidate.message);
   const rebound = await fixture.adapter.bindVerifiedIntent({
     kind: 'verified_registration_intent',
+    ownershipGeneration: fixture.ownershipGeneration,
     registrationIntentGrant: registrationIntentGrantFromString(fixture.credential),
     intent: fixture.intent,
     admissionRequest: candidate.value,

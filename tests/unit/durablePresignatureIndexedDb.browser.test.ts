@@ -71,6 +71,8 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     activation_epoch: 'activation-epoch-1',
   };
   const poolIdentity = {
+    // A wallet with no stored generation is at generation 1.
+    ownershipGeneration: 1,
     relayerUrl: 'https://router.example',
     materialActivationB64u: encoders.base64UrlEncode(
       normalSigningIdentity.canonicalRouterAbMpcMaterialActivationRefBytes(materialActivationWire),

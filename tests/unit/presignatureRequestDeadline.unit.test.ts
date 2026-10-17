@@ -10,8 +10,8 @@ class StalledResponse {
 
   constructor(private readonly phase: 'headers' | 'body') {}
 
-  readonly fetch = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const signal = init?.signal;
+  readonly fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const signal = input instanceof Request ? input.signal : init?.signal;
     if (!signal) throw new Error('Presign exchanges require abortable fetch');
     signal.addEventListener('abort', this.abort.bind(this), { once: true });
     this.timer = setTimeout(this.release.bind(this), 6_500);
@@ -57,7 +57,11 @@ function stepInput(ceremonyExpiresAtMs: number) {
     materialExpiresAtMs: ceremonyExpiresAtMs,
     stage: 'triples' as const,
     outgoingMessagesB64u: ['AQ'],
-    credential: { kind: 'wallet_session_opaque' as const, walletSessionToken: 'test-token' },
+    credential: {
+      kind: 'wallet_session_opaque' as const,
+      home: { kind: 'direct' as const },
+      walletSessionToken: 'test-token',
+    },
     authorization: { kind: 'reusable_wallet_session' as const, wallet_session_id: 'test-session' },
   };
 }

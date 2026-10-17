@@ -9,7 +9,7 @@ async function mountSettingsLayout(page: Page): Promise<void> {
     await route.fulfill({
       contentType: 'application/javascript',
       body: `
-        const seams = { setTheme() {} };
+        const seams = { config: { setTheme() {} } };
         export function useSeams() {
           return { seams };
         }
@@ -65,7 +65,7 @@ test('settings sidebar selects panels, preserves capability restrictions, and wo
 }) => {
   await mountSettingsLayout(page);
   const nav = page.getByRole('navigation', { name: 'Wallet settings' });
-  await expect(nav.getByRole('button')).toHaveCount(8);
+  await expect(nav.getByRole('button')).toHaveCount(9);
   await expect(
     page.getByRole('heading', { name: 'Authentication methods', exact: true }),
   ).toBeVisible();

@@ -157,7 +157,7 @@ test.describe('account-menu modal responsiveness', () => {
   }) => {
     await mountModalWithPendingInventory(page, 'authentication_methods', 'pending', 'page');
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    const content = page.getByRole('region', { name: 'Authentication methods' });
+    const content = page.getByRole('region', { name: 'Authentication methods', exact: true });
     await expect(content).toBeVisible();
     await expect(content.getByText('Passkey', { exact: true })).toBeVisible();
     await expect(
@@ -229,7 +229,7 @@ test.describe('account-menu modal responsiveness', () => {
   test('shows Linked Devices while its inventory request is pending', async ({ page }) => {
     await mountModalWithPendingInventory(page, 'linked_devices');
 
-    const dialog = page.getByRole('dialog', { name: 'Your devices' });
+    const dialog = page.getByRole('dialog', { name: 'Linked devices' });
     await expect(dialog).toBeVisible({ timeout: 500 });
     await expect(dialog.getByText('Checking your devices…')).toBeVisible({ timeout: 500 });
   });

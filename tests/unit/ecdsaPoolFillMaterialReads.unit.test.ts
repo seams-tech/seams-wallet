@@ -87,6 +87,7 @@ async function buildPresignStepFixture() {
     authMethod: fixture.authMethod,
     retiredAtMs: null,
     ownerWalletScope: {
+      ownershipGeneration: fixture.operationCredential.ownershipGeneration,
       orgId: String(session.tenantId),
       projectId: 'presign-test',
       projectEnvironmentId: 'test',
@@ -254,6 +255,7 @@ function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixtur
     session_org_id: data.candidate.ownerWalletScope.orgId,
     session_project_id: data.candidate.ownerWalletScope.projectId,
     session_env_id: data.candidate.ownerWalletScope.projectEnvironmentId,
+    execution_generation: data.candidate.ownerWalletScope.ownershipGeneration,
     session_authority_id: session.authorityId,
     session_wallet_auth_method_id: session.walletAuthMethodId,
     session_authority_digest_b64u: session.authorityDigestB64u,
@@ -359,7 +361,6 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
     ['authority_revocation_epoch', data.session.authorityRevocationEpoch + 1],
     ['auth_method_status', 'revoked'],
     ['auth_method_wallet_id', 'wallet:different'],
-    ['session_retired_at_ms', Date.now()],
     ['quota_remaining_uses', 1],
     ['quota_id', 'quota:different'],
     ['session_capability_subjects_json', '[]'],
@@ -374,13 +375,16 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
       column,
     ).rejects.toThrow();
   }
+  // A retired or expired session reads as absent; callers answer it as an invalid Wallet Session.
+  database.row = { ...joinedSessionRow(data), session_retired_at_ms: Date.now() };
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toBeNull();
   database.row = joinedSessionRow(data);
   await expect(
     store.readWalletSessionExactOperationContextByCredential({
       ...input,
       nowMs: data.session.expiresAtMs,
     }),
-  ).rejects.toThrow('expired');
+  ).resolves.toBeNull();
   const changedDigest = parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(9)));
   const corruptRow = joinedSessionRow(data);
   const corruptAuthority = JSON.parse(corruptRow.record_json);
