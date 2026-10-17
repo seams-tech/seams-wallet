@@ -59,6 +59,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     .await
     .map_err(protocol_error)?;
     if active.map(|value| value.key).as_ref() != Some(&key) {
+        withdraw(env, &key).await.map_err(protocol_error)?;
         remove_queued(state, &key).await?;
         schedule_refill_alarm(state, 1_000).await?;
         return Response::from_json(&false);
@@ -94,6 +95,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         .filter(|batch| stock_b.contains(batch))
         .count();
     if paired >= policy.refill_target_batches() {
+        withdraw(env, &key).await.map_err(protocol_error)?;
         // Keep a durable timer so idle wallets replace expiring preparation.
         rotate_queued(state, &key).await?;
         schedule_refill_alarm(state, 30_000).await?;
@@ -106,6 +108,14 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     )
     .await
     .map_err(protocol_error)?;
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_refill_claim_v1",
+            "key": hex(&key.public_key_digest), "epoch": key.epoch,
+            "claim": &claim,
+        })
+    );
     let refill::Claim::Acquired { job } = claim else {
         schedule_refill_alarm(state, 5_000).await?;
         return Response::from_json(&false);
@@ -132,6 +142,15 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     schedule_refill_alarm(state, if result.is_ok() { 1_000 } else { 5_000 }).await?;
     result.map_err(protocol_error)?;
     Response::from_json(&true)
+}
+async fn withdraw(env: &Env, key: &KeyScope) -> Result<()> {
+    let _: bool = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::WithdrawRefill { key: key.clone() },
+    )
+    .await?;
+    Ok(())
 }
 async fn remove_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
     let key = key.clone();
@@ -183,16 +202,18 @@ async fn prepare(
     if execution::schedule_digest(&schedules) != job.key.schedule_digest {
         return Err(invalid("ML-DSA preprocessing schedule changed"));
     }
+    let mut topologies = schedules::public_topologies();
     let prepared = prepare_gmw_reservation(
         role,
         job.batch,
         executor::CANDIDATES,
         &schedules,
-        &mut Default::default(),
+        &mut topologies,
         transport,
     )
     .await
     .map_err(|_| invalid("ML-DSA preprocessing protocol failed"))?;
+    schedules::retain_public_topologies(&topologies);
     check_job(env, job).await?;
     let (version, seed) = executor::wrapping_key(env)?;
     let binding = Binding {

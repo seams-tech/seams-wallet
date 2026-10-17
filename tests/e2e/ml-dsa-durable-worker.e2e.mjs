@@ -52,6 +52,58 @@ const bindings = {
   ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayAuth,
   ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
 };
+const publicationBarrierScript = `
+function holdPublication(resolve) { setTimeout(resolve, 60000); }
+export class PublicationBarrier {
+  constructor(state, env) { this.state = state; this.env = env; }
+  async fetch(request) {
+    if (new URL(request.url).pathname === '/arm') {
+      await this.state.storage.put('armed', true);
+      await this.state.storage.put('fail_inspection', true);
+      return new Response('Armed');
+    }
+    if (new URL(request.url).pathname === '/state') {
+      return Response.json({ held: await this.state.storage.get('held') ?? null,
+        inspectionFailures: await this.state.storage.get('inspection_failures') ?? 0 });
+    }
+    const command = await request.clone().json();
+    if (command.command === 'inspect' && await this.state.storage.get('fail_inspection')) {
+      await this.state.storage.put('fail_inspection', false);
+      await this.state.storage.put('inspection_failures', 1);
+      return new Response('Injected inventory failure', {status:503});
+    }
+    const response = await this.env.ROLE.fetch(request);
+    if (command.command === 'put' && response.status === 200 && await this.state.storage.get('armed')) {
+      await this.state.storage.put('armed', false);
+      await this.state.storage.put('held', { batch: command.job.batch });
+      await new Promise(holdPublication);
+    }
+    return response;
+  }
+}
+export class AdmissionBarrier {
+  constructor(state, env) { this.state = state; this.env = env; }
+  async fetch(request) {
+    if (new URL(request.url).pathname === '/arm') {
+      await this.state.storage.put('armed', true);
+      return new Response('Armed');
+    }
+    if (new URL(request.url).pathname === '/state') {
+      return Response.json({ settlementFailures: await this.state.storage.get('failures') ?? 0 });
+    }
+    const command = await request.clone().json();
+    if (command.command === 'finish_refill' && await this.state.storage.get('armed')) {
+      await this.state.storage.put('armed', false);
+      await this.state.storage.put('failures', 1);
+      return new Response('Injected settlement failure', {status:503});
+    }
+    const id = this.env.REAL_ADMISSION.idFromName('ml-dsa-admission-v1');
+    return this.env.REAL_ADMISSION.get(id).fetch(request);
+  }
+}
+async function fetch() { return new Response('Local fault fixture'); }
+export default { fetch };
+`;
 const observations = {
   scope: 'Local workerd, real strict Worker bundles, synthetic canonical wallet key, typed Gateway owner admission, and durable signing. Verified factor inputs, claimed-operation persistence, and custody activation are injected. HTTP login, public session routes, and hosted latency remain outside this test.',
   policy,
@@ -120,9 +172,23 @@ try {
   initialRefillStarted = performance.now();
   observations.activation = await installMlDsaActivation(runtime, records, gatewayAuth, serviceAuth);
   observations.wrongAuthorityRejected = true;
+  const emptyMessage = digest(Array.from(Buffer.from('ML-DSA empty-pool replay')));
+  const emptyInput = {
+    request: { key: records[0].activation.key, operation: Array.from(randomBytes(32)),
+      message_digest: digest(emptyMessage), context_digest: digest([]) },
+    message: emptyMessage,
+    context: [],
+  };
+  const emptyResult = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
+  assert.equal(emptyResult.status, 'unavailable');
+  assert.equal(emptyResult.reason, 'empty_pool');
   const refillStarted = performance.now();
   observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
   await waitReady(4);
+  const emptyReplay = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
+  assert.equal(emptyReplay.status, 'existing');
+  assert.equal(emptyReplay.operation.state, 'declined');
+  observations.emptyPoolReplayRemainsDeclinedAfterRefill = true;
   const storedPools = await passiveInventories();
   observations.maximumPreparedChunkCounts = storedPools.map(maximumChunks);
   for (const chunks of observations.maximumPreparedChunkCounts) {
@@ -192,6 +258,8 @@ try {
     });
     lastSuccessful = { input, result, prepared };
     if (observations.signatures.length === 1) {
+      const barrier = await publicationBarrier();
+      assert.equal((await barrier.fetch('https://fault.internal/arm')).status, 200);
       await waitForPreprocessingStart(initialStarts);
       observations.firstConsumptionRefillStartedMs = performance.now() - started;
       assert.ok(observations.firstConsumptionRefillStartedMs < 3000, 'Consumption did not advance the maintenance alarm');
@@ -212,6 +280,39 @@ try {
       const changed = await raw('preparer-a', '/router-ab/ml-dsa/prepare', changedJob, serviceAuth);
       assert.notEqual(changed.status, 202, 'A changed producer claim was accepted');
       observations.producerQueueRetryAndBindingChecks = true;
+      const held = await waitForHeldPublication(barrier);
+      assert.deepEqual(held.batch, job.batch);
+      const published = await inventories();
+      for (const role of published) {
+        assert.ok(role.ready.map(batchId).includes(batchId(held.batch)), 'The reset fixture lacks paired publication');
+      }
+      observations.interruptedProducer = {
+        batch: held.batch,
+        beforeResetState: await producerState(job),
+        remainingLeaseMs: job.expires_at_ms - Date.now(),
+      };
+      assert.equal(observations.interruptedProducer.beforeResetState, 'running');
+      assert.ok(observations.interruptedProducer.remainingLeaseMs > 30000);
+      const resetStarted = performance.now();
+      const startsBeforeReset = await preprocessingStarts();
+      const settlementBarrier = await admissionBarrier();
+      assert.equal((await settlementBarrier.fetch('https://fault.internal/arm')).status, 200);
+      await runtime.dispose();
+      runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+      await runtime.ready;
+      await waitForInterruptedProducer(job);
+      observations.interruptedProducer.terminalStateMs = performance.now() - resetStarted;
+      observations.interruptedProducer.afterResetState = await producerState(job);
+      await waitForLeaseRelease(job);
+      observations.interruptedProducer.leaseReleasedMs = performance.now() - resetStarted;
+      observations.interruptedProducer.releasedBeforeOriginalDeadline = Date.now() < job.expires_at_ms;
+      observations.interruptedProducer.inspectionFailure = await (await (await publicationBarrier()).fetch('https://fault.internal/state')).json();
+      observations.interruptedProducer.settlementFailure = await (await (await admissionBarrier()).fetch('https://fault.internal/state')).json();
+      assert.equal(observations.interruptedProducer.inspectionFailure.inspectionFailures, 1);
+      assert.equal(observations.interruptedProducer.settlementFailure.settlementFailures, 1);
+      assert.deepEqual(await preprocessingStarts(), startsBeforeReset, 'Recovery restarted private preparation');
+      assert.ok(observations.interruptedProducer.leaseReleasedMs < 15000);
+      assert.equal(observations.interruptedProducer.releasedBeforeOriginalDeadline, true);
     }
     const inventory = await inventories();
     observations.postSignInventories.push(inventory);
@@ -281,6 +382,7 @@ try {
   const expired = await post('router', '/router-ab/ml-dsa/status', stalled, gatewayAuth);
   assert.equal(expired.state, 'failed');
   observations.stalledOperationExpiredWithoutSignature = true;
+  observations.prepublicationFallback = await checkPrepublicationFallback();
   observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
   observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
   observations.passed = true;
@@ -335,6 +437,17 @@ function workers() {
     preparerWorker('a', 0),
     preparerWorker('b', 1),
     {
+      name: 'publication-barrier',
+      modules: true,
+      script: publicationBarrierScript,
+      durableObjects: {
+        BARRIER: { className: 'PublicationBarrier', useSQLite: true },
+        ADMISSION_BARRIER: { className: 'AdmissionBarrier', useSQLite: true },
+        REAL_ADMISSION: { className: 'RouterAbMlDsaAdmissionDurableObject', scriptName: 'router' },
+      },
+      serviceBindings: { ROLE: 'a' },
+    },
+    {
       name: 'timer-control',
       modules: true,
       script: `
@@ -371,9 +484,13 @@ function preparerWorker(role, index) {
   const worker = roleWorker(role, index);
   worker.name = `preparer-${role}`;
   worker.durableObjects.ML_DSA_POOL_DO = {
-    className: 'RouterAbMlDsaPoolDurableObject', scriptName: role,
+    className: role === 'a' ? 'PublicationBarrier' : 'RouterAbMlDsaPoolDurableObject',
+    scriptName: role === 'a' ? 'publication-barrier' : role,
   };
   if (role === 'a') {
+    worker.durableObjects.ML_DSA_ADMISSION_DO = {
+      className: 'AdmissionBarrier', scriptName: 'publication-barrier',
+    };
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
     };
@@ -436,6 +553,98 @@ async function waitReady(count) {
 }
 function batchId(id) {
   return Buffer.from(id).toString('hex');
+}
+
+async function publicationBarrier() {
+  const namespace = await runtime.getDurableObjectNamespace('BARRIER', 'publication-barrier');
+  const wallet = records[0].activation.key.wallet;
+  const ordered = { org: wallet.org, project: wallet.project, environment: wallet.environment, wallet: wallet.wallet };
+  const name = createHash('sha256').update('wallet').update(JSON.stringify(ordered)).digest('hex');
+  return namespace.get(namespace.idFromName(`ml-dsa-pool-${name}`));
+}
+
+async function waitForHeldPublication(barrier) {
+  const deadline = performance.now() + 60000;
+  while (performance.now() < deadline) {
+    const state = await (await barrier.fetch('https://fault.internal/state')).json();
+    if (state.held) return state.held;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('The producer did not reach the paired-publication barrier');
+}
+
+async function waitForInterruptedProducer(job) {
+  const deadline = performance.now() + 15000;
+  while (performance.now() < deadline) {
+    if (await producerState(job) === 'interrupted') return;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('Paired publication did not persist interrupted state before its deadline');
+}
+
+async function admissionBarrier() {
+  const namespace = await runtime.getDurableObjectNamespace('ADMISSION_BARRIER', 'publication-barrier');
+  return namespace.get(namespace.idFromName('ml-dsa-admission-v1'));
+}
+
+async function admissionCheck(command) {
+  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_ADMISSION_DO', 'router');
+  const stub = namespace.get(namespace.idFromName('ml-dsa-admission-v1'));
+  const response = await stub.fetch('https://admission.internal/check', {
+    method: 'POST', headers: { 'content-type': 'application/json', [authHeader]: serviceAuth },
+    body: JSON.stringify(command),
+  });
+  assert.equal(response.status, 200);
+  return response.json();
+}
+
+async function waitForLeaseRelease(job) {
+  const deadline = performance.now() + 15000;
+  while (performance.now() < deadline) {
+    if (!await admissionCheck({ command: 'check_refill', job })) return;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('The interrupted producer still holds its global lease');
+}
+
+async function checkPrepublicationFallback() {
+  const before = await preprocessingStarts();
+  await inventories();
+  await waitForPreprocessingStart(before);
+  const jobs = await rolePreprocessingJobs('a');
+  jobs.sort(newestJobFirst);
+  const job = jobs[0];
+  for (const role of ['a', 'b']) {
+    const states = await post(role, '/router-ab/ml-dsa/role', { command: 'inspect', key: job.key, batches: [job.batch] });
+    assert.deepEqual(states, ['missing']);
+  }
+  const started = performance.now();
+  await runtime.dispose();
+  runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+  await runtime.ready;
+  await new Promise(waitSixSeconds);
+  assert.equal(await producerState(job), 'running');
+  assert.equal(await admissionCheck({ command: 'check_refill', job }), true);
+  const retainedLeaseMs = performance.now() - started;
+  const markers = await preprocessingStarts();
+  while (Date.now() < job.expires_at_ms + 1000) await new Promise(waitOneSecond);
+  await waitForPreprocessingStart(markers);
+  const later = await rolePreprocessingJobs('a');
+  later.sort(newestJobFirst);
+  const fresh = later[0];
+  assert.notDeepEqual(fresh.batch, job.batch);
+  assert.equal(await producerState(job), 'interrupted');
+  assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
+  await admissionCheck({ command: 'finish_refill', job });
+  assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
+  const late = await raw('preparer-a', '/router-ab/ml-dsa/prepare', job, serviceAuth);
+  assert.notEqual(late.status, 202);
+  return { batch: job.batch, freshBatch: fresh.batch, retainedLeaseMs, elapsedMs: performance.now() - started,
+    unknownPublicationRetainedLease: true, deadlineFallback: true, staleSettlementPreservedNewLease: true, expiredProducerRetryRejected: true };
+}
+
+function waitSixSeconds(resolve) {
+  setTimeout(resolve, 6000);
 }
 function waitOneSecond(resolve) {
   setTimeout(resolve, 1000);

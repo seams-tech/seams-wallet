@@ -66,6 +66,9 @@ pub enum AdmissionCommand {
     ClaimRefill {
         key: KeyScope,
     },
+    WithdrawRefill {
+        key: KeyScope,
+    },
     CheckRefill {
         job: refill::Job,
     },
@@ -345,6 +348,7 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
                     | AdmissionCommand::ActiveKey { .. }
                     | AdmissionCommand::KeyState { .. }
                     | AdmissionCommand::ClaimRefill { .. }
+                    | AdmissionCommand::WithdrawRefill { .. }
                     | AdmissionCommand::CheckRefill { .. }
                     | AdmissionCommand::FinishRefill { .. }
             )
@@ -412,6 +416,10 @@ async fn execute_admission(
             json(super::registration::finish(store, &claim, result, now).await?)
         }
         AdmissionCommand::ClaimRefill { key } => json(refill::claim(store, key, now).await?),
+        AdmissionCommand::WithdrawRefill { key } => {
+            refill::withdraw(store, &key).await?;
+            json(true)
+        }
         AdmissionCommand::CheckRefill { job } => json(refill::check(store, &job, now).await?),
         AdmissionCommand::FinishRefill { job } => {
             refill::finish(store, &job).await?;

@@ -35,6 +35,16 @@ def main():
         traces = json.load(source)["records"]
     with open(args.versions) as source:
         versions = json.load(source)
+    report = summarize(client, traces, versions)
+    with open(args.output, "w") as output:
+        json.dump(report, output, indent=2)
+        output.write("\n")
+    print(json.dumps({"batches": len(report["paired_publications"]),
+                      "consumed": report["unique_consumed_batches"],
+                      "post_initial_stock": report["post_initial_stock"]}))
+
+
+def summarize(client, traces, versions):
     traces = [record for record in traces if record["version"] == versions.get(record["role"])]
     start = datetime.datetime.fromisoformat(client["observedAt"].replace("Z", "+00:00")).timestamp() * 1000
     end = start + client["elapsedMs"]
@@ -94,7 +104,9 @@ def main():
             assert count <= len(available)
             consumed.append({"operation": operation, "at_ms": completions[operation], "dispatch_at_ms": timestamp(record, outcome),
                              "batches": available[:count], "outcome": result})
-    assert verified_operations.issubset(seen_operations), "Verified requests lack matching deployment/outcome traces"
+    for operation in sorted(verified_operations - seen_operations):
+        consumed.append({"operation": operation, "count_unknown": True,
+                         "outcome": {"status": "verified_signature_missing_router_outcome"}})
     known = sorted([item for item in consumed if "batches" in item], key=lambda item: item["at_ms"])
     if known:
         assert initial["at_ms"] <= min(item["dispatch_at_ms"] for item in known), "Initial stock was observed after consumption"
@@ -120,8 +132,7 @@ def main():
         remaining.difference_update(batches)
         if not remaining and depleted_at is None:
             depleted_at = operation["at_ms"]
-    after = [item for item in known if depleted_at is not None and item["at_ms"] > depleted_at]
-    successes_after = sum(item["outcome"]["status"] == "signed" and item["operation"] in verified_operations for item in after)
+    successes_after = sum(completions[operation] > depleted_at for operation in verified_operations) if depleted_at is not None else 0
     duration_after = end - depleted_at if depleted_at is not None else 0
     first_pair_observation = {}
     for snapshot in inventories:
@@ -193,10 +204,7 @@ def main():
         "client_functional_passed": client["functionalPassed"],
         "client_latency_target_met": client["latencyTargetMet"],
     }
-    with open(args.output, "w") as output:
-        json.dump(report, output, indent=2)
-        output.write("\n")
-    print(json.dumps({"batches": len(by_batch), "consumed": len(all_consumed), "post_initial_stock": report["post_initial_stock"]}))
+    return report
 
 
 if __name__ == "__main__":

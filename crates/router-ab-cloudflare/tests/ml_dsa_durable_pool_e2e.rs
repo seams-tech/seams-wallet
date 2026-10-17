@@ -770,11 +770,19 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let mut late_binding = binding(&job.key, Participant::A, 1);
     late_binding.batch = job.batch;
     late_binding.expires_at_ms = job.material_expires_at_ms;
-    let late_sealed = sealing::seal(Zeroizing::new(vec![7; 100_000]), &late_binding, &[1; 32]).unwrap();
+    let late_sealed =
+        sealing::seal(Zeroizing::new(vec![7; 100_000]), &late_binding, &[1; 32]).unwrap();
     assert!(tx(
         &refill_store,
-        m::refill::publish_role(&refill_store, &job, late_binding, late_sealed, job.expires_at_ms)
-    ).is_err());
+        m::refill::publish_role(
+            &refill_store,
+            &job,
+            late_binding,
+            late_sealed,
+            job.expires_at_ms
+        )
+    )
+    .is_err());
     assert!(!tx(&router, m::refill::check(&router, &job, job.expires_at_ms)).unwrap());
     let m::refill::Claim::Acquired { job: replacement } = tx(
         &router,
@@ -787,11 +795,24 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let mut fresh_binding = binding(&replacement.key, Participant::A, 2);
     fresh_binding.batch = replacement.batch;
     fresh_binding.expires_at_ms = replacement.material_expires_at_ms;
-    let fresh_sealed = sealing::seal(Zeroizing::new(vec![8; 100_000]), &fresh_binding, &[1; 32]).unwrap();
-    tx(&refill_store, m::refill::start_role(&refill_store, &replacement, job.expires_at_ms)).unwrap();
-    tx(&refill_store, m::refill::publish_role(
-        &refill_store, &replacement, fresh_binding, fresh_sealed, job.expires_at_ms + 1
-    )).unwrap();
+    let fresh_sealed =
+        sealing::seal(Zeroizing::new(vec![8; 100_000]), &fresh_binding, &[1; 32]).unwrap();
+    tx(
+        &refill_store,
+        m::refill::start_role(&refill_store, &replacement, job.expires_at_ms),
+    )
+    .unwrap();
+    tx(
+        &refill_store,
+        m::refill::publish_role(
+            &refill_store,
+            &replacement,
+            fresh_binding,
+            fresh_sealed,
+            job.expires_at_ms + 1,
+        ),
+    )
+    .unwrap();
 
     tx(&router, m::refill::finish(&router, &job)).unwrap();
     assert!(tx(
@@ -802,10 +823,12 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     tx(&router, m::refill::finish(&router, &replacement)).unwrap();
     drop(refill_store);
     registration_allocator_campaign(&directory);
+    let refill_fairness = refill_fairness_campaign(&directory);
     let output = std::env::var_os("ML_DSA_E2E_REPORT")
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
+        "refill_fairness": refill_fairness,
         "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"expired_producer_publication_rejected":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,"prior_aes_suite_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
@@ -817,6 +840,151 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     drop(router);
     std::fs::remove_dir_all(directory).unwrap();
     eprintln!("ML-DSA lifecycle evidence: {}", output.display());
+}
+
+fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
+    let path = directory.join("fair-refill.sqlite");
+    let router = Db::open(&path);
+    let a = key("fair-a");
+    let b = key("fair-b");
+    let c = key("fair-c");
+    for key in [&a, &b, &c] {
+        activate(&router, key);
+    }
+    let first = refill_turn(&router, &a, 1_000);
+    for now in 1_001..1_006 {
+        assert!(matches!(
+            tx(&router, m::refill::claim(&router, a.clone(), now)).unwrap(),
+            m::refill::Claim::Busy { .. }
+        ));
+    }
+    for (key, now) in [(&b, 1_006), (&c, 1_007), (&b, 1_008)] {
+        assert!(matches!(
+            tx(&router, m::refill::claim(&router, key.clone(), now)).unwrap(),
+            m::refill::Claim::Busy { .. }
+        ));
+    }
+    drop(router);
+    let router = Db::open(&path);
+    tx(&router, m::refill::finish(&router, &first)).unwrap();
+    assert!(matches!(
+        tx(&router, m::refill::claim(&router, a.clone(), 1_009)).unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    let second = refill_turn(&router, &b, 1_010);
+    assert_ne!(first.batch, second.batch);
+    tx(&router, m::refill::withdraw(&router, &c)).unwrap();
+    assert!(tx(&router, m::refill::check(&router, &second, 1_011)).unwrap());
+    tx(&router, m::refill::finish(&router, &second)).unwrap();
+    assert!(matches!(
+        tx(&router, m::refill::claim(&router, b.clone(), 1_012)).unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    let third = refill_turn(&router, &a, 1_013);
+    assert!(matches!(
+        tx(&router, m::refill::claim(&router, c.clone(), 1_014)).unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+
+    let mut recovered_b = b.clone();
+    recovered_b.epoch += 1;
+    activate(&router, &recovered_b);
+    assert!(matches!(
+        tx(
+            &router,
+            m::refill::claim(&router, recovered_b.clone(), 1_015)
+        )
+        .unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    tx(&router, m::refill::withdraw(&router, &b)).unwrap();
+    let mut installing_c = c.clone();
+    installing_c.epoch += 1;
+    tx(
+        &router,
+        admission::authorize_key(
+            &router,
+            admission::KeyActivation {
+                key: installing_c.clone(),
+                ceremony_id: [44; 32],
+                manifest_digest: [45; 32],
+            },
+        ),
+    )
+    .unwrap();
+    tx(&router, m::refill::finish(&router, &third)).unwrap();
+    let fourth = refill_turn(&router, &recovered_b, 1_016);
+    assert_eq!(fourth.key.epoch, 2);
+    assert!(matches!(
+        tx(&router, m::refill::claim(&router, a.clone(), 1_017)).unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    activate(&router, &installing_c);
+    assert!(matches!(
+        tx(
+            &router,
+            m::refill::claim(&router, installing_c.clone(), 1_018)
+        )
+        .unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    assert!(matches!(
+        tx(
+            &router,
+            m::refill::claim(&router, installing_c.clone(), 30_000)
+        )
+        .unwrap(),
+        m::refill::Claim::Busy { .. }
+    ));
+    tx(&router, m::refill::finish(&router, &fourth)).unwrap();
+    let fifth = refill_turn(&router, &installing_c, 32_000);
+    let mut waiting = Vec::new();
+    for index in 0..66 {
+        let key = key(&format!("bounded-waiter-{index}"));
+        activate(&router, &key);
+        assert!(matches!(
+            tx(
+                &router,
+                m::refill::claim(&router, key.clone(), 32_001 + index)
+            )
+            .unwrap(),
+            m::refill::Claim::Busy { .. }
+        ));
+        waiting.push(key);
+    }
+    let entries: Vec<serde_json::Value> = tx(&router, router.get("preprocessing-waiting"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(entries.len(), 64);
+    tx(&router, m::refill::finish(&router, &fifth)).unwrap();
+    let sixth = refill_turn(&router, &waiting[0], 32_100);
+    tx(&router, m::refill::finish(&router, &fifth)).unwrap();
+    assert!(tx(&router, m::refill::check(&router, &sixth, 32_101)).unwrap());
+    let grants = [first, second, third, fourth, fifth, sixth];
+    let mut batches = std::collections::HashSet::new();
+    for job in &grants {
+        assert!(batches.insert(job.batch));
+    }
+    serde_json::json!({
+        "scope": "SQLite lifecycle E2E with trusted fixture activations and simulated clocks. Worker E2Es separately verify real private preparation and signatures.",
+        "active_owner_cannot_requeue": true,
+        "renewal_preserves_turn": true,
+        "queue_survives_restart": true,
+        "full_key_withdrawal_preserves_lease": true,
+        "inactive_and_expired_heads_pruned": true,
+        "old_epoch_withdrawal_preserves_new_epoch": true,
+        "stale_settlement_preserves_new_lease": true,
+        "bounded_waiting_keys": entries.len(),
+        "distinct_grant_batches": batches.len(),
+        "grants": grants,
+    })
+}
+
+fn refill_turn(router: &Db, key: &KeyScope, now: u64) -> m::refill::Job {
+    match tx(router, m::refill::claim(router, key.clone(), now)).unwrap() {
+        m::refill::Claim::Acquired { job } => job,
+        other => panic!("The queued refill turn was not granted: {other:?}"),
+    }
 }
 
 fn registration_allocator_campaign(directory: &std::path::Path) {

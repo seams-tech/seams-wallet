@@ -1,4 +1,4 @@
-//! One service-wide preprocessing lease. Retries always use fresh batch IDs.
+//! One service-wide preprocessing lease with one fresh batch per waiting key turn.
 use super::*;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -15,6 +15,15 @@ pub enum Claim {
     Busy { retry_at_ms: u64 },
 }
 const ACTIVE: &str = "preprocessing-active";
+const WAITING: &str = "preprocessing-waiting";
+const MAX_WAITING_KEYS: usize = 64;
+const DEMAND_LIFETIME_MS: u64 = 30_000;
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Waiting {
+    key: KeyScope,
+    expires_at_ms: u64,
+}
 pub async fn claim(store: &impl Store, key: KeyScope, now: u64) -> Result<Claim> {
     if admission::active_key(store, &key)
         .await?
@@ -24,16 +33,61 @@ pub async fn claim(store: &impl Store, key: KeyScope, now: u64) -> Result<Claim>
     {
         return Err(invalid("ML-DSA preprocessing key is inactive"));
     }
+    let active = store.get::<Job>(ACTIVE).await?;
+    if let Some(job) = &active {
+        if job.key == key && job.expires_at_ms > now {
+            return Ok(Claim::Busy {
+                retry_at_ms: job.expires_at_ms.min(now.saturating_add(5_000)),
+            });
+        }
+    }
+    let original: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
+    let mut waiting = Vec::new();
+    let mut queued = false;
+    for mut entry in original.iter().cloned() {
+        if entry.expires_at_ms <= now {
+            continue;
+        }
+        if entry.key == key {
+            entry.expires_at_ms = now.saturating_add(DEMAND_LIFETIME_MS);
+            queued = true;
+        } else if admission::active_key(store, &entry.key)
+            .await?
+            .map(|value| value.key)
+            .as_ref()
+            != Some(&entry.key)
+        {
+            continue;
+        }
+        waiting.push(entry);
+    }
+    if !queued && waiting.len() < MAX_WAITING_KEYS {
+        waiting.push(Waiting {
+            key: key.clone(),
+            expires_at_ms: now.saturating_add(DEMAND_LIFETIME_MS),
+        });
+    }
+    let busy = Claim::Busy {
+        retry_at_ms: now.saturating_add(5_000),
+    };
+    if waiting.first().map(|entry| &entry.key) != Some(&key) {
+        persist_waiting(store, &original, &waiting).await?;
+        return Ok(busy);
+    }
     let foreground = admission::active_until(store, now)
         .await?
         .max(registration::active_until(store, now).await?);
     if let Some(retry_at_ms) = foreground {
-        return Ok(Claim::Busy { retry_at_ms });
+        persist_waiting(store, &original, &waiting).await?;
+        return Ok(Claim::Busy {
+            retry_at_ms: retry_at_ms.min(now.saturating_add(5_000)),
+        });
     }
-    if let Some(active) = store.get::<Job>(ACTIVE).await? {
+    if let Some(active) = active {
         if active.expires_at_ms > now {
+            persist_waiting(store, &original, &waiting).await?;
             return Ok(Claim::Busy {
-                retry_at_ms: active.expires_at_ms,
+                retry_at_ms: active.expires_at_ms.min(now.saturating_add(5_000)),
             });
         }
     }
@@ -46,8 +100,33 @@ pub async fn claim(store: &impl Store, key: KeyScope, now: u64) -> Result<Claim>
         expires_at_ms: now.saturating_add(90_000),
         material_expires_at_ms: now.saturating_add(600_000),
     };
+    waiting.remove(0);
+    persist_waiting(store, &original, &waiting).await?;
     store.put(ACTIVE, &job).await?;
     Ok(Claim::Acquired { job })
+}
+
+async fn persist_waiting(
+    store: &impl Store,
+    original: &[Waiting],
+    waiting: &[Waiting],
+) -> Result<()> {
+    if waiting != original {
+        store.put(WAITING, &waiting).await?;
+    }
+    Ok(())
+}
+
+/// Full or inactive keys relinquish only their own pending turn, never a lease.
+pub async fn withdraw(store: &impl Store, key: &KeyScope) -> Result<()> {
+    let original: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
+    let mut waiting = Vec::new();
+    for entry in &original {
+        if entry.key != *key {
+            waiting.push(entry.clone());
+        }
+    }
+    persist_waiting(store, &original, &waiting).await
 }
 pub async fn check(store: &impl Store, job: &Job, now: u64) -> Result<bool> {
     Ok(now < job.expires_at_ms

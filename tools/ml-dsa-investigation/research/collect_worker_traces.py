@@ -132,6 +132,46 @@ def public_signing_trace(value, timestamp=None):
     return trace
 
 
+def public_refill_recovery(value, timestamp):
+    batch = value.get("batch")
+    if not isinstance(batch, str) or not re.fullmatch("[0-9a-f]{64}", batch):
+        return None
+    stage = value.get("stage")
+    if stage not in ("waiting_for_publication", "paired_publication_confirmed", "deadline_reached"):
+        return None
+    if not public_counter(value.get("expires_at_ms")) or not public_time(timestamp):
+        return None
+    return {"batch": batch, "stage": stage, "expires_at_ms": value["expires_at_ms"], "log_timestamp_ms": timestamp}
+
+
+def public_refill_claim(value, timestamp):
+    key = value.get("key")
+    epoch = value.get("epoch")
+    claim = value.get("claim")
+    if not isinstance(key, str) or not re.fullmatch("[0-9a-f]{64}", key):
+        return None
+    if not public_counter(epoch) or not public_time(timestamp) or not isinstance(claim, dict):
+        return None
+    result = {"key": key, "epoch": epoch, "log_timestamp_ms": timestamp}
+    if claim.get("status") == "busy" and public_counter(claim.get("retry_at_ms")):
+        return {**result, "status": "busy", "retry_at_ms": claim["retry_at_ms"]}
+    job = claim.get("job")
+    if claim.get("status") != "acquired" or not isinstance(job, dict):
+        return None
+    batch = job.get("batch")
+    scope = job.get("key")
+    if not isinstance(batch, list) or len(batch) != 32 or any(type(byte) is not int or not 0 <= byte <= 255 for byte in batch):
+        return None
+    if not isinstance(scope, dict) or not public_counter(scope.get("epoch")) or scope["epoch"] != epoch:
+        return None
+    digest = scope.get("public_key_digest")
+    if not isinstance(digest, list) or any(type(byte) is not int for byte in digest) or digest != list(bytes.fromhex(key)):
+        return None
+    if not public_counter(job.get("expires_at_ms")):
+        return None
+    return {**result, "status": "acquired", "batch": bytes(batch).hex(), "expires_at_ms": job["expires_at_ms"]}
+
+
 def records(path, role):
     source = path.read_text()
     decoder = json.JSONDecoder()
@@ -162,6 +202,8 @@ def records(path, role):
         socket_completion = []
         peer_close = []
         refill = []
+        refill_recovery = []
+        refill_claims = []
         inventories = []
         for log in item.get("logs", []):
             for message in log.get("message", []):
@@ -175,6 +217,14 @@ def records(path, role):
                     public_trace = public_signing_trace(value, log.get("timestamp"))
                     if public_trace is not None:
                         signing_traces.append(public_trace)
+                if value.get("event") == "ml_dsa_refill_recovery_v1":
+                    recovery = public_refill_recovery(value, log.get("timestamp"))
+                    if recovery is not None:
+                        refill_recovery.append(recovery)
+                if value.get("event") == "ml_dsa_refill_claim_v1":
+                    claim = public_refill_claim(value, log.get("timestamp"))
+                    if claim is not None:
+                        refill_claims.append(claim)
                 if value.get("event") == "ml_dsa_inventory_v1":
                     public_inventory = {key: value[key] for key in [
                         "key", "epoch", "ready_a", "ready_b", "reserved_a", "reserved_b",
@@ -250,6 +300,8 @@ def records(path, role):
             "socket_completion": socket_completion,
             "peer_close": peer_close,
             "refill": refill,
+            "refill_recovery": refill_recovery,
+            "refill_claims": refill_claims,
             "refill_job": refill_job(request, url.path),
             "inventories": inventories,
         })
