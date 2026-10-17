@@ -1,0 +1,418 @@
+{
+  "schema": "seams.ml-dsa-capacity-provenance.v1",
+  "parent_revision": "eb6308947667abdb90c85ba5cf0531b4104c3d6d",
+  "branch": "ml-dsa",
+  "source_sha256": {
+    "crates/router-ab-cloudflare/src/ml_dsa/refill.rs": "f5f22e7de4b095c69a1560764f19ea8b0b9b4f0b3ccd10682f7dec078bbef9ba",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "d6b3976a99a066fde18766a3690967ef6db5efbae3c61abcc1ac7a2834ae9c1d",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/coordinator.rs": "cdbea4d45befc76736a9bdafe78f45e0ec54fa363ced8c98e15502dac2cde0fb",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "20975f9a3d744e53b17654004d0f1b22e8bb7ad0d36234bfeadee08dcc5997a7",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs": "ab448127eeee433c070cde722465142341aaba1978a8a94a8b74c567d83ff583",
+    "crates/router-ab-cloudflare/tests/ml_dsa_durable_pool_e2e.rs": "edae393f89f89ecbb751fe3678dbe82485613da95dbb0c813e19c9ce93cdbbd0",
+    "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "8b4f9d943b88a03d342cc1e5d564e9f59ff60986e2289168ec6b58abe39f2fc0",
+    "tests/e2e/ml-dsa-multi-wallet-worker.e2e.mjs": "ba3d355f3c9ea4e7d21f570e1d5614c9d176b1230b6e5bee344f23d98239b698",
+    "tools/ml-dsa-investigation/research/collect_worker_traces.py": "7b94a81fec23905c7ca4a954358b4f69fb2297184b44ddecd0aa457492bd741f",
+    "tools/ml-dsa-investigation/research/summarize_refill.py": "42bcc5bfc8f90b02759e403884d15b1bafede699d483a848b1f81223a394561a",
+    "tools/ml-dsa-investigation/research/summarize_multi_wallet.py": "75ce2c14984c0ed412ce471dd5221744795abbff6e187a6680446faa38f8001c"
+  },
+  "source_scope": "Working changes on the parent revision. Native lifecycle E2E was formatted after execution; no behavior changed. All Worker behavior changes preceded the final coherent release build.",
+  "builds": {
+    "baseline": {
+      "router": {
+        "files": {
+          "index_bg.wasm": {
+            "sha256": "551a94851a9ebcb4d6fdfd150a5d664e29b5911e81ea7b233f6abb9e162e76ca",
+            "bytes": 43575137
+          },
+          "index.js": {
+            "sha256": "c1e0d5f4ab7c53c7ecaae79de8e9f7c1e4ab620077ad168124952d0075ce88b7",
+            "bytes": 44464
+          },
+          "build-stamp.json": {
+            "sha256": "c5f728726a3e7681b65c484b1f4ee8eaab968412d9f0f6971f956df564717bf9",
+            "bytes": 119
+          },
+          "index_bg.wasm.names.json": {
+            "sha256": "8976044e8bdf9d9f102e277abc984bc9f3fad49e19dccae701cc92b48ed250bb",
+            "bytes": 1660870
+          },
+          ".gitignore": {
+            "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+            "bytes": 1
+          },
+          "package.json": {
+            "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5",
+            "bytes": 317
+          },
+          "worker/shim.mjs": {
+            "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+            "bytes": 164
+          }
+        },
+        "build_stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-router-entrypoint",
+          "started_at_ms": 1792171218245
+        }
+      },
+      "deriver-a": {
+        "files": {
+          "index_bg.wasm": {
+            "sha256": "01d58fa2850528c68c76608f7b931d843341192eb9d1506150e7c631c6f8c856",
+            "bytes": 49426332
+          },
+          "index.js": {
+            "sha256": "21acfa82c4534220729d46d6a96ff230e48ace18d3d32a071377838695940f0d",
+            "bytes": 50611
+          },
+          "build-stamp.json": {
+            "sha256": "4225ce117cde2fadc7dbc096322a8f5d2aed20163f6ea2bf0197cf794e43ae62",
+            "bytes": 122
+          },
+          "index_bg.wasm.names.json": {
+            "sha256": "60b0c12c07e53d780033dc036a059ffb2478587edc66c0b771a6d3f61d6d1635",
+            "bytes": 1741200
+          },
+          ".gitignore": {
+            "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+            "bytes": 1
+          },
+          "package.json": {
+            "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5",
+            "bytes": 317
+          },
+          "worker/shim.mjs": {
+            "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+            "bytes": 164
+          }
+        },
+        "build_stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-a-entrypoint",
+          "started_at_ms": 1792171361894
+        }
+      },
+      "deriver-b": {
+        "files": {
+          "index_bg.wasm": {
+            "sha256": "18be2f31d39e07e41307729bb9fee5682758153fa50f293bfca0f9cd124ccd01",
+            "bytes": 49463300
+          },
+          "index.js": {
+            "sha256": "1ae7eec89e9fdea8a9b5ad8b1cc15cee4d75d3ff0f2cd7fda2a834d440f307f1",
+            "bytes": 50611
+          },
+          "build-stamp.json": {
+            "sha256": "78469155deffb11479e224451356ea9a1b489fcc71ca422ac90c93b690ebbe91",
+            "bytes": 122
+          },
+          "index_bg.wasm.names.json": {
+            "sha256": "d3045c3b7113b9079a6750bac3b550cea71b6eafe142742ccb0184c84a280942",
+            "bytes": 1750203
+          },
+          ".gitignore": {
+            "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+            "bytes": 1
+          },
+          "package.json": {
+            "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5",
+            "bytes": 317
+          },
+          "worker/shim.mjs": {
+            "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+            "bytes": 164
+          }
+        },
+        "build_stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-b-entrypoint",
+          "started_at_ms": 1792171516677
+        }
+      }
+    },
+    "candidate": {
+      "router": {
+        "files": {
+          "index_bg.wasm": {
+            "sha256": "a5bee1746ae1845d22d0c8f33d4967f2f9e40863709fa7133593c20ae901cfce",
+            "bytes": 43596815
+          },
+          "index.js": {
+            "sha256": "c1e0d5f4ab7c53c7ecaae79de8e9f7c1e4ab620077ad168124952d0075ce88b7",
+            "bytes": 44464
+          },
+          "build-stamp.json": {
+            "sha256": "d244fde395dd82d5394122bca85b4748901a20491433e8ceae20495506e3c0e1",
+            "bytes": 119
+          },
+          "index_bg.wasm.names.json": {
+            "sha256": "d7931baf6e8acc94ef0d6e3df5b6452b8ae2605f077945f8cf3be101b4314534",
+            "bytes": 1664011
+          },
+          ".gitignore": {
+            "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+            "bytes": 1
+          },
+          "package.json": {
+            "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5",
+            "bytes": 317
+          },
+          "worker/shim.mjs": {
+            "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+            "bytes": 164
+          }
+        },
+        "build_stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-router-entrypoint",
+          "started_at_ms": 1792204209444
+        }
+      },
+      "deriver-a": {
+        "files": {
+          "index_bg.wasm": {
+            "sha256": "7137e29fdddffeba552e6b219aa8ecd361993fe017a36d449a52828e05da04da",
+            "bytes": 49447538
+          },
+          "index.js": {
+            "sha256": "21acfa82c4534220729d46d6a96ff230e48ace18d3d32a071377838695940f0d",
+            "bytes": 50611
+          },
+          "build-stamp.json": {
+            "sha256": "4fb18d215f222490a0cca4b6485b697b7e9734f911592a78717795d2adc05a69",
+            "bytes": 122
+          },
+          "index_bg.wasm.names.json": {
+            "sha256": "1f43aa652beb6ca7bb04c615fb4f276c082dc7537340b2f1b37bce6b3fa4e7ee",
+            "bytes": 1744121
+          },
+          ".gitignore": {
+            "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+            "bytes": 1
+          },
+          "package.json": {
+            "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5",
+            "bytes": 317
+          },
+          "worker/shim.mjs": {
+            "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+            "bytes": 164
+          }
+        },
+        "build_stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-a-entrypoint",
+          "started_at_ms": 1792204376787
+        }
+      },
+      "deriver-b": {
+        "files": {
+          "index_bg.wasm": {
+            "sha256": "ecc59f0c6986d3d9792501a65ecae26c24cc7bae7fa736b895e9f9b0314855da",
+            "bytes": 49484506
+          },
+          "index.js": {
+            "sha256": "1ae7eec89e9fdea8a9b5ad8b1cc15cee4d75d3ff0f2cd7fda2a834d440f307f1",
+            "bytes": 50611
+          },
+          "build-stamp.json": {
+            "sha256": "8c34fafbcd1111cd4e274f5cf55ef763f7206817fffaeb4b586c44996cda8f98",
+            "bytes": 122
+          },
+          "index_bg.wasm.names.json": {
+            "sha256": "b9bad54b85586c4e5203aa2c9cee5aa23f80e23da87fffa82a2a5ac9b2c52437",
+            "bytes": 1753124
+          },
+          ".gitignore": {
+            "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+            "bytes": 1
+          },
+          "package.json": {
+            "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5",
+            "bytes": 317
+          },
+          "worker/shim.mjs": {
+            "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+            "bytes": 164
+          }
+        },
+        "build_stamp": {
+          "profile": "release",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-b-entrypoint",
+          "started_at_ms": 1792204549044
+        }
+      }
+    }
+  },
+  "runtime": {
+    "revision": "eb6308947667abdb90c85ba5cf0531b4104c3d6d",
+    "node": "v26.4.0",
+    "openssl": "3.6.3",
+    "miniflare": "4.20260710.0",
+    "sourceSha256": {
+      "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "8b4f9d943b88a03d342cc1e5d564e9f59ff60986e2289168ec6b58abe39f2fc0",
+      "tests/helpers/mlDsaOwnerAdmission.fixtures.ts": "fcb8113f99eac38b80d789c8b44251a99bb4e91bcd4a26416478cbb120f3d517",
+      "crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs": "cebd06e65b95c6964ca2386ad0a14ad1b194b351d2a6079e0fe619a5375d3b60",
+      "crates/router-ab-cloudflare/Cargo.lock": "3a57260d135bb709d025b3a1390d3847f16e6c2731e35e7879fa70e4cb4b3186",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "20975f9a3d744e53b17654004d0f1b22e8bb7ad0d36234bfeadee08dcc5997a7"
+    },
+    "workerJsSha256": {
+      "crates/router-ab-cloudflare/build/router/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+      "crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+      "crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+      "crates/router-ab-cloudflare/build/router/index.js": "c1e0d5f4ab7c53c7ecaae79de8e9f7c1e4ab620077ad168124952d0075ce88b7",
+      "crates/router-ab-cloudflare/build/deriver-a/index.js": "21acfa82c4534220729d46d6a96ff230e48ace18d3d32a071377838695940f0d",
+      "crates/router-ab-cloudflare/build/deriver-b/index.js": "1ae7eec89e9fdea8a9b5ad8b1cc15cee4d75d3ff0f2cd7fda2a834d440f307f1"
+    }
+  },
+  "benchmark_policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 1000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "minimum_ready_batches": 2,
+    "refill_target_batches": 4
+  },
+  "production_cooldown_ms": 60000,
+  "baseline_client_source_sha256": "0ba5c46183aa259b88de76b4c109468bf58afd597c96296ca97ca428a8c0454c",
+  "candidate_client_source_sha256": "ba3d355f3c9ea4e7d21f570e1d5614c9d176b1230b6e5bee344f23d98239b698",
+  "validation": {
+    "all_three_release_builds": "passed",
+    "rustfmt_changed_files": "passed",
+    "javascript_syntax_both_e2es": "passed",
+    "python_syntax_three_collectors_and_summaries": "passed",
+    "native_canonical_and_prepared_screen": "passed; six cases",
+    "sqlite_lifecycle_and_fair_queue_e2e": "passed",
+    "final_local_worker_fault_and_signing_e2e": "passed",
+    "final_local_registration_and_recovery_e2e": "passed",
+    "hosted_two_wallet_baseline": "19 verified signatures; incomplete consumption capture",
+    "hosted_two_wallet_candidate": "25 verified signatures, all under five seconds; material stock balanced",
+    "independent_signature_and_ledger_review": "passed; see review receipts",
+    "bloat_check": {
+      "classification": "inherited baseline failure",
+      "rust_duplicated_lines": 13984,
+      "rust_baseline": 13754,
+      "typescript_duplicated_lines": 10238,
+      "typescript_baseline": 10216,
+      "baseline_changed": false
+    },
+    "final_summary_reproduction_after_unused_local_removal": "both campaigns byte-identical"
+  },
+  "created_at": "2026-10-17T03:42:07.047407+00:00",
+  "instrument_control": {
+    "scope": "End-to-end public trace collector control. Synthetic raw input includes private headers and unselected fields.",
+    "known_acquired_claim_retained": true,
+    "known_paired_recovery_retained": true,
+    "malformed_boolean_epoch_scope_batch_and_stage_events_rejected": 9,
+    "private_marker_absent_from_selected_records": true,
+    "passed": true
+  },
+  "worker_cleanup": {
+    "scope": "Delete only five temporary Workers from this campaign; preparers first. All five owned tail sessions stopped before deletion.",
+    "tail_sessions_stopped": [
+      18516,
+      18140,
+      89994,
+      40620,
+      1060
+    ],
+    "workers": [
+      {
+        "role": "preparer-a",
+        "name": "ml-dsa-capacity-1017-b6ebdc-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-17T03:28:32.538373+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "name": "ml-dsa-capacity-1017-b6ebdc-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-17T03:28:33.974688+00:00"
+      },
+      {
+        "role": "a",
+        "name": "ml-dsa-capacity-1017-b6ebdc-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-17T03:28:35.401069+00:00"
+      },
+      {
+        "role": "b",
+        "name": "ml-dsa-capacity-1017-b6ebdc-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-17T03:28:36.857488+00:00"
+      },
+      {
+        "role": "router",
+        "name": "ml-dsa-capacity-1017-b6ebdc-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-17T03:28:38.262663+00:00"
+      }
+    ]
+  },
+  "files": {
+    "bloat-check.log": "$ node ./scripts/bloat-report.mjs --check\nBloat report at eb630894, changes since the baseline at 4b0dee8f (2026-10-16)\n\nSize\n  code lines        ts 498,028 (+1,499)   rust 423,253 (+28,512)   js 42,407 (+4,048)\n  files over 2,000 lines: 58 (-1), holding 268,981 (-2,098) lines\n     22,164  crates/router-ab-cloudflare/src/tenant_root_role_d1.rs\n     21,290  crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs\n     15,184  crates/router-ab-cloudflare/src/lib.rs\n     11,028  crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs\n      8,854  tests/e2e/intended-behaviours/harness.ts\n      8,428  crates/router-ab-cloudflare/tests/bindings.rs\n      8,226  packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts\n      8,040  packages/wallet/src/SeamsWeb/operations/auth/login.ts\n\nDuplication (exact repeats of 10 meaningful lines)\n  ts    2.6% (\u00b10.0%) of 395,587 lines, 10,238 (+22) lines\n      43  tests/unit/presignaturePoolCoordination.unit.test.ts (repeats itself)\n      35  packages/wallet/src/SeamsWeb/operations/registration/registration.ts (repeats itself)\n      30  packages/wallet-server/src/router/transport/fetch/routes/thresholdEd25519.ts (repeats itself)\n      29  packages/wallet/src/index.ts\n      packages/wallet/src/react/index.ts\n      24  packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts (repeats itself)\n      24  packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts (repeats itself)\n  rust  4.2% (-0.2%) of 333,096 lines, 13,984 (+230) lines\n     194  crates/router-ab-cloudflare/src/tenant_root_role_d1.rs (repeats itself)\n     186  crates/router-ab-cloudflare/src/lib.rs (repeats itself)\n     139  crates/router-ab-ed25519-yao-client/tests/registration.rs\n      wasm/wallet_custody_ceremony/src/circuit_tests.rs\n     125  crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs (repeats itself)\n     114  crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs (repeats itself)\n      58  crates/router-ab-cloudflare/tests/bindings.rs (repeats itself)\n\nExports in packages/*/src\n  named nowhere else          0 (\u00b10), 0 (\u00b10) lines\n  used only by tests          160 (+7), 1,846 (+240) lines\n  used only in their own file 31 (+3)\n  public API, unused inside   316\n  exported from 2+ files      101 (\u00b10) names\n      21  packages/wallet-server/src/core/registrationContracts.ts\n      packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts\n       6  packages/wallet/src/SeamsWeb/publicApi/types.ts\n      packages/wallet/src/core/signingEngine/flows/signEvmFamily/signEvmFamily.ts\n       5  packages/wallet-server/src/core/threeRouteRegistrationContracts.ts\n      packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts\n       2  packages/shared-ts/src/near/nearClient.ts\n      packages/wallet/src/core/rpcClients/near/NearClient.ts\n  largest named nowhere else:\n\nBoilerplate\n  validation functions (parse*, require*, assert*, is*, ...) 3,592 (+7), 71,142 (+110) lines = 26.9% of top-level function lines\n  local copies of basic validation helpers 35 (\u00b10) in 26 files\n  '?: never' padding lines 1,889 (+19)\n  Rust allow(dead_code) 89 (\u00b10)\n  refactor plan docs 102 (\u00b10), 54,953 (+2) lines; comments citing refactor numbers 23 (\u00b10)\n\nHotspots (commits in the last 30 days x current lines)\n    96 commits  15,184 lines  crates/router-ab-cloudflare/src/lib.rs\n    81 commits   8,854 lines  tests/e2e/intended-behaviours/harness.ts\n    28 commits  21,290 lines  crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs\n    21 commits  22,164 lines  crates/router-ab-cloudflare/src/tenant_root_role_d1.rs\n    70 commits   6,360 lines  packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts\n    29 commits  11,028 lines  crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs\n\nBelow the baseline: filesOver2000 59 -> 58.\nRecord the reduction with pnpm report:bloat --write-baseline.\n\nGrew past the baseline: rustDuplicatedLines 13754 -> 13984, tsDuplicatedLines 10216 -> 10238.\n[ELIFECYCLE] Command failed with exit code 1.\n",
+    "final-bloat-check.log": "$ node ./scripts/bloat-report.mjs --check\nBloat report at eb630894, changes since the baseline at 4b0dee8f (2026-10-16)\n\nSize\n  code lines        ts 498,028 (+1,499)   rust 423,253 (+28,512)   js 42,407 (+4,048)\n  files over 2,000 lines: 58 (-1), holding 268,981 (-2,098) lines\n     22,164  crates/router-ab-cloudflare/src/tenant_root_role_d1.rs\n     21,290  crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs\n     15,184  crates/router-ab-cloudflare/src/lib.rs\n     11,028  crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs\n      8,854  tests/e2e/intended-behaviours/harness.ts\n      8,428  crates/router-ab-cloudflare/tests/bindings.rs\n      8,226  packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts\n      8,040  packages/wallet/src/SeamsWeb/operations/auth/login.ts\n\nDuplication (exact repeats of 10 meaningful lines)\n  ts    2.6% (\u00b10.0%) of 395,587 lines, 10,238 (+22) lines\n      43  tests/unit/presignaturePoolCoordination.unit.test.ts (repeats itself)\n      35  packages/wallet/src/SeamsWeb/operations/registration/registration.ts (repeats itself)\n      30  packages/wallet-server/src/router/transport/fetch/routes/thresholdEd25519.ts (repeats itself)\n      29  packages/wallet/src/index.ts\n      packages/wallet/src/react/index.ts\n      24  packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts (repeats itself)\n      24  packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts (repeats itself)\n  rust  4.2% (-0.2%) of 333,096 lines, 13,984 (+230) lines\n     194  crates/router-ab-cloudflare/src/tenant_root_role_d1.rs (repeats itself)\n     186  crates/router-ab-cloudflare/src/lib.rs (repeats itself)\n     139  crates/router-ab-ed25519-yao-client/tests/registration.rs\n      wasm/wallet_custody_ceremony/src/circuit_tests.rs\n     125  crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs (repeats itself)\n     114  crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs (repeats itself)\n      58  crates/router-ab-cloudflare/tests/bindings.rs (repeats itself)\n\nExports in packages/*/src\n  named nowhere else          0 (\u00b10), 0 (\u00b10) lines\n  used only by tests          160 (+7), 1,846 (+240) lines\n  used only in their own file 31 (+3)\n  public API, unused inside   316\n  exported from 2+ files      101 (\u00b10) names\n      21  packages/wallet-server/src/core/registrationContracts.ts\n      packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts\n       6  packages/wallet/src/SeamsWeb/publicApi/types.ts\n      packages/wallet/src/core/signingEngine/flows/signEvmFamily/signEvmFamily.ts\n       5  packages/wallet-server/src/core/threeRouteRegistrationContracts.ts\n      packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts\n       2  packages/shared-ts/src/near/nearClient.ts\n      packages/wallet/src/core/rpcClients/near/NearClient.ts\n  largest named nowhere else:\n\nBoilerplate\n  validation functions (parse*, require*, assert*, is*, ...) 3,592 (+7), 71,142 (+110) lines = 26.9% of top-level function lines\n  local copies of basic validation helpers 35 (\u00b10) in 26 files\n  '?: never' padding lines 1,889 (+19)\n  Rust allow(dead_code) 89 (\u00b10)\n  refactor plan docs 102 (\u00b10), 54,953 (+2) lines; comments citing refactor numbers 23 (\u00b10)\n\nHotspots (commits in the last 30 days x current lines)\n    96 commits  15,184 lines  crates/router-ab-cloudflare/src/lib.rs\n    81 commits   8,854 lines  tests/e2e/intended-behaviours/harness.ts\n    28 commits  21,290 lines  crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs\n    21 commits  22,164 lines  crates/router-ab-cloudflare/src/tenant_root_role_d1.rs\n    70 commits   6,360 lines  packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts\n    29 commits  11,028 lines  crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs\n\nBelow the baseline: filesOver2000 59 -> 58.\nRecord the reduction with pnpm report:bloat --write-baseline.\n\nGrew past the baseline: rustDuplicatedLines 13754 -> 13984, tsDuplicatedLines 10216 -> 10238.\n[ELIFECYCLE] Command failed with exit code 1.\n"
+  },
+  "retained_evidence_sha256": {
+    "docs/evidence/ml-dsa-65-capacity-hosted-20261017.json.gz": "057dfe506badea6b0575a534c324e21486a55d61e3c41071bd268709caaf67e4",
+    "docs/evidence/ml-dsa-65-capacity-local-20261017.json.gz": "c31e7013420282abcb7a3d7d367af4e98b228030faf6d76b949f285ca7fe82a7",
+    "docs/evidence/ml-dsa-65-capacity-review-20261017.json": "1e5c547ac2f670fe3e7a7ab8da726415cddd32f478f9831748371ecd66f44d36"
+  },
+  "credential_scan": {
+    "scope": "Retained public evidence, decompressed bundles, exact archived text files, report, plan, and changed source files. Actual benchmark authentication tokens and four distinct role KEKs supplied the patterns.",
+    "files_checked": 17,
+    "bytes_checked_including_decoded_text": 34228710,
+    "distinct_secret_values": 6,
+    "encoding_patterns": 50,
+    "positive_controls_detected": 6,
+    "encodings": [
+      "full text",
+      "embedded 32-byte hex",
+      "uppercase hex",
+      "raw 32-byte value",
+      "standard base64 with and without padding",
+      "URL-safe base64 with and without padding",
+      "JSON byte arrays with and without spaces"
+    ],
+    "matches": 0,
+    "passed": true
+  },
+  "private_cleanup": {
+    "scope": "Logical removal of campaign-owned private fixture/key directories, benchmark credentials, raw tails, and campaign state after successful public evidence scan. This is not a physical secure-erasure claim.",
+    "removed": [
+      "keys/",
+      "local-registration-keys/",
+      "wallet-1/",
+      "wallet-2/",
+      "local-fixtures/",
+      "hosted/a-secrets.json",
+      "hosted/b-secrets.json",
+      "hosted/preparer-a-secrets.json",
+      "hosted/preparer-b-secrets.json",
+      "hosted/router-secrets.json",
+      "hosted/gateway-token",
+      "hosted/a-raw.jsonl",
+      "hosted/b-raw.jsonl",
+      "hosted/preparer-a-raw.jsonl",
+      "hosted/preparer-b-raw.jsonl",
+      "hosted/router-raw.jsonl",
+      "state.json"
+    ],
+    "private_files_remaining": false,
+    "passed": true
+  },
+  "archive_verification": {
+    "scope": "Verify distributed evidence contents and independent receipt inputs after packaging.",
+    "exact_text_entries_verified": 31,
+    "review_input_hashes_match": true,
+    "passed": true
+  }
+}

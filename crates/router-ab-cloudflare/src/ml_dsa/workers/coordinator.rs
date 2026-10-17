@@ -1,6 +1,11 @@
 //! Gateway-authenticated admission. The Router never receives private preparation.
 use super::*;
 
+enum PairReservation {
+    Ready { batches: Vec<[u8; 32]> },
+    Empty { retry_at_ms: u64 },
+}
+
 pub(crate) async fn handle_admit(
     mut request: worker::Request,
     env: &Env,
@@ -36,26 +41,16 @@ async fn admit(
     };
     let outcome = reserve_pair(env, &policy, &claim).await;
     match outcome {
-        Ok((batches, retry_at_ms)) if batches.len() >= policy.minimum_ready_batches() => {
-            let result: Result<Decision> = service_call(
+        Ok(PairReservation::Ready { batches }) => {
+            // A lost reply can follow durable admission. Keep the reservations.
+            service_call(
                 env,
                 CallAuthority::Gateway(headers),
-                &AdmissionCommand::Admit {
-                    claim: claim.clone(),
-                    batches: batches.clone(),
-                },
+                &AdmissionCommand::Admit { claim, batches },
             )
-            .await;
-            match result {
-                Ok(decision) => Ok(decision),
-                Err(error) => {
-                    // Admission may have committed despite a lost response. Do not release.
-                    let _ = retry_at_ms;
-                    Err(error)
-                }
-            }
+            .await
         }
-        Ok((batches, retry_at_ms)) => {
+        Ok(PairReservation::Empty { retry_at_ms }) => {
             let _: bool = service_call(
                 env,
                 CallAuthority::Gateway(headers),
@@ -64,14 +59,13 @@ async fn admit(
                 },
             )
             .await?;
-            release_pair(env, &claim.request, batches, pool::Settlement::Declined).await?;
             Ok(Decision::Unavailable {
                 reason: admission::UnavailableReason::EmptyPool,
                 retry_at_ms,
             })
         }
         Err(error) => {
-            // No admission was attempted. Cancellation fences both participants.
+            // No permit was admitted. Cancellation prevents later admission.
             let _: bool = service_call(
                 env,
                 CallAuthority::Gateway(headers),
@@ -85,7 +79,7 @@ async fn admit(
         }
     }
 }
-async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<(Vec<[u8; 32]>, u64)> {
+async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<PairReservation> {
     let query = RoleCommand::Inventory {
         key: claim.request.key.clone(),
         target: policy.refill_target_batches(),
@@ -124,7 +118,7 @@ async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<(Vec<
         .collect();
     let retry = a.retry_at_ms.max(b.retry_at_ms);
     if batches.len() < policy.minimum_ready_batches() {
-        return Ok((Vec::new(), retry));
+        return Ok(PairReservation::Empty { retry_at_ms: retry });
     }
     let command = RoleCommand::Reserve {
         claim: claim.clone(),
@@ -137,7 +131,7 @@ async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<(Vec<
     if !a? || !b? {
         return Err(invalid("ML-DSA role refused reservation"));
     }
-    Ok((batches, retry))
+    Ok(PairReservation::Ready { batches })
 }
 async fn release_pair(
     env: &Env,

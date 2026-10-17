@@ -2,13 +2,19 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-17.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [online profiling campaign](ml-dsa-65-online-profile-report.md) qualifies 24 of 24 prepared hosted signing requests below five seconds.
+The [multi-wallet capacity campaign](ml-dsa-65-capacity-report.md) adds fair refill turns and early recovery after confirmed paired publication.
+All 25 verified hosted signatures take 1.012–2.531 seconds, with a 1.159-second median. The two wallets complete 12 and 13 signatures.
+Complete successful demand still reaches 87.359 seconds, compared with 430.454 seconds in the matching two-wallet baseline.
+After both initial reserves are consumed, observed aggregate refill and signing reach 1.895 batches and signatures per minute.
+The pool remains four batches per wallet with eight candidates each. Wallet-seed recovery and standard FIPS export remain unchanged.
+All twenty observed producer grants alternate between the two keys. Queue fairness requires accepted, renewing demand.
+The candidate's material identities balance. Two producer completion records remain missing, and baseline consumption capture is incomplete.
+Prepared-request latency passes this screen. Empty-pool latency, broader multi-wallet capacity, and production percentiles remain release gates.
+GPU work remains deferred. Next, qualify paced load and repeated multi-batch requests at the same pool cap.
+
+The earlier [online profiling campaign](ml-dsa-65-online-profile-report.md) qualifies 24 of 24 prepared hosted signing requests below five seconds.
 Successful requests take 0.989–3.497 seconds, with a 1.520-second median. One two-batch signature takes 1.781 seconds.
-The pool remains four batches with eight candidates each. Canonical wallet-seed recovery and standard FIPS export remain unchanged.
-Public layout reuse, direct packed loads, cumulative acknowledgments, and deletion of redundant storage writes reduce online work.
-Complete demand latency still reaches 91.011 seconds when stock is unavailable. Sustained capacity remains a release gate.
-The screen establishes observed prepared latency for one wallet. Repeated tail-latency and multi-wallet capacity qualification remain open.
-GPU work remains deferred. Next, investigate observed producer resets and qualify capacity without increasing the pool cap.
+Complete demand latency reaches 91.011 seconds when stock is unavailable. These are distinct measurements.
 
 Earlier dated campaigns follow.
 The [private AES campaign](ml-dsa-65-private-aes-report.md) implements eight-block Wasm SIMD with unchanged protocol and pool dimensions.

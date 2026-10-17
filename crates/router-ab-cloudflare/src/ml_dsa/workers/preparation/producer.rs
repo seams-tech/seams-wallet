@@ -3,6 +3,7 @@ use super::*;
 
 const STATE: &str = "producer-job";
 const NAMESPACE: &str = "ML_DSA_PRODUCER_DO";
+const RECOVERY_CHECK_MS: u64 = 5_000;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
@@ -119,8 +120,9 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         let (terminal, elapsed) = match action {
             AlarmWork::Run(job) => {
                 let start = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                schedule_refill_alarm(&self.state, job.expires_at_ms.saturating_sub(start).max(1))
-                    .await?;
+                // Alarm handlers are serialized per object. This timer cannot
+                // interrupt healthy work; it wakes an interrupted invocation.
+                self.schedule_recovery(&job, start).await?;
                 let result = before_deadline(job.expires_at_ms, produce_a(&self.env, &job)).await;
                 let elapsed = crate::cloudflare_now_unix_ms_v1()
                     .ok()
@@ -132,7 +134,23 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 };
                 (terminal, elapsed)
             }
-            AlarmWork::Abandon(job) => (ProducerState::Interrupted { job }, None),
+            AlarmWork::Abandon(job) => {
+                let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+                if now < job.expires_at_ms {
+                    self.schedule_recovery(&job, now).await?;
+                    if !paired_publication(&self.env, &job)
+                        .await
+                        .map_err(protocol_error)?
+                    {
+                        log_recovery(&job, "waiting_for_publication");
+                        return Response::from_json(&false);
+                    }
+                    log_recovery(&job, "paired_publication_confirmed");
+                } else {
+                    log_recovery(&job, "deadline_reached");
+                }
+                (ProducerState::Interrupted { job }, None)
+            }
             AlarmWork::Settle(terminal) => return self.settle(&terminal).await,
         };
         // Commit the local outcome before releasing the service-wide lease. A
@@ -155,6 +173,13 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
     }
 }
 impl RouterAbMlDsaProducerDurableObject {
+    async fn schedule_recovery(&self, job: &refill::Job, now: u64) -> worker::Result<()> {
+        let delay = job
+            .expires_at_ms
+            .saturating_sub(now)
+            .clamp(1, RECOVERY_CHECK_MS);
+        schedule_refill_alarm(&self.state, delay).await
+    }
     async fn settle(&self, terminal: &ProducerState) -> worker::Result<Response> {
         let _: bool = service_call(
             &self.env,
@@ -168,4 +193,43 @@ impl RouterAbMlDsaProducerDurableObject {
         self.state.storage().delete_alarm().await?;
         Response::from_json(&matches!(terminal, ProducerState::Published { .. }))
     }
+}
+
+async fn paired_publication(env: &Env, job: &refill::Job) -> Result<bool> {
+    let command = RoleCommand::Inspect {
+        key: job.key.clone(),
+        batches: vec![job.batch],
+    };
+    let (a, b) = futures::join!(
+        local_call(env, &command),
+        coordinator::role_call::<Vec<pool::BatchAvailability>>(env, "DERIVER_B", &command)
+    );
+    let mut response = a?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA recovery inventory refused the request"));
+    }
+    let a: Vec<pool::BatchAvailability> = response.json().await.map_err(storage_error)?;
+    let b = b?;
+    // Ready/reserved records prove publication. Retired also covers missing-key
+    // and burned records, so it cannot establish this early-release condition.
+    Ok(publication_present(&a) && publication_present(&b))
+}
+
+fn publication_present(states: &[pool::BatchAvailability]) -> bool {
+    matches!(
+        states,
+        [pool::BatchAvailability::Ready | pool::BatchAvailability::Reserved]
+    )
+}
+
+fn log_recovery(job: &refill::Job, stage: &str) {
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_refill_recovery_v1",
+            "batch": hex(&job.batch),
+            "stage": stage,
+            "expires_at_ms": job.expires_at_ms,
+        })
+    );
 }
