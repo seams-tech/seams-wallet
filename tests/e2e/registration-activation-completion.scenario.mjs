@@ -18,12 +18,12 @@ class ApprovedDirectory {
   }
 }
 
-// A registration operation that publishes its home and leaves the activation
-// for the record that completes it, as activation and NEAR provisioning do.
+// A registration operation that prepares its activation for the record that
+// completes it, then publishes its home, as activation and NEAR provisioning do.
 class RegistrationOperation {
   now = 100;
   activation = null;
-  afterPublication = null;
+  afterPreparation = null;
   afterInitialRead = null;
 
   constructor(api, database, scope, label) {
@@ -68,7 +68,7 @@ class RegistrationOperation {
   }
 
   async execute() {
-    const published = await this.authority.publishEstablished({
+    this.activation = this.authority.prepareEstablished({
       registration: await seedCommittedRegistration({
         database: this.database,
         scope: this.scope,
@@ -81,13 +81,18 @@ class RegistrationOperation {
         expiresAtMs: Date.now() + 60_000,
       },
     });
-    assert.equal(published.ok, true, published.message);
-    this.activation = published.activation;
-    await this.afterPublication?.();
+    await this.afterPreparation?.();
     return 'completed';
   }
 
+  /** Runs the operation and, like the registration service, publishes after a completion. */
   async run() {
+    const result = await this.runOperation();
+    if (result.kind === 'executed') await this.activation?.publish();
+    return result;
+  }
+
+  async runOperation() {
     this.now += 2;
     const initialRecord = await this.store.read('operation');
     await this.afterInitialRead?.();
@@ -114,6 +119,17 @@ class RegistrationOperation {
 
   async recordKind() {
     return (await this.store.read('operation')).value.kind;
+  }
+
+  async pendingPublications() {
+    const row = await this.database
+      .prepare(
+        `SELECT COUNT(*) AS count FROM wallet_registration_directory_publications
+         WHERE wallet_id = ? AND ceremony_id = ?`,
+      )
+      .bind(this.identity.walletId, this.identity.ceremonyId)
+      .first();
+    return row.count;
   }
 }
 
@@ -154,24 +170,31 @@ function hasTables(tables) {
 const CLAIM = 'router_ab_ed25519_yao_registration_side_effect_claim_v1';
 const COMPLETION = 'router_ab_ed25519_yao_registration_side_effect_completion_v2';
 
-// The home of a registration becomes active in the batch that completes its operation.
+// The home of a registration becomes active in the batch that completes its
+// operation. That batch records the directory publication as pending.
 export async function verifyRegistrationActivationCompletion({ api, database, scope }) {
   // One batch completes the operation and activates the home. Until then signing stays fenced.
   const traced = new api.TracedD1Database(database);
   const committed = new RegistrationOperation(api, traced, scope, 'committed');
   await committed.reserve('activation-committed');
-  let activeAfterPublication = null;
-  committed.afterPublication = async () => {
-    activeAfterPublication = await committed.active();
+  let activeAfterPreparation = null;
+  committed.afterPreparation = async () => {
+    activeAfterPreparation = await committed.active();
   };
-  const first = await committed.run();
+  const first = await committed.runOperation();
   assert.equal(first.kind, 'executed', JSON.stringify(first));
-  assert.equal(activeAfterPublication, false, 'A published home must stay fenced');
+  assert.equal(activeAfterPreparation, false, 'A prepared home must stay fenced');
   assert.equal(await committed.active(), true);
+  // Signing does not wait for the directory: the publication is pending, not sent.
+  assert.equal(committed.directory.publications, 0);
+  assert.equal(await committed.pendingPublications(), 1);
+  await committed.activation.publish();
+  assert.equal(committed.directory.publications, 1);
+  assert.equal(await committed.pendingPublications(), 0);
   const calls = JSON.parse(traced.response(new Response()).headers.get('x-benchmark-d1')).calls;
   const writes = calls.map(writtenTables).filter(hasTables);
-  // The completion decision updates the generation before publication. The
-  // last write completes the record and activates it together.
+  // The completion decision updates the generation before preparation. The
+  // completion write completes the record and activates it together.
   assert.deepEqual(writes, [
     ['wallet_execution_generations'],
     ['router_ab_yao_versioned_json_records', 'wallet_execution_generations'],
@@ -179,7 +202,7 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal(await committed.recordKind(), COMPLETION);
 
   // A completed operation replays its receipt and publishes nothing.
-  committed.afterPublication = null;
+  committed.afterPreparation = null;
   assert.equal((await committed.run()).kind, 'exact_replay');
   assert.equal(committed.directory.publications, 1);
 
@@ -192,10 +215,11 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal(stale.directory.publications, 1);
   assert.equal(await stale.active(), true);
 
-  // A completion that loses its record leaves the home fenced. The next run completes both.
+  // A completion that loses its record leaves the home fenced and publishes
+  // nothing. The next run completes both.
   const contended = new RegistrationOperation(api, database, scope, 'contended');
   await contended.reserve('activation-contended');
-  contended.afterPublication = async () => {
+  contended.afterPreparation = async () => {
     const claim = await contended.store.read('operation');
     assert.equal(claim.value.kind, CLAIM);
     assert.equal(
@@ -206,10 +230,12 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal((await contended.run()).kind, 'uncertain');
   assert.equal(await contended.active(), false);
   assert.equal(await contended.recordKind(), CLAIM);
-  contended.afterPublication = null;
+  assert.equal(contended.directory.publications, 0);
+  assert.equal(await contended.pendingPublications(), 0);
+  contended.afterPreparation = null;
   assert.equal((await contended.run()).kind, 'executed');
   assert.equal(await contended.active(), true);
-  assert.equal(contended.directory.publications, 2);
+  assert.equal(contended.directory.publications, 1);
 
   // An activation that fails leaves the operation incomplete, so it runs again.
   const refused = new RegistrationOperation(api, database, scope, 'refused');
@@ -228,6 +254,8 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.match(failed.message, /injected_activation_refusal/u);
   assert.equal(await refused.active(), false);
   assert.equal(await refused.recordKind(), CLAIM);
+  assert.equal(refused.directory.publications, 0);
+  assert.equal(await refused.pendingPublications(), 0);
   await database.prepare('DROP TRIGGER injected_activation_refusal').run();
   assert.equal((await refused.run()).kind, 'executed');
   assert.equal(await refused.active(), true);
@@ -235,7 +263,8 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
 
   return {
     activationCommitsWithCompletion: true,
-    publishedHomeStaysFencedUntilCompletion: true,
+    preparedHomeStaysFencedUntilCompletion: true,
+    completionRecordsPendingPublication: true,
     completedOperationPublishesNothing: true,
     staleInitialReadReconcilesWithCommittedWinner: true,
     lostCompletionLeavesHomeFenced: true,

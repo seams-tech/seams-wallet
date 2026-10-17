@@ -401,6 +401,21 @@ async function buildRespondEd25519AdmissionRequest(input: {
   });
 }
 
+/**
+ * Sends the directory publication that a completed registration operation
+ * recorded as pending. The response does not wait for it when the runtime keeps
+ * background work; a failed delivery stays pending for the scheduled resumption.
+ */
+async function publishCompletedRegistration(
+  execution: RegistrationCommitExecution<unknown>,
+  waitUntil: ((promise: Promise<unknown>) => void) | undefined,
+): Promise<void> {
+  const activation = registrationCommitActivation(execution);
+  if (!activation) return;
+  if (waitUntil) waitUntil(activation.publish());
+  else await activation.publish();
+}
+
 function ignoreRespondExecutionFailure(): null {
   return null;
 }
@@ -4284,6 +4299,7 @@ export class CloudflareD1WalletRegistrationService {
       switch (run.kind) {
         case 'executed':
         case 'exact_replay':
+          await publishCompletedRegistration(run.value, waitUntil);
           break;
         case 'request_conflict':
           return {
@@ -4712,6 +4728,7 @@ export class CloudflareD1WalletRegistrationService {
     input: WalletRegistrationActivateInput,
     traceContext?: RouterAbTraceContextV1,
     serverTiming?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
   ): Promise<WalletRegistrationActivateResponseV2> {
     try {
       /* No ceremony read here, deliberately. A successful activation deletes
@@ -4801,6 +4818,7 @@ export class CloudflareD1WalletRegistrationService {
       switch (run.kind) {
         case 'executed':
         case 'exact_replay': {
+          await publishCompletedRegistration(run.value, waitUntil);
           if (run.value.response.ok && run.value.response.kind === 'evm_family_ecdsa') {
             await cleanupFinalizedRegistrationCeremony({
               store: this.getRegistrationCeremonyIntentStore(),

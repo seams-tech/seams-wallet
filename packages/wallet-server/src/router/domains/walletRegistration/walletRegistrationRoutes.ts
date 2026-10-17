@@ -2472,6 +2472,7 @@ export async function handleRouterApiWalletRegistrationActivate(
     },
     traceContext.value ?? undefined,
     serverTiming,
+    input.waitUntil,
   );
   if (!result.ok) return routeJson(400, result);
   if (

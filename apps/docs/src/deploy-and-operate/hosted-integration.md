@@ -32,6 +32,41 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
+## Upgrading to 0.13.0
+
+Pin the application package and backend package to **0.13.0**, and build the
+wallet-origin runtime, workers, WASM, and support assets from the same release:
+
+```sh
+# Application
+pnpm add @seams/wallet@0.13.0
+
+# Backend deployment
+pnpm add @seams/wallet-server@0.13.0
+```
+
+Apply Gateway D1 migration `0081_registration_directory_publications.sql` before the
+new Gateway serves. It adds the table that holds registration completions that the
+directory has not acknowledged.
+
+A registration response no longer waits for the directory write of its completion.
+The Gateway activates the wallet and records the completion as pending in one local
+transaction, then sends the completion after the response. Signing works at once.
+If that write fails, the Gateway's scheduled handler resends the same session digest
+and expiry until the directory acknowledges it. A Gateway that you assemble with your
+own registration authority must call `resumeRegistrationDirectoryPublicationsV1` from
+`@seams/wallet-server/cloud-host` in its scheduled handler, for example once a minute.
+The bundled local Gateway Worker does this.
+
+Until the directory acknowledges a completion, normally within a second, the wallet
+is absent from the Console wallet list and the wallet cannot move to another region.
+A backend that reads the wallet list right after a registration can miss the new
+wallet for that time.
+
+The hosted wallet menu shows the recovery code as a printed slip and shows which part
+of the code input is selected. The device-match choice uses theme colours on dark
+cards.
+
 ## Upgrading to 0.12.0
 
 Pin the application package and backend package to **0.12.0**, and build the

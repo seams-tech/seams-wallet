@@ -286,6 +286,10 @@ export { parseLinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDev
 export type { LinkedDeviceSessionRecordV1 } from './core/deviceLinking/linkedDeviceSessionRecord';
 export { computeLinkedDeviceSessionClaimDigestV1 } from '@shared/device-linking/digests';
 
-export { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+export {
+  admitD1EstablishedWalletHome,
+  resumeRegistrationDirectoryPublicationsV1,
+  type RegistrationDirectoryPublicationDelivery,
+} from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 export { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
 export { walletObjectIdentity, WalletObjectAddressSnapshot, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';

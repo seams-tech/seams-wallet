@@ -596,8 +596,8 @@ throughout the resize. Reduced-motion behavior remains immediate.
   record, and local wallet persistence does not wait for it. A refused or
   unavailable route claim does not prevent local persistence: the response
   reports the custody commit as rejected, and the client retries it. The custody
-  records are stored after the wallet commit and after the route claim, beside
-  session publication. Both settle before finalization responds. A finalization
+  records are stored after the wallet commit and after the route claim, and they
+  settle before finalization responds. A finalization
   that fails settles its started route claim before it responds. An exact retry
   repeats the same route claim.
 - Registration commits its session and the matching ceremony's established decision
@@ -605,15 +605,19 @@ throughout the resize. Reduced-motion behavior remains immediate.
   this commit. Fresh NEAR-only registration includes its wallet, signer, founding
   authority, auth method, capability, and lifecycle decision in that transaction.
   A failed session write rolls back those records. Concurrent exact retries retain
-  the winning session credential and quota. The wallet remains unavailable for ordinary signing until Console
-  acknowledges completion. Registration publishes the session locator and
-  completes the home in one Console request. Console atomically commits the session
-  locator, established home, and display row. The Gateway acknowledges completion before
-  it enables ordinary signing or saves the completed registration receipt. It
-  enables ordinary signing and saves that receipt in one local transaction, so
-  neither exists without the other. A lost
-  reply is reconciled with the original session digest and expiry. Exact retries preserve later display
-  updates. Definitive registration cancellation records the terminal outcome
+  the winning session credential and quota. The wallet remains unavailable for ordinary
+  signing until the completed registration receipt commits. The Gateway saves that
+  receipt, enables ordinary signing and records a pending Console publication in one
+  local transaction, so none of them exists without the others. Only after that
+  commit does the Gateway publish the session locator and complete the home in one
+  Console request; the registration response does not wait for that request.
+  Console atomically commits the session locator, established home, and display row.
+  A failed or lost publication stays pending, and the Gateway's scheduled job resends
+  the original session digest and expiry until Console acknowledges it. A Console
+  refusal is final and keeps the pending record for an operator. Until Console
+  acknowledges, the wallet is absent from the Console wallet list and cannot move to
+  another region, and another region routes the registration session only by the
+  home that the credential names. Exact retries preserve later display updates. Definitive registration cancellation records the terminal outcome
   before local deletion; cancelled operations cannot resume. Established setup
   replay returns the saved response without recreating a mutable ceremony.
 - Candidate setup forwarding occurs after publishable-key, Origin and policy

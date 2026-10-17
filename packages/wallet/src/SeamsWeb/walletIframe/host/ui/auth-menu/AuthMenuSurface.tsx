@@ -26,6 +26,11 @@ import { PadlockIcon } from '@/core/signingEngine/uiConfirm/ui/preact/PadlockIco
 import { blinkMenuItem } from '@/utils/menuItemBlink';
 import { AuthMenuFooter } from './AuthMenuFooter';
 import {
+  linkDeviceDotRing,
+  linkDeviceEmailOtpPresentation,
+  type AuthMenuLinkDeviceEmailOtpState,
+} from './linkDeviceBadge';
+import {
   accountDropdownIcon,
   backIcon,
   chevronIcon,
@@ -72,7 +77,34 @@ function recoveryInputCharacters(code: string): string {
   return characters;
 }
 
-function renderRecoveryCodeGroups(code: string, caret: number | null): ComponentChildren[] {
+/** The part of the recovery code the input's selection covers, in code characters. */
+type RecoveryCodeSelection = { readonly start: number; readonly end: number };
+
+/** The characters the last edit added, which settle into their slots. */
+type RecoveryCodeArrival = { readonly start: number; readonly end: number };
+
+const RECOVERY_CODE_SEPARATOR = /[\s\-\u2010-\u2015\u2212]/;
+
+/** Characters the input dropped because no recovery code contains them, such as U. */
+function rejectedRecoveryCharacters(input: string): string[] {
+  const rejected = new Set<string>();
+  for (const character of input.toUpperCase()) {
+    if (RECOVERY_CODE_SEPARATOR.test(character)) continue;
+    if (recoveryInputCharacters(character)) continue;
+    rejected.add(character);
+  }
+  return Array.from(rejected).slice(0, 3);
+}
+
+function renderRecoveryCodeGroups(
+  code: string,
+  selection: RecoveryCodeSelection | null,
+  arrival: RecoveryCodeArrival | null,
+): ComponentChildren[] {
+  const caret = selection && selection.start === selection.end ? selection.start : null;
+  // A full code has no empty slot, so its caret sits after the last character.
+  const lastIndex = WALLET_RECOVERY_CODE_CHAR_LENGTH - 1;
+  const focusIndex = selection === null ? null : Math.min(selection.start, lastIndex);
   const groups: ComponentChildren[] = [];
   for (
     let start = 0;
@@ -86,20 +118,59 @@ function renderRecoveryCodeGroups(code: string, caret: number | null): Component
       const classes = ['seams-otp-slot'];
       if (character) classes.push('is-filled');
       if (index === caret) classes.push('is-caret');
+      if (caret === WALLET_RECOVERY_CODE_CHAR_LENGTH && index === lastIndex) {
+        classes.push('is-caret-after');
+      }
+      if (selection && index >= selection.start && index < selection.end) {
+        classes.push('is-selected');
+      }
+      if (arrival && index >= arrival.start && index < arrival.end) classes.push('is-new');
       slots.push(
-        <span class={classes.join(' ')} key={index}>
+        <span class={classes.join(' ')} key={index} data-recovery-slot={index}>
           {character}
         </span>,
       );
     }
-    const active = caret !== null && caret >= start && caret < end;
+    const groupClasses = ['seams-recovery-code-group'];
+    if (focusIndex !== null && focusIndex >= start && focusIndex < end) {
+      groupClasses.push('is-active');
+    }
+    if (code.length >= end) groupClasses.push('is-complete');
     groups.push(
-      <div class={`seams-recovery-code-group ${active ? 'is-active' : ''}`} key={start}>
+      <div class={groupClasses.join(' ')} key={start}>
         {slots}
       </div>,
     );
   }
   return groups;
+}
+
+/* The input lies over the slots and is transparent, so a click lands on its
+   hidden text, not on the slot under the pointer. Map the pointer to the slot:
+   its left half puts the caret before that character, its right half after. */
+function recoveryCaretAtPoint(
+  root: HTMLElement,
+  clientX: number,
+  clientY: number,
+  codeLength: number,
+): number | null {
+  let nearest: {
+    readonly index: number;
+    readonly distance: number;
+    readonly after: boolean;
+  } | null = null;
+  for (const slot of root.querySelectorAll<HTMLElement>('[data-recovery-slot]')) {
+    const index = Number(slot.dataset.recoverySlot);
+    const box = slot.getBoundingClientRect();
+    const dx = clientX < box.left ? box.left - clientX : Math.max(0, clientX - box.right);
+    const dy = clientY < box.top ? box.top - clientY : Math.max(0, clientY - box.bottom);
+    const distance = dx * dx + dy * dy;
+    if (nearest === null || distance < nearest.distance) {
+      nearest = { index, distance, after: clientX > box.left + box.width / 2 };
+    }
+  }
+  if (nearest === null) return null;
+  return Math.min(nearest.after ? nearest.index + 1 : nearest.index, codeLength);
 }
 
 function renderOtpCodeDigit(digit: string): ComponentChildren {
@@ -162,133 +233,6 @@ function menuNotice(viewModel: AuthMenuViewModel): string | null {
     : null;
 }
 
-const LINK_DEVICE_DOT_COUNT = 12;
-
-/* Three phases of one badge: `waiting` sweeps the dots like a clock spinner,
-   `idle` rests them to a faint ring around whatever glyph the view supplies,
-   and `approved` settles them while the check strokes itself in over the top. */
-type LinkDeviceRingPhase = 'waiting' | 'idle' | 'approved';
-
-function linkDeviceDotRing(
-  phase: LinkDeviceRingPhase,
-  glyph?: ComponentChildren,
-): ComponentChildren {
-  return (
-    <>
-      <div class={`seams-link-device-dot-ring is-${phase}`} aria-hidden="true">
-        {Array.from({ length: LINK_DEVICE_DOT_COUNT }, (_, index) => (
-          <>
-            <span data-dot-index={index}></span>
-          </>
-        ))}
-        {glyph ? (
-          <>
-            <div class="seams-link-device-dot-ring-glyph">{glyph}</div>
-          </>
-        ) : null}
-        <svg
-          class="seams-link-device-dot-ring-check"
-          viewBox="0 0 52 52"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="m18.5 27 5 5 10-11" />
-        </svg>
-      </div>
-    </>
-  );
-}
-
-type AuthMenuLinkDeviceEmailOtpState = Extract<
-  AuthMenuLinkDeviceState,
-  { kind: 'email_otp_required' }
->;
-
-/* One row per activation state, so the badge, heading, and status line can
-   never disagree about which phase the view is in. `pending` marks the phases
-   the flow drives itself out of — those get the animated ellipsis. */
-type LinkDeviceEmailOtpPresentation = {
-  readonly ring: LinkDeviceRingPhase;
-  readonly heading: string;
-  readonly status: string;
-  readonly pending: boolean;
-  readonly tone: 'neutral' | 'error';
-};
-
-function linkDeviceEmailOtpPresentation(
-  activation: AuthMenuLinkDeviceEmailOtpState['state'],
-): LinkDeviceEmailOtpPresentation {
-  switch (activation.kind) {
-    case 'sending':
-      return {
-        ring: 'waiting',
-        heading: 'Sending your code',
-        status: 'Emailing a 6-digit code',
-        pending: true,
-        tone: 'neutral',
-      };
-    case 'resending':
-      return {
-        ring: 'waiting',
-        heading: 'Sending a new code',
-        status: 'Emailing a fresh 6-digit code',
-        pending: true,
-        tone: 'neutral',
-      };
-    case 'submitting':
-      return {
-        ring: 'waiting',
-        heading: 'Checking your code',
-        status: 'Verifying the code you entered',
-        pending: true,
-        tone: 'neutral',
-      };
-    case 'code_input':
-      return {
-        ring: 'idle',
-        heading: 'Verify your email',
-        status: 'Enter the 6-digit code we just sent.',
-        pending: false,
-        tone: 'neutral',
-      };
-    case 'incorrect':
-      return {
-        ring: 'idle',
-        heading: 'Verify your email',
-        status: activation.message,
-        pending: false,
-        tone: 'error',
-      };
-    case 'expired':
-      return {
-        ring: 'idle',
-        heading: 'That code expired',
-        status: activation.message,
-        pending: false,
-        tone: 'error',
-      };
-    case 'unavailable':
-      return {
-        ring: 'idle',
-        heading: 'Email code unavailable',
-        status: activation.message,
-        pending: false,
-        tone: 'error',
-      };
-    case 'completed':
-      return {
-        ring: 'approved',
-        heading: 'Email verified',
-        status: 'Finishing linking this device',
-        pending: true,
-        tone: 'neutral',
-      };
-  }
-}
-
 function selectedLoginAccount(viewModel: AuthMenuLoginViewModel) {
   return resolveAuthMenuLoginAccount(viewModel.accountOptions, viewModel.selectedAccount)
     .selectedAccount;
@@ -340,12 +284,23 @@ const ACCOUNT_MENU_EXIT_MS = 160;
 
 type AuthMenuSurfaceState = {
   accountMenu: AccountMenuState;
-  // Where the next recovery-code character goes, while the code input has focus.
-  recoveryCaret: number | null;
+  // The recovery code input's caret or selection, while the input has focus.
+  recoverySelection: RecoveryCodeSelection | null;
+  // Characters the last keystroke or paste dropped; parity restarts the shake.
+  recoveryRejection: { readonly characters: readonly string[]; readonly parity: 0 | 1 } | null;
 };
 
 export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSurfaceState> {
-  state: AuthMenuSurfaceState = { accountMenu: 'closed', recoveryCaret: null };
+  state: AuthMenuSurfaceState = {
+    accountMenu: 'closed',
+    recoverySelection: null,
+    recoveryRejection: null,
+  };
+  // The code the slots last drew, so an edit knows which characters are new.
+  private recoveryDrawnCode = '';
+  private recoveryArrival: RecoveryCodeArrival | null = null;
+  private recoveryArrivalTimer: ReturnType<typeof setTimeout> | null = null;
+  private recoveryRejectionTimer: ReturnType<typeof setTimeout> | null = null;
   private accountMenuExitTimer: ReturnType<typeof setTimeout> | null = null;
   // The account a click chose and the one selected before it. The list keeps
   // rendering both as they were at the click while it blinks and fades out.
@@ -409,6 +364,8 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     if (this.contentHeightFrame !== null) cancelAnimationFrame(this.contentHeightFrame);
     this.contentHeightFrame = null;
     this.endAccountMenuExit();
+    if (this.recoveryArrivalTimer !== null) clearTimeout(this.recoveryArrivalTimer);
+    if (this.recoveryRejectionTimer !== null) clearTimeout(this.recoveryRejectionTimer);
     window.removeEventListener('resize', this.queueContentHeightSync);
     document.removeEventListener('pointerdown', this.onDocumentPointerDown);
     document.removeEventListener('keydown', this.onKeyDown, true);
@@ -698,33 +655,83 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     if (viewModel.kind !== 'recovery') return;
     const input = event.currentTarget;
     const raw = input.value;
+    const rejected = rejectedRecoveryCharacters(raw);
+    if (rejected.length > 0) this.showRecoveryRejection(rejected);
     const caret = recoveryInputCharacters(raw.slice(0, input.selectionStart ?? raw.length)).length;
     const code = recoveryInputCharacters(raw).slice(0, WALLET_RECOVERY_CODE_CHAR_LENGTH);
     if (input.value !== code) {
       input.value = code;
       input.setSelectionRange(Math.min(caret, code.length), Math.min(caret, code.length));
     }
-    this.syncRecoveryCaret(input);
+    this.syncRecoverySelection(input);
     this.emitIntent({ kind: 'recovery_code_changed', recoveryCode: code });
   };
 
-  private onRecoveryCaretMove = (event: Event): void => {
-    if (event.currentTarget instanceof HTMLInputElement)
-      this.syncRecoveryCaret(event.currentTarget);
+  private onRecoverySelectionMove = (event: Event): void => {
+    if (event.currentTarget instanceof HTMLInputElement) {
+      this.syncRecoverySelection(event.currentTarget);
+    }
+  };
+
+  private onRecoveryCodeClick = (event: MouseEvent): void => {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+    // A drag or double click made a selection; keep it.
+    if (input.selectionStart === input.selectionEnd) {
+      const caret = recoveryCaretAtPoint(
+        this.props.element,
+        event.clientX,
+        event.clientY,
+        input.value.length,
+      );
+      if (caret !== null) input.setSelectionRange(caret, caret);
+    }
+    this.syncRecoverySelection(input);
+  };
+
+  private showRecoveryRejection(characters: readonly string[]): void {
+    const parity = this.state.recoveryRejection?.parity === 0 ? 1 : 0;
+    this.setState({ recoveryRejection: { characters, parity } });
+    if (this.recoveryRejectionTimer !== null) clearTimeout(this.recoveryRejectionTimer);
+    this.recoveryRejectionTimer = setTimeout(this.clearRecoveryRejection, 2000);
+  }
+
+  private clearRecoveryRejection = (): void => {
+    this.recoveryRejectionTimer = null;
+    this.setState({ recoveryRejection: null });
+  };
+
+  /* Marks the characters an edit added, so they settle in. The mark outlives
+     the re-renders that follow one keystroke, and lapses after the motion. */
+  private recoveryCodeArrival(code: string): RecoveryCodeArrival | null {
+    const drawn = this.recoveryDrawnCode;
+    if (code === drawn) return this.recoveryArrival;
+    this.recoveryDrawnCode = code;
+    let start = 0;
+    while (start < drawn.length && drawn[start] === code[start]) start += 1;
+    const end = start + code.length - drawn.length;
+    this.recoveryArrival = code.length > drawn.length ? { start, end } : null;
+    if (this.recoveryArrivalTimer !== null) clearTimeout(this.recoveryArrivalTimer);
+    this.recoveryArrivalTimer = setTimeout(this.endRecoveryArrival, 600);
+    return this.recoveryArrival;
+  }
+
+  private endRecoveryArrival = (): void => {
+    this.recoveryArrivalTimer = null;
+    this.recoveryArrival = null;
   };
 
   private onRecoveryCodeBlur = (): void => {
-    this.setState({ recoveryCaret: null });
+    this.setState({ recoverySelection: null });
   };
 
-  private syncRecoveryCaret(input: HTMLInputElement): void {
-    const caret = Math.min(
-      input.selectionStart ?? input.value.length,
-      WALLET_RECOVERY_CODE_CHAR_LENGTH - 1,
-    );
-    // A full code has no next slot: the caret only shows while there is room.
-    const recoveryCaret = input.value.length < WALLET_RECOVERY_CODE_CHAR_LENGTH ? caret : null;
-    if (recoveryCaret !== this.state.recoveryCaret) this.setState({ recoveryCaret });
+  private syncRecoverySelection(input: HTMLInputElement): void {
+    const length = input.value.length;
+    const start = Math.min(input.selectionStart ?? length, length);
+    const end = Math.min(Math.max(input.selectionEnd ?? start, start), length);
+    const current = this.state.recoverySelection;
+    if (current?.start === start && current.end === end) return;
+    this.setState({ recoverySelection: { start, end } });
   }
 
   private onRecoverySubmit = (event: SubmitEvent): void => {
@@ -1164,7 +1171,8 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         0,
         WALLET_RECOVERY_CODE_CHAR_LENGTH,
       );
-      const complete = code.length === WALLET_RECOVERY_CODE_CHAR_LENGTH;
+      const arrival = this.recoveryCodeArrival(code);
+      const rejection = this.state.recoveryRejection;
       const statusMessage = viewModel.status.kind === 'recoverable' ? viewModel.status.message : '';
       const feedbackMessage = viewModel.recoveryCodeError ?? statusMessage;
       const feedbackIsError = feedbackMessage.length > 0;
@@ -1189,7 +1197,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   {code.length}/{WALLET_RECOVERY_CODE_CHAR_LENGTH}
                 </span>
               </div>
-              <div class="seams-otp-code-field seams-recovery-code-field">
+              <div
+                class={`seams-otp-code-field seams-recovery-code-field ${
+                  rejection ? `is-rejecting-${rejection.parity}` : ''
+                }`}
+              >
                 <input
                   id="seams-recovery-code"
                   class="seams-otp-input"
@@ -1204,27 +1216,42 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   aria-invalid={viewModel.recoveryCodeError ? 'true' : 'false'}
                   aria-describedby={
                     viewModel.recoveryCodeError
-                      ? 'seams-recovery-code-feedback seams-recovery-code-count'
-                      : 'seams-recovery-code-count'
+                      ? 'seams-recovery-code-feedback seams-recovery-code-count seams-recovery-code-hint'
+                      : 'seams-recovery-code-count seams-recovery-code-hint'
                   }
                   value={code}
                   onInput={this.onRecoveryCodeInput}
-                  onFocus={this.onRecoveryCaretMove}
-                  onKeyUp={this.onRecoveryCaretMove}
-                  onClick={this.onRecoveryCaretMove}
+                  onFocus={this.onRecoverySelectionMove}
+                  onKeyUp={this.onRecoverySelectionMove}
+                  onSelect={this.onRecoverySelectionMove}
+                  onClick={this.onRecoveryCodeClick}
                   onBlur={this.onRecoveryCodeBlur}
                 />
-                <div class="seams-otp-slots seams-recovery-code-slots" aria-hidden="true">
-                  {renderRecoveryCodeGroups(code, this.state.recoveryCaret)}
+                <div
+                  class={`seams-otp-slots seams-recovery-code-slots ${
+                    arrival && arrival.end - arrival.start > 1 ? 'is-sweeping' : ''
+                  }`}
+                  aria-hidden="true"
+                >
+                  {renderRecoveryCodeGroups(code, this.state.recoverySelection, arrival)}
                 </div>
               </div>
+              <p
+                id="seams-recovery-code-hint"
+                class={`seams-recovery-code-hint ${rejection ? 'is-error' : ''}`}
+                aria-live="polite"
+              >
+                {rejection
+                  ? `Recovery codes don’t use ${rejection.characters.join(', ')}.`
+                  : 'You can paste the whole code.'}
+              </p>
             </div>
+            {/* Continue stays enabled: the session names what a short code lacks. */}
             <button
               class="seams-auth-method-btn seams-auth-method-btn-primary"
               type="submit"
               data-auth-menu-primary
               data-recovery-continue
-              disabled={!complete}
             >
               Continue
             </button>

@@ -1,8 +1,10 @@
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { WalletId } from '@shared/utils/domainIds';
 import type {
-  RegistrationEstablishedPublication,
+  RegistrationActivationWrite,
   WalletExecutionAuthority,
   WalletRegistrationHomeAuthority,
   WalletRegistrationReservationAuthority,
@@ -17,6 +19,25 @@ type RegistrationHomeRow = {
   readonly registration_completion: string;
   readonly relocation_blocked: number;
 };
+type DirectoryPublication = {
+  readonly walletId: WalletId;
+  readonly ceremonyId: string;
+  readonly digest: DigestB64u;
+  readonly expiresAtMs: number;
+  readonly attempts: number;
+};
+type DirectoryPublicationRow = {
+  readonly wallet_id: WalletId;
+  readonly ceremony_id: string;
+  readonly session_digest: DigestB64u;
+  readonly session_expires_at_ms: number;
+  readonly attempts: number;
+};
+export type RegistrationDirectoryPublicationDelivery = 'acknowledged' | 'deferred' | 'refused';
+
+/** The finalize response normally delivers first; the scheduled resumption waits this long. */
+const DIRECTORY_PUBLICATION_FIRST_RETRY_MS = 60_000;
+const DIRECTORY_PUBLICATION_MAX_RETRY_MS = 3_600_000;
 
 // Console admits registration. The local database retains execution identity
 // across requests and closes it in the same transaction as session retirement.
@@ -86,8 +107,8 @@ export class D1WalletExecutionAuthority
           if (local.registration_completion !== 'established') {
             throw new Error('Registration completion state is invalid');
           }
-          // Issuance retry republishes the committed session and home together.
-          // Keep signing fenced until that publication is acknowledged.
+          // The completion record activates the home with its pending publication.
+          // Keep signing fenced until that record commits.
           return { ok: true, purpose: 'registration', ownershipGeneration: local.generation };
         case 'retired':
           if (local.registration_completion === 'cancelled') {
@@ -119,22 +140,143 @@ export class D1WalletExecutionAuthority
     return completed;
   }
 
-  async publishEstablished(
-    input: Parameters<WalletRegistrationHomeAuthority['publishEstablished']>[0],
-  ): Promise<RegistrationEstablishedPublication> {
-    // Activation follows the acknowledged directory write. Its exact retry is local.
-    if (input.registration.state === 'active') return { ok: true, activation: null };
-    const completed = await this.registration.complete({
-      ceremonyId: input.registration.ceremonyId,
+  prepareEstablished(
+    input: Parameters<WalletRegistrationHomeAuthority['prepareEstablished']>[0],
+  ): RegistrationActivationWrite | null {
+    // An earlier completion activated the home and recorded its publication.
+    if (input.registration.state === 'active') return null;
+    const publication: DirectoryPublication = {
       walletId: input.registration.walletId,
-      outcome: 'established',
-      session: input.session,
-    });
-    if (!completed.ok) return completed;
-    return {
-      ok: true,
-      activation: { statements: this.prepareState(input.registration, 'active') },
+      ceremonyId: input.registration.ceremonyId,
+      digest: input.session.digest,
+      expiresAtMs: input.session.expiresAtMs,
+      attempts: 0,
     };
+    return {
+      statements: [
+        ...this.prepareState(input.registration, 'active'),
+        prepareD1TenantStatement(
+          this.database,
+          this.scope,
+          `INSERT INTO wallet_registration_directory_publications
+             (namespace, org_id, project_id, env_id, wallet_id, ceremony_id,
+              session_digest, session_expires_at_ms, next_attempt_at_ms)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+           ON CONFLICT DO NOTHING`,
+          [
+            publication.walletId,
+            publication.ceremonyId,
+            publication.digest,
+            publication.expiresAtMs,
+            Date.now() + DIRECTORY_PUBLICATION_FIRST_RETRY_MS,
+          ],
+        ),
+      ],
+      publish: async () => {
+        try {
+          await this.deliver(publication);
+        } catch (error: unknown) {
+          console.warn('[wallet-registration] directory publication stays pending', error);
+        }
+      },
+    };
+  }
+
+  /** Sends the publications that are due, oldest first, one at a time. */
+  async resumeDirectoryPublications(input: {
+    readonly nowMs: number;
+    readonly limit: number;
+  }): Promise<Record<RegistrationDirectoryPublicationDelivery, number>> {
+    const due = await prepareD1TenantStatement(
+      this.database,
+      this.scope,
+      `SELECT wallet_id, ceremony_id, session_digest, session_expires_at_ms, attempts
+       FROM wallet_registration_directory_publications
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND state = 'pending' AND next_attempt_at_ms <= ?5
+       ORDER BY next_attempt_at_ms LIMIT ?6`,
+      [input.nowMs, input.limit],
+    ).all<DirectoryPublicationRow>();
+    if (!due.success) throw new Error('Registration directory publication read failed');
+    const delivered = { acknowledged: 0, deferred: 0, refused: 0 };
+    for (const row of due.results ?? []) {
+      const outcome = await this.deliver({
+        walletId: row.wallet_id,
+        ceremonyId: row.ceremony_id,
+        digest: row.session_digest,
+        expiresAtMs: row.session_expires_at_ms,
+        attempts: row.attempts,
+      });
+      delivered[outcome] += 1;
+    }
+    return delivered;
+  }
+
+  // The directory accepts an exact replay of the same session digest and expiry.
+  // An acknowledgement deletes the row. A refusal is final and keeps the row for
+  // an operator. Any other failure moves the next attempt back.
+  private async deliver(
+    publication: DirectoryPublication,
+  ): Promise<RegistrationDirectoryPublicationDelivery> {
+    let completed: Awaited<ReturnType<Authority['complete']>>;
+    try {
+      completed = await this.registration.complete({
+        ceremonyId: publication.ceremonyId,
+        walletId: publication.walletId,
+        outcome: 'established',
+        session: {
+          kind: 'credential',
+          walletId: publication.walletId,
+          digest: publication.digest,
+          expiresAtMs: publication.expiresAtMs,
+        },
+      });
+    } catch (error: unknown) {
+      console.warn('[wallet-registration] directory publication deferred', error);
+      const delayMs = Math.min(
+        DIRECTORY_PUBLICATION_FIRST_RETRY_MS * 2 ** Math.min(publication.attempts + 1, 16),
+        DIRECTORY_PUBLICATION_MAX_RETRY_MS,
+      );
+      await this.preparePublicationUpdate(
+        publication,
+        `attempts = attempts + 1, next_attempt_at_ms = ?7`,
+        [Date.now() + delayMs],
+      ).run();
+      return 'deferred';
+    }
+    if (!completed.ok) {
+      console.error('[wallet-registration] directory refused an established registration', {
+        walletId: publication.walletId,
+        ceremonyId: publication.ceremonyId,
+        code: completed.code,
+      });
+      await this.preparePublicationUpdate(publication, `state = 'refused'`, []).run();
+      return 'refused';
+    }
+    await prepareD1TenantStatement(
+      this.database,
+      this.scope,
+      `DELETE FROM wallet_registration_directory_publications
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND wallet_id = ?5 AND ceremony_id = ?6 AND state = 'pending'`,
+      [publication.walletId, publication.ceremonyId],
+    ).run();
+    return 'acknowledged';
+  }
+
+  private preparePublicationUpdate(
+    publication: DirectoryPublication,
+    assignments: string,
+    values: readonly unknown[],
+  ) {
+    return prepareD1TenantStatement(
+      this.database,
+      this.scope,
+      `UPDATE wallet_registration_directory_publications SET ${assignments}
+       WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+         AND wallet_id = ?5 AND ceremony_id = ?6 AND state = 'pending'`,
+      [publication.walletId, publication.ceremonyId, ...values],
+    );
   }
 
   // Fix cancellation before crossing the database boundary. Exact
@@ -240,4 +382,23 @@ export async function admitD1EstablishedWalletHome(
       message: 'Wallet execution is not active at this home',
     };
   return { ok: true, purpose: 'ordinary', ownershipGeneration: row.generation };
+}
+
+/**
+ * Sends the due directory publications of one tenant scope. The Gateway's
+ * scheduled handler runs it, so a publication that the finalize response could
+ * not deliver still reaches the directory.
+ */
+export function resumeRegistrationDirectoryPublicationsV1(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1TenantScope;
+  readonly registrationAuthority: Authority;
+  readonly nowMs?: number;
+  readonly limit?: number;
+}): Promise<Record<RegistrationDirectoryPublicationDelivery, number>> {
+  return new D1WalletExecutionAuthority(
+    input.database,
+    input.scope,
+    input.registrationAuthority,
+  ).resumeDirectoryPublications({ nowMs: input.nowMs ?? Date.now(), limit: input.limit ?? 20 });
 }

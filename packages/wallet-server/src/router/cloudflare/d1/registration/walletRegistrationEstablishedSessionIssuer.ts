@@ -82,7 +82,7 @@ type RegistrationEstablishedSessionIssuanceDependencies = {
   readonly authorizationService: RegistrationEstablishedSessionIssuerAuthorizationService;
   readonly authorizationTenantId: TenantId;
   readonly foundingAuthority: ActiveWalletAuthorityV1;
-  readonly homeCompletion: Pick<WalletRegistrationHomeAuthority, 'publishEstablished'>;
+  readonly homeCompletion: Pick<WalletRegistrationHomeAuthority, 'prepareEstablished'>;
 };
 
 export type RegistrationInitialSessionCommit =
@@ -148,14 +148,14 @@ function requireWalletSessionPrincipalId(value: string): PrincipalId {
   return parsed.value;
 }
 
-function publishCommittedRegistration(
+function prepareCommittedRegistrationActivation(
   home: RegistrationEstablishedSessionIssuanceDependencies['homeCompletion'],
   committed: Awaited<ReturnType<AuthorizationService['commitDirectWalletSessionAuthorizationV2']>>,
-) {
+): RegistrationActivationWrite | null {
   if (!committed.registration) {
-    throw new Error('Registration publication requires a committed registration session');
+    throw new Error('Registration activation requires a committed registration session');
   }
-  return home.publishEstablished({
+  return home.prepareEstablished({
     registration: committed.registration,
     session: committed.publication,
   });
@@ -646,13 +646,11 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     runtimePolicyScope: input.runtimePolicyScope,
     keyHandle,
   });
-  const published = await publishCommittedRegistration(input.homeCompletion, committed);
-  if (!published.ok) throw new Error(published.message);
   return directRegistrationResultFromIssue({
     directIssue,
     authorization,
     tokens,
-    activation: published.activation,
+    activation: prepareCommittedRegistrationActivation(input.homeCompletion, committed),
   });
 }
 
@@ -740,21 +738,13 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     ed25519: ed25519Tokens.ed25519,
     predecessor: input.predecessor,
   });
-  // Begin publication before session preparation uses the Worker CPU. Settle
-  // both operations even when publication fails, so retries own no pending work.
-  const [publication, preparation] = await Promise.allSettled([
-    publishCommittedRegistration(input.homeCompletion, committed),
-    input.onSessionCommitted?.(projectDirectRegistrationSession(authorization, tokens)),
-  ]);
-  if (publication.status === 'rejected') throw publication.reason;
-  if (preparation.status === 'rejected') throw preparation.reason;
-  const published = publication.value;
-  if (!published.ok) throw new Error(published.message);
+  const activation = prepareCommittedRegistrationActivation(input.homeCompletion, committed);
+  await input.onSessionCommitted?.(projectDirectRegistrationSession(authorization, tokens));
   return directRegistrationResultFromIssue({
     directIssue,
     authorization,
     tokens,
-    activation: published.activation,
+    activation,
   });
 }
 
