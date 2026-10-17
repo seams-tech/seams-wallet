@@ -1709,17 +1709,49 @@
   gap: 8px;
 }
 
+/* Printed-slip blocks: dashed while a block still has room, solid and tinted
+   with a check once its four characters are in, as on the backup sheet. */
 :where(.seams-auth-menu-surface) .seams-recovery-code-group {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   min-width: 0;
   padding-inline: 4px;
-  border: 1px solid var(--seams-colors-borderPrimary);
+  border: 1px dashed color-mix(in srgb, var(--seams-colors-textSecondary), transparent 40%);
   border-radius: var(--seams-shape-control, 10px);
-  background: var(--seams-colors-surface);
+  background: transparent;
   transition:
+    background-color 160ms ease,
     border-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-check {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--seams-colors-colorBackground);
+  color: var(--seams-colors-success);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 160ms ease,
+    transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-check svg {
+  width: 12px;
+  height: 12px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-group.is-complete .seams-recovery-code-check {
+  opacity: 1;
+  transform: scale(1);
 }
 
 :where(.seams-auth-menu-surface) .seams-recovery-code-slots .seams-otp-slot {
@@ -1751,17 +1783,93 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-recovery-code-group.is-complete {
+  border-style: solid;
   border-color: color-mix(in srgb, var(--seams-colors-textPrimary), transparent 72%);
+  background: var(--seams-colors-surface2);
 }
 
-/* Before focus, a hover shows that the groups are one field to type in. */
+/* Before focus, a hover shows that the blocks are one field to type in. */
 :where(.seams-auth-menu-surface) .seams-recovery-code-field:hover:not(:focus-within) .seams-recovery-code-group {
-  border-color: color-mix(in srgb, var(--seams-colors-textPrimary), transparent 60%);
+  border-color: color-mix(in srgb, var(--seams-colors-textPrimary), transparent 50%);
 }
 
 :where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within .seams-recovery-code-group.is-active {
+  border-style: solid;
   border-color: var(--seams-colors-textPrimary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 88%);
+}
+
+/* A new character settles into its slot. A paste sweeps in block by block:
+   each block and each place in it waits a step after the one before. */
+:where(.seams-auth-menu-surface) .seams-recovery-code-slots .seams-otp-slot.is-new {
+  animation: seams-recovery-settle 180ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation-delay: calc(
+    var(--seams-recovery-group-delay, 0ms) + var(--seams-recovery-char-delay, 0ms)
+  );
+}
+
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(2) {
+  --seams-recovery-group-delay: 40ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(3) {
+  --seams-recovery-group-delay: 80ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(4) {
+  --seams-recovery-group-delay: 120ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(5) {
+  --seams-recovery-group-delay: 160ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(6) {
+  --seams-recovery-group-delay: 200ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(7) {
+  --seams-recovery-group-delay: 240ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-recovery-code-group:nth-child(8) {
+  --seams-recovery-group-delay: 280ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-otp-slot:nth-child(2) {
+  --seams-recovery-char-delay: 10ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-otp-slot:nth-child(3) {
+  --seams-recovery-char-delay: 20ms;
+}
+:where(.seams-auth-menu-surface) .is-sweeping .seams-otp-slot:nth-child(4) {
+  --seams-recovery-char-delay: 30ms;
+}
+
+@keyframes seams-recovery-settle {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.85);
+  }
+}
+
+/* A character no code contains shakes the field once. Two names, so the next
+   rejection restarts the motion. */
+:where(.seams-auth-menu-surface) .seams-recovery-code-field.is-rejecting-0 {
+  animation: seams-recovery-reject-0 260ms ease;
+}
+:where(.seams-auth-menu-surface) .seams-recovery-code-field.is-rejecting-1 {
+  animation: seams-recovery-reject-1 260ms ease;
+}
+
+@keyframes seams-recovery-reject-0 {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+@keyframes seams-recovery-reject-1 {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 /* A selection is visible, so a paste or delete over it reads as a replacement. */
@@ -1804,8 +1912,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   :where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within .seams-otp-slot.is-caret::before,
-  :where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within .seams-otp-slot.is-caret-after::after {
+  :where(.seams-auth-menu-surface) .seams-recovery-code-field:focus-within .seams-otp-slot.is-caret-after::after,
+  :where(.seams-auth-menu-surface) .seams-recovery-code-slots .seams-otp-slot.is-new,
+  :where(.seams-auth-menu-surface) .seams-recovery-code-field.is-rejecting-0,
+  :where(.seams-auth-menu-surface) .seams-recovery-code-field.is-rejecting-1 {
     animation: none;
+  }
+
+  :where(.seams-auth-menu-surface) .seams-recovery-code-check {
+    transition: none;
   }
 }
 
@@ -1826,6 +1941,10 @@
   color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
   line-height: 1.35;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-hint.is-error {
+  color: var(--seams-colors-error);
 }
 
 :where(.seams-auth-menu-surface) .seams-recovery-form > .seams-auth-method-btn {

@@ -417,7 +417,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
       page.locator(`${AUTH_MENU_TAG} .seams-recovery-code-slots .seams-otp-slot`),
     ).toHaveCount(32);
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-code-count`)).toHaveText('0/32');
-    await expect(continueButton).toBeDisabled();
+    await expect(continueButton).toBeEnabled();
     await expect(page.locator(`${AUTH_MENU_TAG} [data-recovery-target]`)).toHaveCount(0);
 
     // Lowercase, separators, and the letters Crockford Base32 reads as digits.

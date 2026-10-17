@@ -17,11 +17,12 @@ const display = {
   enabledExternalProviders: ['google'],
   status: { kind: 'idle', interaction: 'actionable' },
 };
-function codeEntry(code) {
+function codeEntry(code, recoveryCodeError = null) {
   return {
     ...display,
     stage: 'enter_code',
     recoveryCode: code,
+    recoveryCodeError,
     subtitle: 'Enter a recovery code to recover your wallet.',
     ctaLabel: 'Continue',
   };
@@ -42,7 +43,14 @@ function show(next) {
 }
 function onIntent(intent) {
   if (intent.kind === 'recovery_code_changed') show(codeEntry(intent.recoveryCode));
-  if (intent.kind === 'recovery_code_submit') show(methodChoice(model.recoveryCode));
+  // The same format check as the session: Continue stays enabled and names what is missing.
+  if (intent.kind === 'recovery_code_submit') {
+    const code = model.recoveryCode;
+    if (code.length === 0) show(codeEntry(code, 'Enter a recovery code.'));
+    else if (code.length < 32)
+      show(codeEntry(code, 'Enter all 32 characters of the recovery code.'));
+    else show(methodChoice(code));
+  }
   if (intent.kind === 'back' && model.stage === 'choose_method')
     show(codeEntry(model.recoveryCode));
 }

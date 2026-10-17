@@ -155,6 +155,10 @@ export function googleIcon(): ComponentChildren {
   );
 }
 
+export function checkIcon(): ComponentChildren {
+  return strokeIcon('12', '2.5', <path d="M20 6 9 17l-5-5" />);
+}
+
 export function chevronIcon(): ComponentChildren {
   return strokeIcon('13', '1.75', <path d="m9 6 6 6-6 6" />);
 }

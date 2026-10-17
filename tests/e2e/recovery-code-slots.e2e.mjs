@@ -20,8 +20,15 @@ try {
   const input = page.getByLabel('Recovery code', { exact: true });
   const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
   await expect(page.locator('.seams-recovery-code-slots .seams-otp-slot')).toHaveCount(32);
-  await expect(continueButton).toBeDisabled();
+  await expect(continueButton).toBeEnabled();
   await page.screenshot({ path: `${artifacts}/empty.png` });
+
+  // A character no code contains is dropped and named, not silently ignored.
+  await input.focus();
+  await input.press('U');
+  await expect(input).toHaveValue('');
+  await expect(page.locator('#seams-recovery-code-hint')).toHaveText('Recovery codes don’t use U.');
+  await expect(page.locator('.seams-recovery-code-field')).toHaveClass(/is-rejecting-/);
 
   // A printed code pasted with dashes, lowercase, and the letters Crockford reads as digits.
   await page.evaluate(copyToClipboard, 'o123–4567–89ab–cdef–ghjk–mnpq–rstv–wxyz');
@@ -30,6 +37,10 @@ try {
   await expect(input).toHaveValue('0123456789ABCDEFGHJKMNPQRSTVWXYZ');
   await expect(input).toHaveAttribute('inputmode', 'text');
   await expect(page.locator('.seams-recovery-code-count')).toHaveText('32/32');
+  // The paste sweeps in, and every block shows its check.
+  await expect(page.locator('.seams-recovery-code-slots.is-sweeping')).toHaveCount(1);
+  await expect(page.locator('.seams-otp-slot.is-new')).toHaveCount(32);
+  await expect(page.locator('.seams-recovery-code-group.is-complete')).toHaveCount(8);
   await expect(continueButton).toBeEnabled();
   // A full code still shows where the caret is: after the last character.
   await expect(page.locator('.seams-otp-slot.is-caret-after')).toHaveCount(1);
@@ -53,7 +64,9 @@ try {
   await input.press('ArrowLeft');
   await input.press('Backspace');
   await expect(input).toHaveValue('0123456789ABCDEFGHJKMNPQRSTVWXZ');
-  await expect(continueButton).toBeDisabled();
+  await expect(page.locator('.seams-recovery-code-group.is-complete')).toHaveCount(7);
+  await continueButton.click();
+  await expect(page.getByRole('alert')).toHaveText('Enter all 32 characters of the recovery code.');
   await expect(page.locator('.seams-otp-slot.is-caret')).toHaveCount(1);
   await page.screenshot({ path: `${artifacts}/editing.png` });
   await input.press('Y');
