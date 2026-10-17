@@ -11,7 +11,18 @@ Captured producer time per successful signature is 32.841, 24.840, and 35.449 se
 Successful signing ranges are 1.149–4.301, 1.063–3.681, and 4.192–25.207 seconds.
 Four- and two-candidate profiles each exhaust one admitted operation. Those demands remain unfinished at cutoff.
 All profiles preserve canonical recovery and the thirty-two-candidate cap. No profile demonstrates both performance targets.
-The default stays at eight candidates. Next, qualify four candidates under matched deployment conditions and profile setup, storage, and protocol waits.
+Four-candidate groups are the selected approach for the next implementation work.
+Keep the measured reserve at eight groups per wallet, or thirty-two candidates, with four ready groups required for admission.
+The sixty-second cooldown, passive server-blind model, wallet-seed recovery, standard FIPS export, and deferred GPU work remain unchanged.
+
+Next steps for the selected four-candidate profile:
+
+1. Complete timing coverage. Drain final producer records before stopping traces and correlate the full client, Router, and participant intervals.
+2. Reduce preparation cost per successful signature toward 5–10 seconds. Profile correlation generation, setup, and storage with calibrated timers.
+   Investigate preparing several independently bound four-candidate groups per request to reduce repeated overhead while retaining the same reserve cap.
+3. Reduce complete registration below five seconds. Measure prepared-state restoration, initial-stock installation, and activation before changing their implementation.
+4. Repeat sustained multi-wallet tests with the sixty-second cooldown. Include exhaustion, empty waits, interruptions, replay, and full reserve restoration.
+5. Complete the public Gateway authority path and SDK/NEAR transaction flow after the performance and lifecycle gates pass.
 
 The earlier [multi-wallet capacity campaign](ml-dsa-65-capacity-report.md) adds fair refill turns and early recovery after confirmed paired publication.
 All 25 verified hosted signatures take 1.012–2.531 seconds, with a 1.159-second median. The two wallets complete 12 and 13 signatures.
@@ -964,9 +975,9 @@ An absent value uses the defaults below. A malformed value fails closed.
   "wallet_cooldown": { "mode": "enabled", "interval_ms": 60000 },
   "max_active_operations": 1,
   "operation_timeout_ms": 30000,
-  "candidate_group_size": 8,
-  "minimum_ready_batches": 2,
-  "refill_target_batches": 10
+  "candidate_group_size": 4,
+  "minimum_ready_batches": 4,
+  "refill_target_batches": 20
 }
 ```
 
@@ -976,6 +987,8 @@ Service capacity, request binding, epoch checks, and permanent consumption recor
 The initial service-wide limit is conservative. Raise it only after deployed memory and concurrent-load measurements.
 A batch contains candidates, so the minimum-ready threshold does not guarantee successful signing.
 `candidate_group_size` accepts 2, 4, or 8 candidates per independently consumed batch.
+The selected default is four. The fallback policy preserves its existing eighty-candidate reserve as twenty groups.
+Performance campaigns use an explicit target of eight four-candidate groups to preserve their thirty-two-candidate reserve.
 The signing-layout digest binds this size to the activated key and all prepared material.
 Keep the setting fixed for each activated key. Re-establishment requires fresh preparation and an advanced epoch.
 For the fixed 32-candidate experiment, use minimum/target batch counts of 8/16, 4/8, or 2/4 for sizes 2, 4, or 8.

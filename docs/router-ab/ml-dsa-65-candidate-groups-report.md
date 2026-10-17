@@ -8,7 +8,7 @@ No group size meets both performance targets in this screen.
 Four-candidate groups have the lowest captured producer time.
 It still exceeds twenty-four seconds per successful signature.
 Two-candidate groups also miss the online signing target in sixteen of seventeen successful requests.
-The library default remains eight candidates. All three sizes remain experimental.
+Four candidates are now the selected default for continued implementation. Production qualification remains open.
 
 | Measurement | 8 candidates | 4 candidates | 2 candidates |
 | --- | ---: | ---: | ---: |
@@ -98,10 +98,13 @@ Future collection needs a terminal-record drain before shutdown.
 
 ## Next decision
 
-Keep eight candidates as the default until repeated measurements qualify a replacement.
-Four candidates are the stronger candidate for the next controlled comparison.
-Repeat the comparison with matched deployment conditions and verified client-to-participant timing coverage.
+Proceed with four-candidate groups, as selected after this comparison.
+Repeat that profile with matched deployment conditions and verified client-to-participant timing coverage.
 Retain fresh epochs, independently bound groups, the same candidate cap, and full reserve restoration.
+The benchmark default uses eight groups, or thirty-two candidates, with four groups required for admission.
+The separate library fallback preserves eighty candidates as twenty four-candidate groups.
+Changing an existing activated key's layout still requires fresh preparation and an advanced epoch.
+The [selected-default lifecycle check](../evidence/ml-dsa-65-four-candidate-default-lifecycle-20261017.json) passes with four groups required for admission.
 
 Group size alone did not achieve the preparation target.
 Further gains require lower preparation cost per candidate and reliable hosted request latency.

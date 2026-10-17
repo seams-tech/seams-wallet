@@ -16,9 +16,9 @@ Set deployment-owned `ML_DSA_ADMISSION_POLICY` JSON to configure it:
   "wallet_cooldown": { "mode": "enabled", "interval_ms": 60000 },
   "max_active_operations": 1,
   "operation_timeout_ms": 30000,
-  "candidate_group_size": 8,
-  "minimum_ready_batches": 2,
-  "refill_target_batches": 10
+  "candidate_group_size": 4,
+  "minimum_ready_batches": 4,
+  "refill_target_batches": 20
 }
 ```
 
@@ -28,6 +28,8 @@ Use `"wallet_cooldown": { "mode": "disabled" }` to disable only the wallet coold
 Capacity, replay, epoch, and single-use checks remain active.
 Requests cannot override this deployment policy.
 The configuration example includes the current required group-size field.
+Four candidates are the selected default. Twenty groups preserve the fallback policy's existing eighty-candidate capacity.
+The measured thirty-two-candidate profile overrides the target to eight groups and keeps a four-group admission minimum.
 The [candidate-group report](ml-dsa-65-candidate-groups-report.md) describes its binding to activated keys and prepared material.
 
 The wallet identity includes organization, project, environment, and wallet.

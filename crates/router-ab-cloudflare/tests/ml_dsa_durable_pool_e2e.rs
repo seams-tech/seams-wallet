@@ -115,9 +115,9 @@ fn binding(key: &KeyScope, role: Participant, batch: u8) -> sealing::Binding {
         wrapping_key_version: id("kek-1"),
     }
 }
-fn fill(db: &Db, key: &KeyScope, role: Participant, seed: &[u8; 32], start: u8) {
+fn fill(db: &Db, key: &KeyScope, role: Participant, seed: &[u8; 32], start: u8, count: u8) {
     tx(db, pool::install_key(db, key.clone())).unwrap();
-    for batch in start..start + 3 {
+    for batch in start..start + count {
         let binding = binding(key, role, batch);
         let sealed = sealing::seal(Zeroizing::new(vec![batch; 100_000]), &binding, seed).unwrap();
         let wire = serde_json::to_vec(&sealed).unwrap();
@@ -156,8 +156,8 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let b = Db::open(&b_path);
     let key = key("wallet");
     let policy = Policy::default();
-    fill(&a, &key, Participant::A, &[1; 32], 0);
-    fill(&b, &key, Participant::B, &[2; 32], 0);
+    fill(&a, &key, Participant::A, &[1; 32], 0, 4);
+    fill(&b, &key, Participant::B, &[2; 32], 0, 4);
     drop(a);
     drop(b);
     let a = Db::open(&a_path);
@@ -204,7 +204,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let mut changed = first.clone();
     changed.message_digest = [99; 32];
     assert!(tx(&router, admission::begin(&router, &policy, changed, 1_001)).is_err());
-    let batches = vec![[0; 32], [1; 32], [2; 32]];
+    let batches = vec![[0; 32], [1; 32], [2; 32], [3; 32]];
     tx(
         &a,
         pool::reserve(&a, &first, &batches, first_claim.expires_at_ms, 1_001),
@@ -225,7 +225,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         _ => panic!(),
     };
     assert!(tx(&router, admission::settled(&router, &first)).is_err());
-    let reserved_inventory = tx(&a, pool::inventory(&a, &key, 3, 1_002, 1_002)).unwrap();
+    let reserved_inventory = tx(&a, pool::inventory(&a, &key, 4, 1_002, 1_002)).unwrap();
     assert!(reserved_inventory.ready.is_empty());
     assert_eq!(reserved_inventory.reserved, batches);
     assert!(!reserved_inventory.refill_due);
@@ -241,9 +241,9 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         sealing::open(sealed, &own_binding, &[1; 32]).unwrap().len(),
         100_000
     );
-    let after_take = tx(&a, pool::inventory(&a, &key, 3, 1_003, 1_003)).unwrap();
+    let after_take = tx(&a, pool::inventory(&a, &key, 4, 1_003, 1_003)).unwrap();
     assert!(after_take.ready.is_empty());
-    assert_eq!(after_take.reserved, vec![[1; 32], [2; 32]]);
+    assert_eq!(after_take.reserved, vec![[1; 32], [2; 32], [3; 32]]);
     assert!(after_take.refill_due);
     drop(a);
     let a = Db::open(&a_path);
@@ -270,7 +270,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             .unwrap()
             .refill_due
     );
-    // An admitted failure still consumes the cooldown; untouched material survives.
+    // An admitted failure consumes the cooldown and burns its reserved material.
     tx(
         &router,
         admission::finish(&router, &permit, Completion::Failed, 1_005),
@@ -312,8 +312,8 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .unwrap()
         .ready
         .is_empty());
-    fill(&a, &key, Participant::A, &[1; 32], 10);
-    fill(&b, &key, Participant::B, &[2; 32], 10);
+    fill(&a, &key, Participant::A, &[1; 32], 10, 3);
+    fill(&b, &key, Participant::B, &[2; 32], 10, 3);
     drop(router);
     let router = Db::open(&service_path);
     assert!(matches!(
@@ -550,7 +550,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     // Refilling another key slot cannot erase this slot's pending request.
     let mut sibling = key.clone();
     sibling.key_id = id("sibling");
-    fill(&a, &sibling, Participant::A, &[1; 32], 100);
+    fill(&a, &sibling, Participant::A, &[1; 32], 100, 3);
     tx(&a, pool::inventory(&a, &sibling, 1, 62_000, 62_000)).unwrap();
     assert!(matches!(
         tx(&a, pool::refill_status(&a, &sibling, 62_000)).unwrap(),
@@ -647,7 +647,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &router,
             &policy,
             verified_claim,
-            vec![[30; 32], [31; 32]],
+            vec![[30; 32], [31; 32], [32; 32], [33; 32]],
             500_001,
         ),
     )
@@ -828,6 +828,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
+        "policy": policy,
         "refill_fairness": refill_fairness,
         "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"expired_producer_publication_rejected":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,"prior_aes_suite_rejected":true,
