@@ -14,9 +14,11 @@ import {
 
 class RegistrationDirectoryWithLostReply {
   calls = 0;
+  sessions = [];
 
-  async complete() {
+  async complete(input) {
     this.calls += 1;
+    if (input.outcome === 'established') this.sessions.push(input.session);
     if (this.calls === 1) throw new Error('Injected lost completion reply');
     return { ok: true };
   }
@@ -394,11 +396,29 @@ async function verifyRegistrationCompletion(database, now) {
   assert.ok(winner);
   assert.deepEqual(winner.registration, { ...identity, state: 'registering' });
   const completion = { registration: winner.registration, session: winner.publication };
-  await assert.rejects(
-    establishRegistrationHome(authority, database, completion),
-    /lost completion reply/,
+  // Ordinary signing does not wait for the directory. The activation commits with
+  // a pending publication, and a lost reply leaves that publication pending.
+  const completionTrace = new api.TracedD1Database(database);
+  const completionAuthority = new api.D1WalletExecutionAuthority(completionTrace, scope, directory);
+  assert.equal(
+    (await establishRegistrationHome(completionAuthority, completionTrace, completion)).ok,
+    true,
   );
-  assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, false);
+  const completionCalls = JSON.parse(
+    completionTrace.response(new Response()).headers.get('x-benchmark-d1'),
+  ).calls;
+  assert.deepEqual(completionCalls.map(callMethod), ['batch', 'run']);
+  assert.equal(directory.calls, 1);
+  assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
+  assert.deepEqual(await pendingPublications(database, identity.walletId), [
+    {
+      ceremony_id: identity.ceremonyId,
+      session_digest: winner.publication.digest,
+      session_expires_at_ms: winner.publication.expiresAtMs,
+      state: 'pending',
+      attempts: 1,
+    },
+  ]);
   await assert.rejects(authority.cancel(identity));
   assert.equal(directory.calls, 1);
   const beforeRetry = await snapshot(database);
@@ -409,35 +429,36 @@ async function verifyRegistrationCompletion(database, now) {
   );
   assert.equal(retry.result.kind, 'already_committed');
   assert.deepEqual(await snapshot(database), beforeRetry);
-  const completionTrace = new api.TracedD1Database(database);
-  const retryAuthority = new api.D1WalletExecutionAuthority(completionTrace, scope, directory);
-  const retried = await establishRegistrationHome(retryAuthority, completionTrace, {
-    registration: retry.registration,
-    session: retry.publication,
-  });
-  assert.equal(retried.ok, true);
-  const completionCalls = JSON.parse(
-    completionTrace.response(new Response()).headers.get('x-benchmark-d1'),
-  ).calls;
-  assert.deepEqual(completionCalls.map(callMethod), ['batch']);
-  assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
-  const activeReplay = await service.commitDirectWalletSessionAuthorizationV2(
-    input,
-    { kind: 'validated_registration_authority_projection' },
-    purpose,
-  );
-  assert.equal(activeReplay.result.kind, 'already_committed');
-  assert.deepEqual(activeReplay.registration, { ...identity, state: 'active' });
+  assert.deepEqual(retry.registration, { ...identity, state: 'active' });
+  // An exact retry of an active home is local and publishes nothing.
   assert.equal(
     (
       await establishRegistrationHome(authority, database, {
-        registration: activeReplay.registration,
-        session: activeReplay.publication,
+        registration: retry.registration,
+        session: retry.publication,
       })
     ).ok,
     true,
   );
+  assert.equal(directory.calls, 1);
+  // The scheduled resumption sends the original digest and expiry, then deletes the row.
+  assert.deepEqual(
+    await authority.resumeDirectoryPublications({ nowMs: Date.now(), limit: 10 }),
+    { acknowledged: 0, deferred: 0, refused: 0 },
+  );
+  assert.deepEqual(
+    await authority.resumeDirectoryPublications({ nowMs: Date.now() + 3_600_000, limit: 10 }),
+    { acknowledged: 1, deferred: 0, refused: 0 },
+  );
   assert.equal(directory.calls, 2);
+  assert.deepEqual(directory.sessions[1], directory.sessions[0]);
+  assert.deepEqual(directory.sessions[0], {
+    kind: 'credential',
+    walletId: identity.walletId,
+    digest: winner.publication.digest,
+    expiresAtMs: winner.publication.expiresAtMs,
+  });
+  assert.deepEqual(await pendingPublications(database, identity.walletId), []);
   await database
     .prepare("UPDATE wallet_execution_generations SET state = 'retired' WHERE wallet_id = ?")
     .bind(identity.walletId)
@@ -457,13 +478,26 @@ async function verifyRegistrationCompletion(database, now) {
     concurrentIssuance: race.map(registrationResultKind).sort(),
     sessionAndDecisionShareOneBatch: true,
     publicationUsesCommittedHomeState: true,
-    lostReplyKeepsSigningFenced: true,
+    lostReplyLeavesPublicationPending: true,
     conflictingCancellationCannotReachDirectory: true,
     exactRetryPreservesSession: true,
-    acknowledgedCompletionCalls: completionCalls,
+    completionCalls,
     activeReplayDoesNotRepublish: true,
+    resumptionSendsOriginalSession: true,
     retiredHomeCannotCommitRegistration: true,
   };
+}
+
+async function pendingPublications(database, walletId) {
+  return (
+    await database
+      .prepare(
+        `SELECT ceremony_id, session_digest, session_expires_at_ms, state, attempts
+         FROM wallet_registration_directory_publications WHERE wallet_id = ?`,
+      )
+      .bind(walletId)
+      .all()
+  ).results;
 }
 
 function registrationResultKind(value) {

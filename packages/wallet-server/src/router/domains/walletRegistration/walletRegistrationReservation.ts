@@ -114,28 +114,18 @@ export interface WalletRegistrationReservationAuthority {
 }
 
 /**
- * The local write that makes an established registration active. It follows
- * the acknowledged directory write. It commits in the batch of the record
+ * The local write that makes an established registration active and records
+ * its directory publication as pending. It commits in the batch of the record
  * that completes the registration operation, or it does not commit.
  */
 export type RegistrationActivationWrite = {
   readonly statements: readonly D1PreparedStatementLike[];
+  /**
+   * Sends the pending directory publication. Call it only after the statements
+   * commit. It never throws: a failed delivery stays pending for the next attempt.
+   */
+  readonly publish: () => Promise<void>;
 };
-
-export type RegistrationEstablishedPublication =
-  | {
-      readonly ok: true;
-      /** None when an earlier completion already activated the registration. */
-      readonly activation: RegistrationActivationWrite | null;
-      readonly code?: never;
-      readonly message?: never;
-    }
-  | {
-      readonly ok: false;
-      readonly code: string;
-      readonly message: string;
-      readonly activation?: never;
-    };
 
 /** The registration authority at the wallet's home, which owns the local activation. */
 export interface WalletRegistrationHomeAuthority extends Pick<
@@ -143,13 +133,15 @@ export interface WalletRegistrationHomeAuthority extends Pick<
   'reserve' | 'admitHome'
 > {
   /**
-   * Publishes the committed registration decision to its directory and prepares the
-   * activation. The caller commits the activation with its completion record.
+   * Prepares the activation of the committed registration decision with its
+   * pending directory publication. None when an earlier completion already
+   * activated the registration. The caller commits the activation with its
+   * completion record, then publishes.
    */
-  publishEstablished(input: {
+  prepareEstablished(input: {
     readonly registration: CommittedWalletRegistration;
     readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
-  }): Promise<RegistrationEstablishedPublication>;
+  }): RegistrationActivationWrite | null;
   /** Fixes a definitive cancellation, publishes it, and retires the local home. */
   cancel(input: {
     readonly ceremonyId: string;

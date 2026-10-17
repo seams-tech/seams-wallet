@@ -21,13 +21,16 @@ class ApprovedRegistrationAuthority {
 }
 
 /**
- * Publishes an established registration and commits its activation alone.
- * The registration service commits it with the completion of its journal.
+ * Commits the activation of an established registration alone, then sends its
+ * pending directory publication. The registration service commits the
+ * activation with the completion of its journal.
  */
 export async function establishRegistrationHome(authority, database, completion) {
-  const published = await authority.publishEstablished(completion);
-  if (!published.ok) return published;
-  if (published.activation) await database.batch([...published.activation.statements]);
+  const activation = authority.prepareEstablished(completion);
+  if (activation) {
+    await database.batch([...activation.statements]);
+    await activation.publish();
+  }
   return { ok: true };
 }
 
@@ -114,7 +117,8 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
     establishRegistrationHome(authority, database, completion),
     /injected_execution_completion/u,
   );
-  assert.equal(registration.established, true);
+  // A failed activation publishes nothing.
+  assert.equal(registration.established, false);
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
   await database.prepare('DROP TRIGGER injected_execution_completion').run();
   assert.deepEqual(await authority.admitHome(identity), {
@@ -124,6 +128,7 @@ export async function prepareExecutionGeneration({ api, database, scope, walletI
   });
   assert.equal((await authority.admitEstablishedHome({ walletId })).ok, false);
   assert.equal((await establishRegistrationHome(authority, database, completion)).ok, true);
+  assert.equal(registration.established, true);
   assert.deepEqual(await api.admitD1EstablishedWalletHome(database, scope, { walletId }), {
     ok: true,
     purpose: 'ordinary',

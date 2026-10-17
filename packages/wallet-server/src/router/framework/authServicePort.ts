@@ -1237,6 +1237,7 @@ export interface RouterApiWalletRegistrationService {
     input: WalletRegistrationActivateInput,
     traceContext?: RouterAbTraceContextV1,
     serverTiming?: Array<readonly [string, number]>,
+    waitUntil?: (promise: Promise<unknown>) => void,
   ): Promise<WalletRegistrationActivateResponseV2>;
   completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,

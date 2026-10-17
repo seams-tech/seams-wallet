@@ -1,5 +1,6 @@
 import { D1RegistrationCeremonyRecordStore } from './router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
 import { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
+import { resumeRegistrationDirectoryPublicationsV1 } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { WalletHomeCustodyBinding } from './router/cloudflare/runtime/routerAbServiceBindings';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { localPresignCancellationProbe } from './localIntendedPresignCancellation';
@@ -239,6 +240,33 @@ async function handleEcdsaRespondFault(
   return Response.json({ code: 'invalid_intended_ecdsa_fault' }, { status: 400 });
 }
 
+function localTenantScope(
+  env: LocalHostedWalletGatewayEnv,
+  config: ReturnType<typeof parseStaticWalletConsoleBindingConfigV1>,
+) {
+  return {
+    namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
+    orgId: config.deployment.orgId,
+    projectId: config.deployment.projectId,
+    envId: config.deployment.environmentKey,
+  };
+}
+
+/** Sends the due directory publications to the local registration authority. */
+export async function resumeLocalRegistrationDirectoryPublicationsV1(
+  env: LocalHostedWalletGatewayEnv,
+): Promise<void> {
+  const config = parseStaticWalletConsoleBindingConfigV1(
+    JSON.parse(env.WALLET_LOCAL_DEPLOYMENT_JSON),
+  );
+  const scope = localTenantScope(env, config);
+  await resumeRegistrationDirectoryPublicationsV1({
+    database: env.SIGNER_DB,
+    scope,
+    registrationAuthority: new LocalRegistrationSetupAuthority(env.SIGNER_DB, scope),
+  });
+}
+
 /**
  * The local Gateway: the hosted Gateway handler plus the intended-suite
  * transport faults, which a request arms with local-only headers. The local
@@ -253,12 +281,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   const config = parseStaticWalletConsoleBindingConfigV1(
     JSON.parse(env.WALLET_LOCAL_DEPLOYMENT_JSON),
   );
-  const tenantScope = {
-    namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
-    orgId: config.deployment.orgId,
-    projectId: config.deployment.projectId,
-    envId: config.deployment.environmentKey,
-  };
+  const tenantScope = localTenantScope(env, config);
   dependencies = {
     emailOtpDeliveryProvider: dependencies?.emailOtpDeliveryProvider,
     signerWasm: dependencies?.signerWasm,
