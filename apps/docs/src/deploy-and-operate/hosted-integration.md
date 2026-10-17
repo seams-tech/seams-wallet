@@ -32,6 +32,28 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
+## Upgrading to 0.13.1
+
+Pin the application package and backend package to **0.13.1**, and build the
+wallet-origin assets from the same release:
+
+```sh
+# Application
+pnpm add @seams/wallet@0.13.1
+
+# Backend deployment
+pnpm add @seams/wallet-server@0.13.1
+```
+
+The default RPC URL of `arc-testnet` is now `https://rpc.testnet.arc.io`, Circle's
+primary Arc testnet endpoint. The earlier default, `https://rpc.testnet.arc.network`,
+no longer resolves. An application that sets its own `rpcUrl` for `arc-testnet` is not
+affected; if it names a host under `testnet.arc.network`, move it to a host from the
+[Arc RPC reference](https://docs.arc.io/arc/references/rpc-endpoints). A chain `rpcUrl` can
+list more than one URL, separated by commas; the SDK tries the next URL after a network
+error or an HTTP 429 or 5xx response. Release 0.13.1 has no migration and no backend
+change.
+
 ## Upgrading to 0.13.0
 
 Pin the application package and backend package to **0.13.0**, and build the

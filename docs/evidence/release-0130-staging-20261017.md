@@ -83,3 +83,24 @@ run A. They lose their time in respond (2.3 to 2.7 s: the Router Yao execution 1
 and two of them in setup (1.4 and 2.1 s: wallet object startup and the Console
 context). Their finalize took 538 to 965 ms. The slowest registrations of run B take
 2.0 to 2.2 s. No finalize is among the causes of the slowest registrations.
+
+## Singapore client
+
+The same lane, measured the same evening from a temporary virtual machine in Singapore
+(Google Cloud `asia-southeast1`), against a Tokyo client in alternating runs of 33
+registrations, 18:28–18:57 JST. Only the browser ran in Singapore; the test harness drove it
+through an SSH tunnel. Each harness command therefore crossed the tunnel, so the totals of the
+Singapore client are not valid. The stage times are: the client's own work inside a stage
+stayed at 27 ms or less at the median (Tokyo: 6 ms). The table uses the sum of the three
+registration stages, without the passkey step.
+
+| Setup + respond + finalize (ms) | p50 | p95 | p99 | max | Above 4 s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Singapore, 66 | 2,018 | 3,099 | 3,343 | 3,422 | 0 |
+| Tokyo, 66 | 2,211 | 3,309 | 5,061 | 6,811 | 2 |
+
+From Singapore, a third of the registrations entered Cloudflare in Hong Kong (HKG), not in
+Singapore. A Gateway health check from the machine took 130 to 600 ms to its first byte, and
+the static wallet origin 370 to 510 ms, so routing and the edge add a variable cost that is
+not in our code. 66 registrations from one network and one evening are not an acceptance
+population.
