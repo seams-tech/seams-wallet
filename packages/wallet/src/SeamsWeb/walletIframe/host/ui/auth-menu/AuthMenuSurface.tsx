@@ -28,7 +28,6 @@ import { AuthMenuFooter } from './AuthMenuFooter';
 import {
   accountDropdownIcon,
   backIcon,
-  checkIcon,
   chevronIcon,
   fingerprintIcon,
   googleIcon,
@@ -135,7 +134,6 @@ function renderRecoveryCodeGroups(
     groups.push(
       <div class={groupClasses.join(' ')} key={start}>
         {slots}
-        <span class="seams-recovery-code-check">{checkIcon()}</span>
       </div>,
     );
   }
@@ -1367,7 +1365,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               >
                 {rejection
                   ? `Recovery codes don’t use ${rejection.characters.join(', ')}.`
-                  : 'You can paste the whole code. Dashes are optional.'}
+                  : 'You can paste the whole code.'}
               </p>
             </div>
             {/* Continue stays enabled: the session names what a short code lacks. */}
