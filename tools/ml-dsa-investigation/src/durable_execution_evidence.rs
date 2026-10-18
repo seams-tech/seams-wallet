@@ -11,7 +11,7 @@ use ed25519_yao::{
         TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
     },
-    ml_dsa_signing::{SigningRole, prepared_signing::gmw::prepare_gmw_reservation},
+    ml_dsa_signing::{SigningRole, prepared_signing::gmw::prepare_gmw_reservations},
 };
 use router_ab_cloudflare::ml_dsa::{
     self as m,
@@ -101,7 +101,7 @@ pub(super) fn run(
         key_id: identifier("near")?,
         epoch: 1,
         public_key_digest: Sha256::digest(public_key).into(),
-        schedule_digest: execution::signing_schedule_digest(schedules, 4),
+        schedule_digest: execution::signing_schedule_digest(schedules, 2),
     };
     let activation = admission::KeyActivation {
         key: key.clone(),
@@ -160,25 +160,32 @@ pub(super) fn run(
     sync(role, transport)?;
     let started = Instant::now();
     let mut topologies = Default::default();
+    let mut preparation_groups = Vec::new();
     for ordinal in 0u8..10 {
-        let id: [u8; 32] = Sha256::digest([group.as_slice(), &[ordinal]].concat()).into();
-        let prepared = run_ready(prepare_gmw_reservation(
+        let ids: Vec<[u8; 32]> = [ordinal * 2, ordinal * 2 + 1]
+            .into_iter()
+            .map(|index| Sha256::digest([group.as_slice(), &[index]].concat()).into())
+            .collect();
+        let prepared = run_ready(prepare_gmw_reservations(
             role,
-            id,
-            4,
+            &ids,
+            2,
             schedules,
             &mut topologies,
             transport,
         ))??;
-        let binding = sealing::Binding {
-            key: key.clone(),
-            role: participant,
-            batch: id,
-            expires_at_ms: 10_000_000,
-            wrapping_key_version: version.clone(),
-        };
-        let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
-        tx(&db, pool::put(&db, binding, sealed, 1_000))?;
+        preparation_groups.push(ids.iter().map(hex::encode).collect::<Vec<_>>());
+        for (id, prepared) in ids.into_iter().zip(prepared) {
+            let binding = sealing::Binding {
+                key: key.clone(),
+                role: participant,
+                batch: id,
+                expires_at_ms: 10_000_000,
+                wrapping_key_version: version.clone(),
+            };
+            let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
+            tx(&db, pool::put(&db, binding, sealed, 1_000))?;
+        }
     }
     drop(db);
     drop(topologies);
@@ -188,12 +195,15 @@ pub(super) fn run(
     let started = Instant::now();
     let mut operations = Vec::new();
     let policy = Policy::parse(
-        r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":60000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":4,"minimum_ready_batches":1,"refill_target_batches":10}"#,
+        r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":60000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":2,"preparation_group_size":4,"minimum_ready_batches":1,"refill_target_batches":20}"#,
     )?;
-    for ordinal in 0u8..10 {
+    for ordinal in 0u8..20 {
+        let mut operation_message = message.to_vec();
+        operation_message.push(ordinal);
+        let message = operation_message.as_slice();
         let db = Db::open(&pool_path)?;
         let now = 2_000 + u64::from(ordinal) * 60_000;
-        let inventory = tx(&db, pool::inventory(&db, &key, 10, now, now + 30_000))?;
+        let inventory = tx(&db, pool::inventory(&db, &key, 20, now, now + 30_000))?;
         if inventory.ready.is_empty() {
             break;
         }
@@ -267,7 +277,7 @@ pub(super) fn run(
                 wrapping_seed: seed.clone(),
                 wrapping_key_version: version.clone(),
             },
-            4,
+            2,
             schedules,
             &host,
             transport,
@@ -339,18 +349,18 @@ pub(super) fn run(
             ),
             "Consumption lost refill demand",
         )?;
-        operations.push(json!({"outcome": outcome, "online_ns": elapsed_ns, "replay_rejected": true, "duplicate_cached": true}));
+        operations.push(json!({"outcome": outcome, "consumed_ids": consumed.iter().map(hex::encode).collect::<Vec<_>>(), "message_digest": hex::encode(request.message_digest), "online_ns": elapsed_ns, "replay_rejected": true, "duplicate_cached": true}));
         sync(role, transport)?;
     }
     let db = Db::open(&pool_path)?;
     require(
-        tx(&db, pool::inventory(&db, &key, 10, 900_000, 930_000))?
+        tx(&db, pool::inventory(&db, &key, 20, 2_000_000, 2_030_000))?
             .ready
             .is_empty(),
         "Durable test did not drain the pool",
     )?;
     Ok(
-        json!({"result":{"status":"durable-execution", "operations":operations}, "offline_ns":preparation_ns, "online_ns":started.elapsed().as_nanos(), "offline":transport.counts[0].json(), "online":transport.counts[1].json()}),
+        json!({"result":{"status":"durable-execution", "operations":operations, "preparation_groups":preparation_groups}, "offline_ns":preparation_ns, "online_ns":started.elapsed().as_nanos(), "offline":transport.counts[0].json(), "online":transport.counts[1].json()}),
     )
 }
 fn persist_material(

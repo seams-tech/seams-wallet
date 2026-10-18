@@ -46,6 +46,7 @@ pub struct Policy {
     pub(crate) max_active_operations: usize,
     pub(crate) operation_timeout_ms: u64,
     candidate_group_size: CandidateGroupSize,
+    preparation_group_size: CandidateGroupSize,
     pub(crate) minimum_ready_batches: usize,
     pub(crate) refill_target_batches: usize,
 }
@@ -56,12 +57,15 @@ struct PolicyWire {
     max_active_operations: usize,
     operation_timeout_ms: u64,
     candidate_group_size: CandidateGroupSize,
+    preparation_group_size: CandidateGroupSize,
     minimum_ready_batches: usize,
     refill_target_batches: usize,
 }
 impl TryFrom<PolicyWire> for Policy {
     type Error = RouterAbProtocolError;
     fn try_from(value: PolicyWire) -> Result<Self> {
+        let consumed = u16::from(value.candidate_group_size);
+        let prepared = u16::from(value.preparation_group_size);
         if matches!(
             value.wallet_cooldown,
             WalletCooldown::Enabled { interval_ms: 0 }
@@ -71,6 +75,7 @@ impl TryFrom<PolicyWire> for Policy {
             || value.minimum_ready_batches == 0
             || value.minimum_ready_batches > value.refill_target_batches
             || value.refill_target_batches > 20
+            || !(prepared == consumed || (prepared == 4 && consumed == 2))
         {
             return Err(invalid("Invalid ML-DSA admission policy"));
         }
@@ -79,6 +84,7 @@ impl TryFrom<PolicyWire> for Policy {
             max_active_operations: value.max_active_operations,
             operation_timeout_ms: value.operation_timeout_ms,
             candidate_group_size: value.candidate_group_size,
+            preparation_group_size: value.preparation_group_size,
             minimum_ready_batches: value.minimum_ready_batches,
             refill_target_batches: value.refill_target_batches,
         })
@@ -93,6 +99,7 @@ impl Default for Policy {
             max_active_operations: 1,
             operation_timeout_ms: 30_000,
             candidate_group_size: CandidateGroupSize::Four,
+            preparation_group_size: CandidateGroupSize::Four,
             minimum_ready_batches: 4,
             refill_target_batches: 20,
         }
@@ -107,6 +114,13 @@ impl Policy {
     }
     pub fn candidate_group_size(&self) -> u16 {
         self.candidate_group_size.into()
+    }
+    pub fn preparation_groups(&self, available: usize) -> refill::Groups {
+        if u16::from(self.preparation_group_size) > self.candidate_group_size() && available >= 2 {
+            refill::Groups::Two
+        } else {
+            refill::Groups::One
+        }
     }
     pub fn minimum_ready_batches(&self) -> usize {
         self.minimum_ready_batches

@@ -1,6 +1,6 @@
 //! Key-independent signing batches prepared before registration, then rebound once.
 use super::*;
-use ed25519_yao::ml_dsa_signing::prepared_signing::gmw::prepare_gmw_reservation;
+use ed25519_yao::ml_dsa_signing::prepared_signing::gmw::prepare_gmw_reservations;
 const DOMAIN: &[u8] = b"seams/ml-dsa/registration-signing-stock/v2";
 #[derive(Serialize, Deserialize)]
 struct Stored {
@@ -20,34 +20,45 @@ pub(super) async fn prepare(
         return Err(invalid("Registration signing schedule changed"));
     }
     let participant = configured_role(env).map_err(storage_error)?;
-    let candidates = policy(env)?.candidate_group_size();
+    let policy = policy(env)?;
+    let candidates = policy.candidate_group_size();
     let mut topologies = Default::default();
-    for ordinal in 0..job.signing_batches {
-        let id = core::signing_batch_id(job, ordinal)?;
+    let mut next = 0;
+    while next < job.signing_batches {
+        let count = policy
+            .preparation_groups(job.signing_batches - next)
+            .count();
+        let mut ids = Vec::with_capacity(count);
+        for ordinal in next..next + count {
+            ids.push(core::signing_batch_id(job, ordinal)?);
+        }
         let prepared =
-            prepare_gmw_reservation(role, id, candidates, &schedules, &mut topologies, wire)
+            prepare_gmw_reservations(role, &ids, candidates, &schedules, &mut topologies, wire)
                 .await
                 .map_err(runtime_error)?;
-        let sealed = sealing::seal_bound(
-            prepared.into_storage(),
-            DOMAIN,
-            &(job, participant, ordinal),
-            seed,
-        )?;
-        transaction(state, move |store| async move {
-            let prefix = format!("registration-signing/{ordinal}");
-            let chunks = sealed.store_chunks(&store, &prefix).await?;
-            store
-                .put(
-                    &format!("{prefix}/record"),
-                    &Stored {
-                        encapsulated_key: sealed.encapsulated_key,
-                        chunks,
-                    },
-                )
-                .await
-        })
-        .await?;
+        for (ordinal, prepared) in (next..next + count).zip(prepared) {
+            let sealed = sealing::seal_bound(
+                prepared.into_storage(),
+                DOMAIN,
+                &(job, participant, ordinal),
+                seed,
+            )?;
+            transaction(state, move |store| async move {
+                let prefix = format!("registration-signing/{ordinal}");
+                let chunks = sealed.store_chunks(&store, &prefix).await?;
+                store
+                    .put(
+                        &format!("{prefix}/record"),
+                        &Stored {
+                            encapsulated_key: sealed.encapsulated_key,
+                            chunks,
+                        },
+                    )
+                    .await
+            })
+            .await?;
+        }
+        next += count;
     }
     Ok(())
 }

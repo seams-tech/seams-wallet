@@ -1,12 +1,39 @@
-//! One service-wide preprocessing lease with one fresh batch per waiting key turn.
+//! One service-wide preprocessing lease with independently consumed reservations.
 use super::*;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Groups {
+    One,
+    Two,
+}
+impl Groups {
+    pub fn count(self) -> usize {
+        match self {
+            Self::One => 1,
+            Self::Two => 2,
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Job {
     pub key: KeyScope,
     pub batch: [u8; 32],
+    pub groups: Groups,
     pub expires_at_ms: u64,
     pub material_expires_at_ms: u64,
+}
+impl Job {
+    pub fn batch_ids(&self) -> Vec<[u8; 32]> {
+        let mut ids = vec![self.batch];
+        if self.groups == Groups::Two {
+            let mut hash = Sha256::new();
+            hash.update(b"seams/ml-dsa/preparation-second-pair/v1");
+            hash.update(self.batch);
+            ids.push(hash.finalize().into());
+        }
+        ids
+    }
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
@@ -24,7 +51,7 @@ struct Waiting {
     key: KeyScope,
     expires_at_ms: u64,
 }
-pub async fn claim(store: &impl Store, key: KeyScope, now: u64) -> Result<Claim> {
+pub async fn claim(store: &impl Store, key: KeyScope, groups: Groups, now: u64) -> Result<Claim> {
     if admission::active_key(store, &key)
         .await?
         .map(|value| value.key)
@@ -97,6 +124,7 @@ pub async fn claim(store: &impl Store, key: KeyScope, now: u64) -> Result<Claim>
     let job = Job {
         key,
         batch,
+        groups,
         expires_at_ms: now.saturating_add(90_000),
         material_expires_at_ms: now.saturating_add(600_000),
     };
@@ -167,7 +195,7 @@ pub async fn publish_role(
     let name = format!("preprocessing/{}", hex(&job.batch));
     if now >= job.expires_at_ms
         || binding.key != job.key
-        || binding.batch != job.batch
+        || !job.batch_ids().contains(&binding.batch)
         || binding.expires_at_ms != job.material_expires_at_ms
         || store.get::<Job>(&name).await?.as_ref() != Some(job)
     {

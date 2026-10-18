@@ -44,6 +44,7 @@ const policy = {
   max_active_operations: 1,
   operation_timeout_ms: 30000,
   candidate_group_size: 8,
+  preparation_group_size: 8,
   minimum_ready_batches: 2,
   refill_target_batches: 4,
 };

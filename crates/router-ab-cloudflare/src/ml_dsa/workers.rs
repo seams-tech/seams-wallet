@@ -65,6 +65,7 @@ pub enum AdmissionCommand {
     },
     ClaimRefill {
         key: KeyScope,
+        groups: refill::Groups,
     },
     WithdrawRefill {
         key: KeyScope,
@@ -438,7 +439,12 @@ async fn execute_admission(
         AdmissionCommand::FinishRegistration { claim, result } => {
             json(super::registration::finish(store, &claim, result, now).await?)
         }
-        AdmissionCommand::ClaimRefill { key } => json(refill::claim(store, key, now).await?),
+        AdmissionCommand::ClaimRefill { key, groups } => {
+            if groups.count() > policy.preparation_groups(2).count() {
+                return Err(invalid("Preparation exceeds configured group size"));
+            }
+            json(refill::claim(store, key, groups, now).await?)
+        }
         AdmissionCommand::WithdrawRefill { key } => {
             refill::withdraw(store, &key).await?;
             json(true)

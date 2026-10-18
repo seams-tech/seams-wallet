@@ -65,11 +65,14 @@ const cooldownMs = Number(process.env.ML_DSA_TEST_COOLDOWN_MS ?? 60000);
 assert.ok(Number.isSafeInteger(cooldownMs) && cooldownMs >= 1000 && cooldownMs <= 300000);
 const candidateGroupSize = Number(process.env.ML_DSA_TEST_CANDIDATE_GROUP_SIZE ?? 4);
 assert.ok([2, 4, 8].includes(candidateGroupSize));
+const preparationGroupSize = Number(process.env.ML_DSA_TEST_PREPARATION_GROUP_SIZE ?? candidateGroupSize);
+assert.ok(preparationGroupSize === candidateGroupSize || (preparationGroupSize === 4 && candidateGroupSize === 2));
 const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: cooldownMs },
   max_active_operations: 1,
   operation_timeout_ms: 30000,
   candidate_group_size: candidateGroupSize,
+  preparation_group_size: preparationGroupSize,
   minimum_ready_batches: 16 / candidateGroupSize,
   refill_target_batches: 32 / candidateGroupSize,
 };

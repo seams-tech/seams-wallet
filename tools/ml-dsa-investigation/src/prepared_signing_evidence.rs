@@ -425,12 +425,68 @@ pub(super) fn run_operation(
                 if operation["outcome"]["status"] == "signed" {
                     let signature: Vec<u8> =
                         serde_json::from_value(operation["outcome"]["signature"].clone())?;
-                    reference::verify_threshold_signature(&public, &message, &context, &signature)?;
+                    let mut operation_message = message.to_vec();
+                    operation_message.push(u8::try_from(index)?);
+                    require(
+                        operation["message_digest"]
+                            == hex::encode(Sha256::digest(&operation_message)),
+                        "Durable operation used a different message",
+                    )?;
+                    reference::verify_threshold_signature(
+                        &public,
+                        &operation_message,
+                        &context,
+                        &signature,
+                    )?;
                     signed += 1;
                 }
             }
             require(signed > 0, "No durable threshold signature completed")?;
-            json!({"standard_signatures_verified": signed, "operations_with_rollover": rollover, "pool_drained": true})
+            let groups = a["result"]["preparation_groups"]
+                .as_array()
+                .ok_or("Missing preparation groups")?;
+            require(
+                a["result"]["preparation_groups"] == b["result"]["preparation_groups"],
+                "Preparation groups differ",
+            )?;
+            let mut owners = std::collections::BTreeMap::new();
+            for (index, operation) in operations.iter().enumerate() {
+                let ids = operation["consumed_ids"]
+                    .as_array()
+                    .ok_or("Missing consumed pairs")?;
+                require(
+                    operation["outcome"]["evaluated_candidates"] == ids.len() * 2,
+                    "Candidate accounting differs",
+                )?;
+                for id in ids {
+                    let id = id.as_str().ok_or("Invalid pair identity")?;
+                    require(
+                        owners.insert(id, index).is_none(),
+                        "A pair was consumed twice",
+                    )?;
+                }
+            }
+            require(
+                owners.len() == groups.len() * 2,
+                "Pair ledger did not drain",
+            )?;
+            let mut retained_between_messages = 0;
+            for group in groups {
+                let ids = group.as_array().ok_or("Invalid preparation group")?;
+                require(ids.len() == 2, "Preparation did not produce two pairs")?;
+                let first = owners
+                    .get(ids[0].as_str().ok_or("Invalid first pair")?)
+                    .ok_or("Missing first pair")?;
+                let second = owners
+                    .get(ids[1].as_str().ok_or("Invalid second pair")?)
+                    .ok_or("Missing second pair")?;
+                if first != second {
+                    retained_between_messages += 1;
+                }
+            }
+            json!({"standard_signatures_verified": signed, "operations_with_rollover": rollover,
+                "pool_drained": true, "groups_retained_between_distinct_messages": retained_between_messages,
+                "distinct_single_use_pairs": owners.len()})
         } else if engine == "pool" {
             crate::pool_evidence::verify(&public, &a, &b)?
         } else if a["result"]["status"] == "signed" {
