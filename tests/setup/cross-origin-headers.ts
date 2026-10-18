@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { buildPermissionsPolicy, buildWalletCsp } from '@/plugins/headers';
+import { buildPermissionsPolicy, buildWalletCsp } from './walletHeaders';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { printLog, printStepLine } from './logging';
 import {

@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = path.resolve(SCRIPT_DIR, '../..');
 const REPO_ROOT = path.resolve(SDK_ROOT, '../..');
-const PACKAGE_JSON_PATH = path.join(SDK_ROOT, 'package.json');
 
 const SCAN_ENTRIES = [
   'apps',
@@ -62,20 +61,6 @@ const FORBIDDEN_APP_PATTERNS = [
 ];
 
 const PLUGIN_README_PATH = path.join(SDK_ROOT, 'src/plugins/README.md');
-const FORBIDDEN_PACKAGE_EXPORTS = ['./plugins/headers', './plugins/next', './plugins/vite'];
-const SOURCE_GUARD_RULES = [
-  {
-    file: 'packages/wallet/src/plugins/vite.ts',
-    pattern: /\bWALLET_SHIM_SOURCE\b|\bWALLET_SURFACE_CSS\b/,
-    message: 'wallet shim and CSS sources must live in src/static/wallet-assets',
-  },
-  {
-    file: 'packages/wallet/src/plugins/vite.ts',
-    pattern:
-      /configuredBase\s*\+\s*['"]\/wallet-shims\.js['"]|configuredBase\s*\+\s*['"]\/wallet-service\.css['"]/,
-    message: 'Vite helper must serve built wallet static files instead of virtual shim/CSS routes',
-  },
-];
 const PLUGIN_README_REQUIRED_PATTERNS = [
   {
     pattern: /App integrations should not use these helpers for wallet runtime delivery\./,
@@ -153,15 +138,6 @@ function addViolation(violations, filePath, text, match, message) {
   });
 }
 
-function addTextViolation(violations, filePath, text, offset, match, message) {
-  violations.push({
-    file: path.relative(REPO_ROOT, filePath),
-    line: lineNumberForOffset(text, offset),
-    message,
-    match,
-  });
-}
-
 function collectAppSurfaceViolations(violations) {
   for (const entry of SCAN_ENTRIES) {
     const entryPath = path.join(REPO_ROOT, entry);
@@ -174,34 +150,6 @@ function collectAppSurfaceViolations(violations) {
         if (match) addViolation(violations, filePath, text, match, rule.message);
       }
     }
-  }
-}
-
-function collectPackageExportViolations(violations) {
-  const text = fs.readFileSync(PACKAGE_JSON_PATH, 'utf8');
-  const packageJson = JSON.parse(text);
-  const packageExports = packageJson.exports || {};
-  for (const exportPath of FORBIDDEN_PACKAGE_EXPORTS) {
-    if (!Object.prototype.hasOwnProperty.call(packageExports, exportPath)) continue;
-    const offset = Math.max(0, text.indexOf(`"${exportPath}"`));
-    addTextViolation(
-      violations,
-      PACKAGE_JSON_PATH,
-      text,
-      offset,
-      exportPath,
-      'plugin helpers must not be public package exports',
-    );
-  }
-}
-
-function collectSourceGuardViolations(violations) {
-  for (const rule of SOURCE_GUARD_RULES) {
-    const filePath = path.join(REPO_ROOT, rule.file);
-    const text = fs.readFileSync(filePath, 'utf8');
-    rule.pattern.lastIndex = 0;
-    const match = rule.pattern.exec(text);
-    if (match) addViolation(violations, filePath, text, match, rule.message);
   }
 }
 
@@ -245,8 +193,6 @@ function reportViolations(violations) {
 function main() {
   const violations = [];
   collectAppSurfaceViolations(violations);
-  collectPackageExportViolations(violations);
-  collectSourceGuardViolations(violations);
   collectPluginReadmeViolations(violations);
   reportViolations(violations);
 }

@@ -582,34 +582,6 @@ const configs = [
     },
     plugins: [emitReactCssAssetsPlugin],
   },
-  // Plugins: headers helper ESM
-  {
-    input: 'src/plugins/headers.ts',
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      entryFileNames: 'plugins/headers.js',
-      sourcemap: true,
-    },
-    external,
-    resolve: {
-      alias: aliasConfig,
-    },
-  },
-  // Plugins: Next helper ESM
-  {
-    input: 'src/plugins/next.ts',
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      entryFileNames: 'plugins/next.js',
-      sourcemap: true,
-    },
-    external,
-    resolve: {
-      alias: aliasConfig,
-    },
-  },
   // Shared utils needed in-browser by some test harnesses (served under `/sdk/esm/*`).
   {
     input: '../shared-ts/src/utils/base64.ts',
@@ -782,9 +754,9 @@ const configs = [
     },
     plugins: [...prodPlugins, assertWalletIframeHostReactFreePlugin, emitWalletServiceStaticPlugin],
   },
-  // Vite plugin ESM build (source moved to src/plugins)
+  // Wallet-service HTML builder, read by scripts/build/emit-static-wallet-assets.mjs.
   {
-    input: 'src/plugins/vite.ts',
+    input: 'src/plugins/plugin-utils.ts',
     output: {
       dir: BUILD_PATHS.BUILD.ESM,
       format: 'esm',

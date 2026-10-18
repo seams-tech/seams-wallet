@@ -77,19 +77,8 @@ Default hosted wallet asset headers are described by
 platform configuration. Local development may use a Router/auth dev helper when
 `rpId=localhost`.
 
-## Remaining Helpers
+## Remaining Helper
 
-Files in this directory still exist for package-internal build output, legacy
-tests, and migration work while Refactor 86 removes app runtime dependence on
-plugin serving.
-
-Do not add app examples that use:
-
-- `@seams/wallet/plugins/vite` for normal wallet runtime hosting;
-- `@seams/wallet/plugins/next` for normal wallet runtime hosting;
-- `seamsWallet()`, `seamsServeSdk()`, `seamsWalletService()`, or
-  other SDK static-serving helpers on an app origin;
-- app-owned `/sdk/*` or `/wallet-service` routes.
-
-When a helper remains necessary, keep its usage scoped to Seams-owned wallet
-origin development or hosted wallet artifact generation.
+`plugin-utils.ts` builds the wallet-service HTML that the package build emits to
+`dist/public/wallet-service/index.html`. It is not a package export, and app
+origins do not serve `/sdk/*` or `/wallet-service`.
