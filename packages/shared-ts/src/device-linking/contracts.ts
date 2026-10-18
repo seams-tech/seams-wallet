@@ -824,13 +824,6 @@ export type LocalAuthorityInstallationReceiptV1 = {
   readonly installedAtMs: number;
 };
 
-type RelinkRequiredReasonV1 =
-  | { readonly kind: 'incomplete_migrated_enrollment' }
-  | {
-      readonly kind: 'missing_canonical_local_material';
-      readonly activation: MpcMaterialActivationRef;
-    };
-
 export type LinkIntegrityFailureV1 =
   | {
       readonly kind: 'authority_id_mismatch';
@@ -885,7 +878,6 @@ export type LinkedAuthorityActivationResultV1 =
       readonly packageSetDigestB64u: DigestB64u;
     }
   | { readonly kind: 'failed_before_commit'; readonly reason: LinkPrecommitFailureV1 }
-  | { readonly kind: 'relink_required'; readonly reason: RelinkRequiredReasonV1 }
   | { readonly kind: 'integrity_error'; readonly reason: LinkIntegrityFailureV1 };
 
 /** Final wire acknowledgement after the active authority/session transaction. */

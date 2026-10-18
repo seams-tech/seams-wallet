@@ -1439,8 +1439,7 @@ Failure behaviour:
 - Missing, duplicate, cross-wallet, wrong-kind, revoked, or digest-mismatched
   authority and auth-method records fail closed. Runtime operations do not
   select a sibling device or infer identity from timestamps or display data.
-- An incomplete migrated enrollment returns `relink_required` at its boundary.
-  Linking does not hydrate, recover, rotate, promote, or synthesize missing
+- Linking does not hydrate, recover, rotate, promote, or synthesize missing
   signer or export material.
 - Retrying after the pending-authority commit reuses the exact authority,
   method, activation, package, and digest identities. It must not create a

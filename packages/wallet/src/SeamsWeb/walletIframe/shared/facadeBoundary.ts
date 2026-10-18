@@ -51,11 +51,6 @@ export function normalizeResolveExactKeyExportLaneResult(
   result: ResolveExactKeyExportLaneBoundaryResult,
 ): ResolveExactKeyExportLaneBoundaryResult {
   switch (result.kind) {
-    case 'relink_required':
-      return {
-        kind: 'relink_required',
-        reason: result.reason,
-      };
     case 'ecdsa':
       return {
         kind: 'ecdsa',

@@ -49,13 +49,11 @@ async function exportWalletKey(
   seams: SeamsContextType['seams'],
   chain: PlaygroundExportChain,
 ): Promise<void> {
-  const result =
-    chain === 'near'
-      ? await seams.keys.exportKey({ kind: 'ed25519' })
-      : await seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
-  if (result.kind === 'relink_required') {
-    throw new Error('Key export requires re-linking this device to its owner credential.');
+  if (chain === 'near') {
+    await seams.keys.exportKey({ kind: 'ed25519' });
+    return;
   }
+  await seams.keys.exportKey({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
 }
 
 export function WalletConsoleLite({ children, page }: { children?: ReactNode; page: PlaygroundPage }) {

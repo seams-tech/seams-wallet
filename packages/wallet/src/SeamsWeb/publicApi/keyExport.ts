@@ -71,7 +71,6 @@ async function exportKey(
     const laneInput = { kind: 'ed25519' as const, ...subject };
     requireKeyExportCapability(deps.configs, laneInput);
     const lane = await deps.domain.resolveExactKeyExportLane(laneInput);
-    if (lane.kind === 'relink_required') return lane;
     if (lane.kind !== 'ed25519') {
       throw new Error(`[key-export] expected an Ed25519 lane, received ${lane.kind}`);
     }
@@ -91,7 +90,6 @@ async function exportKey(
   const laneInput = { kind: 'ecdsa' as const, walletSession, chainTarget };
   requireKeyExportCapability(deps.configs, laneInput);
   const lane = await deps.domain.resolveExactKeyExportLane(laneInput);
-  if (lane.kind === 'relink_required') return lane;
   if (lane.kind !== 'ecdsa') {
     throw new Error(`[key-export] expected an ECDSA lane, received ${lane.kind}`);
   }
