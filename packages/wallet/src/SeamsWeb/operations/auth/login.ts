@@ -7882,7 +7882,7 @@ function localLoginAuthMethod(
   }
 }
 
-export function projectLocalLoginAuthMethods(
+function projectLocalLoginAuthMethods(
   projections: readonly LocalWalletAuthMethodProjectionV2[],
 ): LocalLoginAuthMethod[] {
   const methods: LocalLoginAuthMethod[] = [];
