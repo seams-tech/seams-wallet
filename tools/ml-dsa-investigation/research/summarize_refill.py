@@ -76,15 +76,23 @@ def summarize(client, traces, versions, target_groups):
         final = None
     horizon = final["at_ms"] if final else end
     inventories = [item for item in inventories if item["at_ms"] <= horizon]
-    publications = [item for item in publications if item["at_ms"] <= horizon]
+    publications = [item for item in publications if item["at_ms"] <= horizon + 90000]
     observed_batch_ids = set()
     for snapshot in inventories:
         for state in ["ready", "reserved"]:
             observed_batch_ids.update(snapshot[state + "_a"])
             observed_batch_ids.update(snapshot[state + "_b"])
-    unmatched_publications = [item for item in publications if item["batch"] not in observed_batch_ids]
-    publications = [item for item in publications if item["batch"] in observed_batch_ids]
-    by_batch = {item["batch"]: item for item in publications if item["published"]}
+    unmatched_publications = []
+    matched_publications = []
+    for item in publications:
+        ids = item.get("batches", [item["batch"]])
+        if any(batch in observed_batch_ids for batch in ids):
+            matched_publications.append(item)
+        else:
+            unmatched_publications.append(item)
+    publications = matched_publications
+    by_batch = {batch: item for item in publications if item["published"]
+                for batch in item.get("batches", [item["batch"]]) if batch in observed_batch_ids}
     consumed = []
     seen_operations = set()
     for record in traces:
@@ -119,9 +127,11 @@ def summarize(client, traces, versions, target_groups):
     for record in traces:
         job = record.get("refill_job")
         if job and job["key"] == key_digest and job["epoch"] == client["key"]["epoch"]:
-            if record["event_timestamp_ms"] < start and job["batch"] in paired_observed:
-                initial_ids.add(job["batch"])
-                initially_in_flight.append(job["batch"])
+            if record["event_timestamp_ms"] < start:
+                for batch in job.get("batches", [job["batch"]]):
+                    if batch in paired_observed:
+                        initial_ids.add(batch)
+                        initially_in_flight.append(batch)
     remaining = initial_ids.copy()
     depleted_at = start if not remaining else None
     all_consumed = set()
@@ -168,7 +178,8 @@ def summarize(client, traces, versions, target_groups):
         "final_observed_stock": final,
         "initial_ids_including_prestarted_producers": sorted(initial_ids),
         "prestarted_producer_batch_ids": sorted(set(initially_in_flight)),
-        "paired_publications": list(by_batch.values()),
+        "paired_publications": [{"batch": batch, "producer_job": item["batch"], "at_ms": item["at_ms"]}
+                                for batch, item in by_batch.items()],
         "new_paired_batch_ids_observed": sorted(inferred_publications),
         "missing_publication_completion_records": sorted(inferred_publications - set(by_batch)),
         "unexplained_arrival_ids": sorted(unexplained_arrivals) if unexplained_arrivals is not None else None,
@@ -187,7 +198,7 @@ def summarize(client, traces, versions, target_groups):
                                "end_ms": end,
                                "includes_trailing_failed_or_unknown_requests": True,
                                "signatures_per_minute": successes_after * 60000 / duration_after if duration_after > 0 else None},
-        "paired_batch_wall_ms": distribution([item["elapsed_ms"] for item in by_batch.values()]),
+        "preparation_job_clock_delta_ms": distribution([item["elapsed_ms"] for item in publications if item["published"]]),
         "matched_producer_invocation_cpu_ms": role_cpu,
         "producer_queue_invocation_cpu_ms": distribution([record["cpu_ms"] for record in traces
             if queued_dispatch and record["role"] == "preparer-a" and record["path"] == "/router-ab/ml-dsa/prepare"

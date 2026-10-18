@@ -167,7 +167,8 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
             serde_json::json!({
                 "event": "ml_dsa_refill_completed_v1", "batch": hex(&terminal.job().batch),
                 "published": published, "elapsed_ms": elapsed,
-                "candidates": policy(&self.env).map_err(protocol_error)?.candidate_group_size(),
+                "candidates": usize::from(policy(&self.env).map_err(protocol_error)?.candidate_group_size()) * terminal.job().groups.count(),
+                "batches": terminal.job().batch_ids().iter().map(|id| hex(id)).collect::<Vec<_>>(),
             })
         );
         self.settle(&terminal).await
@@ -199,7 +200,7 @@ impl RouterAbMlDsaProducerDurableObject {
 async fn paired_publication(env: &Env, job: &refill::Job) -> Result<bool> {
     let command = RoleCommand::Inspect {
         key: job.key.clone(),
-        batches: vec![job.batch],
+        batches: job.batch_ids(),
     };
     let (a, b) = futures::join!(
         local_call(env, &command),
@@ -213,14 +214,20 @@ async fn paired_publication(env: &Env, job: &refill::Job) -> Result<bool> {
     let b = b?;
     // Ready/reserved records prove publication. Retired also covers missing-key
     // and burned records, so it cannot establish this early-release condition.
-    Ok(publication_present(&a) && publication_present(&b))
+    Ok(a.len() == job.groups.count()
+        && b.len() == job.groups.count()
+        && publication_present(&a)
+        && publication_present(&b))
 }
 
 fn publication_present(states: &[pool::BatchAvailability]) -> bool {
-    matches!(
-        states,
-        [pool::BatchAvailability::Ready | pool::BatchAvailability::Reserved]
-    )
+    !states.is_empty()
+        && states.iter().all(|state| {
+            matches!(
+                state,
+                pool::BatchAvailability::Ready | pool::BatchAvailability::Reserved
+            )
+        })
 }
 
 fn log_recovery(job: &refill::Job, stage: &str) {

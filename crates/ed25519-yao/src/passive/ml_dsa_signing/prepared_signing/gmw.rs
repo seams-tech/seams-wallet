@@ -84,27 +84,79 @@ pub async fn prepare_gmw_reservation<'a>(
     topologies: &mut PublicTopologies,
     transport: &mut impl BooleanTransport,
 ) -> Result<PreparedGmwReservation<'a>> {
-    if candidates == 0 || candidates > 32 {
+    let mut prepared =
+        prepare_gmw_reservations(role, &[id], candidates, schedules, topologies, transport).await?;
+    prepared.pop().ok_or(SigningError::CircuitOutput)
+}
+
+/// Prepares independent reservations with disjoint segments of one fresh stream.
+/// The ordered IDs and candidate width bind the complete session on both roles.
+/// Each returned reservation has its own nonce shares and single-use correlations.
+pub async fn prepare_gmw_reservations<'a>(
+    role: SigningRole,
+    ids: &[[u8; 32]],
+    candidates: u16,
+    schedules: &'a [TrustedMlDsaSchedule<'a>],
+    topologies: &mut PublicTopologies,
+    transport: &mut impl BooleanTransport,
+) -> Result<Vec<PreparedGmwReservation<'a>>> {
+    if ids.is_empty()
+        || ids.len() > 2
+        || candidates == 0
+        || usize::from(candidates) * ids.len() > 32
+        || (ids.len() == 2 && ids[0] == ids[1])
+    {
         return Err(SigningError::AttemptLimit);
     }
-    let count = usize::from(candidates);
     let mut circuit_set = Vec::with_capacity(schedules.len() * 32);
     for schedule in schedules {
         circuit_set.extend_from_slice(&schedule.schedule_digest());
     }
+    let ordered_ids: Vec<u8> = ids.iter().flatten().copied().collect();
     let correlation_binding: [u8; 32] = shake256(&[
-        b"seams/ml-dsa/gmw-generic-preparation/v1",
-        &id,
+        b"seams/ml-dsa/gmw-grouped-preparation/v1",
+        &ordered_ids,
         &candidates.to_le_bytes(),
         &circuit_set,
     ]);
     let mut correlations = CorrelationStream::new(role, correlation_binding);
+    let mut reservations = Vec::with_capacity(ids.len());
+    for id in ids {
+        let binding = shake256(&[&correlation_binding, id]);
+        reservations.push(
+            prepare_reservation(
+                role,
+                *id,
+                candidates,
+                &binding,
+                schedules,
+                &mut correlations,
+                topologies,
+                transport,
+            )
+            .await?,
+        );
+    }
+    Ok(reservations)
+}
+
+async fn prepare_reservation<'a>(
+    role: SigningRole,
+    id: [u8; 32],
+    candidates: u16,
+    correlation_binding: &[u8; 32],
+    schedules: &'a [TrustedMlDsaSchedule<'a>],
+    correlations: &mut CorrelationStream,
+    topologies: &mut PublicTopologies,
+    transport: &mut impl BooleanTransport,
+) -> Result<PreparedGmwReservation<'a>> {
+    let count = usize::from(candidates);
     let (values, masks) = nonce::prepare_masks(
         role,
         count,
-        &correlation_binding,
+        correlation_binding,
         schedules,
-        &mut correlations,
+        correlations,
         topologies,
         transport,
     )
@@ -113,37 +165,25 @@ pub async fn prepare_gmw_reservation<'a>(
     let commitments = prepare_batch(
         role,
         &commitment_schedules,
-        &mut correlations,
+        correlations,
         topologies,
         transport,
     )
     .await
     .map_err(runtime_error)?;
     let hash_schedules = vec![schedule(schedules, 0x8d)?; count];
-    let hashes = prepare_batch(
-        role,
-        &hash_schedules,
-        &mut correlations,
-        topologies,
-        transport,
-    )
-    .await
-    .map_err(runtime_error)?;
+    let hashes = prepare_batch(role, &hash_schedules, correlations, topologies, transport)
+        .await
+        .map_err(runtime_error)?;
     let bound_schedules = bound_schedules(count, schedules)?;
-    let bounds = prepare_batch(
-        role,
-        &bound_schedules,
-        &mut correlations,
-        topologies,
-        transport,
-    )
-    .await
-    .map_err(runtime_error)?;
+    let bounds = prepare_batch(role, &bound_schedules, correlations, topologies, transport)
+        .await
+        .map_err(runtime_error)?;
     let decision_schedules = vec![schedule(schedules, 0x98)?; count];
     let decisions = prepare_batch(
         role,
         &decision_schedules,
-        &mut correlations,
+        correlations,
         topologies,
         transport,
     )

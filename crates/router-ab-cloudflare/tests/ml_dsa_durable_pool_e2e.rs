@@ -277,7 +277,11 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     )
     .unwrap();
     assert!(matches!(
-        tx(&router, m::refill::claim(&router, key.clone(), 1_005)).unwrap(),
+        tx(
+            &router,
+            m::refill::claim(&router, key.clone(), m::refill::Groups::One, 1_005)
+        )
+        .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
     let mut changed_settlement = first.clone();
@@ -299,7 +303,11 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     tx(&router, admission::settled(&router, &first)).unwrap();
     let m::refill::Claim::Acquired {
         job: after_settlement,
-    } = tx(&router, m::refill::claim(&router, key.clone(), 1_006)).unwrap()
+    } = tx(
+        &router,
+        m::refill::claim(&router, key.clone(), m::refill::Groups::One, 1_006),
+    )
+    .unwrap()
     else {
         panic!("Settlement did not release refill");
     };
@@ -373,7 +381,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             ..
         }
     ));
-    let configured=Policy::parse(r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":300000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":8,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
+    let configured=Policy::parse(r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":300000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":8,"preparation_group_size":8,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
     let next = claim(&router, &configured, request(&key, 5), 61_006);
     let long = match tx(
         &router,
@@ -400,7 +408,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             retry_at_ms: 361_007
         }
     ));
-    let disabled=Policy::parse(r#"{"wallet_cooldown":{"mode":"disabled"},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":8,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
+    let disabled=Policy::parse(r#"{"wallet_cooldown":{"mode":"disabled"},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":8,"preparation_group_size":8,"minimum_ready_batches":2,"refill_target_batches":10}"#).unwrap();
     assert!(matches!(
         tx(
             &router,
@@ -702,7 +710,12 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     assert!(matches!(
         tx(
             &router,
-            m::refill::claim(&router, verified_request.key.clone(), 500_004)
+            m::refill::claim(
+                &router,
+                verified_request.key.clone(),
+                m::refill::Groups::One,
+                500_004
+            )
         )
         .unwrap(),
         m::refill::Claim::Busy { .. }
@@ -742,7 +755,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     .unwrap();
     let m::refill::Claim::Acquired { job } = tx(
         &router,
-        m::refill::claim(&router, refill_key.clone(), 600_000),
+        m::refill::claim(&router, refill_key.clone(), m::refill::Groups::One, 600_000),
     )
     .unwrap() else {
         panic!("Missing preprocessing lease")
@@ -750,7 +763,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     assert!(matches!(
         tx(
             &router,
-            m::refill::claim(&router, refill_key.clone(), 600_001)
+            m::refill::claim(&router, refill_key.clone(), m::refill::Groups::One, 600_001)
         )
         .unwrap(),
         m::refill::Claim::Busy { .. }
@@ -786,33 +799,70 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     assert!(!tx(&router, m::refill::check(&router, &job, job.expires_at_ms)).unwrap());
     let m::refill::Claim::Acquired { job: replacement } = tx(
         &router,
-        m::refill::claim(&router, refill_key, job.expires_at_ms),
+        m::refill::claim(
+            &router,
+            refill_key,
+            m::refill::Groups::Two,
+            job.expires_at_ms,
+        ),
     )
     .unwrap() else {
         panic!("Lease expiry did not release capacity")
     };
     assert_ne!(job.batch, replacement.batch);
-    let mut fresh_binding = binding(&replacement.key, Participant::A, 2);
-    fresh_binding.batch = replacement.batch;
-    fresh_binding.expires_at_ms = replacement.material_expires_at_ms;
-    let fresh_sealed =
-        sealing::seal(Zeroizing::new(vec![8; 100_000]), &fresh_binding, &[1; 32]).unwrap();
     tx(
         &refill_store,
         m::refill::start_role(&refill_store, &replacement, job.expires_at_ms),
     )
     .unwrap();
-    tx(
-        &refill_store,
-        m::refill::publish_role(
+    let pair_ids = replacement.batch_ids();
+    assert_eq!(pair_ids.len(), 2);
+    assert_ne!(pair_ids[0], pair_ids[1]);
+    for id in &pair_ids {
+        let mut fresh_binding = binding(&replacement.key, Participant::A, 2);
+        fresh_binding.batch = *id;
+        fresh_binding.expires_at_ms = replacement.material_expires_at_ms;
+        let fresh_sealed =
+            sealing::seal(Zeroizing::new(vec![8; 100_000]), &fresh_binding, &[1; 32]).unwrap();
+        tx(
             &refill_store,
-            &replacement,
-            fresh_binding,
-            fresh_sealed,
-            job.expires_at_ms + 1,
+            m::refill::publish_role(
+                &refill_store,
+                &replacement,
+                fresh_binding.clone(),
+                fresh_sealed,
+                job.expires_at_ms + 1,
+            ),
+        )
+        .unwrap();
+        let duplicate_sealed =
+            sealing::seal(Zeroizing::new(vec![8; 100_000]), &fresh_binding, &[1; 32]).unwrap();
+        assert!(tx(
+            &refill_store,
+            m::refill::publish_role(
+                &refill_store,
+                &replacement,
+                fresh_binding,
+                duplicate_sealed,
+                job.expires_at_ms + 2,
+            )
+        )
+        .is_err());
+    }
+    let prepared_inventory = tx(
+        &refill_store,
+        pool::inventory(
+            &refill_store,
+            &replacement.key,
+            2,
+            job.expires_at_ms + 3,
+            job.expires_at_ms + 30_000,
         ),
     )
     .unwrap();
+    assert!(pair_ids
+        .iter()
+        .all(|id| prepared_inventory.ready.contains(id)));
 
     tx(&router, m::refill::finish(&router, &job)).unwrap();
     assert!(tx(
@@ -830,7 +880,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
         "policy": policy,
         "refill_fairness": refill_fairness,
-        "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"expired_preprocessing_uses_fresh_id":true,"expired_producer_publication_rejected":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
+        "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"paired_publication_has_distinct_single_use_records":true,"expired_preprocessing_uses_fresh_id":true,"expired_producer_publication_rejected":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,"prior_aes_suite_rejected":true,
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,
@@ -855,13 +905,21 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     let first = refill_turn(&router, &a, 1_000);
     for now in 1_001..1_006 {
         assert!(matches!(
-            tx(&router, m::refill::claim(&router, a.clone(), now)).unwrap(),
+            tx(
+                &router,
+                m::refill::claim(&router, a.clone(), m::refill::Groups::One, now)
+            )
+            .unwrap(),
             m::refill::Claim::Busy { .. }
         ));
     }
     for (key, now) in [(&b, 1_006), (&c, 1_007), (&b, 1_008)] {
         assert!(matches!(
-            tx(&router, m::refill::claim(&router, key.clone(), now)).unwrap(),
+            tx(
+                &router,
+                m::refill::claim(&router, key.clone(), m::refill::Groups::One, now)
+            )
+            .unwrap(),
             m::refill::Claim::Busy { .. }
         ));
     }
@@ -869,7 +927,11 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     let router = Db::open(&path);
     tx(&router, m::refill::finish(&router, &first)).unwrap();
     assert!(matches!(
-        tx(&router, m::refill::claim(&router, a.clone(), 1_009)).unwrap(),
+        tx(
+            &router,
+            m::refill::claim(&router, a.clone(), m::refill::Groups::One, 1_009)
+        )
+        .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
     let second = refill_turn(&router, &b, 1_010);
@@ -878,12 +940,20 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert!(tx(&router, m::refill::check(&router, &second, 1_011)).unwrap());
     tx(&router, m::refill::finish(&router, &second)).unwrap();
     assert!(matches!(
-        tx(&router, m::refill::claim(&router, b.clone(), 1_012)).unwrap(),
+        tx(
+            &router,
+            m::refill::claim(&router, b.clone(), m::refill::Groups::One, 1_012)
+        )
+        .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
     let third = refill_turn(&router, &a, 1_013);
     assert!(matches!(
-        tx(&router, m::refill::claim(&router, c.clone(), 1_014)).unwrap(),
+        tx(
+            &router,
+            m::refill::claim(&router, c.clone(), m::refill::Groups::One, 1_014)
+        )
+        .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
 
@@ -893,7 +963,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert!(matches!(
         tx(
             &router,
-            m::refill::claim(&router, recovered_b.clone(), 1_015)
+            m::refill::claim(&router, recovered_b.clone(), m::refill::Groups::One, 1_015)
         )
         .unwrap(),
         m::refill::Claim::Busy { .. }
@@ -917,14 +987,18 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     let fourth = refill_turn(&router, &recovered_b, 1_016);
     assert_eq!(fourth.key.epoch, 2);
     assert!(matches!(
-        tx(&router, m::refill::claim(&router, a.clone(), 1_017)).unwrap(),
+        tx(
+            &router,
+            m::refill::claim(&router, a.clone(), m::refill::Groups::One, 1_017)
+        )
+        .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
     activate(&router, &installing_c);
     assert!(matches!(
         tx(
             &router,
-            m::refill::claim(&router, installing_c.clone(), 1_018)
+            m::refill::claim(&router, installing_c.clone(), m::refill::Groups::One, 1_018)
         )
         .unwrap(),
         m::refill::Claim::Busy { .. }
@@ -932,7 +1006,12 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert!(matches!(
         tx(
             &router,
-            m::refill::claim(&router, installing_c.clone(), 30_000)
+            m::refill::claim(
+                &router,
+                installing_c.clone(),
+                m::refill::Groups::One,
+                30_000
+            )
         )
         .unwrap(),
         m::refill::Claim::Busy { .. }
@@ -946,7 +1025,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
         assert!(matches!(
             tx(
                 &router,
-                m::refill::claim(&router, key.clone(), 32_001 + index)
+                m::refill::claim(&router, key.clone(), m::refill::Groups::One, 32_001 + index)
             )
             .unwrap(),
             m::refill::Claim::Busy { .. }
@@ -982,7 +1061,12 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
 }
 
 fn refill_turn(router: &Db, key: &KeyScope, now: u64) -> m::refill::Job {
-    match tx(router, m::refill::claim(router, key.clone(), now)).unwrap() {
+    match tx(
+        router,
+        m::refill::claim(router, key.clone(), m::refill::Groups::One, now),
+    )
+    .unwrap()
+    {
         m::refill::Claim::Acquired { job } => job,
         other => panic!("The queued refill turn was not granted: {other:?}"),
     }
@@ -1065,7 +1149,11 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     let refill_key = key("registration-refill");
     activate(&db, &refill_key);
     assert!(matches!(
-        tx(&db, m::refill::claim(&db, refill_key, 107)).unwrap(),
+        tx(
+            &db,
+            m::refill::claim(&db, refill_key, m::refill::Groups::One, 107)
+        )
+        .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
     let next = tx(

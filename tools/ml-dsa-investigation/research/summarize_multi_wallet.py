@@ -22,10 +22,12 @@ def batch_scopes(records):
                     add_scope(scopes, batch, scope)
         job = record["refill_job"]
         if job:
-            add_scope(scopes, job["batch"], (job["key"], job["epoch"]))
+            for batch in job.get("batches", [job["batch"]]):
+                add_scope(scopes, batch, (job["key"], job["epoch"]))
         for claim in record.get("refill_claims", []):
             if claim["status"] == "acquired":
-                add_scope(scopes, claim["batch"], (claim["key"], claim["epoch"]))
+                for batch in claim.get("batches", [claim["batch"]]):
+                    add_scope(scopes, batch, (claim["key"], claim["epoch"]))
     return scopes
 
 

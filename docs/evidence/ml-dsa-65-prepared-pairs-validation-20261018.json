@@ -1,0 +1,112 @@
+{
+  "schema": "seams.ml-dsa-prepared-pairs-validation.v1",
+  "native_and_local_functional_checks_passed": true,
+  "hosted_canonical_registration_checks_passed": true,
+  "hosted_load_signature_verification_passed": true,
+  "all_hosted_startup_signatures_succeeded": false,
+  "online_target_met": false,
+  "preparation_saving_established": false,
+  "default_consumption_width": 4,
+  "independent_signature_replay_count": 52,
+  "canonical_creation_and_recovery_ceremonies": 8,
+  "native_pairs_consumed_once": 20,
+  "hosted_pairs_consumed_once": 89,
+  "hosted_retention_jobs_across_messages": 11,
+  "credential_scan_passed": true,
+  "bloat_gate": {
+    "passed": false,
+    "inherited_counts_unchanged": true,
+    "rust_duplicate_lines": 13984,
+    "rust_baseline": 13754,
+    "typescript_duplicate_lines": 10238,
+    "typescript_baseline": 10216
+  },
+  "worker_cleanup": [
+    {
+      "role": "preparer-a",
+      "worker": "ml-dsa-pairs-1018-fd5600-g4-preparer-a",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:12:06.313694+00:00"
+    },
+    {
+      "role": "preparer-b",
+      "worker": "ml-dsa-pairs-1018-fd5600-g4-preparer-b",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:12:07.681603+00:00"
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-pairs-1018-fd5600-g4-a",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:12:09.041957+00:00"
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-pairs-1018-fd5600-g4-b",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:12:10.383634+00:00"
+    },
+    {
+      "role": "router",
+      "worker": "ml-dsa-pairs-1018-fd5600-g4-router",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:12:11.732196+00:00"
+    },
+    {
+      "role": "preparer-a",
+      "worker": "ml-dsa-pairs-1018-fd5600-g2-preparer-a",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:33:39.441154+00:00"
+    },
+    {
+      "role": "preparer-b",
+      "worker": "ml-dsa-pairs-1018-fd5600-g2-preparer-b",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:33:40.769022+00:00"
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-pairs-1018-fd5600-g2-a",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:33:42.155908+00:00"
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-pairs-1018-fd5600-g2-b",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:33:43.519652+00:00"
+    },
+    {
+      "role": "router",
+      "worker": "ml-dsa-pairs-1018-fd5600-g2-router",
+      "exit_code": 0,
+      "finished_at": "2026-10-18T02:33:44.856389+00:00"
+    }
+  ],
+  "local_private_cleanup_complete": true,
+  "artifacts": {
+    "docs/evidence/ml-dsa-65-prepared-pairs-comparison-20261018.json": {
+      "sha256": "5ebfab372c2727c2da77716ab262406cb3b376470d430172ccfb5684b4371fdb",
+      "bytes": 88299
+    },
+    "docs/evidence/ml-dsa-65-prepared-pairs-hosted-20261018.json.gz": {
+      "sha256": "50206ccd55ba6f932524d2328345b6c6a233b09cc4445b3011bb629bb7bc2694",
+      "bytes": 778822
+    },
+    "docs/evidence/ml-dsa-65-prepared-pairs-local-20261018.json.gz": {
+      "sha256": "e5e95e30ce92f7f2ff6e0f71323ced719ce1da636297a257e34d61486e7a9cfa",
+      "bytes": 153068
+    },
+    "docs/evidence/ml-dsa-65-prepared-pairs-provenance-20261018.json.gz": {
+      "sha256": "98d8fcc60467daeb393eb53e8f2274952d7933ed5570c9e38d2f2cc224dae0de",
+      "bytes": 83849
+    }
+  },
+  "limits": [
+    "Baseline startup includes an exhausted signing operation.",
+    "Baseline material-ID accounting remains incomplete.",
+    "Both captured producer totals include unattributed canceled alarms.",
+    "One sequential screen per profile does not establish production percentiles or causal speed differences."
+  ],
+  "cleanup_scope": "Owned campaign directory: benchmark credentials, role fixtures, raw traces, temporary builds, and logs. Frozen public evidence remains in the repository."
+}

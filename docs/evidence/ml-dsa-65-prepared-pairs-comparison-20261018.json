@@ -1,0 +1,1992 @@
+{
+  "schema": "seams.ml-dsa-prepared-pairs-comparison.v1",
+  "scope": "Same frozen binaries; two wallets per profile; 32 candidates per wallet; 16-candidate admission. Sequential hosted screens with independent deployments. CPU and placement variation remain uncontrolled. Starting and final reserves must balance. No production percentile claim.",
+  "profiles": [
+    {
+      "group_size": 4,
+      "preparation_group_size": 4,
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 4,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 4,
+        "refill_target_batches": 8
+      },
+      "wallets": 2,
+      "client_sha256": "4a51059d004d463dd1ceec80450ed5cebddf5ff2dd7b7d42f334b8d3064aab80",
+      "traces_sha256": "95ef7edcad1a2997473f2af4d9f56ad1032646a34a8d369708f18632d51af638",
+      "versions": {
+        "router": "a19cd136-45ce-45ea-ab89-364403ed6101",
+        "a": "a37d0c28-4839-41b2-846b-14f1d3af5a8b",
+        "b": "18a9cd5c-06bd-412c-8598-9250b239da79",
+        "preparer-a": "28ca60a9-3800-4ac5-8ef8-51e10bd8a7ba",
+        "preparer-b": "fe772f93-f0ac-4d00-8583-86bf6b020bc7"
+      },
+      "successful_signatures": 26,
+      "online_http_ms": {
+        "count": 26,
+        "minimum": 1093.3467499999097,
+        "median": 2197.647187499999,
+        "maximum": 7038.506708,
+        "sum": 64307.67712000005
+      },
+      "online_http_by_consumed_groups": {
+        "1": {
+          "count": 12,
+          "minimum": 1093.3467499999097,
+          "median": 1278.139916500004,
+          "maximum": 5578.302375000001,
+          "sum": 22065.608081
+        },
+        "2": {
+          "count": 9,
+          "minimum": 1933.6646670000046,
+          "median": 2327.516915999993,
+          "maximum": 7038.506708,
+          "sum": 27292.59816499999
+        },
+        "3": {
+          "count": 3,
+          "minimum": 2715.0896250000224,
+          "median": 2732.3124580000294,
+          "maximum": 3153.242207999998,
+          "sum": 8600.64429100005
+        },
+        "4": {
+          "count": 1,
+          "minimum": 3891.8130830000155,
+          "median": 3891.8130830000155,
+          "maximum": 3891.8130830000155,
+          "sum": 3891.8130830000155
+        }
+      },
+      "online_under_five_seconds": 24,
+      "pending_operation_responses": 0,
+      "complete_demand_ms": {
+        "count": 26,
+        "minimum": 3054.685958,
+        "median": 37917.6152705,
+        "maximum": 113863.70841599995,
+        "sum": 1067863.4168709998
+      },
+      "failed_operations": 0,
+      "duplicate_requests": [
+        {
+          "wallet": 0,
+          "operation": [
+            94,
+            220,
+            192,
+            155,
+            199,
+            164,
+            69,
+            147,
+            68,
+            239,
+            51,
+            105,
+            122,
+            86,
+            82,
+            255,
+            183,
+            106,
+            141,
+            118,
+            82,
+            142,
+            243,
+            164,
+            122,
+            194,
+            127,
+            82,
+            97,
+            114,
+            128,
+            113
+          ],
+          "startMs": 7043.343333,
+          "httpStatus": 200,
+          "elapsedMs": 1162.64775,
+          "status": "existing",
+          "state": "succeeded",
+          "sameSignature": true
+        },
+        {
+          "wallet": 1,
+          "operation": [
+            127,
+            161,
+            75,
+            40,
+            153,
+            30,
+            5,
+            21,
+            26,
+            138,
+            225,
+            13,
+            85,
+            164,
+            35,
+            28,
+            216,
+            160,
+            178,
+            252,
+            135,
+            138,
+            181,
+            203,
+            19,
+            203,
+            140,
+            20,
+            224,
+            17,
+            208,
+            230
+          ],
+          "startMs": 8109.431125,
+          "httpStatus": 200,
+          "elapsedMs": 164.98091600000043,
+          "status": "existing",
+          "state": "succeeded",
+          "sameSignature": true
+        }
+      ],
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 14,
+          "startMs": 493037.683541,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 106974.98095900007
+        },
+        {
+          "wallet": 1,
+          "number": 14,
+          "startMs": 576235.114041,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 23766.699083999963
+        }
+      ],
+      "initial_excluded_groups": 16,
+      "initial_excluded_candidates": 64,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 43,
+      "identified_consumed_candidates": 172,
+      "unknown_consumption_operations": [
+        "eefa5c573a52a65d40212d8b1d860ed95f48704a3924cf2321a278f2d521e618"
+      ],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "common_post_initial_stock": {
+        "start_ms": 1792288800195.185,
+        "elapsed_ms": 511537.49951171875,
+        "observed_new_paired_batches": 29,
+        "successful_signatures": 16,
+        "paired_batches_per_minute": 3.4015101564614394,
+        "successful_signatures_per_minute": 1.876695258737346
+      },
+      "material_identity_balance_complete": false,
+      "full_reserve_restoration_ms": 182151.3154296875,
+      "balanced_cycle_ms_per_verified_signature": null,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 45,
+        "fresh_paired_candidates": 180,
+        "completed_job_invocation_wall_ms": {
+          "count": 44,
+          "minimum": 8968,
+          "median": 11964.0,
+          "maximum": 22736,
+          "sum": 608045
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 44,
+          "minimum": 8968.0,
+          "median": 11964.0,
+          "maximum": 22736.0,
+          "sum": 608045.0
+        },
+        "completed_job_count": 44,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "4": {
+            "count": 44,
+            "minimum": 8968,
+            "median": 11964.0,
+            "maximum": 22736,
+            "sum": 608045
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [
+          "b95eb7dcb84bb7573442046f7d8110018cf97a8023a8f548389c1c401df1f699"
+        ],
+        "unknown_producer_invocations": 45,
+        "captured_producer_invocation_wall_ms": 625705,
+        "captured_invocation_ms_per_verified_signature": 24065.576923076922,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 180,
+            "minimum": 0,
+            "median": 2.0,
+            "maximum": 10853,
+            "sum": 289985
+          },
+          "preparer-b": {
+            "count": 45,
+            "minimum": 4149,
+            "median": 6179,
+            "maximum": 10867,
+            "sum": 296684
+          }
+        }
+      },
+      "fully_measured_fresh_demands": {
+        "scope": "Only successful logical demands whose consumed groups all have matched producer-invocation wall measurements and none came from starting stock. Includes earlier exhausted operations within each demand. This subset excludes unassigned preparation failures and is not the total service cost.",
+        "producer_invocation_wall_ms": {
+          "count": 15,
+          "minimum": 9009.0,
+          "median": 19853.0,
+          "maximum": 72686.0,
+          "sum": 358514.0
+        },
+        "demands": [
+          {
+            "wallet": 0,
+            "demand": 6,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 10668.0
+          },
+          {
+            "wallet": 0,
+            "demand": 7,
+            "groups": 2,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 19411.0
+          },
+          {
+            "wallet": 1,
+            "demand": 7,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 9882.0
+          },
+          {
+            "wallet": 0,
+            "demand": 8,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 9009.0
+          },
+          {
+            "wallet": 1,
+            "demand": 8,
+            "groups": 2,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 19853.0
+          },
+          {
+            "wallet": 0,
+            "demand": 9,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 20922.0
+          },
+          {
+            "wallet": 0,
+            "demand": 10,
+            "groups": 2,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 23386.0
+          },
+          {
+            "wallet": 1,
+            "demand": 9,
+            "groups": 2,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 31513.0
+          },
+          {
+            "wallet": 0,
+            "demand": 11,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 9710.0
+          },
+          {
+            "wallet": 1,
+            "demand": 10,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 17546.0
+          },
+          {
+            "wallet": 0,
+            "demand": 12,
+            "groups": 3,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 33174.0
+          },
+          {
+            "wallet": 1,
+            "demand": 11,
+            "groups": 2,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 28055.0
+          },
+          {
+            "wallet": 1,
+            "demand": 12,
+            "groups": 3,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 36083.0
+          },
+          {
+            "wallet": 0,
+            "demand": 13,
+            "groups": 4,
+            "candidates": 16,
+            "producer_invocation_wall_ms": 72686.0
+          },
+          {
+            "wallet": 1,
+            "demand": 13,
+            "groups": 1,
+            "candidates": 4,
+            "producer_invocation_wall_ms": 16616.0
+          }
+        ]
+      },
+      "online_target_met_in_screen": false,
+      "hosted_pairs_used_on_distinct_successful_messages": [],
+      "all_captured_preparation_job_sizes": {
+        "4": 61
+      },
+      "registration": [
+        {
+          "wallet": 1,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": false,
+          "cases": [
+            {
+              "epoch": 1,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-1"
+                },
+                "key_id": "near",
+                "epoch": 1,
+                "public_key_digest": [
+                  214,
+                  158,
+                  172,
+                  72,
+                  197,
+                  91,
+                  171,
+                  71,
+                  190,
+                  25,
+                  74,
+                  224,
+                  251,
+                  138,
+                  138,
+                  173,
+                  63,
+                  145,
+                  177,
+                  186,
+                  236,
+                  14,
+                  97,
+                  223,
+                  244,
+                  164,
+                  30,
+                  94,
+                  66,
+                  28,
+                  40,
+                  211
+                ],
+                "schedule_digest": [
+                  230,
+                  52,
+                  117,
+                  210,
+                  112,
+                  127,
+                  208,
+                  210,
+                  224,
+                  191,
+                  237,
+                  21,
+                  154,
+                  253,
+                  77,
+                  85,
+                  108,
+                  201,
+                  96,
+                  239,
+                  154,
+                  22,
+                  253,
+                  56,
+                  51,
+                  248,
+                  99,
+                  233,
+                  32,
+                  72,
+                  110,
+                  67
+                ]
+              },
+              "preparationMs": 77764.995958,
+              "initialSigningBatches": 4,
+              "serverResponseMs": 4208.407999999996,
+              "registrationWithClientVerificationMs": 4211.5353329999925,
+              "underFiveSeconds": true,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2633.4884579999925,
+                "operation": [
+                  87,
+                  59,
+                  76,
+                  164,
+                  100,
+                  20,
+                  63,
+                  19,
+                  45,
+                  124,
+                  84,
+                  23,
+                  19,
+                  11,
+                  225,
+                  195,
+                  50,
+                  187,
+                  216,
+                  22,
+                  12,
+                  218,
+                  101,
+                  73,
+                  168,
+                  122,
+                  104,
+                  69,
+                  66,
+                  240,
+                  24,
+                  232
+                ]
+              },
+              "publicKeyHex": "fef3a4d9f07f217296fb3bdda98529dd3e48200ea2efc55987515201a43707f618bcafad5aacfa06028d29c06119e88bba5e3df1a0508fb952989cbbc51643afc3bc05d1f23a28320b8a95adcdabcdcfd24be56391d577576aac46f0062bccad72c5284a4053b01091c4b8c88d797df1ac2c3e8fbd0db89931867836ef7837802b4ff45e4d7715eab7cee964b0ffa501abbd3ccf19fc8e86aa508927f39b7140770a52f69a4987e56f34445a0e8cf158c53769f77c5c8d7d1be63939dffff9e9935d61077b38133032b893b38ce332318a75c2bb7bb909e29f4ae5d9818f3136adeaae8caf1f5a317bd2cbf1453f9c2b6d18a9a0b1f2e757f42466c3a0d53d01b28551083a9ac82345c2583e2e2fd7f9b4ab07eef7cc7e187040ccd05edf7decc143510edbe9649345ff57309c72590404f20bd8831a7f993b88951d3320ecebd4210db943867a621e9ea8fe88dd927204dcd8d9194e48af7fd558ff72eb10b5c5fdc7a1929ac72737b4a7e5c57a8425f2cfad1c0f80c43653a8e26accc4d7be8e883c97c87b5838232b11999fb9f99b7de24349d8ad2c553137f104c5318ab547d52fef2d570e512189b074d8aaf9c3a477d7cfb19bdbe626fbb338cef103ce4ca302cf37bee9e641339954dade3107b0c3819419d7413f319eca56c53a88f2c06ee1ca75cda6ec81f00a5612db4cb55d26a5517eadf2783560eaa06b20df605d83430e0a244a7c2ad2245e014fd594ab511404aadbc17639744d8820f5f8630848114f3ecfd8cfdbf589ba48396f076a64e06ea628b79bf3a376e5e579567af91f4219a081eb700282220a9fdd531e40858af8c857276c5a15e7900610123ce0c5b3f539b04bee1f203276d1a760f04185e593531e1b0f33c5eababb5ddf3716addbd21d29cb7d45465fc7e5a433e8ec187ddf47b6d5cce55392b3d86a1f6c14a3c8dfa730ff947f05df681a74458287e4158f70053dc5aea118ec8532248eaaff02ec767e54e1f3276899f7aa4f1f7f8a5154ad8efdc8e66a41303fa13e22e8915b959908d3e9e58426d5c9fbde8e6f4f4678c37a549b64ce8411f3433f35f3ceb7a6502d4c04282d1fa539f32c496c8a7d0ae2cf122175b70678d0ec9c072de93ce03bddc0c815184d1c9f59464611f574ae6bc164942de51f02dc907bccdfd31c43dcaaf04c9b83a86812f50109c90cfc068ac80e83824af781ffaa4414aecf6249412d97ab7e0ace5256e88dad4e73f138d380876aaa61fb5fd1a9f576f7ab8423fc71b3df3e06164f0c543e3ae925a545c73eaa55c9deb4d280e449f741417dc328033ef5427e8cb95c34ea054fbcaf8298a1e5ee4087693825b6a520985535bfbc015d9723c2048bd373251b003d8315c7627826f745582814cbea962a462a26823e6b919133dc05718495a50752ccd8477f695bba891bf788b22fc669a6ba68b0634f9816bf20528512d136526299147b68eea121ac3f78bdf0d1338c698a073fbcbbc8d6986f8909734d68da808f83579437aa9b36232c356ce3ab6c7030214d57277d1ef493b327117a24b9de39c80c674568b05ddcd2ab810943fa73f32586af2b4267439443632a8c67d62966b1d3defb19ecd896b5556bd4de1415c022687feeed8ff6dfee114d5a7800c7e3097469dce6362dca59bc7a9393c15307ee645c9b7b55e6eb4f6e5f0e8841a70d14c5a560fe6447c6720392dd48eac775f9c13634a2d1f4ca6b203010cee04a4a302eccd955ced1bcdda0a04f5601759a73e466dd60363cd23d4c0d540a97de47ec3b9723a8aa6443d4583897c33c8c8b54836442efeba883d5fbfa703cb9b91a1aa56358b9961427b5a8f783499c09cd9a1ec74f17c8fa9c7acf25440a03c255b88dc261092c249e0bc4e770f996c47cf0b18a70d0c973b3d6e2d4be26e743e499322ae34069bce3a05d4a8d8ea40b4aefc9d87aceb5227dc57426945cb06366b4e6e1a0b783c2df852ef99fc4f90851edd8b65dae6c16eeb8564665bc9067f7f898cb0622a9427fe2616a061af0506387807ee5e88310626291105d38245074244278edef281bb2b611e797ce58d9178b7102574edb19976ceef72e2a9a52d5aea48c4d2a29ab7450b70dc2adccf3f67daeb19945e0bf4935a8bbfc1cdfe35b3ca0352cef83b5d1de8452210a0979f265199f854038481005c6a22a805b5d6ed722eb06af1477669c4fae8d4e12846a2cbbde5e79a3bf378d731abb018381a14c32533aaf4a1a40f462539dd2364a6a8cd2676fef3831039ff9831b6c73058900ef3fae7796def97f97d12d6fecb25e2278754fa7f5b726bab3e28987d9bdf8f060915c3c8c81cdbe6cb00156a67767bb9837584fdc39eefd2e604849759eb72715a890360f0bdc6b414af42b691881e449a23ea11f5397d91204dbece8fb16e99f0c444fa9a3e634b07083e7c73fbca6efc37e1cdd87bb769b3d9f23f1094b242b999d0ef2569e7b7cd4da5630bfe0c09e6dd836edd42cb4f44366ecb621282aa13da1fd05df9453a51845c3173821f00004de7c3c1b7b3cb8e537627057a2ee37e0e7970c776dedc72a4cee4bffb76efa55abfb43366ccf3b69e39c455c7f5d071a7f6a6bbd36d600631e647563f15ac5cf14cabd5ec5c99a17b500a5714301b60ecd33ee8e15edf0dd88efd285c3fec921dea3852e4ecaa977f3dc8e59ea7f0b12b34659cf5b22419a53225717bb722a0d1f29a4062b1584c83d83b668eb4bc99635a447e00570df640805"
+            },
+            {
+              "epoch": 2,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-1"
+                },
+                "key_id": "near",
+                "epoch": 2,
+                "public_key_digest": [
+                  214,
+                  158,
+                  172,
+                  72,
+                  197,
+                  91,
+                  171,
+                  71,
+                  190,
+                  25,
+                  74,
+                  224,
+                  251,
+                  138,
+                  138,
+                  173,
+                  63,
+                  145,
+                  177,
+                  186,
+                  236,
+                  14,
+                  97,
+                  223,
+                  244,
+                  164,
+                  30,
+                  94,
+                  66,
+                  28,
+                  40,
+                  211
+                ],
+                "schedule_digest": [
+                  230,
+                  52,
+                  117,
+                  210,
+                  112,
+                  127,
+                  208,
+                  210,
+                  224,
+                  191,
+                  237,
+                  21,
+                  154,
+                  253,
+                  77,
+                  85,
+                  108,
+                  201,
+                  96,
+                  239,
+                  154,
+                  22,
+                  253,
+                  56,
+                  51,
+                  248,
+                  99,
+                  233,
+                  32,
+                  72,
+                  110,
+                  67
+                ]
+              },
+              "preparationMs": 54916.01724999999,
+              "initialSigningBatches": 4,
+              "serverResponseMs": 3736.524207999988,
+              "registrationWithClientVerificationMs": 3737.125624999986,
+              "underFiveSeconds": true,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "failed": true,
+                "elapsedMs": 6355.315917,
+                "operation": [
+                  41,
+                  199,
+                  117,
+                  138,
+                  115,
+                  187,
+                  153,
+                  209,
+                  187,
+                  159,
+                  244,
+                  23,
+                  191,
+                  127,
+                  152,
+                  194,
+                  184,
+                  71,
+                  100,
+                  196,
+                  99,
+                  174,
+                  212,
+                  214,
+                  127,
+                  185,
+                  107,
+                  167,
+                  97,
+                  241,
+                  77,
+                  184
+                ]
+              },
+              "publicKeyHex": "fef3a4d9f07f217296fb3bdda98529dd3e48200ea2efc55987515201a43707f618bcafad5aacfa06028d29c06119e88bba5e3df1a0508fb952989cbbc51643afc3bc05d1f23a28320b8a95adcdabcdcfd24be56391d577576aac46f0062bccad72c5284a4053b01091c4b8c88d797df1ac2c3e8fbd0db89931867836ef7837802b4ff45e4d7715eab7cee964b0ffa501abbd3ccf19fc8e86aa508927f39b7140770a52f69a4987e56f34445a0e8cf158c53769f77c5c8d7d1be63939dffff9e9935d61077b38133032b893b38ce332318a75c2bb7bb909e29f4ae5d9818f3136adeaae8caf1f5a317bd2cbf1453f9c2b6d18a9a0b1f2e757f42466c3a0d53d01b28551083a9ac82345c2583e2e2fd7f9b4ab07eef7cc7e187040ccd05edf7decc143510edbe9649345ff57309c72590404f20bd8831a7f993b88951d3320ecebd4210db943867a621e9ea8fe88dd927204dcd8d9194e48af7fd558ff72eb10b5c5fdc7a1929ac72737b4a7e5c57a8425f2cfad1c0f80c43653a8e26accc4d7be8e883c97c87b5838232b11999fb9f99b7de24349d8ad2c553137f104c5318ab547d52fef2d570e512189b074d8aaf9c3a477d7cfb19bdbe626fbb338cef103ce4ca302cf37bee9e641339954dade3107b0c3819419d7413f319eca56c53a88f2c06ee1ca75cda6ec81f00a5612db4cb55d26a5517eadf2783560eaa06b20df605d83430e0a244a7c2ad2245e014fd594ab511404aadbc17639744d8820f5f8630848114f3ecfd8cfdbf589ba48396f076a64e06ea628b79bf3a376e5e579567af91f4219a081eb700282220a9fdd531e40858af8c857276c5a15e7900610123ce0c5b3f539b04bee1f203276d1a760f04185e593531e1b0f33c5eababb5ddf3716addbd21d29cb7d45465fc7e5a433e8ec187ddf47b6d5cce55392b3d86a1f6c14a3c8dfa730ff947f05df681a74458287e4158f70053dc5aea118ec8532248eaaff02ec767e54e1f3276899f7aa4f1f7f8a5154ad8efdc8e66a41303fa13e22e8915b959908d3e9e58426d5c9fbde8e6f4f4678c37a549b64ce8411f3433f35f3ceb7a6502d4c04282d1fa539f32c496c8a7d0ae2cf122175b70678d0ec9c072de93ce03bddc0c815184d1c9f59464611f574ae6bc164942de51f02dc907bccdfd31c43dcaaf04c9b83a86812f50109c90cfc068ac80e83824af781ffaa4414aecf6249412d97ab7e0ace5256e88dad4e73f138d380876aaa61fb5fd1a9f576f7ab8423fc71b3df3e06164f0c543e3ae925a545c73eaa55c9deb4d280e449f741417dc328033ef5427e8cb95c34ea054fbcaf8298a1e5ee4087693825b6a520985535bfbc015d9723c2048bd373251b003d8315c7627826f745582814cbea962a462a26823e6b919133dc05718495a50752ccd8477f695bba891bf788b22fc669a6ba68b0634f9816bf20528512d136526299147b68eea121ac3f78bdf0d1338c698a073fbcbbc8d6986f8909734d68da808f83579437aa9b36232c356ce3ab6c7030214d57277d1ef493b327117a24b9de39c80c674568b05ddcd2ab810943fa73f32586af2b4267439443632a8c67d62966b1d3defb19ecd896b5556bd4de1415c022687feeed8ff6dfee114d5a7800c7e3097469dce6362dca59bc7a9393c15307ee645c9b7b55e6eb4f6e5f0e8841a70d14c5a560fe6447c6720392dd48eac775f9c13634a2d1f4ca6b203010cee04a4a302eccd955ced1bcdda0a04f5601759a73e466dd60363cd23d4c0d540a97de47ec3b9723a8aa6443d4583897c33c8c8b54836442efeba883d5fbfa703cb9b91a1aa56358b9961427b5a8f783499c09cd9a1ec74f17c8fa9c7acf25440a03c255b88dc261092c249e0bc4e770f996c47cf0b18a70d0c973b3d6e2d4be26e743e499322ae34069bce3a05d4a8d8ea40b4aefc9d87aceb5227dc57426945cb06366b4e6e1a0b783c2df852ef99fc4f90851edd8b65dae6c16eeb8564665bc9067f7f898cb0622a9427fe2616a061af0506387807ee5e88310626291105d38245074244278edef281bb2b611e797ce58d9178b7102574edb19976ceef72e2a9a52d5aea48c4d2a29ab7450b70dc2adccf3f67daeb19945e0bf4935a8bbfc1cdfe35b3ca0352cef83b5d1de8452210a0979f265199f854038481005c6a22a805b5d6ed722eb06af1477669c4fae8d4e12846a2cbbde5e79a3bf378d731abb018381a14c32533aaf4a1a40f462539dd2364a6a8cd2676fef3831039ff9831b6c73058900ef3fae7796def97f97d12d6fecb25e2278754fa7f5b726bab3e28987d9bdf8f060915c3c8c81cdbe6cb00156a67767bb9837584fdc39eefd2e604849759eb72715a890360f0bdc6b414af42b691881e449a23ea11f5397d91204dbece8fb16e99f0c444fa9a3e634b07083e7c73fbca6efc37e1cdd87bb769b3d9f23f1094b242b999d0ef2569e7b7cd4da5630bfe0c09e6dd836edd42cb4f44366ecb621282aa13da1fd05df9453a51845c3173821f00004de7c3c1b7b3cb8e537627057a2ee37e0e7970c776dedc72a4cee4bffb76efa55abfb43366ccf3b69e39c455c7f5d071a7f6a6bbd36d600631e647563f15ac5cf14cabd5ec5c99a17b500a5714301b60ecd33ee8e15edf0dd88efd285c3fec921dea3852e4ecaa977f3dc8e59ea7f0b12b34659cf5b22419a53225717bb722a0d1f29a4062b1584c83d83b668eb4bc99635a447e00570df640805"
+            }
+          ]
+        },
+        {
+          "wallet": 2,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-2"
+                },
+                "key_id": "near",
+                "epoch": 1,
+                "public_key_digest": [
+                  34,
+                  178,
+                  28,
+                  62,
+                  104,
+                  170,
+                  203,
+                  135,
+                  79,
+                  75,
+                  194,
+                  67,
+                  158,
+                  21,
+                  230,
+                  101,
+                  236,
+                  199,
+                  136,
+                  48,
+                  28,
+                  56,
+                  154,
+                  69,
+                  147,
+                  148,
+                  103,
+                  71,
+                  247,
+                  216,
+                  125,
+                  145
+                ],
+                "schedule_digest": [
+                  230,
+                  52,
+                  117,
+                  210,
+                  112,
+                  127,
+                  208,
+                  210,
+                  224,
+                  191,
+                  237,
+                  21,
+                  154,
+                  253,
+                  77,
+                  85,
+                  108,
+                  201,
+                  96,
+                  239,
+                  154,
+                  22,
+                  253,
+                  56,
+                  51,
+                  248,
+                  99,
+                  233,
+                  32,
+                  72,
+                  110,
+                  67
+                ]
+              },
+              "preparationMs": 77974.256167,
+              "initialSigningBatches": 4,
+              "serverResponseMs": 4912.013540999993,
+              "registrationWithClientVerificationMs": 4912.978124999994,
+              "underFiveSeconds": true,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2394.0263750000013,
+                "operation": [
+                  38,
+                  35,
+                  149,
+                  87,
+                  20,
+                  63,
+                  167,
+                  62,
+                  245,
+                  0,
+                  53,
+                  246,
+                  67,
+                  50,
+                  62,
+                  112,
+                  142,
+                  50,
+                  150,
+                  2,
+                  24,
+                  152,
+                  218,
+                  35,
+                  83,
+                  196,
+                  118,
+                  182,
+                  206,
+                  49,
+                  129,
+                  111
+                ]
+              },
+              "publicKeyHex": "3385fab2fa4aa2cf4d90a32c6ed46eef1af1a3eab720269aecba220bd704097f4e49ebaad6520ab5f8415b79a219b7e1cf43d48b8e1216519f091a34808f49bc4d6eee5f20b7b7f7fd68c5720609fcfed2c31b58d7c925ee857ad485c0502e1354e72f48a7c3305d461dd3d2eb24d612a115e5fb1d34597f166987c6b51eee3fd87161ae86b3926a36aed9fe82895f088acca3ceae7db44f389b21ab0a09455276cf8dad5fc7eec08960c3bf62089469b723e03969b481245abfbc615cf6fd7e8d152d791d19ecf57670ff853334e3d0cb92d13939670dc7485abd08970e4710d855b0a499ed0349ed4d956843cb2f245003c4bea6734530a123ba612742806e06f3d15efbff9262ca42d219ecf7f8d2e5b38291ffa9c1f4c2b0866384df7fcf752f247e7eea3efe8f6902ca6d7725bfb1db58a2c78eb3c464825b61ec957a5e641b3270e8efd43303bb2f989562a67f893b1293e354c235746573d84fc23b62acc465a40196b8d9f3c2d2367084f49c0045a7f93ddc273839caab3c54f392fff81614da8c0cf039e98bbf6491daa14ff585d86816cde66bc99ae3a3039642b2bc83ff3efb18b279cce8f686469ec6424ab4e51d581459d130fe0bd5294c2f30509727d3ce4277d2a0deb0e6290455dcecde1369343ac92cfb1362bdee01499d992eb1397da290b115589721318fa9eeba9df32c89b29c6190f9748a7f78b0772bbabb25b47642a9436538f9b6dd0be0d523939e9d97e13e8c4bcd344120596537c529d4fb7dca75a9aed413bfce0bb75f342bebef280ac16a13a4a965c3d66db26620823d80e8c4248527ff1eee19298fee7b8fc03f9472f7c1217e8690affc187dadcf3c4207accd057a072887612ad81da04f147a9711abe13750791353be0261514940f0fb465955ae1f10d96b0fb8dd32243e96e7aa317b701b8078b3c3a286d8da779264573976118b939bf13a3a70437fe70f60dd322c54aae517bf3b5a6bcc6f2e3bb8aacf8763ad969d0d1b6f5ac096233e16dc8ee6b11a1068f12be6ffd4b3947c1e8a53c298c2f4d82bb3bdb7913052cc9b88964913707e104ac2e3ce40aee27e2befd593d00f0febe40f0799bd60dbffc6cca05471ee5e46f982d1d3dcb599f1fe9a71406fc198ecda8dd3c2308c8903189c689398817c0489fdc4e80cbdb8ebb969560cc03f54da8dfc15951430ab0d9447ac50e2a2331323fdf877ddc941ee51d979e0d413308a39a71399c645ce959c585d3a124a716a8a19ffc2da31702ca6f05530f8084b0b344dade22328762ca85bcf66a0e99fc1f42551e6fb737d6d1bbcff04774841bdc91e9f8d529a50d358bcfc385a366b8b70dc03d38b05bf98013eaed816220e0a50c89d4c7267585b120d743f61c7ad605ebd3faa9cd29834d49e59e794ac558afade2ebc2279440211142c6be5cb7507876f9edd8eae1078ecf0913229b184a2be3e081d8c48dd8529f07776f6af16691c704e08b3d7b4099cb59a6c7f396d2083cf297a2b89a0b2b76b5a0c8384209fda59037bbb894f478ed8727cbdb9e9206812685cbc7593a8963dc718303edbd4073c17d3c98f934a530a668701bdc092e1becd1cbca20dfea3039c085e35bca7246fad556e6357177c2cf906a92291c736394b849bf539af8fa86cf9a7e5807f7f836f6b8070bdc63e8870659ea20a56dbb07cae2aa1b2dfba0dd5567a51d63978e222f6b45f5c4b5171191a3e1c8d64865331d3e33a1d881e99c30c0652cb4a1e512a5809e3188d9e3b214a5745845a13e569c1f0aa9876c2b6c994394364eed12c3cb6bb760a06ac8ea69184df81b3a4aa9d06c3f1c8cacd15a122ddd890ed91563b77008e1319030e086f1b4050c75f73501c75e27b1c6c17bf750252b407cdddeb0cb1dfbc837d78072ec22a7d5ac3ad67b91d2f769eba3b04a1bcccd14a3724fadffec3f98de65ac783c9a99f950725213b47ee4e4a8748011180029e4ee1a7480cb548ccdc09327ee598ca57ed4c5b2753d3c00b4dfc1bba07a9fe5f2bd28eb5daacee56c3b6ea693b4f3e8dccce9b41d677807b7802b440a1fc5e063af7e09e35cdf04c147c765d8a651bb8d25ada2b2cc3179abd21463151a8f1662de4b99213e330be099d55597aa479761ede80afcc488e03a293b980d189b397552ea0f95a3f2b20914c4695656aff7bc39729be886d9dd6f439b90aba641d6eef467c338301583aa8186ed2086bc7a2f235418e403550261a5da6139c8f1619c02725cc5625fac5cb3ac1bd7be0470dc6b3ccf2993c2f18c9a58a4b502704b8ed2a873370663ca28003ca71fc5bdc6a76c64dfa4a2518b5c738f90cc2c17a881b3f9dc660b47ca201c23015325d008acd630c96b035f27b68093ae15f622ac74a94c5bc578aa69c971d10f20434d8635ebba622285b1059125ff6b9d943bfa45f495ff180bc8a05dad436fcfb2eece235dc5ca993c4738dfd36cad24680fe172528b30253c66e7e1604878006684e1986ff0d9ca2bd9165131ba7003ca128e420a25817e64b42cfa550e7cf96e7a83caa8f918570dfde41ee8c131ed3f828dae174ac9a5cbdd9dd8f75ea4b7e595b23fc0ff91369dba6b95948381b3c00245187ab13c4020dbce386a13f3fb6f6b5348a9cea937e747e71e3cec3a7b846a62c7b501b85e22574c8566bb74e8776df03721624c0e544f8bf0019dc931ea1d68fe2c51dca81ac51f1b090e4e17300bd0dfa2d38a93cac2bf56fdf35f0bbd41a450eade2"
+            },
+            {
+              "epoch": 2,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-2"
+                },
+                "key_id": "near",
+                "epoch": 2,
+                "public_key_digest": [
+                  34,
+                  178,
+                  28,
+                  62,
+                  104,
+                  170,
+                  203,
+                  135,
+                  79,
+                  75,
+                  194,
+                  67,
+                  158,
+                  21,
+                  230,
+                  101,
+                  236,
+                  199,
+                  136,
+                  48,
+                  28,
+                  56,
+                  154,
+                  69,
+                  147,
+                  148,
+                  103,
+                  71,
+                  247,
+                  216,
+                  125,
+                  145
+                ],
+                "schedule_digest": [
+                  230,
+                  52,
+                  117,
+                  210,
+                  112,
+                  127,
+                  208,
+                  210,
+                  224,
+                  191,
+                  237,
+                  21,
+                  154,
+                  253,
+                  77,
+                  85,
+                  108,
+                  201,
+                  96,
+                  239,
+                  154,
+                  22,
+                  253,
+                  56,
+                  51,
+                  248,
+                  99,
+                  233,
+                  32,
+                  72,
+                  110,
+                  67
+                ]
+              },
+              "preparationMs": 74155.42037499999,
+              "initialSigningBatches": 4,
+              "serverResponseMs": 5590.586791999987,
+              "registrationWithClientVerificationMs": 5591.171459000005,
+              "underFiveSeconds": false,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2963.453708999994,
+                "operation": [
+                  235,
+                  15,
+                  227,
+                  236,
+                  126,
+                  190,
+                  104,
+                  110,
+                  10,
+                  160,
+                  148,
+                  210,
+                  140,
+                  80,
+                  38,
+                  45,
+                  41,
+                  21,
+                  84,
+                  97,
+                  251,
+                  180,
+                  65,
+                  210,
+                  2,
+                  77,
+                  103,
+                  215,
+                  35,
+                  149,
+                  24,
+                  113
+                ]
+              },
+              "publicKeyHex": "3385fab2fa4aa2cf4d90a32c6ed46eef1af1a3eab720269aecba220bd704097f4e49ebaad6520ab5f8415b79a219b7e1cf43d48b8e1216519f091a34808f49bc4d6eee5f20b7b7f7fd68c5720609fcfed2c31b58d7c925ee857ad485c0502e1354e72f48a7c3305d461dd3d2eb24d612a115e5fb1d34597f166987c6b51eee3fd87161ae86b3926a36aed9fe82895f088acca3ceae7db44f389b21ab0a09455276cf8dad5fc7eec08960c3bf62089469b723e03969b481245abfbc615cf6fd7e8d152d791d19ecf57670ff853334e3d0cb92d13939670dc7485abd08970e4710d855b0a499ed0349ed4d956843cb2f245003c4bea6734530a123ba612742806e06f3d15efbff9262ca42d219ecf7f8d2e5b38291ffa9c1f4c2b0866384df7fcf752f247e7eea3efe8f6902ca6d7725bfb1db58a2c78eb3c464825b61ec957a5e641b3270e8efd43303bb2f989562a67f893b1293e354c235746573d84fc23b62acc465a40196b8d9f3c2d2367084f49c0045a7f93ddc273839caab3c54f392fff81614da8c0cf039e98bbf6491daa14ff585d86816cde66bc99ae3a3039642b2bc83ff3efb18b279cce8f686469ec6424ab4e51d581459d130fe0bd5294c2f30509727d3ce4277d2a0deb0e6290455dcecde1369343ac92cfb1362bdee01499d992eb1397da290b115589721318fa9eeba9df32c89b29c6190f9748a7f78b0772bbabb25b47642a9436538f9b6dd0be0d523939e9d97e13e8c4bcd344120596537c529d4fb7dca75a9aed413bfce0bb75f342bebef280ac16a13a4a965c3d66db26620823d80e8c4248527ff1eee19298fee7b8fc03f9472f7c1217e8690affc187dadcf3c4207accd057a072887612ad81da04f147a9711abe13750791353be0261514940f0fb465955ae1f10d96b0fb8dd32243e96e7aa317b701b8078b3c3a286d8da779264573976118b939bf13a3a70437fe70f60dd322c54aae517bf3b5a6bcc6f2e3bb8aacf8763ad969d0d1b6f5ac096233e16dc8ee6b11a1068f12be6ffd4b3947c1e8a53c298c2f4d82bb3bdb7913052cc9b88964913707e104ac2e3ce40aee27e2befd593d00f0febe40f0799bd60dbffc6cca05471ee5e46f982d1d3dcb599f1fe9a71406fc198ecda8dd3c2308c8903189c689398817c0489fdc4e80cbdb8ebb969560cc03f54da8dfc15951430ab0d9447ac50e2a2331323fdf877ddc941ee51d979e0d413308a39a71399c645ce959c585d3a124a716a8a19ffc2da31702ca6f05530f8084b0b344dade22328762ca85bcf66a0e99fc1f42551e6fb737d6d1bbcff04774841bdc91e9f8d529a50d358bcfc385a366b8b70dc03d38b05bf98013eaed816220e0a50c89d4c7267585b120d743f61c7ad605ebd3faa9cd29834d49e59e794ac558afade2ebc2279440211142c6be5cb7507876f9edd8eae1078ecf0913229b184a2be3e081d8c48dd8529f07776f6af16691c704e08b3d7b4099cb59a6c7f396d2083cf297a2b89a0b2b76b5a0c8384209fda59037bbb894f478ed8727cbdb9e9206812685cbc7593a8963dc718303edbd4073c17d3c98f934a530a668701bdc092e1becd1cbca20dfea3039c085e35bca7246fad556e6357177c2cf906a92291c736394b849bf539af8fa86cf9a7e5807f7f836f6b8070bdc63e8870659ea20a56dbb07cae2aa1b2dfba0dd5567a51d63978e222f6b45f5c4b5171191a3e1c8d64865331d3e33a1d881e99c30c0652cb4a1e512a5809e3188d9e3b214a5745845a13e569c1f0aa9876c2b6c994394364eed12c3cb6bb760a06ac8ea69184df81b3a4aa9d06c3f1c8cacd15a122ddd890ed91563b77008e1319030e086f1b4050c75f73501c75e27b1c6c17bf750252b407cdddeb0cb1dfbc837d78072ec22a7d5ac3ad67b91d2f769eba3b04a1bcccd14a3724fadffec3f98de65ac783c9a99f950725213b47ee4e4a8748011180029e4ee1a7480cb548ccdc09327ee598ca57ed4c5b2753d3c00b4dfc1bba07a9fe5f2bd28eb5daacee56c3b6ea693b4f3e8dccce9b41d677807b7802b440a1fc5e063af7e09e35cdf04c147c765d8a651bb8d25ada2b2cc3179abd21463151a8f1662de4b99213e330be099d55597aa479761ede80afcc488e03a293b980d189b397552ea0f95a3f2b20914c4695656aff7bc39729be886d9dd6f439b90aba641d6eef467c338301583aa8186ed2086bc7a2f235418e403550261a5da6139c8f1619c02725cc5625fac5cb3ac1bd7be0470dc6b3ccf2993c2f18c9a58a4b502704b8ed2a873370663ca28003ca71fc5bdc6a76c64dfa4a2518b5c738f90cc2c17a881b3f9dc660b47ca201c23015325d008acd630c96b035f27b68093ae15f622ac74a94c5bc578aa69c971d10f20434d8635ebba622285b1059125ff6b9d943bfa45f495ff180bc8a05dad436fcfb2eece235dc5ca993c4738dfd36cad24680fe172528b30253c66e7e1604878006684e1986ff0d9ca2bd9165131ba7003ca128e420a25817e64b42cfa550e7cf96e7a83caa8f918570dfde41ee8c131ed3f828dae174ac9a5cbdd9dd8f75ea4b7e595b23fc0ff91369dba6b95948381b3c00245187ab13c4020dbce386a13f3fb6f6b5348a9cea937e747e71e3cec3a7b846a62c7b501b85e22574c8566bb74e8776df03721624c0e544f8bf0019dc931ea1d68fe2c51dca81ac51f1b090e4e17300bd0dfa2d38a93cac2bf56fdf35f0bbd41a450eade2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group_size": 2,
+      "preparation_group_size": 4,
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "wallets": 2,
+      "client_sha256": "cb3061d1fd57cdde1cb3cbbf59bec098b354dcd2ccf4f3b404fa3441dd5bfa91",
+      "traces_sha256": "5a5f3f613f24dbfbfac23b609736320d00edb5b72f42ed9cd522fb4ecc39978f",
+      "versions": {
+        "router": "be4198ec-266b-426c-aacd-37b07eff744e",
+        "a": "be923fd4-1b61-4a5d-9251-62e5b540654c",
+        "b": "76dcb922-22b4-4c4b-a778-c944a8e44789",
+        "preparer-a": "9d0f0c5a-79ec-4481-869b-c894e87c5478",
+        "preparer-b": "687f91e8-8ffa-472d-a75e-5d43a1a71607"
+      },
+      "successful_signatures": 26,
+      "online_http_ms": {
+        "count": 26,
+        "minimum": 1175.2247500000012,
+        "median": 3862.9141250000202,
+        "maximum": 7086.890541000001,
+        "sum": 99895.630789
+      },
+      "online_http_by_consumed_groups": {
+        "1": {
+          "count": 8,
+          "minimum": 1175.2247500000012,
+          "median": 1428.25220800002,
+          "maximum": 3013.9887500000004,
+          "sum": 13750.560583000024
+        },
+        "2": {
+          "count": 3,
+          "minimum": 2317.3094999999994,
+          "median": 3320.123458,
+          "maximum": 7086.890541000001,
+          "sum": 12724.323499
+        },
+        "3": {
+          "count": 1,
+          "minimum": 3046.858125000028,
+          "median": 3046.858125000028,
+          "maximum": 3046.858125000028,
+          "sum": 3046.858125000028
+        },
+        "4": {
+          "count": 4,
+          "minimum": 3832.3570410000393,
+          "median": 3862.9141250000202,
+          "maximum": 3936.6086249999935,
+          "sum": 15494.793916000073
+        },
+        "5": {
+          "count": 4,
+          "minimum": 4621.159707999999,
+          "median": 4858.505708499979,
+          "maximum": 5064.445374999999,
+          "sum": 19402.616499999956
+        },
+        "6": {
+          "count": 6,
+          "minimum": 5314.697167000035,
+          "median": 6016.0972914999875,
+          "maximum": 6310.473165999982,
+          "sum": 35476.47816599993
+        }
+      },
+      "online_under_five_seconds": 18,
+      "pending_operation_responses": 0,
+      "complete_demand_ms": {
+        "count": 26,
+        "minimum": 1175.4676250000011,
+        "median": 21142.8332085,
+        "maximum": 115381.868792,
+        "sum": 1113449.565751
+      },
+      "failed_operations": 0,
+      "duplicate_requests": [
+        {
+          "wallet": 0,
+          "operation": [
+            215,
+            139,
+            97,
+            213,
+            18,
+            108,
+            252,
+            31,
+            154,
+            254,
+            196,
+            233,
+            206,
+            164,
+            92,
+            248,
+            103,
+            122,
+            164,
+            220,
+            34,
+            148,
+            51,
+            2,
+            95,
+            223,
+            103,
+            49,
+            160,
+            16,
+            124,
+            237
+          ],
+          "startMs": 3323.3439999999996,
+          "httpStatus": 200,
+          "elapsedMs": 76.05241699999988,
+          "status": "existing",
+          "state": "succeeded",
+          "sameSignature": true
+        },
+        {
+          "wallet": 1,
+          "operation": [
+            98,
+            247,
+            44,
+            104,
+            110,
+            154,
+            245,
+            13,
+            127,
+            175,
+            89,
+            230,
+            209,
+            223,
+            192,
+            176,
+            172,
+            98,
+            90,
+            99,
+            26,
+            17,
+            134,
+            26,
+            78,
+            26,
+            162,
+            157,
+            186,
+            184,
+            215,
+            54
+          ],
+          "startMs": 8632.450458,
+          "httpStatus": 200,
+          "elapsedMs": 1314.809374999999,
+          "status": "existing",
+          "state": "succeeded",
+          "sameSignature": true
+        }
+      ],
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 14,
+          "startMs": 547620.8629579999,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 52379.57045800006
+        },
+        {
+          "wallet": 0,
+          "number": 14,
+          "startMs": 567296.775208,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 32703.70991700003
+        }
+      ],
+      "initial_excluded_groups": 32,
+      "initial_excluded_candidates": 64,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 89,
+      "identified_consumed_candidates": 178,
+      "unknown_consumption_operations": [],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "common_post_initial_stock": {
+        "start_ms": 1792290113875.4866,
+        "elapsed_ms": 496253.0173339844,
+        "observed_new_paired_batches": 60,
+        "successful_signatures": 14,
+        "paired_batches_per_minute": 7.25436395196194,
+        "successful_signatures_per_minute": 1.6926849221244527
+      },
+      "material_identity_balance_complete": true,
+      "full_reserve_restoration_ms": 173308.49609375,
+      "balanced_cycle_ms_per_verified_signature": 29742.653846153848,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 89,
+        "fresh_paired_candidates": 178,
+        "completed_job_invocation_wall_ms": {
+          "count": 45,
+          "minimum": 6033,
+          "median": 10840,
+          "maximum": 26375,
+          "sum": 605912
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 89,
+          "minimum": 4427.0,
+          "median": 5505.0,
+          "maximum": 13187.5,
+          "sum": 605912.0
+        },
+        "completed_job_count": 45,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "2": {
+            "count": 1,
+            "minimum": 6033,
+            "median": 6033,
+            "maximum": 6033,
+            "sum": 6033
+          },
+          "4": {
+            "count": 44,
+            "minimum": 8854,
+            "median": 10925.0,
+            "maximum": 26375,
+            "sum": 599879
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 45,
+        "captured_producer_invocation_wall_ms": 607333,
+        "captured_invocation_ms_per_verified_signature": 23358.96153846154,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 180,
+            "minimum": 0,
+            "median": 2.5,
+            "maximum": 12193,
+            "sum": 276803
+          },
+          "preparer-b": {
+            "count": 45,
+            "minimum": 2664,
+            "median": 4938,
+            "maximum": 12385,
+            "sum": 280693
+          }
+        }
+      },
+      "fully_measured_fresh_demands": {
+        "scope": "Only successful logical demands whose consumed groups all have matched producer-invocation wall measurements and none came from starting stock. Includes earlier exhausted operations within each demand. This subset excludes unassigned preparation failures and is not the total service cost.",
+        "producer_invocation_wall_ms": {
+          "count": 14,
+          "minimum": 5115.0,
+          "median": 26908.0,
+          "maximum": 51985.5,
+          "sum": 367251.5
+        },
+        "demands": [
+          {
+            "wallet": 0,
+            "demand": 6,
+            "groups": 6,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 39807.0
+          },
+          {
+            "wallet": 1,
+            "demand": 8,
+            "groups": 6,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 46472.0
+          },
+          {
+            "wallet": 0,
+            "demand": 7,
+            "groups": 1,
+            "candidates": 2,
+            "producer_invocation_wall_ms": 5115.0
+          },
+          {
+            "wallet": 0,
+            "demand": 8,
+            "groups": 3,
+            "candidates": 6,
+            "producer_invocation_wall_ms": 15040.5
+          },
+          {
+            "wallet": 1,
+            "demand": 9,
+            "groups": 5,
+            "candidates": 10,
+            "producer_invocation_wall_ms": 33258.0
+          },
+          {
+            "wallet": 0,
+            "demand": 9,
+            "groups": 4,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 21737.5
+          },
+          {
+            "wallet": 1,
+            "demand": 10,
+            "groups": 6,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 51985.5
+          },
+          {
+            "wallet": 0,
+            "demand": 10,
+            "groups": 1,
+            "candidates": 2,
+            "producer_invocation_wall_ms": 5979.0
+          },
+          {
+            "wallet": 0,
+            "demand": 11,
+            "groups": 6,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 42418.0
+          },
+          {
+            "wallet": 0,
+            "demand": 12,
+            "groups": 4,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 28424.0
+          },
+          {
+            "wallet": 1,
+            "demand": 11,
+            "groups": 1,
+            "candidates": 2,
+            "producer_invocation_wall_ms": 10499.5
+          },
+          {
+            "wallet": 1,
+            "demand": 12,
+            "groups": 1,
+            "candidates": 2,
+            "producer_invocation_wall_ms": 9775.5
+          },
+          {
+            "wallet": 1,
+            "demand": 13,
+            "groups": 4,
+            "candidates": 8,
+            "producer_invocation_wall_ms": 25392.0
+          },
+          {
+            "wallet": 0,
+            "demand": 13,
+            "groups": 6,
+            "candidates": 12,
+            "producer_invocation_wall_ms": 31348.0
+          }
+        ]
+      },
+      "online_target_met_in_screen": false,
+      "hosted_pairs_used_on_distinct_successful_messages": [
+        {
+          "preparation_job": "f2aab1d0526cb004825f919f04e2278596b15f654ca2239550ec9d6282361ca7",
+          "pairs": [
+            "f2aab1d0526cb004825f919f04e2278596b15f654ca2239550ec9d6282361ca7",
+            "a596abc5560f06154c714c8ececaa238138d244e64d043f09976667253aaba0d"
+          ],
+          "operations": [
+            "8c60a8ea17e30ee1e4ddaf8582d026df8eff31df07c88aaf7c44099a8dbe6044",
+            "918aa2e8a3547d6a0afa032019276639199ca6d9b4de1ed3525c32aad4884568"
+          ]
+        },
+        {
+          "preparation_job": "eae8784fa85f453b00461a69f81d80bac0bad8b8a1f7990155e15347a679b45e",
+          "pairs": [
+            "eae8784fa85f453b00461a69f81d80bac0bad8b8a1f7990155e15347a679b45e",
+            "be4fc7128418de0d94cb97ca0d67f698f7a0bf24f2df9231d0fb712d06d21711"
+          ],
+          "operations": [
+            "8980e11b2201a0588b404924d9546d046dd1048ff8c8bac554407fddb2e2f382",
+            "d3d6d80df0a4f48dbc274f8b7d1cb3d00c8f2be21f9b9d1a995d013d7050fb9c"
+          ]
+        },
+        {
+          "preparation_job": "afb583e1115008ba9a4ab061cd9d988b772cf3e9f12c46b4cf19b9f6008fdf56",
+          "pairs": [
+            "afb583e1115008ba9a4ab061cd9d988b772cf3e9f12c46b4cf19b9f6008fdf56",
+            "0cdd1e2e516498ab4f6743d6d15b146935196f0437b8df33b1cc5a503f606b03"
+          ],
+          "operations": [
+            "f4506dc6e5d1ebec09b8eda035fefe47de5d244879092132824e6d417aa1984e",
+            "9b1e6199245b8c89a841e99d0d1708062c3a4f6f8bbc711ecfb5b0eb60f0e42b"
+          ]
+        },
+        {
+          "preparation_job": "d4e56ba4edabd66e14bec58f662ed39cffe09c2695d6841b6ec292c3a86c7344",
+          "pairs": [
+            "d4e56ba4edabd66e14bec58f662ed39cffe09c2695d6841b6ec292c3a86c7344",
+            "16191114e00b214eeb60b7449967ed57b7d82ccb183768c11b97d0b77278acec"
+          ],
+          "operations": [
+            "2cf43e22a8840b93d1880febc6fad75dffd4bb2a51f4058ad90e37383c60ec45",
+            "97c7b794ff4f293dd9659066c9cd41a5f7fdd3990c8a9f56984b86ac3c3598dc"
+          ]
+        },
+        {
+          "preparation_job": "c70a429989c3bd3e1d3c81d798a4d692f7cea58dddd0d967f428c98054faa474",
+          "pairs": [
+            "c70a429989c3bd3e1d3c81d798a4d692f7cea58dddd0d967f428c98054faa474",
+            "28af5dc8b894bd58033263eb56531c24f246739a7e6cbda031ed18f1395cd1a7"
+          ],
+          "operations": [
+            "d3d6d80df0a4f48dbc274f8b7d1cb3d00c8f2be21f9b9d1a995d013d7050fb9c",
+            "cda6db4458ec6bdbe09ebafb8e18d2a252c9caf65a76d3ff0d293af8ad20a7c9"
+          ]
+        },
+        {
+          "preparation_job": "fe85cdb28675701d2ce74191877550411c8b75ca50bdd259fbaf34ea23ffe3ab",
+          "pairs": [
+            "fe85cdb28675701d2ce74191877550411c8b75ca50bdd259fbaf34ea23ffe3ab",
+            "3951ba0c51dee3804498723a274bb7345d6109db0ca050ce6fc1fbc54f2e6d56"
+          ],
+          "operations": [
+            "cda6db4458ec6bdbe09ebafb8e18d2a252c9caf65a76d3ff0d293af8ad20a7c9",
+            "e4aff5ddc983ab4fde8e9141f5474510361de41f066c77c6ed336d115298720f"
+          ]
+        },
+        {
+          "preparation_job": "2e24a06a33c777fddd7775bda9a0b00883ae10920343a8b6909a4b4374315c66",
+          "pairs": [
+            "2e24a06a33c777fddd7775bda9a0b00883ae10920343a8b6909a4b4374315c66",
+            "927e98ffbf46afd9718148f55e7b883bbc020054439d14f14471fd4d19d3fbbb"
+          ],
+          "operations": [
+            "52864858167a5b8504a2071925416b1cb16075b93dabebffa2bfc5928993f744",
+            "f420bde74dbb90ff1e8a58eaa8ef4f2ecddc0a839b9cd6c4168ad785f514055b"
+          ]
+        },
+        {
+          "preparation_job": "4e97f758797d2b3e6e2be7db783ac4ddea3aafdbed952feaa6d6f8fe01214925",
+          "pairs": [
+            "4e97f758797d2b3e6e2be7db783ac4ddea3aafdbed952feaa6d6f8fe01214925",
+            "b251e8f4423cca499be96e2b4f0394cd09ac62e41681c2f4ae5ad08115f8d847"
+          ],
+          "operations": [
+            "5c5deae86daf0d57480537830f95acc2e0921955ef8212fdc09d1cfb0793aa81",
+            "ed9c7caa70df31cb8953ab58b03f78d8639dad24c4ae9c26fe46273cfe9182bd"
+          ]
+        },
+        {
+          "preparation_job": "cbb7ca3603f5c724bef2126c21d4df4c6421f06515de38e0c94bd94f166d0467",
+          "pairs": [
+            "cbb7ca3603f5c724bef2126c21d4df4c6421f06515de38e0c94bd94f166d0467",
+            "cb09b7bc0159a7ab78557e3e88a7999ae5e6937f3837c3e9a5c09aa62e68861a"
+          ],
+          "operations": [
+            "f420bde74dbb90ff1e8a58eaa8ef4f2ecddc0a839b9cd6c4168ad785f514055b",
+            "497a954bc370266541620dbbfd8b023023379a9b54d457d3638a562be2e1b72a"
+          ]
+        },
+        {
+          "preparation_job": "a674741f6b4ccac2c6673a7320d352c4bfafa201795f251a1bc2e39d148cad53",
+          "pairs": [
+            "a674741f6b4ccac2c6673a7320d352c4bfafa201795f251a1bc2e39d148cad53",
+            "4ad5168f44f3367eb6190f6a057360e060294e3cca0c1cf999b3e95981b222de"
+          ],
+          "operations": [
+            "ed9c7caa70df31cb8953ab58b03f78d8639dad24c4ae9c26fe46273cfe9182bd",
+            "032a1b683e618b5a8b8790499e6b3081eed9027719bb950151335fbeab8eef81"
+          ]
+        },
+        {
+          "preparation_job": "dbe221a858b17cc5819008cc971acdea3f1997e6653dd281819329a927f4fdf2",
+          "pairs": [
+            "dbe221a858b17cc5819008cc971acdea3f1997e6653dd281819329a927f4fdf2",
+            "b51219b2e3d35a12bf1ada070e525528b6a058eb947c4dddfc77027bfda2221f"
+          ],
+          "operations": [
+            "f8d4129f66618f248373af7706568f7c20acca6538e6ce8edb2c56e70f3ad4ec",
+            "690a9e19b6876e86233e5c677368cfaf7659cf6082215cdd6b1fe60962d92dec"
+          ]
+        }
+      ],
+      "all_captured_preparation_job_sizes": {
+        "4": 59,
+        "2": 3
+      },
+      "registration": [
+        {
+          "wallet": 1,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-1"
+                },
+                "key_id": "near",
+                "epoch": 1,
+                "public_key_digest": [
+                  214,
+                  158,
+                  172,
+                  72,
+                  197,
+                  91,
+                  171,
+                  71,
+                  190,
+                  25,
+                  74,
+                  224,
+                  251,
+                  138,
+                  138,
+                  173,
+                  63,
+                  145,
+                  177,
+                  186,
+                  236,
+                  14,
+                  97,
+                  223,
+                  244,
+                  164,
+                  30,
+                  94,
+                  66,
+                  28,
+                  40,
+                  211
+                ],
+                "schedule_digest": [
+                  198,
+                  55,
+                  105,
+                  165,
+                  190,
+                  244,
+                  208,
+                  110,
+                  129,
+                  192,
+                  184,
+                  73,
+                  198,
+                  235,
+                  164,
+                  35,
+                  238,
+                  11,
+                  21,
+                  94,
+                  198,
+                  18,
+                  15,
+                  208,
+                  209,
+                  86,
+                  224,
+                  174,
+                  142,
+                  71,
+                  5,
+                  255
+                ]
+              },
+              "preparationMs": 51872.249834,
+              "initialSigningBatches": 8,
+              "serverResponseMs": 4883.186167,
+              "registrationWithClientVerificationMs": 4887.755250000002,
+              "underFiveSeconds": true,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 4250.907040999999,
+                "operation": [
+                  216,
+                  73,
+                  176,
+                  150,
+                  190,
+                  168,
+                  10,
+                  205,
+                  35,
+                  63,
+                  215,
+                  109,
+                  182,
+                  123,
+                  130,
+                  0,
+                  203,
+                  116,
+                  92,
+                  210,
+                  73,
+                  29,
+                  174,
+                  125,
+                  13,
+                  87,
+                  155,
+                  75,
+                  16,
+                  104,
+                  83,
+                  35
+                ]
+              },
+              "publicKeyHex": "fef3a4d9f07f217296fb3bdda98529dd3e48200ea2efc55987515201a43707f618bcafad5aacfa06028d29c06119e88bba5e3df1a0508fb952989cbbc51643afc3bc05d1f23a28320b8a95adcdabcdcfd24be56391d577576aac46f0062bccad72c5284a4053b01091c4b8c88d797df1ac2c3e8fbd0db89931867836ef7837802b4ff45e4d7715eab7cee964b0ffa501abbd3ccf19fc8e86aa508927f39b7140770a52f69a4987e56f34445a0e8cf158c53769f77c5c8d7d1be63939dffff9e9935d61077b38133032b893b38ce332318a75c2bb7bb909e29f4ae5d9818f3136adeaae8caf1f5a317bd2cbf1453f9c2b6d18a9a0b1f2e757f42466c3a0d53d01b28551083a9ac82345c2583e2e2fd7f9b4ab07eef7cc7e187040ccd05edf7decc143510edbe9649345ff57309c72590404f20bd8831a7f993b88951d3320ecebd4210db943867a621e9ea8fe88dd927204dcd8d9194e48af7fd558ff72eb10b5c5fdc7a1929ac72737b4a7e5c57a8425f2cfad1c0f80c43653a8e26accc4d7be8e883c97c87b5838232b11999fb9f99b7de24349d8ad2c553137f104c5318ab547d52fef2d570e512189b074d8aaf9c3a477d7cfb19bdbe626fbb338cef103ce4ca302cf37bee9e641339954dade3107b0c3819419d7413f319eca56c53a88f2c06ee1ca75cda6ec81f00a5612db4cb55d26a5517eadf2783560eaa06b20df605d83430e0a244a7c2ad2245e014fd594ab511404aadbc17639744d8820f5f8630848114f3ecfd8cfdbf589ba48396f076a64e06ea628b79bf3a376e5e579567af91f4219a081eb700282220a9fdd531e40858af8c857276c5a15e7900610123ce0c5b3f539b04bee1f203276d1a760f04185e593531e1b0f33c5eababb5ddf3716addbd21d29cb7d45465fc7e5a433e8ec187ddf47b6d5cce55392b3d86a1f6c14a3c8dfa730ff947f05df681a74458287e4158f70053dc5aea118ec8532248eaaff02ec767e54e1f3276899f7aa4f1f7f8a5154ad8efdc8e66a41303fa13e22e8915b959908d3e9e58426d5c9fbde8e6f4f4678c37a549b64ce8411f3433f35f3ceb7a6502d4c04282d1fa539f32c496c8a7d0ae2cf122175b70678d0ec9c072de93ce03bddc0c815184d1c9f59464611f574ae6bc164942de51f02dc907bccdfd31c43dcaaf04c9b83a86812f50109c90cfc068ac80e83824af781ffaa4414aecf6249412d97ab7e0ace5256e88dad4e73f138d380876aaa61fb5fd1a9f576f7ab8423fc71b3df3e06164f0c543e3ae925a545c73eaa55c9deb4d280e449f741417dc328033ef5427e8cb95c34ea054fbcaf8298a1e5ee4087693825b6a520985535bfbc015d9723c2048bd373251b003d8315c7627826f745582814cbea962a462a26823e6b919133dc05718495a50752ccd8477f695bba891bf788b22fc669a6ba68b0634f9816bf20528512d136526299147b68eea121ac3f78bdf0d1338c698a073fbcbbc8d6986f8909734d68da808f83579437aa9b36232c356ce3ab6c7030214d57277d1ef493b327117a24b9de39c80c674568b05ddcd2ab810943fa73f32586af2b4267439443632a8c67d62966b1d3defb19ecd896b5556bd4de1415c022687feeed8ff6dfee114d5a7800c7e3097469dce6362dca59bc7a9393c15307ee645c9b7b55e6eb4f6e5f0e8841a70d14c5a560fe6447c6720392dd48eac775f9c13634a2d1f4ca6b203010cee04a4a302eccd955ced1bcdda0a04f5601759a73e466dd60363cd23d4c0d540a97de47ec3b9723a8aa6443d4583897c33c8c8b54836442efeba883d5fbfa703cb9b91a1aa56358b9961427b5a8f783499c09cd9a1ec74f17c8fa9c7acf25440a03c255b88dc261092c249e0bc4e770f996c47cf0b18a70d0c973b3d6e2d4be26e743e499322ae34069bce3a05d4a8d8ea40b4aefc9d87aceb5227dc57426945cb06366b4e6e1a0b783c2df852ef99fc4f90851edd8b65dae6c16eeb8564665bc9067f7f898cb0622a9427fe2616a061af0506387807ee5e88310626291105d38245074244278edef281bb2b611e797ce58d9178b7102574edb19976ceef72e2a9a52d5aea48c4d2a29ab7450b70dc2adccf3f67daeb19945e0bf4935a8bbfc1cdfe35b3ca0352cef83b5d1de8452210a0979f265199f854038481005c6a22a805b5d6ed722eb06af1477669c4fae8d4e12846a2cbbde5e79a3bf378d731abb018381a14c32533aaf4a1a40f462539dd2364a6a8cd2676fef3831039ff9831b6c73058900ef3fae7796def97f97d12d6fecb25e2278754fa7f5b726bab3e28987d9bdf8f060915c3c8c81cdbe6cb00156a67767bb9837584fdc39eefd2e604849759eb72715a890360f0bdc6b414af42b691881e449a23ea11f5397d91204dbece8fb16e99f0c444fa9a3e634b07083e7c73fbca6efc37e1cdd87bb769b3d9f23f1094b242b999d0ef2569e7b7cd4da5630bfe0c09e6dd836edd42cb4f44366ecb621282aa13da1fd05df9453a51845c3173821f00004de7c3c1b7b3cb8e537627057a2ee37e0e7970c776dedc72a4cee4bffb76efa55abfb43366ccf3b69e39c455c7f5d071a7f6a6bbd36d600631e647563f15ac5cf14cabd5ec5c99a17b500a5714301b60ecd33ee8e15edf0dd88efd285c3fec921dea3852e4ecaa977f3dc8e59ea7f0b12b34659cf5b22419a53225717bb722a0d1f29a4062b1584c83d83b668eb4bc99635a447e00570df640805"
+            },
+            {
+              "epoch": 2,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-1"
+                },
+                "key_id": "near",
+                "epoch": 2,
+                "public_key_digest": [
+                  214,
+                  158,
+                  172,
+                  72,
+                  197,
+                  91,
+                  171,
+                  71,
+                  190,
+                  25,
+                  74,
+                  224,
+                  251,
+                  138,
+                  138,
+                  173,
+                  63,
+                  145,
+                  177,
+                  186,
+                  236,
+                  14,
+                  97,
+                  223,
+                  244,
+                  164,
+                  30,
+                  94,
+                  66,
+                  28,
+                  40,
+                  211
+                ],
+                "schedule_digest": [
+                  198,
+                  55,
+                  105,
+                  165,
+                  190,
+                  244,
+                  208,
+                  110,
+                  129,
+                  192,
+                  184,
+                  73,
+                  198,
+                  235,
+                  164,
+                  35,
+                  238,
+                  11,
+                  21,
+                  94,
+                  198,
+                  18,
+                  15,
+                  208,
+                  209,
+                  86,
+                  224,
+                  174,
+                  142,
+                  71,
+                  5,
+                  255
+                ]
+              },
+              "preparationMs": 56306.914791,
+              "initialSigningBatches": 8,
+              "serverResponseMs": 5426.049916000004,
+              "registrationWithClientVerificationMs": 5427.565000000002,
+              "underFiveSeconds": false,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 3817.695875000005,
+                "operation": [
+                  42,
+                  55,
+                  221,
+                  98,
+                  164,
+                  101,
+                  135,
+                  25,
+                  6,
+                  16,
+                  205,
+                  230,
+                  249,
+                  134,
+                  125,
+                  190,
+                  14,
+                  236,
+                  130,
+                  75,
+                  230,
+                  46,
+                  183,
+                  149,
+                  128,
+                  203,
+                  82,
+                  8,
+                  46,
+                  96,
+                  155,
+                  76
+                ]
+              },
+              "publicKeyHex": "fef3a4d9f07f217296fb3bdda98529dd3e48200ea2efc55987515201a43707f618bcafad5aacfa06028d29c06119e88bba5e3df1a0508fb952989cbbc51643afc3bc05d1f23a28320b8a95adcdabcdcfd24be56391d577576aac46f0062bccad72c5284a4053b01091c4b8c88d797df1ac2c3e8fbd0db89931867836ef7837802b4ff45e4d7715eab7cee964b0ffa501abbd3ccf19fc8e86aa508927f39b7140770a52f69a4987e56f34445a0e8cf158c53769f77c5c8d7d1be63939dffff9e9935d61077b38133032b893b38ce332318a75c2bb7bb909e29f4ae5d9818f3136adeaae8caf1f5a317bd2cbf1453f9c2b6d18a9a0b1f2e757f42466c3a0d53d01b28551083a9ac82345c2583e2e2fd7f9b4ab07eef7cc7e187040ccd05edf7decc143510edbe9649345ff57309c72590404f20bd8831a7f993b88951d3320ecebd4210db943867a621e9ea8fe88dd927204dcd8d9194e48af7fd558ff72eb10b5c5fdc7a1929ac72737b4a7e5c57a8425f2cfad1c0f80c43653a8e26accc4d7be8e883c97c87b5838232b11999fb9f99b7de24349d8ad2c553137f104c5318ab547d52fef2d570e512189b074d8aaf9c3a477d7cfb19bdbe626fbb338cef103ce4ca302cf37bee9e641339954dade3107b0c3819419d7413f319eca56c53a88f2c06ee1ca75cda6ec81f00a5612db4cb55d26a5517eadf2783560eaa06b20df605d83430e0a244a7c2ad2245e014fd594ab511404aadbc17639744d8820f5f8630848114f3ecfd8cfdbf589ba48396f076a64e06ea628b79bf3a376e5e579567af91f4219a081eb700282220a9fdd531e40858af8c857276c5a15e7900610123ce0c5b3f539b04bee1f203276d1a760f04185e593531e1b0f33c5eababb5ddf3716addbd21d29cb7d45465fc7e5a433e8ec187ddf47b6d5cce55392b3d86a1f6c14a3c8dfa730ff947f05df681a74458287e4158f70053dc5aea118ec8532248eaaff02ec767e54e1f3276899f7aa4f1f7f8a5154ad8efdc8e66a41303fa13e22e8915b959908d3e9e58426d5c9fbde8e6f4f4678c37a549b64ce8411f3433f35f3ceb7a6502d4c04282d1fa539f32c496c8a7d0ae2cf122175b70678d0ec9c072de93ce03bddc0c815184d1c9f59464611f574ae6bc164942de51f02dc907bccdfd31c43dcaaf04c9b83a86812f50109c90cfc068ac80e83824af781ffaa4414aecf6249412d97ab7e0ace5256e88dad4e73f138d380876aaa61fb5fd1a9f576f7ab8423fc71b3df3e06164f0c543e3ae925a545c73eaa55c9deb4d280e449f741417dc328033ef5427e8cb95c34ea054fbcaf8298a1e5ee4087693825b6a520985535bfbc015d9723c2048bd373251b003d8315c7627826f745582814cbea962a462a26823e6b919133dc05718495a50752ccd8477f695bba891bf788b22fc669a6ba68b0634f9816bf20528512d136526299147b68eea121ac3f78bdf0d1338c698a073fbcbbc8d6986f8909734d68da808f83579437aa9b36232c356ce3ab6c7030214d57277d1ef493b327117a24b9de39c80c674568b05ddcd2ab810943fa73f32586af2b4267439443632a8c67d62966b1d3defb19ecd896b5556bd4de1415c022687feeed8ff6dfee114d5a7800c7e3097469dce6362dca59bc7a9393c15307ee645c9b7b55e6eb4f6e5f0e8841a70d14c5a560fe6447c6720392dd48eac775f9c13634a2d1f4ca6b203010cee04a4a302eccd955ced1bcdda0a04f5601759a73e466dd60363cd23d4c0d540a97de47ec3b9723a8aa6443d4583897c33c8c8b54836442efeba883d5fbfa703cb9b91a1aa56358b9961427b5a8f783499c09cd9a1ec74f17c8fa9c7acf25440a03c255b88dc261092c249e0bc4e770f996c47cf0b18a70d0c973b3d6e2d4be26e743e499322ae34069bce3a05d4a8d8ea40b4aefc9d87aceb5227dc57426945cb06366b4e6e1a0b783c2df852ef99fc4f90851edd8b65dae6c16eeb8564665bc9067f7f898cb0622a9427fe2616a061af0506387807ee5e88310626291105d38245074244278edef281bb2b611e797ce58d9178b7102574edb19976ceef72e2a9a52d5aea48c4d2a29ab7450b70dc2adccf3f67daeb19945e0bf4935a8bbfc1cdfe35b3ca0352cef83b5d1de8452210a0979f265199f854038481005c6a22a805b5d6ed722eb06af1477669c4fae8d4e12846a2cbbde5e79a3bf378d731abb018381a14c32533aaf4a1a40f462539dd2364a6a8cd2676fef3831039ff9831b6c73058900ef3fae7796def97f97d12d6fecb25e2278754fa7f5b726bab3e28987d9bdf8f060915c3c8c81cdbe6cb00156a67767bb9837584fdc39eefd2e604849759eb72715a890360f0bdc6b414af42b691881e449a23ea11f5397d91204dbece8fb16e99f0c444fa9a3e634b07083e7c73fbca6efc37e1cdd87bb769b3d9f23f1094b242b999d0ef2569e7b7cd4da5630bfe0c09e6dd836edd42cb4f44366ecb621282aa13da1fd05df9453a51845c3173821f00004de7c3c1b7b3cb8e537627057a2ee37e0e7970c776dedc72a4cee4bffb76efa55abfb43366ccf3b69e39c455c7f5d071a7f6a6bbd36d600631e647563f15ac5cf14cabd5ec5c99a17b500a5714301b60ecd33ee8e15edf0dd88efd285c3fec921dea3852e4ecaa977f3dc8e59ea7f0b12b34659cf5b22419a53225717bb722a0d1f29a4062b1584c83d83b668eb4bc99635a447e00570df640805"
+            }
+          ]
+        },
+        {
+          "wallet": 2,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-2"
+                },
+                "key_id": "near",
+                "epoch": 1,
+                "public_key_digest": [
+                  34,
+                  178,
+                  28,
+                  62,
+                  104,
+                  170,
+                  203,
+                  135,
+                  79,
+                  75,
+                  194,
+                  67,
+                  158,
+                  21,
+                  230,
+                  101,
+                  236,
+                  199,
+                  136,
+                  48,
+                  28,
+                  56,
+                  154,
+                  69,
+                  147,
+                  148,
+                  103,
+                  71,
+                  247,
+                  216,
+                  125,
+                  145
+                ],
+                "schedule_digest": [
+                  198,
+                  55,
+                  105,
+                  165,
+                  190,
+                  244,
+                  208,
+                  110,
+                  129,
+                  192,
+                  184,
+                  73,
+                  198,
+                  235,
+                  164,
+                  35,
+                  238,
+                  11,
+                  21,
+                  94,
+                  198,
+                  18,
+                  15,
+                  208,
+                  209,
+                  86,
+                  224,
+                  174,
+                  142,
+                  71,
+                  5,
+                  255
+                ]
+              },
+              "preparationMs": 86939.686875,
+              "initialSigningBatches": 8,
+              "serverResponseMs": 5839.492167000004,
+              "registrationWithClientVerificationMs": 5842.081917000003,
+              "underFiveSeconds": false,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2628.932792000007,
+                "operation": [
+                  77,
+                  81,
+                  58,
+                  13,
+                  190,
+                  222,
+                  195,
+                  103,
+                  96,
+                  88,
+                  93,
+                  107,
+                  221,
+                  220,
+                  247,
+                  238,
+                  51,
+                  165,
+                  233,
+                  192,
+                  202,
+                  52,
+                  169,
+                  79,
+                  76,
+                  69,
+                  202,
+                  242,
+                  188,
+                  139,
+                  37,
+                  209
+                ]
+              },
+              "publicKeyHex": "3385fab2fa4aa2cf4d90a32c6ed46eef1af1a3eab720269aecba220bd704097f4e49ebaad6520ab5f8415b79a219b7e1cf43d48b8e1216519f091a34808f49bc4d6eee5f20b7b7f7fd68c5720609fcfed2c31b58d7c925ee857ad485c0502e1354e72f48a7c3305d461dd3d2eb24d612a115e5fb1d34597f166987c6b51eee3fd87161ae86b3926a36aed9fe82895f088acca3ceae7db44f389b21ab0a09455276cf8dad5fc7eec08960c3bf62089469b723e03969b481245abfbc615cf6fd7e8d152d791d19ecf57670ff853334e3d0cb92d13939670dc7485abd08970e4710d855b0a499ed0349ed4d956843cb2f245003c4bea6734530a123ba612742806e06f3d15efbff9262ca42d219ecf7f8d2e5b38291ffa9c1f4c2b0866384df7fcf752f247e7eea3efe8f6902ca6d7725bfb1db58a2c78eb3c464825b61ec957a5e641b3270e8efd43303bb2f989562a67f893b1293e354c235746573d84fc23b62acc465a40196b8d9f3c2d2367084f49c0045a7f93ddc273839caab3c54f392fff81614da8c0cf039e98bbf6491daa14ff585d86816cde66bc99ae3a3039642b2bc83ff3efb18b279cce8f686469ec6424ab4e51d581459d130fe0bd5294c2f30509727d3ce4277d2a0deb0e6290455dcecde1369343ac92cfb1362bdee01499d992eb1397da290b115589721318fa9eeba9df32c89b29c6190f9748a7f78b0772bbabb25b47642a9436538f9b6dd0be0d523939e9d97e13e8c4bcd344120596537c529d4fb7dca75a9aed413bfce0bb75f342bebef280ac16a13a4a965c3d66db26620823d80e8c4248527ff1eee19298fee7b8fc03f9472f7c1217e8690affc187dadcf3c4207accd057a072887612ad81da04f147a9711abe13750791353be0261514940f0fb465955ae1f10d96b0fb8dd32243e96e7aa317b701b8078b3c3a286d8da779264573976118b939bf13a3a70437fe70f60dd322c54aae517bf3b5a6bcc6f2e3bb8aacf8763ad969d0d1b6f5ac096233e16dc8ee6b11a1068f12be6ffd4b3947c1e8a53c298c2f4d82bb3bdb7913052cc9b88964913707e104ac2e3ce40aee27e2befd593d00f0febe40f0799bd60dbffc6cca05471ee5e46f982d1d3dcb599f1fe9a71406fc198ecda8dd3c2308c8903189c689398817c0489fdc4e80cbdb8ebb969560cc03f54da8dfc15951430ab0d9447ac50e2a2331323fdf877ddc941ee51d979e0d413308a39a71399c645ce959c585d3a124a716a8a19ffc2da31702ca6f05530f8084b0b344dade22328762ca85bcf66a0e99fc1f42551e6fb737d6d1bbcff04774841bdc91e9f8d529a50d358bcfc385a366b8b70dc03d38b05bf98013eaed816220e0a50c89d4c7267585b120d743f61c7ad605ebd3faa9cd29834d49e59e794ac558afade2ebc2279440211142c6be5cb7507876f9edd8eae1078ecf0913229b184a2be3e081d8c48dd8529f07776f6af16691c704e08b3d7b4099cb59a6c7f396d2083cf297a2b89a0b2b76b5a0c8384209fda59037bbb894f478ed8727cbdb9e9206812685cbc7593a8963dc718303edbd4073c17d3c98f934a530a668701bdc092e1becd1cbca20dfea3039c085e35bca7246fad556e6357177c2cf906a92291c736394b849bf539af8fa86cf9a7e5807f7f836f6b8070bdc63e8870659ea20a56dbb07cae2aa1b2dfba0dd5567a51d63978e222f6b45f5c4b5171191a3e1c8d64865331d3e33a1d881e99c30c0652cb4a1e512a5809e3188d9e3b214a5745845a13e569c1f0aa9876c2b6c994394364eed12c3cb6bb760a06ac8ea69184df81b3a4aa9d06c3f1c8cacd15a122ddd890ed91563b77008e1319030e086f1b4050c75f73501c75e27b1c6c17bf750252b407cdddeb0cb1dfbc837d78072ec22a7d5ac3ad67b91d2f769eba3b04a1bcccd14a3724fadffec3f98de65ac783c9a99f950725213b47ee4e4a8748011180029e4ee1a7480cb548ccdc09327ee598ca57ed4c5b2753d3c00b4dfc1bba07a9fe5f2bd28eb5daacee56c3b6ea693b4f3e8dccce9b41d677807b7802b440a1fc5e063af7e09e35cdf04c147c765d8a651bb8d25ada2b2cc3179abd21463151a8f1662de4b99213e330be099d55597aa479761ede80afcc488e03a293b980d189b397552ea0f95a3f2b20914c4695656aff7bc39729be886d9dd6f439b90aba641d6eef467c338301583aa8186ed2086bc7a2f235418e403550261a5da6139c8f1619c02725cc5625fac5cb3ac1bd7be0470dc6b3ccf2993c2f18c9a58a4b502704b8ed2a873370663ca28003ca71fc5bdc6a76c64dfa4a2518b5c738f90cc2c17a881b3f9dc660b47ca201c23015325d008acd630c96b035f27b68093ae15f622ac74a94c5bc578aa69c971d10f20434d8635ebba622285b1059125ff6b9d943bfa45f495ff180bc8a05dad436fcfb2eece235dc5ca993c4738dfd36cad24680fe172528b30253c66e7e1604878006684e1986ff0d9ca2bd9165131ba7003ca128e420a25817e64b42cfa550e7cf96e7a83caa8f918570dfde41ee8c131ed3f828dae174ac9a5cbdd9dd8f75ea4b7e595b23fc0ff91369dba6b95948381b3c00245187ab13c4020dbce386a13f3fb6f6b5348a9cea937e747e71e3cec3a7b846a62c7b501b85e22574c8566bb74e8776df03721624c0e544f8bf0019dc931ea1d68fe2c51dca81ac51f1b090e4e17300bd0dfa2d38a93cac2bf56fdf35f0bbd41a450eade2"
+            },
+            {
+              "epoch": 2,
+              "key": {
+                "wallet": {
+                  "org": "registration-e2e",
+                  "project": "wallet",
+                  "environment": "temporary",
+                  "wallet": "candidate-groups-wallet-2"
+                },
+                "key_id": "near",
+                "epoch": 2,
+                "public_key_digest": [
+                  34,
+                  178,
+                  28,
+                  62,
+                  104,
+                  170,
+                  203,
+                  135,
+                  79,
+                  75,
+                  194,
+                  67,
+                  158,
+                  21,
+                  230,
+                  101,
+                  236,
+                  199,
+                  136,
+                  48,
+                  28,
+                  56,
+                  154,
+                  69,
+                  147,
+                  148,
+                  103,
+                  71,
+                  247,
+                  216,
+                  125,
+                  145
+                ],
+                "schedule_digest": [
+                  198,
+                  55,
+                  105,
+                  165,
+                  190,
+                  244,
+                  208,
+                  110,
+                  129,
+                  192,
+                  184,
+                  73,
+                  198,
+                  235,
+                  164,
+                  35,
+                  238,
+                  11,
+                  21,
+                  94,
+                  198,
+                  18,
+                  15,
+                  208,
+                  209,
+                  86,
+                  224,
+                  174,
+                  142,
+                  71,
+                  5,
+                  255
+                ]
+              },
+              "preparationMs": 61824.309624999994,
+              "initialSigningBatches": 8,
+              "serverResponseMs": 4238.0471670000115,
+              "registrationWithClientVerificationMs": 4239.534917000012,
+              "underFiveSeconds": true,
+              "canonicalKeyVerified": true,
+              "holderResultsAuthenticated": true,
+              "manifestVerified": true,
+              "exactReplay": true,
+              "changedReplayRejected": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2773.6879160000244,
+                "operation": [
+                  235,
+                  169,
+                  66,
+                  23,
+                  126,
+                  194,
+                  4,
+                  11,
+                  150,
+                  249,
+                  205,
+                  36,
+                  252,
+                  214,
+                  183,
+                  94,
+                  156,
+                  77,
+                  227,
+                  211,
+                  135,
+                  11,
+                  16,
+                  21,
+                  209,
+                  72,
+                  192,
+                  178,
+                  162,
+                  252,
+                  220,
+                  193
+                ]
+              },
+              "publicKeyHex": "3385fab2fa4aa2cf4d90a32c6ed46eef1af1a3eab720269aecba220bd704097f4e49ebaad6520ab5f8415b79a219b7e1cf43d48b8e1216519f091a34808f49bc4d6eee5f20b7b7f7fd68c5720609fcfed2c31b58d7c925ee857ad485c0502e1354e72f48a7c3305d461dd3d2eb24d612a115e5fb1d34597f166987c6b51eee3fd87161ae86b3926a36aed9fe82895f088acca3ceae7db44f389b21ab0a09455276cf8dad5fc7eec08960c3bf62089469b723e03969b481245abfbc615cf6fd7e8d152d791d19ecf57670ff853334e3d0cb92d13939670dc7485abd08970e4710d855b0a499ed0349ed4d956843cb2f245003c4bea6734530a123ba612742806e06f3d15efbff9262ca42d219ecf7f8d2e5b38291ffa9c1f4c2b0866384df7fcf752f247e7eea3efe8f6902ca6d7725bfb1db58a2c78eb3c464825b61ec957a5e641b3270e8efd43303bb2f989562a67f893b1293e354c235746573d84fc23b62acc465a40196b8d9f3c2d2367084f49c0045a7f93ddc273839caab3c54f392fff81614da8c0cf039e98bbf6491daa14ff585d86816cde66bc99ae3a3039642b2bc83ff3efb18b279cce8f686469ec6424ab4e51d581459d130fe0bd5294c2f30509727d3ce4277d2a0deb0e6290455dcecde1369343ac92cfb1362bdee01499d992eb1397da290b115589721318fa9eeba9df32c89b29c6190f9748a7f78b0772bbabb25b47642a9436538f9b6dd0be0d523939e9d97e13e8c4bcd344120596537c529d4fb7dca75a9aed413bfce0bb75f342bebef280ac16a13a4a965c3d66db26620823d80e8c4248527ff1eee19298fee7b8fc03f9472f7c1217e8690affc187dadcf3c4207accd057a072887612ad81da04f147a9711abe13750791353be0261514940f0fb465955ae1f10d96b0fb8dd32243e96e7aa317b701b8078b3c3a286d8da779264573976118b939bf13a3a70437fe70f60dd322c54aae517bf3b5a6bcc6f2e3bb8aacf8763ad969d0d1b6f5ac096233e16dc8ee6b11a1068f12be6ffd4b3947c1e8a53c298c2f4d82bb3bdb7913052cc9b88964913707e104ac2e3ce40aee27e2befd593d00f0febe40f0799bd60dbffc6cca05471ee5e46f982d1d3dcb599f1fe9a71406fc198ecda8dd3c2308c8903189c689398817c0489fdc4e80cbdb8ebb969560cc03f54da8dfc15951430ab0d9447ac50e2a2331323fdf877ddc941ee51d979e0d413308a39a71399c645ce959c585d3a124a716a8a19ffc2da31702ca6f05530f8084b0b344dade22328762ca85bcf66a0e99fc1f42551e6fb737d6d1bbcff04774841bdc91e9f8d529a50d358bcfc385a366b8b70dc03d38b05bf98013eaed816220e0a50c89d4c7267585b120d743f61c7ad605ebd3faa9cd29834d49e59e794ac558afade2ebc2279440211142c6be5cb7507876f9edd8eae1078ecf0913229b184a2be3e081d8c48dd8529f07776f6af16691c704e08b3d7b4099cb59a6c7f396d2083cf297a2b89a0b2b76b5a0c8384209fda59037bbb894f478ed8727cbdb9e9206812685cbc7593a8963dc718303edbd4073c17d3c98f934a530a668701bdc092e1becd1cbca20dfea3039c085e35bca7246fad556e6357177c2cf906a92291c736394b849bf539af8fa86cf9a7e5807f7f836f6b8070bdc63e8870659ea20a56dbb07cae2aa1b2dfba0dd5567a51d63978e222f6b45f5c4b5171191a3e1c8d64865331d3e33a1d881e99c30c0652cb4a1e512a5809e3188d9e3b214a5745845a13e569c1f0aa9876c2b6c994394364eed12c3cb6bb760a06ac8ea69184df81b3a4aa9d06c3f1c8cacd15a122ddd890ed91563b77008e1319030e086f1b4050c75f73501c75e27b1c6c17bf750252b407cdddeb0cb1dfbc837d78072ec22a7d5ac3ad67b91d2f769eba3b04a1bcccd14a3724fadffec3f98de65ac783c9a99f950725213b47ee4e4a8748011180029e4ee1a7480cb548ccdc09327ee598ca57ed4c5b2753d3c00b4dfc1bba07a9fe5f2bd28eb5daacee56c3b6ea693b4f3e8dccce9b41d677807b7802b440a1fc5e063af7e09e35cdf04c147c765d8a651bb8d25ada2b2cc3179abd21463151a8f1662de4b99213e330be099d55597aa479761ede80afcc488e03a293b980d189b397552ea0f95a3f2b20914c4695656aff7bc39729be886d9dd6f439b90aba641d6eef467c338301583aa8186ed2086bc7a2f235418e403550261a5da6139c8f1619c02725cc5625fac5cb3ac1bd7be0470dc6b3ccf2993c2f18c9a58a4b502704b8ed2a873370663ca28003ca71fc5bdc6a76c64dfa4a2518b5c738f90cc2c17a881b3f9dc660b47ca201c23015325d008acd630c96b035f27b68093ae15f622ac74a94c5bc578aa69c971d10f20434d8635ebba622285b1059125ff6b9d943bfa45f495ff180bc8a05dad436fcfb2eece235dc5ca993c4738dfd36cad24680fe172528b30253c66e7e1604878006684e1986ff0d9ca2bd9165131ba7003ca128e420a25817e64b42cfa550e7cf96e7a83caa8f918570dfde41ee8c131ed3f828dae174ac9a5cbdd9dd8f75ea4b7e595b23fc0ff91369dba6b95948381b3c00245187ab13c4020dbce386a13f3fb6f6b5348a9cea937e747e71e3cec3a7b846a62c7b501b85e22574c8566bb74e8776df03721624c0e544f8bf0019dc931ea1d68fe2c51dca81ac51f1b090e4e17300bd0dfa2d38a93cac2bf56fdf35f0bbd41a450eade2"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline_participant_reconstruction": {
+    "schema": "seams.ml-dsa-pairs-baseline-count-review.v1",
+    "trace_sha256": "95ef7edcad1a2997473f2af4d9f56ad1032646a34a8d369708f18632d51af638",
+    "calibrated_participant_traces": 54,
+    "direct_router_candidates": 172,
+    "reconstructed_candidates": 8,
+    "operations": [
+      {
+        "operation": "eefa5c573a52a65d40212d8b1d860ed95f48704a3924cf2321a278f2d521e618",
+        "sources": [
+          {
+            "record_index": 510,
+            "role": "a",
+            "checked_indexes": [
+              0,
+              1
+            ]
+          },
+          {
+            "record_index": 2665,
+            "role": "b",
+            "checked_indexes": [
+              0,
+              1
+            ]
+          }
+        ],
+        "evaluated_candidates": 8,
+        "material_ids_directly_bound": false
+      }
+    ],
+    "limit": "Counts are reconstructed from matching complete participant traces. They do not restore the missing Router outcome or directly bind material IDs."
+  }
+}

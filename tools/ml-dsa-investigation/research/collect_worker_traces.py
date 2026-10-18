@@ -4,6 +4,7 @@
 import argparse
 import base64
 import datetime
+import hashlib
 import json
 import pathlib
 import re
@@ -19,6 +20,15 @@ def exception_category(error):
     if message == "Durable Object reset because its code was updated.":
         return "runtime_code_update_reset"
     return "unclassified"
+
+
+def preparation_ids(batch, groups):
+    if groups == "one":
+        return [batch]
+    if groups == "two":
+        second = hashlib.sha256(b"seams/ml-dsa/preparation-second-pair/v1" + bytes.fromhex(batch)).hexdigest()
+        return [batch, second]
+    raise ValueError("Invalid preparation group count")
 
 
 def refill_job(request, path):
@@ -39,6 +49,7 @@ def refill_job(request, path):
             if type(data) is not int or data < 0:
                 return None
             result[name] = data
+        result["batches"] = preparation_ids(result["batch"], value.get("groups", "one"))
         return result
     except (ValueError, TypeError, KeyError):
         return None
@@ -169,7 +180,12 @@ def public_refill_claim(value, timestamp):
         return None
     if not public_counter(job.get("expires_at_ms")):
         return None
-    return {**result, "status": "acquired", "batch": bytes(batch).hex(), "expires_at_ms": job["expires_at_ms"]}
+    groups = job.get("groups", "one")
+    if groups not in ("one", "two"):
+        return None
+    batch = bytes(batch).hex()
+    return {**result, "status": "acquired", "batch": batch,
+            "batches": preparation_ids(batch, groups), "expires_at_ms": job["expires_at_ms"]}
 
 
 def records(path, role):
@@ -237,6 +253,13 @@ def records(path, role):
                         public_refill = {key: value[key] for key in [
                             "batch", "published", "elapsed_ms", "candidates",
                         ] if key in value}
+                        if "batches" in value:
+                            batches = value["batches"]
+                            if not (isinstance(batches, list) and 1 <= len(batches) <= 2
+                                    and all(isinstance(item, str) and re.fullmatch("[0-9a-f]{64}", item) for item in batches)
+                                    and len(set(batches)) == len(batches) and batches[0] == batch):
+                                raise ValueError("Invalid preparation publication identities")
+                            public_refill["batches"] = batches
                         public_refill["log_timestamp_ms"] = log.get("timestamp")
                         refill.append(public_refill)
                 if value.get("event") == "ml_dsa_peer_close_v1":

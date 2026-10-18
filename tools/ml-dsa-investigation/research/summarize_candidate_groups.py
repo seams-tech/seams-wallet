@@ -81,25 +81,36 @@ def summarize_profile(folder):
                     fresh.update(set(inventory[state + "_a"]) & set(inventory[state + "_b"]))
     assert peak_observed_groups <= policy["refill_target_batches"]
     fresh.difference_update(initial)
-    completed = {event["batch"]: event for row in records for event in row["refill"]
-                 if event["published"] is True and event["batch"] in fresh and start <= timestamp(row, event) <= horizon}
+    completed = {}
     failures = {}
     interrupted = set()
     completed_invocations = {}
+    completed_jobs = {}
+    completed_job_widths = {}
     producer_invocations = []
     for record in records:
-        if record["role"] == "preparer-a" and record["producer_alarm"] and start <= record["event_timestamp_ms"] <= horizon:
+        producer = (record["role"] == "preparer-a" and record["producer_alarm"]
+                    and start <= record["event_timestamp_ms"] <= horizon)
+        if producer:
             producer_invocations.append(record)
         for event in record["refill"]:
+            ids = event.get("batches", [event["batch"]])
+            assert event["candidates"] == width * len(ids)
+            # A completion can arrive after the inventory proves publication.
+            # Charge its invocation once, even when it delivered two pairs.
+            if producer and event["published"] is True and set(ids).intersection(fresh):
+                assert event["batch"] not in completed_jobs
+                completed_jobs[event["batch"]] = record
+                completed_job_widths[event["batch"]] = event["candidates"]
+                for batch in ids:
+                    assert batch not in completed_invocations
+                    completed_invocations[batch] = {**record, "prepared_groups": len(ids)}
+                    completed[batch] = event
             if start <= timestamp(record, event) <= horizon:
-                assert event["candidates"] == width
-                if event["published"] is True and record["role"] == "preparer-a" and record["producer_alarm"]:
-                    assert event["batch"] not in completed_invocations
-                    completed_invocations[event["batch"]] = record
                 if event["published"] is False:
                     failures[event["batch"]] = event
                 elif event["published"] is None and event["batch"] not in initial:
-                    interrupted.add(event["batch"])
+                    interrupted.update(ids)
     missing_completions = sorted(batch for batch in fresh
                                  if batch not in completed_invocations or completed_invocations[batch]["wall_ms"] is None)
     unknown_consumption = [row["operation"] for row in consumption if row.get("count_unknown")]
@@ -144,7 +155,7 @@ def summarize_profile(folder):
             continue
         allocation.append({"wallet": demand[0], "demand": demand[1], "groups": len(batches),
                            "candidates": len(batches) * width,
-                           "producer_invocation_wall_ms": sum(completed_invocations[batch]["wall_ms"] for batch in batches)})
+                           "producer_invocation_wall_ms": sum(completed_invocations[batch]["wall_ms"] / completed_invocations[batch]["prepared_groups"] for batch in batches)})
 
     captured_cpu = {}
     for role in ["preparer-a", "preparer-b"]:
@@ -157,6 +168,7 @@ def summarize_profile(folder):
     mean_preparation = known_production_ms / len(successes) if successes else None
     return {
         "group_size": width,
+        "preparation_group_size": policy.get("preparation_group_size", width),
         "policy": policy,
         "wallets": len(client["wallets"]),
         "client_sha256": hashlib.sha256((folder / "client.json").read_bytes()).hexdigest(),
@@ -183,13 +195,18 @@ def summarize_profile(folder):
         "full_reserve_restoration_ms": horizon - end if restored else None,
         "balanced_cycle_ms_per_verified_signature": (horizon - start) / len(successes) if material_balanced and successes else None,
         "preparation_cost": {
-            "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. Each group uses one producer invocation; peer time is not added. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+            "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
             "fresh_paired_groups": len(fresh),
             "fresh_paired_candidates": len(fresh) * width,
-            "completed_group_invocation_wall_ms": distribution([completed_invocations[batch]["wall_ms"] for batch in fresh
+            "completed_job_invocation_wall_ms": distribution([row["wall_ms"] for row in completed_jobs.values() if row["wall_ms"] is not None]),
+            "allocated_group_invocation_wall_ms": distribution([completed_invocations[batch]["wall_ms"] / completed_invocations[batch]["prepared_groups"] for batch in fresh
                                                                  if batch in completed_invocations and completed_invocations[batch]["wall_ms"] is not None]),
-            "completed_group_worker_clock_delta_ms": distribution([completed[batch]["elapsed_ms"] for batch in fresh
-                                                                     if batch in completed and completed[batch]["elapsed_ms"] is not None]),
+            "completed_job_count": len(completed_jobs),
+            "completed_job_invocation_wall_ms_by_candidates": {
+                str(count): distribution([row["wall_ms"] for job, row in completed_jobs.items()
+                                          if completed_job_widths[job] == count and row["wall_ms"] is not None])
+                for count in sorted(set(completed_job_widths.values()))
+            },
             "failed_producer_completions": len(failures),
             "missing_group_costs": missing_costs,
             "unknown_producer_invocations": len(unknown_producers),
