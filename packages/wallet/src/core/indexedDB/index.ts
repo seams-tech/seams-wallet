@@ -1,8 +1,8 @@
 export { UnifiedIndexedDBManager } from './unifiedIndexedDBManager';
 export { createIndexedDBNonceLaneCoordinationStore } from './nonceLaneCoordinationStore';
 export { seamsWalletDB } from './singletons';
+export { SEAMS_WALLET_DB_NAME } from './walletDbName';
 export {
-  SEAMS_WALLET_DB_NAME,
   SEAMS_WALLET_DB_VERSION,
   SEAMS_WALLET_INDEXES,
   SEAMS_WALLET_SCHEMA_MANIFEST,
@@ -141,7 +141,7 @@ export type {
 
 import { UnifiedIndexedDBManager } from './unifiedIndexedDBManager';
 import { seamsWalletDB } from './singletons';
-import { SEAMS_WALLET_DB_NAME } from './schemaNames';
+import { SEAMS_WALLET_DB_NAME } from './walletDbName';
 
 type IndexedDBMode = 'app' | 'wallet' | 'disabled';
 

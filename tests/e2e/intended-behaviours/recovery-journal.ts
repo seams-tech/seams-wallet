@@ -1,9 +1,7 @@
 import type { CDPSession, Frame } from '@playwright/test';
 import { isObject, requireNonEmptyString } from '@shared/utils/validation';
-import {
-  SEAMS_WALLET_DB_NAME,
-  SEAMS_WALLET_STORES,
-} from '../../../packages/wallet/src/core/indexedDB/schemaNames';
+import { SEAMS_WALLET_STORES } from '../../../packages/wallet/src/core/indexedDB/schemaNames';
+import { SEAMS_WALLET_DB_NAME } from '../../../packages/wallet/src/core/indexedDB/walletDbName';
 
 type PendingWalletRecoveryCommitIdentity = {
   readonly walletId: string;

@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { HostedSeamsAuthMenu } from '@seams/wallet/react';
+import { HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
 
 export function AssetMenu() {
+  const { seams } = useSeams();
   const [mode, setMode] = useState<'closed' | 'login' | 'register'>('closed');
+  // Sign-in intent starts the wallet runtime download before the click mounts the menu.
+  const prepareSignIn = seams.authMenu.prepare;
   return (
     <section>
-      <button data-testid="asset-open-auth-menu" onClick={setMode.bind(null, 'login')}>
+      <button
+        data-testid="asset-open-auth-menu"
+        onPointerEnter={prepareSignIn}
+        onFocus={prepareSignIn}
+        onClick={setMode.bind(null, 'login')}
+      >
         Open wallet menu
       </button>
       <button data-testid="asset-open-registration-menu" onClick={setMode.bind(null, 'register')}>

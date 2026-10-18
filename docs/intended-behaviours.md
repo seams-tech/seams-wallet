@@ -54,6 +54,15 @@ constructed, the provider mounts, or a generic auth menu opens. Configuring
 multiple chains does not select all of their workers. Confirmation UI assets
 may load independently.
 
+While the wallet origin stores no wallet, the host answers the connection reads
+from its boot code: the current-wallet session read (`wallet_locked`), recent
+unlocks (empty) and the confirmation preferences (defaults). It does not download
+the wallet runtime for them and does not create its database. "Stores no wallet"
+means that the wallet database is absent or holds no record. If the host cannot
+prove this, the runtime answers. The first other request loads the runtime, and
+from then on the runtime answers every read. `authMenu.prepare()` downloads the
+runtime ahead of a sign-in; applications call it on sign-in intent.
+
 Signer and custody workers are initialized by the operation that requires them.
 Selected registration preparation may start its required crypto during the
 credential prompt; a best-effort preparation failure does not replace the real
@@ -1792,7 +1801,7 @@ no status request. A registration that includes ECDSA observes the server,
 because its session changes after the response. React uses its session
 subscription to display the registered wallet without another status request.
 Signing prepare continues to enforce current revocation, expiry, and quota state.
-The iframe protocol requires matching client and wallet-host assets at version 15.0.0.
+The iframe protocol requires matching client and wallet-host assets at version 16.0.0.
 
 
 ### Connection and operation preparation

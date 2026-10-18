@@ -30,7 +30,7 @@ async function readInventory(deps, req) {
   probe.finished.push({ requestId: req.requestId, before, after });
   deps.post({ type: 'PM_RESULT', requestId: req.requestId, payload: { ok: true, result: { before, after } } });
 }
-function handlers(deps) { return { PM_GET_RECENT_UNLOCKS: readInventory.bind(null, deps) }; }
+function handlers(deps) { return { PM_GET_WALLET_SESSION: readInventory.bind(null, deps) }; }
 async function handleWalletHostRuntimeRequest(input) {
   await handleWalletHostRuntimeRequestWithHandlers(input, handlers);
 }
@@ -42,6 +42,7 @@ export async function loadWalletHostRuntime() {
   return { handleWalletHostRuntimeRequest };
 }
 export async function preloadWalletHostRecoveryCodeSurface() {}
+export function preloadWalletHostRuntime() {}
 `;
 
 function requestCount(requests: string[]): number {
@@ -118,7 +119,8 @@ function configure(kind: 'initial' | 'appearance' | 'replacement' | 'invalid'): 
 }
 
 function startRequest(requestId: string): void {
-  (window as any).executionClient.port.postMessage({ type: 'PM_GET_RECENT_UNLOCKS', requestId });
+  // The boot answers empty-store connection reads itself; a session read always reaches the runtime.
+  (window as any).executionClient.port.postMessage({ type: 'PM_GET_WALLET_SESSION', requestId });
 }
 
 function holdWork(): void {

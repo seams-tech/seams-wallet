@@ -1284,6 +1284,7 @@ export class WalletIframeRouter {
   private exactSessionState: WalletIframeExactSessionState | null = null;
   private sessionSelectionGeneration = 0;
   private sessionObservationRevision = -1;
+  private walletRuntimePreparedConnectionId: WalletIframeConnectionId | null = null;
   private lastPreferencesChangedPayload: PreferencesChangedPayload | null = null;
   private mirroredConfirmationUiMode: RequestConfirmationUiMode | null = null;
   private progressBus: OnEventsProgressBus;
@@ -4047,6 +4048,15 @@ export class WalletIframeRouter {
   }
 
   // ===== Control APIs =====
+  /** Asks the wallet host to download its runtime once per connection, ahead of sign-in. */
+  async prepareWalletHostRuntime(): Promise<void> {
+    await this.ensureConfigured();
+    const connectionId = this.state.connectionId;
+    if (!connectionId || this.walletRuntimePreparedConnectionId === connectionId) return;
+    this.walletRuntimePreparedConnectionId = connectionId;
+    await this.post<void>({ type: 'PM_PREPARE_WALLET_RUNTIME' });
+  }
+
   async openHostedAuthMenu(
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,

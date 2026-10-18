@@ -800,7 +800,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '15.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '16.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -811,6 +811,7 @@ export type ParentToChildType =
   | 'PM_SET_TRANSACTION_VIEW'
   | 'PM_TRANSACTION_BROADCAST_STARTED'
   | 'PING'
+  | 'PM_PREPARE_WALLET_RUNTIME'
   | 'PM_SET_CONFIG'
   | 'PM_ACTIVATE_TRANSACTION_REVIEW'
   | 'PM_CANCEL'
@@ -1598,6 +1599,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_SET_TRANSACTION_VIEW', { requestId: string; view: 'toast' | 'closed' }>
   | RpcEnvelope<'PM_TRANSACTION_BROADCAST_STARTED', { signedTransaction: string }>
   | RpcEnvelope<'PING'>
+  | RpcEnvelope<'PM_PREPARE_WALLET_RUNTIME'>
   | RpcEnvelope<'PM_SET_CONFIG', PMSetConfigPayload>
   | RpcEnvelope<'PM_CANCEL', PMCancelPayload>
   | RpcEnvelope<'PM_OPEN_AUTH_MENU', PMOpenAuthMenuPayload>

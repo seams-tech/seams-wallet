@@ -31,7 +31,16 @@ import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import { isObject, isPlainObject } from '@shared/utils/validation';
 import { errorMessage } from '@shared/utils/errors';
 import type { WalletHostRuntimeState } from './runtimeContext';
-import { loadWalletHostRuntime, preloadWalletHostRecoveryCodeSurface } from './runtimeLoader';
+import {
+  loadWalletHostRuntime,
+  preloadWalletHostRecoveryCodeSurface,
+  preloadWalletHostRuntime,
+} from './runtimeLoader';
+import {
+  answerEmptyWalletStoreRead,
+  isEmptyWalletStoreRead,
+  walletStoreIsEmpty,
+} from './emptyWalletStoreReads';
 import {
   type RuntimeWalletHostRoute,
   routeRequiresRuntime,
@@ -119,11 +128,11 @@ function rejectProtocolVersionMismatch(
   return true;
 }
 
-function routeIsSupported(
-  route: RuntimeWalletHostRoute,
+function runtimeKindIsSupported(
+  kind: WalletHostRuntimeKind,
   supported: ReadonlySet<WalletHostRuntimeKind> | undefined,
 ): boolean {
-  return !supported || supported.has(route.kind);
+  return !supported || supported.has(kind);
 }
 
 function postExecutionMessage(
@@ -155,6 +164,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
   const cancelledRequests = new Set<string>();
   const activeRuntimeRequests = new Set<string>();
+  // Set by the first request that the wallet runtime handles. From then on the
+  // runtime answers every read, because it holds the session and preference state.
+  let walletRuntimeRequested = false;
   const state: WalletHostRuntimeState = {
     parentOrigin: null,
     port: null,
@@ -278,6 +290,12 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
           case 'PING':
             post({ type: 'PONG', requestId });
             return;
+          case 'PM_PREPARE_WALLET_RUNTIME':
+            if (runtimeKindIsSupported('auth', options.supportedRuntimeRouteKinds)) {
+              preloadWalletHostRuntime();
+            }
+            post({ type: 'PONG', requestId });
+            return;
           case 'PM_SET_CONFIG': {
             const configuration = applyWalletConfigurationUpdate(
               state.configuration,
@@ -399,7 +417,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         }
       }
 
-      if (!routeIsSupported(route, options.supportedRuntimeRouteKinds)) {
+      if (!runtimeKindIsSupported(route.kind, options.supportedRuntimeRouteKinds)) {
         post({
           type: 'ERROR',
           requestId,
@@ -412,6 +430,22 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       }
 
       if (requestId) activeRuntimeRequests.add(requestId);
+      if (
+        !walletRuntimeRequested &&
+        isEmptyWalletStoreRead(route) &&
+        (await walletStoreIsEmpty()) &&
+        !walletRuntimeRequested
+      ) {
+        if (requestExecutionGeneration !== state.executionGeneration) return;
+        if (respondIfCancelled(requestId)) return;
+        postForRequest({
+          type: 'PM_RESULT',
+          requestId,
+          payload: { ok: true, result: answerEmptyWalletStoreRead(route) },
+        });
+        return;
+      }
+      walletRuntimeRequested = true;
       const runtime = await loadWalletHostRuntime(route);
       if (requestExecutionGeneration !== state.executionGeneration) return;
       await runtime.handleWalletHostRuntimeRequest({
