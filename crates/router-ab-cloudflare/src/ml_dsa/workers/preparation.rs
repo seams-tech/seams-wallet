@@ -2,7 +2,6 @@
 mod producer;
 use super::*;
 use ed25519_yao::ml_dsa_signing::{prepared_signing::gmw::prepare_gmw_reservations, SigningRole};
-pub(crate) use producer::handle_start;
 pub use producer::RouterAbMlDsaProducerDurableObject;
 use worker::{Context, WebSocket, WebSocketPair};
 pub(crate) const START_PATH: &str = "/router-ab/ml-dsa/prepare";
@@ -52,6 +51,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     let Some(key) = queue.first().cloned() else {
         return Response::from_json(&true);
     };
+    let selected_at = crate::cloudflare_now_unix_ms_v1().ok();
     worker::console_log!(
         "{}",
         serde_json::json!({
@@ -68,6 +68,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     )
     .await
     .map_err(protocol_error)?;
+    let active_at = crate::cloudflare_now_unix_ms_v1().ok();
     if active.map(|value| value.key).as_ref() != Some(&key) {
         withdraw(env, &key).await.map_err(protocol_error)?;
         remove_queued(state, &key).await?;
@@ -94,9 +95,11 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         .await?,
     )
     .map_err(|_| protocol_error(invalid("Invalid ML-DSA local inventory")))?;
+    let local_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
     let b: pool::Inventory = coordinator::role_call(env, "DERIVER_B", &command)
         .await
         .map_err(protocol_error)?;
+    let peer_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
     log_inventory(&key, &a, &b);
     let stock_a = a.stock_batches();
     let stock_b = b.stock_batches();
@@ -133,6 +136,15 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         schedule_refill_alarm(state, 5_000).await?;
         return Response::from_json(&false);
     };
+    for (stage, at) in [
+        ("controller_selected", selected_at),
+        ("activation_checked", active_at),
+        ("local_inventory_checked", local_inventory_at),
+        ("peer_inventory_checked", peer_inventory_at),
+    ] {
+        log_stage_at(&job, Participant::A, job.batch, stage, at);
+    }
+    log_stage(&job, Participant::A, job.batch, "claim_acquired");
     // This alarm owns A's producer. Retire halves left by its earlier interrupted runs.
     let only_a = a
         .ready
@@ -202,12 +214,27 @@ async fn rotate_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
         .await
 }
 fn log_stage(job: &refill::Job, role: Participant, batch: [u8; 32], stage: &'static str) {
+    log_stage_at(
+        job,
+        role,
+        batch,
+        stage,
+        crate::cloudflare_now_unix_ms_v1().ok(),
+    );
+}
+fn log_stage_at(
+    job: &refill::Job,
+    role: Participant,
+    batch: [u8; 32],
+    stage: &'static str,
+    at_ms: Option<u64>,
+) {
     worker::console_log!(
         "{}",
         serde_json::json!({
             "event": "ml_dsa_preparation_stage_v1", "job": hex(&job.batch),
             "batch": hex(&batch), "role": role, "stage": stage,
-            "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+            "at_ms": at_ms,
         })
     );
 }
@@ -303,6 +330,7 @@ async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
     if response.status_code() != 200 {
         return Err(invalid("ML-DSA preparation was already claimed"));
     }
+    log_stage(job, Participant::A, job.batch, "role_claimed");
     let request = socket_request(env, PREPARE_PATH, job)?;
     let response = env
         .service("DERIVER_B")
@@ -316,6 +344,7 @@ async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
     let socket = response
         .websocket()
         .ok_or_else(|| invalid("ML-DSA preparation socket is absent"))?;
+    log_stage(job, Participant::A, job.batch, "peer_connected");
     let result = produce_a_connected(env, job, &socket).await;
     let _ = socket.close(
         Some(if result.is_ok() { 1000 } else { 1011 }),
@@ -363,6 +392,7 @@ pub(crate) async fn handle_prepare(
         return Response::error("ML-DSA preparation requires participant B", 400);
     }
     let job: refill::Job = socket_input(&request).map_err(protocol_error)?;
+    log_stage(&job, Participant::B, job.batch, "peer_received");
     check_job(&env, &job).await.map_err(protocol_error)?;
     let response = local_call(&env, &RoleCommand::StartRefill { job: job.clone() })
         .await
@@ -370,6 +400,7 @@ pub(crate) async fn handle_prepare(
     if response.status_code() != 200 {
         return Response::error("ML-DSA preparation was already claimed", 409);
     }
+    log_stage(&job, Participant::B, job.batch, "role_claimed");
     let pair = WebSocketPair::new()?;
     context.wait_until(async move {
         let result = before_deadline(job.expires_at_ms, produce_b(&env, &job, &pair.server)).await;
@@ -491,21 +522,9 @@ async fn reconcile_and_produce(
         )
         .await?;
     }
-    let request = object_request(env, CallAuthority::Internal, START_PATH, job)?;
-    let mut response = env
-        .service("ML_DSA_PREPARER")
-        .map_err(storage_error)?
-        .fetch_request(request)
-        .await
-        .map_err(storage_error)?;
-    if response.status_code() != 202 {
-        return Err(invalid(
-            "ML-DSA dedicated preparation queue refused the job",
-        ));
-    }
-    if !response.json::<bool>().await.map_err(storage_error)? {
-        return Err(invalid("ML-DSA producer queue was not acknowledged"));
-    }
+    log_stage(job, Participant::A, job.batch, "dispatch_started");
+    producer::dispatch(env, job).await?;
+    log_stage(job, Participant::A, job.batch, "dispatch_acknowledged");
     Ok(())
 }
 

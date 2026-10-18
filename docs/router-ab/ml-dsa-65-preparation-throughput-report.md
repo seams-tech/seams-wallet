@@ -52,7 +52,8 @@ This screen does not establish a complete preparation speedup on Cloudflare.
 ## Execution separation and scheduling
 
 A's durable pool retains admission coordination, reconciliation, and the producer lease.
-It dispatches an authenticated job through `ML_DSA_PREPARER`. A producer Durable Object returns a durable queue receipt.
+This recorded experiment dispatched an authenticated job through a forwarding Worker. A producer Durable Object returned a durable queue receipt.
+The later [direct-dispatch change](ml-dsa-65-direct-dispatch-report.md) removes that forwarding request.
 An independent alarm runs preparation. The pool actor waits only for that receipt.
 The producer commits `Running` before randomness generation. A retried `Running` job is abandoned, with an unknown publication outcome.
 The producer records completion before releasing the global lease. Terminal retries repeat only idempotent lease settlement.
@@ -194,8 +195,9 @@ Collect all five Worker tails with `collect_worker_traces.py`, including `--prep
 Run `summarize_refill.py CLIENT TRACES OUTPUT --versions ROLE_VERSION_MAP` after final stock is observed.
 Retain sanitized evidence and hashes. Remove test Workers, credentials, fixture keys, and raw tail captures after the campaign.
 
-Deployment needs the `ML_DSA_PREPARER` service binding on online A.
-Preparer A needs its own `ML_DSA_PRODUCER_DO` namespace and migration.
+Current deployment gives online A an external `ML_DSA_PRODUCER_DO` binding whose `script_name` identifies preparer A.
+Preparer A owns that namespace and its migration. Create owned namespaces before publishing cross-bound bundles.
+The obsolete forwarding service binding is removed. See the [direct-dispatch report](ml-dsa-65-direct-dispatch-report.md) for the validated layout.
 Each preparer receives only its own role key and a binding to its own online pool.
 Preparer A reaches preparer B through its dedicated service binding.
 The E2E runners define this topology. Public production deployment remains gated.
