@@ -107,6 +107,22 @@ def public_stage(stage):
     return result
 
 
+def public_producer_entry(value, timestamp):
+    if value.get("event") != "ml_dsa_producer_entry_v1" or not public_time(timestamp):
+        return None
+    identity = value.get("module_instance")
+    if identity is not None and (not isinstance(identity, str) or re.fullmatch("[0-9a-f]{32}", identity) is None):
+        return None
+    if (not public_id(value.get("producer"))
+            or not all(public_counter(value.get(key)) for key in ["construction", "invocation"])
+            or not all(public_time(value.get(key)) for key in ["created_at_ms", "at_ms"])
+            or type(value.get("schedule_cache_hit")) is not bool
+            or value.get("stage") not in ["fetch_entered", "authenticated", "alarm_entered"]):
+        return None
+    fields = ["producer", "module_instance", "construction", "invocation", "created_at_ms", "at_ms", "schedule_cache_hit", "stage"]
+    return {**{key: value.get(key) for key in fields}, "log_timestamp_ms": timestamp}
+
+
 def public_signing_trace(value, timestamp=None):
     if not isinstance(value, dict) or not public_time(timestamp):
         return None
@@ -276,6 +292,7 @@ def records(path, role):
         inventories = []
         producer_jobs = []
         producer_entries = []
+        producer_startup = []
         material_stages = []
         preparation_stages = []
         preparation_transport = []
@@ -287,6 +304,9 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                entry = public_producer_entry(value, log.get("timestamp"))
+                if entry is not None:
+                    producer_startup.append(entry)
                 if value.get("event") == "ml_dsa_signing_trace_v1":
                     public_trace = public_signing_trace(value, log.get("timestamp"))
                     if public_trace is not None:
@@ -418,6 +438,7 @@ def records(path, role):
             "inventories": inventories,
             "producer_jobs": producer_jobs,
             "producer_entries": producer_entries,
+            "producer_startup": producer_startup,
             "material_stages": material_stages,
             "preparation_stages": preparation_stages,
             "preparation_transport": preparation_transport,

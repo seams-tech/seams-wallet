@@ -98,10 +98,10 @@ impl Default for Policy {
             },
             max_active_operations: 1,
             operation_timeout_ms: 30_000,
-            candidate_group_size: CandidateGroupSize::Four,
+            candidate_group_size: CandidateGroupSize::Two,
             preparation_group_size: CandidateGroupSize::Four,
-            minimum_ready_batches: 4,
-            refill_target_batches: 20,
+            minimum_ready_batches: 8,
+            refill_target_batches: 16,
         }
     }
 }

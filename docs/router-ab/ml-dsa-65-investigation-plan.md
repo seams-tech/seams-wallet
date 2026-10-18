@@ -2,7 +2,20 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-19.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [direct-dispatch campaign](ml-dsa-65-direct-dispatch-report.md) removes the forwarding Worker request and adds exact per-job startup measurements.
+The [startup and AES-inlining campaign](ml-dsa-65-startup-inline-report.md) uses four-candidate preparation and two-at-once consumption.
+The default now matches that policy: thirty-two candidates per wallet, sixteen ready candidates for admission, and a sixty-second cooldown.
+Pair consumption needs approximately 5.65 candidates per successful signature under the geometric approximation. The 5.1 estimate applies to individual consumption.
+Cold-entry probes take 875.5 milliseconds on the first call and 9.5 milliseconds on repeated calls. These are caller round trips, not isolated Wasm CPU costs.
+Real producer traces show seventy-four objects across seventy-three module identities; their alarm entries reuse loaded schedules.
+The one-line AES inlining hint improves the isolated hosted kernel screen. The full build already inlines the rounds, so that gain cannot be assumed for the complete service.
+The candidate verifies forty-one hosted signatures, with thirty-five below five seconds, a 2.674-second median, and a 9.151-second maximum.
+Four-candidate preparation has an 11.226-second median. Captured preparation per verified success is 15.611 seconds, with conservative accounting still incomplete.
+Both material ledgers balance after full restoration. Different rejection outcomes and runtime variation prevent a causal full-service speedup claim.
+Hosted registration/recovery takes 5.246–6.104 seconds. The five-second targets remain unqualified.
+Next, design safe producer reuse and isolate client/Router delays. The slowest success consumes one pair with warm role caches.
+Wallet-seed recovery, standard FIPS export, and Workers preparation remain intact. GPU work stays deferred.
+
+The earlier [direct-dispatch campaign](ml-dsa-65-direct-dispatch-report.md) removes the forwarding Worker request and adds exact per-job startup measurements.
 The producer remains in its separate preparation Worker, with the same authentication, lease checks, FIFO admission, recovery alarms, and capacity.
 Local reserve times are effectively unchanged at 35.075 and 35.094 seconds.
 Hosted claim-to-queue medians are 927 and 905 milliseconds. No material dispatch speedup is established.

@@ -18,6 +18,9 @@ SPANS = (
     ("a", "claim_acquired", "a", "queued"),
     ("a", "claim_acquired", "a", "dispatch_started"),
     ("a", "dispatch_started", "a", "producer_received"),
+    ("a", "dispatch_started", "a", "producer_fetch_entered"),
+    ("a", "producer_fetch_entered", "a", "producer_authenticated"),
+    ("a", "producer_authenticated", "a", "producer_received"),
     ("a", "producer_received", "a", "producer_authorized"),
     ("a", "producer_authorized", "a", "queue_checked"),
     ("a", "queue_checked", "a", "receipt_ready"),
@@ -64,7 +67,12 @@ def summarize(records, versions):
                 "alarm": record["producer_alarm"], "scheduled_ms": record.get("alarm_scheduled_ms"),
                 "event_timestamp_ms": record["event_timestamp_ms"], "log_timestamp_ms": event["log_timestamp_ms"],
                 "wall_ms": record["wall_ms"], "cpu_ms": record["cpu_ms"], "outcome": record["outcome"],
+                "startup": record.get("producer_startup", []),
             })
+            if event["stage"] == "queued":
+                for entry in record.get("producer_startup", []):
+                    if entry["producer"] == event["producer"] and entry["stage"] in ("fetch_entered", "authenticated"):
+                        retain_stage(events, event["batch"], "a", "producer_" + entry["stage"], entry["at_ms"], index, "at_ms")
             retain_stage(events, event["batch"], "a", event["stage"], event["log_timestamp_ms"], index, "log_timestamp_ms")
         for event in record["preparation_stages"]:
             if event["stage"] in STAGES:

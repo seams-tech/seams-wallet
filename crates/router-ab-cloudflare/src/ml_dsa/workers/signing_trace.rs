@@ -11,6 +11,13 @@ struct ModuleInstance {
 }
 static INSTANCE: OnceLock<ModuleInstance> = OnceLock::new();
 
+pub(super) fn module_identity() -> Option<String> {
+    match INSTANCE.get_or_init(new_instance).id.as_ref() {
+        Some(bytes) => Some(hex(bytes)),
+        None => None,
+    }
+}
+
 fn new_instance() -> ModuleInstance {
     let mut bytes = [0; 16];
     let id = match getrandom::getrandom(&mut bytes) {

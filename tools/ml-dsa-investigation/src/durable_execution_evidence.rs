@@ -151,7 +151,6 @@ pub(super) fn run(
         &version,
         material,
         &seed,
-        execution::signing_schedule_digest(schedules, 4),
     )?;
     sync(role, transport)?;
     if role == SigningRole::A {
@@ -371,7 +370,6 @@ fn persist_material(
     version: &Identifier,
     material: Zeroizing<Vec<u8>>,
     seed: &[u8; 32],
-    worker_schedule_digest: [u8; 32],
 ) -> InvestigationResult<()> {
     use signer_core::ml_dsa_custody::{
         MlDsaCeremonyBindingV1, MlDsaRoleV1,
@@ -398,7 +396,7 @@ fn persist_material(
         public_key,
     )?;
     let sealed = seal_ml_dsa_role_material_v1(&material, &binding, seed)?;
-    let mut record = m::material::Record {
+    let record = m::material::Record {
         activation,
         role,
         public_key: public_key.to_vec(),
@@ -406,9 +404,6 @@ fn persist_material(
         sealed,
     };
     if let Ok(output) = std::env::var("ML_DSA_WORKER_FIXTURE_DIRECTORY") {
-        // The standalone Worker fixture uses four-candidate groups.
-        let native_schedule = record.activation.key.schedule_digest;
-        record.activation.key.schedule_digest = worker_schedule_digest;
         std::fs::write(
             Path::new(&output).join(if role == Participant::A {
                 "a.json"
@@ -417,7 +412,6 @@ fn persist_material(
             }),
             serde_json::to_vec_pretty(&record)?,
         )?;
-        record.activation.key.schedule_digest = native_schedule;
     }
     tx(db, m::material::put(db, record))?;
     Ok(())

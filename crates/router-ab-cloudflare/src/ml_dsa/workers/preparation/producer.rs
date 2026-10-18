@@ -1,9 +1,12 @@
 //! Durable dispatch. Heavy preparation runs in an independent alarm invocation.
 use super::*;
+use std::cell::Cell;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 const STATE: &str = "producer-job";
 const NAMESPACE: &str = "ML_DSA_PRODUCER_DO";
 const RECOVERY_CHECK_MS: u64 = 5_000;
+static CONSTRUCTIONS: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
@@ -57,17 +60,29 @@ pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
 pub struct RouterAbMlDsaProducerDurableObject {
     state: State,
     env: Env,
+    construction: u32,
+    invocation: Cell<u32>,
+    created_at_ms: Option<u64>,
 }
 impl DurableObject for RouterAbMlDsaProducerDurableObject {
     fn new(state: State, env: Env) -> Self {
-        Self { state, env }
+        Self {
+            state,
+            env,
+            construction: CONSTRUCTIONS.fetch_add(1, Ordering::Relaxed),
+            invocation: Cell::new(0),
+            created_at_ms: crate::cloudflare_now_unix_ms_v1().ok(),
+        }
     }
     async fn fetch(&self, mut request: worker::Request) -> worker::Result<Response> {
+        self.invocation.set(self.invocation.get().saturating_add(1));
+        self.log_entry("fetch_entered");
         if let Err(error) =
             crate::require_cloudflare_internal_service_auth_request_v1(&request, &self.env)
         {
             return crate::cloudflare_private_service_auth_error_response_v1(error);
         }
+        self.log_entry("authenticated");
         if request.method() != Method::Post
             || request.path() != START_PATH
             || configured_role(&self.env)? != Participant::A
@@ -114,6 +129,8 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         Ok(Response::from_json(&true)?.with_status(202))
     }
     async fn alarm(&self) -> worker::Result<Response> {
+        self.invocation.set(self.invocation.get().saturating_add(1));
+        self.log_entry("alarm_entered");
         worker::console_log!(
             "{}",
             serde_json::json!({
@@ -204,6 +221,22 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
     }
 }
 impl RouterAbMlDsaProducerDurableObject {
+    fn log_entry(&self, stage: &'static str) {
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_producer_entry_v1",
+                "producer": self.state.id().to_string(),
+                "module_instance": signing_trace::module_identity(),
+                "construction": self.construction,
+                "invocation": self.invocation.get(),
+                "created_at_ms": self.created_at_ms,
+                "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+                "schedule_cache_hit": schedules::is_loaded(),
+                "stage": stage,
+            })
+        );
+    }
     fn log_job(&self, job: &refill::Job, stage: &'static str) {
         worker::console_log!(
             "{}",

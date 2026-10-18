@@ -1804,6 +1804,11 @@ Transaction and action fields that require full public keys reject hashed identi
 The signed-transaction builder and its JSON and Borsh decoders require matching key and signature schemes.
 The [offline encoder contract](evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) verifies these rules through a threshold-signed transaction and independent verification.
 The ML-DSA threshold signer remains experimental. Public Wallet signing uses the admitted Ed25519 flow.
+The experimental ML-DSA service defaults to preparing four candidates together and consuming independent pairs.
+Its default reserve holds thirty-two candidates per wallet. Admission requires sixteen ready candidates.
+The default wallet cooldown remains sixty seconds. Internal rejection retries belong to the admitted operation.
+An unconsumed pair remains available for a later operation. Each consumed pair is permanently spent.
+Wallet-seed recovery and standard FIPS seed/key export remain required.
 
 NEAR nonce recovery reads current chain state once per exact wallet/key lane in
 each recovery pass. It shares that observation across saved nonce reservations.

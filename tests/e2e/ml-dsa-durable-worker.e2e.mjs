@@ -44,10 +44,10 @@ const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: 1000 },
   max_active_operations: 1,
   operation_timeout_ms: 30000,
-  candidate_group_size: 4,
+  candidate_group_size: 2,
   preparation_group_size: 4,
-  minimum_ready_batches: 4,
-  refill_target_batches: 8,
+  minimum_ready_batches: 8,
+  refill_target_batches: 16,
 };
 const bindings = {
   ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING: 'INTERNAL_AUTH',
@@ -57,6 +57,13 @@ const bindings = {
 };
 const publicationBarrierScript = `
 function holdPublication(resolve) { setTimeout(resolve, 60000); }
+function finalPublication(command) {
+  switch (command.job.groups) {
+    case 'one': return true;
+    case 'two': return JSON.stringify(command.binding.batch) !== JSON.stringify(command.job.batch);
+    default: throw new Error('Unknown preparation group count');
+  }
+}
 export class PublicationBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
   async hold(stage, job) {
@@ -97,7 +104,7 @@ export class PublicationBarrier {
       await this.state.storage.put('wake_reply_failures', 1);
       return new Response('Injected lost wake acknowledgement', {status:503});
     }
-    if (command.command === 'put' && response.status === 200 && stage === 'after') {
+    if (command.command === 'put' && response.status === 200 && stage === 'after' && finalPublication(command)) {
       await this.hold(stage, command.job);
     }
     return response;
@@ -319,8 +326,11 @@ try {
       assert.equal(held.stage, 'after');
       assert.deepEqual(held.job, job);
       const published = await inventories();
+      const batches = preparationBatches(job);
       for (const role of published) {
-        assert.ok(role.ready.map(batchId).includes(batchId(job.batch)), 'The reset fixture lacks paired publication');
+        for (const batch of batches) {
+          assert.ok(role.ready.map(batchId).includes(batch), 'The reset fixture lacks paired publication');
+        }
       }
       observations.interruptedProducer = {
         batch: job.batch,
@@ -641,6 +651,16 @@ async function waitReady(count) {
     await new Promise(waitOneSecond);
   }
   throw new Error('Automatic paired preprocessing did not refill before its deadline');
+}
+function preparationBatches(job) {
+  const first = batchId(job.batch);
+  switch (job.groups) {
+    case 'one': return [first];
+    case 'two': return [first, createHash('sha256')
+      .update('seams/ml-dsa/preparation-second-pair/v1')
+      .update(Buffer.from(job.batch)).digest('hex')];
+    default: throw new Error('Unknown preparation group count');
+  }
 }
 function batchId(id) {
   return Buffer.from(id).toString('hex');
