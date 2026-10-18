@@ -1,0 +1,215 @@
+{
+  "schema": "seams.ml-dsa-refill-wake-validation.v1",
+  "source_base": "8e2b2bae114f04218875687271a98b277d461443",
+  "branch": "ml-dsa",
+  "bundles": [
+    {
+      "file": "docs/evidence/ml-dsa-65-refill-wake-hosted-20261018.json.gz",
+      "sha256": "717870c9f34e21a920f7065d046753a8a8c061ade987bcb9633924757b51246f",
+      "uncompressed_sha256": "74ae7b8651998730fbb154244c14d3584021a535422e85869db5cc5781254542",
+      "files": 23,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-refill-wake-local-20261018.json.gz",
+      "sha256": "d512d93238da517cb46376fb8bfc6f1dcad9fb576383eef794d16ce6d01b5c77",
+      "uncompressed_sha256": "a44ffd2e635c95c3d2786da190c7e2ee5152cccdc77a1b9b9872e2d7a54e65cb",
+      "files": 7,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-refill-wake-provenance-20261018.json.gz",
+      "sha256": "b7466cc28acbc5358de39b8e872c15615f9d6b0f7ffe9c07bbbdf18e83c00d50",
+      "uncompressed_sha256": "3d64de130a947d5c9b29566832b214f524b7b19ac178f9532b251c631b4445ba",
+      "files": 75,
+      "private_matches": 0
+    }
+  ],
+  "comparison_sha256": "f0eec441d36d044ec19bfa0741128ce2ecb5c83f0a09ea46f53bbd06b8395cd3",
+  "private_credential_patterns_checked": 44,
+  "private_matches": 0,
+  "worker_cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wake-1018-0ab43f-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:30:29.026438+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wake-1018-0ab43f-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:30:30.672093+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wake-1018-0ab43f-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:30:32.333463+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wake-1018-0ab43f-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:30:33.765407+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wake-1018-0ab43f-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:30:35.516019+00:00"
+      }
+    ],
+    "optimized": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-repeat-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T14:06:41.624960+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-repeat-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T14:06:43.064653+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-repeat-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T14:06:44.470085+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-repeat-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T14:06:45.974962+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-repeat-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T14:06:47.420137+00:00"
+      }
+    ],
+    "optimized-transport-failure": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:36:14.744392+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:36:16.170563+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:36:17.602282+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:36:19.047484+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:36:20.471322+00:00"
+      }
+    ],
+    "optimized-fixture-failure": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-retry-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:40:31.605046+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-retry-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:40:33.055587+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-retry-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:40:34.549614+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-retry-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:40:36.447790+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wake-1018-0ab43f-optimized-retry-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T13:40:37.961323+00:00"
+      }
+    ]
+  },
+  "local_e2e_passed": {
+    "baseline": true,
+    "optimized": true
+  },
+  "sqlite_e2e_passed": true,
+  "signature_review": {
+    "schema": "seams.ml-dsa-refill-wake-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "baseline",
+        "consumptionWidth": 4,
+        "verified": 25,
+        "alteredMessagesRejected": 25,
+        "alteredSignaturesRejected": 25,
+        "clientSha256": "b2c7ff054953a7f84ff0d0007f3d906598dfbb8fc2d1beafb361d2f35b0ead6b"
+      },
+      {
+        "profile": "optimized",
+        "consumptionWidth": 4,
+        "verified": 21,
+        "alteredMessagesRejected": 21,
+        "alteredSignaturesRejected": 21,
+        "clientSha256": "dd886371a015115e255fc987f36c13f1b074157e3dd2ac227d710b9fa4e85b38"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "scriptSha256": "9b79e875cd8487ea63e50695badbb8281f00262c526a0953240ac5cb3bcbdcd9"
+  },
+  "bloat_gate": {
+    "passed": false,
+    "rust_duplicated_lines": 13984,
+    "rust_baseline": 13754,
+    "typescript_duplicated_lines": 10238,
+    "typescript_baseline": 10216,
+    "inherited_counts_unchanged": true
+  },
+  "format_checks_passed": true,
+  "private_campaign_removed": true,
+  "private_cleanup": {
+    "owned_directory_removed": true,
+    "private_marker_removed": true,
+    "retained_bundle_hashes_verified": true
+  }
+}

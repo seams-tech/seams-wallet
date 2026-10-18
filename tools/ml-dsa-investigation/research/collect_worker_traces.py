@@ -206,6 +206,26 @@ def public_refill_claim(value, timestamp):
             "batches": preparation_ids(batch, groups), "expires_at_ms": job["expires_at_ms"]}
 
 
+def public_refill_wake(value, timestamp):
+    fields = {
+        "ml_dsa_refill_controller_v1": ["key", "epoch", "at_ms"],
+        "ml_dsa_refill_settled_v1": ["batch", "wake_count", "at_ms"],
+        "ml_dsa_refill_woken_v1": ["batch", "key", "epoch", "at_ms"],
+    }.get(value.get("event"))
+    if fields is None or not public_time(timestamp):
+        return None
+    for field in fields:
+        if field in ("batch", "key"):
+            check = public_id
+        elif field == "at_ms":
+            check = public_time
+        else:
+            check = public_counter
+        if not check(value.get(field)):
+            return None
+    return {"event": value["event"], **{field: value[field] for field in fields}, "log_timestamp_ms": timestamp}
+
+
 def records(path, role):
     source = path.read_text()
     decoder = json.JSONDecoder()
@@ -238,6 +258,7 @@ def records(path, role):
         refill = []
         refill_recovery = []
         refill_claims = []
+        refill_wakes = []
         inventories = []
         producer_jobs = []
         producer_entries = []
@@ -256,6 +277,9 @@ def records(path, role):
                     public_trace = public_signing_trace(value, log.get("timestamp"))
                     if public_trace is not None:
                         signing_traces.append(public_trace)
+                wake = public_refill_wake(value, log.get("timestamp"))
+                if wake is not None:
+                    refill_wakes.append(wake)
                 if value.get("event") == "ml_dsa_refill_recovery_v1":
                     recovery = public_refill_recovery(value, log.get("timestamp"))
                     if recovery is not None:
@@ -370,6 +394,7 @@ def records(path, role):
             "refill": refill,
             "refill_recovery": refill_recovery,
             "refill_claims": refill_claims,
+            "refill_wakes": refill_wakes,
             "refill_job": refill_job(request, url.path),
             "inventories": inventories,
             "producer_jobs": producer_jobs,

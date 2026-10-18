@@ -311,7 +311,11 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     else {
         panic!("Settlement did not release refill");
     };
-    tx(&router, m::refill::finish(&router, &after_settlement)).unwrap();
+    tx(
+        &router,
+        m::refill::finish(&router, &after_settlement, 1_007),
+    )
+    .unwrap();
     assert!(tx(&a, pool::inventory(&a, &key, 10, 1_006, 1_006))
         .unwrap()
         .ready
@@ -864,13 +868,22 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .iter()
         .all(|id| prepared_inventory.ready.contains(id)));
 
-    tx(&router, m::refill::finish(&router, &job)).unwrap();
+    assert!(tx(
+        &router,
+        m::refill::finish(&router, &job, job.expires_at_ms + 3)
+    )
+    .unwrap()
+    .is_empty());
     assert!(tx(
         &router,
         m::refill::check(&router, &replacement, replacement.expires_at_ms - 1)
     )
     .unwrap());
-    tx(&router, m::refill::finish(&router, &replacement)).unwrap();
+    tx(
+        &router,
+        m::refill::finish(&router, &replacement, job.expires_at_ms + 4),
+    )
+    .unwrap();
     drop(refill_store);
     registration_allocator_campaign(&directory);
     let refill_fairness = refill_fairness_campaign(&directory);
@@ -925,7 +938,15 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     }
     drop(router);
     let router = Db::open(&path);
-    tx(&router, m::refill::finish(&router, &first)).unwrap();
+    assert_eq!(
+        tx(&router, m::refill::finish(&router, &first, 1_009)).unwrap(),
+        vec![b.clone(), a.clone()]
+    );
+    // A lost settlement reply can safely repeat the hints while the lease is idle.
+    assert_eq!(
+        tx(&router, m::refill::finish(&router, &first, 1_009)).unwrap(),
+        vec![b.clone(), a.clone()]
+    );
     assert!(matches!(
         tx(
             &router,
@@ -938,7 +959,10 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert_ne!(first.batch, second.batch);
     tx(&router, m::refill::withdraw(&router, &c)).unwrap();
     assert!(tx(&router, m::refill::check(&router, &second, 1_011)).unwrap());
-    tx(&router, m::refill::finish(&router, &second)).unwrap();
+    assert_eq!(
+        tx(&router, m::refill::finish(&router, &second, 1_012)).unwrap(),
+        vec![a.clone(), b.clone()]
+    );
     assert!(matches!(
         tx(
             &router,
@@ -983,7 +1007,10 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
         ),
     )
     .unwrap();
-    tx(&router, m::refill::finish(&router, &third)).unwrap();
+    assert_eq!(
+        tx(&router, m::refill::finish(&router, &third, 1_016)).unwrap(),
+        vec![recovered_b.clone(), a.clone()]
+    );
     let fourth = refill_turn(&router, &recovered_b, 1_016);
     assert_eq!(fourth.key.epoch, 2);
     assert!(matches!(
@@ -1016,7 +1043,10 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
         .unwrap(),
         m::refill::Claim::Busy { .. }
     ));
-    tx(&router, m::refill::finish(&router, &fourth)).unwrap();
+    assert_eq!(
+        tx(&router, m::refill::finish(&router, &fourth, 32_000)).unwrap(),
+        vec![installing_c.clone(), recovered_b.clone()]
+    );
     let fifth = refill_turn(&router, &installing_c, 32_000);
     let mut waiting = Vec::new();
     for index in 0..66 {
@@ -1036,9 +1066,14 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
         .unwrap()
         .unwrap();
     assert_eq!(entries.len(), 64);
-    tx(&router, m::refill::finish(&router, &fifth)).unwrap();
+    assert_eq!(
+        tx(&router, m::refill::finish(&router, &fifth, 32_100)).unwrap(),
+        vec![waiting[0].clone(), installing_c.clone()]
+    );
     let sixth = refill_turn(&router, &waiting[0], 32_100);
-    tx(&router, m::refill::finish(&router, &fifth)).unwrap();
+    assert!(tx(&router, m::refill::finish(&router, &fifth, 32_101))
+        .unwrap()
+        .is_empty());
     assert!(tx(&router, m::refill::check(&router, &sixth, 32_101)).unwrap());
     let grants = [first, second, third, fourth, fifth, sixth];
     let mut batches = std::collections::HashSet::new();
@@ -1054,6 +1089,9 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
         "inactive_and_expired_heads_pruned": true,
         "old_epoch_withdrawal_preserves_new_epoch": true,
         "stale_settlement_preserves_new_lease": true,
+        "wake_targets_follow_fifo": true,
+        "idle_settlement_replays_hints": true,
+        "superseded_settlement_returns_no_hints": true,
         "bounded_waiting_keys": entries.len(),
         "distinct_grant_batches": batches.len(),
         "grants": grants,

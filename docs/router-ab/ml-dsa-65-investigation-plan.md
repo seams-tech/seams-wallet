@@ -2,14 +2,22 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-18.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [AES permutation campaign](ml-dsa-65-aes-rounds-report.md) reduces matched hosted SIMD-kernel median CPU by 24.58%.
-All four passive local reserve runs still take about 49.15 seconds. An active inventory-wakeup diagnostic reaches 36.171 seconds with the same binary and capacity.
-This identifies completion-triggered refill wakeups as the next scheduling experiment. The production controller is unchanged.
+The [refill-wake campaign](ml-dsa-65-refill-wake-report.md) wakes the controller after durable producer settlement.
+The FIFO lease path, recovery alarms, wallet-seed recovery, standard FIPS export, and thirty-two-candidate cap remain intact.
+A passive local comparison fills the reserve in 38.091 seconds instead of 49.136 seconds, a 22.48% reduction.
+The hosted candidate verifies twenty-one load signatures, with sixteen below five seconds and a 10.251-second maximum.
+Its matched preparation-job median is 11.095 seconds. Captured preparation time is 28.093 seconds per success, with two producer-cost records missing.
+The control verifies twenty-five signatures, all below five seconds, and captures 25.327 seconds of preparation per success.
+Both ledgers balance after full reserve restoration. Different rejection outcomes and runtime variation prevent a causal service-speedup claim.
+Hosted candidate registration takes 5.215–6.919 seconds. Both performance targets remain unqualified.
+Next, measure controller admission, inventory, dispatch, and next-load intervals separately. Continue preparation CPU optimization and fresh-material multi-group signing screens.
+GPU work remains deferred. The report retains the failed transport attempt, the retry fixture error, their corrections, and cleanup evidence.
 
-The full hosted candidate verifies twenty-two signatures, with sixteen below five seconds and a 17.651-second maximum for six groups.
-Its preparation-job median is 13.578 seconds, and captured preparation work is 24.968 seconds per success. The full-flow screen is worse than its control.
-Kernel improvement therefore does not establish a service latency or capacity gain. Wallet-seed recovery, standard FIPS export, Workers preparation, and pool capacity remain unchanged.
-Next, wake the controller after durable settlement while preserving fairness, recovery alarms, one-use state, and capacity limits. Measure actual alarm delivery and lease release.
+The earlier [AES permutation campaign](ml-dsa-65-aes-rounds-report.md) reduces matched hosted SIMD-kernel median CPU by 24.58%.
+All four passive local reserve runs still take about 49.15 seconds. An active inventory-wakeup diagnostic reaches 36.171 seconds with the same binary and capacity.
+That experiment motivated the durable-settlement wakeup above. Its full hosted candidate verifies twenty-two signatures, with sixteen below five seconds.
+Its preparation-job median is 13.578 seconds, and captured preparation time is 24.968 seconds per success.
+Kernel improvement alone does not establish a service latency or capacity gain.
 
 The earlier [preparation profiling campaign](ml-dsa-65-preparation-profile-report.md) adds explicit job/material records and optimizes private AES copying and public matrix accumulation.
 Isolated AES and encoder medians fall by 3.78% and 7.79%. One complete local reserve comparison improves by 1.97%.

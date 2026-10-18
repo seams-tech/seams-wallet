@@ -124,6 +124,9 @@ pub enum RoleCommand {
     StartRefill {
         job: refill::Job,
     },
+    WakeRefill {
+        key: KeyScope,
+    },
     CheckMaterial {
         activation: admission::KeyActivation,
     },
@@ -190,6 +193,7 @@ impl RoleCommand {
             Self::Install { key }
             | Self::Inventory { key, .. }
             | Self::RefillStatus { key }
+            | Self::WakeRefill { key }
             | Self::Inspect { key, .. }
             | Self::RetireUnpaired { key, .. } => &key.wallet,
             Self::Reserve { claim, .. } => &claim.request.key.wallet,
@@ -450,10 +454,7 @@ async fn execute_admission(
             json(true)
         }
         AdmissionCommand::CheckRefill { job } => json(refill::check(store, &job, now).await?),
-        AdmissionCommand::FinishRefill { job } => {
-            refill::finish(store, &job).await?;
-            json(true)
-        }
+        AdmissionCommand::FinishRefill { job } => json(refill::finish(store, &job, now).await?),
         AdmissionCommand::AuthorizeKey { activation } => {
             admission::authorize_key(store, activation).await?;
             json(true)
@@ -511,10 +512,16 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         authorize_role_command(&self.env, &command)
             .await
             .map_err(protocol_error)?;
-        if role == Participant::A && preparation::refill_key(&command).is_some() {
+        let waking = matches!(command, RoleCommand::WakeRefill { .. });
+        if role == Participant::A && !waking && preparation::refill_key(&command).is_some() {
             schedule_refill_alarm(&self.state, 1_000).await?;
         }
         let value = role_transaction(&self.state, role, command).await?;
+        if waking {
+            // Acknowledge only after the alarm write. Producer recovery retries
+            // a lost reply; scheduling never postpones an earlier alarm.
+            schedule_refill_alarm(&self.state, 50).await?;
+        }
         Response::from_json(&value)
     }
     async fn alarm(&self) -> worker::Result<Response> {
@@ -710,6 +717,20 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             }
             return Ok(());
         }
+        RoleCommand::WakeRefill { key } => {
+            check_signing_scope(env, key)?;
+            let active: Option<admission::KeyActivation> = service_call(
+                env,
+                CallAuthority::Internal,
+                &AdmissionCommand::ActiveKey { key: key.clone() },
+            )
+            .await?;
+            return if active.as_ref().map(|activation| &activation.key) == Some(key) {
+                Ok(())
+            } else {
+                Err(invalid("ML-DSA refill wake key is inactive"))
+            };
+        }
         RoleCommand::CheckMaterial { .. }
         | RoleCommand::Inventory { .. }
         | RoleCommand::RefillStatus { .. }
@@ -772,6 +793,13 @@ async fn execute_role(
         }
         RoleCommand::Fence { request, batches } => {
             json(pool::fence(store, &request, &batches).await?)
+        }
+        RoleCommand::WakeRefill { key } => {
+            if role != Participant::A {
+                return Err(invalid("ML-DSA refill wake requires participant A"));
+            }
+            pool::check_key(store, &key).await?;
+            json(true)
         }
         RoleCommand::RefillStatus { key } => json(pool::refill_status(store, &key, now).await?),
         RoleCommand::Install { key } => {
