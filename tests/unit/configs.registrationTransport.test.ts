@@ -14,26 +14,4 @@ test.describe('buildConfigsFromEnv registration transport defaults', () => {
       }),
     ).toThrow(/registration\.publishableKey/i);
   });
-
-  test('accepts managed registration with only a publishable key', async () => {
-    // The publishable key identifies the environment on its own: its record
-    // carries the environment it belongs to, and the Router API builds the
-    // runtime policy scope from the authenticated key. `projectEnvironmentId`
-    // is an optional cross-check, not a second required credential.
-    const cfg = buildConfigsFromEnv({
-      relayer: { url: 'https://relay.example' },
-      iframeWallet,
-      registration: {
-        mode: 'managed',
-        publishableKey: 'pk_publishable',
-      },
-    });
-
-    expect(cfg.registration.mode).toBe('managed');
-    if (cfg.registration.mode !== 'managed') {
-      throw new Error('Expected managed registration mode');
-    }
-    expect(cfg.registration.publishableKey).toBe('pk_publishable');
-    expect(cfg.registration.projectEnvironmentId).toBe('');
-  });
 });

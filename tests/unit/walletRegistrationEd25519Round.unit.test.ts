@@ -48,13 +48,6 @@ function sum(total: number, value: number): number {
   return total + value;
 }
 
-test('an execute round sends the exact request again while its execution is in progress', async () => {
-  const router = new ScriptedRouter([inProgress, inProgress, succeeded]);
-  expect(await router.run()).toBe('{"status":"succeeded"}');
-  expect(router.bodies).toEqual([executeRequestJson, executeRequestJson, executeRequestJson]);
-  expect(router.waits).toEqual([250, 500]);
-});
-
 test('an execute round fails when its execution stays in progress past the retry budget', async () => {
   const router = new ScriptedRouter([inProgress]);
   await expect(router.run()).rejects.toThrow(

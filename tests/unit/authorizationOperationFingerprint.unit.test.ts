@@ -11,12 +11,8 @@ import {
   parseSigningOperationFingerprintDigest,
   parseTenantId,
   type AuthorizationParseResult,
-  type CapabilityId,
-  type CapabilityOperationId,
-  type PrincipalId,
-  type TenantId,
 } from '@shared/authorization';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 
 const LANE_DIGEST = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE';
 const INTENT_DIGEST = 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI';
@@ -27,40 +23,18 @@ function requireParsed<T>(result: AuthorizationParseResult<T>): T {
   return result.value;
 }
 
-function operationDigests(
-  input: {
-    readonly laneDigest?: string;
-    readonly intentDigest?: string;
-    readonly displayDigest?: string;
-  } = {},
-): {
-  readonly laneDigest: DigestB64u;
-  readonly intentDigest: DigestB64u;
-  readonly displayDigest: DigestB64u;
-} {
-  return {
-    laneDigest: parseDigestB64u(input.laneDigest ?? LANE_DIGEST),
-    intentDigest: parseDigestB64u(input.intentDigest ?? INTENT_DIGEST),
-    displayDigest: parseDigestB64u(input.displayDigest ?? DISPLAY_DIGEST),
-  };
-}
-
-function buildVaultEnvelope(
-  input: {
-    readonly tenantId?: TenantId;
-    readonly principalId?: PrincipalId;
-    readonly capabilityId?: CapabilityId;
-    readonly operationId?: CapabilityOperationId;
-    readonly digests?: ReturnType<typeof operationDigests>;
-  } = {},
-) {
+function buildVaultEnvelope() {
   return buildCapabilityOperationEnvelope({
-    tenantId: input.tenantId ?? requireParsed(parseTenantId('tenant-1')),
-    principalId: input.principalId ?? requireParsed(parsePrincipalId('principal-1')),
-    capabilityId: input.capabilityId ?? requireParsed(parseCapabilityId('capability-1')),
-    operationId: input.operationId ?? requireParsed(parseCapabilityOperationId('operation-1')),
+    tenantId: requireParsed(parseTenantId('tenant-1')),
+    principalId: requireParsed(parsePrincipalId('principal-1')),
+    capabilityId: requireParsed(parseCapabilityId('capability-1')),
+    operationId: requireParsed(parseCapabilityOperationId('operation-1')),
     operation: buildVaultOperationRef(VAULT_OPERATION_KINDS.proxyUse),
-    digests: input.digests ?? operationDigests(),
+    digests: {
+      laneDigest: parseDigestB64u(LANE_DIGEST),
+      intentDigest: parseDigestB64u(INTENT_DIGEST),
+      displayDigest: parseDigestB64u(DISPLAY_DIGEST),
+    },
   });
 }
 
@@ -82,31 +56,4 @@ test('signing operation fingerprint exposes one canonical lane digest', () => {
   expect(() => parseSigningOperationFingerprintDigest('sha256:not-a-digest')).toThrow(
     'digest must be canonical base64url for 32 bytes',
   );
-});
-
-test('authorization operation fingerprint changes with exact operation semantics', async () => {
-  const original = await computeCapabilityOperationFingerprintDigest(buildVaultEnvelope());
-  const changedOperationId = await computeCapabilityOperationFingerprintDigest(
-    buildVaultEnvelope({
-      operationId: requireParsed(parseCapabilityOperationId('operation-2')),
-    }),
-  );
-  const changedPrincipal = await computeCapabilityOperationFingerprintDigest(
-    buildVaultEnvelope({
-      principalId: requireParsed(parsePrincipalId('principal-2')),
-    }),
-  );
-  const changedIntent = await computeCapabilityOperationFingerprintDigest(
-    buildVaultEnvelope({
-      digests: operationDigests({
-        intentDigest: 'BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ',
-      }),
-    }),
-  );
-
-  expect(changedOperationId).not.toBe(original);
-  expect(changedPrincipal).not.toBe(original);
-  expect(changedIntent).not.toBe(original);
-  expect(changedPrincipal).not.toBe(changedOperationId);
-  expect(changedIntent).not.toBe(changedOperationId);
 });

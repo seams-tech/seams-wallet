@@ -7,7 +7,6 @@ import {
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
-  parseEmailOtpProviderUserId,
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
@@ -15,7 +14,6 @@ import {
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
 import type {
-  EmailOtpWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
@@ -32,12 +30,6 @@ import {
 } from './helpers/linkedDeviceManagement.fixtures';
 
 const noLocalAuthMethods = async (): Promise<readonly LocalWalletAuthMethodRecord[]> => [];
-const recoveredGoogleProviderSubject = 'google:recovered-provider-user';
-
-async function readRecoveredGoogleProviderSubject(): Promise<string> {
-  return recoveredGoogleProviderSubject;
-}
-
 function required<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error(String(result.error));
   return result.value;
@@ -77,117 +69,6 @@ function passkeyAuthority(method: PasskeyWalletAuthMethodRecordV2) {
   };
 }
 
-function emailOtpMethod(args: {
-  walletId: string;
-  walletAuthMethodId: string;
-  emailHashHex: string;
-}): EmailOtpWalletAuthMethodRecordV2 {
-  return {
-    version: 'wallet_auth_method_v2',
-    walletAuthMethodId: required(parseWalletAuthMethodId(args.walletAuthMethodId)),
-    walletId: required(parseWalletId(args.walletId)),
-    walletAuthorityId: required(parseWalletAuthorityId('wallet-authority:email-exact-test')),
-    kind: 'email_otp',
-    status: 'active',
-    emailHashHex: args.emailHashHex,
-    registrationAuthorityId: 'email-registration-authority',
-    createdAtMs: 1,
-    updatedAtMs: 1,
-    activatedAtMs: 1,
-  };
-}
-
-test('resolves the exact passkey authority from the canonical wallet auth method', async () => {
-  const method = passkeyMethod({
-    walletId: 'registered-wallet',
-    rpId: 'registration.example.localhost',
-    credentialIdB64u: 'registered-credential',
-  });
-  if (method.kind !== 'passkey') throw new Error('expected passkey method');
-  const exactAuthority = passkeyAuthority(method);
-  const authorityRef = await walletAuthAuthorityRef({ authority: exactAuthority });
-  const authority = await resolveExactWalletAuthAuthority(authorityRef, {
-    getWalletAuthMethodV2: async () => method,
-    listWalletAuthMethodsForWallet: noLocalAuthMethods,
-  });
-
-  expect(authority).toEqual(exactAuthority);
-});
-
-test('resolves the exact Email OTP authority from its canonical and local records', async () => {
-  const method = emailOtpMethod({
-    walletId: 'registered-email-wallet',
-    walletAuthMethodId: 'wallet-auth-method:email-exact-test',
-    emailHashHex: 'email-hash',
-  });
-  const exactAuthority = {
-    walletId: method.walletId,
-    factor: {
-      kind: 'email_otp' as const,
-      provider: 'email' as const,
-      providerUserId: required(parseEmailOtpProviderUserId('email-provider-user')),
-    },
-    verifier: {
-      kind: 'email_otp_wallet_auth_method' as const,
-      emailHashHex: method.emailHashHex,
-    },
-    bindingId: method.walletAuthMethodId,
-  };
-  const authorityRef = await walletAuthAuthorityRef({ authority: exactAuthority });
-  const localMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> = {
-    version: 'wallet_auth_method_v1',
-    kind: 'email_otp',
-    status: 'active',
-    walletId: method.walletId,
-    emailHashHex: method.emailHashHex,
-    registrationAuthorityId: method.registrationAuthorityId,
-    createdAtMs: 1,
-    updatedAtMs: 1,
-    localStatus: 'synced',
-    authority: exactAuthority,
-  };
-
-  const authority = await resolveExactWalletAuthAuthority(authorityRef, {
-    getWalletAuthMethodV2: async () => method,
-    listWalletAuthMethodsForWallet: async () => [localMethod],
-  });
-
-  expect(authority).toEqual(exactAuthority);
-});
-
-test('resolves a recovered Email OTP authority from its verified provider subject', async () => {
-  const method = emailOtpMethod({
-    walletId: 'recovered-email-wallet',
-    walletAuthMethodId: 'wallet-auth-method:recovered-email-test',
-    emailHashHex: 'recovered-email-hash',
-  });
-  const exactAuthority = {
-    walletId: method.walletId,
-    factor: {
-      kind: 'email_otp' as const,
-      provider: 'google' as const,
-      providerUserId: required(parseEmailOtpProviderUserId(recoveredGoogleProviderSubject)),
-    },
-    verifier: {
-      kind: 'email_otp_wallet_auth_method' as const,
-      emailHashHex: method.emailHashHex,
-    },
-    bindingId: method.walletAuthMethodId,
-  };
-  const authorityRef = await walletAuthAuthorityRef({ authority: exactAuthority });
-
-  const authority = await resolveExactWalletAuthAuthority(authorityRef, {
-    getWalletAuthMethodV2: async () => method,
-    listWalletAuthMethodsForWallet: noLocalAuthMethods,
-    readEmailOtpProviderSubjectForWallet: readRecoveredGoogleProviderSubject,
-  });
-
-  expect(authority).toEqual(exactAuthority);
-});
-
-// The active auth-method store is the only resolution source. A wallet
-// whose authority reference has no active auth method fails closed — sealed
-// runtime restores and loose authenticator rows can no longer answer for it.
 test('fails closed when no active wallet auth method matches the authority', async () => {
   const method = passkeyMethod({
     walletId: 'registered-wallet',

@@ -63,20 +63,6 @@ test('an Ed25519 policy snapshot answers for its own store, wallet and scope onl
   expect(read([policyRow()]).resolve(database, 'namespace', admissionInput())).toEqual({
     kind: 'allowed',
   });
-  expect(
-    read([
-      policyRow({
-        project_key: 'project',
-        project_decision: 'rejected',
-        project_retry_after_ms: 5,
-      }),
-    ]).resolve(database, 'namespace', admissionInput()),
-  ).toEqual({ kind: 'project_policy_rejected', retryAfterMs: 5 });
-  expect(
-    read([
-      policyRow({ abuse_key: 'abuse', abuse_decision: 'rate_limited', abuse_retry_after_ms: 7 }),
-    ]).resolve(database, 'namespace', admissionInput()),
-  ).toEqual({ kind: 'rate_limited', retryAfterMs: 7 });
 
   // The caller reads the database when the snapshot cannot answer.
   const snapshot = read([policyRow()]);

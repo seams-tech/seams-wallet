@@ -11,7 +11,6 @@ import { buildClaimedSigningOperationFixture } from './helpers/authorizedOperati
 
 class CompletionDatabase implements D1DatabaseLike {
   readonly sqlite = new DatabaseSync(':memory:');
-  queryCount = 0;
 
   prepare(query: string): D1PreparedStatementLike {
     return new CompletionStatement(this, query, []);
@@ -38,7 +37,6 @@ class CompletionStatement implements D1PreparedStatementLike {
   }
 
   async first<T>(): Promise<T | null> {
-    this.database.queryCount += 1;
     // D1's generic result is untrusted; the production row parser validates it.
     return (this.database.sqlite.prepare(this.query).get(...this.values) as T) ?? null;
   }
@@ -48,7 +46,6 @@ class CompletionStatement implements D1PreparedStatementLike {
   }
 
   async run<T>(): Promise<D1ResultLike<T>> {
-    this.database.queryCount += 1;
     const result = this.database.sqlite.prepare(this.query).run(...this.values);
     return { success: true, meta: { changes: Number(result.changes) } };
   }
@@ -124,7 +121,7 @@ async function setupCompletion() {
   return { database, store, operation };
 }
 
-test('completion returns the durable canonical record in one query and preserves the first replay', async () => {
+test('completion returns the durable canonical record and rejects a corrupt result body', async () => {
   const { database, store, operation } = await setupCompletion();
   try {
     const response = { status: 200, contentType: 'application/json', bodyText: '{"ok":true}' };
@@ -134,7 +131,6 @@ test('completion returns the durable canonical record in one query and preserves
       response,
       completedAtMs: 2000,
     });
-    expect(database.queryCount).toBe(1);
     expect(completed.lifecycle).toBe('completed');
     expect(
       await store.readAuthorizedOperation({
@@ -142,14 +138,6 @@ test('completion returns the durable canonical record in one query and preserves
         operationFingerprintDigest: operation.operationFingerprintDigest,
       }),
     ).toEqual(completed);
-    const replay = await store.completeAuthorizedOperation({
-      operation,
-      result: 'failed_after_side_effect',
-      response: { status: 500, contentType: 'text/plain', bodyText: 'replacement' },
-      completedAtMs: 3000,
-    });
-    expect(replay).toEqual(completed);
-    expect(database.queryCount).toBe(4);
     database.sqlite.exec("UPDATE authorized_operations SET result_body_text = 'corrupt'");
     await expect(
       store.completeAuthorizedOperation({

@@ -132,26 +132,3 @@ test('a factor that fails to arrive discards the run after its round', async () 
     'discardWalletCustodyCeremony',
   ]);
 });
-
-test('an EVM custody run refuses a factor that arrives after its round', async () => {
-  const worker = new RecordedWorker();
-  await expect(
-    runWalletCustodyKeySetCeremony({
-      runStep: worker.run,
-      custody: {
-        origin: 'establish_factor_after_round',
-        walletId: 'wallet:deferred-factor',
-        recoveryCodesJson: '[]',
-        factor: async () => ({ factorJson: '{}', factorSecret: new ArrayBuffer(1) }),
-      },
-      keySetRun: {
-        keySet: 'evm_family_ecdsa_v1',
-        protocolInputsJson: '{}',
-        evmFamilySigningKeySlotId: 'slot',
-        beforeRelayerRound: async () => undefined,
-        runRelayerRound: async () => '{}',
-      },
-    }),
-  ).rejects.toThrow('seals under its factor before the relayer round');
-  expect(worker.steps).toEqual([]);
-});

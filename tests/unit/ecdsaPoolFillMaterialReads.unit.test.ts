@@ -173,7 +173,6 @@ class PresignStepServices {
       ctx: this.context(),
       request,
       timing: {
-        queue: null,
         authenticate: null,
         material: null,
         admit: null,
@@ -266,7 +265,6 @@ function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixtur
     authority_id: session.authorityId,
     authority_wallet_id: session.walletId,
     authority_lifecycle_state: 'active',
-    authority_digest_b64u: session.authorityDigestB64u,
     authority_revocation_epoch: session.authorityRevocationEpoch,
     auth_method_id: session.walletAuthMethodId,
     auth_method_wallet_id: session.walletId,
@@ -407,10 +405,7 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
   await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toBeNull();
 });
 
-function reusablePresignRequest(
-  data: Awaited<ReturnType<typeof buildPresignStepFixture>>,
-  walletSessionId: string,
-) {
+function reusablePresignRequest(walletSessionId: string) {
   const parsed = parseRouterAbEcdsaDerivationPoolFillStepRouteRequest({
     presignSessionId: 'presign:material-reads',
     ceremonyExpiresAtMs: Date.now() + 30_000,
@@ -424,13 +419,13 @@ function reusablePresignRequest(
 
 test('preprocessing requires the exact session and active material', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
-  const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
+  const request = reusablePresignRequest(services.data.session.walletSessionId);
   await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
   expect(services.sessionReads).toBe(1);
   expect(services.materialReads).toBe(1);
   expect(services.operationReads).toBe(0);
   await expect(
-    services.authorize(reusablePresignRequest(services.data, 'other-session')),
+    services.authorize(reusablePresignRequest('other-session')),
   ).resolves.toMatchObject({ ok: false, error: { status: 403 } });
   services.materialAvailable = false;
   await expect(services.authorize(request)).resolves.toMatchObject({
@@ -441,7 +436,7 @@ test('preprocessing requires the exact session and active material', async () =>
 
 test('preprocessing admission rejects a session that expires between rounds', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
-  const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
+  const request = reusablePresignRequest(services.data.session.walletSessionId);
   await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
   const originalNow = Date.now;
   Date.now = expiredSessionTime.bind(null, services.data.session.expiresAtMs);
