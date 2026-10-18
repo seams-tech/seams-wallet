@@ -23,6 +23,7 @@ import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/wall
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { SdkLifecycleEvent, WalletSessionId } from '@/core/types/sdkSentEvents';
 import type { WalletId } from '@shared/utils/domainIds';
+import { nextSessionObservationRevision } from './sessionObservationRevision';
 
 async function readWalletIframeExactSessionStatus(
   relayUrl: string,
@@ -133,8 +134,6 @@ export async function resolveExactWalletSessionState(
   );
 }
 
-let sessionObservationRevision = 0;
-
 type RefreshState = { kind: 'idle' } | { kind: 'pending' } | { kind: 'running'; pending: boolean };
 
 type SessionObservation = {
@@ -191,7 +190,7 @@ export class WalletHostSessionObserver {
 
   onLifecycleEvent(event: SdkLifecycleEvent): void {
     if (this.lifecycle === 'disposed') return;
-    const revision = ++sessionObservationRevision;
+    const revision = nextSessionObservationRevision();
     if (event.event === 'signing_session.expired') this.invalidationRevision += 1;
     this.post({ type: 'SDK_LIFECYCLE_EVENT', payload: { revision, event } });
     if (event.event === 'signing_session.expired') this.requestRefresh();
@@ -221,7 +220,7 @@ export class WalletHostSessionObserver {
         this.assertActive();
         if (selection.changed && this.runtime.preferences.getCurrentWalletId() === null) {
           publish({
-            revision: ++sessionObservationRevision,
+            revision: nextSessionObservationRevision(),
             walletId: null,
             state: { kind: 'wallet_locked' },
             session: buildAnonymousWalletSession(),
@@ -272,7 +271,7 @@ export class WalletHostSessionObserver {
   private async resolveObservation(
     payload: PMGetExactWalletSessionStatePayload,
   ): Promise<SessionObservation> {
-    const revision = ++sessionObservationRevision;
+    const revision = nextSessionObservationRevision();
     const statusReads = WalletSessionStatusReadScope.forHostObservation();
     const state = await resolveExactWalletSessionState(this.runtime, payload, statusReads);
     const session =

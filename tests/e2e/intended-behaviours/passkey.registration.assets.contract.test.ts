@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { IntendedBehaviourHarness } from './harness';
 import { walletAssetTest as test } from './wallet-asset-fixture';
 import { WalletAssetEvidence } from './wallet-asset-evidence';
+import { SEAMS_WALLET_DB_NAME } from '../../../packages/wallet/src/core/indexedDB/walletDbName';
 
 // Capture static-asset metadata only; custody responses must never enter traces.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
@@ -54,6 +55,16 @@ async function observeSignedOutMount(page: Page): Promise<void> {
   await page.waitForTimeout(2_000);
 }
 
+async function observeSignInIntent(page: Page): Promise<void> {
+  const runtimeLoaded = page.waitForResponse(isWalletRuntimeModuleResponse, { timeout: 30_000 });
+  await page.getByTestId('asset-open-auth-menu').hover();
+  await runtimeLoaded;
+}
+
+function isWalletRuntimeModuleResponse(response: { url(): string }): boolean {
+  return isWalletRuntimeModuleUrl(response.url());
+}
+
 async function observeGenericMenu(page: Page): Promise<void> {
   await page.getByTestId('asset-open-auth-menu').click();
   await expect(
@@ -64,6 +75,30 @@ async function observeGenericMenu(page: Page): Promise<void> {
 
 function isCryptoWorkerUrl(url: string): boolean {
   return !url.endsWith('/passkey-confirm.worker.js');
+}
+
+// The boot preloads the recovery-code surface for Email OTP; every other runtime
+// module waits for a request that needs it.
+function isWalletRuntimeModuleUrl(url: string): boolean {
+  return /\/runtime-(?!recovery-codes-)[^/]+\.js$/u.test(new URL(url).pathname);
+}
+
+async function listIndexedDbNames(): Promise<string[]> {
+  return (await indexedDB.databases()).map((database) => database.name ?? '');
+}
+
+async function walletDatabaseNames(page: Page): Promise<readonly string[]> {
+  const iframe = await page.locator('iframe.seams-wallet-overlay').elementHandle();
+  const frame = await iframe?.contentFrame();
+  if (!frame) throw new Error('Wallet service frame is unavailable');
+  return await frame.evaluate(listIndexedDbNames);
+}
+
+async function assertSignedOutMountSkipsWalletRuntime(
+  assets: WalletAssetEvidence,
+  phase: string,
+): Promise<void> {
+  expect((await assets.getAssetUrlsForPhase(phase)).filter(isWalletRuntimeModuleUrl)).toEqual([]);
 }
 
 async function measureSignedOutAssets(
@@ -81,15 +116,24 @@ async function measureSignedOutAssets(
   try {
     assets.setPhase('cold-signed-out-mount-idle');
     await observeSignedOutMount(page);
+    await assertSignedOutMountSkipsWalletRuntime(assets, 'cold-signed-out-mount-idle');
+    expect(await walletDatabaseNames(page)).not.toContain(SEAMS_WALLET_DB_NAME);
+    // Intent downloads the runtime; only the first request that needs it constructs it.
+    assets.setPhase('cold-sign-in-intent');
+    await observeSignInIntent(page);
+    expect(await walletDatabaseNames(page)).not.toContain(SEAMS_WALLET_DB_NAME);
     assets.setPhase('cold-generic-menu');
     await observeGenericMenu(page);
     await assertNoDeferredOperationAssets(assets, [
       'cold-signed-out-mount-idle',
+      'cold-sign-in-intent',
       'cold-generic-menu',
     ]);
     await page.goto('about:blank');
     assets.setPhase('warm-signed-out-mount-idle');
     await observeSignedOutMount(page);
+    // The menu created the database; with no record in it the mount still skips the runtime.
+    await assertSignedOutMountSkipsWalletRuntime(assets, 'warm-signed-out-mount-idle');
     assets.setPhase('warm-generic-menu');
     await observeGenericMenu(page);
     await assertNoDeferredOperationAssets(assets, [

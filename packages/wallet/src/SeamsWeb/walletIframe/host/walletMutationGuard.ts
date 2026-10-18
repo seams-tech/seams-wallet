@@ -63,6 +63,7 @@ function mutationWallet(
     case 'PM_SET_TRANSACTION_VIEW':
     case 'PM_TRANSACTION_BROADCAST_STARTED':
     case 'PING':
+    case 'PM_PREPARE_WALLET_RUNTIME':
     case 'PM_SET_CONFIG':
     case 'PM_ACTIVATE_TRANSACTION_REVIEW':
     case 'PM_CANCEL':

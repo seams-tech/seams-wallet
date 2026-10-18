@@ -4,11 +4,8 @@ import {
   upgradeSeamsWalletDBSchema,
   type SeamsWalletDBConfig,
 } from './schema';
-import {
-  SEAMS_WALLET_DB_NAME,
-  SEAMS_WALLET_STORES,
-  type SeamsWalletStoreName,
-} from '../schemaNames';
+import { SEAMS_WALLET_STORES, type SeamsWalletStoreName } from '../schemaNames';
+import { SEAMS_WALLET_DB_NAME } from '../walletDbName';
 
 type SeamsWalletTransactionMode = 'readonly' | 'readwrite';
 
