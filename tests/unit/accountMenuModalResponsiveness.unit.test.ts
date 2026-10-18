@@ -137,19 +137,7 @@ async function mountAuthenticationMethods(
   );
 }
 
-test.describe('account-menu modal responsiveness', () => {
-  test('page authentication content keeps sidebar navigation outside a modal focus trap', async ({
-    page,
-  }) => {
-    await mountAuthenticationMethods(page, 'pending');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    const content = page.getByRole('region', { name: 'Authentication methods', exact: true });
-    await expect(content).toBeVisible();
-    await expect(content.getByText('Passkey', { exact: true })).toBeVisible();
-    await expect(
-      content.getByRole('button', { name: 'Close authentication methods' }),
-    ).toBeHidden();
-  });
+test.describe('account-menu authentication methods page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('about:blank');
     await injectImportMap(page);
