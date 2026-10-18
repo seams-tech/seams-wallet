@@ -4,7 +4,7 @@ import type {
   RouterAbEd25519YaoCapabilitySnapshotV1,
   RouterAbEd25519YaoCapabilityMutationV1,
 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
-import type { RouterAbEd25519YaoConsumptionAdmissionV1, RouterAbEd25519YaoProductRegistrationStateV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
+import type { RouterAbEd25519YaoRegistrationAdmissionSourceV1, RouterAbEd25519YaoProductRegistrationStateV1, RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 
 declare const snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1;
 declare const shared: RouterAbEd25519YaoProductRegistrationStateV1;
@@ -54,10 +54,19 @@ store.commitCapabilities(
 store.commitCapabilities({ value: capabilitySnapshot.value }, capabilityMutation, null);
 
 // @ts-expect-error A batch snapshot must state whether admission was present.
-const missingAdmission: RouterAbEd25519YaoConsumptionAdmissionV1 = { kind: 'snapshot' };
+const missingAdmission: RouterAbEd25519YaoRegistrationAdmissionSourceV1 = { kind: 'snapshot' };
 // @ts-expect-error A store read cannot silently carry an unrelated snapshot.
-const conflictingAdmission: RouterAbEd25519YaoConsumptionAdmissionV1 = { kind: 'stored', authority: null };
-declare const batchedAdmission: Extract<RouterAbEd25519YaoConsumptionAdmissionV1, { kind: 'snapshot' }>;
+const conflictingAdmission: RouterAbEd25519YaoRegistrationAdmissionSourceV1 = { kind: 'stored', authority: null };
+declare const batchedAdmission: Extract<RouterAbEd25519YaoRegistrationAdmissionSourceV1, { kind: 'snapshot' }>;
 // @ts-expect-error A broad spread cannot change a snapshot into a store read.
-const spreadAdmission: RouterAbEd25519YaoConsumptionAdmissionV1 = { ...batchedAdmission, kind: 'stored' };
+const spreadAdmission: RouterAbEd25519YaoRegistrationAdmissionSourceV1 = { ...batchedAdmission, kind: 'stored' };
 void [missingAdmission, conflictingAdmission, spreadAdmission];
+
+
+declare const runtime: RouterAbEd25519YaoProductRegistrationRuntimeV1;
+declare const execution: Parameters<typeof runtime.executeAdmittedRegistration>[0];
+const { admission: _admission, ...unboundExecution } = execution;
+// @ts-expect-error Execution must explicitly identify the admitted snapshot or its persisted source.
+runtime.executeAdmittedRegistration(unboundExecution);
+// @ts-expect-error An unsafe cast cannot replace the admission discriminant with a raw record.
+runtime.executeAdmittedRegistration({ ...execution, admission: execution as Record<string, unknown> });

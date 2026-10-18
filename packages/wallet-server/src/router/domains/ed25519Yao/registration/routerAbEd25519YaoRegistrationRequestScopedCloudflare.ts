@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoRegistrationAdmissionSourceV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import type { VerifiedNearRegistrationContinuationV1 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
 import {
   parseRouterAbEd25519YaoRegistrationActivationExecuteRequestV1,
@@ -29,6 +30,7 @@ import {
 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
 import { routerAbEd25519YaoExecutionMatchesAdmissionV1 } from './routerAbEd25519YaoRegistration';
 import {
+  type RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
   pinRouterAbEd25519YaoRegistrationDispatchRootV1,
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
 } from './routerAbEd25519YaoRegistrationExecutionRecord';
@@ -316,6 +318,7 @@ async function runExecutionRequest(
   }
   return await executeRouterAbEd25519YaoAdmittedRegistrationV1({
     store: input.store,
+    admission: { kind: 'stored' },
     backend: input.backend,
     request,
     credentialDigestSha256Hex: credential.digestSha256Hex,
@@ -331,6 +334,7 @@ async function runExecutionRequest(
  */
 export async function executeRouterAbEd25519YaoAdmittedRegistrationV1(
   input: Pick<RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1, 'store' | 'backend'> & {
+    readonly admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1;
     readonly request: RouterAbEd25519YaoRegistrationExecuteRequestV1;
     readonly credentialDigestSha256Hex: string;
     readonly credentialDigestMs: number;
@@ -348,8 +352,20 @@ export async function executeRouterAbEd25519YaoAdmittedRegistrationV1(
     resultReconstructionMs: 0,
   };
   const admissionStartedAt = performance.now();
-  const loaded = await input.store.loadRegistration(lifecycleId);
-  const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
+  const admission = input.admission;
+  let authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
+  switch (admission.kind) {
+    case 'stored': {
+      const loaded = await input.store.loadRegistration(lifecycleId);
+      authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
+      break;
+    }
+    case 'snapshot':
+      authority = admission.authority;
+      break;
+    default:
+      return assertNeverAdmissionSource(admission);
+  }
   const timingBeforeRouter = { ...timing, d1AdmissionReadMs: elapsedMs(admissionStartedAt) };
   if (!authority) {
     return timedExecutionResult(
@@ -662,4 +678,8 @@ function terminalStateConflictFailure(
     code: 'execution_failed',
     message: `Yao terminal state is uncertain after a ${result.key} conflict`,
   };
+}
+
+function assertNeverAdmissionSource(value: never): never {
+  throw new Error(`Unknown registration admission source: ${String(value)}`);
 }

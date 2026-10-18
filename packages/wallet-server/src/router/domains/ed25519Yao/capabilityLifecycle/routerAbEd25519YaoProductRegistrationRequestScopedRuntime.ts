@@ -37,7 +37,7 @@ import {
   type RouterAbEd25519YaoAdmissionCompanionWriteV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
-  type RouterAbEd25519YaoConsumptionAdmissionV1,
+  type RouterAbEd25519YaoRegistrationAdmissionSourceV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
 } from './routerAbEd25519YaoProductRegistration';
 import {
@@ -161,12 +161,14 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   }
 
   async executeAdmittedRegistration(input: {
+    readonly admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1;
     readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
     readonly credential: string;
     readonly trace: RouterAbTraceContextV1;
   }): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
     return await executeRouterAbEd25519YaoAdmittedRegistrationV1({
       store: this.input.store,
+      admission: input.admission,
       backend: this.input.registrationBackend,
       request: input.request,
       credentialDigestSha256Hex: await routerAbEd25519YaoCredentialDigestSha256HexV1(
@@ -186,7 +188,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
    */
   async consumeActivated(
     input: RouterAbEd25519YaoActivationConsumptionRequestV1,
-    admission: RouterAbEd25519YaoConsumptionAdmissionV1,
+    admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1,
   ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1> {
     const lifecycleId = input.reference.lifecycleId;
     let authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
@@ -352,6 +354,10 @@ async function bindAndAdmitVerifiedRegistration(input: {
         admissionRequest: bound.admissionRequest,
         value: preparation.value,
         companionWrite: 'not_committed',
+        executionAdmission: {
+          kind: 'snapshot',
+          authority: routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId),
+        },
       };
     }
     if (preparation.kind === 'failed') return preparation.failure;
@@ -425,6 +431,10 @@ async function bindAndAdmitVerifiedRegistration(input: {
         admissionRequest: bound.admissionRequest,
         value: admitted.value,
         companionWrite: input.companionWrite ? 'committed' : 'not_committed',
+        executionAdmission: {
+          kind: 'snapshot',
+          authority: routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId),
+        },
       };
     }
   }

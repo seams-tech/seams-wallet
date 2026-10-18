@@ -217,7 +217,7 @@ import {
   buildRouterAbEd25519YaoProductAdmissionRequestV1,
   projectRouterAbEd25519YaoExactWalletSession,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
-  type RouterAbEd25519YaoConsumptionAdmissionV1,
+  type RouterAbEd25519YaoRegistrationAdmissionSourceV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoWalletSessionCredentialV1,
   type RouterAbEd25519YaoWalletSessionMintInputV1,
@@ -4624,6 +4624,7 @@ export class CloudflareD1WalletRegistrationService {
     const execution = input.ed25519Execution
       ? await runtime
           .executeAdmittedRegistration({
+            admission: admitted.executionAdmission,
             request: input.ed25519Execution,
             credential: input.registrationBearerToken,
             trace: input.traceContext ?? createRouterAbTraceContextV1(),
@@ -4646,8 +4647,7 @@ export class CloudflareD1WalletRegistrationService {
     };
   }
 
-  /**
-   * Derives the authority-bound Yao admission now that the proof is verified.
+  /** Derives the authority-bound Yao admission after proof verification.
    * Both auth methods take this path — the scope comes from the verified
    * authority, so Email OTP's `providerUserId` is established rather than
    * assumed.
@@ -5413,7 +5413,7 @@ export class CloudflareD1WalletRegistrationService {
     initialSessionPlan: RegistrationInitialSessionPlan,
     lifecycleDecision: RouterAbEd25519YaoLifecycleDecisionV1 | null,
     heldPasskeyClaim: HeldRegistrationPasskeyClaim | null,
-    yaoAdmission: RouterAbEd25519YaoConsumptionAdmissionV1,
+    yaoAdmission: RouterAbEd25519YaoRegistrationAdmissionSourceV1,
     founding: Parameters<D1WalletRegistrationCommitStore['reserveAuthority']>[2],
   ): Promise<RegistrationFinalizeExecution> {
     const finalizeTiming = createD1RegistrationRouteTimingRecorder('wallets_register_finalize');
