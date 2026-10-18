@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from summarize_refill import distribution, timestamp
+from summarize_preparation_coverage import summarize as summarize_coverage
 
 
 def read(path):
@@ -58,6 +59,19 @@ def summarize_profile(folder):
     for operation in sorted(admitted_terminal_operations - recorded_operations):
         consumption.append({"operation": operation, "count_unknown": True,
                             "outcome": {"status": "admitted_terminal_operation_missing_router_outcome"}})
+    peer_bindings = {row["operation"]: row for row in
+                     summarize_coverage(client, records, versions)["matched_operation_material_bindings"]}
+    recovered_consumption = []
+    for index, row in enumerate(consumption):
+        peer = peer_bindings.get(row["operation"])
+        if row.get("count_unknown") and peer is not None:
+            # A verified client result and two complete, agreeing role traces
+            # establish consumption independently of the missing Router log.
+            recovered_consumption.append(row["operation"])
+            consumption[index] = {
+                "operation": row["operation"], "batches": peer["batches"],
+                "outcome": {"status": "signed", "evaluated_candidates": peer["evaluated_candidates"]},
+            }
     initial = {batch for wallet in summary["wallets"] for batch in wallet["initial_ids_including_prestarted_producers"]}
     initial_observation = read(folder / "initial-stock.json")
     assert {(row["key"], row["epoch"]) for row in initial_observation} == scopes
@@ -189,6 +203,7 @@ def summarize_profile(folder):
         "identified_consumed_groups": len(consumed_groups),
         "identified_consumed_candidates": len(consumed_groups) * width,
         "unknown_consumption_operations": unknown_consumption,
+        "consumption_recovered_from_complete_peer_traces": recovered_consumption,
         "peak_observed_candidates_per_role_wallet": peak_observed_groups * width,
         "common_post_initial_stock": summary["common_post_initial_stock"],
         "material_identity_balance_complete": material_balanced,

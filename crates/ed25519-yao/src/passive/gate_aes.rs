@@ -168,6 +168,7 @@ fn aes128_encrypt(rkeys: &RoundKeys, blocks: &BatchBlocks) -> BatchBlocks {
     output
 }
 
+#[inline(always)]
 fn encrypt_state<W: PlaneWord>(rkeys: &[W; 88], state: &mut [W; 8]) {
     add_round_key(state, &rkeys[..8]);
 
