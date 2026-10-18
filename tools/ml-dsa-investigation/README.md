@@ -443,3 +443,9 @@ That summary retains explicit job identities, participant consumption, unsuccess
 
 The `inspect-silent-wasm` command now reads the packaged Router A/B deriver builds and their verified symbol sidecars.
 Its instruction inventory requires manual data-flow review. It does not certify constant-time execution.
+
+
+The [AES permutation report](../../docs/router-ab/ml-dsa-65-aes-rounds-report.md) compares fixed SIMD permutations and transpose steps.
+The AES screen now times both complete baseline/candidate SIMD adapters and scalar kernels.
+Use `--wasm-output PATH` to retain the exact probe module for a hosted kernel control.
+The report also separates passive reserve timing from the active-observer scheduling diagnostic.

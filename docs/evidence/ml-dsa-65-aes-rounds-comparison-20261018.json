@@ -1,0 +1,787 @@
+{
+  "schema": "seams.ml-dsa-aes-rounds-summary.v1",
+  "scope": "Previous optimized baseline versus direct AES cell permutations and fixed transpose steps. Two wallets, 32 candidates per wallet, 16-candidate admission. Ten-minute sequential hosted screens followed by full reserve restoration. Independent deployments; placement and CPU variation uncontrolled. No production percentile claim.",
+  "profiles": [
+    {
+      "name": "baseline",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 4,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 4,
+        "refill_target_batches": 8
+      },
+      "versions": {
+        "router": "0c91f002-83e9-482d-b5ac-93d7651d4083",
+        "a": "54f2e0d2-4539-42ad-8baa-af510a47bdca",
+        "b": "54ff9f80-5b7a-4851-af3e-a2750c4f94ef",
+        "preparer-a": "927d11af-0443-4b74-955b-3a657fa0b097",
+        "preparer-b": "e0208e9f-415c-42ab-a3df-a9fbae7daed1"
+      },
+      "successful_signatures": 32,
+      "online_http_ms": {
+        "count": 32,
+        "minimum": 1278.0707919999995,
+        "median": 2054.7703954999743,
+        "maximum": 4775.371792,
+        "sum": 79014.3927110001
+      },
+      "online_http_by_consumed_groups": {
+        "1": {
+          "count": 23,
+          "minimum": 1278.0707919999995,
+          "median": 1969.0066250000382,
+          "maximum": 2950.798250000007,
+          "sum": 44995.41950200003
+        },
+        "2": {
+          "count": 8,
+          "minimum": 2176.060958000002,
+          "median": 3785.07612500004,
+          "maximum": 4775.371792,
+          "sum": 29507.417667000074
+        },
+        "3": {
+          "count": 1,
+          "minimum": 4511.555541999987,
+          "median": 4511.555541999987,
+          "maximum": 4511.555541999987,
+          "sum": 4511.555541999987
+        }
+      },
+      "online_under_five_seconds": 32,
+      "complete_demand_ms": {
+        "count": 32,
+        "minimum": 1278.1247090000006,
+        "median": 38451.45016700002,
+        "maximum": 96225.95975000004,
+        "sum": 1143787.496166
+      },
+      "failed_operations": 0,
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 16,
+          "startMs": 566643.098458,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 33455.49716700008
+        },
+        {
+          "wallet": 0,
+          "number": 18,
+          "startMs": 579664.281875,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 20627.922625000007
+        }
+      ],
+      "identified_consumed_candidates": 168,
+      "material_identity_balance_complete": true,
+      "peak_observed_candidates_per_role_wallet": 32,
+      "full_reserve_restoration_ms": 183372.7890625,
+      "balanced_cycle_ms_per_verified_signature": 24489.53125,
+      "common_post_initial_stock": {
+        "start_ms": 1792324117666.317,
+        "elapsed_ms": 469759.89404296875,
+        "observed_new_paired_batches": 25,
+        "successful_signatures": 20,
+        "paired_batches_per_minute": 3.1931206112346313,
+        "successful_signatures_per_minute": 2.554496488987705
+      },
+      "preparation_payload_observations": [
+        {
+          "role": "a",
+          "sent_payload_bytes": 3497472,
+          "received_payload_bytes": 985280,
+          "pending_events": 233,
+          "jobs": 63
+        },
+        {
+          "role": "b",
+          "sent_payload_bytes": 985280,
+          "received_payload_bytes": 3497472,
+          "pending_events": 1256,
+          "jobs": 63
+        }
+      ],
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "completed_job_invocation_wall_ms": {
+          "count": 42,
+          "minimum": 9317,
+          "median": 11694.5,
+          "maximum": 26707,
+          "sum": 599827
+        },
+        "completed_job_count": 42,
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 42,
+        "captured_producer_invocation_wall_ms": 601155,
+        "captured_invocation_ms_per_verified_signature": 18786.09375,
+        "accounting_complete": false,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 168,
+            "minimum": 0,
+            "median": 5.0,
+            "maximum": 12772,
+            "sum": 274763
+          },
+          "preparer-b": {
+            "count": 42,
+            "minimum": 4281,
+            "median": 5366.5,
+            "maximum": 12903,
+            "sum": 279389
+          }
+        }
+      },
+      "coverage": {
+        "verified_operations": 32,
+        "missing_complete_peer_traces": 4,
+        "attributed_producer_alarms": 63,
+        "unattributed_nonzero_work_invocations": 0,
+        "unattributed_canceled_zero_cpu_alarms": 63,
+        "unattributed_canceled_wall_ms": {
+          "count": 63,
+          "minimum": 28,
+          "median": 31,
+          "maximum": 46,
+          "sum": 1974
+        }
+      },
+      "registration": [
+        {
+          "wallet": 1,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "preparationMs": 103781.029667,
+              "registrationWithClientVerificationMs": 4907.773625000002,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 3421.942333999992,
+                "operation": [
+                  217,
+                  72,
+                  167,
+                  156,
+                  91,
+                  105,
+                  166,
+                  29,
+                  81,
+                  140,
+                  230,
+                  50,
+                  152,
+                  240,
+                  204,
+                  89,
+                  174,
+                  7,
+                  161,
+                  61,
+                  226,
+                  64,
+                  29,
+                  219,
+                  65,
+                  124,
+                  58,
+                  152,
+                  44,
+                  66,
+                  241,
+                  119
+                ]
+              }
+            },
+            {
+              "epoch": 2,
+              "preparationMs": 85965.81145900002,
+              "registrationWithClientVerificationMs": 4857.390125000005,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 3009.8960840000072,
+                "operation": [
+                  145,
+                  172,
+                  191,
+                  96,
+                  111,
+                  213,
+                  1,
+                  9,
+                  66,
+                  185,
+                  219,
+                  211,
+                  193,
+                  135,
+                  170,
+                  25,
+                  149,
+                  183,
+                  5,
+                  40,
+                  253,
+                  181,
+                  25,
+                  194,
+                  207,
+                  189,
+                  99,
+                  174,
+                  74,
+                  221,
+                  245,
+                  39
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "wallet": 2,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "preparationMs": 63712.134333,
+              "registrationWithClientVerificationMs": 4817.493207999993,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2699.832290999999,
+                "operation": [
+                  90,
+                  123,
+                  38,
+                  5,
+                  209,
+                  242,
+                  193,
+                  129,
+                  205,
+                  186,
+                  103,
+                  191,
+                  194,
+                  242,
+                  140,
+                  84,
+                  232,
+                  105,
+                  106,
+                  148,
+                  34,
+                  82,
+                  231,
+                  46,
+                  83,
+                  2,
+                  130,
+                  12,
+                  201,
+                  197,
+                  58,
+                  162
+                ]
+              }
+            },
+            {
+              "epoch": 2,
+              "preparationMs": 67782.917125,
+              "registrationWithClientVerificationMs": 5255.250541999994,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 3451.5658750000002,
+                "operation": [
+                  143,
+                  78,
+                  247,
+                  115,
+                  75,
+                  187,
+                  176,
+                  4,
+                  57,
+                  106,
+                  56,
+                  153,
+                  167,
+                  83,
+                  72,
+                  140,
+                  196,
+                  45,
+                  210,
+                  103,
+                  71,
+                  223,
+                  162,
+                  176,
+                  22,
+                  66,
+                  84,
+                  75,
+                  12,
+                  31,
+                  240,
+                  115
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "optimized",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 4,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 4,
+        "refill_target_batches": 8
+      },
+      "versions": {
+        "router": "7f870198-8b69-43e3-a276-baf18f43c71e",
+        "a": "14c1de75-9e6d-4f46-97e6-4a1b7dbc9e68",
+        "b": "fb97276b-412d-471a-aa73-99a55ea29557",
+        "preparer-a": "b60b77b8-086a-420f-8f72-8a2b1c37dd24",
+        "preparer-b": "960a1653-7077-4ae9-9f92-6415a61b3e8f"
+      },
+      "successful_signatures": 22,
+      "online_http_ms": {
+        "count": 22,
+        "minimum": 1543.2735840000096,
+        "median": 3398.3891459999722,
+        "maximum": 17651.101124999997,
+        "sum": 92082.22179299992
+      },
+      "online_http_by_consumed_groups": {
+        "1": {
+          "count": 12,
+          "minimum": 1543.2735840000096,
+          "median": 2065.570146500013,
+          "maximum": 6359.0234579999815,
+          "sum": 33607.00358499991
+        },
+        "2": {
+          "count": 9,
+          "minimum": 3051.0392500000016,
+          "median": 3926.3906659999993,
+          "maximum": 6912.71008400002,
+          "sum": 40824.117083000005
+        },
+        "6": {
+          "count": 1,
+          "minimum": 17651.101124999997,
+          "median": 17651.101124999997,
+          "maximum": 17651.101124999997,
+          "sum": 17651.101124999997
+        }
+      },
+      "online_under_five_seconds": 16,
+      "complete_demand_ms": {
+        "count": 22,
+        "minimum": 1685.651582999999,
+        "median": 47243.985749999985,
+        "maximum": 151523.14216700004,
+        "sum": 1176626.7884559997
+      },
+      "failed_operations": 0,
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 14,
+          "startMs": 584061.221625,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 15939.106333000003
+        },
+        {
+          "wallet": 1,
+          "number": 10,
+          "startMs": 597867.333,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 2132.981792000006
+        }
+      ],
+      "identified_consumed_candidates": 144,
+      "material_identity_balance_complete": true,
+      "peak_observed_candidates_per_role_wallet": 32,
+      "full_reserve_restoration_ms": 230784.6640625,
+      "balanced_cycle_ms_per_verified_signature": 37762.954545454544,
+      "common_post_initial_stock": {
+        "start_ms": 1792325450529.0496,
+        "elapsed_ms": 465489.2863769531,
+        "observed_new_paired_batches": 20,
+        "successful_signatures": 14,
+        "paired_batches_per_minute": 2.577932586461808,
+        "successful_signatures_per_minute": 1.8045528105232655
+      },
+      "preparation_payload_observations": [
+        {
+          "role": "a",
+          "sent_payload_bytes": 3497472,
+          "received_payload_bytes": 985280,
+          "pending_events": 233,
+          "jobs": 56
+        },
+        {
+          "role": "b",
+          "sent_payload_bytes": 985280,
+          "received_payload_bytes": 3497472,
+          "pending_events": 1256,
+          "jobs": 56
+        }
+      ],
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "completed_job_invocation_wall_ms": {
+          "count": 36,
+          "minimum": 9261,
+          "median": 13577.5,
+          "maximum": 27316,
+          "sum": 546615
+        },
+        "completed_job_count": 36,
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 37,
+        "captured_producer_invocation_wall_ms": 549289,
+        "captured_invocation_ms_per_verified_signature": 24967.68181818182,
+        "accounting_complete": false,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 145,
+            "minimum": 0,
+            "median": 5,
+            "maximum": 12188,
+            "sum": 240479
+          },
+          "preparer-b": {
+            "count": 36,
+            "minimum": 4097,
+            "median": 5816.5,
+            "maximum": 12696,
+            "sum": 248483
+          }
+        }
+      },
+      "coverage": {
+        "verified_operations": 22,
+        "missing_complete_peer_traces": 1,
+        "attributed_producer_alarms": 56,
+        "unattributed_nonzero_work_invocations": 0,
+        "unattributed_canceled_zero_cpu_alarms": 57,
+        "unattributed_canceled_wall_ms": {
+          "count": 57,
+          "minimum": 2,
+          "median": 75,
+          "maximum": 265,
+          "sum": 4262
+        }
+      },
+      "registration": [
+        {
+          "wallet": 1,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "preparationMs": 70100.155583,
+              "registrationWithClientVerificationMs": 5126.860667000001,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 2350.149709000005,
+                "operation": [
+                  224,
+                  43,
+                  233,
+                  20,
+                  176,
+                  143,
+                  96,
+                  244,
+                  0,
+                  25,
+                  255,
+                  104,
+                  242,
+                  133,
+                  4,
+                  100,
+                  207,
+                  217,
+                  155,
+                  92,
+                  183,
+                  12,
+                  10,
+                  77,
+                  7,
+                  251,
+                  88,
+                  48,
+                  70,
+                  145,
+                  64,
+                  135
+                ]
+              }
+            },
+            {
+              "epoch": 2,
+              "preparationMs": 101456.96512500002,
+              "registrationWithClientVerificationMs": 5001.24904200001,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 5100.666375000001,
+                "operation": [
+                  238,
+                  181,
+                  236,
+                  33,
+                  90,
+                  209,
+                  211,
+                  49,
+                  105,
+                  26,
+                  36,
+                  37,
+                  191,
+                  172,
+                  81,
+                  246,
+                  3,
+                  251,
+                  42,
+                  143,
+                  1,
+                  114,
+                  7,
+                  64,
+                  87,
+                  135,
+                  220,
+                  39,
+                  16,
+                  202,
+                  99,
+                  119
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "wallet": 2,
+          "canonical_recovery": true,
+          "functional_passed_including_initial_signatures": true,
+          "cases": [
+            {
+              "epoch": 1,
+              "preparationMs": 69983.46250000001,
+              "registrationWithClientVerificationMs": 8703.90237499999,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 8401.46149999999,
+                "operation": [
+                  54,
+                  173,
+                  126,
+                  90,
+                  188,
+                  29,
+                  146,
+                  118,
+                  224,
+                  116,
+                  64,
+                  0,
+                  0,
+                  8,
+                  185,
+                  192,
+                  224,
+                  222,
+                  206,
+                  53,
+                  104,
+                  173,
+                  114,
+                  49,
+                  126,
+                  115,
+                  210,
+                  145,
+                  180,
+                  34,
+                  148,
+                  201
+                ]
+              }
+            },
+            {
+              "epoch": 2,
+              "preparationMs": 106544.26458300001,
+              "registrationWithClientVerificationMs": 9650.721832999989,
+              "canonicalKeyVerified": true,
+              "initialStockSign": {
+                "verified": true,
+                "elapsedMs": 4248.50320799998,
+                "operation": [
+                  118,
+                  203,
+                  26,
+                  151,
+                  233,
+                  255,
+                  228,
+                  247,
+                  53,
+                  101,
+                  81,
+                  225,
+                  247,
+                  17,
+                  0,
+                  144,
+                  240,
+                  224,
+                  94,
+                  30,
+                  194,
+                  143,
+                  117,
+                  249,
+                  49,
+                  84,
+                  121,
+                  30,
+                  11,
+                  249,
+                  67,
+                  113
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "full_comparison": {
+    "bundle": "ml-dsa-65-aes-rounds-hosted-20261018.json.gz",
+    "entry": "comparison.json"
+  },
+  "local_comparison": {
+    "scope": "Alternating baseline/candidate/candidate/baseline profiled local Worker E2Es. No simultaneous local builds. Native checks are correctness evidence only.",
+    "runs": [
+      {
+        "profile": "baseline",
+        "run": 1,
+        "full_reserve_ms": 49154.275708,
+        "passed": true,
+        "openssl_verified": 3,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 1000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "candidate_group_size": 4,
+          "preparation_group_size": 4,
+          "minimum_ready_batches": 4,
+          "refill_target_batches": 8
+        }
+      },
+      {
+        "profile": "optimized",
+        "run": 2,
+        "full_reserve_ms": 49135.473332999994,
+        "passed": true,
+        "openssl_verified": 3,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 1000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "candidate_group_size": 4,
+          "preparation_group_size": 4,
+          "minimum_ready_batches": 4,
+          "refill_target_batches": 8
+        }
+      },
+      {
+        "profile": "optimized",
+        "run": 3,
+        "full_reserve_ms": 49166.0335,
+        "passed": true,
+        "openssl_verified": 3,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 1000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "candidate_group_size": 4,
+          "preparation_group_size": 4,
+          "minimum_ready_batches": 4,
+          "refill_target_batches": 8
+        }
+      },
+      {
+        "profile": "baseline",
+        "run": 4,
+        "full_reserve_ms": 49144.383917,
+        "passed": true,
+        "openssl_verified": 3,
+        "policy": {
+          "wallet_cooldown": {
+            "mode": "enabled",
+            "interval_ms": 1000
+          },
+          "max_active_operations": 1,
+          "operation_timeout_ms": 30000,
+          "candidate_group_size": 4,
+          "preparation_group_size": 4,
+          "minimum_ready_batches": 4,
+          "refill_target_batches": 8
+        }
+      }
+    ]
+  },
+  "diagnostic_active_observer": {
+    "scope": "Same candidate binary/policy; inventory requests can advance refill alarms. Diagnostic intervention only.",
+    "full_reserve_ms": 36171.114375
+  }
+}

@@ -24,6 +24,7 @@ mod baseline;
 mod passive {
     mod correlation_aes;
     mod baseline_adapter;
+    mod baseline_gate_aes;
     pub(crate) mod gate_aes;
     use gate_aes as candidate;
 
@@ -90,6 +91,7 @@ mod passive {
         let mut key = [0u8; 16];
         fill(&mut key, &mut seed);
         let scalar = baseline::FourBlockAes128::new(&key);
+        let previous_four = baseline_gate_aes::FourBlockAes128::new(&key);
         let four = candidate::FourBlockAes128::new(&key);
         let wide = candidate::EightBlockAes128::from_four(&four);
         let adapter = correlation_aes::CorrelationAes::new(&key);
@@ -112,6 +114,13 @@ mod passive {
                 old_adapter.encrypt(&mut input.0);
             } else if mode == 4 {
                 adapter.encrypt(&mut input.0);
+            } else if mode == 5 {
+                for chunk in input.0.chunks_mut(4) {
+                    let mut batch = Zeroizing::new(baseline_gate_aes::FourBlocks::default());
+                    batch.0.copy_from_slice(chunk);
+                    previous_four.encrypt_four(&mut batch);
+                    chunk.copy_from_slice(&batch.0);
+                }
             } else {
                 for chunk in input.0.chunks_mut(4) {
                     let mut batch = Zeroizing::new(candidate::FourBlocks::default());
@@ -167,30 +176,31 @@ for (let seed = 1; seed <= 256; seed++) {
   probe.verify_lengths(seed);
 }
 for (let repetition = 0; repetition < 10; repetition++) {
-  for (const mode of [3, 4]) probe.throughput(mode, 32768, repetition + 1);
+  for (const mode of [3, 4, 5, 2]) probe.throughput(mode, 32768, repetition + 1);
 }
 const samples = [];
 for (let repetition = 0; repetition < 20; repetition++) {
   const pair = [];
-  for (const mode of repetition % 2 === 0 ? [3, 4] : [4, 3]) {
+  for (const mode of repetition % 2 === 0 ? [3, 4, 5, 2] : [2, 5, 4, 3]) {
     const started = performance.now();
     const checksum = probe.throughput(mode, 32768, repetition + 100);
     const row = {mode, repetition, elapsedMs: performance.now() - started, checksum};
     samples.push(row);
     pair.push(row);
   }
-  assert.equal(pair[0].checksum, pair[1].checksum);
+  for (const row of pair) assert.equal(row.checksum, pair[0].checksum);
 
 }
 const medians = [];
-for (const mode of [3, 4]) {
+for (const mode of [3, 4, 5, 2]) {
   const times = [];
   for (const sample of samples) if (sample.mode === mode) times.push(sample.elapsedMs);
   times.sort(ascending);
   medians.push((times[9] + times[10]) / 2);
 }
 await writeFile(process.argv[3], JSON.stringify({
-  scope: 'Isolated Node Wasm SIMD. Full-byte RustCrypto AES 0.9.1 comparison for 256 keys and 256 blocks per key in each of baseline scalar, production wide, and production scalar. Production CorrelationAes lengths 0..33 also checked for each key, including unchanged suffix. Timing compares the previous copying adapter (mode 3) with the current borrowed-buffer adapter (mode 4), using repeated encryption, with checksum outside the loop. No complete Worker speed claim.',
+  scope: 'Isolated Node Wasm SIMD. Full-byte RustCrypto AES 0.9.1 comparison for 256 keys and 256 blocks per key in each of baseline scalar, production wide, and production scalar. Production CorrelationAes lengths 0..33 also checked for each key, including unchanged suffix. Timing compares the previous complete SIMD AES backend (mode 3) with the current backend (mode 4), using repeated encryption, with checksum outside the loop. Modes 5 and 2 additionally compare the previous and current scalar kernels. No complete Worker speed claim.',
+  timingModes: ['baseline SIMD adapter (3)', 'candidate SIMD adapter (4)', 'baseline scalar (5)', 'candidate scalar (2)'],
   passed: true, node: process.version,
   wasmSha256: createHash('sha256').update(bytes).digest('hex'), samples, medians,
 }, null, 2));
@@ -228,7 +238,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--baseline", default="317aca2b")
-    parser.add_argument("--adapter-baseline", default="a60af34e")
+    parser.add_argument("--adapter-baseline", default="bf49d67b")
+    parser.add_argument("--wasm-output", type=Path)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="ml-dsa-private-aes-") as directory:
         work = Path(directory)
@@ -244,7 +255,11 @@ def main():
         baseline = subprocess.check_output(["git", "show", f"{args.baseline}:{AES}"], cwd=ROOT)
         (source / "baseline.rs").write_bytes(baseline)
         adapter = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:{CORRELATION}"], cwd=ROOT).decode()
-        adapter = adapter.replace("encrypt_eight(&mut batch)", "encrypt_eight(&mut batch.0)")
+        adapter = adapter.replace("crate::passive::gate_aes", "crate::passive::baseline_gate_aes")
+        (source / "passive/baseline_gate_aes").mkdir()
+        for relative, destination in [(AES, "baseline_gate_aes.rs"), (EIGHT, "baseline_gate_aes/eight.rs")]:
+            original = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:{relative}"], cwd=ROOT)
+            (source / "passive" / destination).write_bytes(original)
         (source / "passive/baseline_adapter.rs").write_text(adapter)
         (source / "lib.rs").write_text(RUST)
         (work / "Cargo.toml").write_text(MANIFEST)
@@ -255,6 +270,9 @@ def main():
                         "--features", "ml-dsa-runtime-benchmark"], cwd=work, env=environment, check=True)
         wasm = work / "target/wasm32-unknown-unknown/release/ml_dsa_aes_screen.wasm"
         subprocess.run(["node", str(work / "run.mjs"), str(wasm), str(args.output.resolve())], check=True)
+        if args.wasm_output is not None:
+            args.wasm_output.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(wasm, args.wasm_output)
         result = json.loads(args.output.read_text())
         result["production_source_sha256"] = {
             str(relative): digest(source / "passive" / destination)
@@ -265,6 +283,8 @@ def main():
         result["lock_sha256"] = digest(work / "Cargo.lock")
         result["baseline_revision"] = subprocess.check_output(["git", "rev-parse", args.baseline], cwd=ROOT, text=True).strip()
         result["adapter_baseline_revision"] = args.adapter_baseline
+        result["baseline_gate_aes_sha256"] = digest(source / "passive/baseline_gate_aes.rs")
+        result["baseline_eight_sha256"] = digest(source / "passive/baseline_gate_aes/eight.rs")
         result["adapted_baseline_sha256"] = digest(source / "passive/baseline_adapter.rs")
         result["script_sha256"] = digest(Path(__file__))
         args.output.write_text(json.dumps(result, indent=2) + "\n")

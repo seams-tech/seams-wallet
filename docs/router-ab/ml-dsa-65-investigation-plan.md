@@ -2,7 +2,16 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-18.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [preparation profiling campaign](ml-dsa-65-preparation-profile-report.md) adds explicit job/material records and optimizes private AES copying and public matrix accumulation.
+The [AES permutation campaign](ml-dsa-65-aes-rounds-report.md) reduces matched hosted SIMD-kernel median CPU by 24.58%.
+All four passive local reserve runs still take about 49.15 seconds. An active inventory-wakeup diagnostic reaches 36.171 seconds with the same binary and capacity.
+This identifies completion-triggered refill wakeups as the next scheduling experiment. The production controller is unchanged.
+
+The full hosted candidate verifies twenty-two signatures, with sixteen below five seconds and a 17.651-second maximum for six groups.
+Its preparation-job median is 13.578 seconds, and captured preparation work is 24.968 seconds per success. The full-flow screen is worse than its control.
+Kernel improvement therefore does not establish a service latency or capacity gain. Wallet-seed recovery, standard FIPS export, Workers preparation, and pool capacity remain unchanged.
+Next, wake the controller after durable settlement while preserving fairness, recovery alarms, one-use state, and capacity limits. Measure actual alarm delivery and lease release.
+
+The earlier [preparation profiling campaign](ml-dsa-65-preparation-profile-report.md) adds explicit job/material records and optimizes private AES copying and public matrix accumulation.
 Isolated AES and encoder medians fall by 3.78% and 7.79%. One complete local reserve comparison improves by 1.97%.
 The hosted candidate prepares four-candidate groups in a median 11.338 seconds. Captured preparation work remains 35.738 seconds per successful signature.
 Seventeen hosted signatures verify. Fifteen finish below five seconds; successful requests range from 1.079 to 5.913 seconds.
