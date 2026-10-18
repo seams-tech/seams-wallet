@@ -205,7 +205,10 @@ impl RouterAbMlDsaProducerDurableObject {
         schedule_refill_alarm(&self.state, delay).await
     }
     async fn settle(&self, terminal: &ProducerState) -> worker::Result<Response> {
-        let _: bool = service_call(
+        // Preserve an explicit retry even when settlement is entered by a
+        // recovery alarm rather than by the original preparation invocation.
+        schedule_refill_alarm(&self.state, RECOVERY_CHECK_MS).await?;
+        let wake: Vec<KeyScope> = service_call(
             &self.env,
             CallAuthority::Internal,
             &AdmissionCommand::FinishRefill {
@@ -214,6 +217,31 @@ impl RouterAbMlDsaProducerDurableObject {
         )
         .await
         .map_err(protocol_error)?;
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_refill_settled_v1", "batch": hex(&terminal.job().batch),
+                "wake_count": wake.len(), "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+            })
+        );
+        for key in wake {
+            let response = local_call(&self.env, &RoleCommand::WakeRefill { key: key.clone() })
+                .await
+                .map_err(protocol_error)?;
+            if response.status_code() != 200 {
+                return Err(protocol_error(invalid(
+                    "ML-DSA refill wake was not acknowledged",
+                )));
+            }
+            worker::console_log!(
+                "{}",
+                serde_json::json!({
+                    "event": "ml_dsa_refill_woken_v1", "batch": hex(&terminal.job().batch),
+                    "key": hex(&key.public_key_digest), "epoch": key.epoch,
+                    "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+                })
+            );
+        }
         self.state.storage().delete_alarm().await?;
         Response::from_json(&matches!(terminal, ProducerState::Published { .. }))
     }

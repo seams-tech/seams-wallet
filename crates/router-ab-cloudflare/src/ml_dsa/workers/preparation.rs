@@ -11,7 +11,9 @@ const QUEUE: &str = "preprocessing-queue";
 
 pub(super) fn refill_key(command: &RoleCommand) -> Option<&KeyScope> {
     match command {
-        RoleCommand::Install { key } | RoleCommand::Inventory { key, .. } => Some(key),
+        RoleCommand::Install { key }
+        | RoleCommand::Inventory { key, .. }
+        | RoleCommand::WakeRefill { key } => Some(key),
         RoleCommand::Take { permit, .. } => Some(&permit.request.key),
         RoleCommand::Release { request, .. } => Some(&request.key),
         _ => None,
@@ -50,6 +52,13 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     let Some(key) = queue.first().cloned() else {
         return Response::from_json(&true);
     };
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_refill_controller_v1", "key": hex(&key.public_key_digest),
+            "epoch": key.epoch, "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+        })
+    );
     // Arm recovery before network work. A crash never loses the refill request.
     schedule_refill_alarm(state, 30_000).await?;
     let active: Option<admission::KeyActivation> = service_call(

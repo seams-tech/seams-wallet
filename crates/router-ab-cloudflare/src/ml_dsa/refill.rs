@@ -165,11 +165,34 @@ pub async fn check(store: &impl Store, job: &Job, now: u64) -> Result<bool> {
             .as_ref()
             == Some(&job.key))
 }
-pub async fn finish(store: &impl Store, job: &Job) -> Result<()> {
-    if store.get::<Job>(ACTIVE).await?.as_ref() == Some(job) {
-        store.delete(ACTIVE).await?;
+/// Release only this lease and return bounded wake hints in queue order.
+/// An idle replay recomputes hints after a lost reply. A newer lease wins.
+pub async fn finish(store: &impl Store, job: &Job, now: u64) -> Result<Vec<KeyScope>> {
+    match store.get::<Job>(ACTIVE).await? {
+        Some(active) if active != *job => return Ok(Vec::new()),
+        Some(_) => store.delete(ACTIVE).await?,
+        None => {}
     }
-    Ok(())
+    let waiting: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
+    let mut wake = Vec::with_capacity(2);
+    for entry in waiting {
+        if entry.expires_at_ms > now && key_is_active(store, &entry.key).await? {
+            wake.push(entry.key);
+            break;
+        }
+    }
+    if !wake.contains(&job.key) && key_is_active(store, &job.key).await? {
+        wake.push(job.key.clone());
+    }
+    Ok(wake)
+}
+
+async fn key_is_active(store: &impl Store, key: &KeyScope) -> Result<bool> {
+    Ok(admission::active_key(store, key)
+        .await?
+        .map(|activation| activation.key)
+        .as_ref()
+        == Some(key))
 }
 /// Each participant claims the batch ID before any OT or nonce generation.
 pub async fn start_role(store: &impl Store, job: &Job, now: u64) -> Result<()> {
