@@ -31,26 +31,26 @@ enum AlarmWork {
     Settle(ProducerState),
 }
 
-pub(crate) async fn handle_start(
-    mut request: worker::Request,
-    env: Env,
-) -> worker::Result<Response> {
-    if let Err(error) = crate::require_cloudflare_internal_service_auth_request_v1(&request, &env) {
-        return crate::cloudflare_private_service_auth_error_response_v1(error);
-    }
-    if request.method() != Method::Post || configured_role(&env)? != Participant::A {
-        return Response::error("ML-DSA preparation requires participant A POST", 400);
-    }
-    let job: refill::Job = decode_bounded_json_request(&mut request, 16_384)
-        .await
-        .map_err(protocol_error)?;
+pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     let stub = env
-        .durable_object(NAMESPACE)?
-        .id_from_name(&hex(&job.batch))?
-        .get_stub()?;
-    let forwarded =
-        object_request(&env, CallAuthority::Internal, START_PATH, &job).map_err(protocol_error)?;
-    stub.fetch_with_request(forwarded).await
+        .durable_object(NAMESPACE)
+        .map_err(storage_error)?
+        .id_from_name(&hex(&job.batch))
+        .map_err(storage_error)?
+        .get_stub()
+        .map_err(storage_error)?;
+    let request = object_request(env, CallAuthority::Internal, START_PATH, job)?;
+    let mut response = stub
+        .fetch_with_request(request)
+        .await
+        .map_err(storage_error)?;
+    if response.status_code() != 202 {
+        return Err(invalid("ML-DSA durable preparation queue refused the job"));
+    }
+    if !response.json::<bool>().await.map_err(storage_error)? {
+        return Err(invalid("ML-DSA producer queue was not acknowledged"));
+    }
+    Ok(())
 }
 
 #[durable_object]
@@ -77,8 +77,11 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         let job: refill::Job = decode_bounded_json_request(&mut request, 16_384)
             .await
             .map_err(protocol_error)?;
+        log_stage(&job, Participant::A, job.batch, "producer_received");
         check_job(&self.env, &job).await.map_err(protocol_error)?;
+        log_stage(&job, Participant::A, job.batch, "producer_authorized");
         self.log_job(&job, "queued");
+        let receipt_job = job.clone();
         let queued = transaction(&self.state, move |store| async move {
             match store.get::<ProducerState>(STATE).await? {
                 None => {
@@ -93,9 +96,21 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         })
         .await
         .map_err(protocol_error)?;
+        log_stage(
+            &receipt_job,
+            Participant::A,
+            receipt_job.batch,
+            "queue_checked",
+        );
         if queued {
             schedule_refill_alarm(&self.state, 50).await?;
         }
+        log_stage(
+            &receipt_job,
+            Participant::A,
+            receipt_job.batch,
+            "receipt_ready",
+        );
         Ok(Response::from_json(&true)?.with_status(202))
     }
     async fn alarm(&self) -> worker::Result<Response> {
@@ -127,10 +142,12 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         let (terminal, elapsed) = match action {
             AlarmWork::Run(job) => {
                 self.log_job(&job, "running");
+                log_stage(&job, Participant::A, job.batch, "producer_running");
                 let start = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
                 // Alarm handlers are serialized per object. This timer cannot
                 // interrupt healthy work; it wakes an interrupted invocation.
                 self.schedule_recovery(&job, start).await?;
+                log_stage(&job, Participant::A, job.batch, "recovery_armed");
                 let result = before_deadline(job.expires_at_ms, produce_a(&self.env, &job)).await;
                 let elapsed = crate::cloudflare_now_unix_ms_v1()
                     .ok()

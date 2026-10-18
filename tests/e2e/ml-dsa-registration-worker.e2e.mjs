@@ -333,7 +333,7 @@ function workers() {
   ];
 }
 function role(name, index) {
-  return {
+  const worker = {
     ...base(name, `deriver-${name}`, {
       DERIVER_ROLE_PRIVATE_D1_ROLE: `deriver_${name}`,
       DERIVER_ROLE_PRIVATE_D1_KEK_BINDING: 'ROLE_KEK',
@@ -351,8 +351,14 @@ function role(name, index) {
         scriptName: 'router',
       },
     },
-    serviceBindings: { DERIVER_B: 'b', ML_DSA_PREPARER: 'preparer-a' },
+    serviceBindings: { DERIVER_B: 'b' },
   };
+  if (name === 'a') {
+    worker.durableObjects.ML_DSA_PRODUCER_DO = {
+      className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
+    };
+  }
+  return worker;
 }
 function preparerWorker(participant, index) {
   const worker = role(participant, index);

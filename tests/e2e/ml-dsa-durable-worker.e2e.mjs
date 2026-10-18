@@ -306,12 +306,14 @@ try {
       assert.ok(observations.inventoryDuringPreparationMs < 2000, 'Producer work blocked pool inventory');
       assert.equal(await producerState(job), 'running');
       observations.inventoryOverlappedRunningProducer = true;
-      const retry = await raw('preparer-a', '/router-ab/ml-dsa/prepare', job, serviceAuth);
+      const deniedProducer = await producerReceipt(job, gatewayAuth);
+      assert.equal(deniedProducer.status, 403);
+      observations.producerRejectsWrongAuthority = true;
+      const retry = await producerReceipt(job, serviceAuth);
       assert.equal(retry.status, 202, 'A duplicate producer receipt was rejected');
       const changedJob = structuredClone(job);
       changedJob.expires_at_ms += 1;
-      const changed = await raw('preparer-a', '/router-ab/ml-dsa/prepare', changedJob, serviceAuth);
-      assert.notEqual(changed.status, 202, 'A changed producer claim was accepted');
+      await assert.rejects(producerReceipt(changedJob, serviceAuth), /ML-DSA preprocessing lease is inactive/);
       observations.producerQueueRetryAndBindingChecks = true;
       const held = await waitForHeldPublication(barrier);
       assert.equal(held.stage, 'after');
@@ -536,7 +538,7 @@ function workers() {
   ];
 }
 function roleWorker(role, index) {
-  return {
+  const worker = {
     ...base(role, `deriver-${role}`, {
       DERIVER_ROLE_PRIVATE_D1_ROLE: `deriver_${role}`,
       DERIVER_ROLE_PRIVATE_D1_KEK_BINDING: 'ROLE_KEK',
@@ -551,8 +553,14 @@ function roleWorker(role, index) {
         className: 'RouterAbMlDsaAdmissionDurableObject', scriptName: 'router',
       },
     },
-    serviceBindings: { DERIVER_B: 'b', ML_DSA_PREPARER: 'preparer-a' },
+    serviceBindings: { DERIVER_B: 'b' },
   };
+  if (role === 'a') {
+    worker.durableObjects.ML_DSA_PRODUCER_DO = {
+      className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
+    };
+  }
+  return worker;
 }
 function preparerWorker(role, index) {
   const worker = roleWorker(role, index);
@@ -572,6 +580,15 @@ function preparerWorker(role, index) {
   delete worker.durableObjects.ML_DSA_REGISTRATION_DO;
   worker.serviceBindings = { DERIVER_B: 'preparer-b' };
   return worker;
+}
+async function producerReceipt(job, credential) {
+  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_PRODUCER_DO', 'preparer-a');
+  const stub = namespace.get(namespace.idFromName(batchId(job.batch)));
+  return stub.fetch('https://ml-dsa.internal/router-ab/ml-dsa/prepare', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', [authHeader]: credential },
+    body: JSON.stringify(job),
+  });
 }
 async function raw(worker, path, input, credential) {
   const fetcher = await runtime.getWorker(worker);
@@ -716,8 +733,7 @@ async function checkPrepublicationFallback() {
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
   assert.deepEqual(await admissionCheck({ command: 'finish_refill', job }), []);
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
-  const late = await raw('preparer-a', '/router-ab/ml-dsa/prepare', job, serviceAuth);
-  assert.notEqual(late.status, 202);
+  await assert.rejects(producerReceipt(job, serviceAuth), /ML-DSA preprocessing lease is inactive/);
   return { batch: job.batch, freshBatch: fresh.batch, beforeReset, retainedLeaseMs, elapsedMs: performance.now() - started,
     unknownPublicationRetainedLease: true, deadlineFallback: true, staleSettlementPreservedNewLease: true, expiredProducerRetryRejected: true };
 }

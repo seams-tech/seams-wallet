@@ -1,8 +1,19 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: feasibility and integration work active; production release remains gated, 2026-10-18.
+Status: feasibility and integration work active; production release remains gated, 2026-10-19.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [refill-wake campaign](ml-dsa-65-refill-wake-report.md) wakes the controller after durable producer settlement.
+The [direct-dispatch campaign](ml-dsa-65-direct-dispatch-report.md) removes the forwarding Worker request and adds exact per-job startup measurements.
+The producer remains in its separate preparation Worker, with the same authentication, lease checks, FIFO admission, recovery alarms, and capacity.
+Local reserve times are effectively unchanged at 35.075 and 35.094 seconds.
+Hosted claim-to-queue medians are 927 and 905 milliseconds. No material dispatch speedup is established.
+The candidate verifies thirty-one signatures, with thirty below five seconds and a 7.790-second maximum. The baseline verifies twenty-eight, with twenty-three below five seconds.
+The candidate uses fewer groups per success. Its preparation-group median rises from 11.212 to 14.125 seconds, while captured time per success falls from 23.911 to 22.525 seconds.
+Different rejection outcomes, runtime variation, and incomplete accounting prevent a causal preparation-speedup claim.
+A median 882 milliseconds remains before the producer's first receipt checkpoint. Routing, activation, and module startup remain unseparated hypotheses.
+Next, compare cold and warm receiver entry with module-instance markers, inspect the roughly 49.5 MB role bundles, and continue measured preparation CPU work.
+Wallet-seed recovery, standard FIPS export, Workers preparation, and the thirty-two-candidate cap remain intact. GPU work stays deferred.
+
+The earlier [refill-wake campaign](ml-dsa-65-refill-wake-report.md) wakes the controller after durable producer settlement.
 The FIFO lease path, recovery alarms, wallet-seed recovery, standard FIPS export, and thirty-two-candidate cap remain intact.
 A passive local comparison fills the reserve in 38.091 seconds instead of 49.136 seconds, a 22.48% reduction.
 The hosted candidate verifies twenty-one load signatures, with sixteen below five seconds and a 10.251-second maximum.
@@ -10,7 +21,7 @@ Its matched preparation-job median is 11.095 seconds. Captured preparation time 
 The control verifies twenty-five signatures, all below five seconds, and captures 25.327 seconds of preparation per success.
 Both ledgers balance after full reserve restoration. Different rejection outcomes and runtime variation prevent a causal service-speedup claim.
 Hosted candidate registration takes 5.215–6.919 seconds. Both performance targets remain unqualified.
-Next, measure controller admission, inventory, dispatch, and next-load intervals separately. Continue preparation CPU optimization and fresh-material multi-group signing screens.
+Those results motivated the direct-dispatch measurements above. Preparation CPU optimization and fresh-material multi-group signing screens remain open.
 GPU work remains deferred. The report retains the failed transport attempt, the retry fixture error, their corrections, and cleanup evidence.
 
 The earlier [AES permutation campaign](ml-dsa-65-aes-rounds-report.md) reduces matched hosted SIMD-kernel median CPU by 24.58%.

@@ -59,6 +59,20 @@ def public_counter(value):
     return type(value) is int and 0 <= value <= 2**64 - 1
 
 
+def alarm_time(value):
+    if not isinstance(value, str):
+        return None
+    try:
+        instant = datetime.datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if instant.tzinfo is None:
+        return None
+    elapsed = instant - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    milliseconds = (elapsed.days * 86400 + elapsed.seconds) * 1000 + elapsed.microseconds // 1000
+    return milliseconds if public_counter(milliseconds) else None
+
+
 def public_time(value):
     return value is None or public_counter(value)
 
@@ -310,7 +324,11 @@ def records(path, role):
                         material_stages.append({"operation": value["operation"], "role": value["role"], "value": stage, "log_timestamp_ms": log.get("timestamp")})
                 if value.get("event") == "ml_dsa_preparation_stage_v1":
                     if (public_id(value.get("job")) and public_id(value.get("batch")) and value.get("role") in ("a", "b")
-                            and value.get("stage") in ("load_started", "crypto_started", "crypto_completed", "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
+                            and value.get("stage") in ("controller_selected", "activation_checked", "local_inventory_checked", "peer_inventory_checked",
+                                                     "claim_acquired", "dispatch_started", "dispatch_acknowledged", "producer_received",
+                                                     "producer_authorized", "queue_checked", "receipt_ready", "producer_running",
+                                                     "recovery_armed", "role_claimed", "peer_received", "peer_connected",
+                                                     "load_started", "crypto_started", "crypto_completed", "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
                         preparation_stages.append({**{key: value[key] for key in ["job", "batch", "role", "stage", "at_ms"]}, "log_timestamp_ms": log.get("timestamp")})
                 if value.get("event") == "ml_dsa_preparation_transport_v1":
                     if (public_id(value.get("job")) and value.get("role") in ("a", "b")
@@ -377,6 +395,7 @@ def records(path, role):
             "operation": operation,
             "path": url.path,
             "producer_alarm": "scheduledTime" in item.get("event", {}) and item.get("entrypoint") == "RouterAbMlDsaProducerDurableObject",
+            "alarm_scheduled_ms": alarm_time(item.get("event", {}).get("scheduledTime")),
             "event_timestamp_ms": item.get("eventTimestamp"),
             "cpu_ms": item.get("cpuTime"),
             "wall_ms": item.get("wallTime"),

@@ -948,7 +948,6 @@ async fn service_call<T: serde::de::DeserializeOwned>(
 
 pub(crate) fn is_role_path(path: &str) -> bool {
     path == ROLE_PATH
-        || path == preparation::START_PATH
         || path == PREPARE_PATH
         || is_execution_path(path)
         || path == registration::ROLE_PATH
@@ -962,7 +961,6 @@ pub(crate) async fn handle_role_request(
         registration::ROLE_PATH => registration::handle_role(request, &env).await,
         ROLE_PATH => handle_role(request, &env).await,
         PREPARE_PATH => handle_prepare(request, env, context).await,
-        preparation::START_PATH => preparation::handle_start(request, env).await,
         _ => handle_execute(request, env, context).await,
     }
 }
