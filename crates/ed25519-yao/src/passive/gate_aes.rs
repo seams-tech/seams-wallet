@@ -53,13 +53,16 @@ trait PlaneWord:
     + core::ops::BitOr<Output = Self>
     + core::ops::BitXorAssign
 {
-    fn from_four_block_word(value: u64) -> Self;
+    fn rotate_rows_columns<const ROWS: u32, const COLUMNS: u32>(self) -> Self;
     fn rotate_cells(self, cells: u32) -> Self;
     fn shift_rows_twice(self) -> Self;
 }
 impl PlaneWord for u64 {
-    fn from_four_block_word(value: u64) -> Self {
-        value
+    #[inline(always)]
+    fn rotate_rows_columns<const ROWS: u32, const COLUMNS: u32>(self) -> Self {
+        let low_mask = (0xffff_u64 >> (4 * COLUMNS)) * 0x0001000100010001;
+        (self.rotate_right((4 * ROWS + COLUMNS) * 4) & low_mask)
+            | (self.rotate_right((4 * (ROWS - 1) + COLUMNS) * 4) & !low_mask)
     }
     fn rotate_cells(self, cells: u32) -> Self {
         u64::rotate_right(self, cells * 4)
@@ -729,31 +732,23 @@ fn rotate_rows_2<W: PlaneWord>(x: W) -> W {
 }
 
 #[inline(always)]
-#[rustfmt::skip]
 fn rotate_rows_and_columns_1_1<W: PlaneWord>(x: W) -> W {
-    (x.rotate_cells(5) & W::from_four_block_word(0x0fff0fff0fff0fff)) |
-    (x.rotate_cells(1) & W::from_four_block_word(0xf000f000f000f000))
+    x.rotate_rows_columns::<1, 1>()
 }
 
 #[inline(always)]
-#[rustfmt::skip]
 fn rotate_rows_and_columns_1_2<W: PlaneWord>(x: W) -> W {
-    (x.rotate_cells(6) & W::from_four_block_word(0x00ff00ff00ff00ff)) |
-    (x.rotate_cells(2) & W::from_four_block_word(0xff00ff00ff00ff00))
+    x.rotate_rows_columns::<1, 2>()
 }
 
 #[inline(always)]
-#[rustfmt::skip]
 fn rotate_rows_and_columns_1_3<W: PlaneWord>(x: W) -> W {
-    (x.rotate_cells(7) & W::from_four_block_word(0x000f000f000f000f)) |
-    (x.rotate_cells(3) & W::from_four_block_word(0xfff0fff0fff0fff0))
+    x.rotate_rows_columns::<1, 3>()
 }
 
 #[inline(always)]
-#[rustfmt::skip]
 fn rotate_rows_and_columns_2_2<W: PlaneWord>(x: W) -> W {
-    (x.rotate_cells(10) & W::from_four_block_word(0x00ff00ff00ff00ff)) |
-    (x.rotate_cells(6) & W::from_four_block_word(0xff00ff00ff00ff00))
+    x.rotate_rows_columns::<2, 2>()
 }
 
 // ---- end: reduced copy of aes 0.8.4, src/soft/fixslice64.rs ----

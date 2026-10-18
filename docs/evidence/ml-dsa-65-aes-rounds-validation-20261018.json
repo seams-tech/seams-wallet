@@ -1,0 +1,201 @@
+{
+  "schema": "seams.ml-dsa-aes-rounds-validation.v1",
+  "source_base": "bf49d67b0f43cc68fa30b009e9f8ec0f21ad6b9d",
+  "branch": "ml-dsa",
+  "bundles": [
+    {
+      "file": "docs/evidence/ml-dsa-65-aes-rounds-hosted-20261018.json.gz",
+      "sha256": "570f7f785c525c4ab5e410dbf252dcbfe50135b34c4b1b300833e3e4420b3cc0",
+      "uncompressed_sha256": "a5537545a25e166cf8408996452907636b17e74dca0b2e2d1dc699014aaba607",
+      "files": 17,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-aes-rounds-local-20261018.json.gz",
+      "sha256": "095f180bf94ebc03f4813b168c4cc22465df5dfef2a3dab725e9a9ae63b4ce54",
+      "uncompressed_sha256": "1be47261a6992555caab7e61d6e7c499d5f15d98f8f306254063aa3d3897ee07",
+      "files": 17,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-aes-rounds-provenance-20261018.json.gz",
+      "sha256": "39ec1e0e6355bcfbe324fbacf556b14c946a2d4332d589e0489c965687845bcd",
+      "uncompressed_sha256": "a1bb2c3be08228d080119bb530443f51397439c7630daf2b66ea7dfc35562fa6",
+      "files": 73,
+      "private_matches": 0
+    }
+  ],
+  "comparison_sha256": "bf773aafafeb71f25697a01ec143733dcdd73f526ae46f0ba4a6a8324e43eac5",
+  "private_credential_patterns_checked": 30,
+  "private_matches": 0,
+  "worker_cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-aes-1018-4f945c-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:00:06.442180+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-aes-1018-4f945c-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:00:08.052577+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-aes-1018-4f945c-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:00:12.176210+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-aes-1018-4f945c-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:00:13.820818+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-aes-1018-4f945c-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:00:15.537965+00:00"
+      }
+    ],
+    "optimized": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-aes-1018-4f945c-optimized-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:23:00.475466+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-aes-1018-4f945c-optimized-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:23:01.977237+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-aes-1018-4f945c-optimized-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:23:03.461498+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-aes-1018-4f945c-optimized-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:23:04.981263+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-aes-1018-4f945c-optimized-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T12:23:06.603415+00:00"
+      }
+    ]
+  },
+  "local_e2e_passed": [
+    true,
+    true,
+    true,
+    true
+  ],
+  "diagnostic_active_observer_passed": true,
+  "signature_review": {
+    "schema": "seams.ml-dsa-aes-rounds-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "baseline",
+        "consumptionWidth": 4,
+        "verified": 32,
+        "alteredMessagesRejected": 32,
+        "alteredSignaturesRejected": 32,
+        "clientSha256": "29606267805df62f3b39c720a501ca189a48a2126556c1f282a0eaa03a61144b"
+      },
+      {
+        "profile": "optimized",
+        "consumptionWidth": 4,
+        "verified": 22,
+        "alteredMessagesRejected": 22,
+        "alteredSignaturesRejected": 22,
+        "clientSha256": "f246cd455a51e578344dfc6b37b25ace092703c32e394c6cbc1b9c45b40dfe6f"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "scriptSha256": "966e5ce294d30d4c5995359c61567d5757b419893cfc6ff2aea4a97e57fa4d26"
+  },
+  "bloat_gate": {
+    "passed": false,
+    "rust_duplicated_lines": 13984,
+    "rust_baseline": 13754,
+    "typescript_duplicated_lines": 10238,
+    "typescript_baseline": 10216,
+    "inherited_counts_unchanged": true
+  },
+  "kernel_cleanup": {
+    "worker": "ml-dsa-aes-1018-4f945c-kernel",
+    "exit_code": 0,
+    "finished_at": "2026-10-18T12:32:54.239065+00:00"
+  },
+  "kernel_summary": {
+    "3": {
+      "count": 20,
+      "cpuMedianMs": 1436.0,
+      "httpMedianMs": 1580.2396249999983,
+      "instances": [
+        "a10c263f-1ca1-4dbb-a6f2-3ad6bc21e054"
+      ],
+      "colos": [
+        "NRT"
+      ]
+    },
+    "4": {
+      "count": 20,
+      "cpuMedianMs": 1083.0,
+      "httpMedianMs": 1160.5475830000032,
+      "instances": [
+        "a10c263f-1ca1-4dbb-a6f2-3ad6bc21e054"
+      ],
+      "colos": [
+        "NRT"
+      ]
+    },
+    "5": {
+      "count": 20,
+      "cpuMedianMs": 3130.5,
+      "httpMedianMs": 3756.0317705000016,
+      "instances": [
+        "a10c263f-1ca1-4dbb-a6f2-3ad6bc21e054"
+      ],
+      "colos": [
+        "NRT"
+      ]
+    },
+    "2": {
+      "count": 20,
+      "cpuMedianMs": 2933.5,
+      "httpMedianMs": 3554.0386665000005,
+      "instances": [
+        "a10c263f-1ca1-4dbb-a6f2-3ad6bc21e054"
+      ],
+      "colos": [
+        "NRT"
+      ]
+    }
+  },
+  "format_checks_passed": true,
+  "private_campaign_removed": true,
+  "private_cleanup_completed_at": "2026-10-18T12:45:50.666440+00:00",
+  "bundle_hashes_and_decompression_verified": true
+}

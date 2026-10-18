@@ -6,10 +6,14 @@ use zeroize::{DefaultIsZeroes, Zeroize};
 
 impl PlaneWord for wide::u8x16 {
     #[inline(always)]
-    fn from_four_block_word(value: u64) -> Self {
-        let mut bytes = [0u8; 16];
-        expand_four_block_word(value, &mut bytes);
-        Self::new(bytes)
+    fn rotate_rows_columns<const ROWS: u32, const COLUMNS: u32>(self) -> Self {
+        let mut indices = [0u8; 16];
+        for (index, byte) in indices.iter_mut().enumerate() {
+            let row = (index + 4 * ROWS as usize) & 12;
+            let column = (index + COLUMNS as usize) & 3;
+            *byte = (row | column) as u8;
+        }
+        self.shuffle(Self::new(indices))
     }
     #[inline(always)]
     fn rotate_cells(self, cells: u32) -> Self {
@@ -79,16 +83,28 @@ impl Drop for EightBlockAes128 {
 
 #[inline(always)]
 fn orthogonalize(state: &mut [wide::u8x16; 8]) {
-    for (shift, mask) in [(1, 0x55), (2, 0x33), (4, 0x0f)] {
-        for index in 0..8 {
-            if index & shift != 0 {
-                let lower = index ^ shift;
-                let swap = (state[index] ^ (state[lower] >> shift)) & wide::u8x16::splat(mask);
-                state[index] ^= swap;
-                state[lower] ^= swap << shift;
-            }
-        }
-    }
+    // Transpose eight bit planes independently at each AES byte position.
+    swap_planes::<0, 1, 1, 0x55>(state);
+    swap_planes::<2, 3, 1, 0x55>(state);
+    swap_planes::<4, 5, 1, 0x55>(state);
+    swap_planes::<6, 7, 1, 0x55>(state);
+    swap_planes::<0, 2, 2, 0x33>(state);
+    swap_planes::<1, 3, 2, 0x33>(state);
+    swap_planes::<4, 6, 2, 0x33>(state);
+    swap_planes::<5, 7, 2, 0x33>(state);
+    swap_planes::<0, 4, 4, 0x0f>(state);
+    swap_planes::<1, 5, 4, 0x0f>(state);
+    swap_planes::<2, 6, 4, 0x0f>(state);
+    swap_planes::<3, 7, 4, 0x0f>(state);
+}
+
+#[inline(always)]
+fn swap_planes<const LOWER: usize, const UPPER: usize, const SHIFT: u32, const MASK: u8>(
+    state: &mut [wide::u8x16; 8],
+) {
+    let swap = (state[UPPER] ^ (state[LOWER] >> SHIFT)) & wide::u8x16::splat(MASK);
+    state[UPPER] ^= swap;
+    state[LOWER] ^= swap << SHIFT;
 }
 
 #[inline(always)]
