@@ -32,7 +32,6 @@ import type {
   SigningEngineResolveExactKeyExportLaneResult,
 } from './keyExportFlow';
 import { signingLaneAuthBindingKey } from '../../session/identity/signingLaneAuthBinding';
-import { isOwnerRelinkRequiredError } from '../../session/identity/ownerLaneScope';
 
 type ConcreteEcdsaExportAvailableLane = Extract<
   ConcreteAvailableEcdsaSigningLane,
@@ -319,21 +318,11 @@ export async function resolveExactKeyExportLane(
   deps: Pick<ExportLaneSelectionDeps, 'readOwnerScopedAvailableSigningLanesForTargets'>,
   input: SigningEngineResolveExactKeyExportLaneInput,
 ): Promise<SigningEngineResolveExactKeyExportLaneResult> {
-  try {
-    switch (input.kind) {
-      case 'ecdsa':
-        return await resolveExactEcdsaKeyExportLane(deps, input);
-      case 'ed25519':
-        return await resolveExactEd25519KeyExportLane(deps, input);
-    }
-  } catch (error: unknown) {
-    if (isOwnerRelinkRequiredError(error)) {
-      return {
-        kind: 'relink_required',
-        reason: error.reason,
-      };
-    }
-    throw error;
+  switch (input.kind) {
+    case 'ecdsa':
+      return await resolveExactEcdsaKeyExportLane(deps, input);
+    case 'ed25519':
+      return await resolveExactEd25519KeyExportLane(deps, input);
   }
 }
 
