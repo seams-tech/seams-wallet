@@ -67,6 +67,32 @@ def public_object_list(value, maximum):
     return isinstance(value, list) and len(value) <= maximum and all(isinstance(item, dict) for item in value)
 
 
+def public_id(value):
+    return isinstance(value, str) and re.fullmatch("[0-9a-f]{64}", value) is not None
+
+
+def public_stage(stage):
+    if not isinstance(stage, dict):
+        return None
+    name = stage.get("stage")
+    if name not in ("bound", "taking", "taken", "restored", "activated", "checked"):
+        return None
+    result = {"stage": name}
+    keys = [] if name == "bound" else ["batch"]
+    if name == "restored":
+        keys += ["topology_builds", "topology_hits"]
+    for key in keys:
+        if not public_counter(stage.get(key)):
+            return None
+        result[key] = stage[key]
+    if "material_id" in stage:
+        identity = stage["material_id"]
+        if not isinstance(identity, list) or len(identity) != 32 or any(type(byte) is not int or not 0 <= byte <= 255 for byte in identity):
+            return None
+        result["material_id"] = bytes(identity).hex()
+    return result
+
+
 def public_signing_trace(value, timestamp=None):
     if not isinstance(value, dict) or not public_time(timestamp):
         return None
@@ -103,17 +129,9 @@ def public_signing_trace(value, timestamp=None):
         stage = item.get("value")
         if not isinstance(stage, dict) or not public_time(item.get("at_ms")):
             return None
-        name = stage.get("stage")
-        if name not in ("bound", "taking", "taken", "restored", "activated", "checked"):
+        public = public_stage(stage)
+        if public is None:
             return None
-        public = {"stage": name}
-        keys = [] if name == "bound" else ["batch"]
-        if name == "restored":
-            keys += ["topology_builds", "topology_hits"]
-        for key in keys:
-            if not public_counter(stage.get(key)):
-                return None
-            public[key] = stage[key]
         trace["batches"].append({"at_ms": item.get("at_ms"), "value": public})
     transport = value.get("transport")
     if transport is None:
@@ -221,6 +239,11 @@ def records(path, role):
         refill_recovery = []
         refill_claims = []
         inventories = []
+        producer_jobs = []
+        producer_entries = []
+        material_stages = []
+        preparation_stages = []
+        preparation_transport = []
         for log in item.get("logs", []):
             for message in log.get("message", []):
                 try:
@@ -247,6 +270,28 @@ def records(path, role):
                     ] if key in value}
                     public_inventory["log_timestamp_ms"] = log.get("timestamp")
                     inventories.append(public_inventory)
+                if value.get("event") == "ml_dsa_producer_entered_v1" and public_id(value.get("producer")):
+                    producer_entries.append({"producer": value["producer"], "log_timestamp_ms": log.get("timestamp")})
+                if value.get("event") == "ml_dsa_producer_job_v1":
+                    ids = value.get("batches")
+                    if (all(public_id(value.get(key)) for key in ["producer", "batch", "key"])
+                            and isinstance(ids, list) and 1 <= len(ids) <= 2 and all(public_id(batch) for batch in ids)
+                            and ids[0] == value["batch"] and len(set(ids)) == len(ids)
+                            and public_counter(value.get("epoch")) and value.get("stage") in ("queued", "running", "recovering", "settling")):
+                        producer_jobs.append({**{key: value[key] for key in ["producer", "batch", "batches", "key", "epoch", "stage"]}, "log_timestamp_ms": log.get("timestamp")})
+                if value.get("event") == "ml_dsa_material_stage_v1":
+                    stage = public_stage(value.get("value"))
+                    if (public_id(value.get("operation")) and value.get("role") in ("a", "b")
+                            and stage is not None and "material_id" in stage and stage["stage"] in ("taken", "checked")):
+                        material_stages.append({"operation": value["operation"], "role": value["role"], "value": stage, "log_timestamp_ms": log.get("timestamp")})
+                if value.get("event") == "ml_dsa_preparation_stage_v1":
+                    if (public_id(value.get("job")) and public_id(value.get("batch")) and value.get("role") in ("a", "b")
+                            and value.get("stage") in ("load_started", "crypto_started", "crypto_completed", "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
+                        preparation_stages.append({**{key: value[key] for key in ["job", "batch", "role", "stage", "at_ms"]}, "log_timestamp_ms": log.get("timestamp")})
+                if value.get("event") == "ml_dsa_preparation_transport_v1":
+                    if (public_id(value.get("job")) and value.get("role") in ("a", "b")
+                            and all(public_counter(value.get(key)) for key in ["sent_bytes", "received_bytes", "pending_events"])):
+                        preparation_transport.append({key: value[key] for key in ["job", "role", "sent_bytes", "received_bytes", "pending_events"]})
                 if value.get("event") == "ml_dsa_refill_completed_v1":
                     batch = value.get("batch", "")
                     if isinstance(batch, str) and re.fullmatch("[0-9a-f]{64}", batch):
@@ -327,6 +372,11 @@ def records(path, role):
             "refill_claims": refill_claims,
             "refill_job": refill_job(request, url.path),
             "inventories": inventories,
+            "producer_jobs": producer_jobs,
+            "producer_entries": producer_entries,
+            "material_stages": material_stages,
+            "preparation_stages": preparation_stages,
+            "preparation_transport": preparation_transport,
         })
     return result
 

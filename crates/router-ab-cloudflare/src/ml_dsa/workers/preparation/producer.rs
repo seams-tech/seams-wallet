@@ -78,6 +78,7 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
             .await
             .map_err(protocol_error)?;
         check_job(&self.env, &job).await.map_err(protocol_error)?;
+        self.log_job(&job, "queued");
         let queued = transaction(&self.state, move |store| async move {
             match store.get::<ProducerState>(STATE).await? {
                 None => {
@@ -98,6 +99,12 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         Ok(Response::from_json(&true)?.with_status(202))
     }
     async fn alarm(&self) -> worker::Result<Response> {
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_producer_entered_v1", "producer": self.state.id().to_string(),
+            })
+        );
         let action = transaction(&self.state, |store| async move {
             match store.get::<ProducerState>(STATE).await? {
                 Some(ProducerState::Queued { job }) => {
@@ -119,6 +126,7 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         .map_err(protocol_error)?;
         let (terminal, elapsed) = match action {
             AlarmWork::Run(job) => {
+                self.log_job(&job, "running");
                 let start = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
                 // Alarm handlers are serialized per object. This timer cannot
                 // interrupt healthy work; it wakes an interrupted invocation.
@@ -135,6 +143,7 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 (terminal, elapsed)
             }
             AlarmWork::Abandon(job) => {
+                self.log_job(&job, "recovering");
                 let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
                 if now < job.expires_at_ms {
                     self.schedule_recovery(&job, now).await?;
@@ -151,7 +160,10 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 }
                 (ProducerState::Interrupted { job }, None)
             }
-            AlarmWork::Settle(terminal) => return self.settle(&terminal).await,
+            AlarmWork::Settle(terminal) => {
+                self.log_job(terminal.job(), "settling");
+                return self.settle(&terminal).await;
+            }
         };
         // Commit the local outcome before releasing the service-wide lease. A
         // settlement retry must never start fresh preparation or rewrite success.
@@ -175,6 +187,16 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
     }
 }
 impl RouterAbMlDsaProducerDurableObject {
+    fn log_job(&self, job: &refill::Job, stage: &'static str) {
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_producer_job_v1", "producer": self.state.id().to_string(),
+                "batch": hex(&job.batch), "batches": job.batch_ids().iter().map(|id| hex(id)).collect::<Vec<_>>(),
+                "key": hex(&job.key.public_key_digest), "epoch": job.key.epoch, "stage": stage,
+            })
+        );
+    }
     async fn schedule_recovery(&self, job: &refill::Job, now: u64) -> worker::Result<()> {
         let delay = job
             .expires_at_ms

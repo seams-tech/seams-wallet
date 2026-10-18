@@ -57,16 +57,16 @@ impl EightBlockAes128 {
         }
         Self { keys }
     }
-    pub(in crate::passive) fn encrypt_eight(&self, blocks: &mut EightBlocks) {
+    pub(in crate::passive) fn encrypt_eight(&self, blocks: &mut [[u8; 16]; 8]) {
         let mut state = zeroize::Zeroizing::new(WideState::default());
         let transpose = wide::u8x16::new([0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]);
-        for (word, block) in state.0.iter_mut().zip(&blocks.0) {
+        for (word, block) in state.0.iter_mut().zip(&*blocks) {
             *word = wide::u8x16::new(*block).shuffle(transpose);
         }
         orthogonalize(&mut state.0);
         encrypt_state(&self.keys.0, &mut state.0);
         orthogonalize(&mut state.0);
-        for (block, word) in blocks.0.iter_mut().zip(&state.0) {
+        for (block, word) in blocks.iter_mut().zip(&state.0) {
             *block = word.shuffle(transpose).to_array();
         }
     }

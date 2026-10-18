@@ -422,3 +422,24 @@ The second checks a mixed GMW batch across 32-bit lane boundaries and rejects an
 Artifacts retain source hashes, exact traffic, separate readiness and online timings, and unsuccessful outcomes.
 Use the Worker runner linked in the current report for streamed and resident storage measurements.
 A cold or exhausted pool has no five-second successful-signing claim.
+
+
+## Preparation profiling
+
+The [preparation profiling report](../../docs/router-ab/ml-dsa-65-preparation-profile-report.md) defines the current boundaries and limits.
+Use four-candidate groups with thirty-two candidates per wallet for the comparison.
+
+```sh
+python3 tools/ml-dsa-investigation/research/run_private_aes_screen.py /private/tmp/ml-dsa-aes-screen.json
+python3 tools/ml-dsa-investigation/research/run_encoding_screen.py /private/tmp/ml-dsa-encoding-screen.json
+```
+
+These isolated Wasm screens compare complete cryptographic outputs before timing the kernels.
+They do not measure complete Worker preparation.
+The durable Worker E2E supports `--profile-preparation --passive-preparation-observer` for calibrated CPU samples.
+Use `summarize_preparation_profile.py` with the exact build directory and its matching symbol maps.
+Use `summarize_preparation_coverage.py CLIENT TRACES VERSIONS OUTPUT` after collecting hosted traces.
+That summary retains explicit job identities, participant consumption, unsuccessful operations, and unattributed work.
+
+The `inspect-silent-wasm` command now reads the packaged Router A/B deriver builds and their verified symbol sidecars.
+Its instruction inventory requires manual data-flow review. It does not certify constant-time execution.

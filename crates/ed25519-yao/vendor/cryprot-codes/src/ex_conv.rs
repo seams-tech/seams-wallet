@@ -153,6 +153,23 @@ impl ExConvCode {
         i: usize,
         matrix_coeffs: &[u8],
     ) {
+        #[cfg(target_arch = "wasm32")]
+        if self.conf.accumulator_size == 24 {
+            // Public matrix bits select updates. The high bit is the mandatory
+            // final update, preserving the original ascending update order.
+            let mut remaining =
+                u32::from_le_bytes([matrix_coeffs[0], matrix_coeffs[1], matrix_coeffs[2], 1]);
+            let xi = x[i];
+            while remaining != 0 {
+                let mut offset = i + 1 + remaining.trailing_zeros() as usize;
+                if RANGE_CHECK && offset >= x.len() {
+                    offset -= x.len();
+                }
+                x[offset] ^= xi;
+                remaining &= remaining - 1;
+            }
+            return;
+        }
         let mut matrix_coeffs = matrix_coeffs.iter().copied();
         let size = x.len();
         let xi = x[i];

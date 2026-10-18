@@ -37,20 +37,25 @@ pub enum ExecutionStage {
     Bound,
     Taking {
         batch: usize,
+        material_id: [u8; 32],
     },
     Taken {
         batch: usize,
+        material_id: [u8; 32],
     },
     Restored {
         batch: usize,
+        material_id: [u8; 32],
         topology_builds: usize,
         topology_hits: usize,
     },
     Activated {
         batch: usize,
+        material_id: [u8; 32],
     },
     Checked {
         batch: usize,
+        material_id: [u8; 32],
     },
 }
 
@@ -144,9 +149,15 @@ pub async fn run<T: Transport + BooleanTransport>(
     let mut evaluated_candidates = 0;
     for (index, batch) in request.permit.batches.iter().enumerate() {
         request.validate(host.now_ms()?)?;
-        host.note_stage(ExecutionStage::Taking { batch: index });
+        host.note_stage(ExecutionStage::Taking {
+            batch: index,
+            material_id: *batch,
+        });
         let (stored, sealed) = host.take(&request.permit, *batch).await?;
-        host.note_stage(ExecutionStage::Taken { batch: index });
+        host.note_stage(ExecutionStage::Taken {
+            batch: index,
+            material_id: *batch,
+        });
         if stored.key != *key
             || stored.role != secrets.role
             || stored.batch != *batch
@@ -169,6 +180,7 @@ pub async fn run<T: Transport + BooleanTransport>(
         let (topology_builds, topology_hits) = topologies.cache_statistics();
         host.note_stage(ExecutionStage::Restored {
             batch: index,
+            material_id: *batch,
             topology_builds,
             topology_hits,
         });
@@ -178,7 +190,10 @@ pub async fn run<T: Transport + BooleanTransport>(
             .activate(own, public_key, epoch, transport)
             .await
             .map_err(protocol_failure)?;
-        host.note_stage(ExecutionStage::Activated { batch: index });
+        host.note_stage(ExecutionStage::Activated {
+            batch: index,
+            material_id: *batch,
+        });
         let result = signer
             .sign(
                 &request.message,
@@ -188,7 +203,10 @@ pub async fn run<T: Transport + BooleanTransport>(
             )
             .await
             .map_err(protocol_failure)?;
-        host.note_stage(ExecutionStage::Checked { batch: index });
+        host.note_stage(ExecutionStage::Checked {
+            batch: index,
+            material_id: *batch,
+        });
         request.validate(host.now_ms()?)?;
         evaluated_candidates += usize::from(candidates);
         if let GmwBatchResult::Signed(value) = result {

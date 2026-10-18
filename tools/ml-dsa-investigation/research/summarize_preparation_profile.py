@@ -83,12 +83,12 @@ def main():
                          **summarize(item, symbols)})
     report = {
         "schema": "seams.ml-dsa-preparation-stage-samples.v1",
-        "scope": "Local workerd sampling. Preparation targets producer A/B through the first four-batch reserve. Signing targets online A/B for each HTTP signing request. Categories are disjoint by stack precedence. Inlined work can remain in other categories. Counts are samples, not elapsed or billed CPU. Hosted attribution is unproven.",
+        "scope": "Local workerd sampling. Preparation targets producer A/B through the first full reserve. Signing targets online A/B for each HTTP signing request. Categories are disjoint by stack precedence. Inlined work can remain in other categories. Counts are samples, not elapsed or billed CPU. Hosted attribution is unproven.",
         "phase": args.phase,
         "campaign_sha256": sha256(args.campaign),
         "script_sha256": sha256(Path(__file__)),
         "calibration": campaign["profilerCalibration"],
-        "four_batch_refill_ms": campaign["initialFourBatchRefillMs"],
+        "full_reserve_refill_ms": campaign["initialReserveRefillMs"],
         "profiles": profiles,
     }
     args.output.write_text(json.dumps(report, indent=2) + "\n")

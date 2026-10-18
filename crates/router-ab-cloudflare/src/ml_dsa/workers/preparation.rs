@@ -192,6 +192,17 @@ async fn rotate_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
         })
         .await
 }
+fn log_stage(job: &refill::Job, role: Participant, batch: [u8; 32], stage: &'static str) {
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_preparation_stage_v1", "job": hex(&job.batch),
+            "batch": hex(&batch), "role": role, "stage": stage,
+            "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+        })
+    );
+}
+
 async fn prepare(
     env: &Env,
     job: &refill::Job,
@@ -202,11 +213,13 @@ async fn prepare(
         Participant::A => SigningRole::A,
         Participant::B => SigningRole::B,
     };
+    log_stage(job, participant, job.batch, "load_started");
     let schedules = schedules::load()?;
     if signing_schedule_digest(env)? != job.key.schedule_digest {
         return Err(invalid("ML-DSA preprocessing schedule changed"));
     }
     let mut topologies = schedules::public_topologies();
+    log_stage(job, participant, job.batch, "crypto_started");
     let prepared = prepare_gmw_reservations(
         role,
         &job.batch_ids(),
@@ -217,6 +230,16 @@ async fn prepare(
     )
     .await
     .map_err(|_| invalid("ML-DSA preprocessing protocol failed"))?;
+    log_stage(job, participant, job.batch, "crypto_completed");
+    let metrics = transport.metrics();
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_preparation_transport_v1", "job": hex(&job.batch), "role": participant,
+            "sent_bytes": metrics.sent_bytes, "received_bytes": metrics.received_bytes,
+            "pending_events": metrics.pending_events,
+        })
+    );
     schedules::retain_public_topologies(&topologies);
     check_job(env, job).await?;
     let (version, seed) = executor::wrapping_key(env)?;
@@ -229,11 +252,42 @@ async fn prepare(
             expires_at_ms: job.material_expires_at_ms,
             wrapping_key_version: version.clone(),
         };
-        let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
+        let bytes = prepared.into_storage();
+        log_stage(job, participant, batch, "serialized");
+        let sealed = sealing::seal(bytes, &binding, &seed)?;
+        log_stage(job, participant, batch, "sealed");
         output.push((binding, sealed));
     }
     Ok(output)
 }
+async fn publish(
+    env: &Env,
+    job: &refill::Job,
+    participant: Participant,
+    prepared: Vec<(Binding, Sealed)>,
+) -> Result<()> {
+    for (binding, sealed) in prepared {
+        let batch = binding.batch;
+        let response = local_call(
+            env,
+            &RoleCommand::Put {
+                job: job.clone(),
+                binding,
+                sealed,
+            },
+        )
+        .await?;
+        if response.status_code() != 200 {
+            return Err(invalid(match participant {
+                Participant::A => "ML-DSA preparation storage failed",
+                Participant::B => "ML-DSA peer preparation storage failed",
+            }));
+        }
+        log_stage(job, participant, batch, "published");
+    }
+    Ok(())
+}
+
 async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
     check_job(env, job).await?;
     let response = local_call(env, &RoleCommand::StartRefill { job: job.clone() }).await?;
@@ -273,20 +327,7 @@ async fn produce_a_connected(env: &Env, job: &refill::Job, socket: &WebSocket) -
         return Err(invalid("Invalid ML-DSA preparation acknowledgement"));
     }
     check_job(env, job).await?;
-    for (binding, sealed) in prepared {
-        let response = local_call(
-            env,
-            &RoleCommand::Put {
-                job: job.clone(),
-                binding,
-                sealed,
-            },
-        )
-        .await?;
-        if response.status_code() != 200 {
-            return Err(invalid("ML-DSA preparation storage failed"));
-        }
-    }
+    publish(env, job, Participant::A, prepared).await?;
     transport
         .send(&[2])
         .await
@@ -345,20 +386,7 @@ async fn produce_b(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<(
     let mut transport =
         transport::Duplex::for_preparation(socket, job.expires_at_ms).map_err(storage_error)?;
     let prepared = prepare(env, job, &mut transport).await?;
-    for (binding, sealed) in prepared {
-        let response = local_call(
-            env,
-            &RoleCommand::Put {
-                job: job.clone(),
-                binding,
-                sealed,
-            },
-        )
-        .await?;
-        if response.status_code() != 200 {
-            return Err(invalid("ML-DSA peer preparation storage failed"));
-        }
-    }
+    publish(env, job, Participant::B, prepared).await?;
     transport
         .send(&[1])
         .await

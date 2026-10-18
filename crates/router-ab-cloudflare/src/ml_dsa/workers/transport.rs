@@ -12,12 +12,12 @@ const PREPARATION_BOUNDARIES: u8 = 8;
 
 #[derive(Clone, Default, serde::Serialize)]
 pub(super) struct Metrics {
-    sent_bytes: usize,
-    received_bytes: usize,
+    pub(super) sent_bytes: usize,
+    pub(super) received_bytes: usize,
     acknowledgments_sent: usize,
     acknowledgments_received: usize,
     ready_events: usize,
-    pending_events: usize,
+    pub(super) pending_events: usize,
     // Hosted clocks advance at I/O. These intervals include preceding CPU work.
     pending_event_boundary_ms: u64,
     maximum_event_boundary_ms: u64,

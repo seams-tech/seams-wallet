@@ -37,7 +37,7 @@ pub(super) fn build_and_inspect(repository: &Path) -> InvestigationResult<Value>
             "wasm_bytes": bytes.len(),
             "wasm_sha256": digest(&bytes),
             "script_sha256": digest(&fs::read(script_path)?),
-            "private_functions": inspect(&bytes, Subject::Arithmetic)?,
+            "private_functions": inspect(&bytes, Subject::Arithmetic, &BTreeMap::new())?,
         }));
     }
     Ok(json!({
@@ -62,10 +62,17 @@ pub(super) fn inspect_silent(output: &Path) -> InvestigationResult<()> {
         .and_then(Path::parent)
         .ok_or("Missing repository")?;
     let mut roles = Vec::new();
-    for role in ["a", "b"] {
-        let path = format!("crates/ed25519-yao-cloudflare-bench/build/ml-dsa-{role}/index_bg.wasm");
+    for role in ["deriver-a", "deriver-b"] {
+        let path = format!("crates/router-ab-cloudflare/build/{role}/index_bg.wasm");
         let bytes = fs::read(root.join(&path))?;
-        roles.push(json!({"role":role, "path":path, "wasm_sha256":digest(&bytes), "functions":inspect(&bytes, Subject::SilentCorrelations)?}));
+        let symbols: Value =
+            serde_json::from_slice(&fs::read(root.join(format!("{path}.names.json")))?)?;
+        require(
+            symbols["wasmSha256"] == digest(&bytes),
+            "Symbols do not match packaged Wasm",
+        )?;
+        let names: BTreeMap<u32, String> = serde_json::from_value(symbols["functions"].clone())?;
+        roles.push(json!({"role":role, "path":path, "wasm_sha256":digest(&bytes), "functions":inspect(&bytes, Subject::SilentCorrelations, &names)?}));
     }
     fs::write(
         output,
@@ -77,10 +84,17 @@ pub(super) fn inspect_silent(output: &Path) -> InvestigationResult<()> {
     Ok(())
 }
 
-fn inspect(bytes: &[u8], subject: Subject) -> InvestigationResult<Vec<Value>> {
+fn inspect(
+    bytes: &[u8],
+    subject: Subject,
+    external_names: &BTreeMap<u32, String>,
+) -> InvestigationResult<Vec<Value>> {
     let mut types = Vec::new();
     let mut function_types = Vec::new();
-    let mut names = BTreeMap::new();
+    let mut names: BTreeMap<u32, &str> = external_names
+        .iter()
+        .map(|(index, name)| (*index, name.as_str()))
+        .collect();
     let mut bodies = BTreeMap::new();
     let mut function_index = 0;
     for payload in Parser::new(0).parse_all(bytes) {
@@ -145,12 +159,10 @@ fn inspect(bytes: &[u8], subject: Subject) -> InvestigationResult<Vec<Value>> {
         }
         Subject::SilentCorrelations => {
             for (index, symbol) in &names {
-                if (symbol.starts_with("ed25519_yao[")
-                    && symbol.contains("::boolean_comparison::silent::"))
-                    || symbol.starts_with("cryprot_codes[")
+                if symbol.contains("::boolean_comparison::silent::")
+                    || symbol.contains("cryprot_codes[")
                     || (symbol.starts_with("aes[") && symbol.contains("::soft::fixslice::"))
-                    || symbol.contains("::gate_aes::sub_bytes")
-                    || symbol.contains("::gate_aes::bitslice")
+                    || symbol.contains("::gate_aes::")
                 {
                     selected.push((*symbol, *index, *symbol));
                 }
