@@ -226,7 +226,7 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
       {
         network: 'arc-testnet',
         chainId: 5_042_002,
-        rpcUrl: 'https://rpc.testnet.arc.network',
+        rpcUrl: 'https://rpc.testnet.arc.io',
         explorerUrl: 'https://testnet.arcscan.app',
       },
     ],

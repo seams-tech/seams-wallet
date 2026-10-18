@@ -51,10 +51,13 @@ the verified artifact explicitly as the destination control plane's
 
 ## Release signing
 
-`Release seams CLI` uses only `release-signing`. It builds Unix binaries without
-private keys, signs their checksum manifest and SBOM, verifies those artifacts
-with the release binary, and publishes the verified set. Its signing tool is a
-separate program from the shipped `seams` binary.
+`Release seams CLI` uses only `release-signing` and runs only on `main`. It takes
+the binaries that the public `Build seams CLI` run built without private keys,
+signs their checksum manifest and SBOM, verifies those artifacts with the release
+binary, and prints the signed manifest. The owner's account creates the
+`seams-cli-v<version>` release from that manifest and the public build, and
+publishes the npm launcher. Its signing tool is a separate program from the
+shipped `seams` binary.
 
 ## Trust updates
 
