@@ -1,0 +1,147 @@
+{
+  "schema": "seams.ml-dsa-preparation-profile-validation.v1",
+  "source_base": "a60af34e8c6cad644079f1a91af9601d63505853",
+  "branch": "ml-dsa",
+  "bundles": [
+    {
+      "file": "docs/evidence/ml-dsa-65-preparation-profile-hosted-20261018.json.gz",
+      "sha256": "d5759ee4148a17c8b97efcd2f6f58435860e50b5c9411f47e93926ce1f9d3522",
+      "uncompressed_sha256": "d27bfe4f5d5acd90fefbbdfafced13e6c4b7a857435b997663d573b6cdf58dd4",
+      "files": 16,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-preparation-profile-local-20261018.json.gz",
+      "sha256": "9b82bed91664fa21638b90bcfb0093a4f9662cdc55fdf5943c02630364715d2c",
+      "uncompressed_sha256": "30ac19b1bcc74f7d1a05380d21e39f5385fdfaa07975646a9cfabd808bf0ae8d",
+      "files": 9,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-preparation-profile-provenance-20261018.json.gz",
+      "sha256": "210c75de4348bc5f0a9e0534fae2c8b68b0899bc6911977f7342e2fec9cc6532",
+      "uncompressed_sha256": "b995a91b8fb686faad8da1c9f2a682a524585e7c51785b9a94b063bb238b8dc2",
+      "files": 64,
+      "private_matches": 0
+    }
+  ],
+  "comparison_sha256": "71d1c21a015e6dcf4e9fefd463db12c9531451418a2a7d154aef3ff6bd59d4eb",
+  "private_credential_patterns_checked": 18,
+  "private_matches": 0,
+  "worker_cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-prep-1018-df07d3-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:00:35.522372+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-prep-1018-df07d3-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:00:37.093474+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-prep-1018-df07d3-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:00:38.639020+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-prep-1018-df07d3-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:00:40.359830+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-prep-1018-df07d3-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:00:41.841168+00:00"
+      }
+    ],
+    "optimized": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-prep-1018-df07d3-optimized-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:21:38.676137+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-prep-1018-df07d3-optimized-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:21:40.169602+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-prep-1018-df07d3-optimized-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:21:41.701478+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-prep-1018-df07d3-optimized-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:21:43.174745+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-prep-1018-df07d3-optimized-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T11:21:45.041717+00:00"
+      }
+    ]
+  },
+  "local_e2e_passed": {
+    "baseline": true,
+    "optimized": true
+  },
+  "signature_review": {
+    "schema": "seams.ml-dsa-preparation-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "baseline",
+        "consumptionWidth": 4,
+        "verified": 19,
+        "alteredMessagesRejected": 19,
+        "alteredSignaturesRejected": 19,
+        "clientSha256": "ebcf4d2440c8f93864e5b99e16b6af8b0b4ec36fcd71aa4ff000b4f79ec2bafe"
+      },
+      {
+        "profile": "optimized",
+        "consumptionWidth": 4,
+        "verified": 17,
+        "alteredMessagesRejected": 17,
+        "alteredSignaturesRejected": 17,
+        "clientSha256": "9129c26aed5cb342c437cd10b23bf88b1e5bd5ba3e62ce09cc6a21fe645f04db"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "scriptSha256": "11b267156a132374331aa69db0b4c23293cc29f3308a94f0fe7a4a5cbf625942"
+  },
+  "bloat_gate": {
+    "passed": false,
+    "rust_duplicated_lines": 13984,
+    "rust_baseline": 13754,
+    "typescript_duplicated_lines": 10238,
+    "typescript_baseline": 10216,
+    "inherited_counts_unchanged": true
+  },
+  "private_campaign_removed": true,
+  "private_cleanup_completed_at": "2026-10-18T11:27:57.386103+00:00",
+  "format_checks_passed": true,
+  "bundle_hashes_and_decompression_verified": true
+}

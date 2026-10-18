@@ -69,6 +69,19 @@ impl SigningTrace {
         });
     }
     pub(super) fn batch(&self, value: super::super::execution::ExecutionStage) {
+        if matches!(
+            value,
+            super::super::execution::ExecutionStage::Taken { .. }
+                | super::super::execution::ExecutionStage::Checked { .. }
+        ) {
+            worker::console_log!(
+                "{}",
+                serde_json::json!({
+                    "event": "ml_dsa_material_stage_v1", "operation": hex(&self.operation),
+                    "role": self.role, "value": value,
+                })
+            );
+        }
         self.batches.borrow_mut().push(BatchMilestone {
             at_ms: crate::cloudflare_now_unix_ms_v1().ok(),
             value,

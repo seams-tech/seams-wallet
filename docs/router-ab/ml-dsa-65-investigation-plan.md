@@ -2,12 +2,20 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-18.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The latest [prepared-pair prototype](ml-dsa-65-prepared-pairs-report.md) prepares four candidates in one shared correlation session and stores two independently consumed pairs.
+The [preparation profiling campaign](ml-dsa-65-preparation-profile-report.md) adds explicit job/material records and optimizes private AES copying and public matrix accumulation.
+Isolated AES and encoder medians fall by 3.78% and 7.79%. One complete local reserve comparison improves by 1.97%.
+The hosted candidate prepares four-candidate groups in a median 11.338 seconds. Captured preparation work remains 35.738 seconds per successful signature.
+Seventeen hosted signatures verify. Fifteen finish below five seconds; successful requests range from 1.079 to 5.913 seconds.
+Both profiles consume and replenish 172 candidates with unchanged capacity. Canonical recovery and standard FIPS export remain intact.
+Hosted variation and rejection workloads prevent a causal speedup claim. Both performance targets remain unqualified.
+Next, repeat matched hosted controls, close participant telemetry gaps, and profile remaining private AES and participant overlap. GPU work stays deferred.
+
+The earlier [prepared-pair prototype](ml-dsa-65-prepared-pairs-report.md) prepares four candidates in one shared correlation session and stores two independently consumed pairs.
 Eleven hosted preparation jobs supply pairs consumed in distinct successful operations. Recovery and canonical keys match across both profiles.
 Both profiles verify twenty-six load signatures. Median signing is 2.198 seconds for four-at-once and 3.863 seconds for pairs; 24/26 and 18/26 finish under five seconds.
 Captured producer-alarm work is 24.066 and 23.359 seconds per verified signature. Incomplete trace attribution and the small sample prevent a preparation-saving claim.
 Both profiles retain thirty-two candidates per wallet. Four-at-once remains the default; the pair policy remains experimental.
-Next, investigate retaining four-candidate nonce-conversion batching while producing separately owned pairs, and add explicit material/job IDs to timing records.
+Pair-specific research still includes retaining four-candidate nonce-conversion batching while producing separately owned pairs. Explicit material/job IDs now exist in timing records.
 
 The earlier candidate-size comparison follows.
 The [candidate-group experiment](ml-dsa-65-candidate-groups-report.md) compares independently consumed groups of 2, 4, and 8 candidates on Workers.

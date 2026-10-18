@@ -43,10 +43,10 @@ const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: 1000 },
   max_active_operations: 1,
   operation_timeout_ms: 30000,
-  candidate_group_size: 8,
-  preparation_group_size: 8,
-  minimum_ready_batches: 2,
-  refill_target_batches: 4,
+  candidate_group_size: 4,
+  preparation_group_size: 4,
+  minimum_ready_batches: 4,
+  refill_target_batches: 8,
 };
 const bindings = {
   ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING: 'INTERNAL_AUTH',
@@ -196,7 +196,7 @@ try {
   assert.equal(emptyResult.reason, 'empty_pool');
   const refillStarted = performance.now();
   observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
-  await waitReady(4);
+  await waitReady(policy.refill_target_batches);
   const emptyReplay = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
   assert.equal(emptyReplay.status, 'existing');
   assert.equal(emptyReplay.operation.state, 'declined');
@@ -206,13 +206,13 @@ try {
   for (const chunks of observations.maximumPreparedChunkCounts) {
     assert.ok(chunks > 16, 'Signing did not exercise multiple ciphertext I/O groups');
   }
-  observations.initialFourBatchRefillMs = performance.now() - refillStarted;
-  observations.activationToFourBatchReserveMs = performance.now() - initialRefillStarted;
+  observations.initialReserveRefillMs = performance.now() - refillStarted;
+  observations.activationToFullReserveMs = performance.now() - initialRefillStarted;
   if (passivePreparationObserver) await verifyPassiveInventory();
   initialRefillStarted = undefined;
   if (profilePreparation) {
     observations.preparationProfile = {
-      scope: 'Local workerd V8 sampling from before activation through first four-batch reserve. Includes setup, storage, protocol waits and idle samples. Sampling can perturb latency. This is not billed CPU.',
+      scope: 'Local workerd V8 sampling from before activation through first full reserve. Includes setup, storage, protocol waits and idle samples. Sampling can perturb latency. This is not billed CPU.',
       profiles: await stopProfiles(profileConnections),
     };
     profileConnections = [];
@@ -220,7 +220,7 @@ try {
   // Let the full-pool maintenance alarm settle before the first consumption.
   await new Promise(waitForQuietPool);
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
-    await waitReady(4);
+    await waitReady(policy.refill_target_batches);
     const message = digest(Array.from(Buffer.from(`ML-DSA durable Worker transaction ${index}`)));
     const owner = await admission.mlDsaOwnerFixture(records[0], new Uint8Array(message), `worker-${index}`);
     assert.equal(owner.admitted.kind, 'prepared');
@@ -333,7 +333,7 @@ try {
   }
   assert.equal(observations.signatures.length, 3);
   observations.automaticRefillAfterSigning = true;
-  await waitReady(4);
+  await waitReady(policy.refill_target_batches);
   await runtime.dispose();
   bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify({ ...policy, operation_timeout_ms: 1000 });
   runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });

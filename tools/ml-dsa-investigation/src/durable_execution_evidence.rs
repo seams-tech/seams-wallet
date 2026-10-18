@@ -151,7 +151,7 @@ pub(super) fn run(
         &version,
         material,
         &seed,
-        execution::signing_schedule_digest(schedules, 8),
+        execution::signing_schedule_digest(schedules, 4),
     )?;
     sync(role, transport)?;
     if role == SigningRole::A {
@@ -406,7 +406,7 @@ fn persist_material(
         sealed,
     };
     if let Ok(output) = std::env::var("ML_DSA_WORKER_FIXTURE_DIRECTORY") {
-        // The standalone Worker fixture uses eight-candidate groups.
+        // The standalone Worker fixture uses four-candidate groups.
         let native_schedule = record.activation.key.schedule_digest;
         record.activation.key.schedule_digest = worker_schedule_digest;
         std::fs::write(

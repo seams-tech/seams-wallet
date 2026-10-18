@@ -1,4 +1,4 @@
-//! Same AES-128 permutation, using the existing four-block Wasm backend.
+//! AES-128 with the private four-block and eight-block Wasm backends.
 use crate::passive::gate_aes::FourBlocks;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::passive::gate_aes::{EightBlockAes128, EightBlocks};
@@ -49,10 +49,17 @@ impl CorrelationAes {
         };
         for chunk in blocks.chunks_mut(width) {
             #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            if chunk.len() == 8 {
+                // The caller owns and erases this buffer. Avoid a second secret copy.
+                let blocks = chunk.try_into().expect("eight-block chunk");
+                self.wide.encrypt_eight(blocks);
+                continue;
+            }
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
             if chunk.len() > 4 {
                 let mut batch = Zeroizing::new(EightBlocks::default());
                 batch.0[..chunk.len()].copy_from_slice(chunk);
-                self.wide.encrypt_eight(&mut batch);
+                self.wide.encrypt_eight(&mut batch.0);
                 chunk.copy_from_slice(&batch.0[..chunk.len()]);
                 continue;
             }
