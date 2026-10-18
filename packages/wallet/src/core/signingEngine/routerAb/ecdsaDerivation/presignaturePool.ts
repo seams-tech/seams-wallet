@@ -654,21 +654,6 @@ export function clearRouterAbEcdsaDerivationClientPresignaturesForWallet(
   }
 }
 
-export function getRouterAbEcdsaDerivationClientPresignaturePoolDepth(args: {
-  ownershipGeneration: number;
-  relayerUrl: string;
-  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-  materialActivation: RouterAbMpcMaterialActivationRefWire;
-}): number {
-  const poolIdentity = makeClientPresignPoolIdentity({
-    ownershipGeneration: args.ownershipGeneration,
-    relayerUrl: args.relayerUrl,
-    scope: args.scope,
-    materialActivation: args.materialActivation,
-  });
-  return getClientPresignaturePoolDepth(ecdsaClientPresignPoolKey(poolIdentity));
-}
-
 type PresignatureRefillScheduleInput = RouterAbEcdsaDerivationClientPresignatureRefillInput & {
   poolPolicy?:
     | RouterAbEcdsaDerivationPresignaturePoolPolicyInput
@@ -1362,22 +1347,10 @@ type EcdsaPoolSigningInput = {
   workerCtx: WorkerOperationContext;
 } & RouterAbEcdsaDerivationSigningAuthorization;
 
-type EcdsaSigningMaterialSupply =
-  | { kind: 'existing_pool' }
-  | { kind: 'on_demand'; refill: RouterAbEcdsaDerivationClientPresignatureRefillInput };
-
-export async function signRouterAbEcdsaDerivationDigestWithPoolHit(
-  args: EcdsaPoolSigningInput,
-): Promise<RouterAbEcdsaDerivationCoordinatorResult> {
-  return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, {
-    kind: 'existing_pool',
-  });
-}
-
 async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
   args: EcdsaPoolSigningInput,
   retryCount: number,
-  supply: EcdsaSigningMaterialSupply,
+  refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput,
 ): Promise<RouterAbEcdsaDerivationCoordinatorResult> {
   let poolKey: string | null = null;
   let poolIdentity: EcdsaClientPresignPoolIdentity | null = null;
@@ -1485,17 +1458,17 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         workerCtx: args.workerCtx,
       });
     }
-    if (!presignature && supply.kind === 'on_demand') {
+    if (!presignature) {
       const foregroundRefillStartedAt = performance.now();
       startForegroundRefill(poolKey);
       try {
         let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-          ...supply.refill,
+          ...refillInput,
           trafficClass: 'foreground',
         });
         if (!refill.ok && refill.code === 'invalidated') {
           refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-            ...supply.refill,
+            ...refillInput,
             trafficClass: 'foreground',
           });
         }
@@ -1609,7 +1582,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
           args,
           retryCount + 1,
-          supply,
+          refillInput,
         );
       }
       return {
@@ -1886,13 +1859,12 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
     workerCtx: args.workerCtx,
     ...ecdsaPoolFillAuthorization(args),
   };
-  const supply: EcdsaSigningMaterialSupply = { kind: 'on_demand', refill: refillInput };
-  const result = await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
+  const result = await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, refillInput);
   if (
     !result.ok &&
     (result.code === 'pool_entry_expired' || result.code === 'pool_entry_unavailable')
   ) {
-    return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
+    return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, refillInput);
   }
   return result;
 }
