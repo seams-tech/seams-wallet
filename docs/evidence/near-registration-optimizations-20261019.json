@@ -1,0 +1,144 @@
+{
+  "kind": "near_registration_optimization_evidence_v1",
+  "date": "2026-10-19",
+  "branch": "dev",
+  "productRevision": "068648ea108c45f90524393be5359c08e1b55978",
+  "changes": [
+    "Combined respond reuses its committed admission snapshot. Separate execute requests still read admission.",
+    "Custody records, recovery locators, home activation, and the completion receipt share one final transaction.",
+    "A bounded Router cache supplies eight address sets per role-allocation batch and never reuses a returned identifier."
+  ],
+  "allocationComparison": {
+    "order": [
+      "control",
+      "candidate",
+      "candidate",
+      "control"
+    ],
+    "statistics": {
+      "control": {
+        "samples": 32,
+        "medianMs": 4.482,
+        "minMs": 3.563,
+        "maxMs": 158.51,
+        "roleRequestsPer16Allocations": [
+          48,
+          48
+        ]
+      },
+      "candidate": {
+        "samples": 32,
+        "medianMs": 0.939,
+        "minMs": 0.545,
+        "maxMs": 154.405,
+        "roleRequestsPer16Allocations": [
+          6,
+          6
+        ]
+      }
+    },
+    "wasmSha256": {
+      "control": {
+        "router": "10d7a8aff9df2c5e2e0214ff10d78d4cda2f5c5610893a2a5fc608835b9c78a7",
+        "deriver-a": "f7dabb29d30fe4cc8c1abcbf80045366ea2b21526d1d3e72c795e81c6b6a0ef9",
+        "deriver-b": "d9dee6609d2583f9a0519ace9af91fa5dfd1c7978425c5e684b629e21724ea72",
+        "signing-worker": "9b69ff16c2dc3331cff589a94e64157c26fbea486d37ccc752f45733a234c9b3"
+      },
+      "candidate": {
+        "router": "d753ff0d37e8423fdb7accca1e2277b0728abc7ac7cd2fce1281ee0ef2560f13",
+        "deriver-a": "dbd4a5ace5079bd397176502cafed1f8e7b42fe9fadae3ce5215b0ee83ff7a4c",
+        "deriver-b": "a6904c99600a9ab76c5e6fb35e1c557abaa99565d1cd17c8bd03f46e0242e2c3",
+        "signing-worker": "17ac4bbb92cc7df4da40b0ecbca504118773528d491fa33928fd1fba43b3d151"
+      }
+    },
+    "scope": "Local allocation only; 32 requests per arm, in four serial groups of 16."
+  },
+  "combinedBuildRegistration": {
+    "sdkIncludingVirtualPasskey": {
+      "samples": 6,
+      "medianMs": 626.95,
+      "minMs": 586.1,
+      "maxMs": 862.5
+    },
+    "sdkMinusMeasuredPasskeyStage": {
+      "samples": 6,
+      "medianMs": 414.2,
+      "minMs": 383.6,
+      "maxMs": 605.9
+    },
+    "independentlyVerifiedFirstAndWarmSignatures": 12,
+    "reportedAdmissionReadDurationsMs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "scope": "Six fresh Chromium contexts, one at a time, with virtual passkeys, local release Workers, local D1, and stubbed chain RPC.",
+    "comparison": "No matched full-registration control was measured. These durations do not establish a registration speedup."
+  },
+  "validation": {
+    "releaseWorkers": [
+      "router",
+      "deriver-a",
+      "deriver-b",
+      "signing-worker",
+      "tenant-root-control-plane"
+    ],
+    "serverTypes": "passed",
+    "walletStateTypes": "passed",
+    "intendedTypes": "passed",
+    "bloat": "passed",
+    "diff": "passed",
+    "browserAcceptanceJourneysPassed": 4,
+    "timingJourneysPassed": 6,
+    "homeJourneysPassed": 4,
+    "custodyFaults": [
+      "completion rollback removes recovery data",
+      "retry commits all ten code wraps with its receipt",
+      "lost completion reply replays durable custody"
+    ],
+    "allocationFaults": [
+      "20 concurrent requests",
+      "discarded reply",
+      "isolate restart",
+      "one role unavailable",
+      "concurrent setup winner",
+      "new ownership generation"
+    ]
+  },
+  "limits": [
+    "Custody reservation adds an overlapped D1 read and removes a separate serial custody write. Total D1 calls are not reduced by that change alone.",
+    "Warm address-cache hits remove peer allocation calls. Cold or replaced environments still allocate a batch.",
+    "All measurements are local. No hosted registration latency gain or population tail claim is established.",
+    "No package was published. No code was pushed or deployed. The private allocation response requires a coordinated custody Worker release."
+  ],
+  "excludedAttempts": [
+    "A browser run encountered an occupied port before acceptance.",
+    "A timing attempt encountered a tenant-root conflict in a reused test directory.",
+    "The contract-test configuration did not select benchmark cases.",
+    "Six timing cases completed registration and their first signature but failed because signing diagnostics were disabled. They are excluded."
+  ],
+  "artifacts": ".artifacts/near-registration-optimizations-20261019",
+  "reproduce": [
+    "node tests/e2e/registration-setup-startup.e2e.mjs",
+    "node tests/e2e/authorization-storage-transfer.e2e.mjs",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-address-allocation-evidence.mjs",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/wallet-home-placement-evidence.mjs",
+    "ROUTER_AB_WORKER_BUILD_PROFILE=release node .artifacts/near-registration-optimizations-20261019/measure-allocation.mjs"
+  ],
+  "benchmarkReproduction": {
+    "instructions": "docs/optimization-11-NEAR-local-breakdown.md",
+    "configuration": "tests/playwright.wallet-intended.benchmark.ci.config.ts",
+    "selectedCases": "local NEAR near_only sample [1-6]:",
+    "requiredDiagnosticEnvironment": {
+      "SEAMS_INTENDED_SIGNING_SESSION_DEBUG": "1",
+      "SEAMS_INTENDED_WALLET_HOST": "workers",
+      "SEAMS_INTENDED_SKIP_BUILD": "1",
+      "ROUTER_AB_WORKER_BUILD_PROFILE": "release"
+    },
+    "runtimeDirectory": "Use a fresh SEAMS_INTENDED_ROUTER_AB_ROOT for every run.",
+    "reporting": "Use --reporter=line,json and PLAYWRIGHT_JSON_OUTPUT_FILE to retain the measurement attachments."
+  }
+}
