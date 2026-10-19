@@ -1,0 +1,3688 @@
+{
+  "schema": "seams.ml-dsa-bounded-delivery-comparison.v1",
+  "scope": "Sequential hosted control and bounded-pair delivery screens. Two wallets with creation/recovery and initial-stock signing. Same32-candidate cap,16-candidate admission minimum, prepare4/consume2. No sustained signing throughput or production percentile claim. Compare complete client and enclosing invocation wall measurements; ordinal clocks overlap and must not be summed as elapsed time. Runtime placement/CPU variation uncontrolled.",
+  "profiles": [
+    {
+      "profile": "baseline",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "versions": {
+        "router": "8a20684e-aeda-43b1-a33e-ba3ad552fc07",
+        "a": "c86fc178-49f6-4d29-b60b-7ba9917bbfe1",
+        "b": "9db2e802-201b-4c5b-8092-c451d801eb7f",
+        "preparer-a": "20e58137-7f8a-4d85-ab20-0561c1735eed",
+        "preparer-b": "2482fb92-a7af-4ad9-88e3-f98a1cada853"
+      },
+      "registration_ms": {
+        "count": 4,
+        "minimum": 4667.36116700001,
+        "median": 6706.879375500008,
+        "maximum": 7648.390500000009,
+        "sum": 25729.510418000034
+      },
+      "under_five_seconds": 1,
+      "role_installation_wall_ms": {
+        "a": {
+          "count": 4,
+          "minimum": 1620,
+          "median": 1736.5,
+          "maximum": 1792,
+          "sum": 6885
+        },
+        "b": {
+          "count": 4,
+          "minimum": 1742,
+          "median": 2177.5,
+          "maximum": 2659,
+          "sum": 8756
+        }
+      },
+      "cases": [
+        {
+          "wallet": 1,
+          "epoch": 1,
+          "operation": "e3ac0867e6f7b1ac0549d012a7aab1e814b7700aff4fbfa60bcc4b94504e1603",
+          "client_ms": 4667.36116700001,
+          "http_ms": 4665.536749999999,
+          "preparation_ms": 65516.834125,
+          "under_five_seconds": true,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 4979.547541000007,
+            "operation": [
+              32,
+              57,
+              232,
+              9,
+              198,
+              127,
+              73,
+              129,
+              21,
+              48,
+              169,
+              140,
+              191,
+              236,
+              121,
+              36,
+              180,
+              25,
+              38,
+              76,
+              11,
+              98,
+              53,
+              43,
+              136,
+              217,
+              80,
+              112,
+              33,
+              22,
+              72,
+              75
+            ]
+          },
+          "public_key_sha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41",
+          "router_records": 1,
+          "router": {
+            "record_index": 956,
+            "invocation_wall_ms": 4633,
+            "invocation_cpu_ms": 77,
+            "http_request": "34fd648cbcab7639e79506e5e5eb6c8b",
+            "operation": "e3ac0867e6f7b1ac0549d012a7aab1e814b7700aff4fbfa60bcc4b94504e1603",
+            "module_instance": "80ed829f2ec5df3caf45f29f0b829c1d",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792393179281
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792393179281
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792393179318
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792393181521
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792393181662
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792393183659
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792393183843
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792393183883
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792393183883
+              }
+            ],
+            "log_timestamp_ms": 1792393183883,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 37,
+              "admission_done_to_execution_done": 2203,
+              "execution_done_to_activation_started": 141,
+              "activation_started_to_installation_done": 1997,
+              "installation_done_to_activation_done": 184,
+              "activation_done_to_completion_recorded": 40,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 5,
+                "worker_role": "a",
+                "invocation_wall_ms": 2159,
+                "invocation_cpu_ms": 324,
+                "operation": "e3ac0867e6f7b1ac0549d012a7aab1e814b7700aff4fbfa60bcc4b94504e1603",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "6a8cd2e25385060fcf1f665ff99ebea2ed36dfc64a9394901acc3282be420015"
+                },
+                "module_instance": "890eddf4631c615ddc6a1d2850005999",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393178614
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393178646
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393181231
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393181251
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393181251
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393181274
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393181274
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393181274,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 32,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 2585,
+                  "keygen_completed_to_material_sealed": 20,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 23,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": [
+                  "prepared_restored_to_keygen_completed"
+                ]
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 27,
+                "worker_role": "a",
+                "invocation_wall_ms": 1620,
+                "invocation_cpu_ms": 331,
+                "operation": "e3ac0867e6f7b1ac0549d012a7aab1e814b7700aff4fbfa60bcc4b94504e1603",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "6a8cd2e25385060fcf1f665ff99ebea2ed36dfc64a9394901acc3282be420015"
+                },
+                "module_instance": "890eddf4631c615ddc6a1d2850005999",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393181539
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393181539
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393181539
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393181603
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393183074
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393183074
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393183074,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 64,
+                  "material_installed_to_stock_installed": 1471,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 306,
+                "worker_role": "b",
+                "invocation_wall_ms": 2105,
+                "invocation_cpu_ms": 1436,
+                "operation": "e3ac0867e6f7b1ac0549d012a7aab1e814b7700aff4fbfa60bcc4b94504e1603",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "6a8cd2e25385060fcf1f665ff99ebea2ed36dfc64a9394901acc3282be420015"
+                },
+                "module_instance": "f7f558eb73eb60faff75bfee571b9356",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393178847
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393178871
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393179840
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393179868
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393179868
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393179941
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393179941
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393179941,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 24,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 969,
+                  "keygen_completed_to_material_sealed": 28,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 73,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 330,
+                "worker_role": "b",
+                "invocation_wall_ms": 1939,
+                "invocation_cpu_ms": 290,
+                "operation": "e3ac0867e6f7b1ac0549d012a7aab1e814b7700aff4fbfa60bcc4b94504e1603",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "6a8cd2e25385060fcf1f665ff99ebea2ed36dfc64a9394901acc3282be420015"
+                },
+                "module_instance": "f7f558eb73eb60faff75bfee571b9356",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393180498
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393180498
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393180498
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393181271
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393183248
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393183248
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393183248,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 773,
+                  "material_installed_to_stock_installed": 1977,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": [
+                  "material_installed_to_stock_installed"
+                ]
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        },
+        {
+          "wallet": 1,
+          "epoch": 2,
+          "operation": "b01b352f7306b0e73da3c838ba418876206978ea0abdc5f04cd649143bcb1804",
+          "client_ms": 7648.390500000009,
+          "http_ms": 7647.233540999994,
+          "preparation_ms": 77616.58587499999,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 2208.173333999992,
+            "operation": [
+              153,
+              102,
+              33,
+              32,
+              169,
+              245,
+              246,
+              244,
+              211,
+              16,
+              3,
+              164,
+              165,
+              148,
+              156,
+              243,
+              59,
+              99,
+              125,
+              18,
+              14,
+              99,
+              42,
+              108,
+              221,
+              158,
+              56,
+              209,
+              117,
+              141,
+              104,
+              230
+            ]
+          },
+          "public_key_sha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41",
+          "router_records": 1,
+          "router": {
+            "record_index": 1026,
+            "invocation_wall_ms": 7576,
+            "invocation_cpu_ms": 45,
+            "http_request": "a215f6d6b0053ab2959fa2f3a6f01eed",
+            "operation": "b01b352f7306b0e73da3c838ba418876206978ea0abdc5f04cd649143bcb1804",
+            "module_instance": "5e779fdc32bb554f23845edad850a6d3",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792393266717
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792393266717
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792393266747
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792393271793
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792393272259
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792393274038
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792393274233
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792393274270
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792393274270
+              }
+            ],
+            "log_timestamp_ms": 1792393274270,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 30,
+              "admission_done_to_execution_done": 5046,
+              "execution_done_to_activation_started": 466,
+              "activation_started_to_installation_done": 1779,
+              "installation_done_to_activation_done": 195,
+              "activation_done_to_completion_recorded": 37,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 82,
+                "worker_role": "a",
+                "invocation_wall_ms": 5018,
+                "invocation_cpu_ms": 440,
+                "operation": "b01b352f7306b0e73da3c838ba418876206978ea0abdc5f04cd649143bcb1804",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "6b93d65b83cabd42059718bb17a3afe8d7d97fa5dc92047b96dad74496f788bd"
+                },
+                "module_instance": "f4530112d63bc01b240085c6132708d3",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393266676
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393266708
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393271653
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393271677
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393271677
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393271703
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393271703
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393271703,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 32,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 4945,
+                  "keygen_completed_to_material_sealed": 24,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 26,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 105,
+                "worker_role": "a",
+                "invocation_wall_ms": 1748,
+                "invocation_cpu_ms": 336,
+                "operation": "b01b352f7306b0e73da3c838ba418876206978ea0abdc5f04cd649143bcb1804",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "6b93d65b83cabd42059718bb17a3afe8d7d97fa5dc92047b96dad74496f788bd"
+                },
+                "module_instance": "f4530112d63bc01b240085c6132708d3",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393272261
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393272261
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393272261
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393272326
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393273845
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393273845
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393273845,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 65,
+                  "material_installed_to_stock_installed": 1519,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 446,
+                "worker_role": "b",
+                "invocation_wall_ms": 4601,
+                "invocation_cpu_ms": 2215,
+                "operation": "b01b352f7306b0e73da3c838ba418876206978ea0abdc5f04cd649143bcb1804",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "6b93d65b83cabd42059718bb17a3afe8d7d97fa5dc92047b96dad74496f788bd"
+                },
+                "module_instance": "1b32f58eea5636f7df02bc898ae8f800",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393266701
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393266739
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393270448
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393270489
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393270489
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393270606
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393270606
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393270606,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 38,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 3709,
+                  "keygen_completed_to_material_sealed": 41,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 117,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 484,
+                "worker_role": "b",
+                "invocation_wall_ms": 1742,
+                "invocation_cpu_ms": 542,
+                "operation": "b01b352f7306b0e73da3c838ba418876206978ea0abdc5f04cd649143bcb1804",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "6b93d65b83cabd42059718bb17a3afe8d7d97fa5dc92047b96dad74496f788bd"
+                },
+                "module_instance": "1b32f58eea5636f7df02bc898ae8f800",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393271643
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393271643
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393271643
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393271735
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393273529
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393273529
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393273529,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 92,
+                  "material_installed_to_stock_installed": 1794,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": [
+                  "material_installed_to_stock_installed"
+                ]
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 1,
+          "operation": "76585526ca771afc028c4a4dd6df07f2cedd249fa8a74f8e01851524bb9450c8",
+          "client_ms": 6884.215834000002,
+          "http_ms": 6883.203542000003,
+          "preparation_ms": 83308.382208,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 3128.354707999999,
+            "operation": [
+              158,
+              98,
+              219,
+              36,
+              41,
+              141,
+              211,
+              120,
+              98,
+              135,
+              63,
+              97,
+              228,
+              107,
+              177,
+              60,
+              10,
+              152,
+              16,
+              87,
+              189,
+              92,
+              102,
+              134,
+              167,
+              34,
+              206,
+              254,
+              52,
+              79,
+              135,
+              68
+            ]
+          },
+          "public_key_sha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad",
+          "router_records": 1,
+          "router": {
+            "record_index": 1083,
+            "invocation_wall_ms": 6842,
+            "invocation_cpu_ms": 52,
+            "http_request": "f1d6a9196b8c72f4acadb7b86bab72ef",
+            "operation": "76585526ca771afc028c4a4dd6df07f2cedd249fa8a74f8e01851524bb9450c8",
+            "module_instance": "80ed829f2ec5df3caf45f29f0b829c1d",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792393360786
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792393360786
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792393360822
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792393364461
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792393364604
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792393367322
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792393367509
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792393367592
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792393367592
+              }
+            ],
+            "log_timestamp_ms": 1792393367592,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 36,
+              "admission_done_to_execution_done": 3639,
+              "execution_done_to_activation_started": 143,
+              "activation_started_to_installation_done": 2718,
+              "installation_done_to_activation_done": 187,
+              "activation_done_to_completion_recorded": 83,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 147,
+                "worker_role": "a",
+                "invocation_wall_ms": 3615,
+                "invocation_cpu_ms": 257,
+                "operation": "76585526ca771afc028c4a4dd6df07f2cedd249fa8a74f8e01851524bb9450c8",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "b6ddae3eefc6757984447699cc73d182bc73e4969ac86c01c324be93c5118d76"
+                },
+                "module_instance": "5667f143f677366dc52948f9cc755bf9",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393361344
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393361367
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393364313
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393364331
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393364331
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393364354
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393364354
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393364354,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 23,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 2946,
+                  "keygen_completed_to_material_sealed": 18,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 23,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 173,
+                "worker_role": "a",
+                "invocation_wall_ms": 1792,
+                "invocation_cpu_ms": 319,
+                "operation": "76585526ca771afc028c4a4dd6df07f2cedd249fa8a74f8e01851524bb9450c8",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "b6ddae3eefc6757984447699cc73d182bc73e4969ac86c01c324be93c5118d76"
+                },
+                "module_instance": "5667f143f677366dc52948f9cc755bf9",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393364604
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393364604
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393364604
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393364673
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393366257
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393366257
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393366257,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 69,
+                  "material_installed_to_stock_installed": 1584,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 605,
+                "worker_role": "b",
+                "invocation_wall_ms": 2876,
+                "invocation_cpu_ms": 2220,
+                "operation": "76585526ca771afc028c4a4dd6df07f2cedd249fa8a74f8e01851524bb9450c8",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "b6ddae3eefc6757984447699cc73d182bc73e4969ac86c01c324be93c5118d76"
+                },
+                "module_instance": "c6081d340e0f7a33ad03fba0d1bfb308",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393361047
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393361061
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393363811
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393363826
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393363826
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393363900
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393363900
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393363900,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 14,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 2750,
+                  "keygen_completed_to_material_sealed": 15,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 74,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 649,
+                "worker_role": "b",
+                "invocation_wall_ms": 2659,
+                "invocation_cpu_ms": 494,
+                "operation": "76585526ca771afc028c4a4dd6df07f2cedd249fa8a74f8e01851524bb9450c8",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "b6ddae3eefc6757984447699cc73d182bc73e4969ac86c01c324be93c5118d76"
+                },
+                "module_instance": "c6081d340e0f7a33ad03fba0d1bfb308",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393364244
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393364244
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393364244
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393364825
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393367060
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393367060
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393367060,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 581,
+                  "material_installed_to_stock_installed": 2235,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 2,
+          "operation": "df1fc6d5779752f2074cc67a1d9b6c170af6f03620ee41847359cb2a03a4c62d",
+          "client_ms": 6529.542917000013,
+          "http_ms": 6529.081750000012,
+          "preparation_ms": 108495.855125,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 6211.852207999997,
+            "operation": [
+              165,
+              236,
+              94,
+              76,
+              47,
+              123,
+              78,
+              66,
+              85,
+              5,
+              10,
+              164,
+              173,
+              16,
+              26,
+              72,
+              49,
+              209,
+              134,
+              90,
+              165,
+              205,
+              79,
+              239,
+              218,
+              67,
+              249,
+              151,
+              63,
+              126,
+              41,
+              254
+            ]
+          },
+          "public_key_sha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad",
+          "router_records": 1,
+          "router": {
+            "record_index": 1164,
+            "invocation_wall_ms": 6489,
+            "invocation_cpu_ms": 51,
+            "http_request": "53241e65f8a9d4b15e1918fa7ca8cf75",
+            "operation": "df1fc6d5779752f2074cc67a1d9b6c170af6f03620ee41847359cb2a03a4c62d",
+            "module_instance": "80ed829f2ec5df3caf45f29f0b829c1d",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792393479584
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792393479584
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792393479616
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792393482762
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792393483341
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792393485806
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792393485995
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792393486037
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792393486037
+              }
+            ],
+            "log_timestamp_ms": 1792393486037,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 32,
+              "admission_done_to_execution_done": 3146,
+              "execution_done_to_activation_started": 579,
+              "activation_started_to_installation_done": 2465,
+              "installation_done_to_activation_done": 189,
+              "activation_done_to_completion_recorded": 42,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 235,
+                "worker_role": "a",
+                "invocation_wall_ms": 3126,
+                "invocation_cpu_ms": 479,
+                "operation": "df1fc6d5779752f2074cc67a1d9b6c170af6f03620ee41847359cb2a03a4c62d",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "4086a7496eb89be09c7a4fda5a57e7cdf48e863554340ffb39da653889de78d0"
+                },
+                "module_instance": "561c0b24311e222bc41c53bb8a61d1a6",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393478674
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393478712
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393482517
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393482539
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393482539
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393482568
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393482568
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393482568,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 38,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 3805,
+                  "keygen_completed_to_material_sealed": 22,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 29,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": [
+                  "prepared_restored_to_keygen_completed"
+                ]
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 263,
+                "worker_role": "a",
+                "invocation_wall_ms": 1725,
+                "invocation_cpu_ms": 541,
+                "operation": "df1fc6d5779752f2074cc67a1d9b6c170af6f03620ee41847359cb2a03a4c62d",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "4086a7496eb89be09c7a4fda5a57e7cdf48e863554340ffb39da653889de78d0"
+                },
+                "module_instance": "561c0b24311e222bc41c53bb8a61d1a6",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393483309
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393483309
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393483309
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393483375
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393484773
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393484773
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393484773,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 66,
+                  "material_installed_to_stock_installed": 1398,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 804,
+                "worker_role": "b",
+                "invocation_wall_ms": 3058,
+                "invocation_cpu_ms": 2213,
+                "operation": "df1fc6d5779752f2074cc67a1d9b6c170af6f03620ee41847359cb2a03a4c62d",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "4086a7496eb89be09c7a4fda5a57e7cdf48e863554340ffb39da653889de78d0"
+                },
+                "module_instance": "19442f4b16aab7e6d0598ccc614e34d4",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393479103
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393479121
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393481355
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393481376
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393481376
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393481501
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393481501
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393481501,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 18,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 2234,
+                  "keygen_completed_to_material_sealed": 21,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 125,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 838,
+                "worker_role": "b",
+                "invocation_wall_ms": 2416,
+                "invocation_cpu_ms": 585,
+                "operation": "df1fc6d5779752f2074cc67a1d9b6c170af6f03620ee41847359cb2a03a4c62d",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "4086a7496eb89be09c7a4fda5a57e7cdf48e863554340ffb39da653889de78d0"
+                },
+                "module_instance": "19442f4b16aab7e6d0598ccc614e34d4",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393482763
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393482763
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393482763
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393482878
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393485454
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393485454
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393485454,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 0,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 115,
+                  "material_installed_to_stock_installed": 2576,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": [
+                  "material_installed_to_stock_installed"
+                ]
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        }
+      ],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "full_reserve": [
+        {
+          "key": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad",
+          "epoch": 2,
+          "ready_a": [
+            "8b0dcec807dc25634855caf5c0b9730dbce5334ec95072c65422c92d6a7d0ad2",
+            "4749465628244492f3574a3f9a0f527d0fc66802efc82fe91fd6a2bdc40f6892",
+            "b0bd95cf45c43d921f678edfcbdf71c31fb16f9669ba29a6b13f93bbabffbce4",
+            "a973eb54a1d9ce040cdac04c89ae92b3c64bdbbb2d0f051ca8ddd58dfb23922e",
+            "a23c777e9b93bb9a383cb03b59b546e0591b5b701627c1fcb6d04cf355d75e9c",
+            "41bc4d4c2c7143b669319b0e9ea9e482a4d17e98e6baefed9121f2e0559f8176",
+            "1ba56e70a3534e3e0b92f57df78718114aeeef7ff081a088fb1999eb8bf4e386",
+            "ebfc99c603eedb55b8c87f1b931f4614882fa73691f8fdf2ba6be554ce0ac266",
+            "c81665b759db257fc426038a28f3c7b4b582a2ac4166a65e2e37b153db6f0a62",
+            "58e04e7c63cd79ea8bb2de87a849f3efdeb2952bc9ebc447b7c6b20ccb4d66ad",
+            "5cee07f2127d80a5ec5e085ca827e140ad1b9d5f9cba9df41f33d6ae301e0b36",
+            "87331db08faf05787d9af5abce45cebcfede350a746a6b43b707498c91f88f39",
+            "bd6bbb9716b7364e3867ff9d0d79c8f1befee0b53ccbc803f8e02176f306d26a",
+            "890a0c4c402bd78bf66996fbbcf6cf808c3b336f144d2895e1099e688255f78b",
+            "83772a7947145b956fbcce98712c51dbca2fde3c072bb7476876534a644db742",
+            "9c3c0b0ecbb16e9b618db8f8fff2b6a5695f61ef01a820340a841ea1831b3c0d"
+          ],
+          "ready_b": [
+            "8b0dcec807dc25634855caf5c0b9730dbce5334ec95072c65422c92d6a7d0ad2",
+            "4749465628244492f3574a3f9a0f527d0fc66802efc82fe91fd6a2bdc40f6892",
+            "b0bd95cf45c43d921f678edfcbdf71c31fb16f9669ba29a6b13f93bbabffbce4",
+            "a973eb54a1d9ce040cdac04c89ae92b3c64bdbbb2d0f051ca8ddd58dfb23922e",
+            "a23c777e9b93bb9a383cb03b59b546e0591b5b701627c1fcb6d04cf355d75e9c",
+            "41bc4d4c2c7143b669319b0e9ea9e482a4d17e98e6baefed9121f2e0559f8176",
+            "1ba56e70a3534e3e0b92f57df78718114aeeef7ff081a088fb1999eb8bf4e386",
+            "ebfc99c603eedb55b8c87f1b931f4614882fa73691f8fdf2ba6be554ce0ac266",
+            "c81665b759db257fc426038a28f3c7b4b582a2ac4166a65e2e37b153db6f0a62",
+            "58e04e7c63cd79ea8bb2de87a849f3efdeb2952bc9ebc447b7c6b20ccb4d66ad",
+            "5cee07f2127d80a5ec5e085ca827e140ad1b9d5f9cba9df41f33d6ae301e0b36",
+            "87331db08faf05787d9af5abce45cebcfede350a746a6b43b707498c91f88f39",
+            "bd6bbb9716b7364e3867ff9d0d79c8f1befee0b53ccbc803f8e02176f306d26a",
+            "890a0c4c402bd78bf66996fbbcf6cf808c3b336f144d2895e1099e688255f78b",
+            "83772a7947145b956fbcce98712c51dbca2fde3c072bb7476876534a644db742",
+            "9c3c0b0ecbb16e9b618db8f8fff2b6a5695f61ef01a820340a841ea1831b3c0d"
+          ],
+          "reserved_a": [],
+          "reserved_b": [],
+          "log_timestamp_ms": 1792393540969
+        },
+        {
+          "key": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41",
+          "epoch": 2,
+          "ready_a": [
+            "5e4090909520956788c8aa04a0bd5e5fe404f20ad9520123faa255d56e13a6a9",
+            "5a6eac3a9de452f7b1d75ab99fd3016ef0dbcaeeb55190d04285470f0fc2a3e2",
+            "e4265f836eac9770ff68fea3500169d4369d541f35fb41972fd2c65a1ccd9c5e",
+            "2f324046e847724c35d0df8c0fa3b560fff53cd7a3ce9b6a84f0a09924e6328e",
+            "03d48cf9578ced7460eb6b1490beb24a85318d49cf727908aada979cb46a36d3",
+            "a23c5f4ed9b72ee31f474283eca258fb13dbf7ab81838033b7b768164fc4dcef",
+            "577bae7d36fe70e0a99a6a8d6c312aa40e16d7e461e638129a77c20aed2db534",
+            "72895bc6bb32267e5b83a0d93719fa341305a0827c84e2d0c1a86ee2831ebbab",
+            "a695309ce50c26a4c6d5a142c8ac9b7a07e528b0c9637387aba338fb8c200f39",
+            "6b8c772c08357153a61fd6a0825b9f91117c4fd5d7d10c4d05f427a104cddc1d",
+            "67410ffff9161e6fde174a227cf4f98d546b9b90d126f013665a32087fea08f4",
+            "507366727b9ad6844d8920bb1704444852697e3a9cf250af9101d8b6c9653f9d",
+            "fe8af9b6a9c9977f9924d5fbe31898a0c85020cec3be120bbcc0e01f49fedfbe",
+            "311705482bcac575d2ba1e8f93b2e727f855b59e96786be8b7f8dda883a0b720",
+            "65b5eeee52810345c547cfc67d8d02e7320a977a2b2528d06ac44eff1014b669",
+            "98ab20fabf45d026a13952a7b4a6703327d44dcbd550177391a1b44856ff10f7"
+          ],
+          "ready_b": [
+            "5e4090909520956788c8aa04a0bd5e5fe404f20ad9520123faa255d56e13a6a9",
+            "5a6eac3a9de452f7b1d75ab99fd3016ef0dbcaeeb55190d04285470f0fc2a3e2",
+            "e4265f836eac9770ff68fea3500169d4369d541f35fb41972fd2c65a1ccd9c5e",
+            "2f324046e847724c35d0df8c0fa3b560fff53cd7a3ce9b6a84f0a09924e6328e",
+            "03d48cf9578ced7460eb6b1490beb24a85318d49cf727908aada979cb46a36d3",
+            "a23c5f4ed9b72ee31f474283eca258fb13dbf7ab81838033b7b768164fc4dcef",
+            "577bae7d36fe70e0a99a6a8d6c312aa40e16d7e461e638129a77c20aed2db534",
+            "72895bc6bb32267e5b83a0d93719fa341305a0827c84e2d0c1a86ee2831ebbab",
+            "a695309ce50c26a4c6d5a142c8ac9b7a07e528b0c9637387aba338fb8c200f39",
+            "6b8c772c08357153a61fd6a0825b9f91117c4fd5d7d10c4d05f427a104cddc1d",
+            "67410ffff9161e6fde174a227cf4f98d546b9b90d126f013665a32087fea08f4",
+            "507366727b9ad6844d8920bb1704444852697e3a9cf250af9101d8b6c9653f9d",
+            "fe8af9b6a9c9977f9924d5fbe31898a0c85020cec3be120bbcc0e01f49fedfbe",
+            "311705482bcac575d2ba1e8f93b2e727f855b59e96786be8b7f8dda883a0b720",
+            "65b5eeee52810345c547cfc67d8d02e7320a977a2b2528d06ac44eff1014b669",
+            "98ab20fabf45d026a13952a7b4a6703327d44dcbd550177391a1b44856ff10f7"
+          ],
+          "reserved_a": [],
+          "reserved_b": [],
+          "log_timestamp_ms": 1792393526428
+        }
+      ]
+    },
+    {
+      "profile": "optimized",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "versions": {
+        "router": "36407613-3012-4495-bf3c-3e8735f5db45",
+        "a": "a621091f-7534-419e-aaea-895d11604f29",
+        "b": "1980778c-7aa2-41f4-ba05-13dc74424a71",
+        "preparer-a": "d02e7388-3f8c-42ba-9de6-1c69f32c2aa3",
+        "preparer-b": "2b21e8fa-e8da-4be3-b90e-2c72c5e6b338"
+      },
+      "registration_ms": {
+        "count": 4,
+        "minimum": 5290.493791999994,
+        "median": 7032.711270500004,
+        "maximum": 7888.158041000002,
+        "sum": 27244.074374000003
+      },
+      "under_five_seconds": 0,
+      "role_installation_wall_ms": {
+        "a": {
+          "count": 4,
+          "minimum": 1174,
+          "median": 1444.0,
+          "maximum": 1759,
+          "sum": 5821
+        },
+        "b": {
+          "count": 4,
+          "minimum": 1309,
+          "median": 1847.5,
+          "maximum": 2199,
+          "sum": 7203
+        }
+      },
+      "cases": [
+        {
+          "wallet": 1,
+          "epoch": 1,
+          "operation": "966f31979984925e6eb19a8b0e6263427660a8733a1c368ffaac0128cf255722",
+          "client_ms": 5290.493791999994,
+          "http_ms": 5289.578125,
+          "preparation_ms": 72734.6425,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 4404.245875000008,
+            "operation": [
+              150,
+              131,
+              190,
+              31,
+              214,
+              252,
+              71,
+              20,
+              170,
+              30,
+              120,
+              142,
+              165,
+              68,
+              221,
+              73,
+              156,
+              23,
+              138,
+              32,
+              142,
+              230,
+              140,
+              107,
+              19,
+              178,
+              76,
+              245,
+              161,
+              194,
+              26,
+              160
+            ],
+            "messageHex": "4a7c5864c14468491512838ca9b3550dd10d7c7a9f37bb07c4e2002260fab4f2",
+            "contextHex": "",
+            "signatureHex": "d2d513b00b730307b76d57ed8d6486cb69aecb43f2d9415f6d20abdc6e24285ec754ebe70b975864b3eeb9915658e6cf8ecc33c08edb9fc7d9a20c3092e9adfdd15ff5fdf434b32fb4734c07d1c8a49c7b901489fd2ecc8295884f074c5b9915f3688912545e4ccc2bc5f71b50dd35ffbf508a1ca782a6bcdad15f27c1b92bef5ae9851373c66cfd0296ef0f85928679c9ff787b87c9aed6ab2adb4cec986e174a91479ea91eef7cd8812109b1de0a54a0eb1d84ca4424eba05b103a2442a583ca332f9c5eed4e05287e8d53a2a4197d62af172ab7624c9c2fd18ffdd2324b417abcddf9917de73bc47ac167a6c1d7e2c36f2b5cff41f8e4a4586bd5e01d54f5995c441c2ac4297d2fe2bd829b2a77d181f71665fc2b9165496606d0767790de1fa73300557d0b7fac9426433ee8c56b812752e14a75b567eee07ad7a96fbcc677b898f51182e68be95e3b0e385be3d5b43cae76f20bce75c04949d9936e28e4cb36151b7c04e2bbebb62c5f3ae2b0672db4aa231cf7f387b1cf784a4303751e8353f0e74be2888503173a42dea61e82d32d9c1b468761f9017fdc18b264f71b1cb5113a55ba79c6187eb60d19ee3d25bf9cf63715c51b6fa894a2695dd3c2c5ed10803c4f3afece559a6f271b0ff8a3fc2f6ea4fe99af64178dbc3be777ee267c243e3662502fbb828e9c26833b226ce7867db270aaf4b5f3c030a13532d7b18b27352d6d7e132062d8e579c4a739a2c2d6c3ca57a355e70d1f29ffae2ecb213546daa0b5b8db4969fb21901352ebecedf94752818c1fa01f5230841ec0bb1da38bd8c49c0ca0aaae46b688c0f86ba3cc5426ac38d9ac5bc7e07804640759fcf86696766930814704acbaf9b8dcda2ca9ddba120b7afd39535634151cd1f12185369c2fb5d96b5ef562e9ddb3beec28552521f9316bd4fd9e84fd29853d83be69a5161f80e024816f6fa555aeef786ac108437713ef8a589e46bfcae96cff8f79a1600f17ff7348d389a6fe13e339d24fd8e72ca097f30b0af0d385bae15a6b802969aa306406f8ec3c3c6e112260cdb7f821bac40dd271be9d25f2b7cfae9fb26aa8aee32ca2566a4d1174b1b134ab5f8566e0ffd99bcb256926c3a6cc7f3d864df3f55a65b82907f40c24587720071504eb569103d4b24b9201153cb44c490f51c5bd4fe8fe9d7805111a83141c6fb169cef0fd6c4f87bb65bab1d7f50acf427857efe18ba7223dc8c8e99bbe7dc435d82d83b5d8f2101e657fb5116e1028175a6149885dfa9f9918adcbd90baa411f0008bb8b08cf976456011ae6287cd73a428332288f0a294c3fa826607e65b459e36d33abd156a69c95bc6c7e13207ec0b2cefd03be862f6c47e314ebbb6cabcee8ad9dac141027350eb2debf6fce0d8e25148bae5744ce676edbc6ded47088b860d28c2d71edbdcaac22fd81f0cca88dc23351dea6e16c078f4864a5330e2ba772a2d2ec69d7c4a9b1c9ea719e0ca3a6219c06f9d75cf3e6a5511b2d3ec6337697c5b0ddebf7faf5eda4cee80fd81ec413b9f4b95ad2531de07a36af66f99014ed9dde65bfb437feebcc29bd2ccd5cbb6b6177cc4db6ed3b8813d2ad2a260f5cc3a21f0fe0eb66e20ad4eda9e81c0a64049e73288f42c0af163c958be0a1cee3e12e21df165ecbbb9e2d80d551e549cf7836e74a026d32b7e8a62a4475cdfd30f9c9b8468554ceba64067a7aa2f543267a7a8a1b1d13691691842f665a62ad7a57037e4747a4c6921f1e005b51278049bb5560a99a2f81ef085780b4d07e73b0449a6a40c0ba8d1c55c72f4825ddb8381b9b12a6537a945fe5799173b9402a7f803498c592540cd049ea085db16bd0b6018cff42f187a799ff00e61ed7bc9f88dd294664cc1c4b134d483dc8e4c29ee105889cfd5716194b0e688e92940e15e409585df146c1d485839c3b0f19e2839629974616d3758693aa05ac4748cb32bfcb5299419388a121026bb9bcf35f6120c228d9fad829eb71af7a050bea85d00541f9a355275e5daa6b803fa938d11793afbefc5cea4e4fcdee20be57b1d4fa8f6c56c17664ec75eb857835c2e27624b17e7d22052a165c20e506ee5444e181d97159e9418949bfa6cbcbee2359e2501ddd1196665335fd2bbdf9ff9ea02e8b50746cd51ff57790267f7a03a70067aa8d59e82bac7b5aa48ee8b0fcbb088ad2350da8a222f24e21df96ebd338bd53d5faa40bdd7477efbcaa1769ebacaf82e02b44ed6bfc81d47f6d09ddc079d9323358884b297a47f7a12174cfdce46d7a27295fbe6687d55826d79c58a341274b49faae3bd1559a762fc30ad09ba501b8467a16b63569b78a7b68bf85fcdfe0edb9f2f31c22bf2861be4f357054fd74c800023fcf3e4e069782a295c3ee82d3a978e8b48cbccae9f5e2a3b378c1ff4b186c7e1d5965b53ff54fc21230c071bbc7c0f91c5577738fceaa7d5258bd27ce6e30ee291b674208d69b40c6ce631b5d7bc9ffc5deb4d6f4e7b6e2a2bbb667e3eddc4320e96242d88e72aa0caac176818278d7d98377f9870bd08132c1e504fa757edb001fe6568871f37d3d66e6acc957d6b53172bb2cecab32951573392a5bb48b18111016143eb48a33f91570c1b67360710b0e8f57a3910df20bd45f71ede3b188b24b9528103d4ffd83c799979456770e28efeca35f6c1820616d09c7ac3402b84d62b6f0a719e9729d5777d5e59716efe724da0dc818364c9e1eef81368ad1a9d15ca629a3f234872b18f64e662cf1322e8235f4aa5443026807854205c0461f8ca8527e72f5a0c7d2da09e6d2b57cdd614f02fef46eecef6ef41bf012ffa39661d88f9da94292093e7ec59118674bbd5ba60ecc7c2a14289c9726033809dbfe8bb555ce30b0dc010d09b3b5682ab2228f46fd284e2251da2f10054f9a922a4c90dfa2f41d817e40b134319111952102aebcfeda76117be90a41839c08129e8a0e88a658cd18e3ca15e31a0d5ef9134728e8c6022dd1eee1a4145d1c6646832b87423b75a13f9072d4e874493b99bf23ad104deba912fd0c7c55b1636b08be0ee4fe0c98b89ccd360beb218887a6e14e59bf590513cb412282541b21daf3fc52f3503b3a6b752d8512c8d22b6e7349c7b45596446770d8de07593f73718a7ffab8aaca0ec8e25d102765b33edb0dab1e5de8486f415434f375532b50587f876b9eaf9bb8813c5c3f7f2efa3cf66c129cb88f89fff3d58f65eb7a2006dc22a7f0817d9b69f62c009f1fcf6e259185a6072d15b54137bd0d4f79eb681800ac5866a2e9575470363e02214b39414e71562fd3ac4a4f17db8834cdcd332ac4c544106d3c9c83cdc8f6f12c839a4bf386dd18e5d36da292c105edea24cfdb41bdb95c02bd369254f838ce922b592fd3823ba0c711cfb016fdf7981c2e5cda18b8df63e69183a8180a2a9131159896622118ec4b77a3f3401208da98a759219dd21c5f8969e022b6fbcd06011dba3f161aa7461781da0207b3ca29d9f45a0306780358cb527e3259fed87788f76b5c96b6e94fb7c711a8d82300b054315b7952d1480df08a0eedca3e1eb327c51f74c26a90d04d1335dc578439835bb1ef35bda5026beb27125ccf998e8deb73dbd77bf6ce8335c23650d02d916830d88a1bb8668f5e2a66cd221592521c53219285c502a55d3b288b6ab9c5f51aaba0e4c3b7ee621cc590c846a4dede2ba89974771c3236834be98b4680923a33c5fac2419bf2020433710d22ce695e1b5a12d8ebb93dcd42aeb0a7d1ed27a289519e504b314bc59a35e30879642930c0fc74c245de06d2950646b8fd29e81f6f66462d9e3311ffbdaa0f3f7aac0de5c6ca3a0dd70b0cbd9a38b47a719ba7bd087d3b620df3fd30ff933312f9a2fcc73c0f3cd7d4f4af789a329b6a98aeea635f2730ce1de505a4d864c395a3cd18e6eb01333ec0e7a3e8920d366bd4b9e67a3b21c794b25f82af85d7ac58b4b96f1c8c43aafd8fcb4e49f40904ac23f29e4d38aa4c5a55386a02b953b25906a9b4add2867c54139c41d0fec2ae1caf5d367e78f60bb69073e17c3feed9bbdaac6f197fe61984c9e755e07131f101d9b7fcd52987944a8544cfd13bae625fb0804dc5916db51b39162e051817741982c6559564744ac846c63e55a4c6d74be955d924acbff76a7c075393244bb4924f9b8d339feea02ee40fea8652652f54de17ddeae382b05bc4dfaa2f440fc874a999df6add2c41deb29ba0a5c80aca8f5ef49350b5f7f612fad91bd05468b6441254a6e69769ceebddd457933e9b5c1b72ac34c6da81c7ac717d3628c422b470723c932206be52c6261dcb0635908af10c54385427f2b31c7ddb762fa347f8f37e41c58389700fc6e2990c72cfa7cfe86c5bc72149ac2dee26d36204a8ccd240fb3ed0b17ebd55193225a2e7323ebb514132945f72704552404bb45c99a741e0fb10df1394db953a49550804db6b8a2b886b06b9e4d5402dd207de2b64e2dc500a5fc31ee1ff678c5a6165b9f3ff5e589e503daa635493ef9b3afb08b60fc30fb55c91d0b573500a3bdd2a651b835fabb66ce806d988df458038de54ad4bc30d2dfa86831a64c05dd84c01b6495e6e898bbbd9a8bcdd9eb5bf12343c4c676f85aabbbdd1daf85cd705065e000000000000000000000000000000000000000000000000070a0d1a1c1f"
+          },
+          "public_key_sha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41",
+          "router_records": 1,
+          "router": {
+            "record_index": 1024,
+            "invocation_wall_ms": 5253,
+            "invocation_cpu_ms": 35,
+            "http_request": "ee423c9be56abf81822333386c5c72ef",
+            "operation": "966f31979984925e6eb19a8b0e6263427660a8733a1c368ffaac0128cf255722",
+            "module_instance": "7cdf7cc5f8166637ab559b05e21d0c30",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792393954545
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792393954545
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792393954575
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792393957575
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792393957718
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792393959413
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792393959749
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792393959784
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792393959784
+              }
+            ],
+            "log_timestamp_ms": 1792393959784,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 30,
+              "admission_done_to_execution_done": 3000,
+              "execution_done_to_activation_started": 143,
+              "activation_started_to_installation_done": 1695,
+              "installation_done_to_activation_done": 336,
+              "activation_done_to_completion_recorded": 35,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 5,
+                "worker_role": "a",
+                "invocation_wall_ms": 2966,
+                "invocation_cpu_ms": 224,
+                "operation": "966f31979984925e6eb19a8b0e6263427660a8733a1c368ffaac0128cf255722",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "57f3f790045861f89915f1ac325f0df45942df41e7294e49cfa2189a0d772c09"
+                },
+                "module_instance": "dfca1c8afaf5081d2f9d45b894641844",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393955088
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393955111
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393957372
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393957391
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393957391
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393957417
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393957417
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393957417,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 23,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 2261,
+                  "keygen_completed_to_material_sealed": 19,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 26,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 30,
+                "worker_role": "a",
+                "invocation_wall_ms": 1363,
+                "invocation_cpu_ms": 414,
+                "operation": "966f31979984925e6eb19a8b0e6263427660a8733a1c368ffaac0128cf255722",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "57f3f790045861f89915f1ac325f0df45942df41e7294e49cfa2189a0d772c09"
+                },
+                "module_instance": "dfca1c8afaf5081d2f9d45b894641844",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393957651
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393957678
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393957678
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393957754
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393958802
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393958802
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393958802,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 27,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 76,
+                  "material_installed_to_stock_installed": 1048,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 310,
+                "worker_role": "b",
+                "invocation_wall_ms": 2064,
+                "invocation_cpu_ms": 1491,
+                "operation": "966f31979984925e6eb19a8b0e6263427660a8733a1c368ffaac0128cf255722",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "57f3f790045861f89915f1ac325f0df45942df41e7294e49cfa2189a0d772c09"
+                },
+                "module_instance": "4f453b236670999e19613812ece37402",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393955330
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792393955340
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792393956584
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792393956599
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792393956599
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792393956691
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393956691
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393956691,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 10,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 1244,
+                  "keygen_completed_to_material_sealed": 15,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 92,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 337,
+                "worker_role": "b",
+                "invocation_wall_ms": 1661,
+                "invocation_cpu_ms": 279,
+                "operation": "966f31979984925e6eb19a8b0e6263427660a8733a1c368ffaac0128cf255722",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "57f3f790045861f89915f1ac325f0df45942df41e7294e49cfa2189a0d772c09"
+                },
+                "module_instance": "4f453b236670999e19613812ece37402",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792393957057
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792393957072
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792393957072
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792393957672
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792393959047
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792393959047
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792393959047,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 15,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 600,
+                  "material_installed_to_stock_installed": 1375,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        },
+        {
+          "wallet": 1,
+          "epoch": 2,
+          "operation": "24ee36dd4925052650f46ccb0f4d7b2716ec3e1ebcf991885aae17fc48aaa7f5",
+          "client_ms": 6970.971208000003,
+          "http_ms": 6970.484957999986,
+          "preparation_ms": 88324.234292,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 3963.2421249999898,
+            "operation": [
+              238,
+              184,
+              185,
+              226,
+              249,
+              70,
+              162,
+              237,
+              54,
+              247,
+              253,
+              43,
+              94,
+              4,
+              215,
+              165,
+              109,
+              206,
+              91,
+              58,
+              248,
+              0,
+              200,
+              4,
+              98,
+              25,
+              198,
+              149,
+              1,
+              191,
+              188,
+              156
+            ],
+            "messageHex": "4a7c5864c14468491512838ca9b3550dd10d7c7a9f37bb07c4e2002260fab4f2",
+            "contextHex": "",
+            "signatureHex": "e844774e1c4a2d8f251c51935e2c1b2fe6bea084f38c1fd8eef6b1ab8ac4e2d659463caa13f0e8bd5693a4c26423258ffec897ab627a7178b1ab64dc1f561e49d3731d13ad757175bf97d21d8bd327ff2f1df8fb8acb115faa600824b1bb78244e4ef405a73ff5afdc70905470760e64ec32719defa128b0fda0f318959257ee88cdad5039113ce593963a90b2a9c99e0324edcc785e9b518dc01c541954e759a6c46396928634eb8d0e83431111f4017fa009f81c3290a330ede7948c13a51348b779b1d12ef2da1e8a0e2fbdb48daba1ed1575036da2115592e3cceb745114d4622f45f07916f0a9d92b70bb402cf1d3417d79d817482fd8b783850b1f7ac1c85d9c0c9dc071bcf7033c72f669382a86181ac7115f091491ee71d15c09b59fc49261c8a300a59d52d7a46253a9238aee99ce2bd666ba8b50c4bdb53443322b13c0484f567869b2dc2a20e955884fe3b1da4ed4fe7c3f81a31ff3a3f8087a6424a8c9cc4b091837b3a39958d89057e0af9eb5cc2553f4895dad923111bcb738839427fcb5f2aaac8b675a80fc48cb8b8dcec17f1c87a97a51af5a24c43e6d66fed97cd3788321512035d6d06e96e0169f5119bbf7b3e12d7290a83fb68ccf11cef0ff558412089097353904c4608209c6c778b0b495ff83765e2d3e457d8b34398b39a82ba4e790204d4839264eeb10d3c2957dc674fe3f6c8445a9866a4569baa488519421be18802b95d4ad7c667cd036e7c0cb5233d4c24dc7eeb91df96bdc86fe4bb41f21233c48dd72ff48b35c2879a4c6e48beb1f62c66192528df017a40022e0cc1fe425099b9f3c50f54b728c7f61087f801d1ccf9be41be76387cafb17f4d81c11e8b2475707b295f361e42e5cf89f512826bc9490cc33b85622a76db972bcef38eff0b6fb07553a55548cf00511094e03461ff24c61317a05c85d2d9b301fbd091ad477bd903f7992f23d219d3829ecd212fd35b7d1c4be01360a52a8daab910229a5f2fc900118795acaf54600389d445e7b58ccdde9b32d95f7772a5eefda230cc148755af00c008b8a4a7192bc6865be6aba7af010620656de8566dbf52c7e8b7a8fbb900eb204d44dd4fc9d734def391038f38c15ce76cbad6a6e83227e135678e09542971946f25135ef7d2ab443e737df8edbc9fb8b77a8284316f1e54d880df03e02f6e0d7bce9e443c5d5e844d989341ddbb7f905f98ec604c2d3a43dff6d03151d77727ccf977bbb066a9737ca84e0ab304b5965f9e502f80fdb95e0e3dfbe679102e4f7ab5e4ad417bb8eea897c582ca797f82b97a44b968eedf699cf950cef63a143c263d65d8771a924e5bfc42728c981bb21cd0771f8b1521f836c3d143a504d5d043023fd0e5aa482d4afe76b1d5a4ee661e333f50b02e40498cd1837c5f02b3dabd0330e9f266f617ee11bb9d8569aa874d923c34fbf9f4439500f2e4897dba0ac1d757ec071badc34c0bc0517eef3f95c001b4b0ab6328881d7b1907f4db4b16fad3d720d40da9b4d3103759f86c166271c67ff6c2b0be7f5387c0b94d62114f86cc24560ceef75fe110170760a633b6710f63ffa5d34020bb259179b53502b5232800b3c8f51355aa0dd1b0fb51f11a93e06baa38d0dff0ba87bab348e9b41b081209cd74147879a9e4d6e8c88b80ff3f6acddaffe745e89b01fd9bc2141cacb478ae6c387261c5eb973e187eadfd2b45b5f24b036072b18a2cd2e06505e89f75c324020c7e3f27c2ecc56f682c5eac5ab17c4bb60fde0c44e08eb2057c335baf610d44fe505be27428f776d9313d464b92209421768349709479a1d08b65ccbd39eccad29c7f4469c75df01f5c171c8791219d28c6c20c3d4ad312a3934aa110da9638d639a34ba272bbf1edb1b80d3a52b5bbce81177e9c453732b65c80fe5f07345ebacb3cc06ce4e58adf1e2c7123d5ba299f9bfa08a9dbf7470dcacde87c396b4b265217dfa9d01b84bfd5c16fd5bd253a41181cb6f45acb0c8c66f26943e1fb570239ab7ffd8181d93447eddae764a66376dd0cc89cb16055160208412ff9f06d64a0d519cff2eade4787dde8239eb615b61e4c52d004d9f16cebd085fc54c1201fab9277df8fc06add667408a6a3bb1002d780aa94af1b294921825448516f87d72b2284c37fafb5763f5805568b20adeb813e8b105bc2beaa64f9420e6343bc91abb778862ffa2bcf7b5878857377331339c39530686b01748ddd12da8f48d252c47f306c82614e59bbb5269ab99cca60923998508bef6522e1921760c84225e098437a564e146a3236b78a7a28c756132b3549fb0af768d8ddc63a0a96f4dc4e733310d2639ab82d4eadc6426b7755cc738714be56cae6bd6b5f0324830183200fb114c6de155050dd8b1be37f506bb2af98a074acc3af80f5b9ea94ee2723a6a7bcd07ee1cbf5c58f1ef480884e55733b5ef0b44cbee3dd6beb7acbbaff6f423eba379dd1dcb6a18ebda61aa3d3bfd52a906bbe25d0fb7352cac8ea3913bbdd2d9b12b80ca38586f63989b5cad639c1f2c6b313660c88c9386eaca2d76e1b8760fa8f7bf1e3bfa175791d47668da5f10d7af1f3467b321f65645b08de262103903dedfeb52cedae29fdae61217ad7d43d9a2c1faca33b0d16467c8963b48d7753be80f1b82bacc2e179beb0e95c70649c9f1eb754758137e4b3e5d0bf96b82f6799b92f17e605722be87f57062febd527a900b234dd74a3c00413efd66bd188e77be3ffc2a57faf44a93a3af17433d185a338407e05999f6a63c22f6d07e96b122953959c86cf786277d57ec26661d3603db245d4b0af4b0996be8b7ccb78f49edb17fce5ecfc43e7a80b101a158f22965900c2245160a1ad7a0634b295403c235ac2c784c377fbf5b4a3ba669eaa28cfd0453176240de4834ab17d35dc77d494c3842de13203799f78e3c5698d25167a58b0ee7b0faae4e22753eafc5b18d76d9b6b0463348051f03a77fc5084673e81a89e6ffd403729e2d2e9360e567144f266b23fc63ad8081a29f228b4770e4796d346da9aaa04ff1e7ae0ce6f5ef90a7e046a81552b6df70633234e41f9d53e72a0ed969e2220eac718d7ee269fcc0dc0cddb1a3ad3e6d386d013e8011755991badaf6a519b186a35aff539e61a931ea4dac8e1c7a700e9259f9bf0b72645e463a1e7e305a0a5a093181cc3e75e3cd767034f2d2bf81d228083d9e6f024747f066169a0ac45ca78c48c794319576044edd6a1754f88d2df4064d20ed93b95f09f3e63c2ba94e70c48e1d2b492d262f1db2c32e03cef2ab57766921266783d0080a07ec4b51dd9387c4bfe63d9a04610d933600fda6dc86c3a145eade21414d96feaa80678e02a9bc44ec2f965b8e3836ac9faba9996a42eadbc81ce3522f61887b94846dffafd3dc3274b51bd80ff623b9cf6b3d5bb54bff81bbe83633534f713150570daa79a94a032e2fe2724bca7268df520ea3f36dd9192f4c304c77dd7a30ec3b31e8f1b1a95a596143b5038d640a30040d42c6057eb8a1c64ce64a046e0705e542edbd6da557847f82fcb454c77672aef5208307501e3c522a6c9d863e3f85cad9dee3c5a0dad4ec6af2120fa757afdb9693ef7bd562d2d47ace071bad3b192ffe191ab9bbd15329d7bb30811b28a459c5843e6c1fe74d0483bdf7e361980e33c64d1781b5c127ebc35e2b696439adede3a0254e11973122ff4a3b9ba6efb68d2ce4bc438fa4edf9ba1def4055b46d00e259a172df82d63150dcf68c845fb8ebec1fe4dfc5955cda32afcd91a1d6c842412d7d9f30a04f0573fb6ebced41f42ab97ebaf6e900e40421567d704d485822dba60d92383cd020fba030345b60e2246c2ee0bb1a93ecf5be45952af238a773075508d81059edbb9d2b156c7ccdb2838f53ce57a3bb4a6607341e83dc04c54a8f6ffeed9a8ed1c3c3ca1c9a3454ff3ee87186268fd25664a64bc89f264b0e804dd41f4d834837c15fe03e898c57ddfd1b7ebcf6ed41760ca26ee0145870aaa82bc802208f63beb18cf2667f681b830ba26622ff5ebf42b1d3f39242a54ad7d4a66a542e06e7db95b22b1d865ff5627bcb05e3a024b6dc699a572b0b88a0ba88e7cf2580cb36f80eb2a98604ed501d3112a534b4aa6ffc57912f2f1ff75ebde5beded4d014a4bfae0cbfd9305c591fbe1b6efa9c96c772b952e3feb7e8dba1ed3fafc6558b0b678b4f411d5286c1e66fc30bfcabf972240809318521c84f7a9b9104d28502e18167a085255fe53ab0b33f24ce6d527314f49acd3730e488c263c52973ee66be9b271f3fccd0a1e18f84a1aaa73d79e4495fadae528c7cd2d5340340c86a847b6c19581d14ec3ebdff6b7972ae21e0086a8622e60874004e480b69ab62920db7f621fb0c65b424505429c0e6f127770d8082e188d32372e7b1c7c4131846c9ffacf696c1f464cc342a92f579ba98644496c2bc39e545de248024b0a45ad8347e4ca59dab43f9c532fe96ed539baea429417e36ebf72c1436b84ec73ab51e175f455458e3a9a72f53bd44d8e7515a6d69c30f02f098fd035cca68cbe430223ae54cf8c6b7994028851419ce2ff8942f901f7639860c0e3f5f7375969db5ccf607163946565d9c5c71919cb2f5fe292f3435409ac5318387a9428ae9000000000000000000000000000000000b1219202427"
+          },
+          "public_key_sha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41",
+          "router_records": 1,
+          "router": {
+            "record_index": 1105,
+            "invocation_wall_ms": 6908,
+            "invocation_cpu_ms": 40,
+            "http_request": "edba9756f5f54825622c89953730b29f",
+            "operation": "24ee36dd4925052650f46ccb0f4d7b2716ec3e1ebcf991885aae17fc48aaa7f5",
+            "module_instance": "8e1f20d3b0080c8b71c5ebc935ec714d",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792394052766
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792394052766
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792394052795
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792394056583
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792394057233
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792394059455
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792394059629
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792394059660
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792394059660
+              }
+            ],
+            "log_timestamp_ms": 1792394059660,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 29,
+              "admission_done_to_execution_done": 3788,
+              "execution_done_to_activation_started": 650,
+              "activation_started_to_installation_done": 2222,
+              "installation_done_to_activation_done": 174,
+              "activation_done_to_completion_recorded": 31,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 78,
+                "worker_role": "a",
+                "invocation_wall_ms": 3759,
+                "invocation_cpu_ms": 233,
+                "operation": "24ee36dd4925052650f46ccb0f4d7b2716ec3e1ebcf991885aae17fc48aaa7f5",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "edb4a7309f359ee19a2521ae2567f41642ea3f7cd395880b270c026eca659360"
+                },
+                "module_instance": "5690e245b0169d682e752dada58f1fb6",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394053336
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792394053352
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792394056460
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792394056476
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792394056476
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792394056505
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394056505
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394056505,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 16,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 3108,
+                  "keygen_completed_to_material_sealed": 16,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 29,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 95,
+                "worker_role": "a",
+                "invocation_wall_ms": 1174,
+                "invocation_cpu_ms": 357,
+                "operation": "24ee36dd4925052650f46ccb0f4d7b2716ec3e1ebcf991885aae17fc48aaa7f5",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "edb4a7309f359ee19a2521ae2567f41642ea3f7cd395880b270c026eca659360"
+                },
+                "module_instance": "5690e245b0169d682e752dada58f1fb6",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394057230
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792394057253
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792394057253
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792394057311
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792394058179
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394058179
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394058179,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 23,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 58,
+                  "material_installed_to_stock_installed": 868,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 467,
+                "worker_role": "b",
+                "invocation_wall_ms": 3050,
+                "invocation_cpu_ms": 2484,
+                "operation": "24ee36dd4925052650f46ccb0f4d7b2716ec3e1ebcf991885aae17fc48aaa7f5",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "edb4a7309f359ee19a2521ae2567f41642ea3f7cd395880b270c026eca659360"
+                },
+                "module_instance": "1d4f782b11cfcb6aacd1d2a614631dd4",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394053272
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792394053299
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792394055826
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792394055857
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792394055857
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792394055882
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394055882
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394055882,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 27,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 2527,
+                  "keygen_completed_to_material_sealed": 31,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 25,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 499,
+                "worker_role": "b",
+                "invocation_wall_ms": 2199,
+                "invocation_cpu_ms": 784,
+                "operation": "24ee36dd4925052650f46ccb0f4d7b2716ec3e1ebcf991885aae17fc48aaa7f5",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "edb4a7309f359ee19a2521ae2567f41642ea3f7cd395880b270c026eca659360"
+                },
+                "module_instance": "1d4f782b11cfcb6aacd1d2a614631dd4",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394056951
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792394056976
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792394056976
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792394057533
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792394058912
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394058912
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394058912,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 25,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 557,
+                  "material_installed_to_stock_installed": 1379,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 1,
+          "operation": "f681aefe86ffc27a962c51f2d0f51b4294b8625125f19595b93489681edca3ad",
+          "client_ms": 7888.158041000002,
+          "http_ms": 7885.8840000000055,
+          "preparation_ms": 103172.045042,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 4666.066209000011,
+            "operation": [
+              72,
+              45,
+              255,
+              32,
+              199,
+              119,
+              157,
+              144,
+              255,
+              171,
+              52,
+              178,
+              0,
+              158,
+              220,
+              174,
+              48,
+              14,
+              30,
+              126,
+              250,
+              241,
+              125,
+              172,
+              139,
+              198,
+              173,
+              131,
+              7,
+              156,
+              47,
+              159
+            ],
+            "messageHex": "4a7c5864c14468491512838ca9b3550dd10d7c7a9f37bb07c4e2002260fab4f2",
+            "contextHex": "",
+            "signatureHex": "e5376b8f2d9efdd560f3a8c8d13032ffb875db521bc94eb995dc5eec18c3e0e9cd989bc8e59e816e940fff77e46c4ccdde8038490eecd0a53cf1d4fbc9c5f5af12f35917ce47e908d683533fae5c34c77b477a625c530a474a5d8feb32154b2def3f043d7b0dc826e1268a5f812ad633998451e6bf87d09c6a4bdf150c03b5c65e40d7a7824e297679f54071e25577b5b9397d291a281523ba1bfd5d22dff2f3f310fb1b722a0c2788b4fb5c04c2ecb2bce1ea846d98289a7e8da5ce57f5d997d9c393669ce4cf97df021396844cde66d58f1e19e483671f44fc1d7f85491b0e71882263465fde4211ef368f26bb911a9613a9d6b0c09ce1f118bca709a3655dee3dfac6e4dbc6aaba9d44e3aa517b0d98c7d8dc8437f244e01f303b5d879d6c8a36bfc8ac3fc49175b4906cb4879a9f4d53bdc0823ba1737dffa2a411afd5b91b1ded8379537f0a3b0a1bfe3e6ed6b5aedf3597f9ab4ef7c6816bd91214dd9e6dc00bd8e078e15ba3abc39e1bf84cce4c489d66d5626c284d4d712ad4fde51d6e8eb6d0d549bb22b5b3006f4b72a9b036873508be92392a8e8822a4ea96fe6011a6575878b9958bc9bca8ae28331fcdabbea4ebff068d41b9b33ac771290887c961bc6c4434650a9abc441038703a796ba7d7ff81b4b4d472acf4cefe5d7a40532a476ea9113a5d5414ebc70edd13a932bdc32c032674908919a691ab606ab810e26bcadb5eed2429418a860b336cf3002d771bdd600126920bbe9d162e162bfeecb5f7ffbc0912666b9f40713672135573edfb2ac18ae5e823129f87af8467e2d30399e24e385639aabc72db19791701765099befdb4a8196404c56f033830e68b6bbdbab95e7f630d815751bc56cffca514cb76db86ba19f7a1d6e0f4efac3aeffe1a6df347c73589ddb22e74f3354d996799d962041404217538f0645ccc4a0add22b16fb650f773a53bcd7d5e8e421ff1ff02325f7cacf131de82e603d30074de4d2ae3524a9d282fdbc5e571e86c261b7f02329930bd10de2373d6d0de6c68e6857a18448aad45b4d441246a9a651c61ec48d204bae93ff526215f4c2720640f472f76c695827d2a2f4ee027383a7ebc28f71f584b79b80be170d187fde661ef489486cee307961baa0f05ad50cd9e7dd618ca823606110027b2141ce92c854d71bf7f0c3a6df40ff71990882d99aea1135078799b5a5e0d1993e3d1f17bf7cfd8e78337cc414903f1f30166f055e8d0970358058c456f32bfdcddb5803cfda4c27d039756829d276c3f917e43552d09996f0cefca6ba41439281bd088eec9855e66b082165ab0aa22b85ed2682d9b2c369092743f74f6bce0a5893641ae3d0240cfa35df7b5550b19486f83960b05e85da60d7bcbcd9c1265e2524549d880084dff812e8c1022b63df22dfb6c924b9d1d07f2c343196c400d256e340233991a67dffcc76016a3c205b4aeca0c7a7f76981b4e444ef87c4e9c8e9c6e3610e03ff264342297f5d0fa296010de55fc53fa838444a1a9d69af1f4198ccae9de693fbe10fc0ead93fa4c50bc04c475c1c32a180ec0c0956413e8d033c0e0f923c92cbc85c670fae6d3ae8080e355e1f88c058af04032ce75e0dc606970317273d433ac7a9f50963b790278ad11b4b7897bfb5bcbb98e047fab514cbe377f1caf85048e8b054f33c89286c7246a13be130d764b07efd122b94150fcd05df396e5bca9a1ec978aea0c9fee15e5547021e491704c5ac7115615e2d6d18fa884db74c956c8bb80b68acfb9dd0b06ac5cd013ee70302a548002eb20a72eb5c41424177217e56df1eb5c9dc06fbcefb30b9ab073d29ed73bdf134abf3e850acd78c820276f48aaaf833b6ef16fea1ac6396082412a0ae6a33a824ddf910da5453c86007f71af604126fb8ac8ca05e481ce7c75684c4fc7ceb9ad015df46e7a31c7be8b469347a7ebae45dcbd2fc09cc5ec930f176b36effebb96f3ecfce9784ea9c8e0508f31a4b6858adc82a332e26d3df73ae01c8dddf1478a314b273d46a0438132b23dbe70ba742e0ed418e43f1e1e09e9b9da38b1916eb2b9b72e869473bfb6766f7357489c9d1bca7ca9d6557e17cb895fc5a1a5f79665704d22536568af6adb366c2498d0d94f28988bad11f7ff8f118b04452f3cb207e4859fa7449bd8a8a9d6ce50db4da52d038c6e88b44cb8bfdd4ca0912905b309db3819306c44f63e860e0451c69605bff104bb896d124dd9ac9b3ef5405f1d1d99883c73d99d73bc545344fbd370eb3076e799ce7e29165f2e11499a3d3108ff33f2904db14a8b35a5c651faccba988e3e201afcbf58379405865015d2a55f6edd219c8b7235dbfeaa00f6c60b1421f7c2d91629d993f28b9d9d0eb4bd99bb394d1fc43b92c04627703a6cf0718cafa9a08306c07081193a0539e9d088f38e3cc1c1629fab1405dd4824ecbbfa21fd2d89e79579fbe1f3d7e4e65a25618390a6a2ed12875b7150dac8fc22cf5c530e5716572b454e262c64f4d9f4ee640351e8b0a7607601f7cf72c817895359de3307ac6b57428b28934ba7d3cb683a69c54c0bec39cef3c1898a288ddb300c3db9dc0a8154fdf30b8e304208b1ce7688021c28f6ee60e3b8f386ad7302384e3101825f93e83611568f8cbf7af6de3e10e30a35409c36659af467cfe29f6e2027f7c05e7ed8854a591253df015ef57fc0d7aac3abd0ea61fd71ec72f4e7c86dfbc9b9474d34d5b046832ef520142236c40a4681919da10fac649a63fe0182b83bdf692c6f0794f75493dd1b0ec755e865e65fe52a36c34fcb487507c75b72839aef14a2cc18de9697c18c2f64f66a01536d6d1865527365247c5c69b883397aee01c830d2205d79b54bbaf7d7bf4ba084016ae7623e858987ce550fe804afbed8ab528195a7c99198c07963fcf2d102b5371faa97cce08c97188783cc2f17bef017cea562138e2ed788fccee79f3aae8d6c43c8bafa416e07c29a303dc2a00b9d8ccb072de74a196415422989abc0ffdfb04f9133372f1d3d4440d7d22f1e429fbc7260edd4846b200ed80171b677bb597935705b475933968334bf97b1521c844cb55e577579179d25d829e86406ff5f9bc9dd2c482deaba0db24aad2e5a5ec5f3c335579bd140833abb176635fe2f65fdc3ac0aaf5e765da10b4936f35c050c0b3773313ba8249fefd0c10043c5b03a82a60d3bf501c1fb480586feabd485e2a9199241057bccbcc1b5ba320207f6233447a68f2fcf8737eb1cad697daf02f3a53c29d0afb86f4f3ad75ab4ef87c6a01d5d24c318b5b1b59abe0f809187ee9fc7e1baebd13f9a10ab57402deb56e748751d5a8de621d931896bbe29a77cf18e02de2d45c6ae3f3e9dc79a7b5a9d9778bd89da8d4e495f41f6904dd63dc9303e8034cedd9049f924d247e890a34af6aa4954ae0711f341446b333b2c327ec25ed30bd733a6fde0554c6208f2461577badb76e707479a38752f9180c1610502be93766c7dabced381d53eef51967a7589de288e82e910d049d3c83da81412a0d0db367a53412cacb6b87b655852bf2b28dbbaa93a533cd00fcab5cdba38e9106f3ec9049d4cfcef8150e8396343b2b33a01119f5fa3c7ea454062cd405c07f0943f5e66d09615220d2cc1f01a4266d14d25df145a01d7949527e447a041955a83e2d1110a394b956486dff160261d2df4206a367c471316c69f52297a65360a5abce1a4c9c9e4ac3aa5eb314f20c09b71fe0f681ff46da95dc00fc23ba202eeaabc9138135fc4b74b7f0060b68425822ae34279a9c2a8dd0a2577c95532d581feb7bb77790b729a0b5ffb1995a535c6cef34d7361788468f8fe81e98cc5509a5da9e526ea75bb6a80c052a8e0b3ebae94018fb8c19847148fb84669d05e630540b4923f88c56ee5631a0aac2029d95548553191a0b054345b9d70ba16f0963a4807e9ef42cb7c0da960b5bca65efe664bbee96a9a9ccf235a95b84621a63c1e620e6d36d4475f2c98c8bb5aa3f861cbac6dc316d870f1e26bddd48d4ffce337705d8e06bc3293a96e0bd76168c85555130121c2c8a72d9a273f0069c0047183d1d222203409b5eda0aa1d42165510ce5256942b1741bbcf3c073a691878477baffb144f1c6c11527fdf7c50253eba880ec9de9bd37ab83fe6081bf99f3a99aa4a41400f69b2d240ae8e71accdec63a190a63206c618875c3e4d8af4b4fc1fedd88abfe3c630681a61399f7691785b2cf77da7071f9a391919eb08b8451a0063f2c85f5d5a6bd6a62f60a70e6661134ec495425ced9b466568084e76fec9e970f0dc0ec5e6d9cc7699eb11897abcb487367f1b965ea88ea162c16c5b33e21d420b1245116b2cee0bad2f53b04b9c1fc9a73d65bd96fe7e849cc748458d2b1a3228c25ed336a4157183067c963162e6e1616fdbcc810eb57792743de256eea1600250dc730b27975d7f16327a0e59035f5d2a1e7fe1df04ff47601b59d5c1d383bc8e88a0758ebe667aa392336049d87f9a92b1f0f8324db436e95ece61dbf426bb6e87acc55d9969e5af67eacd9b2c8f43775e6369b305fc3c3a452b47080b026d2d9d09e3cffbf212282d22264489d3e9dbee0c1b50bdd1d6fc6db7c11d2048b5bcc7db1d970000000000000000000000000000000000000000000000000000000006080f12191b"
+          },
+          "public_key_sha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad",
+          "router_records": 1,
+          "router": {
+            "record_index": 1196,
+            "invocation_wall_ms": 7795,
+            "invocation_cpu_ms": 36,
+            "http_request": "120cf374b7b8bc49fadfa15a85d219d8",
+            "operation": "f681aefe86ffc27a962c51f2d0f51b4294b8625125f19595b93489681edca3ad",
+            "module_instance": "17d6af7d145de14acf0fb10c37a85a4d",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792394167676
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792394167676
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792394167823
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792394172618
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792394172755
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792394175225
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792394175407
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792394175446
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792394175446
+              }
+            ],
+            "log_timestamp_ms": 1792394175446,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 147,
+              "admission_done_to_execution_done": 4795,
+              "execution_done_to_activation_started": 137,
+              "activation_started_to_installation_done": 2470,
+              "installation_done_to_activation_done": 182,
+              "activation_done_to_completion_recorded": 39,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 147,
+                "worker_role": "a",
+                "invocation_wall_ms": 4170,
+                "invocation_cpu_ms": 234,
+                "operation": "f681aefe86ffc27a962c51f2d0f51b4294b8625125f19595b93489681edca3ad",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "8dcd9a01cae34a01adc7ee76319e976105f29866aa2df772eb01b443d0d47caf"
+                },
+                "module_instance": "ea14ad7a472b173fdc12368d724baaed",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394168823
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792394168833
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792394172519
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792394172527
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792394172527
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792394172550
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394172550
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394172550,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 10,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 3686,
+                  "keygen_completed_to_material_sealed": 8,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 23,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 174,
+                "worker_role": "a",
+                "invocation_wall_ms": 1525,
+                "invocation_cpu_ms": 316,
+                "operation": "f681aefe86ffc27a962c51f2d0f51b4294b8625125f19595b93489681edca3ad",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "8dcd9a01cae34a01adc7ee76319e976105f29866aa2df772eb01b443d0d47caf"
+                },
+                "module_instance": "ea14ad7a472b173fdc12368d724baaed",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394172752
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792394172768
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792394172768
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792394173177
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792394174079
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394174079
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394174079,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 16,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 409,
+                  "material_installed_to_stock_installed": 902,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 663,
+                "worker_role": "b",
+                "invocation_wall_ms": 3766,
+                "invocation_cpu_ms": 3019,
+                "operation": "f681aefe86ffc27a962c51f2d0f51b4294b8625125f19595b93489681edca3ad",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "8dcd9a01cae34a01adc7ee76319e976105f29866aa2df772eb01b443d0d47caf"
+                },
+                "module_instance": "451b0f8efa1acdd5a6f7b445b3753fff",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394168772
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792394168787
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792394172250
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792394172278
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792394172278
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792394172298
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394172298
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394172298,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 15,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 3463,
+                  "keygen_completed_to_material_sealed": 28,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 20,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 697,
+                "worker_role": "b",
+                "invocation_wall_ms": 2034,
+                "invocation_cpu_ms": 745,
+                "operation": "f681aefe86ffc27a962c51f2d0f51b4294b8625125f19595b93489681edca3ad",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "8dcd9a01cae34a01adc7ee76319e976105f29866aa2df772eb01b443d0d47caf"
+                },
+                "module_instance": "451b0f8efa1acdd5a6f7b445b3753fff",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394173054
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792394173072
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792394173072
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792394173385
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792394174749
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394174749
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394174749,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 18,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 313,
+                  "material_installed_to_stock_installed": 1364,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 2,
+          "operation": "6d2fba785e43828ee49e934cf37c2efe4097d12fa6bb324486517d21231d4724",
+          "client_ms": 7094.4513330000045,
+          "http_ms": 7093.8257080000185,
+          "preparation_ms": 86554.81129200001,
+          "under_five_seconds": false,
+          "canonical_key_verified": true,
+          "initial_signing_batches": 8,
+          "initial_stock_signature": {
+            "verified": true,
+            "elapsedMs": 8480.089666999993,
+            "operation": [
+              251,
+              236,
+              117,
+              155,
+              72,
+              199,
+              23,
+              7,
+              195,
+              226,
+              56,
+              131,
+              132,
+              74,
+              73,
+              202,
+              186,
+              230,
+              192,
+              16,
+              146,
+              162,
+              209,
+              240,
+              89,
+              129,
+              108,
+              136,
+              227,
+              157,
+              196,
+              248
+            ],
+            "messageHex": "4a7c5864c14468491512838ca9b3550dd10d7c7a9f37bb07c4e2002260fab4f2",
+            "contextHex": "",
+            "signatureHex": "c2218d06cb51176fcc5331451660fa5868f225d768d55154cb3e386a5ff374491d9e3e625e60bf4b743645cb53629dae64a98c5712dfc95734965214dccec94b5186f06f30b1119ddcacb1fb4fbe85c95002b66bcd0cb107ccb6628d5664705a01a063596fe0a9f774fc31e4d0828308d6bb563ec09a3fabdf8b555703e315c2d7a945af3612cd1f066f5b728becc9f1d816c97ee775301b4466130db09ae8b9fd91e5453acd52795bab1e08adcc9fb42cadefb813a6804e300affb261754f6b9dd9d6816c4d06de4b47b91898b2427d4a37da9bfb9d316192bb756b20506f9c73a96a77e6cc391757c5f052fca1f93edfa2ae37994fb1046616b8807d676da08186a608affe242dd5f25eb6b7be3917f3291f95816f4cb11c1d7e4168e14aafff944544df2b80f8f01c079ff1ec25ec2fd1e066834083c0b249fbb05ee0fc5de997eebb1002c64eb57eb3faf0040a8f272996b5681392a963fd488c31e2db1727252a9f482a7a200eba4f05cf72add93a8b5c3757fb25db52271c6405d2fb179ef05f5aa32093271d033e2829ea3402c7c98c23fda5f033fc3709e296da37767ff03828b16f7e42859c46a52a600f7b14384fce4ce0bbf5f715970f4a75e3c76b4e835dd31ecd9bb2802687fac5e3888af02dddad6fbc8d1ef25de76d2f6c4f43c4cda3488c059c5b54aeee367bc90e16fcdd7134ae8fe21cbd70c13a9c8f5a7c7e4e4dfb8183beca9bd4e4f6003736d09272abceb51ac19bc4736d9518473dddc1fb872c675e306f3dc4ff68ecb3460b0863d37fc44a0049d0c202274f0ed5a60b2e4b3b939780ed042f7113dd91a2b8c7dcfe63b533ddcd1c9d0a96d9a4bdc29ba79176f4325928399913fa3246a41165a50623fee2b7e34c99495f6d87c86b7ac08288da0e5fa3877bef6c8a662033079ffc810773ca7425160d32f45edf3ba55f4b64bf69f1a5b256d73b363cf136ed28e18cbc5f64469662348d72c6a05305d2d7e03176633f30e451a83706799311c0f0774ccb549e5c6f6757a9349bff06a452a9c77f6a3aaeabaeb021b827f0559202f328317d486a03de4237ed0ece2791d1465a30519cee7698d67000e01b6dca2c3597ad681df09ccedc1f63952e53f21df853bffb4d5c49917a2f779dab5eb65bc5d3fe2a6471471bbc96723171c187c9883140b386ba0b9da055ce8f4dc505ccfd9d2296dd8f133b7366a600126e89f5a68d4940dfdd34e4c1a641d4b74b603f2e89b0fe59a6a1033591d5c2d5eac0e58f92bbf8d7d62b7229347838b01bc7432545f62d58698c8c95ba70e0c1d2fd37c31a8f8a02978542c7c5ad27a12722b63b05e104babccaa110a7bb0cd9fb55cca298ec251d56a76240a4d8cf3c0867bd99f4840fa5ade603c8145d89ba5aea105624ca1e3a5b17d75f40464a7abb87e196dfbe3857cebc3ed114cde747536716ba385c5f98125ce6d6a42128b2a30dbf46905989222c563df73a0bb9b0e0dadfea5ea9a9dcb19d1e892dd3b40e441c834ccd2631ac098e6ea963c7f9d5ec8f6b534d1a7ac50c7e5e4ad56aba7cb721a7e9eba768c6844f18e537ddf52c6342d19dc911c1d0ae2c0dcdfde70eb29c83293d1bf16c91b6973dc6704b231113a17fc763c2fd567e14c60d3692fb82aafe960e3a200240a0b595fd909496f26edabc15ac47be686780e0c91639b14e9d2301700cbfb350f1da1472eb5fc9ad3a22293d416f0009ffefe5c383425f016b910b1b222ace76aa54c8d09be5bf615a60a73e85a99b1aa8506c92b56d182b2180ac0547a94b83ff9c9e5b684377432467b85ec3450c271c1c9f12817e66ea4bac262ab1f71a50468510b38d8bb445a3ba5ac45bf0fa37a62ccd53bf48e193915c3a53511fd7212ad908ea56aed9d6369311e3bee850fab31156388aa4be29f6dabef5b4170c3031d5a7b908473d5732fe2e18d63e5a5c1da09b9a636a10ccd58294dc22bb047db3a81c52e41557deffb405a4ff8537a820b913ef581876c65e16fd338dcf0e85356086ea6cfcba8b6437e2ac4f9b4ed70fba3c3e3947cd31482d37b0d64d84cd4f76a5a4ab77ff852eda2e880957fcefa8807b935829d6d9bc5cdb8121f202d543ee5334a85c706b644ae59799ace6fe17cd7f41329f9248538d88c1e31e374db891faae91889b4c1c10322af5d55b7ddec290c472d466c49e1a9e55a15921bd27c443a8fdcf048a43a77ef61199ca51829ff4cc0fedc9b8d1271c191eca1ae2c9712a4382f5892b29a4cb8eb4e0cfb87790c6cc07f5f08a32f255227c2544555b7824439fee1987eab11ca4133f4f9dce8016eac7816611ca8cf783cb0816664b4355e576abde092cb688eb61361397f9d6ab24ca3b9dd8618866f2f2a9aa6edbc19599ae282ed28d773f93704ec4e52d3f6a04771ed89877745c636d3958490b21ee613c021d4fc8dabc0ba2de1687407d8b80ff875ff1ced50b0934daa423d05edd1d4682f861cdfcc1ae8716f58e3efc1f53e6dd4676a79b23815e8176bbf5e4c2f8c8718405f0ccc919c57041597130fc24f5ade37a8b7b7a5ca1cf15e5ab7ee280814d4550e65fd3d0818dc10857f4bea8a8c1581dbca6daf01a5e1f6b244e7a16caa3786ad734d4354368f48cab414507d76941ed70d49f374c559583e496f23624565ccad29cdd81a509545414673cd95adf4a5d19d3e10bb2d9f886b16b0d015346ac563078e65ae97b45bd14179a2af82e3527089428497cba10011d18b0f00c38b05ca335c84f14fb6f43532be88dd38fd2080b17db91e4a8bfe2d6d8b2557ceb43d6298874f13498c65e51fb3713e869f6a6cb20032fe70113b6b6c799d0f186372dcdf99f66c6c8fca4e4fadc37560c7d1559cfcbafc248d21c7dab4fe6c81b43d9ad0c4a8995ce0dfee07a062c11ea508225db42a075ebd96c8542166fbd2edf7605f96d8d3b185253aed7a59febe9258180a278d19baa58122017f84b2812af295005582e2af85e537e1fb4f794e750d80dda5e38df94460724370c281439d3b0a2efc8afc2ef9f17c714fd5226d4921eb4b65fa0b9b60be2970330dc2b1ca487aaa4f451737998377c03276608ff3c7a06a444135866a3358b32e236399b40053dd2f649751917aea4905b61fbda7babb90f484106e1efdb42f91a8a99ee1c101444d0ffe2c886a376043f76c08291acc1f6851fc9043cad0be2d360f58273c4d11122ad292e0079e85603bc7e936b903c39e5235ebb84ffa9265d9aab97d9c486b1ea19ae4fa26193b9fbc60f9f9c9b8a224f2085c5c81d893feef18f9ca971f9e47e8069b1902edecb04e8e686dec833dda96c596bbbb68b31421c3906e6ee75ef5df832e69ef274faa1a5b052310f3af258380c812ed624e5820bedf99d5f3fc4c3c40ff8f08865b08ef1ab22d1b8ee85ba9b8324b4f4336fe5cb5bbfbbfda393533f6e217cc2ef35e664341d8c714a6df6d0c017e5ebd88e2ccde418c3a8dbf3f96f91a5cc72bea44fbcd0b3a8c4d3fb47767bb995436a636abf1229c78e5519a3614c12fcf457279abf211d8594b80dc16de7a83513dc682f5c92c6ff1076279881a4bb6941e96074b4f241a077bc9bb2d7a21511dacb51fdecdf5ba233d6ed64fb46aed4118769c67ae0f72541bf3cdb533e8029fc844276276609f2de8ecad2a54570e304c8c950d80b2138443150d4819af28a0f3745c8838c7195ae46dd25cc667fb2f0f88d00ffcd0acb6e443119ae1254fb657413458c00bb87a64f211626bc0a60a5c102b01c11306d030834839fc6d3263d84718c3b4b740d49fa888d2b9787b706f9d0565a4183b630b03b4872873cff2128cd8e9b413c42f9630e3c64433cf87607d41b84b363e5f6aaa0c7b8f8b7611fae039f4e564d7d52b31c55e2ba40fd881224cfbc0baf7ea3ef6e4c78673d365e43c3372684933ebcf9a4b9609c344b4b58c7972a5d7dd20a8f04f517cf68274cdaa5e616d9e7af683da1aad344ea5ce06083b9eecdd8fc2ebe86180ce8afbf47d8596ff118df4917be5640891a563e04d13d9902fccedb3405323f3e7bfd9d4e258911f38ae3336e5ab65d5126083ffd7f4c95dcf80f47f53037ee36a6e6807fe03cca0e2922d98ccb2679aa17e2e45feb952835b047a78bda519a4898a6a8a7fce6f99071b5d9e8197a24a627d65c78692a212b0fd10106a0d18d4d853a102b326f3b5e857bf56ac3bb7970e36fabf0ddeb7849bab9249df3c2fc6833a00de22b7086571c98a5317d439dd09754e6085d354d7c55208b51fee2792501768745f29f23cfdc5ea07dae747e519490d0e4e7cd677d207ad1077a89fb6c9329520f260cb28c761a948e694ef5fa3a366610f8c61b7dea9201028f0c0732247c77df0ae4ac14790f952ff5dfeff7ad321c42fbb4e164f74b35a73ef3e1be75dab60b3cbc7ae528da1f4280820d4b0c4350fff7ca9a39487246c57d329b3b544905f823317306c7123c66625d13eafdd3b965fea568ea1f248aafd54ef17863d1840dcbee1df9115ad0d755fd5b27db7f316b575707b572a27d74d4d5fa5c86d0044e68db078a06acf02edefb6c65b364010a2aa0132b63b51e539ddcfa4d5178adcd647accec03070d5a757a8e96c4f0f1f7040512262b93b6def7fb61819fc0f200000000000000000000000000000004090d192328"
+          },
+          "public_key_sha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad",
+          "router_records": 1,
+          "router": {
+            "record_index": 1277,
+            "invocation_wall_ms": 7040,
+            "invocation_cpu_ms": 31,
+            "http_request": "e1d993e28ac69b92783d49f99719bd02",
+            "operation": "6d2fba785e43828ee49e934cf37c2efe4097d12fa6bb324486517d21231d4724",
+            "module_instance": "60947f2777ec10414e32d9d4d2b819e1",
+            "status": 200,
+            "milestones": [
+              {
+                "stage": "entered",
+                "at_ms": 1792394266997
+              },
+              {
+                "stage": "decoded",
+                "at_ms": 1792394266997
+              },
+              {
+                "stage": "admission_done",
+                "at_ms": 1792394267027
+              },
+              {
+                "stage": "execution_done",
+                "at_ms": 1792394270991
+              },
+              {
+                "stage": "activation_started",
+                "at_ms": 1792394271768
+              },
+              {
+                "stage": "installation_done",
+                "at_ms": 1792394273559
+              },
+              {
+                "stage": "activation_done",
+                "at_ms": 1792394273725
+              },
+              {
+                "stage": "completion_recorded",
+                "at_ms": 1792394274027
+              },
+              {
+                "stage": "response_ready",
+                "at_ms": 1792394274027
+              }
+            ],
+            "log_timestamp_ms": 1792394274027,
+            "service_clock_spans_ms": {
+              "entered_to_decoded": 0,
+              "decoded_to_admission_done": 30,
+              "admission_done_to_execution_done": 3964,
+              "execution_done_to_activation_started": 777,
+              "activation_started_to_installation_done": 1791,
+              "installation_done_to_activation_done": 166,
+              "activation_done_to_completion_recorded": 302,
+              "completion_recorded_to_response_ready": 0
+            }
+          },
+          "roles": {
+            "a": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 232,
+                "worker_role": "a",
+                "invocation_wall_ms": 3933,
+                "invocation_cpu_ms": 386,
+                "operation": "6d2fba785e43828ee49e934cf37c2efe4097d12fa6bb324486517d21231d4724",
+                "role": "a",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "0aa59d9ead197d79cc1a057ccfdd8a27ccedcd58db63c55ae3d9ecf9bb75b876"
+                },
+                "module_instance": "66c65187fa959e14cdf1ad982ded7ad8",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394266458
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792394266480
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792394270803
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792394270855
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792394270855
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792394270871
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394270871
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394270871,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 22,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 4323,
+                  "keygen_completed_to_material_sealed": 52,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 16,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": [
+                  "prepared_restored_to_keygen_completed"
+                ]
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 255,
+                "worker_role": "a",
+                "invocation_wall_ms": 1759,
+                "invocation_cpu_ms": 562,
+                "operation": "6d2fba785e43828ee49e934cf37c2efe4097d12fa6bb324486517d21231d4724",
+                "role": "a",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "0aa59d9ead197d79cc1a057ccfdd8a27ccedcd58db63c55ae3d9ecf9bb75b876"
+                },
+                "module_instance": "66c65187fa959e14cdf1ad982ded7ad8",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394271767
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792394271790
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792394271790
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792394271848
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792394273235
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394273235
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394273235,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 23,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 58,
+                  "material_installed_to_stock_installed": 1387,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            },
+            "b": {
+              "execution_records": 1,
+              "execution": {
+                "record_index": 821,
+                "worker_role": "b",
+                "invocation_wall_ms": 3885,
+                "invocation_cpu_ms": 2295,
+                "operation": "6d2fba785e43828ee49e934cf37c2efe4097d12fa6bb324486517d21231d4724",
+                "role": "b",
+                "context": {
+                  "kind": "registration_execute",
+                  "job": "0aa59d9ead197d79cc1a057ccfdd8a27ccedcd58db63c55ae3d9ecf9bb75b876"
+                },
+                "module_instance": "8095b063b66460b96e13b1a404efcfb3",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394266689
+                  },
+                  {
+                    "stage": "authorized",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "schedules_loaded",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "execution_reserved",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "adapter_ready",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "input_opened",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "prepared_consumed",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "prepared_opened",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "prepared_restored",
+                    "at_ms": 1792394266705
+                  },
+                  {
+                    "stage": "keygen_completed",
+                    "at_ms": 1792394270565
+                  },
+                  {
+                    "stage": "material_sealed",
+                    "at_ms": 1792394270657
+                  },
+                  {
+                    "stage": "material_persisted",
+                    "at_ms": 1792394270657
+                  },
+                  {
+                    "stage": "result_exchanged",
+                    "at_ms": 1792394270678
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394270678
+                  }
+                ],
+                "table_reads": {
+                  "count": 24,
+                  "measured": 24,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394270678,
+                "service_clock_spans_ms": {
+                  "started_to_authorized": 16,
+                  "authorized_to_schedules_loaded": 0,
+                  "schedules_loaded_to_execution_reserved": 0,
+                  "execution_reserved_to_adapter_ready": 0,
+                  "adapter_ready_to_input_opened": 0,
+                  "input_opened_to_prepared_consumed": 0,
+                  "prepared_consumed_to_prepared_opened": 0,
+                  "prepared_opened_to_prepared_restored": 0,
+                  "prepared_restored_to_keygen_completed": 3860,
+                  "keygen_completed_to_material_sealed": 92,
+                  "material_sealed_to_material_persisted": 0,
+                  "material_persisted_to_result_exchanged": 21,
+                  "result_exchanged_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "installation_records": 1,
+              "installation": {
+                "record_index": 858,
+                "worker_role": "b",
+                "invocation_wall_ms": 1309,
+                "invocation_cpu_ms": 331,
+                "operation": "6d2fba785e43828ee49e934cf37c2efe4097d12fa6bb324486517d21231d4724",
+                "role": "b",
+                "context": {
+                  "kind": "registration_install",
+                  "job": "0aa59d9ead197d79cc1a057ccfdd8a27ccedcd58db63c55ae3d9ecf9bb75b876"
+                },
+                "module_instance": "8095b063b66460b96e13b1a404efcfb3",
+                "completed": true,
+                "marks": [
+                  {
+                    "stage": "started",
+                    "at_ms": 1792394272017
+                  },
+                  {
+                    "stage": "installation_checked",
+                    "at_ms": 1792394272038
+                  },
+                  {
+                    "stage": "material_loaded",
+                    "at_ms": 1792394272038
+                  },
+                  {
+                    "stage": "material_installed",
+                    "at_ms": 1792394272109
+                  },
+                  {
+                    "stage": "stock_installed",
+                    "at_ms": 1792394273152
+                  },
+                  {
+                    "stage": "completed",
+                    "at_ms": 1792394273152
+                  }
+                ],
+                "table_reads": {
+                  "count": 0,
+                  "measured": 0,
+                  "elapsed_ms": 0,
+                  "maximum_ms": 0
+                },
+                "log_timestamp_ms": 1792394273152,
+                "service_clock_spans_ms": {
+                  "started_to_installation_checked": 21,
+                  "installation_checked_to_material_loaded": 0,
+                  "material_loaded_to_material_installed": 71,
+                  "material_installed_to_stock_installed": 1043,
+                  "stock_installed_to_completed": 0
+                },
+                "clock_spans_exceeding_invocation_wall": []
+              },
+              "stock_records": 8,
+              "all_ordinals_once_completed": true
+            }
+          }
+        }
+      ],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "full_reserve": [
+        {
+          "key": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad",
+          "epoch": 2,
+          "ready_a": [
+            "a98bd79b01028a270f9a896339df90b4bc32df4fbd40ad8d348cec770b3834fb",
+            "8615cb42221557d53de8e277335f0fa9021f8d986e2fcd12cee37298c3245397",
+            "86122d66e2e8dbb897f96c5721d9b4647a719c2d65c919df74ee202e6337a907",
+            "13221e2604fe2498f80e31f001053a71bd7dbf503f38431eed1592c720116c0d",
+            "8e7b5305b164224a795d99b6ce5ade0bf35fbce450d332de9eb60ee0e5bf7a1b",
+            "02d520c517ce1ebc92d467b1239eda4a2a5750078f2918f1769be82fa9363714",
+            "fb1572e88fd4a8f4b13463590ee631494ad321f3e5a3243032df025efab30fb4",
+            "aa5c603c9b8845cd07cf7db7489fbf4ca58c60fe426be8013a47f902eb0edebc",
+            "2ef5036e1d175074215410fa1a5ca8da265045f470ae129a9b5492e6362fc705",
+            "e9854532bbd08d388ad74ae5899ceacb7afa6f56cd2965bf3deade06d5de84be",
+            "dbd30d8bd0d3101520574fa38a1935549f3015136dbd446d86483bc878b64f0e",
+            "a1479fdcbd0c2e8a3b0ec7896d67f5cc891f88d3ca33447d2f3a6b95f26b40f1",
+            "e19afb719d1ba23b3b6ff94541a26af267af7efd120e60d37707bfcf73bd3817",
+            "132ca04846931e4cdd6680bc85e603678c9f51422695c6789e2d0598463b02f3",
+            "927f946139ada62bb82dd8ddae0aeb6472312e72bd7d9de756a4b78b24aaaedb",
+            "7954b141de9ab8af335fa286d2dfa96d116afeb99c4a64e462872d317cf5155b"
+          ],
+          "ready_b": [
+            "a98bd79b01028a270f9a896339df90b4bc32df4fbd40ad8d348cec770b3834fb",
+            "8615cb42221557d53de8e277335f0fa9021f8d986e2fcd12cee37298c3245397",
+            "86122d66e2e8dbb897f96c5721d9b4647a719c2d65c919df74ee202e6337a907",
+            "13221e2604fe2498f80e31f001053a71bd7dbf503f38431eed1592c720116c0d",
+            "8e7b5305b164224a795d99b6ce5ade0bf35fbce450d332de9eb60ee0e5bf7a1b",
+            "02d520c517ce1ebc92d467b1239eda4a2a5750078f2918f1769be82fa9363714",
+            "fb1572e88fd4a8f4b13463590ee631494ad321f3e5a3243032df025efab30fb4",
+            "aa5c603c9b8845cd07cf7db7489fbf4ca58c60fe426be8013a47f902eb0edebc",
+            "2ef5036e1d175074215410fa1a5ca8da265045f470ae129a9b5492e6362fc705",
+            "e9854532bbd08d388ad74ae5899ceacb7afa6f56cd2965bf3deade06d5de84be",
+            "dbd30d8bd0d3101520574fa38a1935549f3015136dbd446d86483bc878b64f0e",
+            "a1479fdcbd0c2e8a3b0ec7896d67f5cc891f88d3ca33447d2f3a6b95f26b40f1",
+            "e19afb719d1ba23b3b6ff94541a26af267af7efd120e60d37707bfcf73bd3817",
+            "132ca04846931e4cdd6680bc85e603678c9f51422695c6789e2d0598463b02f3",
+            "927f946139ada62bb82dd8ddae0aeb6472312e72bd7d9de756a4b78b24aaaedb",
+            "7954b141de9ab8af335fa286d2dfa96d116afeb99c4a64e462872d317cf5155b"
+          ],
+          "reserved_a": [],
+          "reserved_b": [],
+          "log_timestamp_ms": 1792394360000
+        },
+        {
+          "key": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41",
+          "epoch": 2,
+          "ready_a": [
+            "a865203631c90069b8ac7c2da626c9e0d8a86fb5929f1c41ab3ad13cf837c030",
+            "6c54b776bfaace33eb9036cb29e49d3d621308c433c66f49b74c9d418e68f108",
+            "ec7474c635c38a8d8fad09363cd51903642fd64f0e7019ddf17c7490a77db871",
+            "35151a36ad91b89030caec4bbbd9c2137027ee8306d838d2f775bac90cfd2b6a",
+            "d30a6d835f5ab895d5157b223477a57de87c2537ad76c23af036b6364cbdc37e",
+            "288b30d3770b37c34b3078b852f42ed3ac022890d73967027b5b48ac3793375c",
+            "c99a50412c166756d6f4e7b0ceb86d49fca89706acbb9118f6632070ceb08c7a",
+            "83bdaf4b00c2f07fb364ec0df6f70a01c0e14da4e23fa9aa1f0f9e110bfcfad8",
+            "6475494d66c0aa43e226a822062075fee2d2ba199037c2b6fd77e7a588ac4521",
+            "100f5294e52a076057d6cfdd9b0c05c2d5aff60554a3efb0da5bf2408cd0bcaa",
+            "f2a341a66580d68d13e2f2351787e0c737de623243bc3868af5efb161afc3e4c",
+            "f4e860b3f8aafa23b0e51f8216c91efc91ee92b54fecdab3777f448326edf991",
+            "b3ee04e9bb61201471693ab6435319447270bfd3c027bdfa6110b1c7b9ae7cce",
+            "03f8035b852f868b49c5031e479f9d0eea81c3da681e0663a66f158d81b61ad5",
+            "84b010c084c0e69429cff02e8e33113c7fc5a0465b4292c413aea9e44151f91e",
+            "d8fefadb8b818a2f2dff120c14ad3e11fe28586a31f07ffac210fecb0f5e185b"
+          ],
+          "ready_b": [
+            "6c54b776bfaace33eb9036cb29e49d3d621308c433c66f49b74c9d418e68f108",
+            "a865203631c90069b8ac7c2da626c9e0d8a86fb5929f1c41ab3ad13cf837c030",
+            "35151a36ad91b89030caec4bbbd9c2137027ee8306d838d2f775bac90cfd2b6a",
+            "ec7474c635c38a8d8fad09363cd51903642fd64f0e7019ddf17c7490a77db871",
+            "288b30d3770b37c34b3078b852f42ed3ac022890d73967027b5b48ac3793375c",
+            "d30a6d835f5ab895d5157b223477a57de87c2537ad76c23af036b6364cbdc37e",
+            "c99a50412c166756d6f4e7b0ceb86d49fca89706acbb9118f6632070ceb08c7a",
+            "83bdaf4b00c2f07fb364ec0df6f70a01c0e14da4e23fa9aa1f0f9e110bfcfad8",
+            "6475494d66c0aa43e226a822062075fee2d2ba199037c2b6fd77e7a588ac4521",
+            "100f5294e52a076057d6cfdd9b0c05c2d5aff60554a3efb0da5bf2408cd0bcaa",
+            "f2a341a66580d68d13e2f2351787e0c737de623243bc3868af5efb161afc3e4c",
+            "f4e860b3f8aafa23b0e51f8216c91efc91ee92b54fecdab3777f448326edf991",
+            "b3ee04e9bb61201471693ab6435319447270bfd3c027bdfa6110b1c7b9ae7cce",
+            "03f8035b852f868b49c5031e479f9d0eea81c3da681e0663a66f158d81b61ad5",
+            "84b010c084c0e69429cff02e8e33113c7fc5a0465b4292c413aea9e44151f91e",
+            "d8fefadb8b818a2f2dff120c14ad3e11fe28586a31f07ffac210fecb0f5e185b"
+          ],
+          "reserved_a": [],
+          "reserved_b": [],
+          "log_timestamp_ms": 1792394361719
+        }
+      ]
+    }
+  ]
+}

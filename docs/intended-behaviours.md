@@ -3450,6 +3450,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
 - Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
 - Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.
+- Deliver at most two initial signing batches concurrently per participant. Serialize exact installation retries and retain each batch's persisted payload and installed marker.
+- Bound installation by its registration claim deadline, including gate waiting. Drain both deliveries on ordinary errors; late remote replies must not complete an expired registration.
 - Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
 - Commit the producer's Running state before randomness generation. Retry terminal settlement without regenerating material. Abandon interrupted Running jobs.

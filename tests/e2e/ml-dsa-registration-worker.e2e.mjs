@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
 import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
+import { registrationDeliveryScript } from '../helpers/mlDsaRegistrationDelivery.e2e.mjs';
 
 const registrationFaultScript = `
 let injections = 0;
@@ -51,10 +52,15 @@ const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
 const profilePrefix = process.env.ML_DSA_REGISTRATION_CPU_PROFILE;
+const stallDelivery = process.env.ML_DSA_REGISTRATION_STALL_DELIVERY === '1';
+const loseDeliveryReply = process.env.ML_DSA_REGISTRATION_LOSE_DELIVERY_REPLY === '1';
 const stallInitialization = process.env.ML_DSA_REGISTRATION_STALL_INITIALIZATION === '1';
 const stallExecution = process.env.ML_DSA_REGISTRATION_STALL_EXECUTION === '1';
 assert.ok(!(stallInitialization && stallExecution), 'Select one registration fault');
-assert.ok(!(hostedUrl && (stallInitialization || stallExecution)), 'Fault injection is local-only');
+assert.ok(!(hostedUrl && (stallInitialization || stallExecution || loseDeliveryReply || stallDelivery)), 'Fault injection is local-only');
+assert.ok(!((loseDeliveryReply || stallDelivery) && (stallInitialization || stallExecution || profilePrefix)), 'Delivery faults require a separate unprofiled lifecycle run');
+assert.ok(!(loseDeliveryReply && stallDelivery), 'Select one delivery fault');
+const deliveryFault = loseDeliveryReply || stallDelivery;
 assert.ok(!(hostedUrl && profilePrefix), 'Inspector profiling requires local workerd');
 const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   ? (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim()
@@ -100,6 +106,7 @@ const observations = {
 observations.builds = Object.fromEntries(
   await Promise.all(['router', 'deriver-a', 'deriver-b'].map(buildHash)),
 );
+observations.deliveryFixtureSha256 = createHash('sha256').update(registrationDeliveryScript).digest('hex');
 observations.scriptSha256 = createHash('sha256')
   .update(await readFile(import.meta.filename))
   .digest('hex');
@@ -171,6 +178,11 @@ try {
       assert.notDeepEqual(ready.job.id, consumedJob);
       observations.executionDeadline.freshPreparation = true;
     }
+    if (stallDelivery && epoch === 1) {
+      observations.deliveryDeadline = await checkDeliveryDeadline(payload.request);
+      break;
+    }
+    if (loseDeliveryReply && epoch === 1) observations.deliveryRecovery = await checkDeliveryRecovery(payload.request);
     const profiler = profilePrefix ? await startCpuProfile(runtime, 'b') : null;
     const started = performance.now();
     const response = await post('/router-ab/ml-dsa/register', payload.request);
@@ -193,6 +205,7 @@ try {
       observations.inactiveInitializationRejected = true;
     }
     if (stallInitialization) await requireInjectedInitialization();
+    if (loseDeliveryReply && epoch === 1) await checkFinishedDeliveryRefusal();
     assert.deepEqual(await post('/router-ab/ml-dsa/register', payload.request), response);
     const changed = structuredClone(payload.request);
     changed.epoch += 1;
@@ -232,11 +245,18 @@ try {
       observations.registrationSurvivesRestart = true;
     }
   }
-  observations.recoveryPreservesCanonicalKey = true;
-  observations.registrationChecksPassed = true;
-  observations.functionalPassed = observations.cases.every(signatureCheckPassed);
+  if (stallDelivery) {
+    observations.scope = 'Local delivery-deadline probe only. No successful registration or recovery latency is claimed.';
+    observations.functionalPassed = observations.deliveryDeadline.failedReplayAfterLateReply;
+    observations.registrationChecksPassed = false;
+    observations.latencyTargetMet = false;
+  } else {
+    observations.recoveryPreservesCanonicalKey = true;
+    observations.registrationChecksPassed = true;
+    observations.functionalPassed = observations.cases.every(signatureCheckPassed);
+    observations.latencyTargetMet = observations.cases.every(meetsLatencyTarget);
+  }
   if (!observations.functionalPassed) process.exitCode = 1;
-  observations.latencyTargetMet = observations.cases.every(meetsLatencyTarget);
 } catch (error) {
   observations.error = String(error);
   throw error;
@@ -335,6 +355,7 @@ function workers() {
     preparerWorker('b', 1),
     ...(stallInitialization ? [registrationFaultWorker('a'), registrationFaultWorker('b')] : []),
     ...(executionFaultArmed ? [registrationFaultWorker('a')] : []),
+    ...(deliveryFault ? [deliveryBarrierWorker()] : []),
   ];
 }
 function role(name, index) {
@@ -363,14 +384,19 @@ function role(name, index) {
       className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
     };
   }
+  if (deliveryFault && name === 'a') {
+    worker.durableObjects.ML_DSA_POOL_DO = {
+      className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier',
+    };
+  }
   return worker;
 }
 function preparerWorker(participant, index) {
   const worker = role(participant, index);
   worker.name = `preparer-${participant}`;
-  worker.durableObjects.ML_DSA_POOL_DO = {
-    className: 'RouterAbMlDsaPoolDurableObject', scriptName: participant,
-  };
+  worker.durableObjects.ML_DSA_POOL_DO = deliveryFault && participant === 'a'
+    ? { className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier' }
+    : { className: 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
   if (participant === 'a') {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
@@ -380,6 +406,92 @@ function preparerWorker(participant, index) {
   worker.serviceBindings = { DERIVER_B: 'preparer-b' };
   return worker;
 }
+function deliveryBarrierWorker() {
+  return {
+    name: 'delivery-barrier', modules: true, script: registrationDeliveryScript,
+    compatibilityDate: '2026-06-12', bindings: { INTERNAL_AUTH: serviceAuth, STALL_DELIVERY: stallDelivery },
+    durableObjects: {
+      BARRIER: { className: 'RegistrationDeliveryBarrier', useSQLite: true },
+      REAL_POOL: { className: 'RouterAbMlDsaPoolDurableObject', scriptName: 'a', useSQLite: true },
+    },
+    serviceBindings: { REGISTRATION_A: 'a' },
+  };
+}
+async function deliveryBarrier() {
+  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_POOL_DO', 'a');
+  const name = 'ml-dsa-pool-' + createHash('sha256').update('wallet').update(JSON.stringify(wallet)).digest('hex');
+  return namespace.get(namespace.idFromName(name));
+}
+async function deliveryState() {
+  return (await (await deliveryBarrier()).fetch('https://fault.internal/state')).json();
+}
+async function checkDeliveryDeadline(input) {
+  const started = performance.now();
+  const response = await raw('/router-ab/ml-dsa/register', input, gatewayAuth);
+  await response.text();
+  const elapsedMs = performance.now() - started;
+  assert.notEqual(response.status, 200);
+  assert.ok(elapsedMs >= 29000 && elapsedMs < 33000, 'Installation did not stop at its claim deadline');
+  const held = await deliveryState();
+  assert.equal(held.heldReply, true);
+  assert.ok(held.maximumActive <= 2);
+  const retryStarted = performance.now();
+  const replies = await (await (await deliveryBarrier()).fetch('https://fault.internal/retry-installs')).json();
+  assert.ok(replies.every(isRefusedStatus));
+  const expiredRetryMs = performance.now() - retryStarted;
+  assert.ok(expiredRetryMs < 2000, 'Expired installation retries did not return promptly');
+  assert.equal((await post('/router-ab/ml-dsa/register', input)).operation.state, 'failed');
+  const deadline = performance.now() + 20000;
+  let settled = await deliveryState();
+  while (!settled.lateReplyReleased && performance.now() < deadline) {
+    await new Promise(waitDeliveryProbe);
+    settled = await deliveryState();
+  }
+  assert.equal(settled.lateReplyReleased, true);
+  assert.equal(settled.active, 0);
+  assert.equal((await post('/router-ab/ml-dsa/register', input)).operation.state, 'failed');
+  return { elapsedMs, expiredRetryMs, expiredStatuses: replies, held, settled,
+    failedReplayAfterLateReply: true, scope: 'Remote success can outlive the local deadline; it cannot complete the expired registration.' };
+}
+function waitDeliveryProbe(resolve) { setTimeout(resolve, 100); }
+
+async function checkDeliveryRecovery(input) {
+  const response = await raw('/router-ab/ml-dsa/register', input, gatewayAuth);
+  await response.text();
+  assert.notEqual(response.status, 200, 'Lost delivery reply did not interrupt installation');
+  const before = await deliveryState();
+  assert.equal(before.lostReplies, 1);
+  assert.equal(before.active, 0, 'The peer delivery was not drained');
+  assert.equal(before.maximumActive, 2, 'The bounded delivery pair did not overlap');
+  assert.deepEqual(Object.keys(before.deliveries).sort(), ['delivery/1/0', 'delivery/1/1']);
+  await runtime.dispose();
+  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  await runtime.ready;
+  const resumed = await (await deliveryBarrier()).fetch('https://fault.internal/retry-installs');
+  assert.deepEqual(await resumed.json(), [200, 200], 'Concurrent installation retries did not complete');
+  const after = await deliveryState();
+  assert.equal(after.active, 0);
+  assert.equal(after.maximumActive, 2, 'Concurrent retries exceeded the two-delivery bound');
+  assert.equal(Object.keys(after.deliveries).length, policy.minimum_ready_batches);
+  for (let ordinal = 0; ordinal < policy.minimum_ready_batches; ordinal += 1) {
+    const item = after.deliveries['delivery/1/' + ordinal];
+    assert.equal(item.attempts, ordinal === 0 ? 2 : 1);
+    if (ordinal < 2) assert.equal(item.hash, before.deliveries['delivery/1/' + ordinal].hash);
+  }
+  return { lostReplyStatus: response.status, beforeRestart: before, afterConcurrentRetries: after,
+    restarted: true, exactPayloadReplay: true, deliveryWindow: 2 };
+}
+async function checkFinishedDeliveryRefusal() {
+  const before = await deliveryState();
+  const response = await (await deliveryBarrier()).fetch('https://fault.internal/retry-installs');
+  const statuses = await response.json();
+  assert.ok(statuses.every(isRefusedStatus));
+  const after = await deliveryState();
+  assert.deepEqual(after.deliveries, before.deliveries, 'Finished claims caused another delivery');
+  observations.deliveryRecovery.finishedClaimRefusals = statuses;
+}
+function isRefusedStatus(status) { return status >= 400; }
+
 function handleRuntimeStdio(stdout, stderr) {
   stdout.pipe(process.stdout);
   stderr.pipe(process.stderr);
@@ -485,7 +597,12 @@ async function sign(result) {
     verify(null, Buffer.from(message), key, Buffer.from(response.operation.signature)),
     true,
   );
-  return { verified: true, elapsedMs, operation: request.operation };
+  return {
+    verified: true, elapsedMs, operation: request.operation,
+    messageHex: Buffer.from(message).toString('hex'),
+    contextHex: '',
+    signatureHex: Buffer.from(response.operation.signature).toString('hex'),
+  };
 }
 
 function caseSummary(value) {
