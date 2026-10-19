@@ -18,5 +18,11 @@ export function registrationCommitCompletionWrite<T>(
           ...(execution.activation?.statements ?? []),
         ],
       };
+    default:
+      return assertNever(execution);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unknown registration completion state: ${String(value)}`);
 }

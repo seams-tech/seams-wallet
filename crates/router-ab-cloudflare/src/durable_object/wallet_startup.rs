@@ -176,22 +176,57 @@ pub(crate) async fn handle_role_request(
     start_object(env, request.wallet_route, binding, &name, label).await
 }
 
+const ADDRESS_BATCH_SIZE: usize = 8;
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+std::thread_local! {
+    // Namespace IDs are public metadata. Unused IDs can be discarded on eviction.
+    // The environment identity prevents a binding change from reusing old addresses.
+    static UNUSED_ADDRESSES: std::cell::RefCell<Option<(Env, Vec<crate::WalletObjectAddresses>)>> =
+        const { std::cell::RefCell::new(None) };
+}
 
 /// Allocation creates addresses only. The Gateway persists the winning set
 /// before starting objects or dispatching custody work.
 #[cfg(feature = "strict-worker-router-entrypoint")]
 pub(crate) async fn allocate_wallet_addresses(env: &Env) -> worker::Result<Response> {
-    let router = allocate_address(env, "ROUTER_WALLET_DO")?;
+    if let Some(addresses) = take_unused_addresses(env) {
+        return Response::from_json(&addresses);
+    }
+    // Each concurrent miss owns its own batch. No request awaits another
+    // request's I/O, and no address can be returned twice.
     let (a, b, signing) = futures::join!(
         allocate_peer(env, "DERIVER_A"),
         allocate_peer(env, "DERIVER_B"),
         allocate_peer(env, "SIGNING_WORKER"),
     );
-    Response::from_json(&crate::WalletObjectAddresses {
-        router,
-        deriver_a: a?,
-        deriver_b: b?,
-        signing_worker: signing?,
+    let mut batch = Vec::with_capacity(ADDRESS_BATCH_SIZE);
+    for ((deriver_a, deriver_b), signing_worker) in a?.into_iter().zip(b?).zip(signing?) {
+        batch.push(crate::WalletObjectAddresses {
+            router: allocate_address(env, "ROUTER_WALLET_DO")?,
+            deriver_a,
+            deriver_b,
+            signing_worker,
+        });
+    }
+    let addresses = batch.pop().expect("nonempty fixed-size address batch");
+    UNUSED_ADDRESSES.with(|pool| *pool.borrow_mut() = Some((env.clone(), batch)));
+    Response::from_json(&addresses)
+}
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+fn take_unused_addresses(env: &Env) -> Option<crate::WalletObjectAddresses> {
+    UNUSED_ADDRESSES.with(|pool| {
+        let mut held = pool.borrow_mut();
+        match held.as_mut() {
+            Some((owner, addresses)) if worker::js_sys::Object::is(owner.as_ref(), env.as_ref()) => {
+                addresses.pop()
+            }
+            _ => {
+                *held = None;
+                None
+            }
+        }
     })
 }
 
@@ -201,13 +236,25 @@ fn allocate_address(env: &Env, binding: &str) -> worker::Result<crate::WalletObj
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
-async fn allocate_peer(env: &Env, binding: &str) -> worker::Result<crate::WalletObjectId> {
+async fn allocate_peer(
+    env: &Env,
+    binding: &str,
+) -> worker::Result<[crate::WalletObjectId; ADDRESS_BATCH_SIZE]> {
     let mut response = crate::router_coordinator::post_role_request(
-        env, binding, "https://router-ab-startup.internal", ALLOCATE_PATH,
-        "Wallet address allocation", &(), None,
-    ).await.map_err(|error| worker::Error::RustError(error.to_string()))?;
+        env,
+        binding,
+        "https://router-ab-startup.internal",
+        ALLOCATE_PATH,
+        "Wallet address allocation",
+        &(),
+        None,
+    )
+    .await
+    .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if response.status_code() != 200 {
-        return Err(worker::Error::RustError("Wallet address allocation failed".into()));
+        return Err(worker::Error::RustError(
+            "Wallet address allocation failed".into(),
+        ));
     }
     response.json().await
 }
@@ -218,7 +265,9 @@ async fn allocate_peer(env: &Env, binding: &str) -> worker::Result<crate::Wallet
     feature = "strict-worker-signing-worker-entrypoint"
 ))]
 pub(crate) fn allocate_role_address(
-    request: &Request, env: &Env, role: crate::CloudflareWorkerRoleV1,
+    request: &Request,
+    env: &Env,
+    role: crate::CloudflareWorkerRoleV1,
 ) -> worker::Result<Response> {
     if request.method() != Method::Post {
         return Response::error("Wallet address allocation requires POST", 405);
@@ -229,5 +278,9 @@ pub(crate) fn allocate_role_address(
         crate::CloudflareWorkerRoleV1::SigningWorker => "SIGNING_WORKER_WALLET_DO",
         _ => return Response::error("Wallet address role is unavailable", 400),
     };
-    Response::from_json(&allocate_address(env, binding)?)
+    let mut addresses = Vec::with_capacity(ADDRESS_BATCH_SIZE);
+    for _ in 0..ADDRESS_BATCH_SIZE {
+        addresses.push(allocate_address(env, binding)?);
+    }
+    Response::from_json(&addresses)
 }

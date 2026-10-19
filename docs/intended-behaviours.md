@@ -569,6 +569,12 @@ throughout the resize. Reduced-motion behavior remains immediate.
   local transaction. Continuations use that local execution identity. A missing
   identity fails locally and cannot create one through a directory lookup.
   Setup retries preserve the current ceremony and cannot reopen a retired home.
+- Setup stores one set of namespace-issued object addresses per wallet ownership
+  generation. Concurrent retries retain the stored winner before custody starts.
+  A new generation receives fresh addresses. The Router may retain a bounded
+  batch of unused identifiers for its binding environment. Unused identifiers
+  contain no authority and create no objects. Restart can discard them safely.
+  An allocation failure cannot replace an existing address assignment.
 - Setup repeats its ceremony read and its ceremony write after a transient
   fault of the database connection, at most twice and with a short wait. The
   repeat is an exact retry: it stores nothing a second time. When the fault
@@ -741,6 +747,9 @@ Expected behaviour:
   proof, stores the admission and runs the execution in that one request. Its
   reply then includes the activation result. No admission exists before the
   proof is verified, and an execute request without that admission is refused.
+  Combined respond reuses the admission snapshot that this request committed.
+  The separate execute route reads persisted admission. Both paths check the
+  credential, binding, and expiry before the Router enforces its execution claim.
 - An exact retry of that respond replays the admission and the recorded
   execution. When the execution does not complete inside respond, the reply
   includes the admission alone, and the client sends the same execute request
