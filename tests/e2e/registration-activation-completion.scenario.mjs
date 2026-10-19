@@ -23,6 +23,7 @@ class ApprovedDirectory {
 class RegistrationOperation {
   now = 100;
   activation = null;
+  custodyWrite = null;
   afterPreparation = null;
   afterInitialRead = null;
 
@@ -108,9 +109,13 @@ class RegistrationOperation {
       derivePreparedArtifactFingerprint: preparedFingerprint,
       execute: this.execute.bind(this),
       projectReceipt: identity,
-      completionWrite: () => this.activation,
+      completionWrite: this.completionWrite.bind(this),
       replay: async (receipt) => receipt,
     });
+  }
+
+  completionWrite() {
+    return this.api.registrationCommitCompletionWrite(issuedOperationFixture(this));
   }
 
   async active() {
@@ -131,6 +136,70 @@ class RegistrationOperation {
       .first();
     return row.count;
   }
+}
+
+function issuedOperationFixture(operation) {
+  return {
+    kind: 'session_issued',
+    response: 'completed',
+    issuedAtMs: operation.now,
+    expectedOrigin: 'https://wallet.example.test',
+    activation: operation.activation,
+    custodyWrite: operation.custodyWrite,
+  };
+}
+
+class RecoveryDirectory {
+  async publishRecovery() {
+    return { ok: true };
+  }
+}
+
+function custodyPayload(api, walletId) {
+  const digest = createHash('sha256').update(walletId).digest('base64url');
+  const nonce = Buffer.alloc(12, 1).toString('base64url');
+  const ciphertext = Buffer.alloc(48, 2).toString('base64url');
+  const wraps = [];
+  const locators = [];
+  for (let index = 0; index < 10; index += 1) {
+    const codeDigest = createHash('sha256').update(`${walletId}:${index}`).digest('base64url');
+    const recoveryKeyId = `wallet-rkid-v1-${codeDigest}`;
+    wraps.push({ recoveryKeyId, nonceB64u: nonce, ciphertextB64u: ciphertext, aadHashB64u: digest });
+    locators.push({ recoveryKeyId, locatorB64u: codeDigest });
+  }
+  return {
+    walletId,
+    keyManifestDigestB64u: digest,
+    recoveryBackupAcknowledged: true,
+    establishedCustody: {
+      envelopeId: `envelope:${walletId}`,
+      envelopeBindingJson: JSON.stringify({
+        walletId,
+        ownership: { methodBound: { walletAuthMethodId: `method:${walletId}` } },
+        binding: { kind: 'wallet_custody_seed_v1', derivationScheme: 'wallet_seed_parallel_hkdf_sha256_v1' },
+      }),
+      envelopeNonceB64u: nonce,
+      sealedCustodySecretB64u: ciphertext,
+      envelopeCiphertextDigestB64u: digest,
+      envelopeAadHashB64u: digest,
+      recoveryManifestKekWraps: wraps,
+      recoveryCodeLocators: locators,
+      recoveryEntryNonceB64u: nonce,
+      recoveryEntryCiphertextB64u: ciphertext,
+      recoveryEntryAadHashB64u: digest,
+    },
+  };
+}
+
+async function prepareCustodyForCompletion(operation, custodyStore, payload) {
+  const reserved = await operation.api.reserveWalletCustodyRegistration({
+    payload,
+    factor: operation.api.buildPasskeyEnvelopeFactor({ rpId: 'localhost', credentialIdB64u: 'AQID' }),
+    nowMs: Date.now(),
+    store: custodyStore,
+  });
+  assert.equal(reserved.kind, 'reserved', reserved.kind === 'rejected' ? reserved.reason : reserved.kind);
+  operation.custodyWrite = { statements: reserved.statements };
 }
 
 function identity(value) {
@@ -240,6 +309,12 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   // An activation that fails leaves the operation incomplete, so it runs again.
   const refused = new RegistrationOperation(api, database, scope, 'refused');
   await refused.reserve('activation-refused');
+  const custodyStore = new api.CloudflareD1WalletCustodyCommitStore({
+    database, scope, recoveryRouting: new RecoveryDirectory(),
+  });
+  const payload = custodyPayload(api, refused.identity.walletId);
+  refused.afterPreparation = prepareCustodyForCompletion.bind(null, refused, custodyStore, payload);
+
   await database
     .prepare(
       `CREATE TRIGGER injected_activation_refusal
@@ -250,8 +325,9 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
     .run();
   const failed = await refused.run();
   assert.equal(failed.kind, 'uncertain');
-  assert.equal(failed.phase, 'terminal_commit');
+  assert.equal(failed.phase, 'terminal_commit', JSON.stringify(failed));
   assert.match(failed.message, /injected_activation_refusal/u);
+  assert.equal(await custodyStore.readRecoveryEnvelopeSet(refused.identity.walletId), null);
   assert.equal(await refused.active(), false);
   assert.equal(await refused.recordKind(), CLAIM);
   assert.equal(refused.directory.publications, 0);
@@ -260,8 +336,17 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal((await refused.run()).kind, 'executed');
   assert.equal(await refused.active(), true);
   assert.equal(await refused.recordKind(), COMPLETION);
+  const recovery = await custodyStore.readRecoveryEnvelopeSet(refused.identity.walletId);
+  assert.equal(recovery.record.manifestKekWraps.length, 10);
+  assert.equal(recovery.record.entries.length, 1);
+  assert.equal((await refused.run()).kind, 'exact_replay');
+  assert.deepEqual(await custodyStore.readRecoveryEnvelopeSet(refused.identity.walletId), recovery);
+
 
   return {
+    custodyRollsBackWithFailedCompletion: true,
+    retryCommitsAllRecoveryCodesWithReceipt: true,
+    exactReplayPreservesRecoverySet: true,
     activationCommitsWithCompletion: true,
     preparedHomeStaysFencedUntilCompletion: true,
     completionRecordsPendingPublication: true,

@@ -1,3 +1,4 @@
+import type { RouterAbEd25519YaoPreparedWriteV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import type {
   WalletRegistrationFinalizeResponse,
   WalletRegistrationFinalizeSuccess,
@@ -40,14 +41,15 @@ export type WalletRegistrationNearProvisioningFinalizeResponse =
     });
 
 export type RegistrationCommitExecution<T> =
-  | { readonly kind: 'unissued'; readonly response: T }
-  | { readonly kind: 'replayed'; readonly response: T }
+  | { readonly kind: 'unissued'; readonly response: T; readonly custodyWrite?: never }
+  | { readonly kind: 'replayed'; readonly response: T; readonly custodyWrite?: never }
   | {
       readonly kind: 'session_issued';
       readonly response: T;
       readonly issuedAtMs: number;
       readonly expectedOrigin: string;
       readonly activation: RegistrationActivationWrite | null;
+      readonly custodyWrite: RouterAbEd25519YaoPreparedWriteV1 | null;
       readonly installationProjection?: never;
     }
   | {
@@ -56,6 +58,7 @@ export type RegistrationCommitExecution<T> =
       readonly issuedAtMs: number;
       readonly expectedOrigin: string;
       readonly activation: RegistrationActivationWrite | null;
+      readonly custodyWrite: RouterAbEd25519YaoPreparedWriteV1 | null;
       readonly installationProjection: WalletRegistrationCommittedInstallationProjectionV1;
     };
 

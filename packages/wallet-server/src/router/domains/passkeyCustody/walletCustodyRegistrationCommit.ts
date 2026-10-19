@@ -29,7 +29,7 @@ export type { WalletCustodyCeremonyCommitPayload };
 import type {
   CloudflareD1WalletCustodyCommitStore,
   WalletRecoveryCodeLocatorRecord,
-  WalletCustodyRegistrationCommitResult,
+  WalletCustodyRegistrationReservation,
 } from '../../cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
 
 /**
@@ -56,16 +56,7 @@ type WalletCustodyRegistrationRecords = {
 };
 
 export type WalletCustodyRegistrationCommitOutcome =
-  | ({ readonly kind: 'committed' } & Omit<
-      Extract<WalletCustodyRegistrationCommitResult, { kind: 'committed' }>,
-      'kind'
-    >)
   | { readonly kind: 'already_exists' }
-  /**
-   * Another ceremony established this wallet's custody first. The route should
-   * tell the client to discard its run's seed and re-enter as a join of the
-   * existing envelope — the key set it was provisioning is still unrecorded.
-   */
   | { readonly kind: 'custody_already_established' }
   | { readonly kind: 'rejected'; readonly reason: string };
 
@@ -259,7 +250,7 @@ function buildWalletCustodyRegistrationRecords(args: {
 /** The write that a reservation left for after the registration's wallet commit. */
 export type WalletCustodyRegistrationReserved = {
   readonly kind: 'reserved';
-  readonly commit: () => Promise<WalletCustodyRegistrationCommitOutcome>;
+  readonly statements: Extract<WalletCustodyRegistrationReservation, { kind: 'reserved' }>['statements'];
 };
 
 /**
@@ -277,7 +268,7 @@ export async function reserveWalletCustodyRegistration(input: {
   readonly store: CloudflareD1WalletCustodyCommitStore;
 }): Promise<
   | WalletCustodyRegistrationReserved
-  | Extract<WalletCustodyRegistrationCommitOutcome, { kind: 'rejected' }>
+  | WalletCustodyRegistrationCommitOutcome
 > {
   let records: WalletCustodyRegistrationRecords;
   try {
@@ -291,24 +282,5 @@ export async function reserveWalletCustodyRegistration(input: {
 
   const reserved = await input.store.reserveRegistration(records);
   if (reserved.kind === 'inconsistent') return { kind: 'rejected', reason: reserved.reason };
-  return { kind: 'reserved', commit: async () => commitOutcome(await reserved.commit()) };
-}
-
-function commitOutcome(
-  stored: WalletCustodyRegistrationCommitResult,
-): WalletCustodyRegistrationCommitOutcome {
-  switch (stored.kind) {
-    case 'committed':
-      return {
-        kind: 'committed',
-        envelopeStoreVersion: stored.envelopeStoreVersion,
-        recoverySetStoreVersion: stored.recoverySetStoreVersion,
-      };
-    case 'already_exists':
-      return { kind: 'already_exists' };
-    case 'custody_already_established':
-      return { kind: 'custody_already_established' };
-    case 'inconsistent':
-      return { kind: 'rejected', reason: stored.reason };
-  }
+  return reserved;
 }

@@ -1,3 +1,4 @@
+import { registrationCommitCompletionWrite } from './registrationCompletionWrite';
 import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationExecutionRecord';
 import { isTransientD1Error, retryTransientD1 } from '../../../../storage/d1Retry';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
@@ -244,7 +245,7 @@ import type {
 } from '../../../domains/ed25519Yao/session/routerAbEd25519YaoWalletSession';
 import {
   reserveRegistrationCustody,
-  type RegistrationCustodyCommit,
+  type RegistrationCustodyReservation,
 } from '../../../domains/passkeyCustody/registrationCustodyOutcome';
 import type { TenantRootCustodyLineageResolverV1 } from '../../../domains/tenantRoot/tenantRootCustodyLineage';
 import {
@@ -1495,15 +1496,15 @@ function d1RegistrationRouteDiagnostics(
 }
 
 /**
- * A committed registration leg. Its custody outcome settles beside the session
- * issuance and never rejects, so a caller that throws may leave it unobserved.
+ * A wallet commit with custody reserved for the terminal transaction.
+ * Reservation never rejects; a failed terminal transaction remains resumable.
  */
 type RegistrationFinalizeExecution =
   | Extract<WalletRegistrationFinalizeResponse, { readonly ok: false }>
   | {
       readonly ok: true;
       readonly finalized: WalletRegistrationFinalizeSuccess;
-      readonly custody: ReturnType<RegistrationCustodyCommit>;
+      readonly custody: Promise<RegistrationCustodyReservation>;
       readonly initialSession: RegistrationInitialSessionCommit;
     };
 
@@ -3957,7 +3958,7 @@ export class CloudflareD1WalletRegistrationService {
       });
     }
     if (!this.registrationAuthority) throw new Error('Registration home completion is unavailable');
-    // Session publication and custody persistence both settle before returning.
+    // The completion receipt commits the prepared custody after session issuance.
     const [issuance, custody] = await Promise.allSettled([
       recordRegistrationPromiseTiming({
         sink: args.serverTiming,
@@ -3988,7 +3989,7 @@ export class CloudflareD1WalletRegistrationService {
     if (custody.status === 'rejected') throw custody.reason;
     const issuedRegistrationSession = issuance.value;
     const custodyField =
-      custody.value.status === 'not_requested' ? {} : { walletCustody: custody.value };
+      custody.value.outcome.status === 'not_requested' ? {} : { walletCustody: custody.value.outcome };
     switch (issuedRegistrationSession.kind) {
       case 'issued':
         return {
@@ -4004,6 +4005,7 @@ export class CloudflareD1WalletRegistrationService {
           issuedAtMs: issuedRegistrationSession.issuedAtMs,
           expectedOrigin: ownerProofContext.expectedOrigin,
           activation: issuedRegistrationSession.activation,
+          custodyWrite: custody.value.kind === 'prepared' ? custody.value.write : null,
         };
       case 'already_committed':
         return {
@@ -4020,6 +4022,7 @@ export class CloudflareD1WalletRegistrationService {
           issuedAtMs: issuedRegistrationSession.issuedAtMs,
           expectedOrigin: ownerProofContext.expectedOrigin,
           activation: issuedRegistrationSession.activation,
+          custodyWrite: custody.value.kind === 'prepared' ? custody.value.write : null,
         };
       default:
         return assertNeverD1RegistrationSessionIssuance(issuedRegistrationSession);
@@ -4288,7 +4291,7 @@ export class CloudflareD1WalletRegistrationService {
             execution,
           }),
         // The home becomes active in the batch that completes this operation.
-        completionWrite: registrationCommitActivation,
+        completionWrite: registrationCommitCompletionWrite,
         replay: this.replayWalletRegistrationNearProvisioningCommit.bind(this),
       });
       recordRegistrationServerTiming(
@@ -4812,7 +4815,7 @@ export class CloudflareD1WalletRegistrationService {
             execution,
           }),
         // The home becomes active in the batch that completes this operation.
-        completionWrite: registrationCommitActivation,
+        completionWrite: registrationCommitCompletionWrite,
         replay: this.replayWalletRegistrationActivateCommit.bind(this),
       });
       switch (run.kind) {
@@ -5013,8 +5016,7 @@ export class CloudflareD1WalletRegistrationService {
       authMethod: commit.authMethod,
       authority: commit.authority,
     });
-    /* The session and the custody records are independent writes behind the
-       wallet commit. Both settle before this leg returns. */
+    // The session precedes the transaction that commits custody and its receipt.
     const [issuance, custody] = await Promise.allSettled([
       issueDirectRegistrationEstablishedEcdsaSession({
         homeCompletion: this.registrationAuthority,
@@ -5051,7 +5053,7 @@ export class CloudflareD1WalletRegistrationService {
         : {}),
       /* Carried from the commit leg: this response *is* the client's only view
          of what happened to its custody run. */
-      ...(custody.value.status === 'not_requested' ? {} : { walletCustody: custody.value }),
+      ...(custody.value.outcome.status === 'not_requested' ? {} : { walletCustody: custody.value.outcome }),
       custodyKeyManifestDigestB64u: commit.custodyKeyManifestDigestB64u,
       ecdsa: {
         ...commit.ecdsa,
@@ -5067,6 +5069,7 @@ export class CloudflareD1WalletRegistrationService {
       issuedAtMs: registrationEstablishedSession.issuedAtMs,
       expectedOrigin: ownerProofContext.expectedOrigin,
       activation: registrationEstablishedSession.activation,
+      custodyWrite: custody.value.kind === 'prepared' ? custody.value.write : null,
     };
     if (commit.authMethod.kind === 'passkey') {
       if (!commit.rpId) throw new Error('Passkey registration activation is missing its RP ID');
@@ -5654,9 +5657,8 @@ export class CloudflareD1WalletRegistrationService {
       let yaoDecisionFound: ReturnType<typeof routerAbEd25519YaoLifecycleDecisionLookupV1> | null = null;
       let commitWallet: Awaited<ReturnType<D1WalletRegistrationCommitStore['reserveAuthority']>>;
       /* The custody commit claims its recovery-code routes beside this leg's
-         other remote effects. The claim needs no local record, and the wallet
-         commit does not wait for it. It never rejects, because custody cannot
-         fail a registration. */
+         other remote effects. Its record snapshot overlaps those requests.
+         The wallet commit does not wait for it; the completion receipt does. */
       const reserveCustody = () =>
         recordRegistrationPromiseTiming({
           sink: serverTiming,
@@ -5685,7 +5687,7 @@ export class CloudflareD1WalletRegistrationService {
             store: this.walletCustodyCommitStore,
           }),
         });
-      let custodyReservation: Promise<RegistrationCustodyCommit>;
+      let custodyReservation: Promise<RegistrationCustodyReservation>;
       if (finalizeNearEd25519) {
         const yaoRuntime = this.getEd25519YaoProductRegistration();
         if (!yaoRuntime) {
@@ -6206,24 +6208,7 @@ export class CloudflareD1WalletRegistrationService {
       }
       const foundingAuthority = persistedFoundingRecords.authority;
       const foundingAuthMethod = persistedFoundingRecords.authMethod;
-      const custody = custodyReservation.then(async (commitCustody) => {
-        const walletCustody = await recordRegistrationPromiseTiming({
-          sink: serverTiming,
-          name: 'near_finalize_custody_commit',
-          startedAtMs: Date.now(),
-          promise: commitCustody(),
-        });
-        if (walletCustody.status === 'rejected') {
-          /* Reported, not thrown — the registration is already committed. Logged
-             because a rejection is a wallet whose seed is not yet recoverable,
-             and the client's retry is the only thing that fixes it. */
-          console.warn('[wallet-registration] custody commit rejected', {
-            registrationCeremonyId: ceremony.registrationCeremonyId,
-            reason: walletCustody.reason,
-          });
-        }
-        return walletCustody;
-      });
+      const custody = custodyReservation;
       startedCustody = custody;
       const authMethod = walletRegistrationFinalizeAuthMethodFromAuthority(ceremonyAuthority);
       let response: WalletRegistrationFinalizeSuccess;

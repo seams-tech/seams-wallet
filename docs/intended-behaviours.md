@@ -605,10 +605,13 @@ throughout the resize. Reduced-motion behavior remains immediate.
   record, and local wallet persistence does not wait for it. A refused or
   unavailable route claim does not prevent local persistence: the response
   reports the custody commit as rejected, and the client retries it. The custody
-  records are stored after the wallet commit and after the route claim, and they
-  settle before finalization responds. A finalization
-  that fails settles its started route claim before it responds. An exact retry
-  repeats the same route claim.
+  reservation reads existing custody records while the route claim runs.
+  After the wallet commit, one local transaction stores new custody records,
+  recovery-code locators, and the completion receipt. A failed transaction
+  rolls back all those records and leaves the operation retryable. No response
+  reports committed custody before that transaction succeeds. An exact retry
+  retains existing recovery data and repeats the same route claim.
+  A failed finalization settles its started route claim before it responds.
 - Registration commits its session and the matching ceremony's established decision
   in one local transaction. A conflicting ceremony or cancelled registration prevents
   this commit. Fresh NEAR-only registration includes its wallet, signer, founding
