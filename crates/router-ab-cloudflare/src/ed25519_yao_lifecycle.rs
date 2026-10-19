@@ -1376,20 +1376,6 @@ async fn execute_deriver_b_role(
         &transport_result,
     );
     let mut transport = transport_result?;
-    // Overlap A’s claim with this root read; both proofs still precede Yao.
-    if let Some(start) = prepared_start {
-        let acknowledgement = crate::registration_pair_connection::Reply::Started {
-            session: start.scope.scope.pair_binding.session(),
-            pair_digest: start.scope.scope.pair_binding.pair_digest().bytes,
-            execution_id: start.execution_id,
-        };
-        socket
-            .send_with_str(
-                &serde_json::to_string(&acknowledgement)
-                    .map_err(|_| invalid_lifecycle("Peer start could not be encoded"))?,
-            )
-            .map_err(|_| invalid_lifecycle("Peer start could not be acknowledged"))?;
-    }
     #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
     let pair_object = Some(scope.wallet_route.addresses.deriver_b.as_str().to_owned());
     #[cfg(not(feature = "strict-worker-deriver-b-entrypoint"))]
@@ -1406,6 +1392,20 @@ async fn execute_deriver_b_role(
         .await?
         .map_err(crate::tenant_root_role_runtime::AttemptConflictV1::into_error)?;
     validate_expected_root_metadata_digest(expected_root_metadata_digest, root_metadata_digest)?;
+    if let Some(start) = prepared_start {
+        let acknowledgement = crate::registration_pair_connection::Reply::Started {
+            session: start.scope.scope.pair_binding.session(),
+            pair_digest: start.scope.scope.pair_binding.pair_digest().bytes,
+            execution_id: start.execution_id,
+        };
+        socket
+            .send_with_str(
+                &serde_json::to_string(&acknowledgement)
+                    .map_err(|_| invalid_lifecycle("Peer start could not be encoded"))?,
+            )
+            .map_err(|_| invalid_lifecycle("Peer start could not be acknowledged"))?;
+    }
+
     let preface = prepare_cloudflare_ed25519_yao_deriver_b_target_v2(
         role_share,
         &custody_binding,
