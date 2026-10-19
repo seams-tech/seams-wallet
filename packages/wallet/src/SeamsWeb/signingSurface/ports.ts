@@ -1,3 +1,6 @@
+import type { Variant } from '@shared/utils/variant';
+import type { MlDsaKeySetCeremonyInput } from '@/core/signingEngine/walletCustody/ceremonyDriver';
+import type { MlDsaCustodyCommit } from '@shared/passkey-custody/mlDsaCustody';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type {
   AuthMethodSessionInstaller,
@@ -395,6 +398,9 @@ export interface UnlockedEd25519ExportRootCapabilitySurface {
 }
 
 export interface WalletCustodyCeremonySurface {
+  joinWalletCustodyMlDsaKeySet(
+    args: Omit<Variant<MlDsaKeySetCeremonyInput, 'kind', 'join'>, 'runStep' | 'kind'>,
+  ): Promise<MlDsaCustodyCommit>;
   createWalletRecoveryReplacementCredential(args: {
     walletId: WalletId;
     registration: WalletRecoveryRegistrationOptions;

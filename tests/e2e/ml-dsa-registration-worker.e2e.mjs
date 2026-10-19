@@ -285,8 +285,24 @@ try {
       observations.registrationSurvivesRestart = true;
     }
   }
+  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault) {
+    const { verifyMlDsaGatewayRegistration } = await import(
+      '../helpers/mlDsaGatewayRegistration.e2e.mjs'
+    );
+    observations.gateway = await verifyMlDsaGatewayRegistration({
+      root,
+      directory,
+      wallet,
+      proxy: new RegistrationRouterProxy(gatewayAuth),
+      privatePost: post,
+      sign,
+    });
+    observations.scope +=
+      ' The additional Gateway campaign uses fresh WebAuthn verification and D1 publication for an existing wallet.';
+  }
   if (stallDelivery) {
-    observations.scope = 'Local delivery-deadline probe only. No successful registration or recovery latency is claimed.';
+    observations.scope =
+      'Local delivery-deadline probe only. No successful registration or recovery latency is claimed.';
     observations.functionalPassed = observations.deliveryDeadline.failedReplayAfterLateReply;
     observations.registrationChecksPassed = false;
     observations.latencyTargetMet = false;
@@ -366,17 +382,16 @@ async function checkRecipientDiscovery(client) {
   observations.recipientDiscovery = { keys, gatewayCredentialRequired: true, noStore: true };
   if (hostedUrl) return;
   for (const name of ['a', 'b']) {
-    const deniedRole = await (await runtime.getWorker(name)).fetch(
-      'https://role.internal/router-ab/ml-dsa/registration/recipient-key',
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-router-ab-internal-service-auth': gatewayAuth,
-        },
-        body: '{}',
+    const deniedRole = await (
+      await runtime.getWorker(name)
+    ).fetch('https://role.internal/router-ab/ml-dsa/registration/recipient-key', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-router-ab-internal-service-auth': gatewayAuth,
       },
-    );
+      body: '{}',
+    });
     assert.equal(deniedRole.status, 403);
   }
   observations.recipientDiscovery.gatewayCannotReadRoleDirectly = true;
@@ -568,10 +583,20 @@ async function checkDeliveryDeadline(input) {
   assert.equal(settled.lateReplyReleased, true);
   assert.equal(settled.active, 0);
   assert.equal((await post('/router-ab/ml-dsa/register', input)).operation.state, 'failed');
-  return { elapsedMs, expiredRetryMs, expiredStatuses: replies, held, settled,
-    failedReplayAfterLateReply: true, scope: 'Remote success can outlive the local deadline; it cannot complete the expired registration.' };
+  return {
+    elapsedMs,
+    expiredRetryMs,
+    expiredStatuses: replies,
+    held,
+    settled,
+    failedReplayAfterLateReply: true,
+    scope:
+      'Remote success can outlive the local deadline; it cannot complete the expired registration.',
+  };
 }
-function waitDeliveryProbe(resolve) { setTimeout(resolve, 100); }
+function waitDeliveryProbe(resolve) {
+  setTimeout(resolve, 100);
+}
 
 async function checkDeliveryRecovery(input) {
   const response = await raw('/router-ab/ml-dsa/register', input, gatewayAuth);

@@ -1,4 +1,9 @@
 import { WALLET_REGISTRATION_SETUP_PATH } from './walletRegistrationSetupPrewarm';
+import {
+  parseMlDsaCreateProtocolInputs,
+  mlDsaSigningKeyIdForSlot,
+  type MlDsaCreateProtocolInputs,
+} from '@shared/passkey-custody/mlDsaCustody';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import {
@@ -1922,6 +1927,17 @@ type WalletAddSignerStartResponseBase = {
 export type WalletAddSignerStartResponse =
   | (WalletAddSignerStartResponseBase & {
       readonly authorizationKind: 'webauthn_assertion';
+      readonly kind: 'near_ml_dsa_65';
+      readonly mlDsa: {
+        readonly protocolInputs: MlDsaCreateProtocolInputs;
+        readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
+        readonly expiresAtMs: number;
+      };
+      readonly ed25519?: never;
+      readonly ecdsa?: never;
+    })
+  | (WalletAddSignerStartResponseBase & {
+      readonly authorizationKind: 'webauthn_assertion';
       kind: 'near_ed25519';
       ed25519: {
         admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
@@ -2670,7 +2686,16 @@ export function parseWalletAddSignerStartResponse(args: {
   });
   assertWalletRegistrationResponseKeys(
     record,
-    ['ok', 'addSignerCeremonyId', 'intent', 'authorizationKind', 'kind', 'ed25519', 'ecdsa'],
+    [
+      'ok',
+      'addSignerCeremonyId',
+      'intent',
+      'authorizationKind',
+      'kind',
+      'ed25519',
+      'ecdsa',
+      'mlDsa',
+    ],
     responseName,
   );
   if (readWalletRegistrationResponseField(record, 'ok', responseName) !== true) {
@@ -2695,6 +2720,53 @@ export function parseWalletAddSignerStartResponse(args: {
   }
   const kind = readWalletRegistrationResponseField(record, 'kind', responseName);
   switch (kind) {
+    case 'near_ml_dsa_65': {
+      if (
+        intent.signerSelection.mode !== 'ml_dsa_65' ||
+        readOptionalWalletRegistrationResponseField(record, 'ed25519', responseName) !==
+          undefined ||
+        readOptionalWalletRegistrationResponseField(record, 'ecdsa', responseName) !== undefined
+      ) {
+        throw new Error(`${responseName} response substituted signer branch`);
+      }
+      const mlDsa = requireWalletRegistrationResponseObject({
+        responseName,
+        field: 'mlDsa',
+        value: readWalletRegistrationResponseField(record, 'mlDsa', responseName),
+      });
+      assertWalletRegistrationResponseKeys(
+        mlDsa,
+        ['protocolInputs', 'custodyEnvelope', 'expiresAtMs'],
+        responseName,
+      );
+      const expiresAtMs = readWalletRegistrationResponseField(mlDsa, 'expiresAtMs', responseName);
+      if (typeof expiresAtMs !== 'number' || !Number.isSafeInteger(expiresAtMs) || expiresAtMs <= 0)
+        throw new Error('Invalid ML-DSA ceremony expiry');
+      const protocolInputs = parseMlDsaCreateProtocolInputs(
+        readWalletRegistrationResponseField(mlDsa, 'protocolInputs', responseName),
+      );
+      const custodyEnvelope = parsePasskeyCustodyEnvelopeRecord(
+        readWalletRegistrationResponseField(mlDsa, 'custodyEnvelope', responseName),
+      );
+      if (
+        protocolInputs.walletId !== intent.walletId ||
+        protocolInputs.signingKeyId !==
+          mlDsaSigningKeyIdForSlot(intent.signerSelection.mlDsa.signerSlot) ||
+        custodyEnvelope.walletId !== intent.walletId ||
+        custodyEnvelope.binding.kind !== 'wallet_custody_seed_v1' ||
+        custodyEnvelope.lifecycle.state !== 'active'
+      ) {
+        throw new Error(`${responseName} response changed the custody identity`);
+      }
+      return {
+        ok: true,
+        kind,
+        authorizationKind: 'webauthn_assertion',
+        addSignerCeremonyId,
+        intent,
+        mlDsa: { protocolInputs, custodyEnvelope, expiresAtMs },
+      };
+    }
     case 'near_ed25519': {
       if (
         authorizationKind !== 'webauthn_assertion' ||

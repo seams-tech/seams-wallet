@@ -10,6 +10,8 @@ import {
   handleRouterApiWalletAddSignerEcdsaActivation,
   handleRouterApiWalletAddSignerIntent,
   handleRouterApiWalletAddSignerStart,
+  handleRouterApiWalletAddSignerMlDsaExecute,
+  handleRouterApiWalletAddSignerMlDsaPublish,
   handleRouterApiWalletRegistrationActivate,
   handleRouterApiWalletRegistrationNearProvisioning,
   handleRouterApiWalletRegistrationNearAdmission,
@@ -41,6 +43,8 @@ const ROUTE_IDS = [
   'wallet_registration_near_provisioning',
   'wallet_add_signer_intent',
   'wallet_add_signer_start',
+  'wallet_add_signer_ml_dsa_execute',
+  'wallet_add_signer_ml_dsa_publish',
   'wallet_add_signer_ecdsa_derivation_respond',
   'wallet_add_signer_ecdsa_activation',
   'wallet_add_signer_finalize',
@@ -121,6 +125,12 @@ export async function handleWalletRegistration(
   };
   let response: RouteResponse<unknown>;
   switch (route.id) {
+    case 'wallet_add_signer_ml_dsa_execute':
+      response = await handleRouterApiWalletAddSignerMlDsaExecute(common);
+      break;
+    case 'wallet_add_signer_ml_dsa_publish':
+      response = await handleRouterApiWalletAddSignerMlDsaPublish(common);
+      break;
     case 'wallet_registration_setup':
       response = await handleRouterApiWalletRegistrationSetup(common);
       break;

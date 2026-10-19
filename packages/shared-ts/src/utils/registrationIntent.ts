@@ -365,9 +365,24 @@ function parseAddSignerIntentChainTargetV1(
 
 function parseAddSignerIntentSelectionV1(raw: unknown): AddSignerSelection {
   const label = 'addSignerIntent.signerSelection';
-  const selection = exactRegistrationIntentObject(raw, label, ['mode'], ['ed25519', 'ecdsa']);
+  const selection = exactRegistrationIntentObject(
+    raw,
+    label,
+    ['mode'],
+    ['ed25519', 'ecdsa', 'mlDsa'],
+  );
   const mode = readRegistrationIntentString(selection, 'mode', label);
   switch (mode) {
+    case 'ml_dsa_65': {
+      const branch = exactRegistrationIntentObject(selection, label, ['mode', 'mlDsa']);
+      const mlDsa = exactRegistrationIntentObject(
+        readRegistrationIntentField(branch, 'mlDsa', label),
+        label + '.mlDsa',
+        ['signerSlot'],
+      );
+      readRegistrationIntentSafeInteger(mlDsa, 'signerSlot', label + '.mlDsa', 1);
+      break;
+    }
     case 'ed25519': {
       const branch = exactRegistrationIntentObject(selection, label, ['mode', 'ed25519']);
       const ed25519 = exactRegistrationIntentObject(
@@ -643,6 +658,8 @@ function assertNeverThresholdEcdsaAddSignerChainTarget(value: never): never {
 function sameAddSignerSelectionV1(left: AddSignerSelection, right: AddSignerSelection): boolean {
   if (left.mode !== right.mode) return false;
   switch (left.mode) {
+    case 'ml_dsa_65':
+      return right.mode === 'ml_dsa_65' && left.mlDsa.signerSlot === right.mlDsa.signerSlot;
     case 'ed25519':
       return (
         right.mode === 'ed25519' &&

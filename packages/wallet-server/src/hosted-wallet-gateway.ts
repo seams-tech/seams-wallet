@@ -507,6 +507,10 @@ async function createStagingRouterApiAuthComposition(
     topology,
   });
   const service = createCloudflareD1RouterApiAuthService({
+    mlDsaRegistrationProxy: {
+      internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
+      fetch: env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+    },
     database: env.SIGNER_DB,
     identityStore: dependencies.identityStore,
     googleRegistrationAttempts: dependencies.googleRegistrationAttempts,

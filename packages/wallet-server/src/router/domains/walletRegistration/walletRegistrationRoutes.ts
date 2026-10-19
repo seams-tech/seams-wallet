@@ -1,4 +1,13 @@
 import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
+import { exactRecord } from '@shared/utils/exactRecord';
+import { normalizeMlDsaAddSignerSelection } from '@shared/utils/registrationSignerPlan';
+import { requireCanonicalString } from '@shared/utils/validation';
+import { parseMlDsaCustodyCommit } from '@shared/passkey-custody/mlDsaCustody';
+import { parseMlDsaEncryptedInputs } from '@shared/passkey-custody/mlDsaCustody';
+import type {
+  WalletAddSignerMlDsaExecuteRequest,
+  WalletAddSignerMlDsaPublishRequest,
+} from '../../../core/registrationContracts';
 import {
   recordRegistrationServerTiming,
   registrationServerTimingHeaders,
@@ -425,6 +434,10 @@ function parseParticipantIds(raw: unknown, field: string): ParseResult<number[]>
 function parseAddSignerSelection(raw: unknown): ParseResult<AddSignerSelection> {
   if (!isPlainObject(raw)) {
     return { ok: false, code: 'invalid_body', message: 'add-signer signerSelection is required' };
+  }
+  if (raw.mode === 'ml_dsa_65') {
+    const parsed = normalizeMlDsaAddSignerSelection(raw);
+    return parsed.ok ? parsed : { ok: false, code: 'invalid_body', message: parsed.message };
   }
   if (raw.mode === 'ecdsa') {
     const ecdsa = isPlainObject(raw.ecdsa) ? raw.ecdsa : null;
@@ -2640,6 +2653,54 @@ export async function handleRouterApiWalletAddSignerEcdsaActivation(
   );
   if (!result.ok) return routeJson(400, result);
   return routeJson(200, result);
+}
+
+export async function handleRouterApiWalletAddSignerMlDsaExecute(
+  input: RouterApiWalletRegistrationInput,
+): Promise<RouteResponse<unknown>> {
+  let request: WalletAddSignerMlDsaExecuteRequest;
+  try {
+    const body = exactRecord(
+      input.body,
+      ['addSignerCeremonyId', 'encryptedInputs'],
+      'ML-DSA execution',
+    );
+    const wallet = parseWalletId(input.pathParams?.walletId);
+    if (!wallet.ok) return routeError(400, 'invalid_body', 'Invalid wallet identity');
+    request = {
+      walletId: wallet.value,
+      addSignerCeremonyId: requireCanonicalString(body.addSignerCeremonyId, 'addSignerCeremonyId'),
+      encryptedInputs: parseMlDsaEncryptedInputs(body.encryptedInputs),
+    };
+  } catch {
+    return routeError(400, 'invalid_body', 'Invalid ML-DSA encrypted inputs');
+  }
+  const result = await input.services.walletRegistration.executeWalletAddSignerMlDsa(request);
+  return routeJson(result.ok ? 200 : 400, result);
+}
+
+export async function handleRouterApiWalletAddSignerMlDsaPublish(
+  input: RouterApiWalletRegistrationInput,
+): Promise<RouteResponse<unknown>> {
+  let request: WalletAddSignerMlDsaPublishRequest;
+  try {
+    const body = exactRecord(
+      input.body,
+      ['addSignerCeremonyId', 'custodyCommit'],
+      'ML-DSA publication',
+    );
+    const wallet = parseWalletId(input.pathParams?.walletId);
+    if (!wallet.ok) return routeError(400, 'invalid_body', 'Invalid wallet identity');
+    request = {
+      walletId: wallet.value,
+      addSignerCeremonyId: requireCanonicalString(body.addSignerCeremonyId, 'addSignerCeremonyId'),
+      custodyCommit: parseMlDsaCustodyCommit(body.custodyCommit),
+    };
+  } catch {
+    return routeError(400, 'invalid_body', 'Invalid ML-DSA custody completion');
+  }
+  const result = await input.services.walletRegistration.publishWalletAddSignerMlDsa(request);
+  return routeJson(result.ok ? 200 : 400, result);
 }
 
 export async function handleRouterApiWalletAddSignerFinalize(

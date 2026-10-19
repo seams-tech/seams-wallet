@@ -311,6 +311,7 @@ import {
   walletRecoveryEd25519ActiveClientMetadataV1,
 } from '@/core/signingEngine/walletCustody/ceremonyActiveClientMetadata';
 import { requestWalletCustodyCeremonyOperation, walletCustodyCeremonyStepRunner, type WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
+import { runMlDsaCustodyKeySetCeremony } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import {
   disposeWalletCustodyEd25519ActiveClientV1,
   WalletCustodyEd25519ActiveClientV1,
@@ -2800,6 +2801,22 @@ export class BrowserSigningSurface {
       credentialIdB64u: replacement.credentialIdB64u,
       factorSecret: replacement.factorSecret,
     };
+  }
+
+  async joinWalletCustodyMlDsaKeySet(
+    args: Parameters<
+      import('./ports').WalletCustodyCeremonySurface['joinWalletCustodyMlDsaKeySet']
+    >[0],
+  ) {
+    return runMlDsaCustodyKeySetCeremony({
+      kind: 'join',
+      ceremonyId: args.ceremonyId,
+      protocolInputs: args.protocolInputs,
+      custodyJson: args.custodyJson,
+      factorSecret: args.factorSecret,
+      runRouterRound: args.runRouterRound,
+      runStep: walletCustodyCeremonyStepRunner(this.walletCustodyCeremonyTransportV1()),
+    });
   }
 
   async joinWalletCustodyNearEd25519KeySet(args: {

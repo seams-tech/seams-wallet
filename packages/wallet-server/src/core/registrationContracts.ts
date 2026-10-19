@@ -431,6 +431,27 @@ export type WalletAddSignerStartRequest = {
   auth: AddSignerAuth;
 };
 
+export type WalletAddSignerMlDsaExecuteRequest = {
+  readonly walletId: WalletId;
+  readonly addSignerCeremonyId: string;
+  readonly encryptedInputs: import('@shared/passkey-custody/mlDsaCustody').MlDsaEncryptedInputs;
+};
+export type WalletAddSignerMlDsaExecuteResponse =
+  | { readonly ok: true; readonly protocolResultJson: string }
+  | import('@shared/passkey-custody/mlDsaCustody').MlDsaRegistrationFailure;
+export type WalletAddSignerMlDsaPublishRequest = {
+  readonly walletId: WalletId;
+  readonly addSignerCeremonyId: string;
+  readonly custodyCommit: import('@shared/passkey-custody/mlDsaCustody').MlDsaCustodyCommit;
+};
+export type WalletAddSignerMlDsaPublishResponse =
+  | {
+      readonly ok: true;
+      readonly key: import('@shared/passkey-custody/mlDsaCustody').MlDsaCustodyCommit['key'];
+      readonly publishedAtMs: number;
+    }
+  | import('@shared/passkey-custody/mlDsaCustody').MlDsaRegistrationFailure;
+
 export type WalletAddSignerEd25519YaoStart = {
   admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
   custodyEnvelope: PasskeyCustodyEnvelopeRecord;
@@ -441,6 +462,16 @@ export type WalletAddSignerStartSuccess = {
   addSignerCeremonyId: string;
   intent: AddSignerIntentV1;
 } & { readonly authorizationKind: 'webauthn_assertion' } & (
+    | {
+        readonly kind: 'near_ml_dsa_65';
+        readonly mlDsa: {
+          readonly expiresAtMs: number;
+          readonly protocolInputs: import('@shared/passkey-custody/mlDsaCustody').MlDsaCreateProtocolInputs;
+          readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
+        };
+        readonly ed25519?: never;
+        readonly ecdsa?: never;
+      }
     | {
         kind: 'near_ed25519';
         ed25519: WalletAddSignerEd25519YaoStart;

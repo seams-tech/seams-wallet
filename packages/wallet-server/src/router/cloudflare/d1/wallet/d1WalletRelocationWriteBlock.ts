@@ -1,3 +1,4 @@
+import { expireUnusedMlDsaAdmissions, assertMlDsaRelocationSupported } from './d1MlDsaRegistrationExpiry';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
@@ -22,6 +23,8 @@ export class D1WalletRelocationWriteBlock {
   ) {}
 
   async check(source: WalletRelocationSessionSource, nowMs: number): Promise<'ready' | 'draining'> {
+    await expireUnusedMlDsaAdmissions(this.database, this.scope, source.walletId, nowMs);
+    await assertMlDsaRelocationSupported(this.database, this.scope, source.walletId);
     const identity = [
       source.walletId,
       source.moveId,
