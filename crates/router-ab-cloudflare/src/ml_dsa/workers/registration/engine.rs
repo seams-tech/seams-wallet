@@ -39,8 +39,21 @@ pub(super) async fn connected(
     command: &Command,
     socket: &WebSocket,
 ) -> Result<serde_json::Value> {
-    check(env, command).await?;
     let role = configured_role(env).map_err(storage_error)?;
+    let trace = match command {
+        Command::Execute { claim } | Command::ExecutePeer { claim } => {
+            Some(stage_trace::StageTrace::new(
+                claim.request.operation,
+                role,
+                stage_trace::Context::RegistrationExecute { job: claim.job.id },
+            ))
+        }
+        _ => None,
+    };
+    check(env, command).await?;
+    if let Some(trace) = &trace {
+        trace.mark("authorized");
+    }
     let signing_role = match role {
         Participant::A => SigningRole::A,
         Participant::B => SigningRole::B,
@@ -55,6 +68,9 @@ pub(super) async fn connected(
     {
         return Err(invalid("Registration signing group configuration changed"));
     }
+    if let Some(trace) = &trace {
+        trace.mark("schedules_loaded");
+    }
     let (version, seed) = executor::wrapping_key(env)?;
     let binding = registration_preparation::Binding {
         pool_scope: job.scope,
@@ -65,6 +81,9 @@ pub(super) async fn connected(
         wrapping_key_version: version.clone(),
     };
     begin(state, command, &binding).await?;
+    if let Some(trace) = &trace {
+        trace.mark("execution_reserved");
+    }
     let now = crate::cloudflare_now_unix_ms_v1()?;
     let (deadline, ceremony) = match command {
         Command::Prepare { .. } | Command::PreparePeer { .. } => (job.prepare_until, [0; 32]),
@@ -93,6 +112,7 @@ pub(super) async fn connected(
     .map_err(storage_error)?;
     let mut adapter = adapter::Adapter {
         wire,
+        trace: trace.as_ref(),
         state: Rc::clone(state),
         binding: binding.clone(),
         seed: seed.clone(),
@@ -160,6 +180,9 @@ pub(super) async fn connected(
         Command::Execute { claim } | Command::ExecutePeer { claim } => claim,
         _ => return Err(invalid("Missing registration claim")),
     };
+    if let Some(trace) = &trace {
+        trace.mark("adapter_ready");
+    }
     let ceremony_binding = MlDsaCeremonyBindingV1::new(
         String::from(claim.request.wallet.wallet.clone()),
         String::from(claim.request.key_id.clone()),
@@ -179,19 +202,34 @@ pub(super) async fn connected(
     let (root, reply) = open_ml_dsa_role_input_v1(input, &ceremony_binding, role_kind, &holder)
         .map_err(runtime_error)?
         .into_parts();
+    if let Some(trace) = &trace {
+        trace.mark("input_opened");
+    }
     let expected = binding.clone();
     let now = crate::cloudflare_now_unix_ms_v1()?;
     let sealed = transaction(state, move |store| async move {
         registration_preparation::consume(&store, &expected, ceremony, now).await
     })
     .await?;
+    if let Some(trace) = &trace {
+        trace.mark("prepared_consumed");
+    }
     let bytes = registration_preparation::open(sealed, &binding, &seed)?;
+    if let Some(trace) = &trace {
+        trace.mark("prepared_opened");
+    }
     let prepared = PreparedKeygen::from_consumed_storage(signing_role, job.id, &schedules, bytes)
         .map_err(runtime_error)?;
+    if let Some(trace) = &trace {
+        trace.mark("prepared_restored");
+    }
     let (key, _) = prepared
         .run(&root, &mut adapter)
         .await
         .map_err(runtime_error)?;
+    if let Some(trace) = &trace {
+        trace.mark("keygen_completed");
+    }
     worker::console_log!(
         "{}",
         serde_json::json!({
@@ -259,13 +297,22 @@ pub(super) async fn connected(
             .seal_result(&holder, &key.public_key)
             .map_err(runtime_error)?,
     };
+    if let Some(trace) = &trace {
+        trace.mark("material_sealed");
+    }
     let stored_result = own.clone();
     transaction(state, move |store| async move {
         store.put("material", &record).await?;
         store.put("own-result", &stored_result).await
     })
     .await?;
+    if let Some(trace) = &trace {
+        trace.mark("material_persisted");
+    }
     let peer = exchange(signing_role, &own, &mut adapter).await?;
+    if let Some(trace) = &trace {
+        trace.mark("result_exchanged");
+    }
     let result = match role {
         Participant::A => pair(own, peer)?,
         Participant::B => pair(peer, own)?,
@@ -277,7 +324,11 @@ pub(super) async fn connected(
             .await
             .map_err(storage_error)?;
     }
-    serde_json::to_value(result).map_err(runtime_error)
+    let result = serde_json::to_value(result).map_err(runtime_error)?;
+    if let Some(trace) = &trace {
+        trace.finish();
+    }
+    Ok(result)
 }
 async fn exchange(
     role: SigningRole,

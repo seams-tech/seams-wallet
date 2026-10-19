@@ -123,7 +123,7 @@ def public_router_trace(value, timestamp):
     if status is not None and (type(status) is not int or not 100 <= status <= 599):
         return None
     milestones = value.get("milestones")
-    allowed = ["entered", "decoded", "admission_done", "execution_done", "completion_recorded", "roles_released", "settled", "response_ready"]
+    allowed = ["entered", "decoded", "admission_done", "execution_done", "completion_recorded", "roles_released", "settled", "activation_started", "installation_done", "activation_done", "response_ready"]
     if not public_object_list(milestones, len(allowed)):
         return None
     clean = []
@@ -133,6 +133,56 @@ def public_router_trace(value, timestamp):
         clean.append({"stage": item["stage"], "at_ms": item.get("at_ms")})
     return {"http_request": request, "operation": operation, "module_instance": identity,
             "status": status, "milestones": clean, "log_timestamp_ms": timestamp}
+
+
+def public_stage_trace(value, timestamp):
+    if value.get("event") != "ml_dsa_stage_trace_v1" or not public_time(timestamp):
+        return None
+    if not public_id(value.get("operation")) or value.get("role") not in ("a", "b"):
+        return None
+    identity = value.get("module_instance")
+    if identity is not None and (not isinstance(identity, str) or re.fullmatch("[0-9a-f]{32}", identity) is None):
+        return None
+    context = value.get("context")
+    if not isinstance(context, dict):
+        return None
+    kind = context.get("kind")
+    if kind not in ("take_caller", "take_store", "registration_execute", "registration_install", "registration_stock"):
+        return None
+    key = "material" if kind in ("take_caller", "take_store") else "job"
+    raw = context.get(key)
+    if not isinstance(raw, list) or len(raw) != 32 or any(type(byte) is not int or not 0 <= byte <= 255 for byte in raw):
+        return None
+    clean_context = {"kind": kind, key: bytes(raw).hex()}
+    if kind == "registration_stock":
+        if not public_counter(context.get("ordinal")):
+            return None
+        clean_context["ordinal"] = context["ordinal"]
+    marks = value.get("marks")
+    if not public_object_list(marks, 32) or type(value.get("completed")) is not bool:
+        return None
+    allowed = {
+        "started", "completed", "authorized", "transaction_committed", "response_headers",
+        "schedules_loaded", "execution_reserved", "adapter_ready", "input_opened",
+        "prepared_consumed", "prepared_opened", "prepared_restored", "keygen_completed",
+        "material_sealed", "material_persisted", "result_exchanged", "installation_checked",
+        "material_loaded", "material_installed", "stock_installed", "stock_loaded",
+        "stock_resealed", "delivery_persisted", "delivery_acknowledged",
+    }
+    clean_marks = []
+    for mark in marks:
+        if mark.get("stage") not in allowed or not public_time(mark.get("at_ms")):
+            return None
+        clean_marks.append({"stage": mark["stage"], "at_ms": mark.get("at_ms")})
+    reads = value.get("table_reads")
+    keys = ("count", "measured", "elapsed_ms", "maximum_ms")
+    if not isinstance(reads, dict) or not all(public_counter(reads.get(key)) for key in keys):
+        return None
+    return {
+        "operation": value["operation"], "role": value["role"], "context": clean_context,
+        "module_instance": identity, "completed": value["completed"], "marks": clean_marks,
+        "table_reads": {key: reads[key] for key in keys}, "log_timestamp_ms": timestamp,
+    }
 
 
 def public_producer_entry(value, timestamp):
@@ -312,6 +362,7 @@ def records(path, role):
         signing = []
         signing_traces = []
         router_traces = []
+        stage_traces = []
         socket_completion = []
         peer_close = []
         refill = []
@@ -333,6 +384,9 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                stage_trace = public_stage_trace(value, log.get("timestamp"))
+                if stage_trace is not None:
+                    stage_traces.append(stage_trace)
                 router_trace = public_router_trace(value, log.get("timestamp"))
                 if router_trace is not None:
                     router_traces.append(router_trace)
@@ -461,6 +515,7 @@ def records(path, role):
             "signing": signing,
             "signing_traces": signing_traces,
             "router_traces": router_traces,
+            "stage_traces": stage_traces,
             "socket_completion": socket_completion,
             "peer_close": peer_close,
             "refill": refill,

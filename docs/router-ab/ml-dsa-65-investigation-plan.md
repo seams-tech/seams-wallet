@@ -2,7 +2,20 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-19.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [producer-reuse campaign](ml-dsa-65-producer-reuse-report.md) keeps four-candidate preparation and two-at-once consumption.
+The [signing and registration profiling campaign](ml-dsa-65-stage-profile-report.md) adds exact material-call boundaries and registration execution/installation records.
+It preserves two-at-once consumption, wallet-seed recovery, standard FIPS export, and the thirty-two-candidate capacity. UI work remains deferred.
+The instrumented run verifies twenty-five signatures, with seventeen below five seconds, a 3.434-second median, and a 15.287-second maximum.
+Prepared registration/recovery takes 5.151–13.475 seconds. Both five-second targets remain unqualified.
+The slowest recovery spends 6.835–6.853 seconds in role installation invocations, with only 0.414–0.474 seconds of reported CPU.
+All four ceremonies have complete execution/installation/stock records. Material consumption has only seventy matched caller/store contexts out of 182 callers.
+Hosted storage clocks remain fixed during real work, so they cannot partition storage, copying, authentication, and serialization costs.
+Separate Node client waits reach 9.211 seconds before request writing among successful instrumented signatures.
+Both material ledgers balance after full restoration. Saturated complete demand has a 36.778-second median and a 251.654-second maximum in the instrumented run.
+The control and instrumented screens differ in runtime conditions, rejection outcomes, and observation. They establish no optimization benefit.
+Next, test bounded initial-stock delivery groups, separate material body receipt from decoding, and reproduce client connection waits in a browser harness.
+Keep Workers preparation, the existing capacity and production cooldown, and all single-use/recovery checks. GPU and UI work stay deferred.
+
+The earlier [producer-reuse campaign](ml-dsa-65-producer-reuse-report.md) keeps four-candidate preparation and two-at-once consumption.
 One stable producer identity retains separate durable job states. Stalled settlement and restart handoff tests pass without material regeneration.
 The candidate verifies 58 hosted signatures, with 55 below five seconds, a 1.813-second median, and a 6.519-second maximum.
 Four-candidate producer time falls from 10.033 to 8.247 seconds median. Caller dispatch acknowledgment falls from 930 to 43 milliseconds median.
@@ -12,7 +25,7 @@ All three successful requests above five seconds spend most of their time in war
 Separate successful requests expose 2.791–2.970-second client waits before request writing. Their reused sockets and loop observations leave transport scheduling unresolved.
 Candidate prepared registration/recovery takes 3.850–5.702 seconds. Canonical wallet-seed recovery and standard FIPS export remain unchanged.
 Both five-second targets remain unqualified. Pool capacity stays at thirty-two candidates per wallet, with sixteen ready for admission.
-Next, measure durable pair-consumption and activation waits, then diagnose client dispatcher/socket waits and repeat fixed-capacity sustained tests.
+These observations motivated the stage profiling above. Physical storage/serialization costs and client dispatcher waits remain partly unresolved.
 Preparation stays on Workers. The sixty-second production cooldown remains unchanged. GPU work stays deferred.
 
 The earlier [startup and AES-inlining campaign](ml-dsa-65-startup-inline-report.md) uses four-candidate preparation and two-at-once consumption.

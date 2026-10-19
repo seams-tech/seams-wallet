@@ -77,6 +77,14 @@ pub(super) async fn install(
     let participant = configured_role(env).map_err(storage_error)?;
     let (version, seed) = executor::wrapping_key(env)?;
     for ordinal in 0..claim.job.signing_batches {
+        let trace = stage_trace::StageTrace::new(
+            claim.request.operation,
+            participant,
+            stage_trace::Context::RegistrationStock {
+                job: claim.job.id,
+                ordinal,
+            },
+        );
         let name = format!("registration-signing/{ordinal}/installed");
         if state
             .storage()
@@ -85,8 +93,10 @@ pub(super) async fn install(
             .map_err(storage_error)?
             .unwrap_or(false)
         {
+            trace.finish();
             continue;
         }
+        trace.mark("installation_checked");
         let sealed = transaction(state, move |store| async move {
             let prefix = format!("registration-signing/{ordinal}");
             let record: Stored = store
@@ -97,6 +107,7 @@ pub(super) async fn install(
                 .await
         })
         .await?;
+        trace.mark("stock_loaded");
         let bytes =
             sealing::open_bound(sealed, DOMAIN, &(&claim.job, participant, ordinal), &seed)?;
         let binding = Binding {
@@ -107,6 +118,7 @@ pub(super) async fn install(
             wrapping_key_version: version.clone(),
         };
         let sealed = sealing::seal(bytes, &binding, &seed)?;
+        trace.mark("stock_resealed");
         // Persist the rebound ciphertext before delivery so a lost response retries exact bytes.
         let delivery = format!("registration-signing/{ordinal}/delivery");
         let sealed = transaction(state, move |store| async move {
@@ -133,6 +145,7 @@ pub(super) async fn install(
             Ok(sealed)
         })
         .await?;
+        trace.mark("delivery_persisted");
         let response = local_call(
             env,
             &RoleCommand::InstallRegistrationBatch {
@@ -146,11 +159,13 @@ pub(super) async fn install(
         if response.status_code() != 200 {
             return Err(invalid("Initial signing stock installation failed"));
         }
+        trace.mark("delivery_acknowledged");
         state
             .storage()
             .put(&name, &true)
             .await
             .map_err(storage_error)?;
+        trace.finish();
     }
     Ok(())
 }

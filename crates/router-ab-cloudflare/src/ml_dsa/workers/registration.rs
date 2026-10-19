@@ -148,8 +148,18 @@ pub(crate) async fn handle_prepare(
     Response::from_json(&serde_json::json!({"ready":ready,"job":job}))
 }
 pub(crate) async fn handle_register(
+    request: worker::Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    let mut trace = router_trace::RouterTrace::new(request.headers())?;
+    let mut response = register_request(request, env, &mut trace).await;
+    trace.finish(&mut response)?;
+    response
+}
+async fn register_request(
     mut request: worker::Request,
     env: &Env,
+    trace: &mut router_trace::RouterTrace,
 ) -> worker::Result<Response> {
     if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
@@ -160,6 +170,7 @@ pub(crate) async fn handle_register(
     let input: core::Request = decode_bounded_json_request(&mut request, 32_768)
         .await
         .map_err(protocol_error)?;
+    trace.bind(input.operation);
     let decision: core::Decision = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
@@ -170,6 +181,7 @@ pub(crate) async fn handle_register(
     )
     .await
     .map_err(protocol_error)?;
+    trace.mark("admission_done");
     let claim = match decision {
         core::Decision::Admitted { claim } => claim,
         core::Decision::Existing {
@@ -180,6 +192,7 @@ pub(crate) async fn handle_register(
     let execution = execute_with_storage_initialization(env, &claim)
         .await
         .map_err(protocol_error)?;
+    trace.mark("execution_done");
     let result = match execution {
         core::ExecutionReply::Complete { result } => result,
         core::ExecutionReply::Running => {
@@ -193,6 +206,7 @@ pub(crate) async fn handle_register(
     }
     let activation = result.a.activation.clone();
     let started = coordinator::activate(env, request.headers(), activation.clone()).await?;
+    trace.mark("activation_started");
     if started.status_code() != 200 {
         return Ok(started);
     }
@@ -203,6 +217,7 @@ pub(crate) async fn handle_register(
         role_call::<bool>(env, "DERIVER_A", &install),
         role_call::<bool>(env, "DERIVER_B", &install)
     );
+    trace.mark("installation_done");
     if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
         return Response::error("Registration installation is incomplete", 503);
     }
@@ -211,6 +226,7 @@ pub(crate) async fn handle_register(
         return Ok(activated);
     }
     let state: admission::KeyState = activated.json().await?;
+    trace.mark("activation_done");
     if !matches!(state, admission::KeyState::Active { .. }) {
         return Response::error("Registration activation is incomplete", 503);
     }
@@ -221,6 +237,7 @@ pub(crate) async fn handle_register(
     )
     .await
     .map_err(protocol_error)?;
+    trace.mark("completion_recorded");
     Response::from_json(&core::Decision::Existing { operation })
 }
 
@@ -271,6 +288,11 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
         }
         let value = match &command {
             Command::Install { claim } => {
+                let trace = stage_trace::StageTrace::new(
+                    claim.request.operation,
+                    configured_role(&self.env)?,
+                    stage_trace::Context::RegistrationInstall { job: claim.job.id },
+                );
                 if self
                     .state
                     .storage()
@@ -278,8 +300,10 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                     .await?
                     .unwrap_or(false)
                 {
+                    trace.finish();
                     return Response::from_json(&true);
                 }
+                trace.mark("installation_checked");
                 let record: material::Record =
                     self.state.storage().get("material").await?.ok_or_else(|| {
                         protocol_error(invalid("Registration material is absent"))
@@ -287,6 +311,7 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                 if record.activation.ceremony_id != claim.request.operation {
                     return Response::error("Registration material changed", 409);
                 }
+                trace.mark("material_loaded");
                 let key = record.activation.key.clone();
                 let response = local_call(&self.env, &RoleCommand::InstallMaterial { record })
                     .await
@@ -294,15 +319,18 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                 if response.status_code() != 200 {
                     return Ok(response);
                 }
+                trace.mark("material_installed");
                 signing_stock::install(&self.env, &self.state, claim, &key)
                     .await
                     .map_err(protocol_error)?;
+                trace.mark("stock_installed");
                 transaction(&self.state, move |store| async move {
                     store.put("installed", &true).await?;
                     store.delete("material").await
                 })
                 .await
                 .map_err(protocol_error)?;
+                trace.finish();
                 serde_json::json!(true)
             }
             Command::Result { .. } => {

@@ -17,6 +17,14 @@ def category(stack):
         return "code_matrix_encoding"
     if "::gate_aes::" in text or "::correlation_aes::CorrelationAes" in text:
         return "private_aes"
+    if "::prepared::build_layout" in text:
+        return "public_topology_build"
+    if "PreparedGmwBatch>::run" in text:
+        return "gmw_execution_other"
+    if any(name.startswith(("serde_json[", "<serde_json[")) for name in stack):
+        return "json_encoding_or_decoding"
+    if stack[0] in ["get", "put", "delete"]:
+        return "storage_js_leaf"
     if "curve25519_dalek[" in text:
         return "curve_arithmetic"
     if "::silent::pprf::" in text:

@@ -1,0 +1,205 @@
+{
+  "schema": "seams.ml-dsa-stage-profile-validation.v1",
+  "source_base": "076e4aca2027349e81004bafc4e291939d2bd9c6",
+  "branch": "ml-dsa",
+  "bundles": [
+    {
+      "file": "docs/evidence/ml-dsa-65-stage-profile-hosted-20261019.json.gz",
+      "sha256": "0e795a9ffc1630090209ae91d250b7e8b695ed9a331bd05852e96305f2fe8874",
+      "uncompressed_sha256": "9f342386d45dab2233a8819a438bab09d67984053ada7223699cb4875aea142e",
+      "files": 26,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-stage-profile-local-20261019.json.gz",
+      "sha256": "9d057a2100e7cdd9f8c270dd2d499ab4e0433a677076fadfd2183025b83815dd",
+      "uncompressed_sha256": "d6cf64ba91c5e21eeaa5245ef398158a1ca8de2295bc1e1fa2bac763debb5520",
+      "files": 18,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-stage-profile-provenance-20261019.json.gz",
+      "sha256": "cba60384e5d68674eec39c5204e641e970443f40ec7a1f03f4f2755c22f61c61",
+      "uncompressed_sha256": "bf705d6aa0ed63a2a1c84651e43e9725ff421c03573214f5f3389c7551d1ac36",
+      "files": 80,
+      "private_matches": 0
+    }
+  ],
+  "comparison_sha256": "596815b6c505f7abad286cacf4563a6df2a0da3b78211790010373fdeb9974b5",
+  "private_credential_patterns_checked": 68,
+  "private_matches": 0,
+  "worker_cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-stages-1019-c6c35c-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T03:37:12.908753+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-stages-1019-c6c35c-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T03:37:14.446742+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-stages-1019-c6c35c-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T03:37:15.993211+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-stages-1019-c6c35c-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T03:37:17.473758+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-stages-1019-c6c35c-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T03:37:18.978731+00:00"
+      }
+    ],
+    "optimized": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-stages-1019-c6c35c-optimized-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T04:01:14.702525+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-stages-1019-c6c35c-optimized-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T04:01:16.305304+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-stages-1019-c6c35c-optimized-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T04:01:17.677228+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-stages-1019-c6c35c-optimized-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T04:01:19.037624+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-stages-1019-c6c35c-optimized-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-19T04:01:20.427401+00:00"
+      }
+    ]
+  },
+  "local_e2e_passed": true,
+  "local_registration_passed": true,
+  "signature_review": {
+    "schema": "seams.ml-dsa-stage-profile-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "baseline",
+        "consumptionWidth": 2,
+        "verified": 36,
+        "alteredMessagesRejected": 36,
+        "alteredSignaturesRejected": 36,
+        "clientSha256": "1d20dd1674a590804190b7df9cf67d15b0b40aac75ac4e35b84b596f72014122"
+      },
+      {
+        "profile": "optimized",
+        "consumptionWidth": 2,
+        "verified": 25,
+        "alteredMessagesRejected": 25,
+        "alteredSignaturesRejected": 25,
+        "clientSha256": "5c369d7b2e906ada10421f79692bf5a21c28de58cec88868d59b1983ffa6a8af"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "scriptSha256": "538746b4392f4ff641ab6aa25fde37eb8c47f22feb05e6a2eb67b09899d65a55"
+  },
+  "format_validation": {
+    "passed": true,
+    "checks": [
+      {
+        "command": [
+          "rustfmt",
+          "--edition",
+          "2021",
+          "--check",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/registration.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/adapter.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/engine.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/signing_stock.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/stage_trace.rs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "node",
+          "--check",
+          "tests/e2e/ml-dsa-durable-worker.e2e.mjs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "node",
+          "--check",
+          "tests/e2e/ml-dsa-registration-worker.e2e.mjs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "python3",
+          "-m",
+          "py_compile",
+          "tools/ml-dsa-investigation/research/collect_worker_traces.py",
+          "tools/ml-dsa-investigation/research/summarize_preparation_profile.py",
+          "tools/ml-dsa-investigation/research/summarize_stage_profiles.py"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit_code": 0,
+        "output": ""
+      }
+    ]
+  },
+  "bloat_gate": {
+    "passed": false,
+    "rust_duplicated_lines": 13984,
+    "rust_baseline": 13754,
+    "typescript_duplicated_lines": 10238,
+    "typescript_baseline": 10216,
+    "inherited_counts_unchanged": true
+  },
+  "private_campaign_removed": true,
+  "private_campaign_removal_checked_at": "2026-10-19T04:10:09.972636+00:00",
+  "bundle_hashes_verified_after_packaging": true
+}

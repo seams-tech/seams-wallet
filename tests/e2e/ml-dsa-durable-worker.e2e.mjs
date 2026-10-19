@@ -22,7 +22,9 @@ const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.js
 const root = resolve(import.meta.dirname, '../..');
 const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
 const options = new Set(process.argv.slice(4));
-for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--passive-preparation-observer'].includes(option), 'Unknown measurement option');
+for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--passive-preparation-observer', '--calibrate-stage-delays'].includes(option), 'Unknown measurement option');
+const calibrateStages = options.has('--calibrate-stage-delays');
+const stageEvents = [];
 const profilePreparation = options.has('--profile-preparation');
 const profileSigning = options.has('--profile-signing');
 const passivePreparationObserver = options.has('--passive-preparation-observer');
@@ -57,6 +59,7 @@ const bindings = {
 };
 const publicationBarrierScript = `
 function holdPublication(resolve) { setTimeout(resolve, 60000); }
+function delayAuthorization(resolve) { setTimeout(resolve, 200); }
 function finalPublication(command) {
   switch (command.job.groups) {
     case 'one': return true;
@@ -113,6 +116,10 @@ export class PublicationBarrier {
 export class AdmissionBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(request) {
+    if (new URL(request.url).pathname === '/calibrate') {
+      await this.state.storage.put('calibration_operation', await request.json());
+      return new Response('Armed');
+    }
     if (new URL(request.url).pathname === '/arm-handoff') {
       await this.state.storage.put('handoff_armed', true);
       return new Response('Armed');
@@ -127,6 +134,12 @@ export class AdmissionBarrier {
         heldSettlement: await this.state.storage.get('held_settlement') ?? null });
     }
     const command = await request.clone().json();
+    if (command.command === 'lookup') {
+      const operation = await this.state.storage.get('calibration_operation');
+      if (operation && JSON.stringify(command.request.operation) === JSON.stringify(operation)) {
+        await new Promise(delayAuthorization);
+      }
+    }
     const armed = await this.state.storage.get('armed');
     if (command.command === 'finish_refill' && armed && JSON.stringify(command.job.batch) === JSON.stringify(armed.batch)) {
       await this.state.storage.put('armed', false);
@@ -208,7 +221,7 @@ let lastSuccessful;
 let profileConnections = [];
 let initialRefillStarted;
 try {
-  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence, ...(profilePreparation || profileSigning ? { inspectorPort: 0 } : {}) });
+  runtime = createRuntime();
   await runtime.ready;
   observations.idleTimerMs = await timerControl();
   if (profilePreparation || profileSigning) {
@@ -265,6 +278,13 @@ try {
     if (index === 0) observations.ownerAdmission = await admission.verifyMlDsaAdmissionRefusals(owner);
     const prepared = owner.admitted.operation;
     const input = JSON.parse(prepared.encode());
+    if (calibrateStages && index === 0) {
+      const barrier = await admissionBarrier();
+      const armed = await barrier.fetch('https://fault.internal/calibrate', {
+        method: 'POST', body: JSON.stringify(input.request.operation),
+      });
+      assert.equal(armed.status, 200);
+    }
     const initialStarts = await preprocessingStarts();
     if (profileSigning) profileConnections = await startProfiles(runtime, signingTarget, 1000);
     const started = performance.now();
@@ -272,7 +292,16 @@ try {
     const response = await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared);
     assert.equal(response.status, 200, await response.clone().text());
     const result = await response.json();
-    const elapsedMs = performance.now() - started;
+    const responseAt = performance.now();
+    const elapsedMs = responseAt - started;
+    if (calibrateStages && index === 0) {
+      await new Promise(waitForMarker);
+      const operation = Buffer.from(input.request.operation).toString('hex');
+      const stores = stageEvents.filter(isCalibrationStore, operation);
+      assert.ok(stores.length > 0, 'No delayed material consumption trace was observed');
+      observations.stageCalibration = stores.map(calibrationSpan);
+      assert.ok(observations.stageCalibration.every(hasInjectedDelay), 'Stage clock missed the injected authorization wait');
+    }
     if (profileSigning) {
       observations.signingProfiles.push({
         index,
@@ -311,8 +340,8 @@ try {
       const barrier = await publicationBarrier();
       assert.equal((await barrier.fetch('https://fault.internal/arm-after')).status, 200);
       await waitForPreprocessingStart(initialStarts);
-      observations.firstConsumptionRefillStartedMs = performance.now() - started;
-      assert.ok(observations.firstConsumptionRefillStartedMs < 3000, 'Consumption did not advance the maintenance alarm');
+      observations.responseToRefillStartedMs = performance.now() - responseAt;
+      assert.ok(observations.responseToRefillStartedMs < 3000, 'Settled consumption did not wake refill within three seconds');
       const jobs = await rolePreprocessingJobs('a');
       jobs.sort(newestJobFirst);
       const job = jobs[0];
@@ -357,7 +386,7 @@ try {
       const settlementBarrier = await admissionBarrier();
       assert.equal((await settlementBarrier.fetch('https://fault.internal/arm', { method: 'POST', body: JSON.stringify(job) })).status, 200);
       await runtime.dispose();
-      runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+      runtime = createRuntime();
       await runtime.ready;
       await waitForInterruptedProducer(job);
       observations.interruptedProducer.terminalStateMs = performance.now() - resetStarted;
@@ -408,7 +437,7 @@ try {
   await waitReady(policy.refill_target_batches);
   await runtime.dispose();
   bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify({ ...policy, operation_timeout_ms: 1000 });
-  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  runtime = createRuntime();
   await runtime.ready;
   assert.deepEqual(
     await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(await runtime.getWorker('router')), lastSuccessful.prepared)).json(),
@@ -507,6 +536,15 @@ async function readKek(role) {
 function digest(bytes) {
   return Array.from(createHash('sha256').update(Buffer.from(bytes)).digest());
 }
+function createRuntime() {
+  return new Miniflare({
+    handleRuntimeStdio,
+    workers: workers(),
+    durableObjectsPersist: persistence,
+    inspectorPort: profilePreparation || profileSigning ? 0 : undefined,
+  });
+}
+
 function base(name, build, extraBindings) {
   return {
     name,
@@ -582,6 +620,11 @@ function roleWorker(role, index) {
   if (role === 'a') {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
+    };
+  }
+  if (calibrateStages && role === 'a') {
+    worker.durableObjects.ML_DSA_ADMISSION_DO = {
+      className: 'AdmissionBarrier', scriptName: 'publication-barrier',
     };
   }
   return worker;
@@ -750,7 +793,7 @@ async function checkPrepublicationFallback() {
   assert.equal(await producerState(job), 'running');
   const started = performance.now();
   await runtime.dispose();
-  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  runtime = createRuntime();
   await runtime.ready;
   await new Promise(waitSixSeconds);
   assert.equal(await producerState(job), 'running');
@@ -794,13 +837,14 @@ function recordProducerEvent(line) {
   let event;
   try { event = JSON.parse(line); } catch { return; }
   if (event.event === 'ml_dsa_producer_job_v1') producerEvents.push(event);
+  if (event.event === 'ml_dsa_stage_trace_v1') stageEvents.push(event);
 }
 async function checkProducerHandoff(restart) {
   await runtime.dispose();
   await rm(persistence, { recursive: true, force: true });
   persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-handoff-e2e-'));
   bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify(policy);
-  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  runtime = createRuntime();
   await runtime.ready;
   const barrier = await admissionBarrier();
   assert.equal((await barrier.fetch('https://fault.internal/arm-handoff')).status, 200);
@@ -828,7 +872,7 @@ async function checkProducerHandoff(restart) {
   const handoffStarted = performance.now();
   if (restart) {
     await runtime.dispose();
-    runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+    runtime = createRuntime();
     await runtime.ready;
   }
   await assert.rejects(producerReceipt(held, serviceAuth), /ML-DSA preprocessing lease is inactive/);
@@ -912,6 +956,18 @@ async function timerControl() {
   assert.deepEqual(await response.json(), { completed: true });
   return performance.now() - started;
 }
+
+function isCalibrationStore(event) {
+  return event.operation === this && event.role === 'a' && event.context.kind === 'take_store';
+}
+function calibrationSpan(event) {
+  const marks = Object.fromEntries(event.marks.map(stageEntry));
+  assert.ok(Number.isFinite(marks.started) && Number.isFinite(marks.authorized));
+  return { operation: event.operation, material: event.context.material,
+    injectedMs: 200, observedAuthorizationMs: marks.authorized - marks.started };
+}
+function stageEntry(mark) { return [mark.stage, mark.at_ms]; }
+function hasInjectedDelay(span) { return span.observedAuthorizationMs >= 190; }
 
 function signingTime(value) { return value.elapsedMs; }
 
