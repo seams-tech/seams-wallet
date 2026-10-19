@@ -1,3 +1,4 @@
+import { recordRegistrationPromiseTiming, recordRegistrationServerTiming } from '../../../framework/registrationTiming';
 import { registrationCommitCompletionWrite } from './registrationCompletionWrite';
 import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationExecutionRecord';
 import { isTransientD1Error, retryTransientD1 } from '../../../../storage/d1Retry';
@@ -309,8 +310,6 @@ import {
   D1RegistrationRouteTimingRecorder,
   errorMessage,
   finishD1RegistrationRouteTiming,
-  recordRegistrationPromiseTiming,
-  recordRegistrationServerTiming,
   registrationSignerBranchesFromPlan,
   startD1RegistrationRouteTiming,
 } from './d1RegistrationSetupSupport';
@@ -4575,6 +4574,7 @@ export class CloudflareD1WalletRegistrationService {
             }),
       input.startedDispatchRoot,
       requireRegistrationEd25519YaoMint(ceremony).sessionId,
+      input.serverTiming,
     );
     recordRegistrationServerTiming(input.serverTiming, 'yao_admission_bind', bindStartedAtMs);
     if (!admitted.ok) return { ok: false, code: admitted.code, message: admitted.message };

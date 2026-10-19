@@ -159,6 +159,7 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
         companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
         startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
         mintedSessionId: RouterAbEd25519YaoBytes32V1,
+        serverTiming?: Array<readonly [string, number]>,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
       /**
        * The receipt of the admission that a registration gets for `request`
