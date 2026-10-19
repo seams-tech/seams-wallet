@@ -1,5 +1,6 @@
 const worker = new Worker('/custody-worker.js', { type: 'module' });
 const pending = new Map();
+const completedRoleResults = new Map();
 let sequence = 0;
 const checks = {};
 const status = document.querySelector('#status');
@@ -94,6 +95,23 @@ async function perform(fixture, custody, continuity) {
   });
   return roles;
 }
+async function routerRound(id, roleInputsJson) {
+  const dispatch = JSON.parse(roleInputsJson);
+  ensure(
+    Object.keys(dispatch).sort().join(',') === 'binding,roleA,roleB',
+    'Unexpected dispatch fields',
+  );
+  ensure(
+    dispatch.roleA.ciphertext.length === 80 && dispatch.roleB.ciphertext.length === 80,
+    'Invalid encrypted inputs',
+  );
+  const roles = await api('/execute', { id, roleInputsJson });
+  completedRoleResults.set(id, roles.resultsJson);
+  return roles.resultsJson;
+}
+async function failRouterRound() {
+  throw new Error('Injected Router transport failure');
+}
 async function expectFailure(type, payload, name) {
   let failed = false;
   try {
@@ -150,20 +168,17 @@ async function run() {
   try {
     status.textContent = 'Establishing browser custody and signing through separate roles…';
     const first = await api('/fixture');
-    const roles = await perform(first, { origin: 'establish', walletId: first.protocol.walletId });
-    const commit = await rpc('finishMlDsaCustodyKeySetRun', {
+    const commit = await runMlDsaCustodyKeySetCeremony({
       ceremonyId: first.id,
-      finish: {
-        kind: 'establish',
-        factorJson: factor('browser-fixture-envelope', 0x62),
-        factorSecret: new Uint8Array(32).fill(0x61).buffer,
-        recoveryCodesJson: codes(),
-      },
+      runStep: rpc,
+      runRouterRound: routerRound.bind(null, first.id),
+      kind: 'establish',
+      protocolInputs: first.protocol,
+      factorJson: factor('browser-fixture-envelope', 0x62),
+      factorSecret: new Uint8Array(32).fill(0x61).buffer,
+      recoveryCodesJson: codes(),
     });
-    ensure(
-      commit.custodyAction === 'established' && commit.key.publicKeyB64u === roles.publicKeyB64u,
-      'Establishment returned the wrong identity',
-    );
+    ensure(commit.custodyAction === 'established', 'Establishment returned the wrong action');
     await api('/verify-export', { id: first.id, commit });
     checks.browser_establishment_and_threshold_signature = true;
     await expectFailure(
@@ -178,19 +193,21 @@ async function run() {
       kind: 'recover',
       recordedKeyManifestDigestB64u: commit.key.keyManifestDigestB64u,
     };
-    const recoveredRoles = await perform(second, recovering(commit), continuity);
-    const recovered = await rpc('finishMlDsaCustodyKeySetRun', {
+    const recoveryInput = recovering(commit);
+    const recovered = await runMlDsaCustodyKeySetCeremony({
       ceremonyId: second.id,
-      finish: {
-        kind: 'recover_reseal',
-        replacementFactorJson: factor('browser-recovered-envelope', 0x66),
-        replacementFactorSecret: new Uint8Array(32).fill(0x67).buffer,
-      },
+      runStep: rpc,
+      runRouterRound: routerRound.bind(null, second.id),
+      kind: 'recover',
+      protocolInputs: { ...second.protocol, continuity },
+      custodyJson: recoveryInput.custodyJson,
+      recoveryCode: recoveryInput.recoveryCode,
+      replacementFactorJson: factor('browser-recovered-envelope', 0x66),
+      replacementFactorSecret: new Uint8Array(32).fill(0x67).buffer,
     });
     ensure(
       recovered.custodyAction === 'recovered' &&
-        recovered.key.publicKeyB64u === commit.key.publicKeyB64u &&
-        recoveredRoles.publicKeyB64u === commit.key.publicKeyB64u,
+        recovered.key.publicKeyB64u === commit.key.publicKeyB64u,
       'Recovery changed the public key',
     );
     ensure(
@@ -199,6 +216,57 @@ async function run() {
     );
     await api('/verify-export', { id: second.id, commit: recovered });
     checks.browser_code_recovery_preserves_key_and_manifest = true;
+
+    status.textContent = 'Joining existing custody through the SDK driver…';
+    const third = await api('/fixture');
+    const joinInput = joining(commit);
+    const joinedCommit = await runMlDsaCustodyKeySetCeremony({
+      ceremonyId: third.id,
+      runStep: rpc,
+      runRouterRound: routerRound.bind(null, third.id),
+      kind: 'join',
+      protocolInputs: { ...third.protocol, continuity },
+      custodyJson: joinInput.custodyJson,
+      factorSecret: joinInput.factorSecret,
+    });
+    ensure(joinedCommit.custodyAction === 'joined', 'Joining returned the wrong action');
+    ensure(
+      Object.keys(joinedCommit).sort().join(',') === 'custodyAction,key',
+      'Joining replaced custody records',
+    );
+    ensure(
+      joinedCommit.key.keyManifestDigestB64u === commit.key.keyManifestDigestB64u,
+      'Joining changed the manifest',
+    );
+    await api('/verify-export', { id: third.id, commit: joinedCommit });
+    checks.driver_join_preserves_key_without_replacing_recovery_set = true;
+
+    const interrupted = await api('/fixture');
+    const beforeInterruption = await rpc('fixtureLifetime', {});
+    let interruptedError;
+    try {
+      await runMlDsaCustodyKeySetCeremony({
+        ceremonyId: interrupted.id,
+        runStep: rpc,
+        runRouterRound: failRouterRound,
+        kind: 'join',
+        protocolInputs: { ...interrupted.protocol, continuity },
+        custodyJson: joinInput.custodyJson,
+        factorSecret: joinInput.factorSecret,
+      });
+    } catch (error) {
+      interruptedError = error;
+    }
+    ensure(
+      interruptedError?.message === 'Injected Router transport failure',
+      'Driver masked the transport error',
+    );
+    const afterInterruption = await rpc('fixtureLifetime', {});
+    ensure(
+      afterInterruption.preparedFreed === beforeInterruption.preparedFreed + 1,
+      'Driver retained private state after a network failure',
+    );
+    await assertGone(interrupted.id, 'driver_network_failure_discards_custody');
 
     status.textContent = 'Checking malformed boundaries, terminal failures, and handle cleanup…';
     for (const invalid of ['secret-input', 'missing-manifest', 'unsafe-epoch']) {
@@ -261,7 +329,11 @@ async function run() {
     await begin(replay, joining(commit));
     await expectFailure(
       'completeWalletCustodyKeySetRun',
-      { ceremonyId: replay.id, keySet: 'near_ml_dsa_65_v1', protocolResultJson: roles.resultsJson },
+      {
+        ceremonyId: replay.id,
+        keySet: 'near_ml_dsa_65_v1',
+        protocolResultJson: completedRoleResults.get(first.id),
+      },
       'old-holder-replies',
     );
     await assertGone(replay.id, 'old-holder-replies-are-terminal');
@@ -345,3 +417,4 @@ async function run() {
     console.error(error);
   }
 }
+import { runMlDsaCustodyKeySetCeremony } from '/custody-driver.js';

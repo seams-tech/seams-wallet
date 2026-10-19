@@ -3416,6 +3416,10 @@ It writes repeatable evidence under `.artifacts/signing-credit/`.
 
 The ML-DSA public SDK route is not yet enabled. These requirements govern the native implementation, browser worker boundary, and their E2E evidence.
 
+- The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
+- A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
+- ML-DSA device linking must authorize the existing server-held signer without transferring the wallet custody seed or server signing shares. Owner custody joining does not establish device enrollment.
+
 - Derive the ML-DSA owner root independently from the wallet custody seed and stable wallet/key binding.
 - Keep the complete canonical FIPS seed inside secure computation until authorized ordinary-key export.
 - Deliver one encrypted owner-root share to each holder. Bind delivery to the wallet/key digest, operation, epoch, and role.

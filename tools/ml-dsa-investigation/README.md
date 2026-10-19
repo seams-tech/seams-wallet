@@ -249,7 +249,7 @@ Build the SDK Wasm packages through the existing build script, then build the na
 WASM_SDK_BUILD_MODE=prod pnpm build:wasm
 cargo build --release --locked --manifest-path tools/ml-dsa-investigation/Cargo.toml
 node tools/ml-dsa-investigation/scripts/browser-custody/server.mjs \
-  docs/evidence/ml-dsa-65-browser-custody-e2e-20261014.json
+  docs/evidence/ml-dsa-65-sdk-custody-driver-20261019.json
 ```
 
 Open the printed localhost URL in Chromium and press **Run custody E2E**.
@@ -257,13 +257,15 @@ The page reports the final check count. The server saves the JSON evidence and r
 The test uses public disposable factors and keys. Never direct it at production services or supply wallet secrets.
 It requires Node with X25519 support, the built browser packages, and the existing OpenSSL reference dependency.
 
-The fixture bundles the actual SDK custody worker and uses separate native A/B processes for cryptographic work.
+The fixture bundles the SDK custody driver and actual worker. It uses separate native A/B processes for cryptographic work.
 Its small bootstrap counts explicit frees of the real Wasm handles.
-It checks browser establishment, code recovery with replacement holder keys, standard threshold signatures, and ordinary-key export.
+It checks driver establishment, code recovery with replacement holder keys, and existing-custody joining.
+All three paths produce standard threshold signatures and preserve ordinary-key export.
+An injected Router failure checks that the driver discards private Wasm state and preserves the original error.
 Further checks reject secret input fields, missing manifests, unsafe epochs, stale replies, wrong steps, and invalid JavaScript argument types.
 It verifies the concurrent-ceremony bound and successful capacity recovery after discard.
-The artifact pins source files, the worker bundle, browser Wasm, native binary, and compiled schedules.
-The browser results establish no hosted admission, durable storage, or production signing-route claim.
+The artifact pins source files, driver and worker bundles, browser Wasm, native binary, and compiled schedules.
+The browser results establish no public Gateway admission, device enrollment, durable custody publication, or production signing-route claim.
 
 ## Compiled arithmetic inspection
 
