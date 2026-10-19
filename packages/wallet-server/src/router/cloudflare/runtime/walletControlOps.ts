@@ -24,6 +24,12 @@ const OPERATIONS = [
     '/router-ab/internal/tenant-root/creation/v1/create',
   ),
   operation(
+    'renew-creation-authorization',
+    'mpc-router',
+    'https://mpc-router.router-ab.internal',
+    '/router-ab/internal/tenant-root/creation/v1/renewal-fence',
+  ),
+  operation(
     'refresh',
     'mpc-router',
     'https://mpc-router.router-ab.internal',

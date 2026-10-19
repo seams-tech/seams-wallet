@@ -49,8 +49,6 @@ use crate::{
     CloudflareRouterEcdsaAcceptedCapabilityBindingV1,
     CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     CloudflareRouterEd25519AcceptedCapabilityBindingV1, CloudflareRouterEd25519JwksJwtVerifierV1,
-    CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
-    CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
     CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1,
@@ -60,7 +58,6 @@ use crate::{
     CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH,
-    TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1,
     TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1,
 };
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -267,19 +264,6 @@ fn refresh_http_response_v1(
 ) -> worker::Result<Response> {
     let (status, body) = result.http_status_and_body();
     Ok(Response::from_json(&body)?.with_status(status))
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-async fn coordinate_cloudflare_router_tenant_root_creation_v1(
-    env: &Env,
-    runtime: &CloudflareRouterWorkerRuntimeV1,
-    request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
-    crate::tenant_root_router_coordinate_creation_v1(
-        &CloudflareRouterTenantRootCreationHostV1::new(env, runtime),
-        request,
-    )
-    .await
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -689,34 +673,12 @@ pub(super) async fn handle_strict_router_fetch_v1(
             Err(err) => cloudflare_protocol_error_response_v1(err),
         };
     }
-    if path == CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_PRIVATE_REQUEST_PATH {
-        if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
-            return cloudflare_private_service_auth_error_response_v1(err);
-        }
-        if request.method() != Method::Post {
-            return Response::error("tenant-root creation route requires POST", 405);
-        }
-        let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
-            Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
-        };
-        let parsed: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 =
-            match decode_bounded_json_request(
-                &mut request,
-                TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1,
-            )
-            .await
-            {
-                Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
-        return match coordinate_cloudflare_router_tenant_root_creation_v1(&env, &runtime, parsed)
-            .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
-        };
+    if path == CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_PRIVATE_REQUEST_PATH
+        || path == crate::durable_object::tenant_root_creation::RENEWAL_PATH
+    {
+        return super::tenant_root_creation::handle(request, env).await;
     }
+
     if path == crate::CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH {
         if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(err);

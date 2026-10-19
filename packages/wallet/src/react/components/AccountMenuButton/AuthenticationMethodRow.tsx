@@ -1,6 +1,7 @@
 import React from 'react';
 import TouchIcon from './icons/TouchIcon';
 import { MailIcon } from './icons/MailIcon';
+import { HoverArrowIcon } from './icons/HoverArrowIcon';
 
 type AuthenticationMethodRowProps = {
   kind: 'passkey' | 'email_otp';
@@ -38,15 +39,7 @@ export function AuthenticationMethodRow({
             <strong>{title}</strong>
             <small>{description}</small>
           </div>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            aria-hidden="true"
-          >
-            <path d="m9 6 6 6-6 6" />
-          </svg>
+          <HoverArrowIcon />
         </button>
       </li>
     );

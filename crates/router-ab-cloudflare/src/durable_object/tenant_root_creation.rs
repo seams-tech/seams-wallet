@@ -1,3 +1,8 @@
+mod grant_renewal;
+pub use grant_renewal::tenant_root_creation_persist_journal_v1;
+#[cfg(feature = "workers-rs")]
+pub(crate) use grant_renewal::{renewal_call, RENEWAL_PATH};
+
 use std::{collections::BTreeMap, fmt};
 
 #[cfg(feature = "workers-rs")]
@@ -7052,6 +7057,9 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                 405,
             );
         }
+        if let Some(response) = self.handle_creation_grant_route(&mut request).await {
+            return response;
+        }
         let path = request.path();
         match path.as_str() {
             crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH => {
@@ -7185,27 +7193,6 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                     }
                 };
                 match self.persist_cutover_record(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
-                }
-            }
-            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root creation journal request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_creation_request(&mut request).await {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root creation request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.persist(parsed).await {
                     Ok(response) => worker::Response::from_json(&response),
                     Err(error) => tenant_root_creation_do_error_response(error),
                 }
@@ -14038,32 +14025,6 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
             Ok(response)
         }
         TenantRootCreationCleanupEvaluationV1::Replay(response) => Ok(response),
-    }
-}
-
-/// Persists the started journal and its creation capability once.
-pub async fn tenant_root_creation_persist_journal_v1<Store: TenantRootCreationStoreV1>(
-    store: &Store,
-    issuer_keys: &BTreeMap<String, [u8; 32]>,
-    request: CloudflareTenantRootCreationJournalRequestV1,
-    now_ms: u64,
-) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
-    let authority_id = store.authority_id();
-    let candidate = validate_creation_record(request.into_record(), authority_id, issuer_keys)?;
-    store.require_scope(candidate.identity_digest, candidate.custody_lineage)?;
-    let existing = store
-        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await?;
-    match evaluate_creation_record(existing, candidate, authority_id, issuer_keys, now_ms)? {
-        TenantRootCreationJournalEvaluationV1::Commit { record, response } => {
-            store
-                .put_json(TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1, &record)
-                .await?;
-            Ok(response)
-        }
-        TenantRootCreationJournalEvaluationV1::Replay(response) => Ok(response),
     }
 }
 
