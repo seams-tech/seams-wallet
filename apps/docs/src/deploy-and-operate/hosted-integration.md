@@ -66,6 +66,22 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
+## Upgrading to 0.15.0
+
+Pin `@seams/wallet`, `@seams/wallet-server`, and `@seams/wallet-cli` to **0.15.0**.
+Deploy the matching wallet host, Gateway, Router, both Derivers, and Signing Worker.
+The private address-allocation response now carries a batch, so the custody
+Workers must move together. The public wallet iframe protocol remains **16.0.0**.
+
+Registration reuses committed admission, commits custody with its completion
+receipt, and can finish after A's validated completion without waiting for B's
+preparation reply. Hosted activation also schedules obsolete ceremony cleanup
+after its response. These changes preserve proof, custody, and replay checks.
+
+The SDK removes the `relink_required` result variants that no operation produces.
+Remove those branches from TypeScript consumers. The unexported Vite/Next hosting
+plugins and unused account-menu modal implementation are also removed.
+
 ## Upgrading to 0.14.0
 
 Pin the application package and backend package to **0.14.0**, and build the
