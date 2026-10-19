@@ -22,22 +22,18 @@ def checked_material(trace):
 
 def summarize(client, records, versions):
     selected = [(index, row) for index, row in enumerate(records) if row["version"] == versions.get(row["role"])]
-    actors = {}
-    for _, record in selected:
-        for job in record.get("producer_jobs", []):
-            identity = (job["batch"], tuple(job["batches"]), job["key"], job["epoch"])
-            assert job["producer"] not in actors or actors[job["producer"]] == identity
-            actors[job["producer"]] = identity
     attributed = []
     canceled = []
     unknown = []
     for index, record in selected:
         if record["role"] != "preparer-a" or not record["producer_alarm"]:
             continue
-        names = {row["producer"] for row in record.get("producer_entries", [])}
-        names.update(row["producer"] for row in record.get("producer_jobs", []))
-        if len(names) == 1 and next(iter(names)) in actors:
-            identity = actors[next(iter(names))]
+        explicit = {(job["batch"], tuple(job["batches"]), job["key"], job["epoch"])
+                    for job in record.get("producer_jobs", [])}
+        assert len(explicit) <= 1, "One producer alarm selected multiple jobs"
+        identities = explicit
+        if len(identities) == 1:
+            identity = next(iter(identities))
             attributed.append({"record_index": index, "job": identity[0], "batches": list(identity[1]),
                                "wall_ms": record["wall_ms"], "cpu_ms": record["cpu_ms"], "outcome": record["outcome"]})
         elif record["outcome"] == "canceled" and record["cpu_ms"] == 0:

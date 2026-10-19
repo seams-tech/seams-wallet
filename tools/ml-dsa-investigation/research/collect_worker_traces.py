@@ -107,6 +107,34 @@ def public_stage(stage):
     return result
 
 
+def public_router_trace(value, timestamp):
+    if value.get("event") != "ml_dsa_router_trace_v1" or not public_time(timestamp):
+        return None
+    request = value.get("http_request")
+    if not isinstance(request, str) or re.fullmatch("[0-9a-f]{32}", request) is None:
+        return None
+    operation = value.get("operation")
+    identity = value.get("module_instance")
+    status = value.get("status")
+    if operation is not None and not public_id(operation):
+        return None
+    if identity is not None and (not isinstance(identity, str) or re.fullmatch("[0-9a-f]{32}", identity) is None):
+        return None
+    if status is not None and (type(status) is not int or not 100 <= status <= 599):
+        return None
+    milestones = value.get("milestones")
+    allowed = ["entered", "decoded", "admission_done", "execution_done", "completion_recorded", "roles_released", "settled", "response_ready"]
+    if not public_object_list(milestones, len(allowed)):
+        return None
+    clean = []
+    for item in milestones:
+        if item.get("stage") not in allowed or not public_time(item.get("at_ms")):
+            return None
+        clean.append({"stage": item["stage"], "at_ms": item.get("at_ms")})
+    return {"http_request": request, "operation": operation, "module_instance": identity,
+            "status": status, "milestones": clean, "log_timestamp_ms": timestamp}
+
+
 def public_producer_entry(value, timestamp):
     if value.get("event") != "ml_dsa_producer_entry_v1" or not public_time(timestamp):
         return None
@@ -283,6 +311,7 @@ def records(path, role):
         registration_preparation = []
         signing = []
         signing_traces = []
+        router_traces = []
         socket_completion = []
         peer_close = []
         refill = []
@@ -304,6 +333,9 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                router_trace = public_router_trace(value, log.get("timestamp"))
+                if router_trace is not None:
+                    router_traces.append(router_trace)
                 entry = public_producer_entry(value, log.get("timestamp"))
                 if entry is not None:
                     producer_startup.append(entry)
@@ -428,6 +460,7 @@ def records(path, role):
             "registration_preparation": registration_preparation,
             "signing": signing,
             "signing_traces": signing_traces,
+            "router_traces": router_traces,
             "socket_completion": socket_completion,
             "peer_close": peer_close,
             "refill": refill,
