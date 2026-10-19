@@ -4823,10 +4823,13 @@ export class CloudflareD1WalletRegistrationService {
         case 'exact_replay': {
           await publishCompletedRegistration(run.value, waitUntil);
           if (run.value.response.ok && run.value.response.kind === 'evm_family_ecdsa') {
-            await cleanupFinalizedRegistrationCeremony({
+            const cleanup = cleanupFinalizedRegistrationCeremony({
               store: this.getRegistrationCeremonyIntentStore(),
               registrationCeremonyId: claims.registrationCeremonyId,
             });
+            // The terminal receipt owns replay; ceremony deletion cannot delay readiness.
+            if (waitUntil) waitUntil(cleanup);
+            else await cleanup;
           }
           return run.value.response;
         }

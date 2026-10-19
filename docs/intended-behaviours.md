@@ -554,6 +554,10 @@ throughout the resize. Reduced-motion behavior remains immediate.
 - The local journal stores digests and operation/accepted wallet/ceremony IDs.
   It never stores the publishable key or authentication proof. A later setup
   response cannot change an already accepted wallet or ceremony.
+- After the terminal receipt commits, obsolete ceremony deletion must not delay
+  a hosted activation response. Registration and signing can finish while cleanup
+  runs through the host's background-task hook. Exact replay remains valid before
+  and after deletion. Hosts without that hook await cleanup before returning.
 - Successful local registration publication clears that exact wallet/ceremony
   from the setup journal, including publication resumed after a reload. Failed
   cleanup cannot undo an already committed registration.

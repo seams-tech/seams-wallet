@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-19",
+  "change": "Hosted ECDSA and mixed activation schedules obsolete ceremony deletion after its response through the existing background-task hook.",
+  "checks": {
+    "serverBuild": "passed",
+    "serverTypes": "passed",
+    "bloat": "passed",
+    "regionalE2eCases": 2
+  },
+  "cases": {
+    "ecdsa_only": {
+      "proof": {
+        "signerSet": "ecdsa_only",
+        "registrationCompletedWhileCleanupHeld": true,
+        "recordsWhileHeld": 1,
+        "recordsAfterCleanup": 0,
+        "nearReadyWhileCleanupHeld": false,
+        "replayBeforeAndAfterCleanup": true,
+        "replayRetainedSessionWithoutCredential": true,
+        "firstSignatureWhileCleanupHeld": {
+          "phases": [
+            "signing.confirmation.displayed",
+            "signing.auth.warm_session.claimed",
+            "signing.confirmation.displayed",
+            "signing.confirmation.approved",
+            "signing.confirmation.approved",
+            "signing.commit.started",
+            "signing.transaction.signed",
+            "signing.completed"
+          ],
+          "authenticationMethods": [],
+          "remainingUses": [
+            3
+          ],
+          "warmSessionClaimed": true,
+          "activeWalletAuthorityClaimed": false,
+          "passkeyPromptStarted": false,
+          "passkeyPromptSucceeded": false,
+          "passkeyAuthenticationComplete": false,
+          "emailOtpChallengeStarted": false,
+          "emailOtpChallengeSent": false,
+          "emailOtpVerifyStarted": false,
+          "emailOtpVerifySucceeded": false,
+          "emailOtpAuthenticationComplete": false,
+          "thresholdReconnectStarted": false,
+          "thresholdReconnectSucceeded": false
+        },
+        "heldDeletes": 2,
+        "cleanupWatchdogExpired": false,
+        "lockClearsAuthentication": true
+      },
+      "sha256": "aa1b145ff0215593b5a539af0124189e5d997083173333a1e956933477995612"
+    },
+    "mixed": {
+      "proof": {
+        "signerSet": "mixed",
+        "registrationCompletedWhileCleanupHeld": true,
+        "recordsWhileHeld": 1,
+        "recordsAfterCleanup": 0,
+        "nearReadyWhileCleanupHeld": true,
+        "replayBeforeAndAfterCleanup": true,
+        "replayRetainedSessionWithoutCredential": true,
+        "firstSignatureWhileCleanupHeld": {
+          "phases": [
+            "signing.confirmation.displayed",
+            "signing.auth.warm_session.claimed",
+            "signing.confirmation.displayed",
+            "signing.confirmation.approved",
+            "signing.confirmation.approved",
+            "signing.commit.started",
+            "signing.transaction.signed",
+            "signing.completed"
+          ],
+          "authenticationMethods": [],
+          "remainingUses": [
+            3
+          ],
+          "warmSessionClaimed": true,
+          "activeWalletAuthorityClaimed": false,
+          "passkeyPromptStarted": false,
+          "passkeyPromptSucceeded": false,
+          "passkeyAuthenticationComplete": false,
+          "emailOtpChallengeStarted": false,
+          "emailOtpChallengeSent": false,
+          "emailOtpVerifyStarted": false,
+          "emailOtpVerifySucceeded": false,
+          "emailOtpAuthenticationComplete": false,
+          "thresholdReconnectStarted": false,
+          "thresholdReconnectSucceeded": false
+        },
+        "heldDeletes": 3,
+        "cleanupWatchdogExpired": false,
+        "lockClearsAuthentication": true
+      },
+      "sha256": "c49ef6851b055f6ca0b4f5ce833c5efb91e4fd8d9fb951c8bb9c2419cc2a3f59"
+    }
+  },
+  "limitations": [
+    "No hosted latency comparison or deployment.",
+    "The control reached the expected cleanup-wait assertion and later had a teardown timeout.",
+    "An interrupted control had development-server rebuild interference; an intermediate parameterized test failed fixture discovery. Final cases use explicit fixture functions and passed."
+  ]
+}
