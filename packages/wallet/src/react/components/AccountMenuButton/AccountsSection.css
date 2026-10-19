@@ -49,7 +49,13 @@
 }
 
 .seams-accounts-row:hover {
-  background: var(--seams-colors-surface2);
+  /* a shade off the expander surface behind the rows, which is often surface2;
+     mixing follows a theme's surface where a fixed surface step does not */
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary) 7%,
+    var(--seams-expander-surface, var(--seams-colors-surface))
+  );
 }
 
 .seams-accounts-row-chain {
