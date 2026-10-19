@@ -4,6 +4,55 @@ The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration,
 The current private Worker signer and local approval gate are experimental components.
 They do not yet form a public Wallet registration flow.
 
+## Current priority — October 19, 2026
+
+Complete the public SDK lifecycle before further latency optimization. Keep the current
+Workers protocol, four-candidate preparation, two-candidate consumption, thirty-two-candidate
+capacity, and sixteen-candidate admission minimum. Keep wallet-seed recovery and canonical
+FIPS seed/key export. UI redesign and GPU work remain deferred.
+
+Implement these steps in dependency order:
+
+1. **Connect the SDK custody driver.** Add explicit establishment, existing-custody join,
+   and recovery branches to the existing ceremony driver. Require recorded manifest
+   continuity for recovery and a replacement factor for resealing. Discard the worker
+   handle after transport failure. Run the driver through the real browser worker and
+   Wasm, with separate participants, standard signature verification, and canonical export.
+   This step returns proposed custody records. It grants no public signing authority.
+2. **Admit and publish registration.** Connect the existing authentication and ownership
+   records to ML-DSA registration. Extend the existing signer-activation and session
+   projections, which currently cover Ed25519 and ECDSA. Obtain participant public keys through authenticated
+   discovery. Allocate the operation, key identity, and epoch on the server. Bind encrypted
+   input delivery to that operation. Publish the key only after both participant installations
+   and custody persistence succeed. Test lost replies and retry after each publication boundary.
+3. **Connect public signing.** Load the active ML-DSA key from authoritative storage.
+   Admit an exact owner-approved operation through persistent operation claims. Dispatch
+   through the existing private Router route. Connect SDK transaction review, encoding,
+   signature verification, and submission. Verify network support before enrollment.
+   Test changed transactions, duplicate requests, stale epochs, and exhausted pools.
+4. **Connect public recovery and export.** Open the wallet seed through the existing recovery
+   flow. Reproduce the recorded ML-DSA key, replace participant shares, retire old preparation,
+   and commit the replacement factor. Keep retry identity across interrupted operations.
+   Verify that an authorized exported FIPS seed imports into an ordinary implementation.
+   Test recovery during an in-flight signature and restart before publication.
+5. **Connect device authorization.** Extend the existing device enrollment and revocation
+   flow to authorize the active server-held ML-DSA signer. Bind authorization to the wallet,
+   key, device, enrollment, and current authority. Never transfer the wallet custody seed or
+   either server share to the linked device. Verify target-device signing and rejection after
+   revocation. Joining an owner custody envelope is a different flow and cannot qualify this step.
+6. **Qualify the composed lifecycle.** Run registration, signing, recovery, and device linking
+   through public SDK entry points against the Gateway and Workers. Save repeatable evidence
+   for custody continuity, authorization failures, replay, restart, and single-use material.
+   Then complete the final privacy review and package the release. Record performance separately.
+
+The earlier checklists below retain their component-level completion state. A passing browser
+custody test or private Worker test does not complete a public lifecycle entry point.
+
+Step 1 now passes the [SDK custody-driver campaign](ml-dsa-65-sdk-custody-driver-report.md).
+All twenty-four browser checks pass. Establishment, recovery, and existing-custody joining
+preserve the same ordinary key and canonical exported seed. Public registration admission
+and durable custody publication are the next implementation boundary.
+
 ## Fixed requirements
 
 - Preserve two separate participant trust boundaries and passive, honest-execution privacy.

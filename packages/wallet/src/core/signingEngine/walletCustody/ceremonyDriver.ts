@@ -1,6 +1,11 @@
 import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/registration';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type { WalletCustodyCeremonyCommitPayload } from '@shared/passkey-custody';
+import type {
+  MlDsaCustodyCommit,
+  MlDsaCustodyProtocolInputs,
+} from '@shared/passkey-custody/mlDsaCustody';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import type { WalletCustodyCeremonyWorkerOperationMap } from '../workerManager/workerTypes';
 
 /**
@@ -34,6 +39,134 @@ import type { WalletCustodyCeremonyWorkerOperationMap } from '../workerManager/w
 type CeremonyOperationMap = WalletCustodyCeremonyWorkerOperationMap;
 type BegunRun = CeremonyOperationMap['beginWalletCustodyKeySetRun']['result'];
 type CompletedRun = CeremonyOperationMap['completeWalletCustodyKeySetRun']['result'];
+
+type MlDsaProtocolInputs<Kind extends MlDsaCustodyProtocolInputs['continuity']['kind']> = Omit<
+  MlDsaCustodyProtocolInputs,
+  'continuity'
+> & {
+  readonly continuity: Variant<MlDsaCustodyProtocolInputs['continuity'], 'kind', Kind>;
+};
+
+/** One key ceremony. The caller owns admission and durable custody publication. */
+export type MlDsaKeySetCeremonyInput = {
+  readonly ceremonyId: string;
+  readonly runStep: WalletCustodyCeremonyStepRunner;
+  readonly runRouterRound: (roleInputsJson: string) => Promise<string>;
+} & ReadonlyExclusiveUnion<
+  | {
+      readonly kind: 'establish';
+      readonly protocolInputs: MlDsaProtocolInputs<'create'>;
+      readonly factorJson: string;
+      readonly factorSecret: ArrayBuffer;
+      readonly recoveryCodesJson: string;
+    }
+  | {
+      readonly kind: 'join';
+      readonly protocolInputs: MlDsaCustodyProtocolInputs;
+      readonly custodyJson: string;
+      readonly factorSecret: ArrayBuffer;
+    }
+  | {
+      readonly kind: 'recover';
+      readonly protocolInputs: MlDsaProtocolInputs<'recover'>;
+      readonly custodyJson: string;
+      readonly recoveryCode: ArrayBuffer;
+      readonly replacementFactorJson: string;
+      readonly replacementFactorSecret: ArrayBuffer;
+    }
+>;
+
+function beginMlDsaCeremony(input: MlDsaKeySetCeremonyInput): Promise<BegunRun> {
+  switch (input.kind) {
+    case 'establish':
+      return input.runStep('beginWalletCustodyKeySetRun', {
+        ceremonyId: input.ceremonyId,
+        keySet: 'near_ml_dsa_65_v1',
+        custody: { origin: 'establish', walletId: input.protocolInputs.walletId },
+        protocolInputs: input.protocolInputs,
+      });
+    case 'join':
+      return input.runStep('beginWalletCustodyKeySetRun', {
+        ceremonyId: input.ceremonyId,
+        keySet: 'near_ml_dsa_65_v1',
+        custody: {
+          origin: 'join',
+          custodyJson: input.custodyJson,
+          factorSecret: input.factorSecret,
+        },
+        protocolInputs: input.protocolInputs,
+      });
+    case 'recover':
+      return input.runStep('beginWalletCustodyKeySetRun', {
+        ceremonyId: input.ceremonyId,
+        keySet: 'near_ml_dsa_65_v1',
+        custody: {
+          origin: 'recover',
+          custodyJson: input.custodyJson,
+          recoveryCode: input.recoveryCode,
+        },
+        protocolInputs: input.protocolInputs,
+      });
+    default:
+      return assertNeverCustodyOrigin(input);
+  }
+}
+
+function mlDsaFinishCustody(input: MlDsaKeySetCeremonyInput): FinishCustody {
+  switch (input.kind) {
+    case 'establish':
+      return {
+        kind: 'establish',
+        factorJson: input.factorJson,
+        factorSecret: input.factorSecret,
+        recoveryCodesJson: input.recoveryCodesJson,
+      };
+    case 'join':
+      return { kind: 'existing' };
+    case 'recover':
+      return {
+        kind: 'recover_reseal',
+        replacementFactorJson: input.replacementFactorJson,
+        replacementFactorSecret: input.replacementFactorSecret,
+      };
+    default:
+      return assertNeverCustodyOrigin(input);
+  }
+}
+
+/** The Router round carries ciphertext. Native completion verifies both role replies. */
+export async function runMlDsaCustodyKeySetCeremony(
+  input: MlDsaKeySetCeremonyInput,
+): Promise<MlDsaCustodyCommit> {
+  let workerAcceptedBegin = false;
+  try {
+    const begun = await beginMlDsaCeremony(input);
+    workerAcceptedBegin = true;
+    if (begun.keySet !== 'near_ml_dsa_65_v1' || begun.ceremonyId !== input.ceremonyId) {
+      throw new Error('The custody worker began a different ML-DSA ceremony');
+    }
+    const protocolResultJson = await input.runRouterRound(begun.roleInputsJson);
+    const completed = await input.runStep('completeWalletCustodyKeySetRun', {
+      ceremonyId: input.ceremonyId,
+      keySet: 'near_ml_dsa_65_v1',
+      protocolResultJson,
+    });
+    if (completed.keySet !== 'near_ml_dsa_65_v1' || completed.ceremonyId !== input.ceremonyId) {
+      throw new Error('The custody worker completed a different ML-DSA ceremony');
+    }
+    return await input.runStep('finishMlDsaCustodyKeySetRun', {
+      ceremonyId: input.ceremonyId,
+      finish: mlDsaFinishCustody(input),
+    });
+  } catch (error: unknown) {
+    if (workerAcceptedBegin) {
+      await input
+        .runStep('discardWalletCustodyCeremony', { ceremonyId: input.ceremonyId })
+        .catch(ignoreDiscardFailure);
+    }
+    throw error;
+  }
+}
 
 /** Invokes one worker operation. Supplied by the caller so tests need no worker. */
 export type WalletCustodyCeremonyStepRunner = <T extends keyof CeremonyOperationMap>(

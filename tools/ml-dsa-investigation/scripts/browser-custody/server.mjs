@@ -71,6 +71,19 @@ await build({
   banner: { js: 'self.WASM_BASE_URL = new URL("/wasm/", self.location.href).href;' },
 });
 assets.set('/custody-worker.js', workerPath);
+const driverPath = resolve(temporary, 'custody-driver.js');
+await build({
+  entryPoints: [
+    resolve(ROOT, 'packages/wallet/src/core/signingEngine/walletCustody/ceremonyDriver.ts'),
+  ],
+  outfile: driverPath,
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  tsconfig: resolve(ROOT, 'packages/wallet/tsconfig.json'),
+});
+assets.set('/custody-driver.js', driverPath);
 const server = createServer(handleRequest);
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
@@ -261,12 +274,14 @@ async function identity(path) {
   return { path, bytes: body.length, sha256: createHash('sha256').update(body).digest('hex') };
 }
 async function record(body) {
-  assert.equal(reports.length, 2, 'Both successful browser custody scenarios are required');
-  assert.equal(reports[0].commit.key.publicKeyB64u, reports[1].commit.key.publicKeyB64u);
-  assert.equal(
-    reports[0].authorized_export_after_signing.public_test_seed_hex,
-    reports[1].authorized_export_after_signing.public_test_seed_hex,
-  );
+  assert.equal(reports.length, 3, 'Establishment, recovery, and joining must all complete');
+  for (const report of reports) {
+    assert.equal(reports[0].commit.key.publicKeyB64u, report.commit.key.publicKeyB64u);
+    assert.equal(
+      reports[0].authorized_export_after_signing.public_test_seed_hex,
+      report.authorized_export_after_signing.public_test_seed_hex,
+    );
+  }
   const sources = [];
   for (const path of [
     'wasm/wallet_custody_ceremony/src/ml_dsa_wasm.rs',
@@ -276,11 +291,17 @@ async function record(body) {
     'packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts',
     'packages/wallet/src/core/signingEngine/workerManager/walletCustodyWorkerChannels.ts',
     'packages/shared-ts/src/passkey-custody/mlDsaCustody.ts',
+    'packages/wallet/src/core/signingEngine/walletCustody/ceremonyDriver.ts',
+    'packages/wallet/src/core/signingEngine/walletCustody/ceremonyDriver.typecheck.ts',
     'tools/ml-dsa-investigation/scripts/browser-custody/server.mjs',
     'tools/ml-dsa-investigation/scripts/browser-custody/browser.mjs',
   ])
     sources.push(await identity(resolve(ROOT, path)));
-  const artifacts = [await identity(BINARY), await identity(workerPath)];
+  const artifacts = [
+    await identity(BINARY),
+    await identity(workerPath),
+    await identity(driverPath),
+  ];
   for (const name of ['wallet_custody_ceremony.js', 'wallet_custody_ceremony_bg.wasm'])
     artifacts.push(await identity(resolve(wasmDirectory, name)));
   const scheduleManifest = await jsonFile(resolve(schedules, 'schedule-manifest.json'));
@@ -301,7 +322,7 @@ async function record(body) {
         temporary_role_files_removed: true,
         production_eligible: false,
         scope:
-          'Chromium runs the actual SDK custody worker and browser-target Wasm. Separate native A/B processes generate and sign. Authorized disposable-key export follows successful browser custody completion. This does not exercise hosted admission, durable storage, or production signing routes.',
+          'Chromium runs the SDK custody driver, actual worker, and browser-target Wasm. Separate native A/B processes generate and sign. Establishment, recovery, and joining preserve the ordinary canonical key and export. This does not exercise public Gateway admission, device enrollment, durable custody publication, or public signing routes.',
       },
       null,
       2,

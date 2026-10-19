@@ -1,6 +1,10 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-19.
+Current priority: complete public SDK registration, signing, recovery, and device authorization before further latency optimization.
+The [MVP execution order](ml-dsa-65-mvp-plan.md#current-priority--october-19-2026) defines the integration boundaries and E2E exits.
+The [SDK custody driver](ml-dsa-65-sdk-custody-driver-report.md) passes twenty-four browser checks, including canonical recovery and interrupted-round cleanup.
+This completes the driver connection. Public Gateway admission, custody publication, public signing, and device enrollment remain open.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
 The [bounded initial-stock delivery campaign](ml-dsa-65-bounded-delivery-report.md) adds a two-batch delivery window per participant.
 A registration-local mutex serializes exact installation retries. The existing claim deadline bounds authority checks, gate waiting, delivery, and completion.
