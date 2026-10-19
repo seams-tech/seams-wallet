@@ -918,6 +918,10 @@ Expected behaviour:
   again. No protocol material may be sent before the role's execution claim is
   durable. A completed registration remains replayable after the Router object
   restarts.
+- A completed, validated Deriver A response includes Deriver B's sealed completion.
+  Registration must finish while an otherwise successful B preparation reply is
+  delayed. Failed A execution still uses B's preparation refusal to preserve the
+  retry outcome. The completed result remains replayable after Router restart.
 - Retrying the same activation or deferred NEAR provisioning request uses the
   original ceremony and idempotency key. The server returns the credential-free
   V2 committed projection without repeating custody effects; a changed request
