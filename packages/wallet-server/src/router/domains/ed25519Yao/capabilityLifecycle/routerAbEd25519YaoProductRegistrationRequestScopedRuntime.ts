@@ -1,3 +1,4 @@
+import { recordRegistrationPromiseTiming } from '../../../framework/registrationTiming';
 import type {
   RouterAbEd25519YaoActivationAdmissionReceiptV1,
   RouterAbEd25519YaoActivationExecuteRequestV1,
@@ -37,7 +38,7 @@ import {
   type RouterAbEd25519YaoAdmissionCompanionWriteV1,
   type RouterAbEd25519YaoStartedDispatchRootV1,
   type RouterAbEd25519YaoProductRegistrationRuntimeV1,
-  type RouterAbEd25519YaoConsumptionAdmissionV1,
+  type RouterAbEd25519YaoRegistrationAdmissionSourceV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
 } from './routerAbEd25519YaoProductRegistration';
 import {
@@ -134,12 +135,14 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
     startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
     mintedSessionId: RouterAbEd25519YaoBytes32V1,
+    serverTiming: Array<readonly [string, number]> = [],
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     return await bindAndAdmitVerifiedRegistration({
       input,
       companionWrite,
       startedDispatchRoot,
       mintedSessionId,
+      serverTiming,
       store: this.input.store,
       backend: this.input.registrationBackend,
     });
@@ -161,12 +164,14 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   }
 
   async executeAdmittedRegistration(input: {
+    readonly admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1;
     readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
     readonly credential: string;
     readonly trace: RouterAbTraceContextV1;
   }): Promise<RouterAbEd25519YaoTimedRegistrationExecutionResultV1> {
     return await executeRouterAbEd25519YaoAdmittedRegistrationV1({
       store: this.input.store,
+      admission: input.admission,
       backend: this.input.registrationBackend,
       request: input.request,
       credentialDigestSha256Hex: await routerAbEd25519YaoCredentialDigestSha256HexV1(
@@ -186,7 +191,7 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
    */
   async consumeActivated(
     input: RouterAbEd25519YaoActivationConsumptionRequestV1,
-    admission: RouterAbEd25519YaoConsumptionAdmissionV1,
+    admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1,
   ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1> {
     const lifecycleId = input.reference.lifecycleId;
     let authority: RouterAbEd25519YaoRegistrationExecutionAuthorityV1 | null;
@@ -327,6 +332,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
   readonly companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null;
   readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
   readonly mintedSessionId: RouterAbEd25519YaoBytes32V1;
+  readonly serverTiming: Array<readonly [string, number]>;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
@@ -334,10 +340,20 @@ async function bindAndAdmitVerifiedRegistration(input: {
   let backendResult: RouterAbEd25519YaoRegistrationBackendResult | null = null;
   let dispatchRoot: RouterAbEd25519YaoTenantRootWireV1 | null = null;
   for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
-    const loaded = await input.store.loadRegistration(lifecycleId);
-    const bound = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
-      loaded.state.authorization,
-    ).bindAndAuthorizeAdmission(input.input);
+    const loaded = await recordRegistrationPromiseTiming({
+      sink: input.serverTiming,
+      name: 'yao_admission_state_read',
+      startedAtMs: Date.now(),
+      promise: input.store.loadRegistration(lifecycleId),
+    });
+    const bound = await recordRegistrationPromiseTiming({
+      sink: input.serverTiming,
+      name: 'yao_admission_authorization',
+      startedAtMs: Date.now(),
+      promise: new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
+        loaded.state.authorization,
+      ).bindAndAuthorizeAdmission(input.input),
+    });
     if (!bound.ok) return bound;
 
     const service = new InMemoryRouterAbEd25519YaoRegistrationService(
@@ -352,6 +368,10 @@ async function bindAndAdmitVerifiedRegistration(input: {
         admissionRequest: bound.admissionRequest,
         value: preparation.value,
         companionWrite: 'not_committed',
+        executionAdmission: {
+          kind: 'snapshot',
+          authority: routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId),
+        },
       };
     }
     if (preparation.kind === 'failed') return preparation.failure;
@@ -372,9 +392,15 @@ async function bindAndAdmitVerifiedRegistration(input: {
         };
       }
       try {
-        dispatchRoot = await (started
-          ? started.dispatchRoot
-          : input.backend.resolveRegistrationDispatchRoot(signingRootId));
+        // The root read can start before admission. Measure only its remaining wait.
+        dispatchRoot = await recordRegistrationPromiseTiming({
+          sink: input.serverTiming,
+          name: 'yao_admission_root_wait',
+          startedAtMs: Date.now(),
+          promise: started
+            ? started.dispatchRoot
+            : input.backend.resolveRegistrationDispatchRoot(signingRootId),
+        });
       } catch (error: unknown) {
         return {
           ok: false,
@@ -388,11 +414,16 @@ async function bindAndAdmitVerifiedRegistration(input: {
     }
     if (backendResult === null) {
       try {
-        backendResult = await input.backend.admit(
-          bound.admissionRequest,
-          undefined,
-          input.mintedSessionId,
-        );
+        backendResult = await recordRegistrationPromiseTiming({
+          sink: input.serverTiming,
+          name: 'yao_admission_backend',
+          startedAtMs: Date.now(),
+          promise: input.backend.admit(
+            bound.admissionRequest,
+            undefined,
+            input.mintedSessionId,
+          ),
+        });
       } catch (error: unknown) {
         return {
           ok: false,
@@ -414,10 +445,15 @@ async function bindAndAdmitVerifiedRegistration(input: {
       dispatchRoot,
     );
 
-    const committed = await input.store.commitRegistration(
-      loaded,
-      input.companionWrite?.(bound.admissionRequest) ?? null,
-    );
+    const committed = await recordRegistrationPromiseTiming({
+      sink: input.serverTiming,
+      name: 'yao_admission_commit',
+      startedAtMs: Date.now(),
+      promise: input.store.commitRegistration(
+        loaded,
+        input.companionWrite?.(bound.admissionRequest) ?? null,
+      ),
+    });
     if (committed.kind === 'stored') {
       return {
         ok: true,
@@ -425,6 +461,10 @@ async function bindAndAdmitVerifiedRegistration(input: {
         admissionRequest: bound.admissionRequest,
         value: admitted.value,
         companionWrite: input.companionWrite ? 'committed' : 'not_committed',
+        executionAdmission: {
+          kind: 'snapshot',
+          authority: routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId),
+        },
       };
     }
   }

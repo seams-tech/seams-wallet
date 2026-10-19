@@ -438,7 +438,7 @@ export class LinkDeviceFlow {
             'registration',
           );
         }
-        if (result.kind === 'failed_before_commit' || result.kind === 'relink_required') {
+        if (result.kind === 'failed_before_commit') {
           throw new DeviceLinkingError(
             'Linked-device authority activation cannot continue',
             DeviceLinkingErrorCode.REGISTRATION_FAILED,
@@ -1717,7 +1717,7 @@ export class LinkDeviceFlow {
         'registration',
       );
     }
-    if (result.kind === 'failed_before_commit' || result.kind === 'relink_required') {
+    if (result.kind === 'failed_before_commit') {
       throw new DeviceLinkingError(
         'Linked-device authority replay cannot continue',
         DeviceLinkingErrorCode.REGISTRATION_FAILED,

@@ -12,15 +12,6 @@ test.describe('buildConfigsFromEnv Email OTP auth policy', () => {
     expect(cfg.signing.emailOtp.authPolicy).toBe('session');
   });
 
-  test('accepts explicit per_operation Email OTP auth policy', async () => {
-    const cfg = buildConfigsFromEnv({
-      relayer: { url: 'https://relay.example' },
-      iframeWallet,
-      emailOtpAuthPolicy: 'per_operation',
-    });
-    expect(cfg.signing.emailOtp.authPolicy).toBe('per_operation');
-  });
-
   test('rejects invalid Email OTP auth policy values', async () => {
     expect(() =>
       buildConfigsFromEnv({

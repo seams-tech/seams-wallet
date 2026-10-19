@@ -65,7 +65,7 @@ type WalletCustodyRegistrationAdmissionInput = {
  */
 export type WalletCustodyRegistrationAdmission =
   | WalletCustodyRegistrationReserved
-  | Extract<WalletCustodyRegistrationAdmissionOutcome, { kind: 'rejected' | 'no_custody_records' }>;
+  | WalletCustodyRegistrationAdmissionOutcome;
 
 export async function admitWalletCustodyRegistrationCommit(
   input: WalletCustodyRegistrationAdmissionInput,

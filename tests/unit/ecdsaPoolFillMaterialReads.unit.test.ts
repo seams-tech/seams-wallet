@@ -87,6 +87,7 @@ async function buildPresignStepFixture() {
     authMethod: fixture.authMethod,
     retiredAtMs: null,
     ownerWalletScope: {
+      ownershipGeneration: fixture.operationCredential.ownershipGeneration,
       orgId: String(session.tenantId),
       projectId: 'presign-test',
       projectEnvironmentId: 'test',
@@ -172,7 +173,6 @@ class PresignStepServices {
       ctx: this.context(),
       request,
       timing: {
-        queue: null,
         authenticate: null,
         material: null,
         admit: null,
@@ -254,6 +254,7 @@ function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixtur
     session_org_id: data.candidate.ownerWalletScope.orgId,
     session_project_id: data.candidate.ownerWalletScope.projectId,
     session_env_id: data.candidate.ownerWalletScope.projectEnvironmentId,
+    execution_generation: data.candidate.ownerWalletScope.ownershipGeneration,
     session_authority_id: session.authorityId,
     session_wallet_auth_method_id: session.walletAuthMethodId,
     session_authority_digest_b64u: session.authorityDigestB64u,
@@ -264,7 +265,6 @@ function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixtur
     authority_id: session.authorityId,
     authority_wallet_id: session.walletId,
     authority_lifecycle_state: 'active',
-    authority_digest_b64u: session.authorityDigestB64u,
     authority_revocation_epoch: session.authorityRevocationEpoch,
     auth_method_id: session.walletAuthMethodId,
     auth_method_wallet_id: session.walletId,
@@ -359,7 +359,6 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
     ['authority_revocation_epoch', data.session.authorityRevocationEpoch + 1],
     ['auth_method_status', 'revoked'],
     ['auth_method_wallet_id', 'wallet:different'],
-    ['session_retired_at_ms', Date.now()],
     ['quota_remaining_uses', 1],
     ['quota_id', 'quota:different'],
     ['session_capability_subjects_json', '[]'],
@@ -374,13 +373,16 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
       column,
     ).rejects.toThrow();
   }
+  // A retired or expired session reads as absent; callers answer it as an invalid Wallet Session.
+  database.row = { ...joinedSessionRow(data), session_retired_at_ms: Date.now() };
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toBeNull();
   database.row = joinedSessionRow(data);
   await expect(
     store.readWalletSessionExactOperationContextByCredential({
       ...input,
       nowMs: data.session.expiresAtMs,
     }),
-  ).rejects.toThrow('expired');
+  ).resolves.toBeNull();
   const changedDigest = parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(9)));
   const corruptRow = joinedSessionRow(data);
   const corruptAuthority = JSON.parse(corruptRow.record_json);
@@ -403,10 +405,7 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
   await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toBeNull();
 });
 
-function reusablePresignRequest(
-  data: Awaited<ReturnType<typeof buildPresignStepFixture>>,
-  walletSessionId: string,
-) {
+function reusablePresignRequest(walletSessionId: string) {
   const parsed = parseRouterAbEcdsaDerivationPoolFillStepRouteRequest({
     presignSessionId: 'presign:material-reads',
     ceremonyExpiresAtMs: Date.now() + 30_000,
@@ -420,13 +419,13 @@ function reusablePresignRequest(
 
 test('preprocessing requires the exact session and active material', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
-  const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
+  const request = reusablePresignRequest(services.data.session.walletSessionId);
   await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
   expect(services.sessionReads).toBe(1);
   expect(services.materialReads).toBe(1);
   expect(services.operationReads).toBe(0);
   await expect(
-    services.authorize(reusablePresignRequest(services.data, 'other-session')),
+    services.authorize(reusablePresignRequest('other-session')),
   ).resolves.toMatchObject({ ok: false, error: { status: 403 } });
   services.materialAvailable = false;
   await expect(services.authorize(request)).resolves.toMatchObject({
@@ -437,7 +436,7 @@ test('preprocessing requires the exact session and active material', async () =>
 
 test('preprocessing admission rejects a session that expires between rounds', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
-  const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
+  const request = reusablePresignRequest(services.data.session.walletSessionId);
   await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
   const originalNow = Date.now;
   Date.now = expiredSessionTime.bind(null, services.data.session.expiresAtMs);

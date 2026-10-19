@@ -93,16 +93,25 @@ export async function buildNearRegistrationAuthorityFixture(label: string) {
   const adapter = new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(state);
   const credential = `original-grant-${label}`;
   const expiresAtMs = Date.now() + 60_000;
+  const ownershipGeneration = 1;
   const bound = await adapter.bindVerifiedIntent({
     kind: 'verified_registration_intent',
-    ownershipGeneration: 1,
+    ownershipGeneration,
     registrationIntentGrant: registrationIntentGrantFromString(credential),
     intent,
     admissionRequest: admission.value,
     expiresAtMs,
   });
   if (!bound.ok) throw new Error(bound.message);
-  return { adapter, state, admission: admission.value, credential, intent, expiresAtMs };
+  return {
+    adapter,
+    state,
+    admission: admission.value,
+    credential,
+    intent,
+    expiresAtMs,
+    ownershipGeneration,
+  };
 }
 
 export function buildNearRecoveryAdmissionFixture(

@@ -99,6 +99,7 @@ const bundle = await build({
   bundle: true,
   format: 'esm',
   platform: 'node',
+  external: ['*.wasm'],
   write: false,
   tsconfig: 'packages/wallet-server/tsconfig.json',
   stdin: {
@@ -106,6 +107,10 @@ const bundle = await build({
     loader: 'ts',
     contents: `
       export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
+      export { reserveWalletCustodyRegistration } from './packages/wallet-server/src/router/domains/passkeyCustody/walletCustodyRegistrationCommit';
+      export { CloudflareD1WalletCustodyCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
+      export { registrationCommitCompletionWrite } from './packages/wallet-server/src/router/cloudflare/d1/registration/registrationCompletionWrite';
+      export { buildPasskeyEnvelopeFactor } from './packages/shared-ts/src/passkey-custody/custodyEnvelope';
       export { D1WalletOperationStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
       export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
       export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';

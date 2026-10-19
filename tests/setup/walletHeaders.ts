@@ -1,9 +1,8 @@
-// Framework-agnostic header helpers to minimize configuration surface.
-// Keep types local to avoid coupling to framework packages.
+// Wallet document headers for the browser test server.
 
-import { toOriginOrUndefined } from '../../../shared-ts/src/utils/validation';
+import { toOriginOrUndefined } from '@shared/utils/validation';
 
-export type CspMode = 'strict' | 'compatible';
+type CspMode = 'strict' | 'compatible';
 
 export function buildPermissionsPolicy(walletOrigin?: string): string {
   const o = toOriginOrUndefined(walletOrigin);

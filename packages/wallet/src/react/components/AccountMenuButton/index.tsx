@@ -311,33 +311,23 @@ const AccountMenuButtonInner: React.FC<
             sessionNearAccountId: nearAccountId,
             getNearAccountState: seams.registration.getNearAccountState,
           });
-          const result = await seams.keys.exportKey({
+          await seams.keys.exportKey({
             kind: 'ed25519',
             walletSession: walletId,
             nearAccount: exportNearAccountId,
             options: { onEvent: onExportKeyEvent },
           });
-          if (result.kind === 'relink_required') {
-            throw new Error(
-              'Key export requires re-linking this device to a canonical owner credential.',
-            );
-          }
           return;
         }
         const chainTarget = thresholdEcdsaChainTargetFromConfig(
           requirePrimaryChainByFamily(seams.configs.network.chains, 'evm'),
         );
-        const result = await seams.keys.exportKey({
+        await seams.keys.exportKey({
           kind: 'ecdsa',
           walletSession: walletId,
           chainTarget,
           options: { onEvent: onExportKeyEvent },
         });
-        if (result.kind === 'relink_required') {
-          throw new Error(
-            'Key export requires re-linking this device to a canonical owner credential.',
-          );
-        }
       } catch (error: unknown) {
         setSettingsError(formatExportKeyErrorMessage(error));
         console.error('[AccountMenuButton] Key export failed:', error);

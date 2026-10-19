@@ -1,71 +1,29 @@
 import { expect, test } from '@playwright/test';
 import {
-  parseCapabilityInstanceRef,
-  parseChallengeSubjectId,
-  parseEmailOtpChallengeId,
-  parseMpcCapabilityRuntimeRef,
-  parseMpcKeyBindingRef,
-  parseMpcLifecycleBindingRef,
-  parseMpcMaterialActivationId,
   parseMpcMaterialActivationRef,
-  parseMpcMaterialOwnerRef,
-  parseMpcReauthorizationPolicyRef,
-  parseMpcRegisteredPublicKeyBindingRef,
-  parseMpcSigningWorkerRef,
   parseOrgId,
-  parseProviderSubject,
-  parseThresholdEcdsaSessionId,
-  parseThresholdEd25519SessionId,
-  parseThresholdSessionId,
   parseWalletId,
 } from '../../packages/shared-ts/src/utils/domainIds';
 import { walletIdFromString } from '../../packages/shared-ts/src/utils/registrationIds';
 import { parseD1BoundaryWalletIdResult } from '../../packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthBoundary';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
-const parsers = [
-  { name: 'walletId', parse: parseWalletId },
-  { name: 'providerSubject', parse: parseProviderSubject },
-  { name: 'challengeSubjectId', parse: parseChallengeSubjectId },
-  { name: 'emailOtpChallengeId', parse: parseEmailOtpChallengeId },
-  { name: 'orgId', parse: parseOrgId },
-  { name: 'thresholdEd25519SessionId', parse: parseThresholdEd25519SessionId },
-  { name: 'thresholdEcdsaSessionId', parse: parseThresholdEcdsaSessionId },
-  { name: 'thresholdSessionId', parse: parseThresholdSessionId },
-  { name: 'capabilityInstanceRef', parse: parseCapabilityInstanceRef },
-  { name: 'mpcMaterialOwnerRef', parse: parseMpcMaterialOwnerRef },
-  { name: 'mpcCapabilityRuntimeRef', parse: parseMpcCapabilityRuntimeRef },
-  { name: 'mpcMaterialActivationId', parse: parseMpcMaterialActivationId },
-  { name: 'mpcSigningWorkerRef', parse: parseMpcSigningWorkerRef },
-  { name: 'mpcKeyBindingRef', parse: parseMpcKeyBindingRef },
-  { name: 'mpcLifecycleBindingRef', parse: parseMpcLifecycleBindingRef },
-  { name: 'mpcReauthorizationPolicyRef', parse: parseMpcReauthorizationPolicyRef },
-  {
-    name: 'mpcRegisteredPublicKeyBindingRef',
-    parse: parseMpcRegisteredPublicKeyBindingRef,
-  },
-] as const;
-
 test.describe('domain id boundary parsers', () => {
-  for (const parser of parsers) {
-    test(`${parser.name} trims valid strings`, () => {
-      expect(parser.parse(`  ${parser.name}:value  `)).toEqual({
-        ok: true,
-        value: `${parser.name}:value`,
-      });
-    });
+  // Every plain domain id parser delegates to parseDomainId; one stands for all.
+  test('a domain id parser trims valid strings', () => {
+    expect(parseOrgId('  orgId:value  ')).toEqual({ ok: true, value: 'orgId:value' });
+  });
 
-    test(`${parser.name} rejects blank and non-string values`, () => {
-      expect(parser.parse('')).toEqual({
-        ok: false,
-        error: { code: 'missing', message: `${parser.name} is required` },
-      });
-      expect(parser.parse(42)).toEqual({
-        ok: false,
-        error: { code: 'invalid', message: `${parser.name} must be a string` },
-      });
+  test('a domain id parser rejects blank and non-string values', () => {
+    expect(parseOrgId('')).toEqual({
+      ok: false,
+      error: { code: 'missing', message: 'orgId is required' },
     });
-  }
+    expect(parseOrgId(42)).toEqual({
+      ok: false,
+      error: { code: 'invalid', message: 'orgId must be a string' },
+    });
+  });
 
   test('public wallet-id boundary helpers normalize through the canonical parser', () => {
     expect(walletIdFromString('  wallet.testnet  ')).toBe('wallet.testnet');

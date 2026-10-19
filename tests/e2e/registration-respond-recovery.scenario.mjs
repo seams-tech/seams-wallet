@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
+import { setTimeout } from 'node:timers/promises';
 
 // Fail the real D1 admission transaction before execution or after its commit.
 class AdmissionFaultDatabase {
   remaining = 0;
   writes = 0;
   lostReply = false;
+  admissionDelayMs = 25;
 
   constructor(database) {
     this.database = database;
@@ -17,7 +19,10 @@ class AdmissionFaultDatabase {
 
   async batch(statements) {
     const admission = statements.some(isAdmissionWrite);
-    if (admission) this.writes += 1;
+    if (admission) {
+      this.writes += 1;
+      await setTimeout(this.admissionDelayMs);
+    }
     const fail = admission && this.remaining > 0;
     if (fail) this.remaining -= 1;
     if (fail && !this.lostReply) throw new Error('D1_ERROR: Network connection lost.');
@@ -193,7 +198,8 @@ export async function verifyRegistrationRespondRecovery({ api, database, options
       };
       observed.remaining = fault === 'exhausted' ? 3 : 1;
       observed.lostReply = fault === 'lost_reply';
-      const response = await registration.respondWalletRegistration(request);
+      const admissionTiming = [];
+      const response = await registration.respondWalletRegistration(request, undefined, admissionTiming);
       const initialWriteAttempts = observed.writes;
       assert.equal(
         observed.remaining,
@@ -201,6 +207,11 @@ export async function verifyRegistrationRespondRecovery({ api, database, options
         `The configured admission fault must be exercised: ${JSON.stringify(response)}`,
       );
       assert.equal(observed.writes, expectedWrites(fault));
+      const commitWaitMs = admissionTiming.reduce(sumAdmissionCommitWait, 0);
+      assert.ok(
+        commitWaitMs >= observed.admissionDelayMs * observed.writes,
+        `Admission diagnostics must include delayed commits and failed attempts: ${commitWaitMs}`,
+      );
       if (fault === 'exhausted') {
         assert.deepEqual(response, {
           ok: false,
@@ -241,6 +252,8 @@ export async function verifyRegistrationRespondRecovery({ api, database, options
       evidence.push({
         fault,
         initialWriteAttempts,
+        injectedAdmissionDelayMs: observed.admissionDelayMs,
+        admissionTiming,
         initialResult: response.ok ? 'admitted' : response.code,
         totalWriteAttempts: observed.writes,
         registrationCeremonyId: setup.body.registrationCeremonyId,
@@ -253,4 +266,8 @@ export async function verifyRegistrationRespondRecovery({ api, database, options
   } finally {
     await browser.close();
   }
+}
+
+function sumAdmissionCommitWait(total, [name, durationMs]) {
+  return name === 'yao_admission_commit' ? total + durationMs : total;
 }

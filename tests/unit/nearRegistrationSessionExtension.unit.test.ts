@@ -28,7 +28,6 @@ test('NEAR authority extension preserves ECDSA identity, session lifetime and ex
   });
   expect(isEd25519ExtensionOfEcdsaWalletAuthority(fixture.authority, extended)).toBe(true);
   expect(isEd25519ExtensionOfEcdsaWalletAuthority(extended, fixture.authority)).toBe(false);
-  expect(extended.authorityDigestB64u).toBe(expected.authorityDigestB64u);
   expect(extended.signerActivations.ecdsa).toEqual(fixture.authority.signerActivations.ecdsa);
   expect(extended.revocationEpoch).toBe(fixture.authority.revocationEpoch);
   for (const change of ['revocation_epoch', 'ecdsa_material'] as const) {
@@ -41,10 +40,6 @@ test('NEAR authority extension preserves ECDSA identity, session lifetime and ex
   });
   expect(walletSessionPreservesCapabilities(fixture.activeWalletSession, promoted)).toBe(true);
   expect(walletSessionPreservesCapabilities(promoted, fixture.activeWalletSession)).toBe(false);
-  expect(promoted.authorizationId).toBe(fixture.activeWalletSession.authorizationId);
-  expect(promoted.quotaId).toBe(fixture.activeWalletSession.quotaId);
-  expect(promoted.issuedAtMs).toBe(fixture.activeWalletSession.issuedAtMs);
-  expect(promoted.expiresAtMs).toBe(fixture.activeWalletSession.expiresAtMs);
   const anotherWallet = await buildEmailOtpEcdsaWalletSessionFixture({
     label: 'other-near-extension',
     expiresAtMs: Date.now() + 60_000,

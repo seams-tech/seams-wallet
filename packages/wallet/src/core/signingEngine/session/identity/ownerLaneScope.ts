@@ -43,34 +43,6 @@ export class OwnerLaneScopeIntegrityError extends Error {
   }
 }
 
-/**
- * The active authority names a credential this device holds no active
- * canonical wallet auth method for: a pre-Phase-8 enrollment (or a device
- * whose canonical state was removed). It cannot act as a human owner until it
- * links again. Distinct from OwnerLaneScopeIntegrityError so request
- * boundaries and the UI can surface "link this device again" instead of a
- * generic integrity failure.
- */
-class OwnerRelinkRequiredError extends Error {
-  readonly code = 'relink_required' as const;
-  readonly reason = 'missing_canonical_owner_binding' as const;
-
-  constructor(walletAuthMethodId: string) {
-    super(
-      `[OwnerLaneScope] relink_required: no active canonical wallet auth method (${walletAuthMethodId})`,
-    );
-    this.name = 'OwnerRelinkRequiredError';
-  }
-}
-
-export function isOwnerRelinkRequiredError(error: unknown): error is OwnerRelinkRequiredError {
-  return (
-    error instanceof OwnerRelinkRequiredError &&
-    error.name === 'OwnerRelinkRequiredError' &&
-    error.code === 'relink_required'
-  );
-}
-
 function passkeyWalletAuthAuthorityFromV2Record(
   record: PasskeyWalletAuthMethodRecordV2,
 ): PasskeyWalletAuthAuthority {
@@ -206,25 +178,6 @@ export async function resolveExactWalletAuthAuthority(args: {
   });
 }
 
-async function assertOwnerAuthorityRefMatches(args: {
-  readonly expected: WalletAuthAuthorityRef;
-  readonly authority: PasskeyWalletAuthAuthority | EmailOtpWalletAuthAuthority;
-}): Promise<void> {
-  const resolvedRef = await walletAuthAuthorityRef({ authority: args.authority });
-  if (
-    resolvedRef.kind !== args.expected.kind ||
-    resolvedRef.walletId !== args.expected.walletId ||
-    resolvedRef.walletAuthMethodId !== args.expected.walletAuthMethodId ||
-    resolvedRef.authorityDigest !== args.expected.authorityDigest
-  ) {
-    throw new OwnerLaneScopeIntegrityError(
-      `resolved wallet auth method does not reproduce the active authority digest (${String(
-        args.expected.walletAuthMethodId,
-      )})`,
-    );
-  }
-}
-
 export function buildExactPasskeyOwnerLaneScope(args: {
   readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly signerSlot: SignerSlot;
@@ -322,47 +275,4 @@ export async function resolveExactOwnerLaneScope(args: {
       authorityDigest: authorityRef.authorityDigest,
     },
   };
-}
-
-/**
- * Owner derivation chain: active Wallet Session authority -> one active
- * wallet auth method -> exact credential -> exact local authenticator and
- * signer slot (Passkey only). Every value comes from the previous link, and
- * the resolved method must reproduce the authority digest the active session
- * carries. Missing or duplicate records are integrity failures — timestamps,
- * labels, and slot searches never select another owner.
- */
-export async function resolveOwnerLaneScope(args: {
-  readonly authorityRef: WalletAuthAuthorityRef;
-  readonly stores: OwnerLaneScopeStores;
-}): Promise<OwnerLaneScope> {
-  const walletId = String(args.authorityRef.walletId);
-  const expectedAuthMethodId = String(args.authorityRef.walletAuthMethodId);
-  const authMethod = await args.stores.getWalletAuthMethodV2(expectedAuthMethodId);
-  if (!authMethod || authMethod.status !== 'active' || String(authMethod.walletId) !== walletId) {
-    throw new OwnerRelinkRequiredError(expectedAuthMethodId);
-  }
-  if (authMethod.kind === 'email_otp') {
-    const authority = await resolveEmailOtpWalletAuthAuthority({
-      authMethod,
-      stores: args.stores,
-    });
-    await assertOwnerAuthorityRefMatches({ expected: args.authorityRef, authority });
-    return {
-      auth: {
-        kind: 'email_otp',
-        providerSubjectId: String(authority.factor.providerUserId),
-      },
-      ownerAuthority: {
-        walletAuthMethodId: args.authorityRef.walletAuthMethodId,
-        authorityDigest: args.authorityRef.authorityDigest,
-      },
-    };
-  }
-  const resolvedAuthority = passkeyWalletAuthAuthorityFromV2Record(authMethod);
-  await assertOwnerAuthorityRefMatches({
-    expected: args.authorityRef,
-    authority: resolvedAuthority,
-  });
-  return await passkeyOwnerLaneScope({ authMethod, stores: args.stores });
 }

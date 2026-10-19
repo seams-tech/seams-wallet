@@ -30,9 +30,9 @@ Ed25519 export uses the wallet's NEAR account. ECDSA export names a configured c
 Both default to the signed-in wallet. Pass `walletSession`, `nearAccount`, or
 `chainTarget` to select the exact wallet, account, or chain.
 
-Check the outcome. `relink_required` means this device has no canonical owner binding.
-Ask the user to link the device, then retry `exportKey`. The SDK owns lane selection
-and passes the selected lane directly to the wallet-origin viewer.
+The SDK owns lane selection and passes the selected lane directly to the
+wallet-origin viewer. If this device has no exact export lane or material,
+`exportKey` rejects with an export-lane or material error.
 
 Key material is displayed inside the wallet-origin viewer. The app receives an
 outcome, such as `exported`, without the private key. Keep export content out of

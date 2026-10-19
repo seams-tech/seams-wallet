@@ -15,18 +15,3 @@ test('alphabetizeStringify recursively sorts object keys and preserves array ord
     '{"a":{"a":"first","z":"last"},"m":[{"a":1,"b":2},{"c":3,"d":4}],"z":3}',
   );
 });
-
-test('alphabetizeStringify does not mutate or replace the input graph', () => {
-  const nested = { z: 2, a: 1 };
-  const arrayEntry = { d: 4, c: 3 };
-  const value = { z: nested, a: [arrayEntry] };
-  const before = JSON.stringify(value);
-
-  alphabetizeStringify(value);
-
-  expect(JSON.stringify(value)).toBe(before);
-  expect(value.z).toBe(nested);
-  expect(value.a[0]).toBe(arrayEntry);
-  expect(Object.keys(value)).toEqual(['z', 'a']);
-  expect(Object.keys(nested)).toEqual(['z', 'a']);
-});

@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { projectLocalLoginAuthMethods } from '@/SeamsWeb/operations/auth/login';
 import { parseVerifiedEmailAddress } from '@shared/utils/domainIds';
 import { injectImportMap } from '../setup/bootstrap';
 import { sha256HexUtf8 } from '@shared/utils/digests';
@@ -17,65 +16,6 @@ function verifiedEmailAddress(value: string) {
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
 }
-
-test('projects the verified Email OTP address for the login account menu', () => {
-  const fixture = buildActiveEmailOtpAuthMethodFixture({
-    walletId: 'coral-reef-r8f5ju',
-    emailAddress: 'n6378056@gmail.com',
-    emailHashHex: 'email-hash-login-menu',
-  });
-
-  expect(
-    projectLocalLoginAuthMethods([
-      {
-        kind: 'email_otp',
-        record: fixture.record,
-        presentation: {
-          version: 'wallet_auth_method_local_presentation_v1',
-          kind: 'email_otp',
-          email: {
-            kind: 'verified',
-            address: verifiedEmailAddress('n6378056@gmail.com'),
-          },
-        },
-      },
-    ]),
-  ).toEqual([
-    {
-      walletId: 'coral-reef-r8f5ju',
-      authMethod: 'email_otp',
-      emailAddress: 'n6378056@gmail.com',
-    },
-  ]);
-});
-
-test('keeps Email OTP presentation unavailable when no verified address is retained', () => {
-  const fixture = buildActiveEmailOtpAuthMethodFixture({
-    walletId: 'coral-reef-r8f5ju',
-    emailAddress: 'n6378056@gmail.com',
-    emailHashHex: 'email-hash-login-menu',
-  });
-
-  expect(
-    projectLocalLoginAuthMethods([
-      {
-        kind: 'email_otp',
-        record: fixture.record,
-        presentation: {
-          version: 'wallet_auth_method_local_presentation_v1',
-          kind: 'email_otp',
-          email: { kind: 'unavailable' },
-        },
-      },
-    ]),
-  ).toEqual([
-    {
-      walletId: 'coral-reef-r8f5ju',
-      authMethod: 'email_otp',
-      emailAddress: null,
-    },
-  ]);
-});
 
 test('retains verified Email OTP presentation beside the canonical V2 record', async ({ page }) => {
   const fixture = buildActiveEmailOtpAuthMethodFixture({

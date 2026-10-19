@@ -2965,13 +2965,6 @@ async function routerAbEcdsaDerivationContextBindingDigestV1(
   );
 }
 
-export async function routerAbEcdsaDerivationContextBindingB64uV1(
-  context: RouterAbEcdsaDerivationStableKeyContextV1,
-): Promise<string> {
-  const digest = await routerAbEcdsaDerivationContextBindingDigestV1(context);
-  return base64UrlEncode(new Uint8Array(digest.bytes));
-}
-
 function canonicalPublicIdentityBytes(
   publicIdentity: RouterAbEcdsaDerivationPublicIdentityV1,
 ): Uint8Array {

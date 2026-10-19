@@ -1,70 +1,11 @@
 import { AccountMenuScreen } from './AccountMenuScreen';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Theme, useTheme } from '../theme';
-import { LayersIcon } from './icons/LayersIcon';
-import { LockKeyholeIcon } from './icons/LockKeyholeIcon';
 
-type AccountMenuDialogPresentation = 'modal' | 'page' | 'embedded';
+type AccountMenuDialogPresentation = 'page' | 'embedded';
 
-// Keyboard handling for an account-menu dialog: Escape closes it, Tab and Shift+Tab wrap
-// within it, and closing returns focus to where it was. A page presentation is not modal, so
-// it gets none of this.
-export function useAccountMenuDialogKeyboard(input: {
-  readonly isOpen: boolean;
-  readonly presentation: AccountMenuDialogPresentation;
-  readonly onClose: () => void;
-  readonly dialogRef: React.RefObject<HTMLDivElement | null>;
-  readonly focusableSelector: string;
-}): void {
-  const { isOpen, presentation, onClose, dialogRef, focusableSelector } = input;
-  const previousFocusRef = React.useRef<HTMLElement | null>(null);
-
-  const handleDialogKeyDown = React.useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape' || event.key === 'Esc') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab' || !dialogRef.current) return;
-      const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector),
-      );
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialogRef.current.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    },
-    [dialogRef, focusableSelector, onClose],
-  );
-
-  useEffect(() => {
-    if (!isOpen || presentation !== 'modal') return;
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.focus({ preventScroll: true });
-    window.addEventListener('keydown', handleDialogKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleDialogKeyDown);
-      previousFocusRef.current?.focus();
-      previousFocusRef.current = null;
-    };
-  }, [dialogRef, handleDialogKeyDown, isOpen, presentation]);
-}
-
-// The themed backdrop, dialog, title and chrome an account-menu dialog renders its content
-// inside. A modal has a header with the page's host and the close button, and a "Powered by
-// seams" footer. As a page it is a labelled region with neither: the settings page has its own.
+// The themed frame and title an account-menu screen renders its content inside: a labelled
+// region on the settings page, or a back-navigable screen inside the account menu.
 export const AccountMenuDialogFrame: React.FC<{
   readonly presentation: AccountMenuDialogPresentation;
   readonly onClose: () => void;
@@ -72,7 +13,6 @@ export const AccountMenuDialogFrame: React.FC<{
   readonly contentClassName: string;
   readonly titleId: string;
   readonly title: string;
-  readonly closeLabel: string;
   readonly children: React.ReactNode;
 }> = ({
   presentation,
@@ -81,7 +21,6 @@ export const AccountMenuDialogFrame: React.FC<{
   contentClassName,
   titleId,
   title,
-  closeLabel,
   children,
 }) => {
   const { theme, tokens } = useTheme();
@@ -102,44 +41,20 @@ export const AccountMenuDialogFrame: React.FC<{
         className={`seams-linked-devices-modal-backdrop theme-${theme}`}
         data-presentation={presentation}
         role="presentation"
-        onMouseDown={(event) => {
-          if (presentation === 'modal' && event.target === event.currentTarget) onClose();
-        }}
       >
         <div
           ref={dialogRef}
           className={`seams-linked-devices-modal-content ${contentClassName}`}
-          role={presentation === 'modal' ? 'dialog' : 'region'}
-          aria-modal={presentation === 'modal' ? true : undefined}
+          role="region"
           aria-labelledby={titleId}
           tabIndex={-1}
         >
-          {presentation === 'modal' ? (
-            <header className="seams-account-menu-dialog-header">
-              <LockKeyholeIcon size={13} />
-              <span className="seams-account-menu-dialog-host">{window.location.host}</span>
-              <button
-                type="button"
-                className="seams-linked-devices-modal-close"
-                onClick={onClose}
-                aria-label={closeLabel}
-              >
-                ✕
-              </button>
-            </header>
-          ) : null}
           <div className="seams-account-menu-dialog-main">
             <h2 id={titleId} className="seams-linked-devices-modal-title">
               {title}
             </h2>
             {children}
           </div>
-          {presentation === 'modal' ? (
-            <footer className="seams-account-menu-dialog-footer">
-              <LayersIcon size={13} />
-              Powered by seams
-            </footer>
-          ) : null}
         </div>
       </div>
     </Theme>

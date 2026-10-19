@@ -7,7 +7,7 @@ import type {
 } from '@shared/device-linking';
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
-import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
+import { AccountMenuDialogFrame } from './AccountMenuDialog';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import { LaptopIcon } from './icons/LaptopIcon';
 import { LockIcon } from './icons/LockIcon';
@@ -19,7 +19,7 @@ interface LinkedDevicesModalProps {
   walletId: string | null;
   isOpen: boolean;
   onClose: () => void;
-  presentation?: 'modal' | 'page' | 'embedded';
+  presentation: 'page' | 'embedded';
 }
 
 type LinkedDevicesLoadState =
@@ -300,14 +300,11 @@ function withLinkedDevicesLoadTimeout<T>(promise: Promise<T>): Promise<T> {
   });
 }
 
-const FOCUSABLE_DIALOG_ELEMENTS =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   walletId,
   isOpen,
   onClose,
-  presentation = 'modal',
+  presentation,
 }) => {
   const { seams, loginState } = useSeams();
   const [loadState, setLoadState] = React.useState<LinkedDevicesLoadState>({ kind: 'idle' });
@@ -343,14 +340,6 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
       }
     }
   }, [walletId]);
-
-  useAccountMenuDialogKeyboard({
-    isOpen,
-    presentation,
-    onClose,
-    dialogRef,
-    focusableSelector: FOCUSABLE_DIALOG_ELEMENTS,
-  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -413,7 +402,6 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
       contentClassName="seams-linked-devices-inventory-content"
       titleId="seams-linked-devices-modal-title"
       title={selectedDevice ? 'Device details' : 'Linked devices'}
-      closeLabel="Close linked devices"
     >
       {selectedDevice ? (
         <AccountMenuDeviceDetails

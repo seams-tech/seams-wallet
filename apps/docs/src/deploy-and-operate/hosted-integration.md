@@ -19,6 +19,40 @@ The application configures the absolute HTTPS wallet origin. It should not
 proxy wallet routes through the application origin or serve a second copy of
 the runtime assets.
 
+## Prepare registration through the hosted menu
+
+Use `HostedSeamsAuthMenu` for registration when setup should start before the
+user selects the passkey button. The menu prepares the exact wallet, signer
+selection, and passkey challenge while the registration view is open. The
+passkey button consumes that preparation. Closing the menu cancels its local
+preparation. An expired preparation cannot start a credential request.
+
+```tsx
+import { HostedSeamsAuthMenu } from '@seams/wallet/react';
+import type { HostedAuthMenuOutcome } from '@seams/wallet/react';
+
+function onRegistrationOutcome(outcome: HostedAuthMenuOutcome): void {
+  console.info(outcome.kind);
+}
+
+// Mount inside the application's SeamsWebProvider when registration opens.
+<HostedSeamsAuthMenu initialMode="register" onOutcome={onRegistrationOutcome} />;
+```
+
+`authMenu.prepare()` downloads sign-in code. It does not reserve a wallet or
+prepare a registration challenge. The registration view starts that work.
+Calling `registration.registerWallet()` directly starts setup within the call,
+before the passkey prompt. There is no separate public preparation handle.
+
+The hosted Gateway schedules optional pair preparation through `waitUntil`.
+It persists the wallet's object addresses before the setup response. Pair
+preparation can overlap the passkey prompt, but Yao execution still requires
+the verified passkey proof. The normal execution path can recover when optional
+preparation fails or expires.
+
+Earlier setup reduces the wait after the user's passkey selection only when
+the menu stays open long enough. It does not reduce total server work.
+
 ## Release verification
 
 - Load the wallet service directly and confirm the expected release identity.
@@ -31,6 +65,22 @@ the runtime assets.
 Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for the
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
+
+## Upgrading to 0.15.0
+
+Pin `@seams/wallet`, `@seams/wallet-server`, and `@seams/wallet-cli` to **0.15.0**.
+Deploy the matching wallet host, Gateway, Router, both Derivers, and Signing Worker.
+The private address-allocation response now carries a batch, so the custody
+Workers must move together. The public wallet iframe protocol remains **16.0.0**.
+
+Registration reuses committed admission, commits custody with its completion
+receipt, and can finish after A's validated completion without waiting for B's
+preparation reply. Hosted activation also schedules obsolete ceremony cleanup
+after its response. These changes preserve proof, custody, and replay checks.
+
+The SDK removes the `relink_required` result variants that no operation produces.
+Remove those branches from TypeScript consumers. The unexported Vite/Next hosting
+plugins and unused account-menu modal implementation are also removed.
 
 ## Upgrading to 0.14.0
 

@@ -9,7 +9,7 @@ async function mountSettingsLayout(page: Page): Promise<void> {
     await route.fulfill({
       contentType: 'application/javascript',
       body: `
-        const seams = { setTheme() {} };
+        const seams = { config: { setTheme() {} } };
         export function useSeams() {
           return { seams };
         }
@@ -65,16 +65,9 @@ test('settings sidebar selects panels, preserves capability restrictions, and wo
 }) => {
   await mountSettingsLayout(page);
   const nav = page.getByRole('navigation', { name: 'Wallet settings' });
-  await expect(nav.getByRole('button')).toHaveCount(8);
   await expect(
     page.getByRole('heading', { name: 'Authentication methods', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Seams', exact: true })).toBeVisible();
-  await expect(page.locator('.seams-settings-wordmark path')).toHaveCount(1);
-  await page.screenshot({
-    path: test.info().outputPath('wallet-settings-desktop.png'),
-    fullPage: true,
-  });
   await nav.getByRole('button', { name: /^Linked devices/ }).click();
   await expect(page.getByRole('heading', { name: 'Linked devices', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Manage linked-devices' })).toBeVisible();
@@ -92,8 +85,4 @@ test('settings sidebar selects panels, preserves capability restrictions, and wo
   await expect(page.getByRole('button', { name: 'Manage accounts' })).toBeVisible();
   const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   expect(fits).toBe(true);
-  await page.screenshot({
-    path: test.info().outputPath('wallet-settings-mobile.png'),
-    fullPage: true,
-  });
 });

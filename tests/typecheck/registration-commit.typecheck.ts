@@ -70,3 +70,19 @@ const conflictingFoundingRead: RegistrationFoundingRead = {
   },
 };
 void conflictingFoundingRead;
+
+
+// Custody cannot claim a prepared commit without its terminal transaction.
+import type { RegistrationCustodyReservation } from '../../packages/wallet-server/src/router/domains/passkeyCustody/registrationCustodyOutcome';
+import type { RegistrationCommitExecution } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
+
+// @ts-expect-error Prepared custody must carry the write that its receipt commits.
+const custodyWithoutWrite: RegistrationCustodyReservation = { kind: 'prepared', outcome: { status: 'committed' } };
+// @ts-expect-error Settled custody cannot retain pending writes.
+const settledWithWrite: RegistrationCustodyReservation = { kind: 'settled', outcome: { status: 'committed' }, write: { statements: [] } };
+declare const preparedCustody: Extract<RegistrationCustodyReservation, { kind: 'prepared' }>;
+// @ts-expect-error A broad spread cannot silently discard the prepared lifecycle.
+const spreadCustody: RegistrationCustodyReservation = { ...preparedCustody, kind: 'settled' };
+// @ts-expect-error A replay cannot introduce a new custody write.
+const replayWithCustody: RegistrationCommitExecution<unknown> = { kind: 'replayed', response: {}, custodyWrite: { statements: [] } };
+void [custodyWithoutWrite, settledWithWrite, spreadCustody, replayWithCustody];

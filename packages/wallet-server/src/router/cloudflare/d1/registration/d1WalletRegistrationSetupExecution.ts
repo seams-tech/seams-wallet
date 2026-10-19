@@ -1,3 +1,4 @@
+import { recordRegistrationPromiseTiming, recordRegistrationServerTiming } from '../../../framework/registrationTiming';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { deriveSigningRootId } from '@shared/threshold/signingRootScope';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -41,8 +42,6 @@ import {
   registrationSignerBranchesFromPlan,
   registrationPreparedContextEcdsaChainTargets,
   resolveRegistrationPreparedContextFromPlan,
-  recordRegistrationPromiseTiming,
-  recordRegistrationServerTiming,
 } from './d1RegistrationSetupSupport';
 import {
   buildWalletRegistrationSetupSignature,

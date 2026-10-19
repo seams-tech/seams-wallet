@@ -4,7 +4,7 @@ import type { RouteResponse } from './routeExecutionContext';
 import {
   recordRegistrationServerTiming,
   registrationServerTimingHeaders,
-} from '../cloudflare/d1/registration/d1RegistrationSetupSupport';
+} from './registrationTiming';
 
 export interface WalletRegistrationSetupDispatcher {
   dispatch(input: WalletRegistrationSetupInput): Promise<RouteResponse | null>;

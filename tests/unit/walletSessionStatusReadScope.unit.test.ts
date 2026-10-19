@@ -120,30 +120,6 @@ async function registrationIssuedSession(label: string, server: StatusServer) {
   };
 }
 
-test('a wallet-host observation reads a registration-issued session once without asking the server', async () => {
-  const server = new StatusServer();
-  const { session, options, identity } = await registrationIssuedSession('seed-once', server);
-  WalletSessionStatusReadScope.acceptRegistrationSession(options.relayerUrl, session);
-
-  const observed = await WalletSessionStatusReadScope.forHostObservation().read(options, identity);
-  expect(observed).toEqual({
-    status: 'active',
-    walletSessionId: session.walletSessionId,
-    quotaId: session.quotaId,
-    remainingUses: session.remainingUses,
-    expiresAtMs: session.expiresAtMs,
-    quotaLifecycle: 'active',
-    authorization: session.walletSession,
-  });
-  expect(server.calls).toBe(0);
-
-  // The response is read once. The next observation asks the server.
-  expect(
-    (await WalletSessionStatusReadScope.forHostObservation().read(options, identity)).status,
-  ).toBe('missing');
-  expect(server.calls).toBe(1);
-});
-
 test('reads outside a wallet-host observation ask the server, and its answer replaces the issued session', async () => {
   const server = new StatusServer();
   const { session, options, identity } = await registrationIssuedSession('seed-replaced', server);

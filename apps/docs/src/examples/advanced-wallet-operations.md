@@ -50,9 +50,9 @@ export viewer in one call.
 exports the ECDSA lane for a configured chain. Both default to the authenticated wallet
 and receive progress through `KeyExportFlowEvent`.
 
-Check the outcome. `relink_required` means this device has no canonical owner binding.
-Ask the user to link the device, then retry `exportKey`. The SDK owns lane selection
-and passes the selected lane directly to the wallet-origin viewer.
+The SDK owns lane selection and passes the selected lane directly to the
+wallet-origin viewer. If this device has no exact export lane or material,
+`exportKey` rejects with an export-lane or material error.
 
 ## Expected result
 
@@ -66,7 +66,8 @@ and passes the selected lane directly to the wallet-origin viewer.
   old QR payload.
 - Recovery can return a failure result. Keep the existing account state until
   synchronization succeeds.
-- Export can return `relink_required` instead of opening the viewer. Handle this outcome by asking the user to link the device.
+- Export rejects when this device has no exact export lane or material. Show
+  the error. The SDK never selects another lane.
 - Export authorization and viewer errors should end the current disclosure
   attempt. Ask for fresh authentication before another export.
 

@@ -130,8 +130,8 @@ export type RouterAbEd25519YaoWalletSessionMintInputV1 =
       readonly remainingUses: number;
     });
 
-/** Admission is immutable. A finalization batch may supply it before consumption. */
-export type RouterAbEd25519YaoConsumptionAdmissionV1 =
+/** Immutable admission may come from the request's committed or batched snapshot. */
+export type RouterAbEd25519YaoRegistrationAdmissionSourceV1 =
   | { readonly kind: 'stored'; readonly authority?: never }
   | {
       readonly kind: 'snapshot';
@@ -159,6 +159,7 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
         companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null,
         startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null,
         mintedSessionId: RouterAbEd25519YaoBytes32V1,
+        serverTiming?: Array<readonly [string, number]>,
       ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1>;
       /**
        * The receipt of the admission that a registration gets for `request`
@@ -179,6 +180,7 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
        * execute route does for its bearer.
        */
       executeAdmittedRegistration(input: {
+        readonly admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1;
         readonly request: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
         readonly credential: string;
         readonly trace: RouterAbTraceContextV1;
@@ -188,7 +190,7 @@ export type RouterAbEd25519YaoProductRegistrationRuntimeV1 =
       ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
       consumeActivated(
         request: RouterAbEd25519YaoActivationConsumptionRequestV1,
-        admission: RouterAbEd25519YaoConsumptionAdmissionV1,
+        admission: RouterAbEd25519YaoRegistrationAdmissionSourceV1,
       ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1>;
     };
 
@@ -220,6 +222,7 @@ export type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1 =
        * runtime has no batch to share: the caller then writes for itself.
        */
       readonly companionWrite: 'committed' | 'not_committed';
+      readonly executionAdmission: RouterAbEd25519YaoRegistrationAdmissionSourceV1;
     };
 
 export type RouterAbEd25519YaoProductRegistrationCompositionV1 = {
@@ -622,6 +625,7 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
       value: admitted.value,
       // This runtime keeps its state in memory and shares no batch.
       companionWrite: 'not_committed',
+      executionAdmission: { kind: 'stored' },
     };
   }
 

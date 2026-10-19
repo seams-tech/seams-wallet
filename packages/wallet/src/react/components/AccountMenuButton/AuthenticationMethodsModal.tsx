@@ -8,7 +8,7 @@ import type {
 } from '@shared/device-linking';
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import { useSeams } from '../../context';
-import { AccountMenuDialogFrame, useAccountMenuDialogKeyboard } from './AccountMenuDialog';
+import { AccountMenuDialogFrame } from './AccountMenuDialog';
 import { PlusIcon } from './icons/PlusIcon';
 import './LinkedDevicesModal.css';
 
@@ -16,7 +16,7 @@ interface AuthenticationMethodsModalProps {
   readonly walletId: string | null;
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  readonly presentation?: 'modal' | 'page' | 'embedded';
+  readonly presentation: 'page' | 'embedded';
 }
 
 type AuthenticationMethodView = {
@@ -179,9 +179,6 @@ function currentAuthorityInventory(input: {
   throw new Error('The selected authentication method is unavailable on this device authority.');
 }
 
-const FOCUSABLE_DIALOG_ELEMENTS =
-  'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
-
 function methodTitle(method: AuthenticationMethodView): string {
   return method.kind === 'passkey' ? 'Passkey' : 'Email OTP';
 }
@@ -211,7 +208,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   walletId,
   isOpen,
   onClose,
-  presentation = 'modal',
+  presentation,
 }) => {
   const { seams, loginState, refreshSession } = useSeams();
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
@@ -274,14 +271,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       }
     }
   }, [selectedWalletAuthMethodId, walletId]);
-
-  useAccountMenuDialogKeyboard({
-    isOpen,
-    presentation,
-    onClose,
-    dialogRef,
-    focusableSelector: FOCUSABLE_DIALOG_ELEMENTS,
-  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -359,16 +348,12 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
         walletAuthMethodId: method.walletAuthMethodId,
       });
       await refreshSessionRef.current(walletId);
-      if (presentation !== 'modal') {
-        setActionState({ kind: 'idle' });
-        await loadInventory();
-      } else {
-        onClose();
-      }
+      setActionState({ kind: 'idle' });
+      await loadInventory();
     } catch (error: unknown) {
       setActionState({ kind: 'error', message: errorMessage(error) });
     }
-  }, [actionState, loadInventory, onClose, presentation, walletId]);
+  }, [actionState, loadInventory, walletId]);
 
   if (!isOpen) return null;
 
@@ -392,7 +377,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       contentClassName="seams-auth-methods-modal-content"
       titleId="seams-auth-methods-modal-title"
       title="Authentication methods"
-      closeLabel="Close authentication methods"
     >
       <AuthenticationMethodsView
         walletLabel={walletId ?? 'Wallet'}

@@ -554,6 +554,10 @@ throughout the resize. Reduced-motion behavior remains immediate.
 - The local journal stores digests and operation/accepted wallet/ceremony IDs.
   It never stores the publishable key or authentication proof. A later setup
   response cannot change an already accepted wallet or ceremony.
+- After the terminal receipt commits, obsolete ceremony deletion must not delay
+  a hosted activation response. Registration and signing can finish while cleanup
+  runs through the host's background-task hook. Exact replay remains valid before
+  and after deletion. Hosts without that hook await cleanup before returning.
 - Successful local registration publication clears that exact wallet/ceremony
   from the setup journal, including publication resumed after a reload. Failed
   cleanup cannot undo an already committed registration.
@@ -569,6 +573,12 @@ throughout the resize. Reduced-motion behavior remains immediate.
   local transaction. Continuations use that local execution identity. A missing
   identity fails locally and cannot create one through a directory lookup.
   Setup retries preserve the current ceremony and cannot reopen a retired home.
+- Setup stores one set of namespace-issued object addresses per wallet ownership
+  generation. Concurrent retries retain the stored winner before custody starts.
+  A new generation receives fresh addresses. The Router may retain a bounded
+  batch of unused identifiers for its binding environment. Unused identifiers
+  contain no authority and create no objects. Restart can discard them safely.
+  An allocation failure cannot replace an existing address assignment.
 - Setup repeats its ceremony read and its ceremony write after a transient
   fault of the database connection, at most twice and with a short wait. The
   repeat is an exact retry: it stores nothing a second time. When the fault
@@ -605,10 +615,13 @@ throughout the resize. Reduced-motion behavior remains immediate.
   record, and local wallet persistence does not wait for it. A refused or
   unavailable route claim does not prevent local persistence: the response
   reports the custody commit as rejected, and the client retries it. The custody
-  records are stored after the wallet commit and after the route claim, and they
-  settle before finalization responds. A finalization
-  that fails settles its started route claim before it responds. An exact retry
-  repeats the same route claim.
+  reservation reads existing custody records while the route claim runs.
+  After the wallet commit, one local transaction stores new custody records,
+  recovery-code locators, and the completion receipt. A failed transaction
+  rolls back all those records and leaves the operation retryable. No response
+  reports committed custody before that transaction succeeds. An exact retry
+  retains existing recovery data and repeats the same route claim.
+  A failed finalization settles its started route claim before it responds.
 - Registration commits its session and the matching ceremony's established decision
   in one local transaction. A conflicting ceremony or cancelled registration prevents
   this commit. Fresh NEAR-only registration includes its wallet, signer, founding
@@ -738,6 +751,9 @@ Expected behaviour:
   proof, stores the admission and runs the execution in that one request. Its
   reply then includes the activation result. No admission exists before the
   proof is verified, and an execute request without that admission is refused.
+  Combined respond reuses the admission snapshot that this request committed.
+  The separate execute route reads persisted admission. Both paths check the
+  credential, binding, and expiry before the Router enforces its execution claim.
 - An exact retry of that respond replays the admission and the recorded
   execution. When the execution does not complete inside respond, the reply
   includes the admission alone, and the client sends the same execute request
@@ -906,6 +922,10 @@ Expected behaviour:
   again. No protocol material may be sent before the role's execution claim is
   durable. A completed registration remains replayable after the Router object
   restarts.
+- A completed, validated Deriver A response includes Deriver B's sealed completion.
+  Registration must finish while an otherwise successful B preparation reply is
+  delayed. Failed A execution still uses B's preparation refusal to preserve the
+  retry outcome. The completed result remains replayable after Router restart.
 - Retrying the same activation or deferred NEAR provisioning request uses the
   original ceremony and idempotency key. The server returns the credential-free
   V2 committed projection without repeating custody effects; a changed request
@@ -1439,8 +1459,7 @@ Failure behaviour:
 - Missing, duplicate, cross-wallet, wrong-kind, revoked, or digest-mismatched
   authority and auth-method records fail closed. Runtime operations do not
   select a sibling device or infer identity from timestamps or display data.
-- An incomplete migrated enrollment returns `relink_required` at its boundary.
-  Linking does not hydrate, recover, rotate, promote, or synthesize missing
+- Linking does not hydrate, recover, rotate, promote, or synthesize missing
   signer or export material.
 - Retrying after the pending-authority commit reuses the exact authority,
   method, activation, package, and digest identities. It must not create a

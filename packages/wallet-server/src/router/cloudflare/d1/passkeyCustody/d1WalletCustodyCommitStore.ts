@@ -1,3 +1,4 @@
+import type { VersionedJsonRecordReadResult } from '../../../framework/versionedJsonRecordStore';
 import {
   reservePasskeyCredential,
   type PasskeyCredentialClaims,
@@ -198,37 +199,9 @@ export type WalletRecoveryCodeLocatorRecord = {
  * writes the records, and it needs the wallet that the registration commits.
  */
 export type WalletCustodyRegistrationReservation =
-  | Extract<WalletCustodyRegistrationCommitResult, { kind: 'inconsistent' }>
-  | {
-      readonly kind: 'reserved';
-      readonly commit: () => Promise<WalletCustodyRegistrationCommitResult>;
-    };
-
-export type WalletCustodyRegistrationCommitResult =
-  | {
-      readonly kind: 'committed';
-      readonly envelopeStoreVersion: string;
-      readonly recoverySetStoreVersion: string;
-    }
-  /**
-   * This ceremony's own envelope is already stored: the commit was applied
-   * before, and the caller holding this result is done. Never an overwrite —
-   * replacing stored custody would strand every key the existing seed controls.
-   */
-  | { readonly kind: 'already_exists'; readonly key: string }
-  /**
-   * The wallet already has custody, established by a *different* ceremony —
-   * its recovery-set key is occupied while this ceremony's envelope key is
-   * free. This is the losing side of the establish race: two key sets each
-   * believed they were the wallet's first. The caller must discard this run's
-   * seed and re-enter as a join of the existing envelope, committing only its
-   * key set's manifest.
-   *
-   * Distinct from `already_exists` because the correct reactions are opposite:
-   * a repeat is finished, a lost race has a key set still to provision.
-   */
-  | { readonly kind: 'custody_already_established'; readonly walletId: WalletId }
-  /** The two records describe different wallets. */
+  | { readonly kind: 'reserved'; readonly statements: readonly D1PreparedStatementLike[] }
+  | { readonly kind: 'already_exists' }
+  | { readonly kind: 'custody_already_established' }
   | { readonly kind: 'inconsistent'; readonly reason: string };
 
 type WalletCustodyRecoveryAuthorityInstallCommitResult =
@@ -830,83 +803,34 @@ export class CloudflareD1WalletCustodyCommitStore {
   ): Promise<WalletCustodyRegistrationReservation> {
     const inconsistency = commitInconsistency(commit);
     if (inconsistency !== null) return { kind: 'inconsistent', reason: inconsistency };
-    if (
-      !(await this.claimRecoveryCodeRoutes(
-        commit.recoverySet.walletId,
-        commit.recoveryCodeLocators,
-      ))
-    ) {
-      return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
-    }
-    return { kind: 'reserved', commit: () => this.commitReservedRegistration(commit) };
-  }
-
-  /**
-   * Writes the envelope and the recovery set in one transaction.
-   *
-   * Both are inserts, never updates: `expectedVersion: null` fails if either
-   * key already holds a row, so a repeated registration cannot silently replace
-   * an established wallet's custody.
-   */
-  private async commitReservedRegistration(
-    commit: WalletCustodyRegistrationCommit,
-  ): Promise<WalletCustodyRegistrationCommitResult> {
     const envelopeKey = passkeyCustodyEnvelopeRecordKey(
       passkeyCustodyEnvelopeLocatorOf(commit.envelope),
     );
     const recoverySetKey = walletRecoveryEnvelopeSetRecordKey(commit.recoverySet.walletId);
-    const recoveryBackupAcknowledgementKey = walletRecoveryBackupAcknowledgementRecordKey(
-      commit.recoverySet.walletId,
-    );
-
-    let stored: Awaited<ReturnType<typeof this.records.putManyWithAdditionalStatements>>;
-    try {
-      stored = await this.records.putManyWithAdditionalStatements(
-        [
+    const acknowledgementKey = walletRecoveryBackupAcknowledgementRecordKey(commit.recoverySet.walletId);
+    // The read overlaps the directory reservation and the caller's Router consumption.
+    // The completion transaction still rejects a competing insertion through its CAS guards.
+    const [claimed, existing] = await Promise.all([
+      this.claimRecoveryCodeRoutes(commit.recoverySet.walletId, commit.recoveryCodeLocators),
+      this.records.readMany([envelopeKey, recoverySetKey, acknowledgementKey]),
+    ]);
+    if (!claimed) return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
+    for (const entry of existing) {
+      if (entry.key === envelopeKey && entry.result.kind !== 'missing') {
+        return { kind: 'already_exists' };
+      }
+    }
+    if (existing.some(custodyRecordExists)) return { kind: 'custody_already_established' };
+    return {
+      kind: 'reserved',
+      statements: [
+        ...this.records.prepareMutationStatements([
           { key: envelopeKey, value: commit.envelope, expectedVersion: null },
           { key: recoverySetKey, value: commit.recoverySet, expectedVersion: null },
-          {
-            key: recoveryBackupAcknowledgementKey,
-            value: commit.recoveryBackupAcknowledgement,
-            expectedVersion: null,
-          },
-        ],
-        commit.recoveryCodeLocators.map((locator) =>
-          this.prepareRecoveryCodeLocatorInsertStatement(locator),
-        ),
-      );
-    } catch (error: unknown) {
-      if (isRecoveryCodeLocatorCollision(error)) {
-        return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
-      }
-      throw error;
-    }
-    if (stored.kind === 'version_mismatch') {
-      // Which record is the duplicate decides what the caller does next. The
-      // recovery-set key is wallet-scoped — it is the establish mutex — while
-      // the envelope key carries this ceremony's own envelope id. The envelope
-      // is checked directly rather than trusting which key the batch happened
-      // to report first: a replay conflicts on both keys.
-      const envelopeTaken =
-        stored.key === envelopeKey || (await this.records.read(envelopeKey)).kind !== 'missing';
-      if (envelopeTaken) return { kind: 'already_exists', key: stored.key };
-      return { kind: 'custody_already_established', walletId: commit.recoverySet.walletId };
-    }
-
-    const envelopeVersion = stored.versions.find((entry) => entry.key === envelopeKey);
-    const recoverySetVersion = stored.versions.find((entry) => entry.key === recoverySetKey);
-    const recoveryBackupAcknowledgementVersion = stored.versions.find(
-      (entry) => entry.key === recoveryBackupAcknowledgementKey,
-    );
-    if (!envelopeVersion || !recoverySetVersion || !recoveryBackupAcknowledgementVersion) {
-      // The batch reported success without both keys, which would mean the
-      // store wrote something other than what it was asked to.
-      throw new Error('wallet custody commit did not report both record versions');
-    }
-    return {
-      kind: 'committed',
-      envelopeStoreVersion: envelopeVersion.version,
-      recoverySetStoreVersion: recoverySetVersion.version,
+          { key: acknowledgementKey, value: commit.recoveryBackupAcknowledgement, expectedVersion: null },
+        ]),
+        ...commit.recoveryCodeLocators.map(this.prepareRecoveryCodeLocatorInsertStatement.bind(this)),
+      ],
     };
   }
 
@@ -1554,4 +1478,8 @@ export class CloudflareD1WalletCustodyCommitStore {
     }
     return { kind: 'committed', envelopeStoreVersion: envelopeVersion.version };
   }
+}
+
+function custodyRecordExists(entry: { readonly result: VersionedJsonRecordReadResult<WalletCustodyCommitRecord> }): boolean {
+  return entry.result.kind !== 'missing';
 }

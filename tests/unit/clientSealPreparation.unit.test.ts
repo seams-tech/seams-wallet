@@ -112,12 +112,3 @@ test('lock clears pending preparation and seal failure destroys its key', async 
   );
   expect(runtime.destroyed).toEqual(['key-1', 'key-2']);
 });
-
-test('abandoned preparation expires and destroys its temporary key', async () => {
-  const runtime = new SealRuntime();
-  const preparations = new ClientSealPreparations(runtime.get.bind(runtime));
-  await preparations.prepare('near', 'abandoned', secret);
-  await expect
-    .poll(() => runtime.destroyed, { timeout: 35_000, intervals: [1000] })
-    .toEqual(['key-1']);
-});

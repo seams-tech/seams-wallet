@@ -6,7 +6,6 @@ import { writeFile } from 'node:fs/promises';
 
 type DurablePresignatureBrowserResult = {
   readonly capacityAdmissionKinds: readonly string[];
-  readonly admissionKinds: readonly [string, string];
   readonly concurrentTakeKinds: readonly string[];
   readonly openedPlaintextMatches: boolean;
   readonly restoredAfterThirtyDays: number;
@@ -71,6 +70,8 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     activation_epoch: 'activation-epoch-1',
   };
   const poolIdentity = {
+    // A wallet with no stored generation is at generation 1.
+    ownershipGeneration: 1,
     relayerUrl: 'https://router.example',
     materialActivationB64u: encoders.base64UrlEncode(
       normalSigningIdentity.canonicalRouterAbMpcMaterialActivationRefBytes(materialActivationWire),
@@ -234,7 +235,6 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
   manager.close();
   return {
     capacityAdmissionKinds,
-    admissionKinds: [firstAdmission.kind, secondAdmission.kind],
     concurrentTakeKinds: concurrentTakes.map((result: { kind: string }) => result.kind).sort(),
     openedPlaintextMatches,
     restoredAfterThirtyDays,
@@ -290,7 +290,6 @@ test('90-day presignatures restore after 30 days and preserve single-claim and c
     'stored',
     'stored',
   ]);
-  expect(result.admissionKinds).toEqual(['stored', 'stored']);
   expect(result.concurrentTakeKinds).toEqual(['claimed_elsewhere', 'opened']);
   expect(result.openedPlaintextMatches).toBe(true);
   expect(result.restoredAfterThirtyDays).toBe(1);

@@ -2,7 +2,7 @@ import type { WalletRegistrationContextResolver } from '../../framework/apiCrede
 import {
   recordRegistrationServerTiming,
   registrationServerTimingHeaders,
-} from '../../cloudflare/d1/registration/d1RegistrationSetupSupport';
+} from '../../framework/registrationTiming';
 import { parseRegistrationSetupOperationId } from '@shared/utils/registrationSetupOperation';
 import type {
   WalletRegistrationNearProvisioningResponseV2,

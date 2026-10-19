@@ -134,18 +134,21 @@ enum RouterCeremonyOutcomeV1 {
 
 #[derive(Default)]
 struct RouterExecutionTimingV1 {
-    prepare_pair_ms: u64,
+    prepare_pair_ms: Option<u64>,
     role_execution_ms: u64,
     signing_worker_delivery_ms: u64,
 }
 
 impl RouterExecutionTimingV1 {
     fn server_timing(&self) -> String {
-        format!(
-            "yao_router_prepare_pair;dur={}, yao_router_role_execution;dur={}, \
-             yao_router_signing_worker_delivery;dur={}",
-            self.prepare_pair_ms, self.role_execution_ms, self.signing_worker_delivery_ms,
-        )
+        let execution = format!(
+            "yao_router_role_execution;dur={}, yao_router_signing_worker_delivery;dur={}",
+            self.role_execution_ms, self.signing_worker_delivery_ms,
+        );
+        match self.prepare_pair_ms {
+            Some(duration_ms) => format!("yao_router_prepare_pair;dur={duration_ms}, {execution}"),
+            None => execution,
+        }
     }
 }
 

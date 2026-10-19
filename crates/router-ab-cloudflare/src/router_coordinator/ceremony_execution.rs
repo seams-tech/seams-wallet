@@ -1,7 +1,8 @@
 use super::*;
 
 /// Runs one pair: dispatches Deriver B's preparation and Deriver A's execution
-/// together, awaits both answers, and finalizes Deriver A's result.
+/// together and finalizes Deriver A's result without waiting for B's reply.
+/// A failed execution still awaits B's answer to preserve typed refusal details.
 ///
 /// Neither request waits for the other. Deriver A connects to Deriver B's
 /// wallet object, which admits the connection once its own preparation has
@@ -79,8 +80,27 @@ pub(super) async fn prepare_execute_and_finalize(
             "router.deriver_a_execute.http",
             operation,
         );
-    let ((prepared_b, prepare_pair_ms), execution) = futures::join!(prepare_b, execute_a);
-    timing.prepare_pair_ms = prepare_pair_ms;
+    let (preparation_failure, execution) = match futures::future::select(
+        Box::pin(prepare_b),
+        Box::pin(execute_a),
+    )
+    .await
+    {
+        futures::future::Either::Left(((prepared, duration_ms), execution)) => {
+            timing.prepare_pair_ms = Some(duration_ms);
+            (prepared.err(), execution.await)
+        }
+        futures::future::Either::Right((Ok(execution), _preparation)) => {
+            // A carries B's sealed completion. A delayed preparation reply
+            // grants no further authority and cannot change that result.
+            (None, Ok(execution))
+        }
+        futures::future::Either::Right((Err(error), preparation)) => {
+            let (prepared, duration_ms) = preparation.await;
+            timing.prepare_pair_ms = Some(duration_ms);
+            (prepared.err(), Err(error))
+        }
+    };
     // Deriver A's answer decides the run. A completed execution carries
     // Deriver B's sealed completion, so it stands whatever became of the
     // preparation's reply.
@@ -95,7 +115,7 @@ pub(super) async fn prepare_execute_and_finalize(
                 "failure",
             );
             return resolve_role_call_error(
-                execution_failure(error, prepared_b.err()),
+                execution_failure(error, preparation_failure),
                 &pair_binding,
             )
             .map(RouterCeremonyOutcomeV1::Standard);

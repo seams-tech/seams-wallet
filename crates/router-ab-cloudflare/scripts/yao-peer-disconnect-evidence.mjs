@@ -51,6 +51,7 @@ const scenarios = {
   'lost-input-source-fenced': { outcome: 'burned', preparation: 'evict-and-fence', connection: 'after-preparation', b: 'missing' },
   'expired-input-retry': { outcome: 'released', preparation: 'after-execution', expireBeforeRetry: true, b: 'prepared' },
   'preparation-reply-lost': { outcome: 'completed', preparation: 'lose-reply' },
+  'preparation-reply-held': { outcome: 'completed', preparation: 'hold-reply' },
   'duplicate-socket': { outcome: 'completed', connection: 'duplicate' },
   'duplicate-router': { outcome: 'completed', duplicateRouter: true, connection: 'after-preparation' },
   'held-protocol-reply': { outcome: 'completed', connection: 'hold-second-reply' },
@@ -127,6 +128,7 @@ const firstRun = {
   connectionArrived: signal(),
   preparationAnswered: signal(),
   executionAnswered: signal(),
+  releasePreparationReply: signal(),
 };
 
 // What the proxy asks: it reports Deriver A's connection, and can wait for
@@ -213,6 +215,7 @@ class PreparationBinding {
         this.delivered.reconciled = await reconcilePreparedWallet(topology, input, true);
         assert.equal(this.delivered.reconciled, 'fenced');
       }
+      if (plan.preparation === 'hold-reply') await firstRun.releasePreparationReply.promise;
       if (plan.preparation === 'lose-reply') {
         return new Response('E2E lost preparation reply', { status: 503 });
       }
@@ -454,7 +457,20 @@ try {
     const released = await proxy.fetch('https://proxy.test/release', { method: 'POST' });
     assert.equal(released.status, 200);
   }
-  const attempts = await Promise.all(pending);
+  let attempts;
+  if (plan.preparation === 'hold-reply') {
+    try {
+      attempts = await Promise.race([
+        Promise.all(pending),
+        setTimeout(5_000, undefined, { ref: false }).then(preparationReplyTimeout),
+      ]);
+      assert.equal(preparation.delivered.status, 200, 'B prepared before its reply was held');
+    } finally {
+      firstRun.releasePreparationReply.resolve();
+    }
+  } else {
+    attempts = await Promise.all(pending);
+  }
   const first = attempts.find(attempt => attempt.body?.status === 'succeeded') ?? attempts[0];
   if (plan.duplicateRouter) {
     assert.equal(attempts.filter(attempt => attempt.body?.status === 'succeeded').length, 1);
@@ -520,14 +536,15 @@ try {
       assert.ok(execution.duplicate, 'Two identical executions reached Deriver A');
     }
     const completedConnections = evidence.connectionAttempts;
-    if (scenario === 'preparation-before-socket') {
+    if (scenario === 'preparation-before-socket' || plan.preparation === 'hold-reply') {
       await topology.unsafeEvictDurableObject('router', 'RouterAbRouterWalletDurableObject', { id: addresses.router });
     }
     const replay = await post(routerBinding, executePath, envelope, gatewayCredential, addresses);
     assert.equal(replay.status, 200, replay.text);
     assert.deepEqual(replay.body, first.body, 'Router restart must replay the durable result');
     assert.equal((await proxyEvidence(proxy)).connectionAttempts, completedConnections);
-    artifact.completedReplayAfterRouterEviction = scenario === 'preparation-before-socket';
+    artifact.completedReplayAfterRouterEviction = scenario === 'preparation-before-socket' || plan.preparation === 'hold-reply';
+    artifact.completedWhilePreparationReplyHeld = plan.preparation === 'hold-reply';
     artifact.completedReplayRanNoProtocol = true;
     artifact.duplicateExecution = execution.duplicate;
     artifact.admissions = {
@@ -659,4 +676,8 @@ try {
   console.log(JSON.stringify(artifact));
 } finally {
   await topology.dispose();
+}
+
+function preparationReplyTimeout() {
+  throw new Error('Router waited for the held preparation reply after A could complete');
 }

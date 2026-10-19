@@ -940,15 +940,10 @@ export interface DevicesCapability {
 type KeyExportUiOptions = SigningEngineExportKeypairWithUIInput['options'];
 
 /**
- * What `exportKey` did.
- *
- * `relink_required` is a real, reachable state — the wallet has no canonical
- * owner binding on this device — and is returned rather than thrown so the
- * caller can route the person to re-link instead of showing a generic error.
+ * What `exportKey` did. A missing export lane or material rejects with an exact
+ * export-lane or material error instead.
  */
-export type KeyExportOutcome =
-  | { kind: 'exported' }
-  | { kind: 'relink_required'; reason: 'missing_canonical_owner_binding' };
+export type KeyExportOutcome = { kind: 'exported' };
 
 export type ExportKeyInput = ExclusiveUnion<
   | {
@@ -972,9 +967,6 @@ export type ExportKeyInput = ExclusiveUnion<
 export interface KeyExportCapability {
   /**
    * Resolve the exact export lane, then open the wallet-origin export viewer.
-   *
-   * One call: the lane resolution feeds straight into the export, and the
-   * `relink_required` lane comes back as a result instead of an exception.
    */
   exportKey(input: ExportKeyInput): Promise<KeyExportOutcome>;
 }
