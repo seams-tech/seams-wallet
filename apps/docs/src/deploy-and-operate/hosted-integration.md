@@ -74,7 +74,8 @@ An expired initial tenant authorization can be renewed only before its creation 
 The Router records a durable fence before Console issues the replacement authorization.
 The fence blocks delayed requests under the expired authorization.
 Started ceremonies retain their exact original authorization for recovery.
-Deploy the matching wallet host, Gateway, Router, both Derivers, and Signing Worker.
+Deploy the matching wallet host, Gateway, Wallet Runtime, Router, control plane,
+both Derivers, and Signing Worker.
 The private address-allocation response now carries a batch, so the custody
 Workers must move together. The public wallet iframe protocol remains **16.0.0**.
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { MiniflareWorkerBinding } from './miniflare-worker-binding.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -6,7 +7,11 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Miniflare } from 'miniflare';
-import { signTenantRootCreationGrantV1 } from '@seams/wallet-server/cloud-host';
+import {
+  createWalletControlClientBindings,
+  handleWalletControlRequest,
+  signTenantRootCreationGrantV1,
+} from '@seams/wallet-server/cloud-host';
 import {
   configureRouterJwt,
   loadFixture,
@@ -24,6 +29,23 @@ const auth = {
 const renewalPath = '/router-ab/internal/tenant-root/creation/v1/renewal-fence';
 const createPath = '/tenant-root-control-plane/creation/v1/create';
 const progressPath = '/router-ab/internal/tenant-root/creation/v1/progress/read';
+
+class WalletControlRuntime {
+  calls = 0;
+  constructor(router) {
+    this.router = router;
+  }
+  async fetch(input, init) {
+    this.calls += 1;
+    const response = await handleWalletControlRequest(new Request(input, init), {
+      MPC_ROUTER: this.router,
+      ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: auth['x-router-ab-internal-service-auth'],
+    });
+    if (!response)
+      throw new Error('Wallet Runtime did not recognize the private control operation');
+    return response;
+  }
+}
 
 function creationGrant() {
   return JSON.parse(
@@ -47,7 +69,7 @@ function creationGrant() {
 }
 
 function post(worker, path, body) {
-  return worker.fetch(`https://acceptance.internal${path}`, {
+  return worker.fetch(`https://mpc-router.router-ab.internal${path}`, {
     method: 'POST',
     headers: auth,
     body: JSON.stringify(body),
@@ -132,17 +154,19 @@ async function run() {
     const object = namespace.get(namespace.idFromName(grant.creation_object_name));
     const controlPlane = await topology.getWorker('tenant-root-control-plane');
     const gateway = await topology.getWorker('router');
+    const runtime = new WalletControlRuntime(new MiniflareWorkerBinding(gateway));
+    const control = createWalletControlClientBindings(runtime).router;
     const original = { creation_grant_b64u: grant.creation_grant_b64u };
     const unauthorized = await gateway.fetch(`https://acceptance.internal${renewalPath}`, {
       method: 'POST',
       body: JSON.stringify(original),
     });
     assert.equal(unauthorized.status, 403);
-    const premature = await post(gateway, renewalPath, original);
+    const premature = await post(control, renewalPath, original);
     assert.ok(!premature.ok, 'A live authorization must remain valid until its expiry');
     const forgedBytes = Buffer.from(grant.creation_grant_b64u, 'base64url');
     forgedBytes[forgedBytes.length - 1] ^= 1;
-    const forged = await post(gateway, renewalPath, {
+    const forged = await post(control, renewalPath, {
       creation_grant_b64u: forgedBytes.toString('base64url'),
     });
     assert.ok(!forged.ok, 'A forged authorization must not install a fence');
@@ -159,7 +183,7 @@ async function run() {
       'Rust must capture a still-valid admission time before the hold',
     );
     await sleep(Math.max(0, grant.expires_at_ms + 100 - Date.now()));
-    const fenceResponse = await post(gateway, renewalPath, original);
+    const fenceResponse = await post(control, renewalPath, original);
     assert.equal(fenceResponse.status, 200, await fenceResponse.clone().text());
     const fence = await fenceResponse.json();
     assert.equal(fence.kind, 'renewal_permitted');
@@ -200,7 +224,8 @@ async function run() {
     const replay = await (await post(controlPlane, createPath, fresh)).json();
     assert.equal(replay.journal_digest_b64u, ready.journal_digest_b64u);
     assert.equal(replay.replayed, true);
-    assert.equal((await (await post(gateway, renewalPath, fresh)).json()).kind, 'started');
+    assert.equal((await (await post(control, renewalPath, fresh)).json()).kind, 'started');
+    assert.equal(runtime.calls, 4);
     const artifact = {
       kind: 'creation_grant_renewal_workers_e2e_v1',
       heldAtMs: held.heldAtMs,
@@ -216,6 +241,7 @@ async function run() {
       unauthorizedRequestRefused: true,
       prematureRenewalRefused: true,
       forgedAuthorizationRefused: true,
+      privateWalletRuntimeRelayCalls: runtime.calls,
       startedRenewalRefused: true,
       reproduce: `ROUTER_AB_WORKER_BUILD_PROFILE=${process.env.ROUTER_AB_WORKER_BUILD_PROFILE} node crates/router-ab-cloudflare/scripts/test-grant-renewal.mjs`,
       limits: [

@@ -1,4 +1,5 @@
 import { verifyDestinationPreparation } from './stored-wallet-preparation-evidence.mjs';
+import { MiniflareWorkerBinding } from './miniflare-worker-binding.mjs';
 import { createHash } from 'node:crypto';
 import { signingFixture, verifySigningResponse } from './ed25519-signing-evidence.mjs';
 import assert from 'node:assert/strict';
@@ -168,21 +169,6 @@ class StatusBeforePreparation {
       });
     }
     return worker.fetch(request);
-  }
-}
-
-class MiniflareWorkerBinding {
-  constructor(worker) {
-    this.worker = worker;
-  }
-
-  async fetch(input, init) {
-    const request = new Request(input, init);
-    return this.worker.fetch(request.url, {
-      method: request.method,
-      headers: Object.fromEntries(request.headers),
-      body: await request.arrayBuffer(),
-    });
   }
 }
 
