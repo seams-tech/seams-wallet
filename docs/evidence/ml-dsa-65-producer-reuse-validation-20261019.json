@@ -1,0 +1,215 @@
+{
+  "schema": "seams.ml-dsa-producer-reuse-validation.v1",
+  "source_base": "cf2bf9d5c9d6c4abe12ce306fd2f79449facb8e5",
+  "branch": "ml-dsa",
+  "bundles": [
+    {
+      "file": "docs/evidence/ml-dsa-65-producer-reuse-hosted-20261019.json.gz",
+      "sha256": "7940ff86ff030ac5420c43e46019bb7ea3e83865564d971fb5bc1aa3101ad4ff",
+      "uncompressed_sha256": "9a98193119fb7e3da1e99c9da85e90591aa2aa19512dd73c79880487b68a9598",
+      "files": 23,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-producer-reuse-local-20261019.json.gz",
+      "sha256": "0ec56a889f5025ee16bab0b4bb35be85708efd58e6bdf54acf884e325506ad64",
+      "uncompressed_sha256": "2c3d6ac0505d4dfafbe234180e7b5e9c5523637903b019b5f0e9720fb63ccd98",
+      "files": 13,
+      "private_matches": 0
+    },
+    {
+      "file": "docs/evidence/ml-dsa-65-producer-reuse-provenance-20261019.json.gz",
+      "sha256": "4f3642a714ce32e959f9efe0a51e4666bf1010f4de32962e05bf0aca86e616a3",
+      "uncompressed_sha256": "6f7684d4dc5e64bda65c91f5845cda5c59bc56840b15d62e50884549280351d2",
+      "files": 77,
+      "private_matches": 0
+    }
+  ],
+  "comparison_sha256": "30845c5b46076e94707c3a536f67f8c87e38ba0ecfcf4083a8a0de4d3ed1128b",
+  "private_credential_patterns_checked": 68,
+  "private_matches": 0,
+  "worker_cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-reuse-1019-c8b058-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:41:32.957809+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-reuse-1019-c8b058-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:41:38.200503+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-reuse-1019-c8b058-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:41:46.048418+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-reuse-1019-c8b058-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:41:53.854463+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-reuse-1019-c8b058-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:42:00.988634+00:00"
+      }
+    ],
+    "optimized": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-reuse-1019-c8b058-optimized-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:59:18.541025+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-reuse-1019-c8b058-optimized-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:59:20.223866+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-reuse-1019-c8b058-optimized-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:59:21.869516+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-reuse-1019-c8b058-optimized-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:59:23.584652+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-reuse-1019-c8b058-optimized-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-18T23:59:25.157140+00:00"
+      }
+    ]
+  },
+  "local_e2e_passed": {
+    "baseline": true,
+    "optimized": true
+  },
+  "local_registration_passed": true,
+  "signature_review": {
+    "schema": "seams.ml-dsa-producer-reuse-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "baseline",
+        "consumptionWidth": 2,
+        "verified": 33,
+        "alteredMessagesRejected": 33,
+        "alteredSignaturesRejected": 33,
+        "clientSha256": "f9752cd48b234fedbc4533a103d2f1e402c409eaf22ddd9bf34a389defaf6f97"
+      },
+      {
+        "profile": "optimized",
+        "consumptionWidth": 2,
+        "verified": 58,
+        "alteredMessagesRejected": 58,
+        "alteredSignaturesRejected": 58,
+        "clientSha256": "98bbf18640252238f6eaaae4f38ff3bb6b9bbe77def21a5f81a9336cd2f4595e"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationRecoveryAndProfiles": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "scriptSha256": "44e3a4f433acf504fb35c9eba1c13c58f6bfdef3873e550dcda3c361de826f42"
+  },
+  "format_validation": {
+    "passed": true,
+    "checks": [
+      {
+        "command": [
+          "rustfmt",
+          "--edition",
+          "2021",
+          "--check",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/coordinator.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs",
+          "crates/router-ab-cloudflare/src/ml_dsa/workers/router_trace.rs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "node",
+          "--check",
+          "tests/e2e/ml-dsa-durable-worker.e2e.mjs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "node",
+          "--check",
+          "tests/e2e/ml-dsa-http-timing.mjs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "node",
+          "--check",
+          "tests/e2e/ml-dsa-multi-wallet-worker.e2e.mjs"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "python3",
+          "-m",
+          "py_compile",
+          "tools/ml-dsa-investigation/research/collect_worker_traces.py",
+          "tools/ml-dsa-investigation/research/summarize_http_timing.py",
+          "tools/ml-dsa-investigation/research/summarize_preparation_coverage.py"
+        ],
+        "exit_code": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit_code": 0,
+        "output": ""
+      }
+    ],
+    "initial_command_correction": "cargo fmt at repository root had no Cargo.toml. Direct rustfmt checks cover changed Rust sources."
+  },
+  "bloat_gate": {
+    "passed": false,
+    "rust_duplicated_lines": 13984,
+    "rust_baseline": 13754,
+    "typescript_duplicated_lines": 10238,
+    "typescript_baseline": 10216,
+    "inherited_counts_unchanged": true
+  },
+  "private_campaign_removed": true,
+  "private_campaign_removal_checked_at": "2026-10-19T00:08:29.456557+00:00",
+  "bundle_hashes_verified_after_packaging": true
+}

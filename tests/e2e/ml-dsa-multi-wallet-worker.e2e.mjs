@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { timedJson, calibrateHttpTiming, observeEventLoop } from './ml-dsa-http-timing.mjs';
 import { createHash, createPublicKey, randomBytes, verify } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
@@ -16,12 +17,15 @@ const registrations = await Promise.all(paths.map(readRegistration));
 const wallets = registrations.map(makeWallet);
 assert.equal(new Set(wallets.map(walletIdentity)).size, wallets.length);
 for (const registration of registrations) assert.deepEqual(registration.policy, registrations[0].policy);
+const httpCalibration = await calibrateHttpTiming();
 const started = performance.now();
 const deadline = started + durationMs;
 const report = {
   observedAt: new Date().toISOString(),
   scope: 'Concurrent independent wallets, one outstanding demand per wallet, real hosted Router and separate participant Workers. Thirty-two prepared candidates per wallet in independently consumed groups. All starting stock must be excluded from sustained throughput. Login, UI, NEAR submission, and finality are excluded.',
   policy: registrations[0].policy,
+  httpCalibration,
+  eventLoopGaps: [],
   requestedDurationMs: durationMs,
   intervalMs,
   minimumSuccessesPerWallet: 4,
@@ -32,9 +36,11 @@ const report = {
   duplicateRequests: [],
   errors: [],
 };
+const eventLoopMonitor = observeEventLoop(report.eventLoopGaps, started);
 try {
   await Promise.all(wallets.map(runWallet));
 } finally {
+  clearInterval(eventLoopMonitor);
   report.elapsedMs = performance.now() - started;
   const successes = report.requests.filter(verified);
   report.successfulSignatures = successes.length;
@@ -116,12 +122,13 @@ async function runDemand(wallet, demand) {
     const entry = { wallet: wallet.index, demand: demand.number, operation: operation.request.operation, startMs: performance.now() - started };
     report.requests.push(entry);
     const timer = performance.now();
+    entry.http = {};
     let result;
     try {
-      const response = await postOperation(operation);
+      const response = await postOperation(operation, entry.http);
       entry.httpStatus = response.status;
       assert.equal(response.status, 200);
-      result = await response.json();
+      result = response.data;
     } catch (error) {
       entry.status = 'client_error_unknown_server_outcome';
       throw error;
@@ -168,23 +175,25 @@ async function runDemand(wallet, demand) {
   demand.elapsedMs = performance.now() - started - demand.startMs;
 }
 
-function postOperation(operation) {
-  return fetch(new URL('/router-ab/ml-dsa/sign', origin), {
+function postOperation(operation, timing) {
+  const requestId = randomBytes(16).toString('hex');
+  return timedJson(new URL('/router-ab/ml-dsa/sign', origin), {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-router-ab-internal-service-auth': credential },
+    headers: { 'content-type': 'application/json', 'x-router-ab-internal-service-auth': credential, 'x-ml-dsa-request-id': requestId },
     body: JSON.stringify(operation),
     signal: AbortSignal.timeout(45000),
-  });
+  }, requestId, timing);
 }
 
 async function verifyDuplicate(wallet, operation, signature) {
   const measurement = { wallet: wallet.index, operation: operation.request.operation, startMs: performance.now() - started };
   report.duplicateRequests.push(measurement);
   const timer = performance.now();
-  const response = await postOperation(operation);
+  measurement.http = {};
+  const response = await postOperation(operation, measurement.http);
   measurement.httpStatus = response.status;
   assert.equal(response.status, 200);
-  const result = await response.json();
+  const result = response.data;
   measurement.elapsedMs = performance.now() - timer;
   measurement.status = result.status;
   measurement.state = result.operation?.state;

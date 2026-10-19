@@ -29,7 +29,7 @@ const passivePreparationObserver = options.has('--passive-preparation-observer')
 const authHeader = 'x-router-ab-internal-service-auth';
 const serviceAuth = randomBytes(32).toString('hex');
 const gatewayAuth = randomBytes(32).toString('hex');
-const persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-worker-e2e-'));
+let persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-worker-e2e-'));
 const admissionBundle = await build({
   entryPoints: [join(root, 'tests/helpers/mlDsaOwnerAdmission.fixtures.ts')],
   bundle: true, format: 'esm', platform: 'node', write: false,
@@ -113,13 +113,18 @@ export class PublicationBarrier {
 export class AdmissionBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(request) {
+    if (new URL(request.url).pathname === '/arm-handoff') {
+      await this.state.storage.put('handoff_armed', true);
+      return new Response('Armed');
+    }
     if (new URL(request.url).pathname === '/arm') {
       await this.state.storage.put('armed', await request.json());
       return new Response('Armed');
     }
     if (new URL(request.url).pathname === '/state') {
       return Response.json({ settlementFailures: await this.state.storage.get('failures') ?? 0,
-        settlementReplyFailures: await this.state.storage.get('reply_failures') ?? 0 });
+        settlementReplyFailures: await this.state.storage.get('reply_failures') ?? 0,
+        heldSettlement: await this.state.storage.get('held_settlement') ?? null });
     }
     const command = await request.clone().json();
     const armed = await this.state.storage.get('armed');
@@ -131,6 +136,11 @@ export class AdmissionBarrier {
     }
     const id = this.env.REAL_ADMISSION.idFromName('ml-dsa-admission-v1');
     const response = await this.env.REAL_ADMISSION.get(id).fetch(request);
+    if (command.command === 'finish_refill' && response.status === 200 && await this.state.storage.get('handoff_armed')) {
+      await this.state.storage.put('handoff_armed', false);
+      await this.state.storage.put('held_settlement', command.job);
+      await new Promise(holdPublication);
+    }
     const lostReply = await this.state.storage.get('lose_reply');
     if (command.command === 'finish_refill' && response.status === 200 && lostReply && JSON.stringify(command.job.batch) === JSON.stringify(lostReply)) {
       await this.state.storage.put('lose_reply', false);
@@ -335,7 +345,7 @@ try {
       observations.interruptedProducer = {
         batch: job.batch,
         beforeResetState: await producerState(job),
-        recoveryAlarmBeforeReset: (await producerSnapshot(job)).alarm,
+        recoveryAlarmBeforeReset: (await producerSnapshot(job.batch)).alarm,
         remainingLeaseMs: job.expires_at_ms - Date.now(),
       };
       assert.equal(observations.interruptedProducer.beforeResetState, 'running');
@@ -356,9 +366,9 @@ try {
       observations.interruptedProducer.leaseReleasedMs = performance.now() - resetStarted;
       observations.interruptedProducer.releasedBeforeOriginalDeadline = Date.now() < job.expires_at_ms;
       await waitForSettlementReplyFailures();
-      observations.interruptedProducer.settlementAlarmDrain = await waitForTerminalProducerAlarms();
-      observations.interruptedProducer.recoveryAlarmAfterSettlement = (await producerSnapshot(job)).alarm;
-      assert.equal(observations.interruptedProducer.recoveryAlarmAfterSettlement, null);
+      observations.interruptedProducer.settlementQueueDrain = await waitForTerminalProducerSettlement();
+      observations.interruptedProducer.afterSettlement = await producerSnapshot(job.batch);
+      assert.equal(observations.interruptedProducer.afterSettlement.pending, false);
       observations.interruptedProducer.inspectionFailure = await (await (await publicationBarrier()).fetch('https://fault.internal/state')).json();
       observations.interruptedProducer.settlementFailure = await (await (await admissionBarrier()).fetch('https://fault.internal/state')).json();
       assert.equal(observations.interruptedProducer.inspectionFailure.inspectionFailures, 1);
@@ -469,6 +479,10 @@ try {
   assert.equal(expired.state, 'failed');
   observations.stalledOperationExpiredWithoutSignature = true;
   observations.prepublicationFallback = await checkPrepublicationFallback();
+  observations.producerHandoff = {
+    liveTimeout: await checkProducerHandoff(false),
+    restart: await checkProducerHandoff(true),
+  };
   observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
   observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
   observations.passed = true;
@@ -593,7 +607,7 @@ function preparerWorker(role, index) {
 }
 async function producerReceipt(job, credential) {
   const namespace = await runtime.getDurableObjectNamespace('ML_DSA_PRODUCER_DO', 'preparer-a');
-  const stub = namespace.get(namespace.idFromName(batchId(job.batch)));
+  const stub = namespace.get(namespace.idFromName('ml-dsa-producer-v1'));
   return stub.fetch('https://ml-dsa.internal/router-ab/ml-dsa/prepare', {
     method: 'POST',
     headers: { 'content-type': 'application/json', [authHeader]: credential },
@@ -781,34 +795,102 @@ function recordProducerEvent(line) {
   try { event = JSON.parse(line); } catch { return; }
   if (event.event === 'ml_dsa_producer_job_v1') producerEvents.push(event);
 }
-async function waitForTerminalProducerAlarms() {
+async function checkProducerHandoff(restart) {
+  await runtime.dispose();
+  await rm(persistence, { recursive: true, force: true });
+  persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-handoff-e2e-'));
+  bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify(policy);
+  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  await runtime.ready;
+  const barrier = await admissionBarrier();
+  assert.equal((await barrier.fetch('https://fault.internal/arm-handoff')).status, 200);
+  await installMlDsaActivation(runtime, records, gatewayAuth, serviceAuth);
+  const deadline = performance.now() + 60000;
+  let held;
+  let snapshot;
+  while (performance.now() < deadline) {
+    const state = await (await barrier.fetch('https://fault.internal/state')).json();
+    if (state.heldSettlement) {
+      held = state.heldSettlement;
+      await inventories();
+      snapshot = await producerSnapshot(held.batch);
+      if (snapshot.pendingIds.length === 2) break;
+    }
+    await new Promise(waitForMarker);
+  }
+  assert.ok(held && snapshot?.pendingIds.length === 2, 'A new job did not queue behind held settlement');
+  assert.equal(snapshot.state, 'published');
+  assert.deepEqual(snapshot.pendingIds[0], held.batch);
+  const next = await producerSnapshot(snapshot.pendingIds[1]);
+  assert.equal(next.state, 'queued');
+  assert.notEqual(next.alarm, null);
+  assert.equal(await admissionCheck({ command: 'check_refill', job: next.job }), true);
+  const handoffStarted = performance.now();
+  if (restart) {
+    await runtime.dispose();
+    runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+    await runtime.ready;
+  }
+  await assert.rejects(producerReceipt(held, serviceAuth), /ML-DSA preprocessing lease is inactive/);
+  assert.deepEqual(await admissionCheck({ command: 'finish_refill', job: held }), []);
+  assert.equal(await admissionCheck({ command: 'check_refill', job: next.job }), true);
+  const releaseDeadline = performance.now() + 15000;
+  while ((await producerSnapshot(held.batch)).pending && performance.now() < releaseDeadline) {
+    await new Promise(waitForMarker);
+  }
+  assert.equal((await producerSnapshot(held.batch)).pending, false, 'Held settlement blocked the next job');
+  const settlementReleaseMs = performance.now() - handoffStarted;
+  assert.ok(settlementReleaseMs < 15000);
+  await waitReady(policy.refill_target_batches);
+  const settled = await waitForTerminalProducerSettlement();
+  const oldAfter = await producerSnapshot(held.batch);
+  const nextAfter = await producerSnapshot(next.job.batch);
+  assert.equal(oldAfter.state, 'published');
+  assert.equal(oldAfter.pending, false);
+  assert.equal(nextAfter.state, 'published');
+  assert.equal(nextAfter.pending, false);
+  const oldRuns = producerEvents.filter(isRunningJob, batchId(held.batch));
+  const nextRuns = producerEvents.filter(isRunningJob, batchId(next.job.batch));
+  assert.equal(oldRuns.length, 1);
+  assert.equal(nextRuns.length, 1);
+  assert.equal(oldRuns[0].producer, nextRuns[0].producer);
+  assert.equal(nextAfter.pendingIds.length, 0);
+  assert.equal(nextAfter.alarm, null);
+  return { heldJob: held.batch, nextJob: next.job.batch, sameProducer: true, queuedDuringSettlement: true,
+    restart, settlementReleaseMs, heldReplyDelayMs: 60000, queuedJobPreserved: true, staleRetryRejected: true, staleFinishPreservedNewLease: true,
+    oldExecutions: oldRuns.length, nextExecutions: nextRuns.length, settled, idleAlarmCleared: true };
+}
+function isRunningJob(event) { return event.stage === 'running' && event.batch === this; }
+
+async function waitForTerminalProducerSettlement() {
   const directory = join(persistence, 'preparer-a-RouterAbMlDsaProducerDurableObject');
   const files = (await readdir(directory)).filter(walletDatabase);
   const jobs = [];
   for (const file of files) {
     const database = new DatabaseSync(join(directory, file), { readOnly: true });
     try {
-      const row = database.prepare("SELECT value FROM _cf_KV WHERE key = 'producer-job'").get();
-      if (!row) continue;
-      const value = deserialize(row.value);
-      if (['published', 'failed', 'interrupted'].includes(value.state)) jobs.push(value.job);
+      const rows = database.prepare("SELECT value FROM _cf_KV WHERE key LIKE 'producer-job/%'").all();
+      for (const row of rows) {
+        const value = deserialize(row.value);
+        if (['published', 'failed', 'interrupted'].includes(value.state)) jobs.push(value.job);
+      }
     } finally { database.close(); }
   }
   assert.ok(jobs.length > 0);
   const pending = [];
   for (const job of jobs) {
-    if ((await producerSnapshot(job)).alarm !== null) pending.push(batchId(job.batch));
+    if ((await producerSnapshot(job.batch)).pending) pending.push(batchId(job.batch));
   }
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
     let remaining = 0;
     for (const job of jobs) {
-      if ((await producerSnapshot(job)).alarm !== null) remaining += 1;
+      if ((await producerSnapshot(job.batch)).pending) remaining += 1;
     }
     if (remaining === 0) return { checked: jobs.length, initiallyPending: pending, allCleared: true };
     await new Promise(waitOneSecond);
   }
-  assert.fail('Terminal producer settlement alarms did not clear after injected reply failures');
+  assert.fail('Terminal producer settlement queue did not drain after injected reply failures');
 }
 
 function waitSixSeconds(resolve) {
@@ -852,28 +934,34 @@ async function rolePreprocessingJobs(role) {
   }
 }
 async function producerState(job) {
-  return (await producerSnapshot(job)).state;
+  return (await producerSnapshot(job.batch)).state;
 }
-async function producerSnapshot(job) {
+async function producerSnapshot(batch) {
   const directory = join(persistence, 'preparer-a-RouterAbMlDsaProducerDurableObject');
   const files = (await readdir(directory)).filter(walletDatabase);
   for (const file of files) {
     const database = new DatabaseSync(join(directory, file), { readOnly: true });
+    database.exec('PRAGMA busy_timeout = 1000');
+    database.exec('BEGIN');
     try {
-      const row = database.prepare("SELECT value FROM _cf_KV WHERE key = 'producer-job'").get();
+      const row = database.prepare("SELECT value FROM _cf_KV WHERE key = ?").get('producer-job/' + batchId(batch));
       if (row) {
         const state = deserialize(row.value);
-        if (JSON.stringify(state.job.batch) === JSON.stringify(job.batch)) {
+        if (JSON.stringify(state.job.batch) === JSON.stringify(batch)) {
           const alarm = database.prepare('SELECT CAST(value AS TEXT) AS alarm FROM _cf_METADATA WHERE key = 1').get();
-          return { state: state.state, alarm: alarm?.alarm ?? null };
+          const queued = database.prepare("SELECT value FROM _cf_KV WHERE key = 'producer-pending'").get();
+          const pendingIds = queued ? deserialize(queued.value) : [];
+          return { state: state.state, job: state.job, pendingIds, pending: pendingIds.some(matchesBatch, batch), alarm: alarm?.alarm ?? null };
         }
       }
     } finally {
+      database.exec('ROLLBACK');
       database.close();
     }
   }
   throw new Error('Producer state is missing');
 }
+function matchesBatch(value) { return batchId(value) === batchId(this); }
 function storedPreparationJob(row) { return deserialize(row.value); }
 function newestJobFirst(a, b) { return b.expires_at_ms - a.expires_at_ms; }
 function walletDatabase(name) { return name.endsWith('.sqlite') && name !== 'metadata.sqlite'; }

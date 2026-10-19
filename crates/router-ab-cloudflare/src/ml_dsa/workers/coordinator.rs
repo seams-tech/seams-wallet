@@ -395,9 +395,16 @@ struct SignRequest {
     message: Vec<u8>,
     context: Vec<u8>,
 }
-pub(crate) async fn handle_sign(
+pub(crate) async fn handle_sign(request: worker::Request, env: &Env) -> worker::Result<Response> {
+    let mut trace = router_trace::RouterTrace::new(request.headers())?;
+    let mut response = sign_request(request, env, &mut trace).await;
+    trace.finish(&mut response)?;
+    response
+}
+async fn sign_request(
     mut request: worker::Request,
     env: &Env,
+    trace: &mut router_trace::RouterTrace,
 ) -> worker::Result<Response> {
     if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
@@ -415,9 +422,11 @@ pub(crate) async fn handle_sign(
     {
         return Response::error("ML-DSA message differs from authorization", 400);
     }
+    trace.bind(input.request.operation);
     let decision = admit(env, request.headers(), input.request)
         .await
         .map_err(protocol_error)?;
+    trace.mark("admission_done");
     let Decision::Admitted { permit } = decision else {
         return Response::from_json(&decision);
     };
@@ -427,6 +436,7 @@ pub(crate) async fn handle_sign(
         context: input.context,
     };
     let result = before_deadline(permit.expires_at_ms, dispatch_execution(env, &execution)).await;
+    trace.mark("execution_done");
     log_execution(&permit.request.operation, &result);
     let completion = match result {
         Ok(Ok((public_key, execution::Outcome::Signed { signature, .. }))) => {
@@ -451,6 +461,7 @@ pub(crate) async fn handle_sign(
     )
     .await
     .map_err(protocol_error)?;
+    trace.mark("completion_recorded");
     let settlement = match &status {
         Status::Succeeded { .. } => pool::Settlement::Succeeded,
         Status::Failed => pool::Settlement::Failed,
@@ -459,6 +470,7 @@ pub(crate) async fn handle_sign(
     release_pair(env, &permit.request, permit.batches, settlement)
         .await
         .map_err(protocol_error)?;
+    trace.mark("roles_released");
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
@@ -468,6 +480,7 @@ pub(crate) async fn handle_sign(
     )
     .await
     .map_err(protocol_error)?;
+    trace.mark("settled");
     Response::from_json(&Decision::Existing { operation: status })
 }
 async fn dispatch_execution(env: &Env, input: &execution::Request) -> Result<DispatchResult> {

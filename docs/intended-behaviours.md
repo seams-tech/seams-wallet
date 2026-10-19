@@ -3540,6 +3540,8 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
 - Commit the producer's Running state before randomness generation. Retry terminal settlement without regenerating material. Abandon interrupted Running jobs.
 - Publish each role's preparation only under its exact live producer claim. Commit the producer outcome before releasing its service-wide lease.
+- Reuse the service producer while preserving separate durable job records and single-use material. A stale settlement must preserve the successor lease and alarm.
+- Bound remote recovery inspection and settlement waits. Preserve a recovery alarm after timeout, and clear the alarm only when the durable pending queue is empty.
 - Flush all buffered public table writes before publishing private registration preparation. Keep each write group within 16 frames and one atomic transaction.
 - Keep signing capacity reserved through both role settlements. New key-bound refill must wait for active signing settlement and registration to finish or expire.
 - Record public role-dispatch outcomes separately from final signing status. Distinguish candidate exhaustion, request failure, HTTP failure, response-body failure, and response-decoding failure.

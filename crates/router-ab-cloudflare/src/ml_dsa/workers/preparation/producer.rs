@@ -3,7 +3,9 @@ use super::*;
 use std::cell::Cell;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-const STATE: &str = "producer-job";
+const PENDING: &str = "producer-pending";
+const PRODUCER_NAME: &str = "ml-dsa-producer-v1";
+const MAX_PENDING: usize = 2;
 const NAMESPACE: &str = "ML_DSA_PRODUCER_DO";
 const RECOVERY_CHECK_MS: u64 = 5_000;
 static CONSTRUCTIONS: AtomicU32 = AtomicU32::new(0);
@@ -32,13 +34,14 @@ enum AlarmWork {
     Run(refill::Job),
     Abandon(refill::Job),
     Settle(ProducerState),
+    Idle,
 }
 
 pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     let stub = env
         .durable_object(NAMESPACE)
         .map_err(storage_error)?
-        .id_from_name(&hex(&job.batch))
+        .id_from_name(PRODUCER_NAME)
         .map_err(storage_error)?
         .get_stub()
         .map_err(storage_error)?;
@@ -63,6 +66,7 @@ pub struct RouterAbMlDsaProducerDurableObject {
     construction: u32,
     invocation: Cell<u32>,
     created_at_ms: Option<u64>,
+    storage_gate: futures::lock::Mutex<()>,
 }
 impl DurableObject for RouterAbMlDsaProducerDurableObject {
     fn new(state: State, env: Env) -> Self {
@@ -72,6 +76,7 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
             construction: CONSTRUCTIONS.fetch_add(1, Ordering::Relaxed),
             invocation: Cell::new(0),
             created_at_ms: crate::cloudflare_now_unix_ms_v1().ok(),
+            storage_gate: futures::lock::Mutex::new(()),
         }
     }
     async fn fetch(&self, mut request: worker::Request) -> worker::Result<Response> {
@@ -97,29 +102,23 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         log_stage(&job, Participant::A, job.batch, "producer_authorized");
         self.log_job(&job, "queued");
         let receipt_job = job.clone();
-        let queued = transaction(&self.state, move |store| async move {
-            match store.get::<ProducerState>(STATE).await? {
-                None => {
-                    store.put(STATE, &ProducerState::Queued { job }).await?;
-                    Ok(true)
-                }
-                Some(state) if state.job() == &job => {
-                    Ok(matches!(state, ProducerState::Queued { .. }))
-                }
-                Some(_) => Err(invalid("ML-DSA producer identity changed")),
-            }
-        })
-        .await
-        .map_err(protocol_error)?;
+        {
+            // This gate covers local storage and the actual alarm update only.
+            // Arm first so a crash after queue persistence retains a wake-up.
+            let _guard = self.storage_gate.lock().await;
+            schedule_refill_alarm(&self.state, 50).await?;
+            transaction(&self.state, move |store| async move {
+                enqueue(&store, job).await
+            })
+            .await
+            .map_err(protocol_error)?;
+        }
         log_stage(
             &receipt_job,
             Participant::A,
             receipt_job.batch,
             "queue_checked",
         );
-        if queued {
-            schedule_refill_alarm(&self.state, 50).await?;
-        }
         log_stage(
             &receipt_job,
             Participant::A,
@@ -137,26 +136,19 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 "event": "ml_dsa_producer_entered_v1", "producer": self.state.id().to_string(),
             })
         );
-        let action = transaction(&self.state, |store| async move {
-            match store.get::<ProducerState>(STATE).await? {
-                Some(ProducerState::Queued { job }) => {
-                    store
-                        .put(STATE, &ProducerState::Running { job: job.clone() })
-                        .await?;
-                    Ok(AlarmWork::Run(job))
-                }
-                Some(ProducerState::Running { job }) => Ok(AlarmWork::Abandon(job)),
-                Some(
-                    state @ (ProducerState::Published { .. }
-                    | ProducerState::Failed { .. }
-                    | ProducerState::Interrupted { .. }),
-                ) => Ok(AlarmWork::Settle(state)),
-                None => Err(invalid("ML-DSA producer has no queued job")),
-            }
-        })
-        .await
-        .map_err(protocol_error)?;
+        let action = {
+            let _guard = self.storage_gate.lock().await;
+            schedule_refill_alarm(&self.state, RECOVERY_CHECK_MS).await?;
+            transaction(&self.state, next_work)
+                .await
+                .map_err(protocol_error)?
+        };
         let (terminal, elapsed) = match action {
+            AlarmWork::Idle => {
+                let _guard = self.storage_gate.lock().await;
+                self.schedule_pending().await?;
+                return Response::empty();
+            }
             AlarmWork::Run(job) => {
                 self.log_job(&job, "running");
                 log_stage(&job, Participant::A, job.batch, "producer_running");
@@ -181,9 +173,12 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
                 if now < job.expires_at_ms {
                     self.schedule_recovery(&job, now).await?;
-                    if !paired_publication(&self.env, &job)
-                        .await
-                        .map_err(protocol_error)?
+                    if !before_deadline(
+                        now.saturating_add(RECOVERY_CHECK_MS),
+                        paired_publication(&self.env, &job),
+                    )
+                    .await
+                    .map_err(protocol_error)?
                     {
                         log_recovery(&job, "waiting_for_publication");
                         return Response::from_json(&false);
@@ -201,7 +196,13 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         };
         // Commit the local outcome before releasing the service-wide lease. A
         // settlement retry must never start fresh preparation or rewrite success.
-        self.state.storage().put(STATE, &terminal).await?;
+        {
+            let _guard = self.storage_gate.lock().await;
+            self.state
+                .storage()
+                .put(&job_record(terminal.job().batch), &terminal)
+                .await?;
+        }
         let published = match &terminal {
             ProducerState::Published { .. } => Some(true),
             ProducerState::Failed { .. } => Some(false),
@@ -248,53 +249,146 @@ impl RouterAbMlDsaProducerDurableObject {
         );
     }
     async fn schedule_recovery(&self, job: &refill::Job, now: u64) -> worker::Result<()> {
+        let _guard = self.storage_gate.lock().await;
         let delay = job
             .expires_at_ms
             .saturating_sub(now)
             .clamp(1, RECOVERY_CHECK_MS);
         schedule_refill_alarm(&self.state, delay).await
     }
+    async fn schedule_pending(&self) -> worker::Result<()> {
+        // Caller holds storage_gate until the alarm mutation completes.
+        let queue: Vec<[u8; 32]> = self.state.storage().get(PENDING).await?.unwrap_or_default();
+        if queue.is_empty() {
+            self.state.storage().delete_alarm().await
+        } else {
+            schedule_refill_alarm(&self.state, 50).await
+        }
+    }
     async fn settle(&self, terminal: &ProducerState) -> worker::Result<Response> {
-        // Preserve an explicit retry even when settlement is entered by a
-        // recovery alarm rather than by the original preparation invocation.
-        schedule_refill_alarm(&self.state, RECOVERY_CHECK_MS).await?;
-        let wake: Vec<KeyScope> = service_call(
-            &self.env,
-            CallAuthority::Internal,
-            &AdmissionCommand::FinishRefill {
-                job: terminal.job().clone(),
-            },
-        )
-        .await
-        .map_err(protocol_error)?;
+        {
+            let _guard = self.storage_gate.lock().await;
+            schedule_refill_alarm(&self.state, RECOVERY_CHECK_MS).await?;
+        }
+        let deadline = crate::cloudflare_now_unix_ms_v1()
+            .map_err(protocol_error)?
+            .saturating_add(RECOVERY_CHECK_MS);
+        before_deadline(deadline, settle_remote(&self.env, terminal.job()))
+            .await
+            .map_err(protocol_error)?;
+        let batch = terminal.job().batch;
+        {
+            let _guard = self.storage_gate.lock().await;
+            transaction(&self.state, move |store| remove_head(store, batch))
+                .await
+                .map_err(protocol_error)?;
+            self.schedule_pending().await?;
+        }
+        Response::from_json(&matches!(terminal, ProducerState::Published { .. }))
+    }
+}
+
+fn job_record(batch: [u8; 32]) -> String {
+    format!("producer-job/{}", hex(&batch))
+}
+
+async fn enqueue(store: &TransactionStore, job: refill::Job) -> Result<()> {
+    let now = crate::cloudflare_now_unix_ms_v1()?;
+    if now >= job.expires_at_ms {
+        return Err(invalid(
+            "ML-DSA preprocessing lease expired before queueing",
+        ));
+    }
+    let name = job_record(job.batch);
+    if let Some(existing) = store.get::<ProducerState>(&name).await? {
+        return if existing.job() == &job {
+            Ok(())
+        } else {
+            Err(invalid("ML-DSA producer identity changed"))
+        };
+    }
+    let queued: Vec<[u8; 32]> = store.get(PENDING).await?.unwrap_or_default();
+    let mut pending = Vec::new();
+    for batch in queued {
+        let name = job_record(batch);
+        let state: ProducerState = store
+            .get(&name)
+            .await?
+            .ok_or_else(|| invalid("ML-DSA producer queue lost a job"))?;
+        match state {
+            ProducerState::Queued { job } if job.expires_at_ms <= now => {
+                store
+                    .put(&name, &ProducerState::Interrupted { job })
+                    .await?;
+            }
+            _ => pending.push(batch),
+        }
+    }
+    if pending.len() >= MAX_PENDING {
+        return Err(invalid("ML-DSA producer queue is occupied"));
+    }
+    pending.push(job.batch);
+    store.put(&name, &ProducerState::Queued { job }).await?;
+    store.put(PENDING, &pending).await
+}
+
+async fn next_work(store: TransactionStore) -> Result<AlarmWork> {
+    let queue: Vec<[u8; 32]> = store.get(PENDING).await?.unwrap_or_default();
+    let Some(batch) = queue.first() else {
+        return Ok(AlarmWork::Idle);
+    };
+    let name = job_record(*batch);
+    match store.get::<ProducerState>(&name).await? {
+        Some(ProducerState::Queued { job }) => {
+            store
+                .put(&name, &ProducerState::Running { job: job.clone() })
+                .await?;
+            Ok(AlarmWork::Run(job))
+        }
+        Some(ProducerState::Running { job }) => Ok(AlarmWork::Abandon(job)),
+        Some(state) => Ok(AlarmWork::Settle(state)),
+        None => Err(invalid("ML-DSA producer queue lost a job")),
+    }
+}
+
+async fn remove_head(store: TransactionStore, batch: [u8; 32]) -> Result<()> {
+    let mut queue: Vec<[u8; 32]> = store.get(PENDING).await?.unwrap_or_default();
+    if queue.first() != Some(&batch) {
+        return Err(invalid("ML-DSA settlement changed producer queue order"));
+    }
+    queue.remove(0);
+    store.put(PENDING, &queue).await
+}
+
+async fn settle_remote(env: &Env, job: &refill::Job) -> Result<()> {
+    let wake: Vec<KeyScope> = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::FinishRefill { job: job.clone() },
+    )
+    .await?;
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_refill_settled_v1", "batch": hex(&job.batch),
+            "wake_count": wake.len(), "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+        })
+    );
+    for key in wake {
+        let response = local_call(env, &RoleCommand::WakeRefill { key: key.clone() }).await?;
+        if response.status_code() != 200 {
+            return Err(invalid("ML-DSA refill wake was not acknowledged"));
+        }
         worker::console_log!(
             "{}",
             serde_json::json!({
-                "event": "ml_dsa_refill_settled_v1", "batch": hex(&terminal.job().batch),
-                "wake_count": wake.len(), "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+                "event": "ml_dsa_refill_woken_v1", "batch": hex(&job.batch),
+                "key": hex(&key.public_key_digest), "epoch": key.epoch,
+                "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
             })
         );
-        for key in wake {
-            let response = local_call(&self.env, &RoleCommand::WakeRefill { key: key.clone() })
-                .await
-                .map_err(protocol_error)?;
-            if response.status_code() != 200 {
-                return Err(protocol_error(invalid(
-                    "ML-DSA refill wake was not acknowledged",
-                )));
-            }
-            worker::console_log!(
-                "{}",
-                serde_json::json!({
-                    "event": "ml_dsa_refill_woken_v1", "batch": hex(&terminal.job().batch),
-                    "key": hex(&key.public_key_digest), "epoch": key.epoch,
-                    "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
-                })
-            );
-        }
-        self.state.storage().delete_alarm().await?;
-        Response::from_json(&matches!(terminal, ProducerState::Published { .. }))
     }
+    Ok(())
 }
 
 async fn paired_publication(env: &Env, job: &refill::Job) -> Result<bool> {

@@ -2,7 +2,20 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-19.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [startup and AES-inlining campaign](ml-dsa-65-startup-inline-report.md) uses four-candidate preparation and two-at-once consumption.
+The [producer-reuse campaign](ml-dsa-65-producer-reuse-report.md) keeps four-candidate preparation and two-at-once consumption.
+One stable producer identity retains separate durable job states. Stalled settlement and restart handoff tests pass without material regeneration.
+The candidate verifies 58 hosted signatures, with 55 below five seconds, a 1.813-second median, and a 6.519-second maximum.
+Four-candidate producer time falls from 10.033 to 8.247 seconds median. Caller dispatch acknowledgment falls from 930 to 43 milliseconds median.
+Captured preparation time is 10.444 seconds per success. Conservative cost accounting remains incomplete, while both material ledgers balance after full restoration.
+After starting stock is consumed, the candidate completes 4.971 signatures per minute. Complete demand still takes 18.536 seconds median under saturation.
+All three successful requests above five seconds spend most of their time in warm role execution, checking four or five pairs.
+Separate successful requests expose 2.791–2.970-second client waits before request writing. Their reused sockets and loop observations leave transport scheduling unresolved.
+Candidate prepared registration/recovery takes 3.850–5.702 seconds. Canonical wallet-seed recovery and standard FIPS export remain unchanged.
+Both five-second targets remain unqualified. Pool capacity stays at thirty-two candidates per wallet, with sixteen ready for admission.
+Next, measure durable pair-consumption and activation waits, then diagnose client dispatcher/socket waits and repeat fixed-capacity sustained tests.
+Preparation stays on Workers. The sixty-second production cooldown remains unchanged. GPU work stays deferred.
+
+The earlier [startup and AES-inlining campaign](ml-dsa-65-startup-inline-report.md) uses four-candidate preparation and two-at-once consumption.
 The default now matches that policy: thirty-two candidates per wallet, sixteen ready candidates for admission, and a sixty-second cooldown.
 Pair consumption needs approximately 5.65 candidates per successful signature under the geometric approximation. The 5.1 estimate applies to individual consumption.
 Cold-entry probes take 875.5 milliseconds on the first call and 9.5 milliseconds on repeated calls. These are caller round trips, not isolated Wasm CPU costs.
@@ -12,7 +25,7 @@ The candidate verifies forty-one hosted signatures, with thirty-five below five 
 Four-candidate preparation has an 11.226-second median. Captured preparation per verified success is 15.611 seconds, with conservative accounting still incomplete.
 Both material ledgers balance after full restoration. Different rejection outcomes and runtime variation prevent a causal full-service speedup claim.
 Hosted registration/recovery takes 5.246–6.104 seconds. The five-second targets remain unqualified.
-Next, design safe producer reuse and isolate client/Router delays. The slowest success consumes one pair with warm role caches.
+These observations motivated safe producer reuse and exact HTTP timing above. That campaign's slowest success consumed one pair with warm role caches.
 Wallet-seed recovery, standard FIPS export, and Workers preparation remain intact. GPU work stays deferred.
 
 The earlier [direct-dispatch campaign](ml-dsa-65-direct-dispatch-report.md) removes the forwarding Worker request and adds exact per-job startup measurements.

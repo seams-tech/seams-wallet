@@ -3,6 +3,7 @@ mod coordinator;
 mod executor;
 mod preparation;
 pub(crate) mod registration;
+mod router_trace;
 mod schedules;
 mod signing_trace;
 mod transport;
