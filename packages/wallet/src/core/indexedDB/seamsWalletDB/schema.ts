@@ -1,6 +1,6 @@
 import type { IDBPDatabase } from 'idb';
+import { SEAMS_WALLET_DB_NAME } from '../walletDbName';
 import {
-  SEAMS_WALLET_DB_NAME,
   SEAMS_WALLET_DB_VERSION,
   SEAMS_WALLET_SCHEMA_MANIFEST,
   type SeamsWalletStoreDefinition,

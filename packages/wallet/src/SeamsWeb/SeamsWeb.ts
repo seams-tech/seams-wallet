@@ -110,6 +110,7 @@ export class SeamsWeb {
       subscribe: this.walletIframe.onSdkLifecycleEvent.bind(this.walletIframe),
     };
     this.authMenu = {
+      prepare: this.walletIframe.prepareHostedAuthMenu.bind(this.walletIframe),
       open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
       cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
       onExternalAuthRequest: this.walletIframe.onHostedAuthMenuExternalAuthRequest.bind(

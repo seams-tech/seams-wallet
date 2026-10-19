@@ -145,6 +145,13 @@ export interface EventsCapability {
 }
 
 export interface AuthMenuCapability {
+  /**
+   * Downloads the wallet's sign-in code in the background. A signed-out page does
+   * not load it until a sign-in starts. Call this on sign-in intent, such as
+   * pointer, focus or touch on your sign-in control, so that `open` starts sooner.
+   * It never throws; `open` reports any failure.
+   */
+  prepare(): void;
   open(
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,

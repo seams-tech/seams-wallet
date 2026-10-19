@@ -11,6 +11,7 @@ type WalletHostRequest<T extends ParentToChildType> = ParentToChildEnvelope & { 
 type BootWalletRequestType =
   | 'PM_ACTIVATE_TRANSACTION_REVIEW'
   | 'PING'
+  | 'PM_PREPARE_WALLET_RUNTIME'
   | 'PM_SET_CONFIG'
   | 'PM_CANCEL'
   | 'PM_SET_TRANSACTION_VIEW'
@@ -146,6 +147,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
   switch (request.type) {
     case 'PM_ACTIVATE_TRANSACTION_REVIEW':
     case 'PING':
+    case 'PM_PREPARE_WALLET_RUNTIME':
     case 'PM_SET_CONFIG':
     case 'PM_CANCEL':
     case 'PM_SET_TRANSACTION_VIEW':

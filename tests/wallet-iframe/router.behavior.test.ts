@@ -270,17 +270,19 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
           }
           if (data.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
             captureEmailOtpRequest(data.type);
+            const state = registrationCompleted ? {
+              kind: 'wallet_unlocked_without_signing_session',
+              walletId: 'alice.testnet',
+              authorizationId: 'wallet-session-authorization-router-fixture',
+              walletSessionId: 'wallet-session-router-fixture',
+              authMethod: 'email_otp',
+              reason: 'not_found',
+            } : { kind: 'wallet_locked' };
             postResult(requestId, {
               revision: ++sessionObservationRevision,
               walletId: registrationCompleted ? 'alice.testnet' : null,
-              state: registrationCompleted ? {
-                kind: 'wallet_unlocked_without_signing_session',
-                walletId: 'alice.testnet',
-                authorizationId: 'wallet-session-authorization-router-fixture',
-                walletSessionId: 'wallet-session-router-fixture',
-                authMethod: 'email_otp',
-                reason: 'not_found',
-              } : { kind: 'wallet_locked' },
+              state,
+              session: publicSessionForState(state),
             });
             return;
           }

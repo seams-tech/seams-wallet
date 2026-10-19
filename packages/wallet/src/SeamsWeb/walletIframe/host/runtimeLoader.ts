@@ -15,8 +15,34 @@ export function loadWalletHostRuntime(
     recoveryCodeRuntimePromise ??= import('./runtime-recovery-codes');
     return recoveryCodeRuntimePromise;
   }
-  runtimePromises[route.kind] ??= loadRuntimeForKind(route.kind);
-  return runtimePromises[route.kind]!;
+  return loadRuntime(route.kind);
+}
+
+/**
+ * Downloads the auth runtime ahead of its first request, on sign-in intent. Every
+ * runtime kind shares most of its code, so this covers the other kinds too.
+ */
+export function preloadWalletHostRuntime(): void {
+  void loadRuntime('auth').catch(ignorePreloadFailure);
+}
+
+function ignorePreloadFailure(): void {}
+
+function loadRuntime(kind: WalletHostRuntimeKind): Promise<WalletHostRuntimeModule> {
+  const existing = runtimePromises[kind];
+  if (existing) return existing;
+  const loading = loadRuntimeForKind(kind);
+  runtimePromises[kind] = loading;
+  // A failed chunk load is retried by the next request instead of failing it too.
+  loading.catch(forgetFailedRuntimeLoad.bind(null, kind, loading));
+  return loading;
+}
+
+function forgetFailedRuntimeLoad(
+  kind: WalletHostRuntimeKind,
+  loading: Promise<WalletHostRuntimeModule>,
+): void {
+  if (runtimePromises[kind] === loading) delete runtimePromises[kind];
 }
 
 export async function preloadWalletHostRecoveryCodeSurface(): Promise<void> {

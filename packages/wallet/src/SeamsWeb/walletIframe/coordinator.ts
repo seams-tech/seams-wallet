@@ -37,6 +37,13 @@ function assertNeverConnection(state: never): never {
 
 function noSubscription(): void {}
 
+function prepareRouterWalletHostRuntime(router: WalletIframeRouter): Promise<void> {
+  return router.prepareWalletHostRuntime();
+}
+
+// Preparation is a download hint; the sign-in request itself reports any failure.
+function ignorePreparationFailure(): void {}
+
 function rejectAbortedConnection(
   signal: AbortSignal,
   _resolve: (value: never) => void,
@@ -298,6 +305,11 @@ export class WalletIframeCoordinator {
   async getExactSessionState(): Promise<WalletIframeExactSessionState> {
     const router = await this.requireRouter();
     return await router.getExactSessionState();
+  }
+
+  prepareHostedAuthMenu(): void {
+    if (this.connection.kind === 'disposed') return;
+    void this.requireRouter().then(prepareRouterWalletHostRuntime).catch(ignorePreparationFailure);
   }
 
   async openHostedAuthMenu(

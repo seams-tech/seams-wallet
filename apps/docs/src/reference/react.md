@@ -64,6 +64,11 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
+A signed-out page does not download the wallet's sign-in code until a sign-in starts.
+If you mount `HostedSeamsAuthMenu` only after a click, call
+`useSeams().seams.authMenu.prepare()` on pointer, focus or touch on your sign-in
+control. The download then starts before the click.
+
 `AccountMenuButtonMock` is an interactive, provider-free account-menu preview.
 It shares the connected `AccountMenuButton` renderer, including the authentication-methods
 view and enrollment rows. The connected menu supplies its live wallet inventory and

@@ -32,6 +32,43 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
+## Upgrading to 0.14.0
+
+Pin the application package and backend package to **0.14.0**, and build the
+wallet-origin assets from the same release:
+
+```sh
+# Application
+pnpm add @seams/wallet@0.14.0
+
+# Backend deployment
+pnpm add @seams/wallet-server@0.14.0
+```
+
+The wallet iframe protocol moves to **16.0.0**. Deploy the application and the
+wallet-origin assets together: a 0.13 application connected to a 0.14 wallet origin,
+or the reverse, reports a protocol version mismatch.
+
+A signed-out page now downloads much less from the wallet origin. While the wallet
+origin stores no wallet, the wallet host answers the connection reads from its boot
+code and does not load the wallet runtime or create its database. The runtime loads
+with the first sign-in, registration or other operation. On the release test app the
+signed-out mount fell from 105 files and 659 KB to 39 files and 77 KB (brotli).
+
+Because the runtime now loads at sign-in, call `authMenu.prepare()` on sign-in intent,
+such as pointer, focus or touch on a control that opens `HostedSeamsAuthMenu`:
+
+```tsx
+const { seams } = useSeams();
+<button onPointerEnter={seams.authMenu.prepare} onFocus={seams.authMenu.prepare}>
+  Sign in
+</button>;
+```
+
+It starts the download in the background and never throws. A page that mounts
+`HostedSeamsAuthMenu` at load needs no call. Release 0.14.0 has no migration and no
+backend change.
+
 ## Upgrading to 0.13.1
 
 Pin the application package and backend package to **0.13.1**, and build the

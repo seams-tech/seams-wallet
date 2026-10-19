@@ -18,6 +18,12 @@ if (!authMenuSessionId || !externalAuthRequestId) {
   throw new Error('Hosted auth-menu bridge fixture identity is invalid');
 }
 
+// Preparation is a fire-and-forget hint: there is no promise to await or result to read.
+const prepared: void = seams.authMenu.prepare();
+void prepared;
+// @ts-expect-error Preparation takes no request; the menu request belongs to open.
+seams.authMenu.prepare(buildHostedAuthMenuOpenRequest({ authMenuSessionId }));
+
 const request = buildHostedAuthMenuOpenRequest({ authMenuSessionId });
 const outcome: Promise<HostedAuthMenuOutcome> = seams.authMenu.open(request);
 void outcome;
