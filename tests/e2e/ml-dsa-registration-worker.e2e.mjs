@@ -92,6 +92,8 @@ const observations = {
   initializationStallMs: stallInitialization ? 10000 : 0,
   policy,
   cases: [],
+  httpAttempts: [],
+  stageTraces: [],
   functionalPassed: false,
   latencyTargetMet: false,
 };
@@ -111,6 +113,7 @@ try {
   keks = await Promise.all(['a', 'b'].map(readKek));
   if (!hostedUrl) {
     runtime = new Miniflare({
+      handleRuntimeStdio,
       workers: workers(),
       durableObjectsPersist: persistence,
       inspectorPort: profilePrefix ? 0 : undefined,
@@ -151,7 +154,7 @@ try {
       const consumedJob = ready.job.id;
       executionFaultArmed = false;
       await runtime.dispose();
-      runtime = new Miniflare({ workers: workers(), durableObjectsPersist: persistence });
+      runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
       await runtime.ready;
       assert.equal((await post('/router-ab/ml-dsa/register', payload.request)).operation.state, 'failed');
       observations.executionDeadline.failedReplaySurvivesRestart = true;
@@ -198,6 +201,7 @@ try {
     if (previous) assert.deepEqual(result.a.public_key, previous.a.public_key);
     const measurement = {
       epoch,
+      operation: Buffer.from(payload.request.operation).toString('hex'),
       key: result.a.activation.key,
       preparationMs,
       initialSigningBatches: ready.job.signing_batches,
@@ -218,6 +222,7 @@ try {
     if (!hostedUrl && epoch === 1) {
       await runtime.dispose();
       runtime = new Miniflare({
+        handleRuntimeStdio,
         workers: workers(),
         durableObjectsPersist: persistence,
         inspectorPort: profilePrefix ? 0 : undefined,
@@ -375,11 +380,25 @@ function preparerWorker(participant, index) {
   worker.serviceBindings = { DERIVER_B: 'preparer-b' };
   return worker;
 }
-async function raw(path, input, credential) {
+function handleRuntimeStdio(stdout, stderr) {
+  stdout.pipe(process.stdout);
+  stderr.pipe(process.stderr);
+  createInterface({ input: stdout }).on('line', recordStageTrace);
+  createInterface({ input: stderr }).on('line', recordStageTrace);
+}
+function recordStageTrace(line) {
+  if (!line.startsWith('{')) return;
+  let event;
+  try { event = JSON.parse(line); } catch { return; }
+  if (event.event === 'ml_dsa_stage_trace_v1') observations.stageTraces.push(event);
+}
+
+async function raw(path, input, credential, requestId = randomBytes(16).toString('hex')) {
   const init = {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
+      'x-ml-dsa-request-id': requestId,
       'x-router-ab-internal-service-auth': credential,
     },
     body: JSON.stringify(input),
@@ -389,11 +408,47 @@ async function raw(path, input, credential) {
   return (await runtime.getWorker('router')).fetch(`https://ml-dsa.internal${path}`, init);
 }
 async function post(path, input) {
-  const response = await raw(path, input, gatewayAuth);
-  const text = await response.text();
-  assert.equal(response.status, 200, `${path}: ${text}`);
-  return JSON.parse(text);
+  const requestId = randomBytes(16).toString('hex');
+  const operation = path === '/router-ab/ml-dsa/sign' ? input.request.operation : input.operation;
+  const attempt = {
+    path,
+    httpRequest: requestId,
+    operation: Array.isArray(operation) ? Buffer.from(operation).toString('hex') : null,
+    headersMs: null,
+    bodyMs: null,
+    elapsedMs: null,
+    status: null,
+    echoedRequestId: null,
+    completed: false,
+    failedStage: null,
+  };
+  observations.httpAttempts.push(attempt);
+  const started = performance.now();
+  let stage = 'request';
+  try {
+    const response = await raw(path, input, gatewayAuth, requestId);
+    attempt.headersMs = performance.now() - started;
+    attempt.status = response.status;
+    attempt.echoedRequestId = response.headers.get('x-ml-dsa-request-id');
+    stage = 'body';
+    const text = await response.text();
+    attempt.bodyMs = performance.now() - started;
+    stage = 'status';
+    assert.equal(response.status, 200, `${path}: ${text}`);
+    stage = 'decode';
+    const result = JSON.parse(text);
+    stage = 'identity';
+    if (attempt.echoedRequestId !== null) assert.equal(attempt.echoedRequestId, requestId);
+    attempt.completed = true;
+    return result;
+  } catch (error) {
+    attempt.failedStage = stage;
+    throw error;
+  } finally {
+    attempt.elapsedMs = performance.now() - started;
+  }
 }
+
 function digest(bytes) {
   return Array.from(createHash('sha256').update(Buffer.from(bytes)).digest());
 }

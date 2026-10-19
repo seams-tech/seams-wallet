@@ -29,6 +29,11 @@ impl Host for WorkerHost<'_> {
         schedules::retain_public_topologies(topologies);
     }
     async fn take(&self, permit: &Permit, batch: [u8; 32]) -> Result<(Binding, Sealed)> {
+        let trace = stage_trace::StageTrace::new(
+            permit.request.operation,
+            configured_role(self.env).map_err(storage_error)?,
+            stage_trace::Context::TakeCaller { material: batch },
+        );
         let mut response = local_call(
             self.env,
             &RoleCommand::Take {
@@ -37,10 +42,13 @@ impl Host for WorkerHost<'_> {
             },
         )
         .await?;
+        trace.mark("response_headers");
         if response.status_code() != 200 {
             return Err(invalid("ML-DSA material consumption failed"));
         }
-        response.json().await.map_err(storage_error)
+        let result = response.json().await.map_err(storage_error)?;
+        trace.finish();
+        Ok(result)
     }
 }
 

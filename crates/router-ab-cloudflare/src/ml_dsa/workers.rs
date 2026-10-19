@@ -6,6 +6,7 @@ pub(crate) mod registration;
 mod router_trace;
 mod schedules;
 mod signing_trace;
+mod stage_trace;
 mod transport;
 use super::{
     admission::{self, Claim, Completion, Decision, Permit, Status},
@@ -510,20 +511,40 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         let command: RoleCommand = decode_bounded_json_request(&mut request, 24 * 1024 * 1024)
             .await
             .map_err(protocol_error)?;
+        let trace = match &command {
+            RoleCommand::Take { permit, batch } => Some(stage_trace::StageTrace::new(
+                permit.request.operation,
+                role,
+                stage_trace::Context::TakeStore { material: *batch },
+            )),
+            _ => None,
+        };
         authorize_role_command(&self.env, &command)
             .await
             .map_err(protocol_error)?;
+        if let Some(trace) = &trace {
+            trace.mark("authorized");
+        }
         let waking = matches!(command, RoleCommand::WakeRefill { .. });
         if role == Participant::A && !waking && preparation::refill_key(&command).is_some() {
             schedule_refill_alarm(&self.state, 1_000).await?;
         }
         let value = role_transaction(&self.state, role, command).await?;
+        if let Some(trace) = &trace {
+            trace.mark("transaction_committed");
+        }
         if waking {
             // Acknowledge only after the alarm write. Producer recovery retries
             // a lost reply; scheduling never postpones an earlier alarm.
             schedule_refill_alarm(&self.state, 50).await?;
         }
-        Response::from_json(&value)
+        let response = Response::from_json(&value);
+        if response.is_ok() {
+            if let Some(trace) = &trace {
+                trace.finish();
+            }
+        }
+        response
     }
     async fn alarm(&self) -> worker::Result<Response> {
         preparation::alarm(&self.env, &self.state).await

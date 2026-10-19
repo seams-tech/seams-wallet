@@ -8,6 +8,7 @@ pub(super) struct PendingFrame {
 }
 pub(super) struct Adapter<'a> {
     pub wire: transport::Duplex<'a>,
+    pub trace: Option<&'a stage_trace::StageTrace>,
     pub state: Rc<State>,
     pub binding: registration_preparation::Binding,
     pub seed: Zeroizing<[u8; 32]>,
@@ -99,14 +100,18 @@ impl prepared::Transport for Adapter<'_> {
             let seed = self.seed.clone();
             let ceremony = self.ceremony;
             let now = crate::cloudflare_now_unix_ms_v1().map_err(failed)?;
-            let frames = transaction(&self.state, move |store| async move {
+            let started = crate::cloudflare_now_unix_ms_v1().ok();
+            let result = transaction(&self.state, move |store| async move {
                 registration_tables::take(
                     &store, &binding, ceremony, circuit, ordinal, length, &seed, now,
                 )
                 .await
             })
-            .await
-            .map_err(failed)?;
+            .await;
+            if let Some(trace) = self.trace {
+                trace.table_read(started);
+            }
+            let frames = result.map_err(failed)?;
             self.peak_cached_frames = self.peak_cached_frames.max(frames.remaining());
             self.read_transactions += 1;
             self.frames = Some(frames);
