@@ -101,8 +101,8 @@ where
         peer_started_at_ms,
         "success",
     );
-    // The outgoing proof waits for the storage output gate. That wait belongs
-    // to preface_exchange; claim_record measures only the local mutation.
+    // Later network waits can include the storage output gate.
+    // claim_record measures only the local mutation, not durable acknowledgement.
     let claim_started_at_ms = role_span_started_at_ms();
     let claimed = confirm_start().await;
     emit_role_span_v1(
