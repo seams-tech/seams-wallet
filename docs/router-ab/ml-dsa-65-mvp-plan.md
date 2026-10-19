@@ -52,6 +52,9 @@ Step 1 now passes the [SDK custody-driver campaign](ml-dsa-65-sdk-custody-driver
 All twenty-four browser checks pass. Establishment, recovery, and existing-custody joining
 preserve the same ordinary key and canonical exported seed. Public registration admission
 and durable custody publication are the next implementation boundary.
+Authenticated private recipient discovery also passes the [Worker campaign](ml-dsa-65-recipient-discovery-report.md).
+The Gateway adapter supplies the actual participant encryption keys. Public operation admission,
+recipient snapshot persistence, and custody publication remain open.
 
 ## Fixed requirements
 
@@ -85,7 +88,7 @@ The [activation report](ml-dsa-65-activation-report.md) records the implementati
 ## 2. Admitted registration and canonical recovery
 
 - [ ] Admit the custody operation through existing Wallet authentication and ownership checks.
-- [ ] Discover authenticated role recipient keys and deliver only each role's encrypted input.
+- [x] Discover participant keys over authenticated private Gateway/Router/participant transport and use them for encrypted input delivery.
 - [x] Add encrypted storage and consuming restoration for generic private key-generation state, with exact schedule and participant bindings.
 - [x] Add authenticated, single-use external table storage and bounded cleanup, verified by native canonical key generation.
 - [x] Connect the complete private-state and table reservation to Worker key generation.

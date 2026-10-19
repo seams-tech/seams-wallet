@@ -1462,6 +1462,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "bs58",
+ "curve25519-dalek",
  "ed25519-dalek",
  "ed25519-yao",
  "frost-ed25519",
