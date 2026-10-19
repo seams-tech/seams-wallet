@@ -61,7 +61,17 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
 impl RouterAbRouterWalletDurableObject {
     async fn handle_request(&self, mut request: Request) -> worker::Result<Response> {
         if request.method() == Method::Post && request.path() == super::wallet_startup::PATH {
-            // A private wake-up has no authority and performs no storage operation.
+            let wallet: super::wallet_startup::WalletStartup = request.json().await?;
+            if let Err(error) = wallet.validate() {
+                return refusal_response(&error);
+            }
+            let initialized = transact(&self.state, "initialize_owner", move |store| {
+                initialize_owner(store, wallet)
+            })
+            .await;
+            if let Err(error) = initialized {
+                return refusal_response(&error);
+            }
             return Response::from_json(&true);
         }
         if request.path() == super::custody_target::OBSERVE_PATH {
@@ -123,6 +133,19 @@ impl RouterAbRouterWalletDurableObject {
             Err(error) => refusal_response(&error),
         }
     }
+}
+
+async fn initialize_owner(
+    store: TransactionStoreV1,
+    wallet: super::wallet_startup::WalletStartup,
+) -> RouterAbProtocolResult<()> {
+    crate::router_wallet_relocation::require_ownership_generation(
+        &store,
+        wallet.ownership_generation,
+    )
+    .await?;
+    crate::router_wallet_relocation::admit_new_registration(&store).await?;
+    crate::router_wallet::bind_router_wallet_owner_v1(&store, &wallet.owner).await
 }
 
 async fn transact<T, F, Fut>(

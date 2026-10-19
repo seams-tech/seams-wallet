@@ -404,6 +404,24 @@ pub trait RouterWalletStoreV1 {
     ) -> RouterAbProtocolResult<Vec<(String, RouterWalletRegistrationRecordV1)>>;
 }
 
+/// Pins the admitted owner without claiming a registration or granting authority.
+pub(crate) async fn bind_router_wallet_owner_v1<Store: RouterWalletStoreV1>(
+    store: &Store,
+    owner: &RouterWalletOwnerV1,
+) -> RouterAbProtocolResult<()> {
+    match store.get_json::<RouterWalletOwnerV1>(OWNER_KEY).await? {
+        Some(stored) if stored != *owner => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "Router wallet object belongs to another wallet",
+            ))
+        }
+        Some(_) => {}
+        None => store.put_json(OWNER_KEY, owner).await?,
+    }
+    Ok(())
+}
+
 /// Runs one command against one wallet object's storage. The first command
 /// pins the object's owner; a command for another wallet is refused.
 pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
@@ -416,16 +434,7 @@ pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
     )
     .await?;
     crate::router_wallet_relocation::admit_ordinary_command(store).await?;
-    match store.get_json::<RouterWalletOwnerV1>(OWNER_KEY).await? {
-        Some(owner) if owner != request.owner => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "Router wallet object belongs to another wallet",
-            ))
-        }
-        Some(_) => {}
-        None => store.put_json(OWNER_KEY, &request.owner).await?,
-    }
+    bind_router_wallet_owner_v1(store, &request.owner).await?;
     match request.command {
         RouterWalletCommandV1::PendingRegistration { now_ms } => {
             crate::router_wallet_relocation::pending_registration(store, &request.owner, now_ms)

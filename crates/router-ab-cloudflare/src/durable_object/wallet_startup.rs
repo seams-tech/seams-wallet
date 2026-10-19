@@ -16,7 +16,7 @@ pub(crate) struct WalletStartup {
 }
 
 impl WalletStartup {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(super) fn validate(&self) -> RouterAbProtocolResult<()> {
         for value in [
             &self.owner.org_id,
             &self.owner.project_id,
@@ -42,18 +42,21 @@ fn invalid_startup(message: &str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::MalformedWirePayload, message)
 }
 
-async fn start_object(
+async fn start_object<T: Serialize>(
     env: &Env,
     route: crate::WalletObjectRoute,
     binding: &str,
     name: &str,
     role: &'static str,
+    body: &T,
 ) -> worker::Result<Response> {
     let namespace = env.durable_object(binding)?;
     let stub = route.wallet_stub(&namespace, name, role)?;
     let request = Request::new_with_init(
         &format!("https://router-ab-do.internal{PATH}"),
-        worker::RequestInit::new().with_method(Method::Post),
+        worker::RequestInit::new()
+            .with_method(Method::Post)
+            .with_body(Some(serde_json::to_string(body)?.into())),
     )?;
     stub.fetch_with_request(request).await
 }
@@ -79,7 +82,14 @@ pub(crate) async fn start_registration_wallets(
     };
     // Await every startup even when one role fails. No startup grants authority.
     let results = futures::join!(
-        start_object(env, route, "ROUTER_WALLET_DO", &name, "router"),
+        start_object(
+            env,
+            route,
+            "ROUTER_WALLET_DO",
+            &name,
+            "router",
+            &request.wallet,
+        ),
         start_peer(env, &runtime.deriver_a_peer().binding_name, &request),
         start_peer(env, &runtime.deriver_b_peer().binding_name, &request),
         start_peer(env, &runtime.signing_worker_peer().binding_name, &request),
@@ -173,7 +183,7 @@ pub(crate) async fn handle_role_request(
         }
         _ => return Response::error("Wallet startup role is unavailable", 400),
     };
-    start_object(env, request.wallet_route, binding, &name, label).await
+    start_object(env, request.wallet_route, binding, &name, label, &()).await
 }
 
 const ADDRESS_BATCH_SIZE: usize = 8;
