@@ -1,0 +1,43 @@
+{
+  "observedAt": "2026-10-19T09:13:52.116Z",
+  "wallet": {
+    "org": "registration-e2e",
+    "project": "wallet",
+    "environment": "temporary",
+    "wallet": "wallet-fc534197f206251f"
+  },
+  "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+  "hosted": false,
+  "initializationStallMs": 0,
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16
+  },
+  "cases": [],
+  "httpAttempts": [],
+  "stageTraces": [],
+  "functionalPassed": false,
+  "latencyTargetMet": false,
+  "builds": {
+    "router": "378519e0b644e8c4aff3be216ab64c93f5881f54b56d8102b386d77e92922c3a",
+    "deriver-a": "4a5f6f36b3b193503fcbd1c6e5ed528e763d0fa8de6920efc6ffbfc5ec8f0f9e",
+    "deriver-b": "a1a1bcacc2f4635061fea3ea637050ed222782d078e3576bfa6bac99e8e2b98d"
+  },
+  "deliveryFixtureSha256": "5aa365f131d1716029bdf00035d7ad26b6eff665c313f508c4dfb05af30bad3c",
+  "scriptSha256": "0f662508e0292ee8d9267cd77fa20ab96b06698dac8f00d5861c91d8ecfd1263",
+  "discoverySourceHashes": {
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/recipient_keys.rs": "1df1638239d28fc5d59eadc7ea1c36e6ef8308f60678b74d18b963b0430d091f",
+    "packages/wallet-server/src/router/transport/fetch/routes/mlDsaRegistration.ts": "36a525ed223294b1f9e633e3ec958715a5240c949b558e6486869d43d85b418d",
+    "tools/ml-dsa-investigation/src/worker_registration_client.rs": "c2a4408a80716ce1192d6f12b10576365c4b874721208d6fbbf1e142780bdf7c"
+  },
+  "wrongCredentialRejected": true,
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    kind: 'unavailable',\n+   reason: 'transport'\n-   reason: 'refused'\n  }\n"
+}

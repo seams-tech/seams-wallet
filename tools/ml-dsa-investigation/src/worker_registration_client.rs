@@ -1,13 +1,13 @@
 //! Disposable client: wallet seed and reply private key stay outside Workers.
-use crate::{InvestigationResult, require};
+use crate::{require, InvestigationResult};
 use hpke_ng::{DhKemX25519HkdfSha256, Kem};
 use ml_dsa::{Keypair, MlDsa65, SigningKey};
-use router_ab_cloudflare::ml_dsa::{Identifier, WalletScope, registration};
+use router_ab_cloudflare::ml_dsa::{registration, Identifier, WalletScope};
 use serde::Deserialize;
 use serde_json::json;
 use signer_core::{
     ml_dsa_custody::{
-        MlDsaCeremonyBindingV1, MlDsaKeyContinuityV1, MlDsaRoleV1, prepare_ml_dsa_custody_v1,
+        prepare_ml_dsa_custody_v1, MlDsaCeremonyBindingV1, MlDsaKeyContinuityV1, MlDsaRoleV1,
     },
     wallet_seed_derivation::{
         compute_ml_dsa65_application_binding_digest_v1, derive_ml_dsa65_owner_root_from_seed_v1,
@@ -22,6 +22,7 @@ use std::{
 use zeroize::Zeroizing;
 #[derive(Deserialize)]
 struct Input {
+    holder_public_keys: [[u8; 32]; 2],
     wallet: WalletScope,
     key_id: Identifier,
     epoch: u64,
@@ -80,7 +81,8 @@ pub(super) fn run() -> InvestigationResult<bool> {
         },
     };
     let seed = Zeroizing::new([0u8; 32]);
-    let prepared = prepare_ml_dsa_custody_v1(seed.as_ref(), context, publics, continuity)?;
+    let prepared =
+        prepare_ml_dsa_custody_v1(seed.as_ref(), context, input.holder_public_keys, continuity)?;
     let request = registration::Request {
         wallet: input.wallet,
         key_id: input.key_id,

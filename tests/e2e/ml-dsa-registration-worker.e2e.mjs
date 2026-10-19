@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
 import { Miniflare } from 'miniflare';
+import { build } from 'esbuild';
+import { pathToFileURL } from 'node:url';
 import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
 import { registrationDeliveryScript } from '../helpers/mlDsaRegistrationDelivery.e2e.mjs';
 
@@ -67,6 +69,16 @@ const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   : randomBytes(32).toString('hex');
 const serviceAuth = randomBytes(32).toString('hex');
 const persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-registration-e2e-'));
+const discoveryPath = join(persistence, 'recipient-discovery.mjs');
+await build({
+  entryPoints: [join(root, 'packages/wallet-server/src/router/transport/fetch/routes/mlDsaRegistration.ts')],
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  outfile: discoveryPath,
+  tsconfig: join(root, 'packages/wallet-server/tsconfig.json'),
+});
+const { discoverMlDsaRecipientKeys } = await import(pathToFileURL(discoveryPath).href);
 const cooldownMs = Number(process.env.ML_DSA_TEST_COOLDOWN_MS ?? 60000);
 assert.ok(Number.isSafeInteger(cooldownMs) && cooldownMs >= 1000 && cooldownMs <= 300000);
 const candidateGroupSize = Number(process.env.ML_DSA_TEST_CANDIDATE_GROUP_SIZE ?? 2);
@@ -110,9 +122,36 @@ observations.deliveryFixtureSha256 = createHash('sha256').update(registrationDel
 observations.scriptSha256 = createHash('sha256')
   .update(await readFile(import.meta.filename))
   .digest('hex');
+observations.discoverySourceHashes = {};
+for (const file of [
+  'crates/router-ab-cloudflare/src/ml_dsa/workers/recipient_keys.rs',
+  'packages/wallet-server/src/router/transport/fetch/routes/mlDsaRegistration.ts',
+  'tools/ml-dsa-investigation/src/worker_registration_client.rs',
+]) {
+  observations.discoverySourceHashes[file] = createHash('sha256')
+    .update(await readFile(join(root, file)))
+    .digest('hex');
+}
+class RegistrationRouterProxy {
+  constructor(credential) {
+    this.internalServiceAuthSecret = credential;
+  }
+  async fetch(request) {
+    if (hostedUrl) {
+      const url = new URL(new URL(request.url).pathname, hostedUrl);
+      return fetch(new Request(url, request));
+    }
+    return (await runtime.getWorker('router')).fetch(request.url, {
+      method: request.method,
+      headers: Object.fromEntries(request.headers),
+      body: await request.arrayBuffer(),
+    });
+  }
+}
 let runtime;
 let keks;
 let executionFaultArmed = stallExecution;
+let discoveryFault = 'none';
 try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   if (profilePrefix) observations.profilerCalibration = await calibrateCpuProfiler(profilePrefix);
@@ -130,6 +169,7 @@ try {
   const denied = await raw('/router-ab/ml-dsa/registration/prepare', { wallet }, serviceAuth);
   assert.equal(denied.status, 403);
   observations.wrongCredentialRejected = true;
+  await checkRecipientDiscovery(client);
   let previous;
   let firstRequest;
   for (const epoch of [1, 2]) {
@@ -284,14 +324,88 @@ async function startClient() {
   children.push(process);
   const lines = createInterface({ input: process.stdout })[Symbol.asyncIterator]();
   const client = { process, lines };
-  assert.equal((await next(client)).ready, true);
+  const ready = await next(client);
+  assert.equal(ready.ready, true);
+  client.holderPublicKeys = ready.holder_public_keys;
   return client;
 }
 async function registrationInput(client, epoch, continuity) {
+  const recipients = await discoverMlDsaRecipientKeys(new RegistrationRouterProxy(gatewayAuth));
+  assert.equal(recipients.kind, 'ready');
+  const holderPublicKeys = [
+    Array.from(Buffer.from(recipients.a.publicKeyB64u, 'base64url')),
+    Array.from(Buffer.from(recipients.b.publicKeyB64u, 'base64url')),
+  ];
+  assert.deepEqual(holderPublicKeys, client.holderPublicKeys);
   client.process.stdin.write(
-    `${JSON.stringify({ wallet, key_id: 'near', epoch, operation: Array.from(randomBytes(32)), continuity })}\n`,
+    `${JSON.stringify({ wallet, key_id: 'near', epoch, operation: Array.from(randomBytes(32)), continuity, holder_public_keys: holderPublicKeys })}\n`,
   );
   return next(client);
+}
+
+async function checkRecipientDiscovery(client) {
+  const path = '/router-ab/ml-dsa/registration/recipient-keys';
+  const denied = await raw(path, {}, serviceAuth);
+  assert.equal(denied.status, 403);
+  assert.deepEqual(
+    await discoverMlDsaRecipientKeys(new RegistrationRouterProxy(serviceAuth)),
+    { kind: 'unavailable', reason: 'refused' },
+  );
+  const response = await raw(path, {}, gatewayAuth);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const keys = await response.json();
+  assert.deepEqual([keys.a.public_key, keys.b.public_key], client.holderPublicKeys);
+  assert.notDeepEqual(keys.a.public_key, keys.b.public_key);
+  assert.deepEqual(Object.keys(keys).sort(), ['a', 'b']);
+  for (const [role, key] of Object.entries(keys)) {
+    assert.deepEqual(Object.keys(key).sort(), ['key_version', 'public_key', 'role']);
+    assert.equal(key.role, role);
+    assert.ok(key.key_version.length > 0);
+  }
+  observations.recipientDiscovery = { keys, gatewayCredentialRequired: true, noStore: true };
+  if (hostedUrl) return;
+  for (const name of ['a', 'b']) {
+    const deniedRole = await (await runtime.getWorker(name)).fetch(
+      'https://role.internal/router-ab/ml-dsa/registration/recipient-key',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-router-ab-internal-service-auth': gatewayAuth,
+        },
+        body: '{}',
+      },
+    );
+    assert.equal(deniedRole.status, 403);
+  }
+  observations.recipientDiscovery.gatewayCannotReadRoleDirectly = true;
+  if (profilePrefix || deliveryFault || stallInitialization || stallExecution) return;
+  for (const fault of ['swapped', 'shared-key']) {
+    await runtime.dispose();
+    discoveryFault = fault;
+    runtime = new Miniflare({
+      handleRuntimeStdio,
+      workers: workers(),
+      durableObjectsPersist: persistence,
+    });
+    await runtime.ready;
+    const refused = await raw(path, {}, gatewayAuth);
+    assert.ok(refused.status >= 400, `Discovery accepted ${fault} participants`);
+    assert.deepEqual(
+      await discoverMlDsaRecipientKeys(new RegistrationRouterProxy(gatewayAuth)),
+      { kind: 'unavailable', reason: 'refused' },
+    );
+    observations.recipientDiscovery[fault] = { rejectedStatus: refused.status };
+  }
+  await runtime.dispose();
+  discoveryFault = 'none';
+  runtime = new Miniflare({
+    handleRuntimeStdio,
+    workers: workers(),
+    durableObjectsPersist: persistence,
+  });
+  await runtime.ready;
 }
 
 async function checkExecutionDeadline(input) {
@@ -344,10 +458,7 @@ function workers() {
       durableObjects: {
         ML_DSA_ADMISSION_DO: { className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true },
       },
-      serviceBindings: {
-        DERIVER_A: stallInitialization || executionFaultArmed ? 'stall-a' : 'a',
-        DERIVER_B: stallInitialization ? 'stall-b' : 'b',
-      },
+      serviceBindings: registrationRoleBindings(),
     },
     role('a', 0),
     role('b', 1),
@@ -358,12 +469,19 @@ function workers() {
     ...(deliveryFault ? [deliveryBarrierWorker()] : []),
   ];
 }
+function registrationRoleBindings() {
+  if (discoveryFault === 'swapped') return { DERIVER_A: 'b', DERIVER_B: 'a' };
+  return {
+    DERIVER_A: stallInitialization || executionFaultArmed ? 'stall-a' : 'a',
+    DERIVER_B: stallInitialization ? 'stall-b' : 'b',
+  };
+}
 function role(name, index) {
   const worker = {
     ...base(name, `deriver-${name}`, {
       DERIVER_ROLE_PRIVATE_D1_ROLE: `deriver_${name}`,
       DERIVER_ROLE_PRIVATE_D1_KEK_BINDING: 'ROLE_KEK',
-      ROLE_KEK: keks[index],
+      ROLE_KEK: discoveryFault === 'shared-key' ? keks[0] : keks[index],
       DERIVER_ROLE_PRIVATE_D1_KEK_VERSION: 'registration-e2e',
     }),
     durableObjects: {

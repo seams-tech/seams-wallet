@@ -3,6 +3,8 @@ import type {
   MlDsa65WalletKeyRecord,
 } from '../../packages/shared-ts/src/signing-lanes';
 import type { MlDsa65PublicKeyB64u } from '../../packages/shared-ts/src/passkey-custody/primitives';
+import type { discoverMlDsaRecipientKeys } from '../../packages/wallet-server/src/router/transport/fetch/routes/mlDsaRegistration';
+import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 import { buildNearMlDsa65MpcOperationRef } from '../../packages/shared-ts/src/authorization/capabilityKinds';
 import type {
   MlDsaOwnerAdmission,
@@ -12,6 +14,14 @@ import type {
 declare const ml: MlDsa65WalletKeyRecord;
 declare const ed: Ed25519WalletKeyRecord;
 declare const prepared: PreparedMlDsaOwnerOperation;
+type Discovery = Awaited<ReturnType<typeof discoverMlDsaRecipientKeys>>;
+declare const discovered: Variant<Discovery, 'kind', 'ready'>;
+// @ts-expect-error A refused discovery cannot carry usable recipient keys through a spread.
+const mixedDiscovery: Discovery = { ...discovered, kind: 'unavailable', reason: 'refused' };
+void mixedDiscovery;
+// @ts-expect-error A ready result must contain both participant keys.
+const partialDiscovery: Discovery = { kind: 'ready', a: discovered.a };
+void partialDiscovery;
 // @ts-expect-error A public field copy cannot recreate the nominal admission proof.
 const spreadProof: PreparedMlDsaOwnerOperation = { ...prepared };
 void spreadProof;

@@ -3510,6 +3510,9 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Keep the complete canonical FIPS seed inside secure computation until authorized ordinary-key export.
 - Deliver one encrypted owner-root share to each holder. Bind delivery to the wallet/key digest, operation, epoch, and role.
 - Check holder admission independently before decrypting input. Obtain holder public keys through authenticated discovery.
+- Recipient discovery must authenticate Gateway-to-Router and Router-to-participant requests separately. Return only role, key version, and public key with `no-store` caching.
+- Derive each discovery public key from the participant's configured private recipient key. Reject swapped roles and identical participant public keys before returning a pair.
+- Discovery grants no wallet authority. Preserve the discovered recipient pair in the admitted ceremony so exact retries do not silently select replacement keys.
 - Authenticate both holder results and check their exact public-key agreement before establishing or verifying the key manifest.
 - Require the recorded manifest for recovery. Worker replacement and fresh sharing must preserve its key identity.
 - Joining existing custody must preserve its seed envelope and recovery set.

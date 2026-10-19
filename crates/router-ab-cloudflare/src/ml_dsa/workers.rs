@@ -2,6 +2,7 @@
 mod coordinator;
 mod executor;
 mod preparation;
+pub(crate) mod recipient_keys;
 pub(crate) mod registration;
 mod router_trace;
 mod schedules;
@@ -973,6 +974,7 @@ pub(crate) fn is_role_path(path: &str) -> bool {
         || path == PREPARE_PATH
         || is_execution_path(path)
         || path == registration::ROLE_PATH
+        || path == recipient_keys::ROLE_PATH
 }
 pub(crate) async fn handle_role_request(
     request: worker::Request,
@@ -980,6 +982,7 @@ pub(crate) async fn handle_role_request(
     context: worker::Context,
 ) -> worker::Result<Response> {
     match request.path().as_str() {
+        recipient_keys::ROLE_PATH => recipient_keys::handle_role(request, &env).await,
         registration::ROLE_PATH => registration::handle_role(request, &env).await,
         ROLE_PATH => handle_role(request, &env).await,
         PREPARE_PATH => handle_prepare(request, env, context).await,
