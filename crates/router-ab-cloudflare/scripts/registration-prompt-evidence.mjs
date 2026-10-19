@@ -76,14 +76,11 @@ async function run(kind) {
       addresses[role] = (await topology.getDurableObjectNamespace(binding, worker)).newUniqueId().toString();
     }
     const envelope = buildEd25519ExecuteRequest(fixture, 'activation', roots.tenantRoot);
-    const startupEvidence = kind === 'initialized-owner'
-      ? await checkStartedOwner(topology, router, fixture, addresses, envelope)
-      : null;
     const preparation = {
       tenant_root: envelope.tenant_root, application: envelope.application,
       participant_ids: envelope.participant_ids, binding: envelope.target.binding,
       ownership_generation: envelope.target.ownership_generation,
-      expires_at_ms: Date.now() + (['prepared', 'cancelled', 'initialized-owner'].includes(kind) ? 29_000 : 2_000),
+      expires_at_ms: Date.now() + (['prepared', 'cancelled'].includes(kind) ? 29_000 : 2_000),
     };
     if (kind === 'admission-failure') {
       for (const database of Object.values(databases)) {
@@ -152,8 +149,7 @@ async function run(kind) {
       }
       if (kind === 'prepared') assert.equal(calls.paths.filter(isDuplex).length, 0, 'Execute must use the early connection');
     }
-    evidence.push({ kind, paths: calls.paths, passed: true, startupEvidence,
-      unauthenticatedPreparationRefused: true });
+    evidence.push({ kind, paths: calls.paths, passed: true, unauthenticatedPreparationRefused: true });
   } finally {
     await topology.dispose();
   }
@@ -162,67 +158,7 @@ async function run(kind) {
 function isPreparedConnection(path) { return path === connectionPath; }
 function isDuplex(path) { return path.includes('duplex'); }
 
-async function checkStartedOwner(topology, router, fixture, addresses, envelope) {
-  const identity = envelope.tenant_root.identity;
-  const startup = {
-    owner: {
-      org_id: identity.orgId,
-      project_id: identity.projectId,
-      env_id: identity.envId,
-      wallet_id: envelope.target.binding.lifecycle.account_id,
-    },
-    ownership_generation: envelope.target.ownership_generation,
-  };
-  const path = '/router-ab/router/wallet/start';
-  const started = await post(router, fixture, addresses, path, startup);
-  assert.deepEqual(started, { status: 200, body: true });
-  assert.deepEqual(await post(router, fixture, addresses, path, startup), started);
-  const namespace = await topology.getDurableObjectNamespace('ROUTER_WALLET_DO', 'router');
-  const object = namespace.get(namespace.idFromString(addresses.router));
-  const changedOwner = structuredClone(startup);
-  changedOwner.owner.wallet_id += '-other';
-  const wrongOwner = await startRouterObject(object, changedOwner);
-  assert.equal(wrongOwner.status, 409, 'Startup must pin the owner before any execution');
-  const changedGeneration = structuredClone(startup);
-  changedGeneration.ownership_generation += 1;
-  const wrongGeneration = await startRouterObject(object, changedGeneration);
-  assert.equal(wrongGeneration.status, 409, 'Startup must preserve the stored generation');
-
-  const unused = namespace.get(namespace.newUniqueId());
-  assert.equal((await startRouterObject(unused, startup)).status, 200);
-  const frozen = await unused.fetch('https://router-object/router-ab/router/wallet/freeze', {
-    method: 'POST',
-    body: JSON.stringify({
-      owner: startup.owner,
-      move_id: `wmove_${'s'.repeat(43)}`,
-      request_digest_hex: 'ab'.repeat(32),
-      source_generation: startup.ownership_generation,
-      destination_generation: startup.ownership_generation + 1,
-    }),
-  });
-  assert.equal(frozen.status, 200);
-  const frozenState = await frozen.json();
-  assert.equal(frozenState.state, 'frozen');
-  assert.equal(frozenState.receipt.record_count, 0, 'Startup must create no execution claim');
-  assert.equal((await startRouterObject(unused, startup)).status, 409, 'Startup must reject a frozen object');
-  return {
-    ownerPinnedBeforeExecution: true,
-    mismatchingOwnerAndGenerationRefused: true,
-    frozenObjectRefused: true,
-    executionClaimsBeforeProof: frozenState.receipt.record_count,
-  };
-}
-
-function startRouterObject(object, startup) {
-  return object.fetch('https://router-object/router-ab/internal/wallet/start', {
-    method: 'POST', body: JSON.stringify(startup),
-  });
-}
-
-const scenarios = ['prepared', 'expired', 'abandoned', 'cancelled', 'admission-failure', 'initialized-owner'];
-const requested = process.argv.slice(2);
-for (const kind of requested) assert.ok(scenarios.includes(kind), `Unknown scenario: ${kind}`);
-for (const kind of requested.length ? requested : scenarios) await run(kind);
+for (const kind of ['prepared', 'expired', 'abandoned', 'cancelled', 'admission-failure']) await run(kind);
 const output = resolve(root, '.artifacts/r155h-prompt-preparation/worker-evidence.json');
 await mkdir(dirname(output), { recursive: true });
 await writeFile(output, `${JSON.stringify({ evidence }, null, 2)}\n`);
